@@ -54,7 +54,9 @@ def _plain_size(db: Any, cfg: dict[str, Any] | None, path: str | os.PathLike[str
     try:
         return keyring.plain_size(db, cfg, path)
     except keyring.Locked:
-        raise HTTPException(423, "this namespace is locked; unlock it with your passkey") from None
+        raise HTTPException(
+            423, "this namespace is a locked vault: its owners unlock it with a passkey, on its page in Admin, Namespaces"
+        ) from None
     except keyring.Damaged:
         raise HTTPException(500, "this file is damaged on the server and can't be opened") from None
 

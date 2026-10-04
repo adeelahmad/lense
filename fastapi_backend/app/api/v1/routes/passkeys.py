@@ -292,13 +292,17 @@ def make_signin_link(uid: int, user: AdminWriter, request: Request, db: Db) -> S
 
 
 @people.delete("/users/{uid}/passkeys")
-def drop_passkeys(uid: int, user: AdminWriter, db: Db) -> Ok:
+def drop_passkeys(uid: int, user: AdminWriter, db: Db, lose_vaults: bool = False) -> Ok:
     """Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link
-    to add a new one. Audited as `user.passkeys_remove`."""
+    to add a new one. Refused (409) when they are the only way into a vault, unless lose_vaults=true. Audited as
+    `user.passkeys_remove`."""
     if uid == user.id:
         raise HTTPException(400, "remove your own passkeys one by one in your account")
     if not auth.get_account(db, uid):
         raise HTTPException(404, "not found")
-    n = passkeys.remove_all(db, uid)
+    try:
+        n = passkeys.remove_all(db, uid, lose_vaults)
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from None
     auth.audit(db, user.as_audit(), "user.passkeys_remove", f"account:{uid}", [str(n)])
     return Ok()

@@ -28,6 +28,9 @@ import type {
   AddRecordingPermissionData,
   AddRecordingPermissionErrors,
   AddRecordingPermissionResponses,
+  AddVaultPasskeyData,
+  AddVaultPasskeyErrors,
+  AddVaultPasskeyResponses,
   AnswerData,
   AnswerErrors,
   AnswerResponses,
@@ -480,6 +483,9 @@ import type {
   GetUploadData,
   GetUploadErrors,
   GetUploadResponses,
+  GetVaultData,
+  GetVaultErrors,
+  GetVaultResponses,
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
@@ -689,6 +695,9 @@ import type {
   ListWorkersResponses,
   ListWorkflowsData,
   ListWorkflowsResponses,
+  LockVaultData,
+  LockVaultErrors,
+  LockVaultResponses,
   LoginData,
   LoginErrors,
   LoginResponses,
@@ -799,6 +808,9 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveVaultPasskeyData,
+  RemoveVaultPasskeyErrors,
+  RemoveVaultPasskeyResponses,
   RenameEntityData,
   RenameEntityErrors,
   RenameEntityResponses,
@@ -891,6 +903,9 @@ import type {
   ScanWatchData,
   ScanWatchErrors,
   ScanWatchResponses,
+  SealVaultData,
+  SealVaultErrors,
+  SealVaultResponses,
   SearchPublicData,
   SearchPublicErrors,
   SearchPublicResponses,
@@ -1011,6 +1026,12 @@ import type {
   UnlinkSpeakerData,
   UnlinkSpeakerErrors,
   UnlinkSpeakerResponses,
+  UnlockVaultData,
+  UnlockVaultErrors,
+  UnlockVaultResponses,
+  UnsealVaultData,
+  UnsealVaultErrors,
+  UnsealVaultResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -1106,6 +1127,9 @@ import type {
   UpdateWorkflowResponses,
   UploadLimitsData,
   UploadLimitsResponses,
+  VaultOptionsData,
+  VaultOptionsErrors,
+  VaultOptionsResponses,
   VoiceInfoData,
   VoiceInfoResponses,
 } from "./types.gen";
@@ -1787,7 +1811,8 @@ export class Users {
    * Drop Passkeys
    *
    * Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link
-   * to add a new one. Audited as `user.passkeys_remove`.
+   * to add a new one. Refused (409) when they are the only way into a vault, unless lose_vaults=true. Audited as
+   * `user.passkeys_remove`.
    */
   public static dropPasskeys<ThrowOnError extends boolean = false>(
     options: Options<DropPasskeysData, ThrowOnError>,
@@ -7310,6 +7335,139 @@ export class Voice {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Vaults {
+  /**
+   * Unseal Vault
+   *
+   * Make the vault an ordinary namespace again, which the server can open (it must be unlocked). Audited as
+   * `vault.unseal`.
+   */
+  public static unsealVault<ThrowOnError extends boolean = false>(
+    options: Options<UnsealVaultData, ThrowOnError>,
+  ): RequestResult<UnsealVaultResponses, UnsealVaultErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UnsealVaultResponses, UnsealVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Vault
+   *
+   * Whether the namespace is a vault, whether it's open now, and which passkeys open it (whose, for owners).
+   */
+  public static getVault<ThrowOnError extends boolean = false>(
+    options: Options<GetVaultData, ThrowOnError>,
+  ): RequestResult<GetVaultResponses, GetVaultErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetVaultResponses, GetVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+    });
+  }
+
+  /**
+   * Seal Vault
+   *
+   * Make the namespace a vault opened by the passkey that answered. From then on only its passkeys open its files;
+   * lose every one and they're gone. Audited as `vault.seal`.
+   */
+  public static sealVault<ThrowOnError extends boolean = false>(
+    options: Options<SealVaultData, ThrowOnError>,
+  ): RequestResult<SealVaultResponses, SealVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<SealVaultResponses, SealVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Vault Options
+   *
+   * Start making the namespace a vault (owners), unlocking it, or adding a passkey to it (owners): options for the
+   * browser, which ask the passkey for this vault's PRF secret.
+   */
+  public static vaultOptions<ThrowOnError extends boolean = false>(
+    options: Options<VaultOptionsData, ThrowOnError>,
+  ): RequestResult<VaultOptionsResponses, VaultOptionsErrors, ThrowOnError> {
+    return (options.client ?? client).post<VaultOptionsResponses, VaultOptionsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Unlock Vault
+   *
+   * Open the vault on this server for encryption.vault_minutes; its waiting work runs. Audited as `vault.unlock`.
+   */
+  public static unlockVault<ThrowOnError extends boolean = false>(
+    options: Options<UnlockVaultData, ThrowOnError>,
+  ): RequestResult<UnlockVaultResponses, UnlockVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<UnlockVaultResponses, UnlockVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/unlock",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Add Vault Passkey
+   *
+   * Let the passkey that answered open the vault too (it must be open). Audited as `vault.add`.
+   */
+  public static addVaultPasskey<ThrowOnError extends boolean = false>(
+    options: Options<AddVaultPasskeyData, ThrowOnError>,
+  ): RequestResult<AddVaultPasskeyResponses, AddVaultPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddVaultPasskeyResponses, AddVaultPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/passkeys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Vault Passkey
+   *
+   * Stop a passkey opening the vault; never the last one. Audited as `vault.remove`.
+   */
+  public static removeVaultPasskey<ThrowOnError extends boolean = false>(
+    options: Options<RemoveVaultPasskeyData, ThrowOnError>,
+  ): RequestResult<RemoveVaultPasskeyResponses, RemoveVaultPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveVaultPasskeyResponses, RemoveVaultPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/passkeys/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Lock Vault
+   *
+   * Close the vault on this server now (owners). Audited as `vault.lock`.
+   */
+  public static lockVault<ThrowOnError extends boolean = false>(
+    options: Options<LockVaultData, ThrowOnError>,
+  ): RequestResult<LockVaultResponses, LockVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<LockVaultResponses, LockVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/lock",
+      ...options,
     });
   }
 }

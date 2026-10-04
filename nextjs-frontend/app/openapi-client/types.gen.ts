@@ -12931,6 +12931,93 @@ export type ValidationError = {
 };
 
 /**
+ * VaultAnswer
+ */
+export type VaultAnswer = {
+  /**
+   * Flow
+   */
+  flow: string;
+  /**
+   * Credential
+   *
+   * the browser's PublicKeyCredential, as JSON, without its PRF results
+   */
+  credential: {
+    [key: string]: unknown;
+  };
+  /**
+   * Prf
+   *
+   * the PRF extension's first result for the salt in the options, base64url
+   */
+  prf: string;
+};
+
+/**
+ * VaultPasskey
+ *
+ * A passkey that opens a vault.
+ */
+export type VaultPasskey = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Account
+   */
+  account?: number | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * VaultStart
+ */
+export type VaultStart = {
+  /**
+   * Kind
+   *
+   * seal: make it a vault; unlock: open it; add: let another passkey open it
+   */
+  kind: "seal" | "unlock" | "add";
+};
+
+/**
+ * VaultStatus
+ *
+ * Whether a namespace is a vault, whether it's open on this server (until when, a Unix time), and the passkeys that
+ * open it.
+ */
+export type VaultStatus = {
+  /**
+   * Vault
+   */
+  vault: boolean;
+  /**
+   * Unlocked
+   */
+  unlocked: boolean;
+  /**
+   * Unlocked Until
+   */
+  unlocked_until?: number | null;
+  /**
+   * Passkeys
+   */
+  passkeys?: Array<VaultPasskey>;
+  [key: string]: unknown;
+};
+
+/**
  * VersionSaved
  */
 export type VersionSaved = {
@@ -14804,7 +14891,12 @@ export type DropPasskeysData = {
      */
     uid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Lose Vaults
+     */
+    lose_vaults?: boolean;
+  };
   url: "/api/v1/users/{uid}/passkeys";
 };
 
@@ -25333,3 +25425,247 @@ export type SpeakTextResponses = {
 };
 
 export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];
+
+export type UnsealVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type UnsealVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnsealVaultError = UnsealVaultErrors[keyof UnsealVaultErrors];
+
+export type UnsealVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type UnsealVaultResponse = UnsealVaultResponses[keyof UnsealVaultResponses];
+
+export type GetVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type GetVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetVaultError = GetVaultErrors[keyof GetVaultErrors];
+
+export type GetVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type GetVaultResponse = GetVaultResponses[keyof GetVaultResponses];
+
+export type SealVaultData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault";
+};
+
+export type SealVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SealVaultError = SealVaultErrors[keyof SealVaultErrors];
+
+export type SealVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type SealVaultResponse = SealVaultResponses[keyof SealVaultResponses];
+
+export type VaultOptionsData = {
+  body: VaultStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/options";
+};
+
+export type VaultOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type VaultOptionsError = VaultOptionsErrors[keyof VaultOptionsErrors];
+
+export type VaultOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: PasskeyOptions;
+};
+
+export type VaultOptionsResponse = VaultOptionsResponses[keyof VaultOptionsResponses];
+
+export type UnlockVaultData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/unlock";
+};
+
+export type UnlockVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnlockVaultError = UnlockVaultErrors[keyof UnlockVaultErrors];
+
+export type UnlockVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type UnlockVaultResponse = UnlockVaultResponses[keyof UnlockVaultResponses];
+
+export type AddVaultPasskeyData = {
+  body: VaultAnswer;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/passkeys";
+};
+
+export type AddVaultPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddVaultPasskeyError = AddVaultPasskeyErrors[keyof AddVaultPasskeyErrors];
+
+export type AddVaultPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type AddVaultPasskeyResponse = AddVaultPasskeyResponses[keyof AddVaultPasskeyResponses];
+
+export type RemoveVaultPasskeyData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Pid
+     */
+    pid: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/passkeys/{pid}";
+};
+
+export type RemoveVaultPasskeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveVaultPasskeyError = RemoveVaultPasskeyErrors[keyof RemoveVaultPasskeyErrors];
+
+export type RemoveVaultPasskeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type RemoveVaultPasskeyResponse = RemoveVaultPasskeyResponses[keyof RemoveVaultPasskeyResponses];
+
+export type LockVaultData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/vault/lock";
+};
+
+export type LockVaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LockVaultError = LockVaultErrors[keyof LockVaultErrors];
+
+export type LockVaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: VaultStatus;
+};
+
+export type LockVaultResponse = LockVaultResponses[keyof LockVaultResponses];
