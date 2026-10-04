@@ -847,6 +847,9 @@ import type {
   ResetPasswordData,
   ResetPasswordErrors,
   ResetPasswordResponses,
+  ResourceCostsData,
+  ResourceCostsErrors,
+  ResourceCostsResponses,
   ResourceHistoryData,
   ResourceHistoryErrors,
   ResourceHistoryResponses,
@@ -2358,6 +2361,21 @@ export class Activity {
   ): RequestResult<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError> {
     return (options?.client ?? client).get<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError>({
       url: "/api/v1/activity/totals",
+      ...options,
+    });
+  }
+
+  /**
+   * Resource Costs
+   *
+   * What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a
+   * figure is a floor (some calls had no price or token counts).
+   */
+  public static resourceCosts<ThrowOnError extends boolean = false>(
+    options: Options<ResourceCostsData, ThrowOnError>,
+  ): RequestResult<ResourceCostsResponses, ResourceCostsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ResourceCostsResponses, ResourceCostsErrors, ThrowOnError>({
+      url: "/api/v1/activity/costs",
       ...options,
     });
   }

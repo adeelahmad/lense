@@ -22,7 +22,21 @@ from __future__ import annotations
 import datetime as dt
 import threading
 
-from . import activity, fedora, jobs, organize, schedule, semantic, sensor_digests, sensor_patterns, sensors, sources, store, telemetry, workflows
+from . import (
+    activity,
+    fedora,
+    jobs,
+    organize,
+    schedule,
+    semantic,
+    sensor_digests,
+    sensor_patterns,
+    sensors,
+    sources,
+    store,
+    telemetry,
+    workflows,
+)
 
 R = store.R
 ACTIONS = ("sync", "pipeline", "workflow", "sensors")
@@ -226,7 +240,8 @@ def _with_changes(db, rows):
 
 def runs(db, rid, limit=20):
     rows = db.rows(
-        "SELECT record::id(id) AS id, routine, trigger, by, status, started_at, finished_at, results, error FROM routine_run "
+        "SELECT record::id(id) AS id, routine, trigger, by, status, started_at, finished_at, results, error, cost_usd, tokens, "
+        "cost_estimate FROM routine_run "
         "WHERE routine = $r ORDER BY id DESC LIMIT $n",
         r=int(rid),
         n=int(limit),
@@ -369,10 +384,19 @@ def _run(db, cfg, rid, trigger, by, propose_only, log):
     refs = [f"routine:{int(rid)}", f"routine_run:{run_id}"]
     with activity.scope(db, *refs, cfg=cfg):
         status = _run_actions(db, cfg, rid, run_id, trigger, by, propose_only, log)
-    usd, tokens = activity.run_total(db, refs[1])
-    db.q("UPDATE $r SET cost_usd = $u, tokens = $n", r=R("routine_run", run_id), u=usd, n=tokens)
-    activity.record("run", f"routine.{status}", refs, cfg, db, cost_usd=usd, tokens_in=tokens, ok=status != "error",
-                    detail={"trigger": trigger})
+    usd, tokens, rough = activity.run_total(db, refs[1])
+    db.q("UPDATE $r SET cost_usd = $u, tokens = $n, cost_estimate = $e", r=R("routine_run", run_id), u=usd, n=tokens, e=rough or None)
+    activity.record(
+        "run",
+        f"routine.{status}",
+        refs,
+        cfg,
+        db,
+        cost_usd=usd,
+        tokens_in=tokens,
+        ok=status != "error",
+        detail=store.clean({"trigger": trigger, "estimate": rough or None}),
+    )
     return run_id
 
 

@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Acl, AdminReader, CurrentUser, Db
 from app.domain import activity
-from app.schemas.activity import ActivityEntry, ActivityTop, ActivityTotals
+from app.schemas.activity import ActivityCosts, ActivityEntry, ActivityTop, ActivityTotals
 
 router = APIRouter(tags=["activity"])
 Period = Literal["day", "week", "month", "all"]
@@ -57,7 +57,10 @@ def resource_history(
 
 @router.get("/activity/totals")
 def resource_totals(
-    user: CurrentUser, acl: Acl, db: Db, resource: str | None = Query(None, description="table:id; none for everything (admins)"),
+    user: CurrentUser,
+    acl: Acl,
+    db: Db,
+    resource: str | None = Query(None, description="table:id; none for everything (admins)"),
     period: Period = "month",
 ) -> ActivityTotals:
     """What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time."""
@@ -70,11 +73,34 @@ def resource_totals(
     return ActivityTotals(resource=resource, period=period, since=since, **activity.totals(db, resource, since))
 
 
+@router.get("/activity/costs")
+def resource_costs(
+    user: CurrentUser,
+    acl: Acl,
+    db: Db,
+    resource: list[str] = Query(description="table:id, repeated (up to 500): every row of a list at once"),
+    period: Period = "month",
+) -> ActivityCosts:
+    """What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a
+    figure is a floor (some calls had no price or token counts)."""
+    seen = []
+    for r in resource[:500]:
+        try:
+            _may_see(db, user, acl, r)
+        except HTTPException:
+            continue
+        seen.append(r)
+    since = activity._since(period)
+    return ActivityCosts(period=period, since=since, costs=activity.costs(db, seen, since))
+
+
 @router.get("/activity/top")
 def top_resources(
     user: AdminReader,
     db: Db,
-    table: str | None = Query(None, pattern=r"^[a-z_]{1,40}$", description="only this kind of resource: routine, pipeline, workflow, space"),
+    table: str | None = Query(
+        None, pattern=r"^[a-z_]{1,40}$", description="only this kind of resource: routine, pipeline, workflow, space"
+    ),
     period: Period = "month",
     limit: int = Query(20, ge=1, le=200),
 ) -> ActivityTop:

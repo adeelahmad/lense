@@ -2795,6 +2795,70 @@
         }
       }
     },
+    "/api/v1/activity/costs": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource Costs",
+        "description": "What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a\nfigure is a floor (some calls had no price or token counts).",
+        "operationId": "resource_costs",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "table:id, repeated (up to 500): every row of a list at once",
+              "title": "Resource"
+            },
+            "description": "table:id, repeated (up to 500): every row of a list at once"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityCosts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/activity/top": {
       "get": {
         "tags": [
@@ -19994,6 +20058,40 @@
         "title": "AccountToken",
         "description": "Anyone's key, for admins."
       },
+      "ActivityCosts": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "costs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResourceSpend"
+            },
+            "type": "object",
+            "title": "Costs",
+            "description": "by resource; ones you can't see are left out"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "costs"
+        ],
+        "title": "ActivityCosts"
+      },
       "ActivityEntry": {
         "properties": {
           "id": {
@@ -20230,6 +20328,18 @@
           "ms": {
             "type": "integer",
             "title": "Ms"
+          },
+          "unpriced": {
+            "type": "integer",
+            "title": "Unpriced",
+            "description": "calls that cost something but have no figure (a model with no price, a reply without token counts)",
+            "default": 0
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "true when unpriced calls make cost_usd a floor rather than exact",
+            "default": false
           },
           "by_kind": {
             "additionalProperties": {
@@ -29355,6 +29465,41 @@
             ],
             "title": "Cancel Requested"
           },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "what its calls cost, from the activity ledger (docs/activity.md); set when it ends"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "cost_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimate",
+            "description": "true: some calls had no price or token counts, so cost_usd is a floor"
+          },
           "log": {
             "anyOf": [
               {
@@ -36656,6 +36801,41 @@
         ],
         "title": "ResourceFiles"
       },
+      "ResourceSpend": {
+        "properties": {
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "unpriced": {
+            "type": "integer",
+            "title": "Unpriced"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "true: cost_usd is a floor (unpriced calls); show it as an estimate"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "cost_usd",
+          "tokens",
+          "calls",
+          "unpriced",
+          "estimate"
+        ],
+        "title": "ResourceSpend"
+      },
       "Reviewed": {
         "properties": {
           "applied": {
@@ -37046,6 +37226,41 @@
               }
             ],
             "title": "Log"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "what its calls cost, from the activity ledger (docs/activity.md); set when it ends"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "cost_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimate",
+            "description": "true: some calls had no price or token counts, so cost_usd is a floor"
           }
         },
         "additionalProperties": true,

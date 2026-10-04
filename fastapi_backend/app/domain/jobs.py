@@ -22,7 +22,7 @@ AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
-    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total"
+    "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate"
 )
 MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe"}  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
@@ -445,12 +445,22 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
     with activity.scope(db, *refs):
         outcome = _run_job(db, cfg_fn, job, worker, can, log)
     if outcome in FINAL:
-        usd, tokens = activity.run_total(db, refs[0])
+        usd, tokens, rough = activity.run_total(db, refs[0])
         try:
-            db.q("UPDATE $j SET cost_usd = $u, tokens = $n", j=R("job", job["id"]), u=usd, n=tokens)
+            db.q("UPDATE $j SET cost_usd = $u, tokens = $n, cost_estimate = $e", j=R("job", job["id"]), u=usd, n=tokens, e=rough or None)
         except Exception:  # noqa: BLE001 - the ledger never breaks the work
             pass
-        activity.record("run", f"job.{outcome}", refs, cfg_fn(), db, cost_usd=usd, tokens_in=tokens, ok=outcome != "failed")
+        activity.record(
+            "run",
+            f"job.{outcome}",
+            refs,
+            cfg_fn(),
+            db,
+            cost_usd=usd,
+            tokens_in=tokens,
+            ok=outcome != "failed",
+            detail={"estimate": rough} if rough else None,
+        )
     return outcome
 
 

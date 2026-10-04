@@ -29,6 +29,9 @@ Todo:
       run totals, per-resource history and cost summary API, retention sweep
 - [ ] Activity in the web app: a history panel on routines, pipelines, workflows and recordings; Settings → Activity
       and costs with totals by resource
+- [ ] Cost in every view (Adeel): every resource, entity and view shows what it cost and its budget; a figure that
+      isn't exact (no price for a model, tokens the server didn't report, a run's forecast) is marked as an estimate
+      (`≈`, with why on hover). The API says `exact` / `estimate` per figure
 - [ ] Budgets: set per routine, pipeline, workflow or namespace; spent and estimate; checked before routine runs and
       jobs; over budget waits for your pick (run once, skip), or the assistant decides
 - [ ] Budgets in the web app: set a budget, see where it stands, approve or skip a waiting run

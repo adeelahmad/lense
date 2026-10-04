@@ -10,7 +10,22 @@ import urllib.parse
 from typing import Any
 
 from app.config import settings as env
-from app.domain import activity, auth, bridge, components, content_types, jobs, notify, routines, sensors, settings, setup, store, templates, tunnel
+from app.domain import (
+    activity,
+    auth,
+    bridge,
+    components,
+    content_types,
+    jobs,
+    notify,
+    routines,
+    sensors,
+    settings,
+    setup,
+    store,
+    templates,
+    tunnel,
+)
 
 log = logging.getLogger("lens")
 

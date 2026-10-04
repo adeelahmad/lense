@@ -387,12 +387,11 @@ def totals(db, resource=None, since=None, until=None):
         p["until"] = until
     rows = db.rows(
         "SELECT kind, count() AS calls, math::sum(tokens_in ?? 0) AS tokens_in, math::sum(tokens_out ?? 0) AS tokens_out, "
-        "math::sum(cost_usd ?? 0) AS cost_usd, math::sum(ms ?? 0) AS ms, count(ok = false) AS failed FROM activity"
-        + (f" WHERE {' AND '.join(where)}" if where else "")
-        + " GROUP BY kind",
+        f"math::sum(cost_usd ?? 0) AS cost_usd, math::sum(ms ?? 0) AS ms, count(ok = false) AS failed, count({_unpriced_sql()}) AS unpriced "
+        "FROM activity" + (f" WHERE {' AND '.join(where)}" if where else "") + " GROUP BY kind",
         **p,
     )
-    out = {"calls": 0, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "ms": 0, "failed": 0, "by_kind": {}}
+    out = {"calls": 0, "tokens_in": 0, "tokens_out": 0, "cost_usd": 0.0, "ms": 0, "failed": 0, "unpriced": 0, "by_kind": {}}
     for r in rows:
         k = r.get("kind") or "?"
         # a run row repeats what its calls cost (its cost is their sum): counted on its own, not twice
@@ -400,9 +399,10 @@ def totals(db, resource=None, since=None, until=None):
         out["calls"] += r.get("calls") or 0
         out["failed"] += r.get("failed") or 0
         if k != "run":
-            for x in ("tokens_in", "tokens_out", "cost_usd", "ms"):
+            for x in ("tokens_in", "tokens_out", "cost_usd", "ms", "unpriced"):
                 out[x] += r.get(x) or 0
     out["cost_usd"] = round(out["cost_usd"], 6)
+    out["estimate"] = out["unpriced"] > 0
     return out
 
 
@@ -435,10 +435,45 @@ def top(db, prefix=None, since=None, limit=20):
     return rows
 
 
+PRICED = ("model.", "embeddings", "decision")  # calls that cost something; one with no cost makes a total an estimate
+
+
+def _unpriced_sql():
+    return "(cost_usd = NONE AND (" + " OR ".join(f"string::starts_with(action, '{a}')" for a in PRICED) + "))"
+
+
+def costs(db, resources, since=None):
+    """What each of many resources' calls cost, for lists: {resource: {cost_usd, tokens, calls, unpriced, estimate}}.
+    `unpriced` counts calls that cost something but have no figure (a model with no price, a reply without token
+    counts), so `estimate` is true: the cost shown is a floor, not to the cent."""
+    want = [r for r in dict.fromkeys(resources) if REF.match(r)][:500]
+    out = {r: {"cost_usd": 0.0, "tokens": 0, "calls": 0, "unpriced": 0, "estimate": False} for r in want}
+    if not want:
+        return out
+    p = {"rs": want}
+    inner = "kind != 'run' AND resources CONTAINSANY $rs"
+    if since:
+        inner += " AND at >= $since"
+        p["since"] = since
+    rows = db.rows(
+        "SELECT res, math::sum(cost_usd ?? 0) AS cost_usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, "
+        "count() AS calls, count(unpriced) AS unpriced FROM "
+        f"(SELECT resources AS res, cost_usd, tokens_in, tokens_out, {_unpriced_sql()} AS unpriced FROM activity WHERE {inner} SPLIT res) "
+        "WHERE res IN $rs GROUP BY res",
+        **p,
+    )
+    for r in rows:
+        o = out[r["res"]]
+        o.update(cost_usd=round(float(r.get("cost_usd") or 0), 6), tokens=int(r.get("tokens") or 0), calls=r.get("calls") or 0)
+        o["unpriced"] = r.get("unpriced") or 0
+        o["estimate"] = o["unpriced"] > 0
+    return out
+
+
 def run_total(db, resource):
-    """What one run's calls cost: (USD or None, tokens or None), for its run row."""
-    usd, tokens = spent(db, resource)
-    return (usd or None), (tokens or None)
+    """What one run's calls cost, for its run row: (USD or None, tokens or None, whether the USD is an estimate)."""
+    c = costs(db, [resource])[resource]
+    return (c["cost_usd"] or None), (c["tokens"] or None), c["estimate"]
 
 
 def tidy(db, cfg, now=None):

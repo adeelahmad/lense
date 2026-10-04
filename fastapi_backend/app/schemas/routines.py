@@ -76,6 +76,9 @@ class RoutineRun(ResponseModel):
     error: str | None = None
     changes: dict[str, int] | None = None
     log: list[str] | None = None
+    cost_usd: float | None = Field(None, description="what its calls cost, from the activity ledger (docs/activity.md); set when it ends")
+    tokens: int | None = None
+    cost_estimate: bool | None = Field(None, description="true: some calls had no price or token counts, so cost_usd is a floor")
 
 
 class SchedulePreview(ResponseModel):

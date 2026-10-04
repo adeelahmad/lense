@@ -155,3 +155,24 @@ def test_scopes_nest_and_writing_never_breaks_the_work(db, cfg):
             raise RuntimeError("down")
 
     assert activity.record("out", "x", db=Broken()) is None
+
+
+def test_costs_for_lists_say_when_they_are_estimates(client, db, cfg, h):
+    with activity.scope(db, "routine:1", cfg=cfg):
+        activity.record("out", "model.chat", model="fake", tokens_in=10, cost_usd=0.5)
+    with activity.scope(db, "routine:2", cfg=cfg):
+        activity.record("out", "model.chat", model="local", tokens_in=10)  # no price
+        activity.record("out", "model.chat", model="fake", cost_usd=0.25)
+        activity.record("out", "notify.webhook")  # costs nothing: not unpriced
+    got = client.get(
+        "/api/v1/activity/costs", headers=h, params=[("resource", "routine:1"), ("resource", "routine:2"), ("resource", "routine:3")]
+    )
+    c = got.json()["costs"]
+    assert (c["routine:1"]["cost_usd"], c["routine:1"]["estimate"]) == (0.5, False)
+    assert (c["routine:2"]["cost_usd"], c["routine:2"]["unpriced"], c["routine:2"]["estimate"]) == (0.25, 1, True)
+    assert c["routine:3"] == {"cost_usd": 0, "tokens": 0, "calls": 0, "unpriced": 0, "estimate": False}
+    t = client.get("/api/v1/activity/totals", headers=h, params={"resource": "routine:2"}).json()
+    assert (t["unpriced"], t["estimate"]) == (1, True)
+    make_user(db, "v@x.io", "viewer password 1")
+    v = login(client, "v@x.io", "viewer password 1")
+    assert client.get("/api/v1/activity/costs", headers=v, params={"resource": "routine:1"}).json()["costs"] == {}

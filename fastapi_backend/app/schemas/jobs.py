@@ -53,6 +53,9 @@ class Job(ResponseModel):
     finished_at: str | None = None
     updated_at: str | None = None
     cancel_requested: bool | None = None
+    cost_usd: float | None = Field(None, description="what its calls cost, from the activity ledger (docs/activity.md); set when it ends")
+    tokens: int | None = None
+    cost_estimate: bool | None = Field(None, description="true: some calls had no price or token counts, so cost_usd is a floor")
     log: list[str] | None = Field(None, description="the last 200 lines; GET /jobs/{jid}/log has them all")
     log_total: int | None = Field(None, description="how many lines the run has logged")
     step_runs: list[StepRun | None] | None = Field(

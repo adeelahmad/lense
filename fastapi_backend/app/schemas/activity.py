@@ -49,6 +49,10 @@ class ActivityTotals(ResponseModel):
     tokens_out: int
     cost_usd: float = Field(description="what its calls cost (run rows repeat their calls' cost and aren't added again)")
     ms: int
+    unpriced: int = Field(
+        0, description="calls that cost something but have no figure (a model with no price, a reply without token counts)"
+    )
+    estimate: bool = Field(False, description="true when unpriced calls make cost_usd a floor rather than exact")
     by_kind: dict[str, KindTotals]
 
 
@@ -57,6 +61,20 @@ class ResourceCost(ResponseModel):
     cost_usd: float
     tokens: int
     calls: int
+
+
+class ResourceSpend(ResponseModel):
+    cost_usd: float
+    tokens: int
+    calls: int
+    unpriced: int
+    estimate: bool = Field(description="true: cost_usd is a floor (unpriced calls); show it as an estimate")
+
+
+class ActivityCosts(ResponseModel):
+    period: str
+    since: str | None = None
+    costs: dict[str, ResourceSpend] = Field(description="by resource; ones you can't see are left out")
 
 
 class ActivityTop(ResponseModel):

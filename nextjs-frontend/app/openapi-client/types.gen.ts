@@ -103,6 +103,29 @@ export type AccountToken = {
 };
 
 /**
+ * ActivityCosts
+ */
+export type ActivityCosts = {
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Costs
+   *
+   * by resource; ones you can't see are left out
+   */
+  costs: {
+    [key: string]: ResourceSpend;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * ActivityEntry
  */
 export type ActivityEntry = {
@@ -244,6 +267,18 @@ export type ActivityTotals = {
    * Ms
    */
   ms: number;
+  /**
+   * Unpriced
+   *
+   * calls that cost something but have no figure (a model with no price, a reply without token counts)
+   */
+  unpriced?: number;
+  /**
+   * Estimate
+   *
+   * true when unpriced calls make cost_usd a floor rather than exact
+   */
+  estimate?: boolean;
   /**
    * By Kind
    */
@@ -5501,6 +5536,22 @@ export type Job = {
    */
   cancel_requested?: boolean | null;
   /**
+   * Cost Usd
+   *
+   * what its calls cost, from the activity ledger (docs/activity.md); set when it ends
+   */
+  cost_usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Cost Estimate
+   *
+   * true: some calls had no price or token counts, so cost_usd is a floor
+   */
+  cost_estimate?: boolean | null;
+  /**
    * Log
    *
    * the last 200 lines; GET /jobs/{jid}/log has them all
@@ -9802,6 +9853,35 @@ export type ResourceFiles = {
 };
 
 /**
+ * ResourceSpend
+ */
+export type ResourceSpend = {
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Unpriced
+   */
+  unpriced: number;
+  /**
+   * Estimate
+   *
+   * true: cost_usd is a floor (unpriced calls); show it as an estimate
+   */
+  estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Reviewed
  */
 export type Reviewed = {
@@ -10006,6 +10086,22 @@ export type RoutineRun = {
    * Log
    */
   log?: Array<string> | null;
+  /**
+   * Cost Usd
+   *
+   * what its calls cost, from the activity ledger (docs/activity.md); set when it ends
+   */
+  cost_usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Cost Estimate
+   *
+   * true: some calls had no price or token counts, so cost_usd is a floor
+   */
+  cost_estimate?: boolean | null;
   [key: string]: unknown;
 };
 
@@ -15958,6 +16054,42 @@ export type ResourceTotalsResponses = {
 };
 
 export type ResourceTotalsResponse = ResourceTotalsResponses[keyof ResourceTotalsResponses];
+
+export type ResourceCostsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * table:id, repeated (up to 500): every row of a list at once
+     */
+    resource: Array<string>;
+    /**
+     * Period
+     */
+    period?: "day" | "week" | "month" | "all";
+  };
+  url: "/api/v1/activity/costs";
+};
+
+export type ResourceCostsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResourceCostsError = ResourceCostsErrors[keyof ResourceCostsErrors];
+
+export type ResourceCostsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityCosts;
+};
+
+export type ResourceCostsResponse = ResourceCostsResponses[keyof ResourceCostsResponses];
 
 export type TopResourcesData = {
   body?: never;
