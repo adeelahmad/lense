@@ -439,6 +439,14 @@ def model_call(cfg, payload, operation="chat", current=True):
 
 
 # ---------- the API ----------
+def _route_template(scope) -> str:
+    """The matched route's full template (`/api/v1/recordings/{rid}`). Since FastAPI 0.13x, `scope["route"]` is the
+    route as its router declared it, without the prefixes it was included under; FastAPI keeps the full template on
+    the effective route context it records in the scope."""
+    ctx = (scope.get("fastapi") or {}).get("effective_route_context")
+    return getattr(ctx, "path_format", None) or getattr(scope.get("route"), "path", None) or "unmatched"
+
+
 class Middleware:
     """A server span and a duration for each API request, named by its route template (`GET /api/v1/recordings/{rid}`),
     never by its path or query, which can carry names. Installed innermost, where the router has chosen the route."""
@@ -471,7 +479,7 @@ class Middleware:
         finally:
             if token is not None:
                 context.detach(token)
-            route = getattr(scope.get("route"), "path", None) or "unmatched"
+            route = _route_template(scope)
             code = status[0] or 500
             attrs = {"http.request.method": method, "http.route": route, "http.response.status_code": code}
             if error is not None:

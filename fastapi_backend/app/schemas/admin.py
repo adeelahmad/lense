@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -15,12 +15,74 @@ class Started(Ok):
     status: str
 
 
+class MailTestResult(ResponseModel):
+    ok: bool
+    to: str | None = Field(None, description="where the test message went: your own address")
+    error: str | None = None
+
+
+class BridgeStatus(ResponseModel):
+    state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
+        description="off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); "
+        "running; error (the last look at Matterbridge failed, `error` says why)"
+    )
+    error: str | None = None
+    holder: str | None = Field(None, description="the server process reading Matterbridge")
+    at: str | None = Field(None, description="when it last looked")
+    answered: int | None = Field(None, description="messages it answered since it started")
+
+
+class TunnelStatus(ResponseModel):
+    mode: Literal["off", "quick", "token", "managed"]
+    running: bool = Field(description="cloudflared is running in a server process")
+    connected: bool = Field(description="Cloudflare has the tunnel's connection: the address works")
+    url: str | None = Field(None, description="the address people open Lens at through the tunnel")
+    error: str | None = Field(None, description="why the tunnel isn't up, when it isn't")
+    log: list[str] = Field(default_factory=list, description="cloudflared's last lines")
+    origin: str = Field(description="where cloudflared sends visitors: the web app, as the server reaches it")
+    process: str | None = Field(None, description="the server process running cloudflared")
+
+
+class BridgeTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+
+
 class LlmTestResult(ResponseModel):
     ok: bool
     error: str | None = None
     reply: str | None = None
     ms: int | None = None
     model: str | None = None
+
+
+class EmbedTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    dimension: int | None = Field(None, description="how many numbers the model's vectors have")
+    ms: int | None = None
+    model: str | None = None
+
+
+class SemanticStatus(ResponseModel):
+    """Search by meaning: whether it's on, which model it uses, and how much of the archive it covers."""
+
+    enabled: bool
+    configured: bool = Field(description="on, with an embeddings server and a model")
+    base_url: str | None = Field(None, description="the embeddings server: its own, else the LLM provider's")
+    model: str | None = None
+    indexed_model: str | None = Field(None, description="the model the stored vectors are from")
+    current: bool = Field(description="the stored vectors are the configured model's, so searches can use them")
+    dimension: int | None = None
+    passages: int = Field(description="passages embedded")
+    recordings: int = Field(description="recordings in the archive")
+    indexed: int = Field(description="recordings indexed with the configured model")
+    min_similarity: float = Field(description="how alike a passage must be to a query to be a hit")
+
+
+class IndexQueued(ResponseModel):
+    recordings: int = Field(description="recordings queued to be indexed")
+    remaining: bool = Field(description="more are waiting than were queued; run it again, or let the hourly routine")
 
 
 class TelemetryExport(ResponseModel):

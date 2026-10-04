@@ -108,7 +108,7 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
 
 
 @router.post("/recordings/{rid}/request")
-def request_access(rid: int, body: PublicRequestCreate, acl: Acl, user: Writer, db: Db, tasks: BackgroundTasks) -> PublicRequest:
+def request_access(rid: int, body: PublicRequestCreate, acl: Acl, user: Writer, db: Db, cfg: Cfg, tasks: BackgroundTasks) -> PublicRequest:
     """Ask for access to a recording (signed in, without permission): its closed parts, or a restricted one. Asking
     again replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve
     (which gives permission) or decline in the recording's access settings."""
@@ -131,6 +131,13 @@ def request_access(rid: int, body: PublicRequestCreate, acl: Acl, user: Writer, 
         who = f"{user.name} ({user.email})" if user.name else user.email
         names = store.space_names(db)
         tasks.add_task(
-            send_access_request_email, acc.owners(db, rec["space"]), who, rid, rec.get("title"), names.get(rec["space"]), req.get("message")
+            send_access_request_email,
+            cfg,
+            acc.owners(db, rec["space"]),
+            who,
+            rid,
+            rec.get("title"),
+            names.get(rec["space"]),
+            req.get("message"),
         )
     return PublicRequest.model_validate(req)

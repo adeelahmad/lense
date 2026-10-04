@@ -1,100 +1,127 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
-import { setup } from "@/components/actions/setup-action";
 import { SetupForm } from "@/components/auth/setup-form";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-jest.mock("@/components/actions/setup-action", () => ({ setup: jest.fn() }));
+jest.mock("@/components/auth/passkey-flows", () => {
+  class PasskeyFlowError extends Error {
+    constructor(
+      message: string,
+      public status?: number,
+    ) {
+      super(message);
+    }
+  }
+  return { setupTicket: jest.fn(), setupWithoutPasskeyTicket: jest.fn(), finishSignIn: jest.fn(), PasskeyFlowError };
+});
 
-function renderForm() {
+const flows = jest.requireMock("@/components/auth/passkey-flows");
+
+function renderForm(initialCode?: string) {
   return render(
     <TooltipProvider>
-      <SetupForm />
+      <SetupForm initialCode={initialCode} />
     </TooltipProvider>,
   );
 }
 
-function fill(values: { code?: string; name?: string; email?: string; password?: string }) {
+function fill(values: { code?: string; name?: string; email?: string }) {
   for (const [label, value] of [
     ["Setup code", values.code],
     ["Name", values.name],
     ["Email", values.email],
-    ["Password", values.password],
   ] as const) {
     if (value !== undefined) fireEvent.change(screen.getByLabelText(label), { target: { value } });
   }
 }
 
-const valid = {
-  code: "c0de",
-  name: "Ada",
-  email: "ada@example.com",
-  password: "long enough pw",
-};
+function secure(on: boolean) {
+  Object.defineProperty(window, "isSecureContext", { configurable: true, value: on });
+  if (on)
+    (window as unknown as { PublicKeyCredential: unknown }).PublicKeyCredential = function PublicKeyCredential() {};
+  else delete (window as unknown as { PublicKeyCredential?: unknown }).PublicKeyCredential;
+}
+
+afterEach(() => {
+  secure(false);
+  jest.clearAllMocks();
+});
 
 describe("SetupForm", () => {
-  it("submits the first admin's details", async () => {
-    (setup as jest.Mock).mockResolvedValue(undefined);
-    renderForm();
+  it("fills in the code from the setup link and starts at the name", () => {
+    renderForm("fr0m-link");
 
-    fill(valid);
-    fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
-
-    await waitFor(() => {
-      const expected = new FormData();
-      expected.set("code", "c0de");
-      expected.set("name", "Ada");
-      expected.set("email", "ada@example.com");
-      expected.set("password", "long enough pw");
-      expect(setup).toHaveBeenCalledWith(undefined, expected);
-    });
+    expect(screen.getByLabelText("Setup code")).toHaveValue("fr0m-link");
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+    expect(screen.getByText("The setup code from your link is filled in.")).toBeInTheDocument();
+    expect(screen.queryByText("make setup-code")).not.toBeInTheDocument();
   });
 
-  it("checks the password as you type and waits for a complete form", () => {
+  it("without a link, offers the command to copy and starts at the code", () => {
     renderForm();
 
-    fill({ ...valid, password: "lens-arch" });
-
-    expect(screen.getByText("9 of 10 characters — add at least 1 more")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-invalid", "true");
-    const button = screen.getByRole("button", {
-      name: /create admin account/i,
-    });
-    expect(button).toHaveAttribute("aria-disabled", "true");
-
-    fireEvent.click(button);
-    expect(setup).not.toHaveBeenCalled();
+    expect(screen.getByText("make setup-code")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy the command" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Setup code")).toHaveFocus();
   });
 
-  it("shows a wrong code under the setup code", async () => {
-    (setup as jest.Mock).mockResolvedValue({
-      errors: {
-        code: ["Setup is closed or the code is wrong. Copy the code again from the server log."],
-      },
-    });
+  it("never asks for a password", () => {
+    secure(true);
+    renderForm();
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
+  });
+
+  it("makes the first admin with a passkey", async () => {
+    secure(true);
+    flows.setupTicket.mockResolvedValue("lt_ticket");
     renderForm();
 
-    fill(valid);
-    fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
+    fill({ code: "c0de", name: "Ada", email: "ada@example.com" });
+    fireEvent.click(screen.getByRole("button", { name: /create admin with a passkey/i }));
+
+    await waitFor(() => expect(flows.finishSignIn).toHaveBeenCalledWith("lt_ticket", "/welcome"));
+    expect(flows.setupTicket).toHaveBeenCalledWith({ code: "c0de", email: "ada@example.com", name: "Ada" }, "Passkey");
+  });
+
+  it("puts a wrong code under the setup code", async () => {
+    secure(true);
+    flows.setupTicket.mockRejectedValue(new flows.PasskeyFlowError("Setup is closed or the code is wrong.", 403));
+    renderForm();
+
+    fill({ code: "nope", email: "ada@example.com" });
+    fireEvent.click(screen.getByRole("button", { name: /create admin with a passkey/i }));
 
     await waitFor(() => expect(screen.getByLabelText("Setup code")).toHaveAttribute("aria-invalid", "true"));
-    expect(screen.getByLabelText("Setup code")).toHaveAccessibleDescription(/setup is closed or the code is wrong/i);
-
-    // Editing the code clears its error.
     fill({ code: "c0de2" });
     expect(screen.getByLabelText("Setup code")).not.toHaveAttribute("aria-invalid");
   });
 
-  it("shows other failures above the button", async () => {
-    (setup as jest.Mock).mockResolvedValue({
-      server_error: "An unexpected error occurred. Please try again later.",
-    });
+  it("on a plain http:// address, sets up with the code alone", async () => {
+    flows.setupWithoutPasskeyTicket.mockResolvedValue("lt_ticket");
     renderForm();
 
-    fill(valid);
+    expect(screen.getByText(/sign in later with a passkey at the https:\/\/ address/i)).toBeInTheDocument();
+    fill({ code: "c0de", email: "ada@example.com" });
     fireEvent.click(screen.getByRole("button", { name: /create admin account/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("An unexpected error occurred");
+    await waitFor(() => expect(flows.finishSignIn).toHaveBeenCalledWith("lt_ticket", "/welcome"));
+    expect(flows.setupWithoutPasskeyTicket).toHaveBeenCalledWith({ code: "c0de", email: "ada@example.com" });
+  });
+
+  it("waits for the code and an email", () => {
+    secure(true);
+    renderForm();
+    fill({ code: "c0de", email: "not-an-email" });
+    expect(screen.getByRole("button", { name: /create admin with a passkey/i })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("fills in the code from the setup link and starts at the name", () => {
+    renderForm("fr0m-link");
+    expect(screen.getByLabelText("Setup code")).toHaveValue("fr0m-link");
+    expect(screen.getByLabelText("Name")).toHaveFocus();
   });
 });

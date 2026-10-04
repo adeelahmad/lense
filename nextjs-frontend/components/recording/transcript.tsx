@@ -252,6 +252,7 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
       )}
       <div
         ref={box}
+        data-own-selection // its own selection toolbar asks the recording's chat, not the page chat
         tabIndex={-1}
         onWheel={stopFollow}
         onTouchMove={stopFollow}

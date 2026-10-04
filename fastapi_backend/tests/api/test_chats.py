@@ -243,7 +243,7 @@ def test_choosing_the_model(plain, client, new_client, db, cfg, folder, llm):
     admin = new_client()
     ha = login(admin, "root@x.io", "root password 1")
     assert client.post("/api/v1/chats", headers=h, json={"model": "nope"}).status_code == 400
-    cid = client.post("/api/v1/chats", headers=h, json={"model": "fake-large"}).json()["id"]
+    cid = client.post("/api/v1/chats", headers=h, json={"model": "fake-large", "scope": {"namespaces": ["calls"]}}).json()["id"]
     assert client.get("/api/v1/chats", headers=h).json()[0]["model"] == "fake-large"
 
     # the conversation's model answers in it; one question can ask another (Retry with another model)
@@ -389,3 +389,147 @@ def test_tools_stay_in_scope_and_say_what_is_missing(app, db, cfg, folder, new_c
     assert box.call("graph_neighbours", {})[1] == "graph_neighbours: give an entity_id or a speaker_id"
     assert box.call("propose_entity_change", {"action": "retype", "entity_id": 1})[1] == "propose_entity_change: retype needs new_type"
     assert box.approvals == []
+
+
+def test_editing_a_question(plain, client, new_client, db, cfg, folder, llm):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    h = login(client, "ed@x.io", "editor password 1")
+    other = new_client()
+    hv = login(other, "vi@x.io", "viewer password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    for q in ("When does the shipment leave?", "Who is shipping it?", "And where to?"):
+        sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": q}).text)
+    msgs = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
+    assert len(msgs) == 6
+    second = msgs[2]["id"]
+
+    # an answer, someone else's or another conversation's message isn't a question you can edit here
+    assert client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "x", "edit": msgs[1]["id"]}).status_code == 404
+    assert client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "x", "edit": 999999}).status_code == 404
+    assert other.post(f"/api/v1/chats/{cid}/messages", headers=hv, json={"content": "x", "edit": second}).status_code == 404
+    elsewhere = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    assert client.post(f"/api/v1/chats/{elsewhere}/messages", headers=h, json={"content": "x", "edit": second}).status_code == 404
+    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]) == 6  # nothing was removed
+
+    # editing the second question replaces it and everything after it; the model sees only what came before
+    llm.seen.clear()
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Who ships it, exactly?", "edit": second}).text)
+    assert ev["done"]
+    sent = [m["content"] for m in llm.seen[-1]["messages"] if m["role"] == "user"]
+    assert "When does the shipment leave?" in sent[0] and not any("Who is shipping it?" in s or "And where to?" in s for s in sent)
+    c = client.get(f"/api/v1/chats/{cid}", headers=h).json()
+    assert [m["content"] for m in c["messages"] if m["role"] == "user"] == ["When does the shipment leave?", "Who ships it, exactly?"]
+    assert [m["role"] for m in c["messages"]] == ["user", "assistant", "user", "assistant"]
+    assert c["title"] == "When does the shipment leave?"
+
+    # editing the first question retitles a conversation titled after it, but keeps a title you set
+    first = c["messages"][0]["id"]
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When is the Friday shipment?", "edit": first}).text)
+    c = client.get(f"/api/v1/chats/{cid}", headers=h).json()
+    assert ([m["content"] for m in c["messages"] if m["role"] == "user"], c["title"]) == (
+        ["When is the Friday shipment?"],
+        "When is the Friday shipment?",
+    )
+    assert client.patch(f"/api/v1/chats/{cid}", headers=h, json={"title": "Shipping"}).status_code == 200
+    first = c["messages"][0]["id"]
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does it ship?", "edit": first}).text)
+    assert client.get(f"/api/v1/chats/{cid}", headers=h).json()["title"] == "Shipping"
+
+    # a refused edit (a model that isn't offered) removes nothing
+    n = len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"])
+    assert (
+        client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "x", "edit": first, "model": "gpt-9"}).status_code == 400
+    )
+    assert len(client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]) == n
+
+    # a question asked from a page keeps the page and the highlighted text when edited
+    page = {"url": "/library", "title": "Library", "text": "Shipment report", "selection": "Dyno shipment"}
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When?", "context": page}).text)
+    asked = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-2]
+    llm.seen.clear()
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When exactly?", "edit": asked["id"]}).text)
+    assert '"""\nDyno shipment\n"""' in llm.seen[-1]["messages"][-1]["content"]
+    edited = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-2]
+    assert (edited["content"], edited["context"]) == ("When exactly?", asked["context"])
+
+
+def test_asking_from_a_page(plain, client, db, cfg, folder, llm):
+    """Chat on any page: the model reads the page and the highlighted part with the question; the question keeps where
+    it was asked and what was highlighted, not the page's text."""
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor", "calls": "editor"})
+    h = login(client, "ed@x.io", "editor password 1")
+    cid = client.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    page = {"url": "/library?ns=calls", "title": "Library", "text": "Shipment report " + "x" * 20000, "selection": "  Dyno shipment  "}
+    llm.seen.clear()
+    ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does it leave?", "context": page}).text)
+    assert "done" in ev
+    asked = llm.seen[-1]["messages"][-1]["content"]
+    assert "Lens page Library (/library?ns=calls)" in asked and '"""\nDyno shipment\n"""' in asked
+    assert "Shipment report" in asked and "(cut short)" in asked and len(asked) < 14000 and asked.endswith("Question: When does it leave?")
+    msgs = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
+    assert msgs[0]["content"] == "When does it leave?"
+    assert msgs[0]["context"] == {"url": "/library?ns=calls", "title": "Library", "selection": "Dyno shipment", "page": True}
+    assert client.get("/api/v1/chats", headers=h).json()[0]["title"] == "When does it leave?"
+
+    # only the highlighted part, no page text; then a question with nothing shared reads as before
+    sse(
+        client.post(
+            f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Who?", "context": {"url": "/x", "selection": "Alice"}}
+        ).text
+    )
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "And then?"}).text)
+    assert "page's text" not in llm.seen[-2]["messages"][-1]["content"] and llm.seen[-1]["messages"][-1]["content"].endswith(
+        "Question: And then?"
+    )
+    msgs = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
+    assert (msgs[2]["context"], msgs[4]["context"]) == ({"url": "/x", "title": None, "selection": "Alice", "page": False}, None)
+    for bad in (
+        {"title": "no url"},
+        {"url": "https://elsewhere.example"},
+        {"url": "//elsewhere.example/x"},
+        {"url": "javascript:alert(1)"},
+    ):
+        assert client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "?", "context": bad}).status_code == 422
+
+    # a follow-up still knows what the highlighted text was
+    llm.seen.clear()
+    sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Say more"}).text)
+    turns = [m["content"] for m in llm.seen[-1]["messages"]]
+    assert '(About the highlighted text: "Alice") Who?' in turns
+
+
+def test_page_context_reaches_the_tools_too(app, db, cfg, folder, new_client, llm):
+    seed(db, cfg, folder)
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    c = new_client()
+    h = login(c, "ed@x.io", "editor password 1")
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    llm.tool_script[:] = [{"content": "It's the capsid one."}]
+    llm.seen.clear()
+    ev = sse(
+        c.post(
+            f"/api/v1/chats/{cid}/messages",
+            headers=h,
+            json={"content": "Which?", "context": {"url": "/resources/1", "title": "Ep 1", "text": "Capsid talk"}},
+        ).text
+    )
+    assert ev["token"][0]["text"] == "It's the capsid one."
+    asked = llm.seen[0]["messages"][-1]["content"]
+    assert "Lens page Ep 1 (/resources/1)" in asked and "Capsid talk" in asked and asked.endswith("Question: Which?")
+
+
+def test_a_model_that_skips_the_tools_still_answers_from_the_archive(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    llm.tool_script = [{"content": "The archive doesn't seem to cover it."}]  # answers straight away, without looking
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "What does Dyno Therapeutics do?"}).text)
+    assert ev["passages"][0]  # the excerpts found up front
+    assert "".join(e["text"] for e in ev["token"]) == "The shipment leaves on Friday [1]."  # answered from them
+    assert "notice" not in ev
+    llm.tool_script = [{"content": "Hello!"}]  # nothing in the archive matches: the model's own answer stands
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "zzqx"}).text)
+    assert "".join(e["text"] for e in ev["token"]) == "Hello!"

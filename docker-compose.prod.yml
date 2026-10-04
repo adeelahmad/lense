@@ -6,12 +6,16 @@
 # overwritten by these builds, and a later `docker compose up` would run the production images without hot reload.
 # LENS_VERSION tags them (default `prod`), for NAS setups (Synology, QNAP) that run a named image.
 x-backend: &backend
+  security_opt: ["no-new-privileges:true"]  # nothing in Lens needs setuid programs
   image: lens-backend:${LENS_VERSION:-prod}
   build:
     context: fastapi_backend
-    target: ${LENS_TARGET:-lean}  # full: LibreOffice and Chromium, to read Office files, text, web pages and emails
+    target: ${LENS_TARGET:-full}  # LibreOffice and Chromium, to read Office files, text, web pages and emails; lean: without
     args:
       EXTRAS: ${EXTRAS:-}
+  # model servers on this machine (Ollama, LM Studio) as host.docker.internal, on Linux as on a Mac
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
   environment:
     ACCESS_SECRET_KEY: ${ACCESS_SECRET_KEY:?set ACCESS_SECRET_KEY}
     ARCHIVE_SECRET_KEY: ${ARCHIVE_SECRET_KEY:?set ARCHIVE_SECRET_KEY}
@@ -20,6 +24,14 @@ x-backend: &backend
     SURREAL_PASS: ${SURREAL_PASS:?set SURREAL_PASS}
     RUN_BACKGROUND: "false"
     FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    # where the Cloudflare tunnel (Settings › Remote access) sends visitors: the web app inside this stack
+    LENS_TUNNEL_ORIGIN: http://frontend:3000
+    # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
+    LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
+    # Fedora (docs/fedora.md): empty keeps it off; with the fedora profile, http://fedora:8080/fcrepo/rest
+    LENS_FEDORA_URL: ${LENS_FEDORA_URL:-}
+    LENS_FEDORA_USER: ${LENS_FEDORA_USER:-}
+    LENS_FEDORA_PASSWORD: ${LENS_FEDORA_PASSWORD:-}
     CORS_ORIGINS: '["${FRONTEND_URL:-http://localhost:3000}"]'
     ARCHIVE_ALLOWED_HOSTS: ${ARCHIVE_ALLOWED_HOSTS:-backend,localhost,127.0.0.1}
     MAIL_SERVER: ${MAIL_SERVER:-}
@@ -38,6 +50,8 @@ x-backend: &backend
     LENS_LLM_MODEL: ${LENS_LLM_MODEL:-}
     LENS_LLM_API_KEY: ${LENS_LLM_API_KEY:-}
     LENS_LLM_VISION_MODEL: ${LENS_LLM_VISION_MODEL:-}
+    # private networks calendar feeds and web pages may be fetched from, e.g. 192.168.1.0/24 (documents.web_networks)
+    LENS_WEB_NETWORKS: ${LENS_WEB_NETWORKS:-}
     # opt-in telemetry (docs/telemetry.md): unset, it stays off unless turned on in Settings
     LENS_TELEMETRY: ${LENS_TELEMETRY:-}
     LENS_TELEMETRY_ENDPOINT: ${LENS_TELEMETRY_ENDPOINT:-}
@@ -72,10 +86,17 @@ services:
   worker:
     <<: *backend
     command: lens worker
+    # the sensor hub (docs/sensors.md): MQTT and syslog, listened on only once sensors are turned on in the app.
+    # Something else on this machine using 1883 or 5514? Set LENS_MQTT_PORT / LENS_SYSLOG_PORT to other ports.
+    ports:
+      - "${LENS_MQTT_PORT:-1883}:1883"
+      - "${LENS_SYSLOG_PORT:-5514}:5514/udp"
+      - "${LENS_SYSLOG_PORT:-5514}:5514/tcp"
     healthcheck:
       disable: true
 
   frontend:
+    security_opt: ["no-new-privileges:true"]
     image: lens-frontend:${LENS_VERSION:-prod}
     build:
       context: ./nextjs-frontend
@@ -84,16 +105,33 @@ services:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
       AUTH_TRUST_HOST: "true"
-      AUTH_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
     ports:
-      - "127.0.0.1:3000:3000"
+      # this machine only by default; LENS_BIND=0.0.0.0 to reach it from the network (install.sh does on a server)
+      - "${LENS_BIND:-127.0.0.1}:${LENS_PORT:-3000}:3000"
     depends_on: [backend]
     restart: unless-stopped
+    networks: [lens]
+
+  # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
+  # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
+  # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
+  fedora:
+    image: fcrepo/fcrepo:${FEDORA_VERSION:-6.5.1-tomcat9}
+    profiles: [fedora]
+    environment:
+      CATALINA_OPTS: >-
+        -Dfcrepo.home=/fcrepo-home -Djava.awt.headless=true -Dfcrepo.autoversioning.enabled=true
+    ports:
+      - "127.0.0.1:8081:8080"       # its web UI and REST API, for this machine only
+    volumes:
+      - fedora-data:/fcrepo-home
     networks: [lens]
 
 volumes:
   surreal-data:
   archive-data:
+  fedora-data:
 
 networks:
   lens:

@@ -17,15 +17,34 @@ import type {
   AddFileData,
   AddFileErrors,
   AddFileResponses,
+  AddLoginProviderData,
+  AddLoginProviderErrors,
+  AddLoginProviderResponses,
+  AddPasskeyData,
+  AddPasskeyErrors,
+  AddPasskeyOptionsData,
+  AddPasskeyOptionsResponses,
+  AddPasskeyResponses,
   AddRecordingPermissionData,
   AddRecordingPermissionErrors,
   AddRecordingPermissionResponses,
+  AddVaultPasskeyData,
+  AddVaultPasskeyErrors,
+  AddVaultPasskeyResponses,
   AnswerData,
   AnswerErrors,
   AnswerResponses,
+  ApplyEntitySetupData,
+  ApplyEntitySetupErrors,
+  ApplyEntitySetupResponses,
+  ApplySuggestionData,
+  ApplySuggestionErrors,
+  ApplySuggestionResponses,
   ApproveAccessRequestData,
   ApproveAccessRequestErrors,
   ApproveAccessRequestResponses,
+  BridgeStatusData,
+  BridgeStatusResponses,
   BrowseSourceData,
   BrowseSourceErrors,
   BrowseSourceResponses,
@@ -38,14 +57,25 @@ import type {
   CancelUploadData,
   CancelUploadErrors,
   CancelUploadResponses,
+  ChangeLoginProviderData,
+  ChangeLoginProviderErrors,
+  ChangeLoginProviderResponses,
   ChangePasswordData,
   ChangePasswordErrors,
   ChangePasswordResponses,
   ChatCapabilitiesData,
   ChatCapabilitiesResponses,
+  CheckComponentsData,
+  CheckComponentsResponses,
+  CheckManifestData,
+  CheckManifestErrors,
+  CheckManifestResponses,
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
+  ClearEntitySetupData,
+  ClearEntitySetupErrors,
+  ClearEntitySetupResponses,
   CloseRecordingToIpGroupData,
   CloseRecordingToIpGroupErrors,
   CloseRecordingToIpGroupResponses,
@@ -76,6 +106,21 @@ import type {
   CreateContentTypeData,
   CreateContentTypeErrors,
   CreateContentTypeResponses,
+  CreateCustomNodeData,
+  CreateCustomNodeErrors,
+  CreateCustomNodeResponses,
+  CreateCustomNodeVersionData,
+  CreateCustomNodeVersionErrors,
+  CreateCustomNodeVersionResponses,
+  CreateEntityTypeData,
+  CreateEntityTypeErrors,
+  CreateEntityTypeResponses,
+  CreateExtensionData,
+  CreateExtensionErrors,
+  CreateExtensionResponses,
+  CreateExtensionVersionData,
+  CreateExtensionVersionErrors,
+  CreateExtensionVersionResponses,
   CreateFieldData,
   CreateFieldErrors,
   CreateFieldResponses,
@@ -88,6 +133,9 @@ import type {
   CreateJobsData,
   CreateJobsErrors,
   CreateJobsResponses,
+  CreateLoginData,
+  CreateLoginErrors,
+  CreateLoginResponses,
   CreateNamespaceCollectionData,
   CreateNamespaceCollectionErrors,
   CreateNamespaceCollectionResponses,
@@ -112,6 +160,9 @@ import type {
   CreateSearchData,
   CreateSearchErrors,
   CreateSearchResponses,
+  CreateSensorData,
+  CreateSensorErrors,
+  CreateSensorResponses,
   CreateShareData,
   CreateShareErrors,
   CreateShareResponses,
@@ -148,6 +199,9 @@ import type {
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
+  DefineEntityData,
+  DefineEntityErrors,
+  DefineEntityResponses,
   DeleteChatData,
   DeleteChatErrors,
   DeleteChatResponses,
@@ -160,6 +214,18 @@ import type {
   DeleteContentTypeData,
   DeleteContentTypeErrors,
   DeleteContentTypeResponses,
+  DeleteCustomNodeData,
+  DeleteCustomNodeErrors,
+  DeleteCustomNodeResponses,
+  DeleteEntityData,
+  DeleteEntityErrors,
+  DeleteEntityResponses,
+  DeleteEntityTypeData,
+  DeleteEntityTypeErrors,
+  DeleteEntityTypeResponses,
+  DeleteExtensionData,
+  DeleteExtensionErrors,
+  DeleteExtensionResponses,
   DeleteFaceData,
   DeleteFaceErrors,
   DeleteFaceResponses,
@@ -178,6 +244,9 @@ import type {
   DeleteIpGroupData,
   DeleteIpGroupErrors,
   DeleteIpGroupResponses,
+  DeleteLoginData,
+  DeleteLoginErrors,
+  DeleteLoginResponses,
   DeleteNamespaceCollectionData,
   DeleteNamespaceCollectionErrors,
   DeleteNamespaceCollectionResponses,
@@ -199,6 +268,9 @@ import type {
   DeleteSearchData,
   DeleteSearchErrors,
   DeleteSearchResponses,
+  DeleteSensorData,
+  DeleteSensorErrors,
+  DeleteSensorResponses,
   DeleteSourceData,
   DeleteSourceErrors,
   DeleteSourceResponses,
@@ -208,9 +280,14 @@ import type {
   DeleteWatchData,
   DeleteWatchErrors,
   DeleteWatchResponses,
+  DetectLlmData,
+  DetectLlmResponses,
   DiffTemplateVersionsData,
   DiffTemplateVersionsErrors,
   DiffTemplateVersionsResponses,
+  DisconnectIdentityData,
+  DisconnectIdentityErrors,
+  DisconnectIdentityResponses,
   DismissFaceSuggestionData,
   DismissFaceSuggestionErrors,
   DismissFaceSuggestionResponses,
@@ -220,6 +297,9 @@ import type {
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
+  DropPasskeysData,
+  DropPasskeysErrors,
+  DropPasskeysResponses,
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
@@ -235,6 +315,14 @@ import type {
   ExportRecordingData,
   ExportRecordingErrors,
   ExportRecordingResponses,
+  ExternalConnectData,
+  ExternalConnectErrors,
+  ExternalConnectResponses,
+  ExternalProvidersData,
+  ExternalProvidersResponses,
+  ExternalStartData,
+  ExternalStartErrors,
+  ExternalStartResponses,
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
@@ -268,6 +356,9 @@ import type {
   GetContentStateData,
   GetContentStateErrors,
   GetContentStateResponses,
+  GetCustomNodeData,
+  GetCustomNodeErrors,
+  GetCustomNodeResponses,
   GetEmbedLinkData,
   GetEmbedLinkErrors,
   GetEmbedLinkResponses,
@@ -277,9 +368,17 @@ import type {
   GetEntityData,
   GetEntityErrors,
   GetEntityResponses,
+  GetEntitySetupData,
+  GetEntitySetupErrors,
+  GetEntitySetupResponses,
   GetEntityTimelineData,
   GetEntityTimelineErrors,
   GetEntityTimelineResponses,
+  GetExtensionData,
+  GetExtensionErrors,
+  GetExtensionResponses,
+  GetFedoraStatusData,
+  GetFedoraStatusResponses,
   GetFieldData,
   GetFieldErrors,
   GetFieldResponses,
@@ -312,6 +411,9 @@ import type {
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
+  GetNamespaceRdfData,
+  GetNamespaceRdfErrors,
+  GetNamespaceRdfResponses,
   GetNamespaceStatsData,
   GetNamespaceStatsErrors,
   GetNamespaceStatsResponses,
@@ -349,6 +451,9 @@ import type {
   GetRecordingMetadataData,
   GetRecordingMetadataErrors,
   GetRecordingMetadataResponses,
+  GetRecordingRdfData,
+  GetRecordingRdfErrors,
+  GetRecordingRdfResponses,
   GetRecordingResponses,
   GetRecordingWordcloudData,
   GetRecordingWordcloudErrors,
@@ -362,6 +467,12 @@ import type {
   GetRunData,
   GetRunErrors,
   GetRunResponses,
+  GetSensorData,
+  GetSensorErrors,
+  GetSensorResponses,
+  GetSeriesData,
+  GetSeriesErrors,
+  GetSeriesResponses,
   GetSettingsData,
   GetSettingsResponses,
   GetSetupData,
@@ -372,9 +483,24 @@ import type {
   GetUploadData,
   GetUploadErrors,
   GetUploadResponses,
+  GetVaultData,
+  GetVaultErrors,
+  GetVaultResponses,
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GraphPathsData,
+  GraphPathsErrors,
+  GraphPathsResponses,
+  GraphQueryData,
+  GraphQueryErrors,
+  GraphQueryResponses,
+  GraphRelatedData,
+  GraphRelatedErrors,
+  GraphRelatedResponses,
+  GraphSchemaData,
+  GraphSchemaErrors,
+  GraphSchemaResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
@@ -384,12 +510,18 @@ import type {
   ImportIiifData,
   ImportIiifErrors,
   ImportIiifResponses,
+  ImportNamespaceRdfData,
+  ImportNamespaceRdfErrors,
+  ImportNamespaceRdfResponses,
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
   ImportWebPageData,
   ImportWebPageErrors,
   ImportWebPageResponses,
+  IndexSemanticData,
+  IndexSemanticErrors,
+  IndexSemanticResponses,
   LinkEntityData,
   LinkEntityErrors,
   LinkEntityResponses,
@@ -424,8 +556,13 @@ import type {
   ListCommentsData,
   ListCommentsErrors,
   ListCommentsResponses,
+  ListComponentsData,
+  ListComponentsResponses,
   ListContentTypesData,
   ListContentTypesResponses,
+  ListCustomNodesData,
+  ListCustomNodesErrors,
+  ListCustomNodesResponses,
   ListEntitiesData,
   ListEntitiesErrors,
   ListEntitiesResponses,
@@ -438,7 +575,11 @@ import type {
   ListEntitySuggestionsErrors,
   ListEntitySuggestionsResponses,
   ListEntityTypesData,
+  ListEntityTypesErrors,
   ListEntityTypesResponses,
+  ListExtensionsData,
+  ListExtensionsErrors,
+  ListExtensionsResponses,
   ListFieldsData,
   ListFieldsErrors,
   ListFieldsResponses,
@@ -456,6 +597,8 @@ import type {
   ListHighlightsData,
   ListHighlightsErrors,
   ListHighlightsResponses,
+  ListIdentitiesData,
+  ListIdentitiesResponses,
   ListIpGroupsData,
   ListIpGroupsErrors,
   ListIpGroupsResponses,
@@ -465,6 +608,10 @@ import type {
   ListLanguagesData,
   ListLanguagesErrors,
   ListLanguagesResponses,
+  ListLoginProvidersData,
+  ListLoginProvidersResponses,
+  ListLoginsData,
+  ListLoginsResponses,
   ListMembersData,
   ListMembersErrors,
   ListMembersResponses,
@@ -494,10 +641,18 @@ import type {
   ListOutputsData,
   ListOutputsErrors,
   ListOutputsResponses,
+  ListPasskeysData,
+  ListPasskeysResponses,
+  ListPatternsData,
+  ListPatternsErrors,
+  ListPatternsResponses,
   ListPendingAccessRequestsData,
   ListPendingAccessRequestsResponses,
   ListPipelinesData,
   ListPipelinesResponses,
+  ListReadingsData,
+  ListReadingsErrors,
+  ListReadingsResponses,
   ListRecordingIpGroupsData,
   ListRecordingIpGroupsErrors,
   ListRecordingIpGroupsResponses,
@@ -520,6 +675,8 @@ import type {
   ListSegmentEditsData,
   ListSegmentEditsErrors,
   ListSegmentEditsResponses,
+  ListSensorsData,
+  ListSensorsResponses,
   ListSharesData,
   ListSharesErrors,
   ListSharesResponses,
@@ -550,12 +707,21 @@ import type {
   ListWorkersResponses,
   ListWorkflowsData,
   ListWorkflowsResponses,
+  LockVaultData,
+  LockVaultErrors,
+  LockVaultResponses,
   LoginData,
   LoginErrors,
   LoginResponses,
   LogoutData,
   LogoutErrors,
   LogoutResponses,
+  LostPasskeyData,
+  LostPasskeyErrors,
+  LostPasskeyResponses,
+  MakeSigninLinkData,
+  MakeSigninLinkErrors,
+  MakeSigninLinkResponses,
   MarkEntitiesNotSameData,
   MarkEntitiesNotSameErrors,
   MarkEntitiesNotSameResponses,
@@ -579,15 +745,32 @@ import type {
   MoveRecordingData,
   MoveRecordingErrors,
   MoveRecordingResponses,
+  NewTokenData,
+  NewTokenErrors,
+  NewTokenResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
   OpenRecordingToIpGroupData,
   OpenRecordingToIpGroupErrors,
   OpenRecordingToIpGroupResponses,
+  PasskeyLoginData,
+  PasskeyLoginErrors,
+  PasskeyLoginResponses,
+  PasskeyOptionsData,
+  PasskeyOptionsResponses,
+  PasskeySetupData,
+  PasskeySetupErrors,
+  PasskeySetupOptionsData,
+  PasskeySetupOptionsErrors,
+  PasskeySetupOptionsResponses,
+  PasskeySetupResponses,
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
+  PostNamespaceSparqlData,
+  PostNamespaceSparqlErrors,
+  PostNamespaceSparqlResponses,
   PreviewIiifImportData,
   PreviewIiifImportErrors,
   PreviewIiifImportResponses,
@@ -603,9 +786,26 @@ import type {
   PreviewWatchData,
   PreviewWatchErrors,
   PreviewWatchResponses,
+  ProposeGraphChangeData,
+  ProposeGraphChangeErrors,
+  ProposeGraphChangeResponses,
+  PushData,
+  PushResponses,
+  PushStreamData,
+  PushStreamErrors,
+  PushStreamResponses,
+  PushTokenData,
+  PushTokenErrors,
+  PushTokenResponses,
+  QueryNamespaceSparqlData,
+  QueryNamespaceSparqlErrors,
+  QueryNamespaceSparqlResponses,
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  RedeemTicketData,
+  RedeemTicketErrors,
+  RedeemTicketResponses,
   RefreshData,
   RefreshErrors,
   RefreshResponses,
@@ -614,15 +814,27 @@ import type {
   RegisterResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  RemoveLoginProviderData,
+  RemoveLoginProviderErrors,
+  RemoveLoginProviderResponses,
+  RemovePasskeyData,
+  RemovePasskeyErrors,
+  RemovePasskeyResponses,
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveVaultPasskeyData,
+  RemoveVaultPasskeyErrors,
+  RemoveVaultPasskeyResponses,
   RenameEntityData,
   RenameEntityErrors,
   RenameEntityResponses,
   RenameFaceData,
   RenameFaceErrors,
   RenameFaceResponses,
+  RenamePasskeyData,
+  RenamePasskeyErrors,
+  RenamePasskeyResponses,
   RenameSpeakerData,
   RenameSpeakerErrors,
   RenameSpeakerResponses,
@@ -647,6 +859,8 @@ import type {
   RevertMetadataEditData,
   RevertMetadataEditErrors,
   RevertMetadataEditResponses,
+  ReviewNewData,
+  ReviewNewResponses,
   RevokeAnyTokenData,
   RevokeAnyTokenErrors,
   RevokeAnyTokenResponses,
@@ -680,6 +894,9 @@ import type {
   SaveCollectionFieldsData,
   SaveCollectionFieldsErrors,
   SaveCollectionFieldsResponses,
+  SaveEntitySetupData,
+  SaveEntitySetupErrors,
+  SaveEntitySetupResponses,
   SaveFileFieldsData,
   SaveFileFieldsErrors,
   SaveFileFieldsResponses,
@@ -701,12 +918,17 @@ import type {
   ScanWatchData,
   ScanWatchErrors,
   ScanWatchResponses,
+  SealVaultData,
+  SealVaultErrors,
+  SealVaultResponses,
   SearchPublicData,
   SearchPublicErrors,
   SearchPublicResponses,
   SearchTranscriptsData,
   SearchTranscriptsErrors,
   SearchTranscriptsResponses,
+  SemanticStatusData,
+  SemanticStatusResponses,
   SendChunkData,
   SendChunkErrors,
   SendChunkResponses,
@@ -728,6 +950,24 @@ import type {
   SetupData,
   SetupErrors,
   SetupResponses,
+  SetupWithoutPasskeyData,
+  SetupWithoutPasskeyErrors,
+  SetupWithoutPasskeyResponses,
+  SigninLinkData,
+  SigninLinkErrors,
+  SigninLinkInfoData,
+  SigninLinkInfoErrors,
+  SigninLinkInfoResponses,
+  SigninLinkOptionsData,
+  SigninLinkOptionsErrors,
+  SigninLinkOptionsResponses,
+  SigninLinkResponses,
+  SigninLinkUseData,
+  SigninLinkUseErrors,
+  SigninLinkUseResponses,
+  SpeakTextData,
+  SpeakTextErrors,
+  SpeakTextResponses,
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
@@ -745,10 +985,21 @@ import type {
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
+  SyncFedoraData,
+  SyncFedoraResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
+  TestBridgeData,
+  TestBridgeResponses,
+  TestEmbeddingsData,
+  TestEmbeddingsResponses,
+  TestExtensionData,
+  TestExtensionErrors,
+  TestExtensionResponses,
   TestLlmData,
   TestLlmResponses,
+  TestMailData,
+  TestMailResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
@@ -762,6 +1013,13 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TranscribeClipData,
+  TranscribeClipResponses,
+  TryWorkflowData,
+  TryWorkflowErrors,
+  TryWorkflowResponses,
+  TunnelStatusData,
+  TunnelStatusResponses,
   UndoEntityMergeData,
   UndoEntityMergeErrors,
   UndoEntityMergeResponses,
@@ -783,6 +1041,12 @@ import type {
   UnlinkSpeakerData,
   UnlinkSpeakerErrors,
   UnlinkSpeakerResponses,
+  UnlockVaultData,
+  UnlockVaultErrors,
+  UnlockVaultResponses,
+  UnsealVaultData,
+  UnsealVaultErrors,
+  UnsealVaultResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -795,6 +1059,18 @@ import type {
   UpdateContentTypeData,
   UpdateContentTypeErrors,
   UpdateContentTypeResponses,
+  UpdateCustomNodeData,
+  UpdateCustomNodeErrors,
+  UpdateCustomNodeResponses,
+  UpdateEntityData,
+  UpdateEntityErrors,
+  UpdateEntityResponses,
+  UpdateEntityTypeData,
+  UpdateEntityTypeErrors,
+  UpdateEntityTypeResponses,
+  UpdateExtensionData,
+  UpdateExtensionErrors,
+  UpdateExtensionResponses,
   UpdateFieldData,
   UpdateFieldErrors,
   UpdateFieldResponses,
@@ -825,6 +1101,9 @@ import type {
   UpdateNotifyTargetData,
   UpdateNotifyTargetErrors,
   UpdateNotifyTargetResponses,
+  UpdatePatternData,
+  UpdatePatternErrors,
+  UpdatePatternResponses,
   UpdateRecordingAccessData,
   UpdateRecordingAccessErrors,
   UpdateRecordingAccessResponses,
@@ -840,6 +1119,9 @@ import type {
   UpdateSearchData,
   UpdateSearchErrors,
   UpdateSearchResponses,
+  UpdateSensorData,
+  UpdateSensorErrors,
+  UpdateSensorResponses,
   UpdateSettingsData,
   UpdateSettingsErrors,
   UpdateSettingsResponses,
@@ -860,6 +1142,11 @@ import type {
   UpdateWorkflowResponses,
   UploadLimitsData,
   UploadLimitsResponses,
+  VaultOptionsData,
+  VaultOptionsErrors,
+  VaultOptionsResponses,
+  VoiceInfoData,
+  VoiceInfoResponses,
 } from "./types.gen";
 
 export type Options<
@@ -899,7 +1186,9 @@ export class Auth {
   /**
    * Setup
    *
-   * Create the first admin with the one-time code printed in the server log.
+   * Create the first admin with a password and the one-time code printed in the server log, for scripts. This turns
+   * passwords on (auth.passwords). The web app makes the first admin with a passkey (POST /auth/passkey/setup/options),
+   * or with the code alone where browsers won't make passkeys (POST /auth/setup/no-passkey).
    */
   public static setup<ThrowOnError extends boolean = false>(
     options: Options<SetupData, ThrowOnError>,
@@ -916,6 +1205,8 @@ export class Auth {
 
   /**
    * Login
+   *
+   * Sign in with a password, where passwords are on (auth.passwords); else 403.
    */
   public static login<ThrowOnError extends boolean = false>(
     options: Options<LoginData, ThrowOnError>,
@@ -1013,7 +1304,8 @@ export class Auth {
   /**
    * Forgot Password
    *
-   * Email a reset link. Answers the same whether or not the address has an account.
+   * Email a reset link. Answers the same whether or not the address has an account. Where passwords are off, see
+   * POST /auth/signin-link/lost.
    */
   public static forgotPassword<ThrowOnError extends boolean = false>(
     options: Options<ForgotPasswordData, ThrowOnError>,
@@ -1036,6 +1328,413 @@ export class Auth {
   ): RequestResult<ResetPasswordResponses, ResetPasswordErrors, ThrowOnError> {
     return (options.client ?? client).post<ResetPasswordResponses, ResetPasswordErrors, ThrowOnError>({
       url: "/api/v1/auth/password/reset",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Setup Options
+   *
+   * Start making the first admin with a passkey, with the one-time setup code from the server log.
+   */
+  public static passkeySetupOptions<ThrowOnError extends boolean = false>(
+    options: Options<PasskeySetupOptionsData, ThrowOnError>,
+  ): RequestResult<PasskeySetupOptionsResponses, PasskeySetupOptionsErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeySetupOptionsResponses, PasskeySetupOptionsErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkey/setup/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Setup
+   *
+   * Make the first admin with the passkey the browser just created. Answers a ticket for signing in.
+   */
+  public static passkeySetup<ThrowOnError extends boolean = false>(
+    options: Options<PasskeySetupData, ThrowOnError>,
+  ): RequestResult<PasskeySetupResponses, PasskeySetupErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeySetupResponses, PasskeySetupErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkey/setup",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Setup Without Passkey
+   *
+   * Make the first admin with the setup code alone, where the browser can't make passkeys (a plain http:// address
+   * other than localhost). No password: they sign in later with a passkey (at an https:// address) or a sign-in link.
+   */
+  public static setupWithoutPasskey<ThrowOnError extends boolean = false>(
+    options: Options<SetupWithoutPasskeyData, ThrowOnError>,
+  ): RequestResult<SetupWithoutPasskeyResponses, SetupWithoutPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SetupWithoutPasskeyResponses, SetupWithoutPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/setup/no-passkey",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Passkey Options
+   *
+   * Start signing in with a passkey: the browser offers the ones made on this site.
+   */
+  public static passkeyOptions<ThrowOnError extends boolean = false>(
+    options?: Options<PasskeyOptionsData, ThrowOnError>,
+  ): RequestResult<PasskeyOptionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<PasskeyOptionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkey/options",
+      ...options,
+    });
+  }
+
+  /**
+   * Passkey Login
+   *
+   * Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session; 404 for a passkey
+   * this server doesn't know (removed, or from before Lens was set up again).
+   */
+  public static passkeyLogin<ThrowOnError extends boolean = false>(
+    options: Options<PasskeyLoginData, ThrowOnError>,
+  ): RequestResult<PasskeyLoginResponses, PasskeyLoginErrors, ThrowOnError> {
+    return (options.client ?? client).post<PasskeyLoginResponses, PasskeyLoginErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkey",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Redeem Ticket
+   *
+   * Swap a sign-in ticket (from a passkey or an outside account) for a session. Each ticket works once.
+   */
+  public static redeemTicket<ThrowOnError extends boolean = false>(
+    options: Options<RedeemTicketData, ThrowOnError>,
+  ): RequestResult<RedeemTicketResponses, RedeemTicketErrors, ThrowOnError> {
+    return (options.client ?? client).post<RedeemTicketResponses, RedeemTicketErrors, ThrowOnError>({
+      url: "/api/v1/auth/ticket",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link Info
+   *
+   * Who a sign-in link is for (the page greets them).
+   */
+  public static signinLinkInfo<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkInfoData, ThrowOnError>,
+  ): RequestResult<SigninLinkInfoResponses, SigninLinkInfoErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkInfoResponses, SigninLinkInfoErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/info",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link Options
+   */
+  public static signinLinkOptions<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkOptionsData, ThrowOnError>,
+  ): RequestResult<SigninLinkOptionsResponses, SigninLinkOptionsErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkOptionsResponses, SigninLinkOptionsErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link
+   *
+   * Add the passkey the browser just made and sign in. The link stops working.
+   */
+  public static signinLink<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkData, ThrowOnError>,
+  ): RequestResult<SigninLinkResponses, SigninLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkResponses, SigninLinkErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Signin Link Use
+   *
+   * Sign in with a sign-in link alone, without adding a passkey: for addresses browsers won't use passkeys on
+   * (plain http:// other than localhost). The link stops working. Audited as `login` with `signin-link`.
+   */
+  public static signinLinkUse<ThrowOnError extends boolean = false>(
+    options: Options<SigninLinkUseData, ThrowOnError>,
+  ): RequestResult<SigninLinkUseResponses, SigninLinkUseErrors, ThrowOnError> {
+    return (options.client ?? client).post<SigninLinkUseResponses, SigninLinkUseErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/use",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Lost Passkey
+   *
+   * Email a sign-in link to this address, for adding a passkey. Answers the same whether or not it has an account.
+   */
+  public static lostPasskey<ThrowOnError extends boolean = false>(
+    options: Options<LostPasskeyData, ThrowOnError>,
+  ): RequestResult<LostPasskeyResponses, LostPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<LostPasskeyResponses, LostPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/signin-link/lost",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Passkeys
+   */
+  public static listPasskeys<ThrowOnError extends boolean = false>(
+    options?: Options<ListPasskeysData, ThrowOnError>,
+  ): RequestResult<ListPasskeysResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListPasskeysResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkeys",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Passkey
+   *
+   * Add the passkey the browser just made. Audited as `passkey.add`.
+   */
+  public static addPasskey<ThrowOnError extends boolean = false>(
+    options: Options<AddPasskeyData, ThrowOnError>,
+  ): RequestResult<AddPasskeyResponses, AddPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddPasskeyResponses, AddPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Add Passkey Options
+   *
+   * Start adding a passkey to your account (on the site you're on).
+   */
+  public static addPasskeyOptions<ThrowOnError extends boolean = false>(
+    options?: Options<AddPasskeyOptionsData, ThrowOnError>,
+  ): RequestResult<AddPasskeyOptionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<AddPasskeyOptionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/options",
+      ...options,
+    });
+  }
+
+  /**
+   * Remove Passkey
+   *
+   * Remove one of your passkeys; not the last one (you couldn't sign in). Audited as `passkey.remove`.
+   */
+  public static removePasskey<ThrowOnError extends boolean = false>(
+    options: Options<RemovePasskeyData, ThrowOnError>,
+  ): RequestResult<RemovePasskeyResponses, RemovePasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemovePasskeyResponses, RemovePasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Rename Passkey
+   */
+  public static renamePasskey<ThrowOnError extends boolean = false>(
+    options: Options<RenamePasskeyData, ThrowOnError>,
+  ): RequestResult<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).patch<RenamePasskeyResponses, RenamePasskeyErrors, ThrowOnError>({
+      url: "/api/v1/auth/passkeys/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * External Providers
+   *
+   * The outside accounts people can sign in with here (for the sign-in page).
+   */
+  public static externalProviders<ThrowOnError extends boolean = false>(
+    options?: Options<ExternalProvidersData, ThrowOnError>,
+  ): RequestResult<ExternalProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ExternalProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/external",
+      ...options,
+    });
+  }
+
+  /**
+   * External Start
+   *
+   * Start signing in with an outside account: open the returned address in this browser.
+   */
+  public static externalStart<ThrowOnError extends boolean = false>(
+    options: Options<ExternalStartData, ThrowOnError>,
+  ): RequestResult<ExternalStartResponses, ExternalStartErrors, ThrowOnError> {
+    return (options.client ?? client).post<ExternalStartResponses, ExternalStartErrors, ThrowOnError>({
+      url: "/api/v1/auth/external/{key}/start",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * External Connect
+   *
+   * Connect an outside account to yours, so you can sign in with it: open the returned address in this browser.
+   */
+  public static externalConnect<ThrowOnError extends boolean = false>(
+    options: Options<ExternalConnectData, ThrowOnError>,
+  ): RequestResult<ExternalConnectResponses, ExternalConnectErrors, ThrowOnError> {
+    return (options.client ?? client).post<ExternalConnectResponses, ExternalConnectErrors, ThrowOnError>({
+      url: "/api/v1/auth/external/{key}/connect",
+      ...options,
+    });
+  }
+
+  /**
+   * List Identities
+   *
+   * The outside accounts you can sign in with.
+   */
+  public static listIdentities<ThrowOnError extends boolean = false>(
+    options?: Options<ListIdentitiesData, ThrowOnError>,
+  ): RequestResult<ListIdentitiesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListIdentitiesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/identities",
+      ...options,
+    });
+  }
+
+  /**
+   * Disconnect Identity
+   *
+   * Disconnect an outside account; not your only way to sign in. Audited as `external.disconnect`.
+   */
+  public static disconnectIdentity<ThrowOnError extends boolean = false>(
+    options: Options<DisconnectIdentityData, ThrowOnError>,
+  ): RequestResult<DisconnectIdentityResponses, DisconnectIdentityErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DisconnectIdentityResponses, DisconnectIdentityErrors, ThrowOnError>({
+      url: "/api/v1/auth/identities/{iid}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Login Providers
+   *
+   * Every sign-in provider and its settings (never the client secret).
+   */
+  public static listLoginProviders<ThrowOnError extends boolean = false>(
+    options?: Options<ListLoginProvidersData, ThrowOnError>,
+  ): RequestResult<ListLoginProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListLoginProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/providers",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Login Provider
+   *
+   * Add a sign-in provider. Audited as `login_provider.add`.
+   */
+  public static addLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<AddLoginProviderData, ThrowOnError>,
+  ): RequestResult<AddLoginProviderResponses, AddLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddLoginProviderResponses, AddLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Login Provider
+   *
+   * Remove a sign-in provider and the accounts connected through it. Audited as `login_provider.remove`.
+   */
+  public static removeLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<RemoveLoginProviderData, ThrowOnError>,
+  ): RequestResult<RemoveLoginProviderResponses, RemoveLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveLoginProviderResponses, RemoveLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers/{key}",
+      ...options,
+    });
+  }
+
+  /**
+   * Change Login Provider
+   *
+   * Change a sign-in provider; leave the secret out to keep it. Audited as `login_provider.change`.
+   */
+  public static changeLoginProvider<ThrowOnError extends boolean = false>(
+    options: Options<ChangeLoginProviderData, ThrowOnError>,
+  ): RequestResult<ChangeLoginProviderResponses, ChangeLoginProviderErrors, ThrowOnError> {
+    return (options.client ?? client).patch<ChangeLoginProviderResponses, ChangeLoginProviderErrors, ThrowOnError>({
+      url: "/api/v1/auth/providers/{key}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -1103,6 +1802,123 @@ export class Tokens {
     return (options.client ?? client).delete<RevokeTokenResponses, RevokeTokenErrors, ThrowOnError>({
       url: "/api/v1/tokens/{token_id}",
       ...options,
+    });
+  }
+}
+
+export class Users {
+  /**
+   * Make Signin Link
+   *
+   * A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts
+   * three days; making another stops the last one. Share it privately. Audited as `user.signin_link`.
+   */
+  public static makeSigninLink<ThrowOnError extends boolean = false>(
+    options: Options<MakeSigninLinkData, ThrowOnError>,
+  ): RequestResult<MakeSigninLinkResponses, MakeSigninLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<MakeSigninLinkResponses, MakeSigninLinkErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}/signin-link",
+      ...options,
+    });
+  }
+
+  /**
+   * Drop Passkeys
+   *
+   * Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link
+   * to add a new one. Refused (409) when they are the only way into a vault, unless lose_vaults=true. Audited as
+   * `user.passkeys_remove`.
+   */
+  public static dropPasskeys<ThrowOnError extends boolean = false>(
+    options: Options<DropPasskeysData, ThrowOnError>,
+  ): RequestResult<DropPasskeysResponses, DropPasskeysErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DropPasskeysResponses, DropPasskeysErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}/passkeys",
+      ...options,
+    });
+  }
+
+  /**
+   * List Users
+   *
+   * Every account, with its role in each namespace.
+   */
+  public static listUsers<ThrowOnError extends boolean = false>(
+    options?: Options<ListUsersData, ThrowOnError>,
+  ): RequestResult<ListUsersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListUsersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/users",
+      ...options,
+    });
+  }
+
+  /**
+   * Create User
+   *
+   * A new account. Without a password (the only way where passwords are off), send them a sign-in link
+   * (POST /users/{uid}/signin-link) to add a passkey.
+   */
+  public static createUser<ThrowOnError extends boolean = false>(
+    options: Options<CreateUserData, ThrowOnError>,
+  ): RequestResult<CreateUserResponses, CreateUserErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
+      url: "/api/v1/users",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Update User
+   *
+   * Rename, promote or demote, disable, or set a new password (which signs the person out everywhere; only where
+   * passwords are on).
+   */
+  public static updateUser<ThrowOnError extends boolean = false>(
+    options: Options<UpdateUserData, ThrowOnError>,
+  ): RequestResult<UpdateUserResponses, UpdateUserErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Members
+   *
+   * Who has a role in this namespace (owners only).
+   */
+  public static listMembers<ThrowOnError extends boolean = false>(
+    options: Options<ListMembersData, ThrowOnError>,
+  ): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/members",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Member
+   *
+   * Give someone a role in this namespace, change it, or (role null) remove them. Owners only.
+   */
+  public static setMember<ThrowOnError extends boolean = false>(
+    options: Options<SetMemberData, ThrowOnError>,
+  ): RequestResult<SetMemberResponses, SetMemberErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetMemberResponses, SetMemberErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/members",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
@@ -1232,88 +2048,6 @@ export class Oauth {
   }
 }
 
-export class Users {
-  /**
-   * List Users
-   *
-   * Every account, with its role in each namespace.
-   */
-  public static listUsers<ThrowOnError extends boolean = false>(
-    options?: Options<ListUsersData, ThrowOnError>,
-  ): RequestResult<ListUsersResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListUsersResponses, unknown, ThrowOnError>({
-      url: "/api/v1/users",
-      ...options,
-    });
-  }
-
-  /**
-   * Create User
-   */
-  public static createUser<ThrowOnError extends boolean = false>(
-    options: Options<CreateUserData, ThrowOnError>,
-  ): RequestResult<CreateUserResponses, CreateUserErrors, ThrowOnError> {
-    return (options.client ?? client).post<CreateUserResponses, CreateUserErrors, ThrowOnError>({
-      url: "/api/v1/users",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
-   * Update User
-   *
-   * Rename, promote or demote, disable, or set a new password (which signs the person out everywhere).
-   */
-  public static updateUser<ThrowOnError extends boolean = false>(
-    options: Options<UpdateUserData, ThrowOnError>,
-  ): RequestResult<UpdateUserResponses, UpdateUserErrors, ThrowOnError> {
-    return (options.client ?? client).patch<UpdateUserResponses, UpdateUserErrors, ThrowOnError>({
-      url: "/api/v1/users/{uid}",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-
-  /**
-   * List Members
-   *
-   * Who has a role in this namespace (owners only).
-   */
-  public static listMembers<ThrowOnError extends boolean = false>(
-    options: Options<ListMembersData, ThrowOnError>,
-  ): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> {
-    return (options.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({
-      url: "/api/v1/namespaces/{name}/members",
-      ...options,
-    });
-  }
-
-  /**
-   * Set Member
-   *
-   * Give someone a role in this namespace, change it, or (role null) remove them. Owners only.
-   */
-  public static setMember<ThrowOnError extends boolean = false>(
-    options: Options<SetMemberData, ThrowOnError>,
-  ): RequestResult<SetMemberResponses, SetMemberErrors, ThrowOnError> {
-    return (options.client ?? client).put<SetMemberResponses, SetMemberErrors, ThrowOnError>({
-      url: "/api/v1/namespaces/{name}/members",
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
-    });
-  }
-}
-
 export class Admin {
   /**
    * Get Settings
@@ -1357,6 +2091,106 @@ export class Admin {
   ): RequestResult<TestLlmResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestLlmResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/llm/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Mail
+   *
+   * Send a short message to your own address through the email settings, to check them.
+   */
+  public static testMail<ThrowOnError extends boolean = false>(
+    options?: Options<TestMailData, ThrowOnError>,
+  ): RequestResult<TestMailResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestMailResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mail/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Bridge Status
+   *
+   * How the assistant's chat-room bridge (Matterbridge) is doing.
+   */
+  public static bridgeStatus<ThrowOnError extends boolean = false>(
+    options?: Options<BridgeStatusData, ThrowOnError>,
+  ): RequestResult<BridgeStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<BridgeStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/bridge",
+      ...options,
+    });
+  }
+
+  /**
+   * Tunnel Status
+   *
+   * How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
+   * cloudflared's last lines.
+   */
+  public static tunnelStatus<ThrowOnError extends boolean = false>(
+    options?: Options<TunnelStatusData, ThrowOnError>,
+  ): RequestResult<TunnelStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<TunnelStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/tunnel/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Bridge
+   *
+   * Check that Matterbridge answers at its address with its token, and that the account to answer as exists.
+   */
+  public static testBridge<ThrowOnError extends boolean = false>(
+    options?: Options<TestBridgeData, ThrowOnError>,
+  ): RequestResult<TestBridgeResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestBridgeResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/bridge/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Embeddings
+   *
+   * Embed one sentence with the configured model, to check the address, key and model name.
+   */
+  public static testEmbeddings<ThrowOnError extends boolean = false>(
+    options?: Options<TestEmbeddingsData, ThrowOnError>,
+  ): RequestResult<TestEmbeddingsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestEmbeddingsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/embeddings/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Semantic Status
+   *
+   * Search by meaning: whether it's set up, its model, and how many recordings are indexed with it.
+   */
+  public static semanticStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SemanticStatusData, ThrowOnError>,
+  ): RequestResult<SemanticStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SemanticStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/semantic",
+      ...options,
+    });
+  }
+
+  /**
+   * Index Semantic
+   *
+   * Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a
+   * recording with a job waiting or running is left for the next time).
+   */
+  public static indexSemantic<ThrowOnError extends boolean = false>(
+    options?: Options<IndexSemanticData, ThrowOnError>,
+  ): RequestResult<IndexSemanticResponses, IndexSemanticErrors, ThrowOnError> {
+    return (options?.client ?? client).post<IndexSemanticResponses, IndexSemanticErrors, ThrowOnError>({
+      url: "/api/v1/admin/semantic/index",
       ...options,
     });
   }
@@ -1458,6 +2292,63 @@ export class Admin {
       ...options,
     });
   }
+
+  /**
+   * List Components
+   *
+   * Every component (programs, packages, models), whether the settings need it, and each worker's machine and where
+   * it is with each: ready, being fetched, failed or missing. Steps that need one being fetched wait for it.
+   */
+  public static listComponents<ThrowOnError extends boolean = false>(
+    options?: Options<ListComponentsData, ThrowOnError>,
+  ): RequestResult<ListComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components",
+      ...options,
+    });
+  }
+
+  /**
+   * Check Components
+   *
+   * Ask every worker to check what it needs now, and to try again what failed. Audited as ``components.check``.
+   */
+  public static checkComponents<ThrowOnError extends boolean = false>(
+    options?: Options<CheckComponentsData, ThrowOnError>,
+  ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Fedora {
+  /**
+   * Get Fedora Status
+   */
+  public static getFedoraStatus<ThrowOnError extends boolean = false>(
+    options?: Options<GetFedoraStatusData, ThrowOnError>,
+  ): RequestResult<GetFedoraStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetFedoraStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/fedora",
+      ...options,
+    });
+  }
+
+  /**
+   * Sync Fedora
+   *
+   * Compare everything with Fedora now and send what differs (the background sync does this every fedora.full_hours).
+   */
+  public static syncFedora<ThrowOnError extends boolean = false>(
+    options?: Options<SyncFedoraData, ThrowOnError>,
+  ): RequestResult<SyncFedoraResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<SyncFedoraResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/fedora/sync",
+      ...options,
+    });
+  }
 }
 
 export class Setup {
@@ -1508,6 +2399,21 @@ export class Setup {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Detect Llm
+   *
+   * Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with
+   * their models, so the wizard can offer one instead of asking for an address.
+   */
+  public static detectLlm<ThrowOnError extends boolean = false>(
+    options?: Options<DetectLlmData, ThrowOnError>,
+  ): RequestResult<DetectLlmResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<DetectLlmResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup/llm/detect",
+      ...options,
     });
   }
 
@@ -3115,7 +4021,7 @@ export class Search {
    * Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
    * transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
    * best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
-   * filter keeps to what was said.
+   * filter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
@@ -3374,7 +4280,8 @@ export class Entities {
    *
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
    * With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-   * over the recordings they see).
+   * over the recordings they see). With `collection`, those said in its recordings and those of the collections inside
+   * it (counted over them).
    */
   public static listEntities<ThrowOnError extends boolean = false>(
     options?: Options<ListEntitiesData, ThrowOnError>,
@@ -3387,11 +4294,13 @@ export class Entities {
 
   /**
    * List Entity Types
+   *
+   * The types an entity may have: the built-in ones, and with `ns` that namespace's own too.
    */
   public static listEntityTypes<ThrowOnError extends boolean = false>(
     options?: Options<ListEntityTypesData, ThrowOnError>,
-  ): RequestResult<ListEntityTypesResponses, unknown, ThrowOnError> {
-    return (options?.client ?? client).get<ListEntityTypesResponses, unknown, ThrowOnError>({
+  ): RequestResult<ListEntityTypesResponses, ListEntityTypesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListEntityTypesResponses, ListEntityTypesErrors, ThrowOnError>({
       url: "/api/v1/entities/types",
       ...options,
     });
@@ -3500,6 +4409,20 @@ export class Entities {
   }
 
   /**
+   * Delete Entity
+   *
+   * Take a defined entity that nothing mentions off the fixed list.
+   */
+  public static deleteEntity<ThrowOnError extends boolean = false>(
+    options: Options<DeleteEntityData, ThrowOnError>,
+  ): RequestResult<DeleteEntityResponses, DeleteEntityErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteEntityResponses, DeleteEntityErrors, ThrowOnError>({
+      url: "/api/v1/entities/{eid}",
+      ...options,
+    });
+  }
+
+  /**
    * Get Entity
    */
   public static getEntity<ThrowOnError extends boolean = false>(
@@ -3508,6 +4431,24 @@ export class Entities {
     return (options.client ?? client).get<GetEntityResponses, GetEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}",
       ...options,
+    });
+  }
+
+  /**
+   * Update Entity
+   *
+   * Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.
+   */
+  public static updateEntity<ThrowOnError extends boolean = false>(
+    options: Options<UpdateEntityData, ThrowOnError>,
+  ): RequestResult<UpdateEntityResponses, UpdateEntityErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateEntityResponses, UpdateEntityErrors, ThrowOnError>({
+      url: "/api/v1/entities/{eid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 
@@ -3549,6 +4490,24 @@ export class Entities {
   ): RequestResult<RenameEntityResponses, RenameEntityErrors, ThrowOnError> {
     return (options.client ?? client).post<RenameEntityResponses, RenameEntityErrors, ThrowOnError>({
       url: "/api/v1/entities/{eid}/rename",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Define Entity
+   *
+   * Add an entity to the namespace's fixed list (or one collection's), or put the one of that name on it.
+   */
+  public static defineEntity<ThrowOnError extends boolean = false>(
+    options: Options<DefineEntityData, ThrowOnError>,
+  ): RequestResult<DefineEntityResponses, DefineEntityErrors, ThrowOnError> {
+    return (options.client ?? client).post<DefineEntityResponses, DefineEntityErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entities",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -3646,6 +4605,203 @@ export class Entities {
     return (options.client ?? client).get<FindGraphPathResponses, FindGraphPathErrors, ThrowOnError>({
       url: "/api/v1/graph/path",
       ...options,
+    });
+  }
+
+  /**
+   * Get Entity Setup
+   *
+   * The namespace's entity setup, the collections (you see) with their own, and the types entities may have.
+   */
+  public static getEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<GetEntitySetupData, ThrowOnError>,
+  ): RequestResult<GetEntitySetupResponses, GetEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetEntitySetupResponses, GetEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup",
+      ...options,
+    });
+  }
+
+  /**
+   * Save Entity Setup
+   *
+   * Save the namespace's setup, or (with `collection`) one collection's own.
+   */
+  public static saveEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<SaveEntitySetupData, ThrowOnError>,
+  ): RequestResult<SaveEntitySetupResponses, SaveEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveEntitySetupResponses, SaveEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Clear Entity Setup
+   *
+   * The collection follows its parents' setup again.
+   */
+  public static clearEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<ClearEntitySetupData, ThrowOnError>,
+  ): RequestResult<ClearEntitySetupResponses, ClearEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).delete<ClearEntitySetupResponses, ClearEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup/collections/{cid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Apply Entity Setup
+   *
+   * Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow
+   * the setup as it is now.
+   */
+  public static applyEntitySetup<ThrowOnError extends boolean = false>(
+    options: Options<ApplyEntitySetupData, ThrowOnError>,
+  ): RequestResult<ApplyEntitySetupResponses, ApplyEntitySetupErrors, ThrowOnError> {
+    return (options.client ?? client).post<ApplyEntitySetupResponses, ApplyEntitySetupErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-setup/apply",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Entity Type
+   *
+   * A type of the namespace's own, e.g. "Client" or "Project"; its code is the name in capitals.
+   */
+  public static createEntityType<ThrowOnError extends boolean = false>(
+    options: Options<CreateEntityTypeData, ThrowOnError>,
+  ): RequestResult<CreateEntityTypeResponses, CreateEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateEntityTypeResponses, CreateEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Entity Type
+   *
+   * Only a type no entity has.
+   */
+  public static deleteEntityType<ThrowOnError extends boolean = false>(
+    options: Options<DeleteEntityTypeData, ThrowOnError>,
+  ): RequestResult<DeleteEntityTypeResponses, DeleteEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteEntityTypeResponses, DeleteEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types/{code}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Entity Type
+   */
+  public static updateEntityType<ThrowOnError extends boolean = false>(
+    options: Options<UpdateEntityTypeData, ThrowOnError>,
+  ): RequestResult<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/entity-types/{code}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Graph {
+  /**
+   * Graph Schema
+   *
+   * What the graph holds in this scope: labels, relationship types (and what they join), properties and counts, with
+   * example queries. Agents read this before writing Cypher.
+   */
+  public static graphSchema<ThrowOnError extends boolean = false>(
+    options?: Options<GraphSchemaData, ThrowOnError>,
+  ): RequestResult<GraphSchemaResponses, GraphSchemaErrors, ThrowOnError> {
+    return (options?.client ?? client).get<GraphSchemaResponses, GraphSchemaErrors, ThrowOnError>({
+      url: "/api/v1/graph/schema",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Related
+   *
+   * Nodes related to one node, nearest first, with the relationships between them.
+   */
+  public static graphRelated<ThrowOnError extends boolean = false>(
+    options: Options<GraphRelatedData, ThrowOnError>,
+  ): RequestResult<GraphRelatedResponses, GraphRelatedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphRelatedResponses, GraphRelatedErrors, ThrowOnError>({
+      url: "/api/v1/graph/related",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Paths
+   *
+   * Paths from a to b, shortest first: every simple path up to max_depth hops, or just the shortest ones.
+   */
+  public static graphPaths<ThrowOnError extends boolean = false>(
+    options: Options<GraphPathsData, ThrowOnError>,
+  ): RequestResult<GraphPathsResponses, GraphPathsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphPathsResponses, GraphPathsErrors, ThrowOnError>({
+      url: "/api/v1/graph/paths",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Query
+   *
+   * Run a read-only Cypher query over the graph you can read: {columns, rows, nodes, edges, truncated}. Nodes and
+   * relationships it returns are also listed in nodes and edges, ready to draw. Read-only tokens may query.
+   */
+  public static graphQuery<ThrowOnError extends boolean = false>(
+    options: Options<GraphQueryData, ThrowOnError>,
+  ): RequestResult<GraphQueryResponses, GraphQueryErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphQueryResponses, GraphQueryErrors, ThrowOnError>({
+      url: "/api/v1/graph/query",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Propose Graph Change
+   *
+   * Ask for a change to the graph. Proposed by default, for someone with editor access to accept in Proposed
+   * changes; `apply` makes it at once, and it can still be undone. Both need editor access to the two namespaces; read-only
+   * tokens can't ask.
+   */
+  public static proposeGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<ProposeGraphChangeData, ThrowOnError>,
+  ): RequestResult<ProposeGraphChangeResponses, ProposeGraphChangeErrors, ThrowOnError> {
+    return (options.client ?? client).post<ProposeGraphChangeResponses, ProposeGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph/changes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
@@ -3759,6 +4915,88 @@ export class Metadata {
   ): RequestResult<BulkUpdateMetadataResponses, BulkUpdateMetadataErrors, ThrowOnError> {
     return (options.client ?? client).post<BulkUpdateMetadataResponses, BulkUpdateMetadataErrors, ThrowOnError>({
       url: "/api/v1/metadata/bulk",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Rdf {
+  /**
+   * Get Recording Rdf
+   *
+   * The recording described with Dublin Core, with the entities it mentions.
+   */
+  public static getRecordingRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetRecordingRdfData, ThrowOnError>,
+  ): RequestResult<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRecordingRdfResponses, GetRecordingRdfErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/rdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Namespace Rdf
+   *
+   * Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.
+   */
+  public static getNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceRdfResponses, GetNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf",
+      ...options,
+    });
+  }
+
+  /**
+   * Import Namespace Rdf
+   *
+   * Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change
+   * is a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.
+   */
+  public static importNamespaceRdf<ThrowOnError extends boolean = false>(
+    options: Options<ImportNamespaceRdfData, ThrowOnError>,
+  ): RequestResult<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportNamespaceRdfResponses, ImportNamespaceRdfErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/rdf/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Query Namespace Sparql
+   *
+   * A read-only SPARQL query over the namespace's graph (what GET /namespaces/{name}/rdf returns). dcterms, dcmitype,
+   * foaf, skos, owl, rdf, rdfs, xsd and lens are known prefixes. SERVICE and FROM aren't allowed.
+   */
+  public static queryNamespaceSparql<ThrowOnError extends boolean = false>(
+    options: Options<QueryNamespaceSparqlData, ThrowOnError>,
+  ): RequestResult<QueryNamespaceSparqlResponses, QueryNamespaceSparqlErrors, ThrowOnError> {
+    return (options.client ?? client).get<QueryNamespaceSparqlResponses, QueryNamespaceSparqlErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/sparql",
+      ...options,
+    });
+  }
+
+  /**
+   * Post Namespace Sparql
+   *
+   * The same, with the query in the body (for long ones).
+   */
+  public static postNamespaceSparql<ThrowOnError extends boolean = false>(
+    options: Options<PostNamespaceSparqlData, ThrowOnError>,
+  ): RequestResult<PostNamespaceSparqlResponses, PostNamespaceSparqlErrors, ThrowOnError> {
+    return (options.client ?? client).post<PostNamespaceSparqlResponses, PostNamespaceSparqlErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/sparql",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4684,7 +5922,8 @@ export class Workflows {
   /**
    * List Workflows
    *
-   * Saved workflows, plus the nodes a workflow can be built from.
+   * Saved workflows, plus the nodes a workflow can be built from: the primitives, each scope's own nodes, and the
+   * custom nodes you can use.
    */
   public static listWorkflows<ThrowOnError extends boolean = false>(
     options?: Options<ListWorkflowsData, ThrowOnError>,
@@ -4703,6 +5942,25 @@ export class Workflows {
   ): RequestResult<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError> {
     return (options.client ?? client).post<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError>({
       url: "/api/v1/workflows",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Try Workflow
+   *
+   * Run a graph (saved or not) once without keeping anything: what each node passed on, for the canvas. Nodes
+   * that would save something say what they would save; models are still asked.
+   */
+  public static tryWorkflow<ThrowOnError extends boolean = false>(
+    options: Options<TryWorkflowData, ThrowOnError>,
+  ): RequestResult<TryWorkflowResponses, TryWorkflowErrors, ThrowOnError> {
+    return (options.client ?? client).post<TryWorkflowResponses, TryWorkflowErrors, ThrowOnError>({
+      url: "/api/v1/workflows/test",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4769,6 +6027,235 @@ export class Workflows {
   ): RequestResult<RunWorkflowResponses, RunWorkflowErrors, ThrowOnError> {
     return (options.client ?? client).post<RunWorkflowResponses, RunWorkflowErrors, ThrowOnError>({
       url: "/api/v1/workflows/{wid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Custom Nodes
+   *
+   * The custom nodes you can use: yours, the ones shared with your namespaces or with everyone (admins: all).
+   */
+  public static listCustomNodes<ThrowOnError extends boolean = false>(
+    options?: Options<ListCustomNodesData, ThrowOnError>,
+  ): RequestResult<ListCustomNodesResponses, ListCustomNodesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListCustomNodesResponses, ListCustomNodesErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Custom Node
+   */
+  public static createCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<CreateCustomNodeData, ThrowOnError>,
+  ): RequestResult<CreateCustomNodeResponses, CreateCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateCustomNodeResponses, CreateCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Custom Node
+   *
+   * Takes it off the palette; workflows that use it keep running the version they pinned.
+   */
+  public static deleteCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<DeleteCustomNodeData, ThrowOnError>,
+  ): RequestResult<DeleteCustomNodeResponses, DeleteCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteCustomNodeResponses, DeleteCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Custom Node
+   *
+   * One version (default: the current one) and the list of versions.
+   */
+  public static getCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<GetCustomNodeData, ThrowOnError>,
+  ): RequestResult<GetCustomNodeResponses, GetCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetCustomNodeResponses, GetCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Custom Node
+   *
+   * Its name, look, and who sees it.
+   */
+  public static updateCustomNode<ThrowOnError extends boolean = false>(
+    options: Options<UpdateCustomNodeData, ThrowOnError>,
+  ): RequestResult<UpdateCustomNodeResponses, UpdateCustomNodeErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateCustomNodeResponses, UpdateCustomNodeErrors, ThrowOnError>({
+      url: "/api/v1/custom-nodes/{nid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Custom Node Version
+   */
+  public static createCustomNodeVersion<ThrowOnError extends boolean = false>(
+    options: Options<CreateCustomNodeVersionData, ThrowOnError>,
+  ): RequestResult<CreateCustomNodeVersionResponses, CreateCustomNodeVersionErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      CreateCustomNodeVersionResponses,
+      CreateCustomNodeVersionErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/custom-nodes/{nid}/versions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Extensions {
+  /**
+   * List Extensions
+   *
+   * The extensions you can see: yours, the ones shared with your namespaces or with everyone (admins: all).
+   */
+  public static listExtensions<ThrowOnError extends boolean = false>(
+    options?: Options<ListExtensionsData, ThrowOnError>,
+  ): RequestResult<ListExtensionsResponses, ListExtensionsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListExtensionsResponses, ListExtensionsErrors, ThrowOnError>({
+      url: "/api/v1/extensions",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Extension
+   */
+  public static createExtension<ThrowOnError extends boolean = false>(
+    options: Options<CreateExtensionData, ThrowOnError>,
+  ): RequestResult<CreateExtensionResponses, CreateExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateExtensionResponses, CreateExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Check Manifest
+   *
+   * Read and check a manifest written as code, without saving it: 400 says what's wrong.
+   */
+  public static checkManifest<ThrowOnError extends boolean = false>(
+    options: Options<CheckManifestData, ThrowOnError>,
+  ): RequestResult<CheckManifestResponses, CheckManifestErrors, ThrowOnError> {
+    return (options.client ?? client).post<CheckManifestResponses, CheckManifestErrors, ThrowOnError>({
+      url: "/api/v1/extensions/check",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Extension
+   *
+   * Takes it out of the assistant at once.
+   */
+  public static deleteExtension<ThrowOnError extends boolean = false>(
+    options: Options<DeleteExtensionData, ThrowOnError>,
+  ): RequestResult<DeleteExtensionResponses, DeleteExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteExtensionResponses, DeleteExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Extension
+   *
+   * One version (default: the current one), as a manifest too, and the list of versions.
+   */
+  public static getExtension<ThrowOnError extends boolean = false>(
+    options: Options<GetExtensionData, ThrowOnError>,
+  ): RequestResult<GetExtensionResponses, GetExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetExtensionResponses, GetExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Extension
+   *
+   * Its title, description, who sees it, and whether it's switched on.
+   */
+  public static updateExtension<ThrowOnError extends boolean = false>(
+    options: Options<UpdateExtensionData, ThrowOnError>,
+  ): RequestResult<UpdateExtensionResponses, UpdateExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateExtensionResponses, UpdateExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Extension Version
+   */
+  public static createExtensionVersion<ThrowOnError extends boolean = false>(
+    options: Options<CreateExtensionVersionData, ThrowOnError>,
+  ): RequestResult<CreateExtensionVersionResponses, CreateExtensionVersionErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateExtensionVersionResponses, CreateExtensionVersionErrors, ThrowOnError>(
+      {
+        url: "/api/v1/extensions/{eid}/versions",
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+      },
+    );
+  }
+
+  /**
+   * Test Extension
+   *
+   * Try one of its tools with these arguments, switched on or not. A tool that changes something really runs, so it
+   * needs `confirm`.
+   */
+  public static testExtension<ThrowOnError extends boolean = false>(
+    options: Options<TestExtensionData, ThrowOnError>,
+  ): RequestResult<TestExtensionResponses, TestExtensionErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestExtensionResponses, TestExtensionErrors, ThrowOnError>({
+      url: "/api/v1/extensions/{eid}/test",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4872,8 +6359,13 @@ export class Chats {
   /**
    * Send Message
    *
-   * Ask a question. Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
+   * Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model
+   * reads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST
    * /chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).
+   *
+   * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
+   * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
+   * from (where, and the highlighted text; not the page's text, which isn't kept).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
@@ -5615,6 +7107,465 @@ export class Routines {
   ): RequestResult<UndoGraphChangeResponses, UndoGraphChangeErrors, ThrowOnError> {
     return (options.client ?? client).post<UndoGraphChangeResponses, UndoGraphChangeErrors, ThrowOnError>({
       url: "/api/v1/graph-changes/{cid}/undo",
+      ...options,
+    });
+  }
+}
+
+export class Sensors {
+  /**
+   * List Sensors
+   *
+   * Every sensor: storage, email and calendar sources (files), and MQTT devices, syslog senders and webhooks
+   * (streams); the kinds there are; and whether the hub is running.
+   */
+  public static listSensors<ThrowOnError extends boolean = false>(
+    options?: Options<ListSensorsData, ThrowOnError>,
+  ): RequestResult<ListSensorsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListSensorsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sensors",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Sensor
+   *
+   * Add a stream sensor before it reports (to give it a namespace and handling up front), or a webhook. A webhook's
+   * token is in the answer and never shown again. Storage, email and calendar sensors are added as sources.
+   */
+  public static createSensor<ThrowOnError extends boolean = false>(
+    options: Options<CreateSensorData, ThrowOnError>,
+  ): RequestResult<CreateSensorResponses, CreateSensorErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateSensorResponses, CreateSensorErrors, ThrowOnError>({
+      url: "/api/v1/sensors",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Review New
+   *
+   * Give every new sensor its suggested handling, and mark them looked at.
+   */
+  public static reviewNew<ThrowOnError extends boolean = false>(
+    options?: Options<ReviewNewData, ThrowOnError>,
+  ): RequestResult<ReviewNewResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<ReviewNewResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sensors/review",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Sensor
+   *
+   * Remove a sensor and everything it kept (a file sensor's resources stay).
+   */
+  public static deleteSensor<ThrowOnError extends boolean = false>(
+    options: Options<DeleteSensorData, ThrowOnError>,
+  ): RequestResult<DeleteSensorResponses, DeleteSensorErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteSensorResponses, DeleteSensorErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Sensor
+   */
+  public static getSensor<ThrowOnError extends boolean = false>(
+    options: Options<GetSensorData, ThrowOnError>,
+  ): RequestResult<GetSensorResponses, GetSensorErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetSensorResponses, GetSensorErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Sensor
+   *
+   * Rename a stream sensor, change its status (new, active, paused: nothing kept, ignored: nothing kept and out of
+   * sight), its namespace (`space: null` for none) or its handling (a handling setting of null goes back to the
+   * settings' default).
+   */
+  public static updateSensor<ThrowOnError extends boolean = false>(
+    options: Options<UpdateSensorData, ThrowOnError>,
+  ): RequestResult<UpdateSensorResponses, UpdateSensorErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateSensorResponses, UpdateSensorErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Apply Suggestion
+   *
+   * Give a stream sensor the handling suggested for it, and mark it looked at.
+   */
+  public static applySuggestion<ThrowOnError extends boolean = false>(
+    options: Options<ApplySuggestionData, ThrowOnError>,
+  ): RequestResult<ApplySuggestionResponses, ApplySuggestionErrors, ThrowOnError> {
+    return (options.client ?? client).post<ApplySuggestionResponses, ApplySuggestionErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/suggestion",
+      ...options,
+    });
+  }
+
+  /**
+   * New Token
+   *
+   * A new token for a webhook; the old one stops working.
+   */
+  public static newToken<ThrowOnError extends boolean = false>(
+    options: Options<NewTokenData, ThrowOnError>,
+  ): RequestResult<NewTokenResponses, NewTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<NewTokenResponses, NewTokenErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/token",
+      ...options,
+    });
+  }
+
+  /**
+   * List Readings
+   *
+   * A stream sensor's readings, newest first.
+   */
+  public static listReadings<ThrowOnError extends boolean = false>(
+    options: Options<ListReadingsData, ThrowOnError>,
+  ): RequestResult<ListReadingsResponses, ListReadingsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListReadingsResponses, ListReadingsErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/readings",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Series
+   *
+   * Hourly summaries of a stream (count, min, max, average, last), oldest first.
+   */
+  public static getSeries<ThrowOnError extends boolean = false>(
+    options: Options<GetSeriesData, ThrowOnError>,
+  ): RequestResult<GetSeriesResponses, GetSeriesErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetSeriesResponses, GetSeriesErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/series",
+      ...options,
+    });
+  }
+
+  /**
+   * List Patterns
+   *
+   * A log sensor's kinds of line, busiest first.
+   */
+  public static listPatterns<ThrowOnError extends boolean = false>(
+    options: Options<ListPatternsData, ThrowOnError>,
+  ): RequestResult<ListPatternsResponses, ListPatternsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListPatternsResponses, ListPatternsErrors, ThrowOnError>({
+      url: "/api/v1/sensors/{sid}/patterns",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Pattern
+   *
+   * Label a kind of line yourself (`label: null` clears it), or stop keeping its lines (`action: drop`; they're
+   * still counted).
+   */
+  public static updatePattern<ThrowOnError extends boolean = false>(
+    options: Options<UpdatePatternData, ThrowOnError>,
+  ): RequestResult<UpdatePatternResponses, UpdatePatternErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdatePatternResponses, UpdatePatternErrors, ThrowOnError>({
+      url: "/api/v1/sensor-patterns/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Logins
+   *
+   * The usernames devices sign in to the MQTT hub with.
+   */
+  public static listLogins<ThrowOnError extends boolean = false>(
+    options?: Options<ListLoginsData, ThrowOnError>,
+  ): RequestResult<ListLoginsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListLoginsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sensor-logins",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Login
+   */
+  public static createLogin<ThrowOnError extends boolean = false>(
+    options: Options<CreateLoginData, ThrowOnError>,
+  ): RequestResult<CreateLoginResponses, CreateLoginErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateLoginResponses, CreateLoginErrors, ThrowOnError>({
+      url: "/api/v1/sensor-logins",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Login
+   */
+  public static deleteLogin<ThrowOnError extends boolean = false>(
+    options: Options<DeleteLoginData, ThrowOnError>,
+  ): RequestResult<DeleteLoginResponses, DeleteLoginErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteLoginResponses, DeleteLoginErrors, ThrowOnError>({
+      url: "/api/v1/sensor-logins/{lid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Push
+   *
+   * Send readings to a webhook sensor, with its token as a bearer token. Plain text is a reading per line; JSON is
+   * one reading, or several as {readings: [{stream, value}]}. `?stream=` names the stream (default: default).
+   */
+  public static push<ThrowOnError extends boolean = false>(
+    options?: Options<PushData, ThrowOnError>,
+  ): RequestResult<PushResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<PushResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sensors/push",
+      ...options,
+    });
+  }
+
+  /**
+   * Push Token
+   *
+   * The same, with the token in the address, for devices that can only be given a URL.
+   */
+  public static pushToken<ThrowOnError extends boolean = false>(
+    options: Options<PushTokenData, ThrowOnError>,
+  ): RequestResult<PushTokenResponses, PushTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<PushTokenResponses, PushTokenErrors, ThrowOnError>({
+      url: "/api/v1/sensors/push/{token}",
+      ...options,
+    });
+  }
+
+  /**
+   * Push Stream
+   *
+   * The same, to a named stream.
+   */
+  public static pushStream<ThrowOnError extends boolean = false>(
+    options: Options<PushStreamData, ThrowOnError>,
+  ): RequestResult<PushStreamResponses, PushStreamErrors, ThrowOnError> {
+    return (options.client ?? client).post<PushStreamResponses, PushStreamErrors, ThrowOnError>({
+      url: "/api/v1/sensors/push/{token}/{stream}",
+      ...options,
+    });
+  }
+}
+
+export class Voice {
+  /**
+   * Voice Info
+   *
+   * Whether the server hears and speaks itself; the web app uses the browser's speech for what it doesn't. Starts
+   * loading the speech-to-text engine, so the first thing said isn't kept waiting.
+   */
+  public static voiceInfo<ThrowOnError extends boolean = false>(
+    options?: Options<VoiceInfoData, ThrowOnError>,
+  ): RequestResult<VoiceInfoResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<VoiceInfoResponses, unknown, ThrowOnError>({
+      url: "/api/v1/voice",
+      ...options,
+    });
+  }
+
+  /**
+   * Transcribe Clip
+   *
+   * What was said in a short clip, sent as the raw request body (webm, ogg, mp4 or wav, up to 25 MB), by the
+   * server's speech-to-text engine. Nothing is kept. 409 when the server has no engine (use the browser's).
+   */
+  public static transcribeClip<ThrowOnError extends boolean = false>(
+    options: Options<TranscribeClipData, ThrowOnError>,
+  ): RequestResult<TranscribeClipResponses, unknown, ThrowOnError> {
+    return (options.client ?? client).post<TranscribeClipResponses, unknown, ThrowOnError>({
+      bodySerializer: null,
+      url: "/api/v1/voice/transcribe",
+      ...options,
+      headers: {
+        "Content-Type": "application/octet-stream",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Speak Text
+   *
+   * The text read aloud by the text-to-speech model (Settings → AI assistant → Voice). 204 when there's none, or it
+   * failed: the browser reads it instead.
+   */
+  public static speakText<ThrowOnError extends boolean = false>(
+    options: Options<SpeakTextData, ThrowOnError>,
+  ): RequestResult<SpeakTextResponses, SpeakTextErrors, ThrowOnError> {
+    return (options.client ?? client).post<SpeakTextResponses, SpeakTextErrors, ThrowOnError>({
+      url: "/api/v1/voice/speak",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Vaults {
+  /**
+   * Unseal Vault
+   *
+   * Make the vault an ordinary namespace again, which the server can open (it must be unlocked). Audited as
+   * `vault.unseal`.
+   */
+  public static unsealVault<ThrowOnError extends boolean = false>(
+    options: Options<UnsealVaultData, ThrowOnError>,
+  ): RequestResult<UnsealVaultResponses, UnsealVaultErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UnsealVaultResponses, UnsealVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Vault
+   *
+   * Whether the namespace is a vault, whether it's open now, and which passkeys open it (whose, for owners).
+   */
+  public static getVault<ThrowOnError extends boolean = false>(
+    options: Options<GetVaultData, ThrowOnError>,
+  ): RequestResult<GetVaultResponses, GetVaultErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetVaultResponses, GetVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+    });
+  }
+
+  /**
+   * Seal Vault
+   *
+   * Make the namespace a vault opened by the passkey that answered. From then on only its passkeys open its files;
+   * lose every one and they're gone. Audited as `vault.seal`.
+   */
+  public static sealVault<ThrowOnError extends boolean = false>(
+    options: Options<SealVaultData, ThrowOnError>,
+  ): RequestResult<SealVaultResponses, SealVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<SealVaultResponses, SealVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Vault Options
+   *
+   * Start making the namespace a vault (owners), unlocking it, or adding a passkey to it (owners): options for the
+   * browser, which ask the passkey for this vault's PRF secret.
+   */
+  public static vaultOptions<ThrowOnError extends boolean = false>(
+    options: Options<VaultOptionsData, ThrowOnError>,
+  ): RequestResult<VaultOptionsResponses, VaultOptionsErrors, ThrowOnError> {
+    return (options.client ?? client).post<VaultOptionsResponses, VaultOptionsErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Unlock Vault
+   *
+   * Open the vault on this server for encryption.vault_minutes; its waiting work runs. Audited as `vault.unlock`.
+   */
+  public static unlockVault<ThrowOnError extends boolean = false>(
+    options: Options<UnlockVaultData, ThrowOnError>,
+  ): RequestResult<UnlockVaultResponses, UnlockVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<UnlockVaultResponses, UnlockVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/unlock",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Add Vault Passkey
+   *
+   * Let the passkey that answered open the vault too (it must be open). Audited as `vault.add`.
+   */
+  public static addVaultPasskey<ThrowOnError extends boolean = false>(
+    options: Options<AddVaultPasskeyData, ThrowOnError>,
+  ): RequestResult<AddVaultPasskeyResponses, AddVaultPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddVaultPasskeyResponses, AddVaultPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/passkeys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Remove Vault Passkey
+   *
+   * Stop a passkey opening the vault; never the last one. Audited as `vault.remove`.
+   */
+  public static removeVaultPasskey<ThrowOnError extends boolean = false>(
+    options: Options<RemoveVaultPasskeyData, ThrowOnError>,
+  ): RequestResult<RemoveVaultPasskeyResponses, RemoveVaultPasskeyErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveVaultPasskeyResponses, RemoveVaultPasskeyErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/passkeys/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Lock Vault
+   *
+   * Close the vault on this server now (owners). Audited as `vault.lock`.
+   */
+  public static lockVault<ThrowOnError extends boolean = false>(
+    options: Options<LockVaultData, ThrowOnError>,
+  ): RequestResult<LockVaultResponses, LockVaultErrors, ThrowOnError> {
+    return (options.client ?? client).post<LockVaultResponses, LockVaultErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/vault/lock",
       ...options,
     });
   }

@@ -2,14 +2,12 @@
 metadata. A pipeline's steps make assets (a transcript, shots, text on screen, faces); the workflows it attaches run
 after them and make named outputs, custom field values and entities.
 
-A graph is `{nodes: [{id, type, config, label, x, y}], edges: [{source, target, branch}]}`. Exactly one `input` node
-starts it with the recording (what templates see: transcript, summary, entities, outputs...). Every other node takes
-the value of the node feeding it (a merge node takes several):
+A graph is `{nodes: [{id, type, config, label, x, y}], edges: [{source, target, port, input}]}`, run by flow.py: one
+`input` node starts it with the recording (what templates see: transcript, summary, entities, outputs...), and the
+primitives there (pick, condition, switch, merge, set, template, filter, for each, repeat, group, custom nodes) shape
+what flows between these, the nodes of a recording workflow:
 
 - `llm`: renders a prompt template (with the value as `input`) and passes on the model's JSON reply.
-- `pick`: passes on one part of the value, by a dotted path (`action_items.0.text`).
-- `condition`: tests the value (or a path in it) and passes it on along its `yes` or its `no` edges.
-- `merge`: joins what reaches it: lists into one list (entities found twice once), objects into one object.
 - `extract_rules`: finds entities in the transcript with rules: the built-in extractor (as analyze uses), your terms
   ("Name|TYPE") and your regular expressions. Passes on a list of entities, each with the line it was found on.
 - `extract_llm`: asks the model for the entities in the transcript, of the types you name; entities passed in are given
@@ -19,8 +17,7 @@ the value of the node feeding it (a merge node takes several):
 - `save_entities`: makes the entities passed in the recording's entities (in place of what analyze found), with
   people's corrections kept, then redoes keywords and sections as analyze does.
 
-Nodes on a branch a condition didn't take are skipped (a merge runs when anything reaches it). Positions are only for
-the canvas.
+Positions are only for the canvas.
 
 A workflow's scope says what it runs on: `recording` (the nodes above, run by pipelines) or `graph` (run over
 namespaces, usually by a routine, to organise their entities: see organize.py for its nodes).
@@ -30,32 +27,24 @@ from __future__ import annotations
 
 import re
 
-from . import analyze, fields as fieldmod, llm, metadata, organize, pipelines, store, telemetry, templates
+from . import analyze, fields as fieldmod, flow, llm, metadata, organize, pipelines, store, telemetry, templates, tool_nodes
 
 R = store.R
-RECORDING_NODES = ("input", "llm", "pick", "condition", "merge", "extract_rules", "extract_llm", "output", "field", "save_entities")
-NODE_TYPES = RECORDING_NODES + tuple(t for t in organize.GRAPH_NODES if t not in RECORDING_NODES)
-SCOPES = {"recording": RECORDING_NODES, "graph": organize.GRAPH_NODES}
+OWN_NODES = ("llm", "extract_rules", "extract_llm", "output", "field", "save_entities")
 TERMINAL = {"output", "field", "save_entities", "apply_changes"}
-OPS = ("exists", "empty", "equals", "not_equals", "contains", "gt", "lt")
-CONFIG = {
-    "input": set(),
+OPS = flow.OPS
+OWN_CONFIG = {
     "llm": {"template", "version", "model"},
-    "pick": {"path"},
-    "condition": {"path", "op", "value"},
-    "merge": set(),
     "extract_rules": {"builtin", "terms", "patterns", "types"},
     "extract_llm": {"types", "instructions", "model"},
     "output": {"key"},
     "field": {"field"},
     "save_entities": set(),
-    **organize.CONFIG,
 }
 ENTITY_TYPES = ("PERSON", "ORG", "PRODUCT", "PLACE", "EVENT", "WORK", "TERM", "DATE", "NUMBER")
-ID_RX = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
-PATH_RX = re.compile(r"^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*$")
+PATH_RX = flow.PATH_RX
 TYPE_RX = re.compile(r"^[A-Z][A-Z_]{0,30}$")
-MAX_NODES, MAX_RULES = 100, 500
+MAX_RULES = 500
 ENTITY_SCHEMA = {
     "type": "object",
     "properties": {
@@ -83,76 +72,16 @@ def _num(v):
 
 def validate_graph(db, graph, scope="recording"):
     """The graph, cleaned: ValueError naming the first problem."""
-    if scope not in SCOPES:
-        raise ValueError(f"a workflow's scope is {' or '.join(SCOPES)}")
-    graph = dict(graph or {})
-    nodes, edges = graph.get("nodes") or [], graph.get("edges") or []
-    if not isinstance(nodes, list) or not isinstance(edges, list):
-        raise ValueError("a workflow is {nodes: [...], edges: [...]}")
-    if len(nodes) > MAX_NODES:
-        raise ValueError(f"a workflow has at most {MAX_NODES} nodes")
-    out_nodes, by_id = [], {}
-    for n in nodes:
-        n = dict(n or {})
-        nid, t, cfg = str(n.get("id") or ""), n.get("type"), dict(n.get("config") or {})
-        if not ID_RX.match(nid):
-            raise ValueError("node ids are 1 to 40 letters, digits, _ and -")
-        if nid in by_id:
-            raise ValueError(f"two nodes are called {nid}")
-        if t not in SCOPES[scope]:
-            raise ValueError(f"node types are {', '.join(SCOPES[scope])}")
-        extra = sorted(set(cfg) - CONFIG[t])
-        if extra:
-            raise ValueError(f"{t} node has no setting {extra[0]}")
-        _check_config(db, nid, t, cfg)
-        clean = {"id": nid, "type": t, "config": cfg}
-        for k in ("x", "y"):
-            if _num(n.get(k)):
-                clean[k] = round(float(n[k]), 1)
-        if isinstance(n.get("label"), str) and n["label"].strip():
-            clean["label"] = n["label"].strip()[:60]
-        by_id[nid] = clean
-        out_nodes.append(clean)
-    starts = [n for n in out_nodes if n["type"] == "input"]
-    if len(starts) != 1:
-        raise ValueError("a workflow has exactly one input node")
-    out_edges, incoming, seen = [], {}, set()
-    for e in edges:
-        e = dict(e or {})
-        s, d, b = str(e.get("source") or ""), str(e.get("target") or ""), e.get("branch")
-        if s not in by_id or d not in by_id:
-            raise ValueError("an edge joins two nodes of the workflow")
-        if s == d:
-            raise ValueError("a node can't feed itself")
-        if by_id[d]["type"] == "input":
-            raise ValueError("nothing goes into the input node")
-        if by_id[s]["type"] == "condition":
-            if b not in ("yes", "no"):
-                raise ValueError(f"edges from condition {s} are its yes or its no")
-        elif b is not None:
-            raise ValueError(f"only a condition's edges have a branch ({s} → {d})")
-        if (s, d, b) in seen:
-            continue
-        seen.add((s, d, b))
-        if d in incoming and by_id[d]["type"] != "merge":
-            raise ValueError(f"node {d} takes one input; join several with a merge node")
-        incoming.setdefault(d, []).append(s)
-        out_edges.append(store.clean({"source": s, "target": d, "branch": b}))
-    for n in out_nodes:
-        if n["type"] != "input" and n["id"] not in incoming:
-            raise ValueError(f"connect something into {n['type']} node {n['id']}")
-    if len(order(out_nodes, out_edges)) != len(out_nodes):
-        raise ValueError("the workflow has a loop")
-    if not any(n["type"] in TERMINAL for n in out_nodes):
-        if scope == "graph":
-            raise ValueError("a graph workflow needs an apply changes node, or it changes nothing")
-        raise ValueError("a workflow needs an output, field or save entities node, or it keeps nothing")
-    return {"nodes": out_nodes, "edges": out_edges}
+    if scope not in KITS:
+        raise ValueError(f"a workflow's scope is {' or '.join(KITS)}")
+    return flow.check_graph(db, graph, KITS[scope])
 
 
 def _check_config(db, nid, t, cfg):
     if t in organize.CONFIG:
         organize.check_config(nid, t, cfg)
+    elif t in ("pick", "condition"):
+        flow._check_primitive(db, KITS["recording"], nid, t, cfg, None, 0, "")
     elif t == "llm":
         try:
             tpl = templates.get(db, int(cfg.get("template") or 0), cfg.get("version"))
@@ -160,16 +89,6 @@ def _check_config(db, nid, t, cfg):
             raise ValueError(f"llm node {nid}: choose a prompt template") from None
         if tpl["kind"] != "prompt":
             raise ValueError(f"llm node {nid} needs a prompt template, not {tpl['kind']}")
-    elif t == "pick":
-        if not PATH_RX.match(str(cfg.get("path") or "")):
-            raise ValueError(f"pick node {nid}: give a path like action_items.0.text")
-    elif t == "condition":
-        if cfg.get("op") not in OPS:
-            raise ValueError(f"condition {nid}: the test is one of {', '.join(OPS)}")
-        if cfg.get("path") and not PATH_RX.match(str(cfg["path"])):
-            raise ValueError(f"condition {nid}: give a path like summary.importance, or none")
-        if cfg["op"] in ("gt", "lt") and not _num(cfg.get("value")):
-            raise ValueError(f"condition {nid}: compare with a number")
     elif t == "extract_rules":
         terms, pats = cfg.get("terms") or [], cfg.get("patterns") or []
         if not isinstance(terms, list) or not all(isinstance(x, str) for x in terms):
@@ -206,22 +125,7 @@ def _check_types(nid, cfg):
         raise ValueError(f"extract node {nid}: types are names in capitals, e.g. PERSON, ORG")
 
 
-def order(nodes, edges):
-    """Node ids in the order they can run (each after everything feeding it); nodes on a loop are left out."""
-    ins = {n["id"]: 0 for n in nodes}
-    for e in edges:
-        ins[e["target"]] += 1
-    ready = [n["id"] for n in nodes if ins[n["id"]] == 0]
-    out = []
-    while ready:
-        n = ready.pop(0)
-        out.append(n)
-        for e in edges:
-            if e["source"] == n:
-                ins[e["target"]] -= 1
-                if ins[e["target"]] == 0:
-                    ready.append(e["target"])
-    return out
+order, dig, test, merge, _is_entity = flow.order, flow.dig, flow.test, flow.merge, flow.is_entity
 
 
 def create(db, name, graph, description=None, user=None, scope="recording"):
@@ -304,60 +208,6 @@ def list_workflows(db):
         {**w, "scope": w.get("scope") or "recording", "pipelines": used.get(w["id"], [])}
         for w in db.rows("SELECT record::id(id) AS id, name, description, scope, current, updated_at FROM workflow ORDER BY id")
     ]
-
-
-def dig(value, path):
-    """The part of a value at a dotted path (list items by number); None when it isn't there."""
-    for part in path.split(".") if path else []:
-        if isinstance(value, dict):
-            value = value.get(part)
-        elif isinstance(value, list) and part.isdigit() and int(part) < len(value):
-            value = value[int(part)]
-        else:
-            return None
-    return value
-
-
-def test(cfg, value):
-    v, want, op = dig(value, cfg.get("path")), cfg.get("value"), cfg["op"]
-    if op == "exists":
-        return v is not None
-    if op == "empty":
-        return v in (None, "", [], {})
-    if op == "equals":
-        return v == want
-    if op == "not_equals":
-        return v != want
-    if op == "contains":
-        if isinstance(v, str):
-            return str(want).lower() in v.lower()
-        return isinstance(v, (list, dict)) and want in v
-    if not _num(v) or not _num(want):
-        return False
-    return v > want if op == "gt" else v < want
-
-
-def merge(values):
-    """Lists joined (entities on the same line once), objects joined (later ones win), anything else listed."""
-    if all(isinstance(v, list) for v in values):
-        out, seen = [], set()
-        for v in values:
-            for x in v:
-                k = (analyze.ent_key(x["name"]), x.get("seg")) if _is_entity(x) else repr(x)
-                if k not in seen:
-                    seen.add(k)
-                    out.append(x)
-        return out
-    if all(isinstance(v, dict) for v in values):
-        out = {}
-        for v in values:
-            out.update(v)
-        return out
-    return list(values)
-
-
-def _is_entity(x):
-    return isinstance(x, dict) and isinstance(x.get("name"), str) and isinstance(x.get("type"), str)
 
 
 def _segments(db, rid):
@@ -452,85 +302,84 @@ def _run(db, cfg, rid, wid, version, say, user):
     w = get(db, wid, version)
     if w["scope"] != "recording":
         raise ValueError(f"workflow {w['name']} organises the graph; a routine runs it, not a pipeline")
-    graph = w["graph"]
-    by_id = {n["id"]: n for n in graph["nodes"]}
-    ctx = templates.context(db, cfg, rid)
-    origin = {"workflow": w["id"], "workflow_version": w["version"]}
-    values, outcome = {}, {}
-    passed, made = {}, {}  # a condition's answer; an llm node's template and model
-    for nid in order(graph["nodes"], graph["edges"]):
-        node = by_id[nid]
-        name, c = node.get("label") or f"{node['type']} {nid}", node["config"]
-        if node["type"] == "input":
-            values[nid], outcome[nid] = ctx, "done"
-            continue
-        live = [
-            e["source"]
-            for e in graph["edges"]
-            if e["target"] == nid
-            and outcome.get(e["source"]) == "done"
-            and (by_id[e["source"]]["type"] != "condition" or passed.get(e["source"]) == (e.get("branch") == "yes"))
-        ]
-        if not live:
-            outcome[nid] = "skipped"
-            continue
-        value = values[live[0]]
-        upstream = None if value is ctx else value
-        if node["type"] == "llm":
-            t = templates.get(db, int(c["template"]), c.get("version"))
-            prompt = templates.render_body(t["body"], {**ctx, "input": upstream}, "prompt")
-            values[nid] = llm.json_out(
-                cfg, t.get("system") or templates.DEFAULT_SYSTEM, prompt, t.get("schema") or {"type": "object"}, c.get("model")
-            )
-            made[nid] = {"template": t["id"], "version": t["version"], "model": c.get("model") or cfg["llm"]["model"]}
-            say(f"{name}: asked {made[nid]['model']}")
-        elif node["type"] == "pick":
-            values[nid] = dig(value, c["path"])
-        elif node["type"] == "condition":
-            values[nid], passed[nid] = value, test(c, value)
-            say(f"{name}: {'yes' if passed[nid] else 'no'}")
-        elif node["type"] == "merge":
-            values[nid] = merge([values[s] for s in live])
-        elif node["type"] == "extract_rules":
-            values[nid] = extract_rules(db, cfg, rid, c)
-            say(f"{name}: {len(values[nid])} found")
-        elif node["type"] == "extract_llm":
-            so_far = [e for e in upstream if _is_entity(e)] if isinstance(upstream, list) else []
-            values[nid] = extract_llm(db, cfg, rid, c, so_far)
-            say(f"{name}: {len(values[nid])} found")
-        elif node["type"] == "output":
-            pipelines.save_output(db, rid, c["key"], value, {**origin, **_made_by(made, graph, nid)})
-            say(f"saved output {c['key']}")
-        elif node["type"] == "field":
-            f = fieldmod.get(db, int(c["field"]))
-            defs, row = fieldmod.resource_fields(db, rid)
-            try:
-                after = fieldmod.merged(row, defs, {f["id"]: _fit(f, value)})
-            except ValueError as e:
-                raise ValueError(f"{name}: {e}") from None
+    r = flow.Run(
+        db, cfg, KITS["recording"], templates.context(db, cfg, rid), say, user=user,
+        origin={"workflow": w["id"], "workflow_version": w["version"]}, rid=rid, by=user or f"workflow:{w['id']}",
+    )  # fmt: skip
+    flow.run_graph(r, w["graph"])
+    return {n["id"]: "done" if r.trace.get(n["id"], {}).get("status") == "done" else "skipped" for n in w["graph"]["nodes"]}
+
+
+def _run_node(r, f, node, value, vals):
+    """What a recording workflow's own nodes do (flow.py runs the rest): {output port: value}."""
+    db, cfg, rid, t, c, nid = r.db, r.cfg, r.extra["rid"], node["type"], node["config"], node["id"]
+    name, upstream = flow._label(node), None if value is r.ctx else value
+    if t == "llm":
+        tpl = templates.get(db, int(c["template"]), c.get("version"))
+        prompt = templates.render_body(tpl["body"], {**r.ctx, "input": upstream}, "prompt")
+        out = llm.json_out(
+            cfg, tpl.get("system") or templates.DEFAULT_SYSTEM, prompt, tpl.get("schema") or {"type": "object"}, c.get("model")
+        )
+        f.made[nid] = {"template": tpl["id"], "version": tpl["version"], "model": c.get("model") or cfg["llm"]["model"]}
+        r.say(f"{name}: asked {f.made[nid]['model']}")
+        return {"out": out}
+    if t == "extract_rules":
+        out = extract_rules(db, cfg, rid, c)
+        r.say(f"{name}: {len(out)} found")
+        return {"out": out}
+    if t == "extract_llm":
+        so_far = [e for e in upstream if _is_entity(e)] if isinstance(upstream, list) else []
+        out = extract_llm(db, cfg, rid, c, so_far)
+        r.say(f"{name}: {len(out)} found")
+        return {"out": out}
+    if t == "output":
+        if r.dry:
+            r.say(f"would save output {c['key']}")
+        else:
+            pipelines.save_output(db, rid, c["key"], value, {**r.origin, **f.upstream(nid, f.made)})
+            r.say(f"saved output {c['key']}")
+    elif t == "field":
+        fd = fieldmod.get(db, int(c["field"]))
+        defs, row = fieldmod.resource_fields(db, rid)
+        try:
+            after = fieldmod.merged(row, defs, {fd["id"]: _fit(fd, value)})
+        except ValueError as e:
+            raise ValueError(f"{name}: {e}") from None
+        if r.dry:
+            r.say(f"would set {fd['label']}")
+        else:
             if after != (row.get("fields") or {}):
-                metadata.save_fields(db, cfg, rid, after, user or f"workflow:{w['id']}")
-            say(f"set {f['label']}")
-        elif node["type"] == "save_entities":
-            if not isinstance(value, list):
-                raise ValueError(f"{name}: needs a list of entities")
-            say(f"{name}: {save_entities(db, cfg, rid, value)} mentions kept")
-        outcome[nid] = "done"
-    return {n["id"]: outcome.get(n["id"], "skipped") for n in graph["nodes"]}
-
-
-def _made_by(made, graph, nid):
-    """The template and model of the nearest llm node above a node, if any."""
-    seen, todo = set(), [nid]
-    while todo:
-        n = todo.pop(0)
-        for e in graph["edges"]:
-            if e["target"] == n and e["source"] not in seen:
-                if e["source"] in made:
-                    return made[e["source"]]
-                seen.add(e["source"])
-                todo.append(e["source"])
+                metadata.save_fields(db, cfg, rid, after, r.extra["by"])
+            r.say(f"set {fd['label']}")
+    elif t == "save_entities":
+        if not isinstance(value, list):
+            raise ValueError(f"{name}: needs a list of entities")
+        if r.dry:
+            r.say(f"{name}: would keep {len([e for e in value if _is_entity(e)])} entities")
+        else:
+            r.say(f"{name}: {save_entities(db, cfg, rid, value)} mentions kept")
     return {}
+
+
+def try_graph(db, cfg, graph, scope="recording", rid=None, spaces=None, user=None):
+    """Run a graph without keeping anything (a dry run, from the canvas): {trace, log, error}. Nodes that would save
+    something say what they'd save; models are still asked."""
+    graph = validate_graph(db, graph, scope)
+    log = []
+    if scope == "recording":
+        if rid is None:
+            raise ValueError("choose a recording to try it on")
+        r = flow.Run(db, cfg, KITS[scope], templates.context(db, cfg, rid), log.append, dry=True, user=user, rid=rid, by=user)
+    else:
+        names = store.space_names(db)
+        ctx = {"namespaces": [{"id": s, "name": names.get(s)} for s in sorted(spaces or [])]}
+        r = flow.Run(db, cfg, KITS[scope], ctx, log.append, dry=True, user=user, spaces=set(spaces or []), propose_only=True)
+    error = None
+    try:
+        flow.run_graph(r, graph)
+    except Exception as e:  # shown on the canvas, on the node that failed
+        error = str(e)[:500] or type(e).__name__
+    return {"trace": r.trace, "log": log[-200:], "error": error, "steps": r.steps}
 
 
 def _fit(f, v):
@@ -546,3 +395,24 @@ def _fit(f, v):
     if f["type"] == "choices" and isinstance(v, str):
         return [v]
     return v
+
+
+KITS = {
+    "recording": flow.Kit(
+        "recording", OWN_NODES, OWN_CONFIG, _check_config, _run_node, TERMINAL - {"apply_changes"},
+        "a workflow needs an output, field or save entities node, or it keeps nothing",
+    ),
+    "graph": flow.Kit(
+        "graph", organize.OWN_NODES, organize.CONFIG, _check_config, organize.run_node, {"apply_changes"},
+        "a graph workflow needs an apply changes node, or it changes nothing",
+    ),
+    # an assistant tool drawn on the canvas (tool_nodes.py): only ever a body, from its parameters to what it gives back
+    "tool": flow.Kit(
+        "tool", tool_nodes.OWN_NODES, tool_nodes.CONFIG, lambda db, nid, t, cfg: tool_nodes.check_config(db, nid, t, cfg),
+        tool_nodes.run_node, set(), "a tool's graph is the body of a tool",
+    ),
+}  # fmt: skip
+SCOPES = {s: k.all_types for s, k in KITS.items()}
+RECORDING_NODES = SCOPES["recording"]
+NODE_TYPES = RECORDING_NODES + tuple(t for s in ("graph", "tool") for t in SCOPES[s] if t not in RECORDING_NODES)
+CONFIG = {**flow.CONFIG, **OWN_CONFIG, **organize.CONFIG, **tool_nodes.CONFIG}

@@ -10,6 +10,10 @@ export type Person = {
   disabled?: boolean | null;
   last_login_at?: string | null;
   roles?: Record<string, Role>;
+  /** How many passkeys they have. */
+  passkeys?: number;
+  /** Whether they have a password. */
+  password?: boolean;
 };
 
 /** One cell changed: a role in a namespace (null removes it), or the platform admin switch. */

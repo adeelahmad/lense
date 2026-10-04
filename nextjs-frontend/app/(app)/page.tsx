@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 
-import { HomeScreen } from "@/components/home/home-screen";
+import { HomePage as Home } from "@/components/home/home-page";
 
 export const metadata: Metadata = { title: "Home" };
 
-/** Home (HM1): what needs you, what just arrived, what's processing, and a quick way to import. */
+/** Home: assistant mode once the archive has content (one field, one mic), else the overview (HM1). */
 export default function HomePage() {
-  return <HomeScreen />;
+  return <Home />;
 }

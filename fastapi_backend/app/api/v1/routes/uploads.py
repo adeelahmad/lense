@@ -66,7 +66,10 @@ def _may_add(acl: Access, db: Any, user: Principal, ns: str) -> None:
 
 
 def _may_send(acl: Access, db: Any, user: Principal, row: dict[str, Any]) -> None:
-    """Still allowed to add to it: editor of its namespace, or of the recording it's for."""
+    """Still allowed to add to it: editor of its namespace, or of the recording it's for. A held file has neither yet:
+    where it goes is checked when it's placed."""
+    if row.get("hold"):
+        return
     if row.get("attach"):
         acl.recording(row["attach"], "editor")
     else:
@@ -78,7 +81,7 @@ def _finished(db: Any, uid: str) -> dict[str, Any] | None:
         row: dict[str, Any] = uploads.get(db, uid)
     except KeyError:
         return None
-    return row if row.get("state") == "done" else None
+    return row if row.get("state") in ("done", "held") else None
 
 
 @router.get("/limits")
@@ -101,7 +104,11 @@ def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
     if body.collection is not None and body.recording is not None:
         raise HTTPException(400, "the recording stays in its collection; a collection can't be chosen for it")
     check_pipeline(db, body.pipeline)
-    if body.recording is not None:
+    if body.hold and (body.recording is not None or body.pipeline is not None or body.collection is not None):
+        raise HTTPException(400, "a held file is placed later; it can't name a recording, pipeline or collection")
+    if body.hold:
+        ns = ""
+    elif body.recording is not None:
         rec = acl.recording(body.recording, "editor")
         home = store.space_names(db).get(rec["space"], "")
         if ns and ns != home:
@@ -131,6 +138,7 @@ def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
             body.recording,
             body.pipeline,
             body.collection,
+            body.hold,
         )
     return Upload(**uploads.view(cfg, row))
 
@@ -163,7 +171,7 @@ async def send_chunk(
     send from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload
     done, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`."""
     row = await run_in_threadpool(_theirs, db, uid, user)
-    if row.get("state") == "done":
+    if row.get("state") in ("done", "held"):
         return Upload(**uploads.view(cfg, row))
     await run_in_threadpool(_may_send, acl, db, user, row)
     try:

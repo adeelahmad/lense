@@ -157,7 +157,8 @@ def test_faces_are_pixelated_for_visitors(env, new_client):
     poster = anon.get(f"/api/v1/public/recordings/{rid}").json()["media"]["poster"]
     assert "full=" not in poster
     seen = anon.get(poster)
-    assert (seen.status_code, seen.content == blocks, seen.headers["vary"]) == (200, True, "Authorization")
+    assert (seen.status_code, seen.content == blocks) == (200, True)
+    assert "Authorization" in [v.strip() for v in seen.headers["vary"].split(",")]  # CORS adds Origin
     assert c.get(poster, headers=h).content == original  # a member, through a visitor's link
     assert c.get(poster, headers=he).content == original
     p = c.get(f"/api/v1/recordings/{rid}/player", headers=he).json()

@@ -41,6 +41,7 @@ const STEP_ORDER = [
   "objects",
   "describe",
   "analyze",
+  "embed",
   "summarize",
   "report",
 ];

@@ -270,7 +270,7 @@ export function ProblemCard({
         {source ? (
           admin ? (
             <Button asChild size="sm" variant="secondary">
-              <Link href="/sources">Use a source</Link>
+              <Link href="/sources?add=1">Use a source</Link>
             </Button>
           ) : (
             <Button

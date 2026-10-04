@@ -478,7 +478,7 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
 
   const pages = model.pages.length ? model.pages : [];
   return (
-    <div ref={root} className="flex flex-col gap-4">
+    <div ref={root} data-own-selection className="flex flex-col gap-4">
       {!editing && <SelectionToolbar box={root} />}
       <div className="flex flex-wrap items-center gap-2">
         <FindBar what="the text" />
