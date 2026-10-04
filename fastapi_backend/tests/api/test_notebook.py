@@ -191,6 +191,11 @@ def test_refining_titles_and_summaries(client, env, db, cfg, llm):
     assert notebook.refine_due(db, cfg) == 1
     got = client.get(f"/api/v1/notes/{p['id']}", headers=he).json()
     assert (got["title"], got["summary"], got["summary_by"]) == ("Capsid plan", "About Capsid samples ship on Friday.", "assistant")
+    # what it cost counts for the page and its namespace, and the page's readers see it with the requests that changed it
+    led = client.get("/api/v1/activity", headers=he, params={"resource": f"note_page:{p['id']}"}).json()
+    kinds = {(e["kind"], e["action"]) for e in led}
+    assert ("out", "model.chat") in kinds and any(k == "in" for k, _ in kinds), kinds
+    assert any(e["kind"] == "out" and f"space:{store.ns_id(db, got['namespace'])}" in e["resources"] for e in led)
     # done until the note changes; a person's title change makes it due again, and their own title stays
     assert notebook.refine_due(db, cfg) == 0
     client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"title": "Shipping"})

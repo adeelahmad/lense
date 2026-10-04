@@ -14,6 +14,7 @@ Each row names every resource it counts for, as `table:id`:
 | A job, its recording, namespace and pipeline | `job:40`, `recording:7`, `space:1`, `pipeline:2` |
 | A workflow | `workflow:4` |
 | A chat | `chat:9` |
+| A note (its refinement and filing, and the requests that changed it) | `note_page:5` |
 | The person who asked | `account:1` |
 
 A model call inside a workflow step of a job that a routine queued counts for the workflow, the job, the recording,

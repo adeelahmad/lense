@@ -1,6 +1,6 @@
 """The activity ledger (docs/activity.md): a resource's history (its calls in and out, runs and changes) and what it
-cost. Admins see every resource's; others see their own account's, their chats', and the recordings and namespaces they
-can read."""
+cost. Admins see every resource's; others see their own account's, their chats', and the recordings, notes and namespaces
+they can read."""
 
 from __future__ import annotations
 
@@ -39,6 +39,12 @@ def _may_see(db: Db, user: CurrentUser, acl: Acl, resource: str) -> None:
             if not e:
                 raise HTTPException(404, "not found")
             acl.need(e["space"])
+            return
+        if table == "note_page":
+            page = db.one("SELECT space FROM $r", r=activity.R("note_page", int(key)))
+            if not page:
+                raise HTTPException(404, "not found")
+            acl.need(page["space"])
             return
         if table == "chat" and db.one("SELECT id FROM $r WHERE account = $a", r=activity.R("chat", int(key)), a=user.id):
             return
