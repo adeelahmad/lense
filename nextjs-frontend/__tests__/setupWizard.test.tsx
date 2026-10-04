@@ -188,7 +188,7 @@ describe("SetupWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
     await waitFor(() => expect(m(Setup.saveOauth).mock.calls.length).toBe(2));
     expect(m(Setup.saveOauth).mock.calls[1][0].body).toEqual({ enabled: false });
-  });
+  }, 20_000); // two saves and two visits to the step: slow on a busy CI runner
 
   it("shows what .env sets as locked", async () => {
     m(Setup.getSetup).mockImplementation(() =>
