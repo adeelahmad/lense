@@ -837,6 +837,12 @@ import type {
   PageAboutData,
   PageAboutErrors,
   PageAboutResponses,
+  PageHistoryData,
+  PageHistoryErrors,
+  PageHistoryResponses,
+  PageVersionData,
+  PageVersionErrors,
+  PageVersionResponses,
   PasskeyLoginData,
   PasskeyLoginErrors,
   PasskeyLoginResponses,
@@ -948,6 +954,9 @@ import type {
   ResourceTotalsData,
   ResourceTotalsErrors,
   ResourceTotalsResponses,
+  RestoreVersionData,
+  RestoreVersionErrors,
+  RestoreVersionResponses,
   RetagRecordingsData,
   RetagRecordingsErrors,
   RetagRecordingsResponses,
@@ -3823,6 +3832,48 @@ export class Notes {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Page History
+   *
+   * What the page was before each change to its title, summary or text, newest first.
+   */
+  public static pageHistory<ThrowOnError extends boolean = false>(
+    options: Options<PageHistoryData, ThrowOnError>,
+  ): RequestResult<PageHistoryResponses, PageHistoryErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageHistoryResponses, PageHistoryErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/history",
+      ...options,
+    });
+  }
+
+  /**
+   * Page Version
+   *
+   * One earlier version, with its text.
+   */
+  public static pageVersion<ThrowOnError extends boolean = false>(
+    options: Options<PageVersionData, ThrowOnError>,
+  ): RequestResult<PageVersionResponses, PageVersionErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageVersionResponses, PageVersionErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/history/{vid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Version
+   *
+   * Put an earlier version back. What the page was becomes a version too, so this can be undone. Needs editor access.
+   */
+  public static restoreVersion<ThrowOnError extends boolean = false>(
+    options: Options<RestoreVersionData, ThrowOnError>,
+  ): RequestResult<RestoreVersionResponses, RestoreVersionErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreVersionResponses, RestoreVersionErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/history/{vid}/restore",
+      ...options,
     });
   }
 

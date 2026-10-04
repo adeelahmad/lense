@@ -51,6 +51,25 @@ class NoteBacklink(ResponseModel):
     updated_at: str | None = None
 
 
+class NoteVersionItem(ResponseModel):
+    id: int
+    at: str = Field(description="when the page changed from this")
+    by: str | None = Field(None, description="who changed it (an email); none for the model")
+    author: Literal["person", "assistant"] = Field("person", description="a person, or the assistant or model")
+    title: str | None = None
+    summary: str | None = None
+    size: int = Field(0, description="characters of text")
+    why: str | None = None
+
+
+class NoteVersion(NoteVersionItem):
+    body: str = ""
+
+
+class NoteHistory(ResponseModel):
+    versions: list[NoteVersionItem]
+
+
 class NotePage(NotePageItem):
     namespace: str
     body: str = Field("", description="Markdown, with mentions written @[label](kind:id) and #[label](topic:id)")

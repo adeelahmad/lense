@@ -990,6 +990,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS note_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_link_page ON note_link FIELDS page",
     "DEFINE INDEX IF NOT EXISTS note_link_target ON note_link FIELDS target",
+    # what a page was before each change (notebook.snapshot): its history, to look back at and restore
+    "DEFINE TABLE IF NOT EXISTS note_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_version_page ON note_version FIELDS page",
     # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",

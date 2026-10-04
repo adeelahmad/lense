@@ -278,3 +278,44 @@ def test_filing_in_para(client, env, db, cfg, llm):
     cfg["ai"]["organise_notes"] = False
     assert notebook.file_due(db, cfg) == 0
     llm.decision = None
+
+
+def test_page_history(client, env, db, cfg, llm):
+    from app.domain import ai_tools
+
+    he, hv = env["he"], env["hv"]
+    p = _new(client, he, title="Plan", body="First draft.")
+    # a person's edits in one sitting make one version: what the page was before they started
+    client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"body": "Second draft."})
+    client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"body": "Third draft."})
+    client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"place": "project"})  # not the text: no version
+    h = client.get(f"/api/v1/notes/{p['id']}/history", headers=hv).json()["versions"]
+    assert [(v["author"], v["by"], v["size"]) for v in h] == [("person", "ed@x.io", len("First draft."))]
+    # the assistant's change is a version of its own, and can be undone
+    uid = db.one("SELECT record::id(id) AS id FROM account WHERE email = 'ed@x.io'")["id"]
+    pods = store.ns_id(db, "pods")
+    box = ai_tools.Toolbox(db, cfg, {"id": uid, "email": "ed@x.io"}, {pods}, {pods}, {}, None)
+    box.call("update_note", {"note_id": p["id"], "body": "Rewritten by the assistant."})
+    h = client.get(f"/api/v1/notes/{p['id']}/history", headers=he).json()["versions"]
+    assert [v["author"] for v in h] == ["assistant", "person"]
+    before = client.get(f"/api/v1/notes/{p['id']}/history/{h[0]['id']}", headers=hv).json()
+    assert before["body"] == "Third draft."
+    assert client.post(f"/api/v1/notes/{p['id']}/history/{h[0]['id']}/restore", headers=hv).status_code == 403
+    back = client.post(f"/api/v1/notes/{p['id']}/history/{h[0]['id']}/restore", headers=he).json()
+    assert back["body"] == "Third draft." and back["doc_stale"] is False
+    # restoring is itself undoable: the assistant's text is the newest version now
+    h = client.get(f"/api/v1/notes/{p['id']}/history", headers=he).json()["versions"]
+    assert (
+        h[0]["why"].startswith("restored")
+        and client.get(f"/api/v1/notes/{p['id']}/history/{h[0]['id']}", headers=he).json()["body"] == "Rewritten by the assistant."
+    )
+    # the model's refinement keeps a version too; another page's version isn't this page's
+    other = _new(client, he, title="Other", body="x")
+    assert client.get(f"/api/v1/notes/{other['id']}/history/{h[0]['id']}", headers=he).status_code == 404
+    _age(db, p["id"])
+    notebook.refine_due(db, cfg)
+    h2 = client.get(f"/api/v1/notes/{p['id']}/history", headers=he).json()["versions"]
+    assert h2[0]["author"] == "assistant" and h2[0]["by"] is None and len(h2) == len(h) + 1
+    # deleting the page drops its history
+    client.delete(f"/api/v1/notes/{p['id']}", headers=he)
+    assert not db.rows("SELECT id FROM note_version WHERE page = $p", p=p["id"])
