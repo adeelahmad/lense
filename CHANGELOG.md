@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
+  recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
+  GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or
+  neighbours, `/graph/paths` the paths between two nodes, and `/graph/schema` what a query can ask about. Agents with
+  a write-scope token and editor access ask for merges and links with `POST /api/v1/graph/changes`; they wait in
+  Proposed changes unless asked to apply. See docs/graph.md.
+
 - **Lock a namespace to your passkeys.** An owner turns a namespace into a vault (Admin › Namespaces › Vault): its
   files open only after one of its passkeys unlocks it, for an hour by default (`encryption.vault_minutes`), and its
   queued work waits while it's locked. The passkey's WebAuthn PRF secret makes the key; the server keeps nothing that
