@@ -676,6 +676,14 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS term_rec ON term FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS term_space ON term FIELDS space",
     "DEFINE INDEX IF NOT EXISTS term_term ON term FIELDS term",
+    # each namespace's controlled vocabulary of topics, and which recordings are about which topic (app/domain/topics.py)
+    "DEFINE TABLE IF NOT EXISTS topic SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS topic_space ON topic FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS topic_key ON topic FIELDS tkey UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS topic_about SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS topic_about_rec ON topic_about FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS topic_about_topic ON topic_about FIELDS topic",
+    "DEFINE INDEX IF NOT EXISTS topic_about_space ON topic_about FIELDS space",
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",

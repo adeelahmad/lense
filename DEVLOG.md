@@ -2,6 +2,27 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-04 · Topics: a controlled vocabulary apart from entities
+
+Goal (Adeel): entities and topics are mixed (a topic is an entity of type TERM, which is also the fallback type for
+anything unclassified). Separate them: topics become a SKOS controlled vocabulary per namespace (preferred and
+alternative labels, a definition, broader, narrower and related topics), and recordings are about topics. Entities
+stay the named things (people, organisations, places...) and later become authority records. Decided: after the graph
+PRs (done, #111 #121).
+
+Todo:
+
+- [x] Vocabulary in the backend: topics with labels, definition, broader/narrower/related; recordings about topics;
+      create, edit, merge, delete; turn a TERM entity into a topic (and back, by deleting the topic); API with viewer
+      reads and editor changes; topics in the property graph (Topic, ABOUT, NARROWER, RELATED) and in RDF as SKOS
+- [ ] Topics page: the tree of broader and narrower topics, a topic's recordings, edit and merge; a recording's topics
+- [ ] Analysis suggests topics (summary topics and keywords matched to the vocabulary; new ones as suggestions to
+      accept); a namespace can keep its vocabulary fixed or open, as entities do
+- [ ] # links in notes point at topics; assistant and MCP tools for topics
+
+Refine later: shared vocabularies across namespaces and imported schemes (LCSH, Wikidata) with exactMatch; entities as
+authority records (variant names, external identifiers); topic history and undo for merges.
+
 ## 2026-10-04 · anytopdf as the conversion engine (not started: wait for Adeel's go)
 
 Goal (Adeel): use the sister project [anytopdf-rs](https://github.com/adeelahmad/anytopdf-rs) (README on its sprint2
@@ -73,7 +94,7 @@ Todo:
       ancestors, descendants, neighbours and paths
 - [x] Questions in plain language: the question becomes Cypher (shown, editable), the answer lights up on the canvas
 - [x] Assistant and MCP tools: graph schema, query, related, paths; proposing changes behind an approval
-- [ ] Topics as a controlled vocabulary (SKOS), apart from entities (authority records); next, after the graph PRs (Adeel)
+- [ ] Topics as a controlled vocabulary (SKOS), apart from entities (authority records): started, see "Topics" above
 
 ## 2026-10-03 · Assistant extensions: tools, skills, hooks, plugins
 

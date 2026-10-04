@@ -5,8 +5,8 @@ live from the database (`app/domain/graph_model.py`), so it is never out of step
 
 Status: **built**: the graph model, walking it (parents, children, ancestors, descendants, neighbours, paths),
 read-only Cypher and asking for changes over the API; the explorer canvas (drag, one-click layouts, a node menu,
-touch); questions in plain language; graph tools for the assistant and MCP. **Planned**: topics as a controlled
-vocabulary (SKOS), apart from entities.
+touch); questions in plain language; graph tools for the assistant and MCP; topics as each namespace's controlled
+vocabulary (SKOS), apart from entities. **Planned**: topics on the explorer canvas as their own kind of node.
 
 ## The explorer
 
@@ -36,8 +36,9 @@ Graph in the sidebar shows the graph of the scope picked at the top (one namespa
 | Recording | `r<id>` | name (the title), date, media, namespace |
 | Speaker | `s<id>` | name, seconds (talk time), namespace |
 | Entity | `e<id>`, or `e:<key>` in the global scope | name, type, key, mentions, namespaces, ids |
+| Topic | `t<id>`, or `t:<key>` in the global scope | name (the label), alt, definition, recordings, namespaces, ids |
 
-An entity has its type as a second label: `Person`, `Organisation`, `Product`, `Place`, `Event`, `Work`, `Topic`, or
+An entity has its type as a second label: `Person`, `Organisation`, `Product`, `Place`, `Event`, `Work`, `Term`, or
 a namespace's own type (`MY_TYPE` becomes `MyType`). Every node also has `id`, `name` and `namespace`. Hidden entities
 and quiet types (dates and numbers) are left out, as in the overview graph.
 
@@ -51,9 +52,13 @@ and quiet types (dates and numbers) are left out, as in the overview graph.
 | SPOKE_WITH | Speaker → Speaker (in the same recording) | recordings |
 | SAME_AS | Speaker → Speaker (said to be one person) | |
 | SAME_THING | Entity → Entity (linked across namespaces) | |
+| ABOUT | Recording → Topic | source, weight |
+| NARROWER | Topic → Topic (from the broader one) | |
+| RELATED | Topic → Topic | |
 
-CONTAINS, HAS_SPEAKER, MENTIONS and SAID are the hierarchy: an entity's parents are the recordings that mention it and
-the speakers who said it; its ancestors go on up to collections and the namespace.
+CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER are the hierarchy: an entity's parents are the recordings that
+mention it and the speakers who said it; its ancestors go on up to collections and the namespace. A topic's parents
+are its broader topics and the recordings about it. Topics are each namespace's vocabulary ([Topics](topics.md)).
 
 ## Scope and rights
 
@@ -147,8 +152,7 @@ MATCH (c:Collection {name: 'Interviews'})-[:CONTAINS*1..8]->(r:Recording) RETURN
 
 ## Refine later
 
-- Topics as SKOS concepts in schemes (broader, narrower, related), apart from entities, which become authority records
-  with preferred and variant names and external identifiers.
+- Entities as authority records, with preferred and variant names and external identifiers.
 - More change kinds for agents (rename, retype, hide, unlink), and Cypher write clauses mapped to proposed changes.
 - Collections people were given a role on (without a namespace role) aren't in the graph yet.
 - `EXISTS { }` subqueries and pattern predicates in `WHERE`.

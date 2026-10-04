@@ -184,6 +184,9 @@ import type {
   CreateTokenData,
   CreateTokenErrors,
   CreateTokenResponses,
+  CreateTopicData,
+  CreateTopicErrors,
+  CreateTopicResponses,
   CreateUserData,
   CreateUserErrors,
   CreateUserResponses,
@@ -283,6 +286,9 @@ import type {
   DeleteSourceData,
   DeleteSourceErrors,
   DeleteSourceResponses,
+  DeleteTopicData,
+  DeleteTopicErrors,
+  DeleteTopicResponses,
   DeleteViewData,
   DeleteViewErrors,
   DeleteViewResponses,
@@ -312,6 +318,9 @@ import type {
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
+  EntityToTopicData,
+  EntityToTopicErrors,
+  EntityToTopicResponses,
   EstimateBatchData,
   EstimateBatchErrors,
   EstimateBatchResponses,
@@ -492,6 +501,9 @@ import type {
   GetTemplateData,
   GetTemplateErrors,
   GetTemplateResponses,
+  GetTopicData,
+  GetTopicErrors,
+  GetTopicResponses,
   GetUploadData,
   GetUploadErrors,
   GetUploadResponses,
@@ -713,6 +725,9 @@ import type {
   ListTemplatesResponses,
   ListTokensData,
   ListTokensResponses,
+  ListTopicsData,
+  ListTopicsErrors,
+  ListTopicsResponses,
   ListUploadsData,
   ListUploadsResponses,
   ListUsersData,
@@ -757,6 +772,9 @@ import type {
   MergeSpeakerData,
   MergeSpeakerErrors,
   MergeSpeakerResponses,
+  MergeTopicsData,
+  MergeTopicsErrors,
+  MergeTopicsResponses,
   MoveMentionData,
   MoveMentionErrors,
   MoveMentionResponses,
@@ -827,6 +845,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  RecordingTopicsData,
+  RecordingTopicsErrors,
+  RecordingTopicsResponses,
   RedeemTicketData,
   RedeemTicketErrors,
   RedeemTicketResponses,
@@ -1011,6 +1032,9 @@ import type {
   SuggestTermsResponses,
   SyncFedoraData,
   SyncFedoraResponses,
+  TagRecordingsData,
+  TagRecordingsErrors,
+  TagRecordingsResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestBridgeData,
@@ -1155,6 +1179,9 @@ import type {
   UpdateSourceData,
   UpdateSourceErrors,
   UpdateSourceResponses,
+  UpdateTopicData,
+  UpdateTopicErrors,
+  UpdateTopicResponses,
   UpdateUserData,
   UpdateUserErrors,
   UpdateUserResponses,
@@ -4871,6 +4898,152 @@ export class Entities {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+}
+
+export class Topics {
+  /**
+   * List Topics
+   *
+   * Topics of the namespaces you can read (or of `ns`), by label. `q` matches labels and other labels, `top` keeps
+   * those with no broader topic, `broader` lists the narrower topics of one.
+   */
+  public static listTopics<ThrowOnError extends boolean = false>(
+    options?: Options<ListTopicsData, ThrowOnError>,
+  ): RequestResult<ListTopicsResponses, ListTopicsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListTopicsResponses, ListTopicsErrors, ThrowOnError>({
+      url: "/api/v1/topics",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Topic
+   *
+   * Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows again.
+   */
+  public static deleteTopic<ThrowOnError extends boolean = false>(
+    options: Options<DeleteTopicData, ThrowOnError>,
+  ): RequestResult<DeleteTopicResponses, DeleteTopicErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteTopicResponses, DeleteTopicErrors, ThrowOnError>({
+      url: "/api/v1/topics/{tid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Topic
+   *
+   * A topic with its broader, narrower and related topics and the recordings about it.
+   */
+  public static getTopic<ThrowOnError extends boolean = false>(
+    options: Options<GetTopicData, ThrowOnError>,
+  ): RequestResult<GetTopicResponses, GetTopicErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetTopicResponses, GetTopicErrors, ThrowOnError>({
+      url: "/api/v1/topics/{tid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Topic
+   *
+   * Rename it, change its other labels or definition, or what it is narrower than or related to.
+   */
+  public static updateTopic<ThrowOnError extends boolean = false>(
+    options: Options<UpdateTopicData, ThrowOnError>,
+  ): RequestResult<UpdateTopicResponses, UpdateTopicErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateTopicResponses, UpdateTopicErrors, ThrowOnError>({
+      url: "/api/v1/topics/{tid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Topic
+   *
+   * Add a topic to the namespace's vocabulary.
+   */
+  public static createTopic<ThrowOnError extends boolean = false>(
+    options: Options<CreateTopicData, ThrowOnError>,
+  ): RequestResult<CreateTopicResponses, CreateTopicErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateTopicResponses, CreateTopicErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/topics",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Merge Topics
+   *
+   * Fold topics into one: their labels become its other labels and their recordings are about it.
+   */
+  public static mergeTopics<ThrowOnError extends boolean = false>(
+    options: Options<MergeTopicsData, ThrowOnError>,
+  ): RequestResult<MergeTopicsResponses, MergeTopicsErrors, ThrowOnError> {
+    return (options.client ?? client).post<MergeTopicsResponses, MergeTopicsErrors, ThrowOnError>({
+      url: "/api/v1/topics/merge",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Tag Recordings
+   *
+   * Say recordings of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.
+   */
+  public static tagRecordings<ThrowOnError extends boolean = false>(
+    options: Options<TagRecordingsData, ThrowOnError>,
+  ): RequestResult<TagRecordingsResponses, TagRecordingsErrors, ThrowOnError> {
+    return (options.client ?? client).post<TagRecordingsResponses, TagRecordingsErrors, ThrowOnError>({
+      url: "/api/v1/topics/{tid}/recordings",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Recording Topics
+   *
+   * The topics a recording is about, and those suggested for it.
+   */
+  public static recordingTopics<ThrowOnError extends boolean = false>(
+    options: Options<RecordingTopicsData, ThrowOnError>,
+  ): RequestResult<RecordingTopicsResponses, RecordingTopicsErrors, ThrowOnError> {
+    return (options.client ?? client).get<RecordingTopicsResponses, RecordingTopicsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/topics",
+      ...options,
+    });
+  }
+
+  /**
+   * Entity To Topic
+   *
+   * Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the recordings that
+   * mention it are about the topic. The entity is hidden; deleting the topic shows it again.
+   */
+  public static entityToTopic<ThrowOnError extends boolean = false>(
+    options: Options<EntityToTopicData, ThrowOnError>,
+  ): RequestResult<EntityToTopicResponses, EntityToTopicErrors, ThrowOnError> {
+    return (options.client ?? client).post<EntityToTopicResponses, EntityToTopicErrors, ThrowOnError>({
+      url: "/api/v1/entities/{eid}/topic",
+      ...options,
     });
   }
 }

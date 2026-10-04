@@ -184,6 +184,8 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None, colle
             "DELETE mentions WHERE recording = $r",
             "DELETE term WHERE recording = $r",
             "DELETE entity_override WHERE recording = $r",
+            # and so do topics: the recording is about the new namespace's topics, once someone says which
+            "DELETE topic_about WHERE recording = $r",
             "UPDATE ip_group SET recordings = array::complement(recordings, [$r]) WHERE space = $s AND recordings CONTAINS $r",
             "CREATE $g CONTENT $note",
             "UPDATE $rec SET space = $d, collection = $home" + (", fp_key = $k" if fp else ""),

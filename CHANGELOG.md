@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Topics, apart from entities.** Each namespace has a controlled vocabulary of topics (SKOS): a label, other
+  labels, a definition, and broader, narrower and related topics. Recordings are about topics, said by a person or
+  brought over when a topic-like entity (type TERM) becomes a topic; the entity is hidden until the topic is deleted.
+  Editors create, edit, merge and delete topics through `/api/v1/topics`. Topics are in the graph (`Topic`, with
+  `ABOUT`, `NARROWER` and `RELATED`; TERM entities are now labelled `Term` there) and in RDF (`/id/topic/<id>`). See
+  docs/topics.md.
+
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or
