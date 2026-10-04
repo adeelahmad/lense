@@ -2714,6 +2714,485 @@
         }
       }
     },
+    "/api/v1/activity": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource History",
+        "description": "A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the\ndecision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries.",
+        "operationId": "resource_history",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1",
+              "title": "Resource"
+            },
+            "description": "table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "in",
+                    "out",
+                    "run",
+                    "change"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only entries before this time (the last `at` of the page before)",
+              "title": "Before"
+            },
+            "description": "only entries before this time (the last `at` of the page before)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityEntry"
+                  },
+                  "title": "Response Activity-Resource History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activity/totals": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource Totals",
+        "description": "What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time.",
+        "operationId": "resource_totals",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "table:id; none for everything (admins)",
+              "title": "Resource"
+            },
+            "description": "table:id; none for everything (admins)"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityTotals"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activity/costs": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource Costs",
+        "description": "What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a\nfigure is a floor (some calls had no price or token counts).",
+        "operationId": "resource_costs",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "table:id, repeated (up to 500): every row of a list at once",
+              "title": "Resource"
+            },
+            "description": "table:id, repeated (up to 500): every row of a list at once"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityCosts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activity/top": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Top Resources",
+        "description": "The resources that cost most this period (admins).",
+        "operationId": "top_resources",
+        "parameters": [
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z_]{1,40}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only this kind of resource: routine, pipeline, workflow, space",
+              "title": "Table"
+            },
+            "description": "only this kind of resource: routine, pipeline, workflow, space"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityTop"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/budgets": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "List Budgets",
+        "description": "Every budget, with where it stands now.",
+        "operationId": "list_budgets",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BudgetStatus"
+                  },
+                  "title": "Response Budgets-List Budgets"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Set Budget",
+        "operationId": "set_budget",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "title": "Resource"
+            },
+            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Remove Budget",
+        "operationId": "remove_budget",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "title": "Resource"
+            },
+            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/budgets/status": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Budget Status",
+        "description": "Where a resource's budget stands, and what its next run will likely cost (also without a budget).",
+        "operationId": "budget_status",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "title": "Resource"
+            },
+            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/fedora": {
       "get": {
         "tags": [
@@ -14156,6 +14635,59 @@
         }
       }
     },
+    "/api/v1/jobs/{jid}/release": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Release Job",
+        "description": "Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it\n(admins, who set the budgets).",
+        "operationId": "release_job",
+        "parameters": [
+          {
+            "name": "jid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Jid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeldRunDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/jobs/{jid}/retry": {
       "post": {
         "tags": [
@@ -18819,7 +19351,7 @@
           "routines"
         ],
         "summary": "Run Routine",
-        "description": "Run it as soon as the scheduler next looks (within half a minute), even when it is off.",
+        "description": "Run it as soon as the scheduler next looks (within half a minute), even when it is off. A run over one of its\nbudgets is refused (409, saying where the budget stands) unless over_budget is true (docs/budgets.md).",
         "operationId": "run_routine",
         "parameters": [
           {
@@ -18838,6 +19370,59 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RoutineRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/routines/runs/{run_id}/decide": {
+      "post": {
+        "tags": [
+          "routines"
+        ],
+        "summary": "Decide Held Run",
+        "description": "Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.",
+        "operationId": "decide_held_run",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeldRunDecision"
               }
             }
           }
@@ -20769,6 +21354,311 @@
         "title": "AccountToken",
         "description": "Anyone's key, for admins."
       },
+      "ActivityCosts": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "costs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResourceSpend"
+            },
+            "type": "object",
+            "title": "Costs",
+            "description": "by resource; ones you can't see are left out"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "costs"
+        ],
+        "title": "ActivityCosts"
+      },
+      "ActivityEntry": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "the ledger row's id; none for an audit log entry"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out",
+              "run",
+              "change"
+            ],
+            "title": "Kind",
+            "description": "in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "what it was: `POST /api/v1/routines/{rid}/run`, `model.chat`, `job.succeeded`, `routine.update`"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Resources",
+            "description": "every resource it counts for, as table:id"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor",
+            "description": "the account that made it, when a person did"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "tokens_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Out"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "estimated from the prices in Settings; none when the model has no price"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "the error's type or HTTP status; never its message"
+          },
+          "detail": {
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "at",
+          "kind",
+          "action"
+        ],
+        "title": "ActivityEntry"
+      },
+      "ActivityTop": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceCost"
+            },
+            "type": "array",
+            "title": "Resources"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "resources"
+        ],
+        "title": "ActivityTop"
+      },
+      "ActivityTotals": {
+        "properties": {
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "tokens_in": {
+            "type": "integer",
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "type": "integer",
+            "title": "Tokens Out"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "description": "what its calls cost (run rows repeat their calls' cost and aren't added again)"
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms"
+          },
+          "unpriced": {
+            "type": "integer",
+            "title": "Unpriced",
+            "description": "calls that cost something but have no figure (a model with no price, a reply without token counts)",
+            "default": 0
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "true when unpriced calls make cost_usd a floor rather than exact",
+            "default": false
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/KindTotals"
+            },
+            "type": "object",
+            "title": "By Kind"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "calls",
+          "failed",
+          "tokens_in",
+          "tokens_out",
+          "cost_usd",
+          "ms",
+          "by_kind"
+        ],
+        "title": "ActivityTotals"
+      },
       "AnswerCheck": {
         "properties": {
           "claims": {
@@ -22182,6 +23072,279 @@
           "dir"
         ],
         "title": "BrowseEntry"
+      },
+      "Budget": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "on_over": {
+            "type": "string",
+            "title": "On Over"
+          },
+          "warn_at": {
+            "type": "number",
+            "title": "Warn At"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "alert": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alert",
+            "description": "the last warning: {state near|over, since, at, share}"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "period",
+          "on_over",
+          "warn_at"
+        ],
+        "title": "Budget"
+      },
+      "BudgetSet": {
+        "properties": {
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd",
+            "description": "the cap in USD (from the costs in the activity ledger)"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens",
+            "description": "the cap in tokens (in and out)"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "run",
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period",
+            "description": "what the cap is for: one run, or a day, week or month (UTC)",
+            "default": "month"
+          },
+          "on_over": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "skip",
+              "assistant"
+            ],
+            "title": "On Over",
+            "description": "a run that would go over: ask (hold it until someone picks run or skip), skip, or assistant (the decision model weighs it; it runs only when sure, else asks)",
+            "default": "ask"
+          },
+          "warn_at": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.1,
+            "title": "Warn At",
+            "description": "the share spent at which it's marked near (and warned about)",
+            "default": 0.8
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BudgetSet"
+      },
+      "BudgetStatus": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Budget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "ok",
+              "near",
+              "over"
+            ],
+            "title": "State"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since",
+            "description": "the start of the period being counted"
+          },
+          "spent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Spent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextRun",
+            "description": "what one more run will likely cost: always an estimate"
+          },
+          "left": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Left"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share",
+            "description": "the largest share of a cap spent (1 is all of it)"
+          },
+          "share_after_next": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share After Next",
+            "description": "the share once the next run (estimated) is done"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "state",
+          "next"
+        ],
+        "title": "BudgetStatus"
       },
       "ChangeAsk": {
         "properties": {
@@ -28747,6 +29910,21 @@
         ],
         "title": "Heard"
       },
+      "HeldRunDecision": {
+        "properties": {
+          "run": {
+            "type": "boolean",
+            "title": "Run",
+            "description": "true: run it now, once, whatever its budgets say; false: skip it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "title": "HeldRunDecision"
+      },
       "Highlight": {
         "properties": {
           "id": {
@@ -30015,6 +31193,54 @@
             ],
             "title": "Cancel Requested"
           },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "what its calls cost, from the activity ledger (docs/activity.md); set when it ends"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "cost_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimate",
+            "description": "true: some calls had no price or token counts, so cost_usd is a floor"
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold",
+            "description": "held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}"
+          },
           "log": {
             "anyOf": [
               {
@@ -30339,6 +31565,43 @@
           "jobs"
         ],
         "title": "JobsQueued"
+      },
+      "KindTotals": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "tokens_in": {
+            "type": "integer",
+            "title": "Tokens In",
+            "default": 0
+          },
+          "tokens_out": {
+            "type": "integer",
+            "title": "Tokens Out",
+            "default": 0
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "default": 0
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "KindTotals"
       },
       "LanguageCount": {
         "properties": {
@@ -31786,6 +33049,48 @@
         "type": "object",
         "title": "NamespaceUpdate",
         "description": "Only the fields you send change; send ``pipeline: null`` to go back to the default pipeline."
+      },
+      "NextRun": {
+        "properties": {
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs",
+            "description": "the past runs the estimate is drawn from"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "runs",
+          "basis"
+        ],
+        "title": "NextRun"
       },
       "NodeParam": {
         "properties": {
@@ -37917,6 +39222,35 @@
         ],
         "title": "ResetPasswordRequest"
       },
+      "ResourceCost": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "ResourceCost"
+      },
       "ResourceFile": {
         "properties": {
           "id": {
@@ -38128,6 +39462,41 @@
           "can_change"
         ],
         "title": "ResourceFiles"
+      },
+      "ResourceSpend": {
+        "properties": {
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "unpriced": {
+            "type": "integer",
+            "title": "Unpriced"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "true: cost_usd is a floor (unpriced calls); show it as an estimate"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "cost_usd",
+          "tokens",
+          "calls",
+          "unpriced",
+          "estimate"
+        ],
+        "title": "ResourceSpend"
       },
       "Reviewed": {
         "properties": {
@@ -38519,6 +39888,54 @@
               }
             ],
             "title": "Log"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "what its calls cost, from the activity ledger (docs/activity.md); set when it ends"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "cost_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimate",
+            "description": "true: some calls had no price or token counts, so cost_usd is a floor"
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold",
+            "description": "held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}"
           }
         },
         "additionalProperties": true,
@@ -38537,6 +39954,12 @@
             "type": "boolean",
             "title": "Propose Only",
             "description": "graph workflows propose every change instead of making the sure ones",
+            "default": false
+          },
+          "over_budget": {
+            "type": "boolean",
+            "title": "Over Budget",
+            "description": "run it even though it's over a budget (docs/budgets.md); without it, a run over budget is refused (409)",
             "default": false
           }
         },
@@ -42260,6 +43683,31 @@
           "ok"
         ],
         "title": "SpeechTestResult"
+      },
+      "Spent": {
+        "properties": {
+          "usd": {
+            "type": "number",
+            "title": "Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "true: some calls had no figure, so usd is a floor"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "usd",
+          "tokens",
+          "estimate"
+        ],
+        "title": "Spent"
       },
       "Started": {
         "properties": {

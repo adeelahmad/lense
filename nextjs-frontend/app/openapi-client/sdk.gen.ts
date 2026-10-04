@@ -51,6 +51,9 @@ import type {
   BrowseSourceData,
   BrowseSourceErrors,
   BrowseSourceResponses,
+  BudgetStatusData,
+  BudgetStatusErrors,
+  BudgetStatusResponses,
   BulkUpdateMetadataData,
   BulkUpdateMetadataErrors,
   BulkUpdateMetadataResponses,
@@ -205,6 +208,9 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecideHeldRunData,
+  DecideHeldRunErrors,
+  DecideHeldRunResponses,
   DecisionStatusData,
   DecisionStatusResponses,
   DeclineAccessRequestData,
@@ -575,6 +581,8 @@ import type {
   ListBackendsResponses,
   ListBatchesData,
   ListBatchesResponses,
+  ListBudgetsData,
+  ListBudgetsResponses,
   ListChatsData,
   ListChatsResponses,
   ListCollectionMembersData,
@@ -861,6 +869,12 @@ import type {
   RegisterResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  ReleaseJobData,
+  ReleaseJobErrors,
+  ReleaseJobResponses,
+  RemoveBudgetData,
+  RemoveBudgetErrors,
+  RemoveBudgetResponses,
   RemoveLoginProviderData,
   RemoveLoginProviderErrors,
   RemoveLoginProviderResponses,
@@ -894,6 +908,15 @@ import type {
   ResetPasswordData,
   ResetPasswordErrors,
   ResetPasswordResponses,
+  ResourceCostsData,
+  ResourceCostsErrors,
+  ResourceCostsResponses,
+  ResourceHistoryData,
+  ResourceHistoryErrors,
+  ResourceHistoryResponses,
+  ResourceTotalsData,
+  ResourceTotalsErrors,
+  ResourceTotalsResponses,
   RetagRecordingsData,
   RetagRecordingsErrors,
   RetagRecordingsResponses,
@@ -982,6 +1005,9 @@ import type {
   SendMessageData,
   SendMessageErrors,
   SendMessageResponses,
+  SetBudgetData,
+  SetBudgetErrors,
+  SetBudgetResponses,
   SetCollectionMemberData,
   SetCollectionMemberErrors,
   SetCollectionMemberResponses,
@@ -1068,6 +1094,9 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TopResourcesData,
+  TopResourcesErrors,
+  TopResourcesResponses,
   TranscribeClipData,
   TranscribeClipResponses,
   TryWorkflowData,
@@ -2422,6 +2451,124 @@ export class Admin {
   ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
       url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Activity {
+  /**
+   * Resource History
+   *
+   * A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
+   * decision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries.
+   */
+  public static resourceHistory<ThrowOnError extends boolean = false>(
+    options: Options<ResourceHistoryData, ThrowOnError>,
+  ): RequestResult<ResourceHistoryResponses, ResourceHistoryErrors, ThrowOnError> {
+    return (options.client ?? client).get<ResourceHistoryResponses, ResourceHistoryErrors, ThrowOnError>({
+      url: "/api/v1/activity",
+      ...options,
+    });
+  }
+
+  /**
+   * Resource Totals
+   *
+   * What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time.
+   */
+  public static resourceTotals<ThrowOnError extends boolean = false>(
+    options?: Options<ResourceTotalsData, ThrowOnError>,
+  ): RequestResult<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError>({
+      url: "/api/v1/activity/totals",
+      ...options,
+    });
+  }
+
+  /**
+   * Resource Costs
+   *
+   * What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a
+   * figure is a floor (some calls had no price or token counts).
+   */
+  public static resourceCosts<ThrowOnError extends boolean = false>(
+    options: Options<ResourceCostsData, ThrowOnError>,
+  ): RequestResult<ResourceCostsResponses, ResourceCostsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ResourceCostsResponses, ResourceCostsErrors, ThrowOnError>({
+      url: "/api/v1/activity/costs",
+      ...options,
+    });
+  }
+
+  /**
+   * Top Resources
+   *
+   * The resources that cost most this period (admins).
+   */
+  public static topResources<ThrowOnError extends boolean = false>(
+    options?: Options<TopResourcesData, ThrowOnError>,
+  ): RequestResult<TopResourcesResponses, TopResourcesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<TopResourcesResponses, TopResourcesErrors, ThrowOnError>({
+      url: "/api/v1/activity/top",
+      ...options,
+    });
+  }
+}
+
+export class Budgets {
+  /**
+   * Remove Budget
+   */
+  public static removeBudget<ThrowOnError extends boolean = false>(
+    options: Options<RemoveBudgetData, ThrowOnError>,
+  ): RequestResult<RemoveBudgetResponses, RemoveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveBudgetResponses, RemoveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+    });
+  }
+
+  /**
+   * List Budgets
+   *
+   * Every budget, with where it stands now.
+   */
+  public static listBudgets<ThrowOnError extends boolean = false>(
+    options?: Options<ListBudgetsData, ThrowOnError>,
+  ): RequestResult<ListBudgetsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListBudgetsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Budget
+   */
+  public static setBudget<ThrowOnError extends boolean = false>(
+    options: Options<SetBudgetData, ThrowOnError>,
+  ): RequestResult<SetBudgetResponses, SetBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetBudgetResponses, SetBudgetErrors, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Budget Status
+   *
+   * Where a resource's budget stands, and what its next run will likely cost (also without a budget).
+   */
+  public static budgetStatus<ThrowOnError extends boolean = false>(
+    options: Options<BudgetStatusData, ThrowOnError>,
+  ): RequestResult<BudgetStatusResponses, BudgetStatusErrors, ThrowOnError> {
+    return (options.client ?? client).get<BudgetStatusResponses, BudgetStatusErrors, ThrowOnError>({
+      url: "/api/v1/budgets/status",
       ...options,
     });
   }
@@ -5787,6 +5934,25 @@ export class Jobs {
   }
 
   /**
+   * Release Job
+   *
+   * Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it
+   * (admins, who set the budgets).
+   */
+  public static releaseJob<ThrowOnError extends boolean = false>(
+    options: Options<ReleaseJobData, ThrowOnError>,
+  ): RequestResult<ReleaseJobResponses, ReleaseJobErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReleaseJobResponses, ReleaseJobErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/release",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Retry Job
    */
   public static retryJob<ThrowOnError extends boolean = false>(
@@ -7399,13 +7565,32 @@ export class Routines {
   /**
    * Run Routine
    *
-   * Run it as soon as the scheduler next looks (within half a minute), even when it is off.
+   * Run it as soon as the scheduler next looks (within half a minute), even when it is off. A run over one of its
+   * budgets is refused (409, saying where the budget stands) unless over_budget is true (docs/budgets.md).
    */
   public static runRoutine<ThrowOnError extends boolean = false>(
     options: Options<RunRoutineData, ThrowOnError>,
   ): RequestResult<RunRoutineResponses, RunRoutineErrors, ThrowOnError> {
     return (options.client ?? client).post<RunRoutineResponses, RunRoutineErrors, ThrowOnError>({
       url: "/api/v1/routines/{rid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Decide Held Run
+   *
+   * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
+   */
+  public static decideHeldRun<ThrowOnError extends boolean = false>(
+    options: Options<DecideHeldRunData, ThrowOnError>,
+  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+      url: "/api/v1/routines/runs/{run_id}/decide",
       ...options,
       headers: {
         "Content-Type": "application/json",
