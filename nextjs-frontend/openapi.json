@@ -10399,6 +10399,386 @@
         }
       }
     },
+    "/api/v1/graph/schema": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Schema",
+        "description": "What the graph holds in this scope: labels, relationship types (and what they join), properties and counts, with\nexample queries. Agents read this before writing Cypher.",
+        "operationId": "graph_schema",
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\"",
+              "default": "global",
+              "title": "Scope"
+            },
+            "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph Schema"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/related": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Related",
+        "description": "Nodes related to one node, nearest first, with the relationships between them.",
+        "operationId": "graph_related",
+        "parameters": [
+          {
+            "name": "node",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>",
+              "title": "Node"
+            },
+            "description": "a node id: n<id>, c<id>, r<id>, s<id>, e<id> or e:<name key>"
+          },
+          {
+            "name": "relation",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "children",
+                "parents",
+                "ancestors",
+                "descendants",
+                "neighbours"
+              ],
+              "type": "string",
+              "default": "neighbours",
+              "title": "Relation"
+            }
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 8,
+              "minimum": 1,
+              "default": 1,
+              "title": "Depth"
+            }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "relationship types to follow, comma separated (default: the hierarchy, or any for neighbours)",
+              "title": "Types"
+            },
+            "description": "relationship types to follow, comma separated (default: the hierarchy, or any for neighbours)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\"",
+              "default": "global",
+              "title": "Scope"
+            },
+            "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph Related"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/paths": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Paths",
+        "description": "Paths from a to b, shortest first: every simple path up to max_depth hops, or just the shortest ones.",
+        "operationId": "graph_paths",
+        "parameters": [
+          {
+            "name": "a",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "A"
+            }
+          },
+          {
+            "name": "b",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "B"
+            }
+          },
+          {
+            "name": "max_depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 8,
+              "minimum": 1,
+              "default": 4,
+              "title": "Max Depth"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Types"
+            }
+          },
+          {
+            "name": "directed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Directed"
+            }
+          },
+          {
+            "name": "shortest",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Shortest"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\"",
+              "default": "global",
+              "title": "Scope"
+            },
+            "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph Paths"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/query": {
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Query",
+        "description": "Run a read-only Cypher query over the graph you can read: {columns, rows, nodes, edges, truncated}. Nodes and\nrelationships it returns are also listed in nodes and edges, ready to draw. Read-only tokens may query.",
+        "operationId": "graph_query",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GraphQuery"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Query"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/changes": {
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Propose Graph Change",
+        "description": "Ask for a change to the graph. Proposed by default, for someone with editor access to accept in Proposed\nchanges; `apply` makes it at once, and it can still be undone. Both need editor access to the two namespaces; read-only\ntokens can't ask.",
+        "operationId": "propose_graph_change",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Propose Graph Change"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/entity-setup": {
       "get": {
         "tags": [
@@ -20778,6 +21158,53 @@
         ],
         "title": "BrowseEntry"
       },
+      "ChangeAsk": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "merge",
+              "link"
+            ],
+            "title": "Kind",
+            "description": "merge: two entities of one namespace are one; link: entities of two namespaces are the same thing"
+          },
+          "a": {
+            "type": "string",
+            "title": "A",
+            "description": "an entity node id, e<id> (for a merge, the one kept)"
+          },
+          "b": {
+            "type": "string",
+            "title": "B"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "apply": {
+            "type": "boolean",
+            "title": "Apply",
+            "description": "make it now (editors) instead of proposing it for someone to accept",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "a",
+          "b"
+        ],
+        "title": "ChangeAsk"
+      },
       "Chat": {
         "properties": {
           "id": {
@@ -26725,6 +27152,39 @@
         "additionalProperties": false,
         "type": "object",
         "title": "GraphChangeAccept"
+      },
+      "GraphQuery": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query",
+            "description": "read-only Cypher, e.g. MATCH (e:Person)<-[:MENTIONS]-(r:Recording) RETURN e.name, count(r)"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "description": "values for $parameters in the query"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "global"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 5000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "description": "rows at most",
+            "default": 500
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "GraphQuery"
       },
       "HTTPValidationError": {
         "properties": {

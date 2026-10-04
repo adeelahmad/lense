@@ -76,6 +76,7 @@ nav:
   - Sensors: sensors.md
   - Telemetry: telemetry.md
   - IIIF: iiif.md
+  - Graph and Cypher: graph.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md
   - API: api.md

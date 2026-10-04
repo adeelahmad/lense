@@ -489,6 +489,18 @@ import type {
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GraphPathsData,
+  GraphPathsErrors,
+  GraphPathsResponses,
+  GraphQueryData,
+  GraphQueryErrors,
+  GraphQueryResponses,
+  GraphRelatedData,
+  GraphRelatedErrors,
+  GraphRelatedResponses,
+  GraphSchemaData,
+  GraphSchemaErrors,
+  GraphSchemaResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
@@ -774,6 +786,9 @@ import type {
   PreviewWatchData,
   PreviewWatchErrors,
   PreviewWatchResponses,
+  ProposeGraphChangeData,
+  ProposeGraphChangeErrors,
+  ProposeGraphChangeResponses,
   PushData,
   PushResponses,
   PushStreamData,
@@ -4698,6 +4713,90 @@ export class Entities {
   ): RequestResult<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateEntityTypeResponses, UpdateEntityTypeErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/entity-types/{code}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Graph {
+  /**
+   * Graph Schema
+   *
+   * What the graph holds in this scope: labels, relationship types (and what they join), properties and counts, with
+   * example queries. Agents read this before writing Cypher.
+   */
+  public static graphSchema<ThrowOnError extends boolean = false>(
+    options?: Options<GraphSchemaData, ThrowOnError>,
+  ): RequestResult<GraphSchemaResponses, GraphSchemaErrors, ThrowOnError> {
+    return (options?.client ?? client).get<GraphSchemaResponses, GraphSchemaErrors, ThrowOnError>({
+      url: "/api/v1/graph/schema",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Related
+   *
+   * Nodes related to one node, nearest first, with the relationships between them.
+   */
+  public static graphRelated<ThrowOnError extends boolean = false>(
+    options: Options<GraphRelatedData, ThrowOnError>,
+  ): RequestResult<GraphRelatedResponses, GraphRelatedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphRelatedResponses, GraphRelatedErrors, ThrowOnError>({
+      url: "/api/v1/graph/related",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Paths
+   *
+   * Paths from a to b, shortest first: every simple path up to max_depth hops, or just the shortest ones.
+   */
+  public static graphPaths<ThrowOnError extends boolean = false>(
+    options: Options<GraphPathsData, ThrowOnError>,
+  ): RequestResult<GraphPathsResponses, GraphPathsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphPathsResponses, GraphPathsErrors, ThrowOnError>({
+      url: "/api/v1/graph/paths",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Query
+   *
+   * Run a read-only Cypher query over the graph you can read: {columns, rows, nodes, edges, truncated}. Nodes and
+   * relationships it returns are also listed in nodes and edges, ready to draw. Read-only tokens may query.
+   */
+  public static graphQuery<ThrowOnError extends boolean = false>(
+    options: Options<GraphQueryData, ThrowOnError>,
+  ): RequestResult<GraphQueryResponses, GraphQueryErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphQueryResponses, GraphQueryErrors, ThrowOnError>({
+      url: "/api/v1/graph/query",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Propose Graph Change
+   *
+   * Ask for a change to the graph. Proposed by default, for someone with editor access to accept in Proposed
+   * changes; `apply` makes it at once, and it can still be undone. Both need editor access to the two namespaces; read-only
+   * tokens can't ask.
+   */
+  public static proposeGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<ProposeGraphChangeData, ThrowOnError>,
+  ): RequestResult<ProposeGraphChangeResponses, ProposeGraphChangeErrors, ThrowOnError> {
+    return (options.client ?? client).post<ProposeGraphChangeResponses, ProposeGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph/changes",
       ...options,
       headers: {
         "Content-Type": "application/json",
