@@ -346,7 +346,7 @@ def record(name, value, attrs=None):
 def cost(model, input_tokens, output_tokens, prices=None):
     """Estimated cost in USD from the per-million-token prices for the model, or None when it has no price."""
     p = (prices if prices is not None else _state["cfg"].get("prices") or {}).get(model)
-    if not isinstance(p, dict):
+    if not isinstance(p, dict) or (p.get("unit") or "tokens") != "tokens":
         return None
     return round((input_tokens or 0) / 1e6 * float(p.get("input") or 0) + (output_tokens or 0) / 1e6 * float(p.get("output") or 0), 8)
 
@@ -361,7 +361,7 @@ class ModelCall:
 
         self.model = payload.get("model")
         self.operation, self.t0, self.done, self.response_model, self.usage = operation, time.monotonic(), False, None, None
-        self.ledger = activity.call(f"model.{operation}", cfg, self.model, price=activity.token_cost(cfg))
+        self.ledger = activity.call(f"model.{operation}", cfg, self.model, price=activity.model_cost(cfg))
         self.on = active()
         if not self.on:
             return

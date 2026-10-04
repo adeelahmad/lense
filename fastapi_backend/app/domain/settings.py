@@ -701,21 +701,44 @@ def _origin(url):
 
 
 def _prices(value):
-    """{model: {input, output}}: USD per million tokens, for the cost estimates."""
-    msg = "telemetry.prices gives each model its input and output price in USD per million tokens"
+    """{model: price}: how each model's calls are costed (docs/activity.md#costs). By tokens, {input, output} USD per
+    million tokens (unit "tokens", the default); by time, {unit: "time", per_hour} USD per hour a call takes (a local
+    model on your own machine); or {unit: "off"}. A model left out isn't costed."""
+    msg = (
+        "telemetry.prices gives each model a price: {input, output} USD per million tokens, {unit: time, per_hour} "
+        "USD per hour, or {unit: off}"
+    )
     if value is None:
         return {}
     if not isinstance(value, dict) or len(value) > 200:
         raise ValueError(msg)
+
+    def num(n):
+        return isinstance(n, (int, float)) and not isinstance(n, bool) and 0 <= n <= 1_000_000
+
     out = {}
     for model, p in value.items():
         name = str(model).strip()
-        if not name or len(name) > 200 or not isinstance(p, dict) or set(p) - {"input", "output"}:
+        if not name or len(name) > 200 or not isinstance(p, dict):
             raise ValueError(msg)
-        nums = {k: p.get(k, 0) for k in ("input", "output")}
-        if not all(isinstance(n, (int, float)) and not isinstance(n, bool) and 0 <= n <= 1_000_000 for n in nums.values()):
+        unit = p.get("unit") or "tokens"
+        if unit == "tokens":
+            if set(p) - {"unit", "input", "output"}:
+                raise ValueError(msg)
+            nums = {k: p.get(k, 0) for k in ("input", "output")}
+            if not all(num(n) for n in nums.values()):
+                raise ValueError(msg)
+            out[name] = {k: float(n) for k, n in nums.items()}  # the unit stays implicit, as prices saved before units
+        elif unit == "time":
+            if set(p) - {"unit", "per_hour"} or not num(p.get("per_hour", 0)):
+                raise ValueError(msg)
+            out[name] = {"unit": "time", "per_hour": float(p.get("per_hour", 0))}
+        elif unit == "off":
+            if set(p) - {"unit"}:
+                raise ValueError(msg)
+            out[name] = {"unit": "off"}
+        else:
             raise ValueError(msg)
-        out[name] = {k: float(n) for k, n in nums.items()}
     return out
 
 

@@ -25,9 +25,23 @@ Besides the resources, a row has its kind (`in`, `out` or `run`), what it was (`
 tokens in and out, the estimated cost in USD, how long it took, and how it ended (an error's type or HTTP status,
 never its message). It never holds prompt, reply, transcript or file content.
 
-Cost comes from the prices you set: Settings › Telemetry › prices (USD per million tokens, per model), or the price
-of the assistant's model under Settings › AI assistant. A model with no price counts tokens but no cost; local models
-usually have none. `decisions.price_per_call` gives the decision model's price per decision.
+## Costs
+
+Each model is costed the way you set it under Settings › Telemetry › prices (`telemetry.prices`), or, for the
+assistant's model, Settings › AI assistant:
+
+| Unit | Setting | For |
+| --- | --- | --- |
+| Tokens | `{"input": 3.0, "output": 15.0}` (USD per million tokens) | cloud models that bill by tokens |
+| Time | `{"unit": "time", "per_hour": 0.6}` (USD per hour a call takes) | a local model on your own machine |
+| Off | `{"unit": "off"}`, or leave the model out | the default: no money counted, only tokens and time |
+
+So local models aren't costed unless you give them a price. `decisions.price_per_call` gives the decision model's
+price per decision.
+
+A figure that should have a cost but doesn't (a model priced by tokens whose server didn't report how many it used)
+marks the row `unpriced`, and every total that includes it says `estimate: true`: the cost shown is a floor, and
+the web app shows it with ≈.
 
 A run row (a job or a routine run ending) repeats what its calls cost in all, and the job or run keeps it too
 (`cost_usd`, `tokens`). Totals don't count run rows twice.

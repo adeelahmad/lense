@@ -161,8 +161,9 @@ def test_costs_for_lists_say_when_they_are_estimates(client, db, cfg, h):
     with activity.scope(db, "routine:1", cfg=cfg):
         activity.record("out", "model.chat", model="fake", tokens_in=10, cost_usd=0.5)
     with activity.scope(db, "routine:2", cfg=cfg):
-        activity.record("out", "model.chat", model="local", tokens_in=10)  # no price
+        activity.record("out", "model.chat", model="local", tokens_in=10)  # not costed: not an estimate
         activity.record("out", "model.chat", model="fake", cost_usd=0.25)
+        activity.record("out", "model.chat", model="fake", unpriced=True)  # priced, but no token counts came back
         activity.record("out", "notify.webhook")  # costs nothing: not unpriced
     got = client.get(
         "/api/v1/activity/costs", headers=h, params=[("resource", "routine:1"), ("resource", "routine:2"), ("resource", "routine:3")]
@@ -176,3 +177,24 @@ def test_costs_for_lists_say_when_they_are_estimates(client, db, cfg, h):
     make_user(db, "v@x.io", "viewer password 1")
     v = login(client, "v@x.io", "viewer password 1")
     assert client.get("/api/v1/activity/costs", headers=v, params={"resource": "routine:1"}).json()["costs"] == {}
+
+
+def test_models_are_costed_by_tokens_by_time_or_not_at_all(client, cfg, h):
+    cfg["telemetry"]["prices"] = {
+        "cloud": {"input": 3.0, "output": 15.0},
+        "gpu-box": {"unit": "time", "per_hour": 0.6},
+        "off": {"unit": "off"},
+    }
+    price = activity.model_cost(cfg)
+    assert price("cloud", 1_000_000, 100_000, 50) == (pytest.approx(4.5), False)
+    assert price("cloud", None, None, 50) == (None, True)  # priced, but the server didn't count
+    assert price("gpu-box", 10, 10, 60_000) == (pytest.approx(0.01), False)  # a minute at 0.60/hour
+    assert price("off", 10, 10, 60_000) == (None, False)
+    assert price("unlisted-local", 10, 10, 60_000) == (None, False)  # local models aren't costed by default
+
+    put = lambda v: client.put("/api/v1/settings/telemetry", headers=h, json={"prices": v})  # noqa: E731
+    assert put({"m": {"unit": "time", "per_hour": 1.5}, "x": {"unit": "off"}, "t": {"input": 1}}).status_code == 200
+    got = client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["prices"]
+    assert {k: got[k] for k in "mxt"} == {"m": {"unit": "time", "per_hour": 1.5}, "x": {"unit": "off"}, "t": {"input": 1.0, "output": 0.0}}
+    for bad in ({"m": {"unit": "time", "input": 1}}, {"m": {"unit": "watts"}}, {"m": {"unit": "off", "per_hour": 1}}):
+        assert put(bad).status_code == 400, bad

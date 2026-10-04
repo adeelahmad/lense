@@ -125,7 +125,7 @@ def embed(cfg, texts, timeout=None):
         headers["Authorization"] = f"Bearer {key}"
     body = json.dumps({"model": model, "input": [t[:EMBED_CHARS] for t in texts]}).encode()
     req = urllib.request.Request(base + "/embeddings", data=body, headers=headers, method="POST")
-    with activity.call("embeddings", cfg, model, detail={"texts": len(texts)}, price=activity.token_cost(cfg)) as ledger:
+    with activity.call("embeddings", cfg, model, detail={"texts": len(texts)}, price=activity.model_cost(cfg)) as ledger:
         try:
             with urllib.request.urlopen(req, timeout=timeout or _section(cfg).get("timeout") or 60) as r:
                 j = json.load(r)
