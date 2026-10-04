@@ -18,7 +18,7 @@ import os
 import pathlib
 import shutil
 
-from . import access as acc, auth, deletion, faces as facemod, jobs, metadata as md, render, speakers as spk, store
+from . import access as acc, auth, deletion, faces as facemod, jobs, metadata as md, notebook, render, speakers as spk, store
 
 R = store.R
 # rows that belong to the recording and say which namespace they are in
@@ -198,6 +198,7 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None, colle
         home=home,
     )
     deletion.forget(db, dst, fp, rec.get("path"))  # it's in the new namespace now: its scans may find it again
+    notebook.follow(db, f"recording:{rid}", dst)
     revoked = auth.revoke_shares(db, rid, by) if revoke_shares else 0
     _files(db, cfg, rec, rid, names[src], names[dst])
     deletion.orphans(db, old_speakers, old_faces)  # unnamed ones nothing else has any more
