@@ -37,10 +37,15 @@ def sha(s):
     return hashlib.sha256(s.encode()).hexdigest()
 
 
+# scrypt's cost (N): 32 MB and a noticeable fraction of a second per hash, on purpose. A stored hash keeps the N it was
+# made with, so changing this changes new hashes only (the tests lower it: they sign people up and in hundreds of times).
+SCRYPT_N = 2**15
+
+
 def hash_password(pw):
     if len(pw or "") < 10:
         raise ValueError("passwords need at least 10 characters")
-    salt, n, r, p = secrets.token_bytes(16), 2**15, 8, 1
+    salt, n, r, p = secrets.token_bytes(16), SCRYPT_N, 8, 1
     h = hashlib.scrypt(pw.encode(), salt=salt, n=n, r=r, p=p, maxmem=64 * 1024 * 1024, dklen=32)
     return f"scrypt${n}${r}${p}${_b64(salt)}${_b64(h)}"
 

@@ -565,11 +565,12 @@ class DB:
         self._text_ready, self._text_lock = not self.embedded, threading.Lock()
         self._pool: queue.LifoQueue = queue.LifoQueue()
         self._all = []
+        # one connection now, the rest of the pool as concurrent queries need them: each server sign-in costs time
+        self._size, self._grow_lock = size, threading.Lock()
         try:
-            for _ in range(size):
-                c = self._open()
-                self._all.append(c)
-                self._pool.put(c)
+            c = self._open()
+            self._all.append(c)
+            self._pool.put(c)
         except Exception as e:  # noqa: BLE001
             self.close()
             hint = (
@@ -620,7 +621,7 @@ class DB:
         """A connection from the pool. A server connection that has dropped (the server restarted, or a keepalive
         ping went unanswered while the machine slept) is replaced: without that, every query sent on it fails until
         the process restarts."""
-        c = self._pool.get()
+        c = self._take()
         try:
             if _closed(c):
                 c = self._replace(c)
@@ -631,6 +632,28 @@ class DB:
             raise
         finally:
             self._pool.put(c)
+
+    def _take(self):
+        """An idle connection; a new one while the pool is below its size; otherwise wait for one to come back."""
+        try:
+            return self._pool.get_nowait()
+        except queue.Empty:
+            pass
+        with self._grow_lock:
+            grow = len(self._all) < self._size
+            if grow:
+                self._all.append(None)  # the place is taken while the new connection opens
+        if not grow:
+            return self._pool.get()
+        try:
+            c = self._open()
+        except Exception:
+            with self._grow_lock:
+                self._all.remove(None)
+            raise
+        with self._grow_lock:
+            self._all[self._all.index(None)] = c
+        return c
 
     def _replace(self, old):
         """A fresh connection in place of a dropped one; the dropped one when the server can't be reached (the next
@@ -670,9 +693,11 @@ class DB:
         r = self.q(sql, **v)
         return [_plain(x) for x in (r if isinstance(r, list) else [r])] if r is not None else []
 
-    def run(self, statements, **v):
-        """Several statements as one transaction; raises if any of them fails."""
-        sql = "BEGIN TRANSACTION;\n" + ";\n".join(statements) + ";\nCOMMIT TRANSACTION;"
+    def run(self, statements, transaction=True, **v):
+        """Several statements in one round trip, as one transaction unless transaction=False; raises if any fails."""
+        sql = ";\n".join(statements) + ";"
+        if transaction:
+            sql = "BEGIN TRANSACTION;\n" + sql + "\nCOMMIT TRANSACTION;"
         for attempt in range(RETRIES + 1):
             with self.conn() as c:
                 raw = c.query_raw(sql, v)
@@ -693,7 +718,8 @@ class DB:
             break
         if errors:  # report the statement that failed, not the ones skipped because of it
             n, msg = next((e for e in errors if "not executed due to a failed transaction" not in e[1]), errors[0])
-            stmt = statements[n - 1] if 0 < n <= len(statements) else "?"
+            n -= 1 if transaction else 0  # BEGIN TRANSACTION is the first result
+            stmt = statements[n] if 0 <= n < len(statements) else "?"
             raise RuntimeError(f"query failed ({stmt[:80]}): {msg[:300]}")
 
     def next_id(self, table):
@@ -1109,9 +1135,8 @@ def connect(cfg, upgrade=True):
     """Open the database, apply the schema and, unless upgrade=False (for `lens migrations`), bring its data up to
     date (domain/migrations.py)."""
     db = DB(cfg)
-    db.q(_analyzer(cfg))
-    for s in SCHEMA:
-        db.q(s)
+    # one round trip, not one per statement: against a server that was over a second for every test's database
+    db.run([_analyzer(cfg), *SCHEMA], transaction=False)
     db.fulltext = _text_index(db)
     for name, spec in cfg["namespaces"].items():
         sid = ns_id(db, name)
