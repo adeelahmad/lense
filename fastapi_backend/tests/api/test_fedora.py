@@ -122,8 +122,8 @@ def test_a_real_fedora(env):
     """Against a real Fedora (docker run -p 8080:8080 fcrepo/fcrepo:6.5.1-tomcat9, then
     LENS_TEST_FEDORA_URL=http://127.0.0.1:8080/fcrepo/rest): everything is accepted, kept in step, and deleted."""
     import os
-    import uuid
     import urllib.request
+    import uuid
 
     cfg, db = env.cfg, env.db
     cfg["fedora"] = {
