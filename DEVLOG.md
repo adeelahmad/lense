@@ -2,6 +2,30 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-04 · anytopdf as the conversion engine (not started: wait for Adeel's go)
+
+Goal (Adeel): use the sister project [anytopdf-rs](https://github.com/adeelahmad/anytopdf-rs) (README on its sprint2
+branch) to turn any source into one searchable, cited PDF: OCR, captions, transcripts, keyframes and metadata as an
+invisible text layer, with an embedded manifest, chunks, source anchors and provenance. Do not start until Adeel says go.
+
+Why it fits: one static Rust binary (Linux x86_64 and arm64 musl, so a Raspberry Pi) that Lens can download as a
+component, instead of LibreOffice and Chromium in the full image; provenance per fact matches "trusted, cited memory".
+
+Todo (when started):
+
+- [ ] Wait for anytopdf's JSON output (`--json`, schemas, exit codes) and `extract --json` manifest to land
+- [ ] anytopdf as a component Lens installs itself (settings: auto, on, off), with its version recorded
+- [ ] A pipeline / workflow node "Make evidence PDF": inputs a recording or resource, outputs the PDF as a rendition
+      and its manifest chunks and anchors as Lens chunks (citations jump to time span, box or byte range)
+- [ ] Use it where Lens has no converter first (images, captions, mixed folders); keep LibreOffice and Chromium as
+      the default for Office, HTML and email until anytopdf reads them (its roadmap: PDF, HTML, EML, Office)
+- [ ] Reuse Lens's own OCR and transcripts as sidecars rather than running them twice
+- [ ] Run it with no network, size and time caps, plugins off unless an admin allows them (its plugins run with full
+      user rights until its sandbox lands)
+
+Refine later: anytopdf's intake channels (IMAP, webhooks, watched folders) and printing overlap Lens's sources and
+sensors; decide which side owns them. MCP server mode could be an extension.
+
 ## 2026-10-04 · The graph, end to end
 
 Goal (Adeel): make the graph the one focus and nail it: a human explorer canvas, agent queries with rights, questions
