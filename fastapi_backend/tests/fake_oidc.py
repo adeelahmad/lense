@@ -19,6 +19,7 @@ class Provider:
         self.codes: dict[str, dict] = {}
         self.tokens: dict[str, dict] = {}
         self.emails: list[dict] = []  # GitHub's /user/emails
+        self.auto: dict | None = None  # for a browser: GET /authorize signs in as this profile straight away
         provider = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -35,6 +36,13 @@ class Provider:
 
             def do_GET(self):
                 path = urllib.parse.urlsplit(self.path).path
+                if path == "/authorize" and provider.auto:
+                    code, state = provider.issue(self.path, provider.auto)
+                    q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(self.path).query))
+                    self.send_response(302)
+                    self.send_header("Location", q["redirect_uri"] + "?" + urllib.parse.urlencode({"code": code, "state": state}))
+                    self.end_headers()
+                    return
                 if path == "/.well-known/openid-configuration":
                     return self._json(
                         {

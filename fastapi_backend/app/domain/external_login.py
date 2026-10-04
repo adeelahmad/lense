@@ -404,8 +404,9 @@ def finish(db, cfg, key, flow, code):
 
 
 # ---------- your outside accounts ----------
-def _iid(rec):
-    return auth.sha(str(rec))[:16]
+def _iid(k):
+    """A short id for an outside account (its record key is a hash of the provider's subject)."""
+    return auth.sha(k)[:16]
 
 
 def identities(db, uid):
@@ -431,17 +432,17 @@ def identities(db, uid):
 def count(db, uid, but=None):
     """Outside accounts the account can sign in with (through a provider that's turned on), leaving out `but`."""
     on = {r["key"] for r in _rows(db) if r.get("enabled")}
-    rows = db.rows("SELECT id, provider FROM external_identity WHERE account = $a", a=uid)
+    rows = db.rows("SELECT record::id(id) AS id, provider FROM external_identity WHERE account = $a", a=uid)
     return sum(1 for r in rows if r["provider"] in on and (but is None or _iid(r["id"]) != but))
 
 
 def disconnect(db, uid, iid, other_ways):
     """Disconnect one of the account's outside accounts; refused when it's the last way in (`other_ways`: whether a
     passkey or a working password is left)."""
-    for rec in db.values("SELECT VALUE id FROM external_identity WHERE account = $a", a=uid):
-        if _iid(rec) == iid:
+    for k in db.values("SELECT VALUE record::id(id) FROM external_identity WHERE account = $a", a=uid):
+        if _iid(k) == iid:
             if not other_ways and not count(db, uid, but=iid):
                 raise ValueError("this is your only way to sign in: add a passkey first")
-            db.q("DELETE $r", r=rec)
+            db.q("DELETE $r", r=R("external_identity", k))
             return True
     return False

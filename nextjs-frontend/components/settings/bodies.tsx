@@ -12,6 +12,7 @@ import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
+import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { AI_TOOLS, type FieldSpec, type SectionId, type SettingsView } from "@/components/settings/model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -301,6 +302,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from
             People (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
           </p>
+          <SignInProviders />
         </>
       );
     case "tokens":

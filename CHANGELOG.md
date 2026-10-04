@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Sign in with Google, GitHub, Microsoft or your own OpenID Connect provider.** Admins add them in Settings ›
+  Sign-in (client id, secret, and the redirect URI to register, which the dialog shows), and the sign-in page gets a
+  "Continue with ..." button for each. People are matched to their Lens account by an email the provider confirms, or
+  connect an account in Profile and sign-in › Connected accounts. Sign-up for people without an account is optional,
+  and can be limited to some email domains. See docs/authentication.md.
 - **An old passkey no longer blocks signing in.** After Lens is set up again at the same address, the browser still
   offered the passkey from before (clearing the site's data doesn't remove passkeys from the password manager), and
   signing in with it failed. Lens now says the passkey is from before, and tells Chrome and Safari to stop offering it,

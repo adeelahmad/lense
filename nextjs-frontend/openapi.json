@@ -664,7 +664,7 @@
           "auth"
         ],
         "summary": "Passkey Login",
-        "description": "Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session.",
+        "description": "Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session; 404 for a passkey\nthis server doesn't know (removed, or from before Lens was set up again).",
         "operationId": "passkey_login",
         "requestBody": {
           "content": {
@@ -1104,6 +1104,357 @@
             "schema": {
               "type": "string",
               "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/external": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "External Providers",
+        "description": "The outside accounts people can sign in with here (for the sign-in page).",
+        "operationId": "external_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalProvider"
+                  },
+                  "type": "array",
+                  "title": "Response Auth-External Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/external/{key}/start": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "External Start",
+        "description": "Start signing in with an outside account: open the returned address in this browser.",
+        "operationId": "external_start",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalRedirect"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/external/{key}/connect": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "External Connect",
+        "description": "Connect an outside account to yours, so you can sign in with it: open the returned address in this browser.",
+        "operationId": "external_connect",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalRedirect"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/identities": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "List Identities",
+        "description": "The outside accounts you can sign in with.",
+        "operationId": "list_identities",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalIdentity"
+                  },
+                  "type": "array",
+                  "title": "Response Auth-List Identities"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/identities/{iid}": {
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Disconnect Identity",
+        "description": "Disconnect an outside account; not your only way to sign in. Audited as `external.disconnect`.",
+        "operationId": "disconnect_identity",
+        "parameters": [
+          {
+            "name": "iid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Iid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/providers": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "List Login Providers",
+        "description": "Every sign-in provider and its settings (never the client secret).",
+        "operationId": "list_login_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalProviderAdmin"
+                  },
+                  "type": "array",
+                  "title": "Response Auth-List Login Providers"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Add Login Provider",
+        "description": "Add a sign-in provider. Audited as `login_provider.add`.",
+        "operationId": "add_login_provider",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalProviderSave"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalProviderAdmin"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/providers/{key}": {
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Change Login Provider",
+        "description": "Change a sign-in provider; leave the secret out to keep it. Audited as `login_provider.change`.",
+        "operationId": "change_login_provider",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExternalProviderSave"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalProviderAdmin"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Remove Login Provider",
+        "description": "Remove a sign-in provider and the accounts connected through it. Audited as `login_provider.remove`.",
+        "operationId": "remove_login_provider",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
             }
           }
         ],
@@ -24540,6 +24891,335 @@
           "version"
         ],
         "title": "ExtensionVersionInfo"
+      },
+      "ExternalIdentity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "google",
+              "github",
+              "microsoft",
+              "oidc"
+            ],
+            "title": "Kind"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "label",
+          "kind",
+          "created_at"
+        ],
+        "title": "ExternalIdentity"
+      },
+      "ExternalProvider": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "google",
+              "github",
+              "microsoft",
+              "oidc"
+            ],
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "key",
+          "kind",
+          "label"
+        ],
+        "title": "ExternalProvider"
+      },
+      "ExternalProviderAdmin": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "google",
+              "github",
+              "microsoft",
+              "oidc"
+            ],
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "client_id": {
+            "type": "string",
+            "title": "Client Id"
+          },
+          "secret_set": {
+            "type": "boolean",
+            "title": "Secret Set",
+            "description": "a client secret is kept (never shown)"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer",
+            "description": "OpenID Connect: the provider's address",
+            "default": ""
+          },
+          "tenant": {
+            "type": "string",
+            "title": "Tenant",
+            "description": "Microsoft: the directory (tenant) id, or common",
+            "default": ""
+          },
+          "signup": {
+            "type": "boolean",
+            "title": "Signup",
+            "description": "people without a Lens account get one when they sign in"
+          },
+          "domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Domains",
+            "description": "sign-up only for these email domains; empty means any"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "people": {
+            "type": "integer",
+            "title": "People",
+            "description": "Lens accounts connected through it"
+          },
+          "callback_path": {
+            "type": "string",
+            "title": "Callback Path",
+            "description": "add this path on the web app's address as the redirect URI at the provider"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "key",
+          "kind",
+          "label",
+          "client_id",
+          "secret_set",
+          "signup",
+          "domains",
+          "enabled",
+          "people",
+          "callback_path"
+        ],
+        "title": "ExternalProviderAdmin"
+      },
+      "ExternalProviderSave": {
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "google",
+                  "github",
+                  "microsoft",
+                  "oidc"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "when adding one"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret",
+            "description": "leave out to keep the one kept"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer"
+          },
+          "tenant": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant"
+          },
+          "signup": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signup"
+          },
+          "domains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domains"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExternalProviderSave"
+      },
+      "ExternalRedirect": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the provider's sign-in page; open it in this browser"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ExternalRedirect"
+      },
+      "ExternalStart": {
+        "properties": {
+          "next": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Next",
+            "description": "the page to open after signing in",
+            "default": "/"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ExternalStart"
       },
       "FaceDismiss": {
         "properties": {
