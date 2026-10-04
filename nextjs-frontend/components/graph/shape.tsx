@@ -4,6 +4,10 @@ import { speakerTone } from "@/components/speakers/format";
 /** Fill for a node: speakers in their speaker colour, entities in greys by type (organisations darkest). */
 export function nodeFill(n: Pick<GraphNode, "kind" | "type" | "refs">): string {
   if (n.kind === "speaker") return speakerTone(n.refs[0]);
+  if (n.kind === "recording") return "var(--aladdin-blue)";
+  if (n.kind === "collection") return "var(--aladdin-gold)";
+  if (n.kind === "namespace") return "var(--text-strong)";
+  if (n.kind === "topic") return "var(--aladdin-green)";
   switch (n.type) {
     case "ORG":
     case "PERSON":
@@ -64,6 +68,37 @@ export function ShapePath({
       }).join(" ");
       return <polygon points={pts} {...common} />;
     }
+    case "octagon": {
+      const pts = Array.from({ length: 8 }, (_, i) => {
+        const a = (Math.PI / 4) * i + Math.PI / 8;
+        return `${(Math.cos(a) * r).toFixed(2)},${(Math.sin(a) * r).toFixed(2)}`;
+      }).join(" ");
+      return <polygon points={pts} {...common} />;
+    }
+    case "doc":
+      return (
+        <path
+          d={`M${-r * 0.75} ${-r} H${r * 0.35} L${r * 0.75} ${-r * 0.6} V${r} H${-r * 0.75} Z`}
+          strokeLinejoin="round"
+          {...common}
+        />
+      );
+    case "tag":
+      return (
+        <path
+          d={`M${-r} ${-r * 0.7} H${r * 0.35} L${r} 0 L${r * 0.35} ${r * 0.7} H${-r} Z`}
+          strokeLinejoin="round"
+          {...common}
+        />
+      );
+    case "folder":
+      return (
+        <path
+          d={`M${-r} ${-r * 0.7} H${-r * 0.2} L${r * 0.05} ${-r * 0.45} H${r} V${r * 0.75} H${-r} Z`}
+          strokeLinejoin="round"
+          {...common}
+        />
+      );
   }
 }
 

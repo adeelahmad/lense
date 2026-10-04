@@ -7,7 +7,14 @@ import Link from "next/link";
 import { Entities, Search } from "@/app/openapi-client";
 import { nameTone } from "@/components/chat/citation";
 import { shortTitle } from "@/components/chat/cite";
-import { connections, typeLabel, type GraphEdge, type GraphNode } from "@/components/graph/model";
+import {
+  connections,
+  nodeHref,
+  STRUCTURE_KINDS,
+  typeLabel,
+  type GraphEdge,
+  type GraphNode,
+} from "@/components/graph/model";
 import { NodeIcon } from "@/components/graph/shape";
 import { useRecordingIndex } from "@/components/search/data";
 import { hasMedia, recordingHref } from "@/components/search/links";
@@ -148,6 +155,86 @@ function SpeakerRecordings({ n, player }: { n: GraphNode; player: InlinePlayer }
 
 /** The node panel: what it is, where it's mentioned (playable), what it's connected to, and what you can do with it. */
 export function NodePanel({
+  node,
+  nodes,
+  edges,
+  onSelect,
+  onClose,
+}: {
+  node: GraphNode;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  if (STRUCTURE_KINDS.has(node.kind))
+    return <StructurePanel node={node} nodes={nodes} edges={edges} onSelect={onSelect} onClose={onClose} />;
+  return <ThingPanel node={node} nodes={nodes} edges={edges} onSelect={onSelect} onClose={onClose} />;
+}
+
+/** A recording, collection or namespace found by exploring: what it is, a link to its page, and its links here. */
+function StructurePanel({
+  node,
+  nodes,
+  edges,
+  onSelect,
+  onClose,
+}: {
+  node: GraphNode;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const links = connections(edges, node.id);
+  const href = nodeHref(node);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2.5">
+        <NodeIcon n={node} size={16} />
+        <h2 className="min-w-0 flex-1 truncate text-[17px] font-bold leading-tight text-fg">{node.label}</h2>
+        <IconButton label="Close" size={30} onClick={onClose}>
+          <X />
+        </IconButton>
+      </div>
+      <p className="m-0 -mt-1.5 text-[12.5px] leading-snug text-fg-muted">
+        {typeLabel(node)}
+        {node.ns.length > 0 && ` · ${node.ns.join(", ")}`}
+      </p>
+      {href && (
+        <div>
+          <Button asChild size="xs" variant="secondary">
+            <Link href={href}>Open</Link>
+          </Button>
+        </div>
+      )}
+      <p className="m-0 text-[12.5px] text-fg-secondary">
+        Right-click it (or long-press, or press M) for its parents, children and paths.
+      </p>
+      {links.length > 0 && (
+        <>
+          <h3 className="pt-1 text-[12px] font-bold text-fg-secondary">Connected here</h3>
+          <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+            {links.slice(0, 24).map((l) => (
+              <li key={`${l.id}-${l.kind}`}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(l.id)}
+                  className="inline-flex h-[26px] items-center rounded-pill border border-border px-2.5 text-[12.5px] font-medium text-fg hover:border-blue-border hover:bg-blue-surface"
+                >
+                  {byId.get(l.id)?.label ?? l.id} · {l.kind}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ThingPanel({
   node,
   nodes,
   edges,

@@ -19,13 +19,14 @@ from __future__ import annotations
 import pathlib
 import shutil
 
-from . import access as acc, files as filemod, render, store, video
+from . import access as acc, files as filemod, notebook, render, store, video
 
 R = store.R
 # rows that belong to the recording
 OWN = (
     "mentions",
     "term",
+    "topic_about",
     "section",
     "appearance",
     "segment",
@@ -173,6 +174,7 @@ def delete(db, cfg, rid, by=None):
         target=f"recording:{rid}",
         rec=R("recording", rid),
     )
+    notebook.release(db, f"recording:{rid}")
     shutil.rmtree(video.frames_dir(cfg, rid), ignore_errors=True)
     shutil.rmtree(filemod.folder(cfg, rid), ignore_errors=True)
     for f in files:

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { isActive, navFor } from "@/components/app-shell/nav-config";
+import { NotesTree } from "@/components/notes/notes-tree";
 import { Brand } from "@/components/brand";
 import { Tooltip } from "@/components/ui/tooltip";
 import { count } from "@/lib/format";
@@ -77,7 +78,13 @@ export function Nav({
           </div>
         );
       })}
-      <div className="flex-1" />
+      {collapsed ? (
+        <div className="flex-1" />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <NotesTree onNavigate={onNavigate} />
+        </div>
+      )}
       {onToggle && (
         <button
           type="button"

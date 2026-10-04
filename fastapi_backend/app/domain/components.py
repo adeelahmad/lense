@@ -403,6 +403,40 @@ class Msg(Component):
         pip_install(cfg, "msg", say)
 
 
+class Laya(Component):
+    """laya-mlx and the chosen Laya model, for local decisions (decide.py) on Apple Silicon."""
+
+    kind = "model"
+
+    def _model(self, cfg):
+        from . import decide
+
+        return decide.laya_model(cfg)
+
+    def _tag(self, cfg):
+        return "laya-" + re.sub(r"[^\w.-]", "_", self._model(cfg))
+
+    def needed(self, cfg, m):
+        d = cfg.get("decisions") or {}
+        return d.get("engine") == "laya" and not d.get("laya_url") and m["apple_silicon"]
+
+    def present(self, cfg):
+        return importable("laya_mlx") and _marked(cfg, self._tag(cfg))
+
+    def fetch(self, cfg, m, say):
+        if not importable("laya_mlx"):
+            pip_install(cfg, "laya", say)
+        from huggingface_hub import snapshot_download
+
+        if say:
+            say(f"downloading the Laya model {self._model(cfg)}")
+        snapshot_download(self._model(cfg))
+        _mark(cfg, self._tag(cfg))
+
+    def detail(self, cfg):
+        return self._model(cfg)
+
+
 class OllamaModel(Component):
     kind = "server-model"
 
@@ -444,6 +478,13 @@ PYTORCH = Pytorch("pytorch", "PyTorch", "runs SenseVoice and voice IDs (the CPU 
 SENSEVOICE = SenseVoice("sensevoice", "SenseVoice", "transcribes speech, fast on a CPU", steps={"transcribe"}, size_mb=1100)
 WHISPER = WhisperModel("whisper-model", "Whisper model", "transcribes speech with Whisper", steps={"transcribe"}, size_mb=1600)
 VOICES = Voices("voices", "Voice IDs", "tells speakers apart and recognises them across recordings", steps={"diarize"}, size_mb=100)
+LAYA = Laya(
+    "laya",
+    "Laya decision model",
+    "takes routine decisions on this Mac (laya-mlx on Apple Silicon)",
+    size_mb=900,
+    hint="Apple Silicon only; elsewhere run `lens decide-server` on a Mac",
+)
 COMPONENTS = [
     Program(
         "ffmpeg",
@@ -481,6 +522,7 @@ COMPONENTS = [
     VOICES,
     Faces("faces", "Face models", "finds and recognises faces in video (YuNet and SFace)", steps={"faces"}, size_mb=80),
     Objects("objects", "Object model", "finds objects in frames and pages (YOLOX-s)", steps={"objects"}, size_mb=50),
+    LAYA,
     OllamaModel("llm-model", "Chat model", "the LLM provider's model, pulled on Ollama", section="llm"),
     OllamaModel("embedding-model", "Embedding model", "search by meaning's model, pulled on Ollama", section="embeddings", steps={"embed"}),
     Msg("msg", "Outlook .msg emails", "reads Outlook .msg files (extract-msg)", optional=True, license="GPL-3.0", size_mb=5),

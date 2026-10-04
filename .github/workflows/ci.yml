@@ -31,7 +31,7 @@ jobs:
       - name: Restore system packages
         if: runner.environment == 'github-hosted'
         id: apt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/apt-archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -50,7 +50,7 @@ jobs:
           sudo chown -R "$(id -u)" ~/apt-archives
       - name: Keep system packages
         if: runner.environment == 'github-hosted' && steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/apt-archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -60,7 +60,7 @@ jobs:
           HOMEBREW_NO_AUTO_UPDATE: "1"
         run: for p in ffmpeg tesseract poppler; do brew list "$p" >/dev/null 2>&1 || brew install "$p"; done
 
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           # a cache that outlives the job on the self-hosted runner (the default is in the job's temp folder)
           cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
@@ -87,7 +87,7 @@ jobs:
           uv run pytest -n auto -p no:cacheprovider --cov=app --cov-report=xml:coverage.xml --cov-report=term | tee pytest.txt
           { echo "### Backend coverage"; echo '```'; grep -E '^(Name|TOTAL)' pytest.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: backend-coverage
           path: fastapi_backend/coverage.xml
@@ -101,20 +101,23 @@ jobs:
         working-directory: ./fastapi_backend
     env:
       ACCESS_SECRET_KEY: ci-access-secret-key-0123456789abcdef
-      LENS_TEST_SURREAL_URL: ws://127.0.0.1:8000
+      # a self-hosted runner's Docker outlives the job: a name of its own and any free port, removed at the end
+      SURREAL_CONTAINER: lens-ci-surreal-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - name: Start SurrealDB
         run: |
           # surrealkv, not memory: the memory engine loses concurrent writes (SurrealDB 3.2.4)
-          docker run -d --name surreal -p 8000:8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/tmp/lens.db
-          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && break; sleep 1; done
+          docker run -d --name "$SURREAL_CONTAINER" -p 127.0.0.1::8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/tmp/lens.db
+          port=$(docker port "$SURREAL_CONTAINER" 8000/tcp | head -n1 | sed 's/.*://')
+          echo "LENS_TEST_SURREAL_URL=ws://127.0.0.1:$port" >> "$GITHUB_ENV"
+          for _ in $(seq 1 30); do curl -sf "http://127.0.0.1:$port/health" && break; sleep 1; done
       # the packages are kept between runs: the mirror can be slow (LibreOffice is 170 MB)
       # GitHub's cache only on GitHub's runners; a self-hosted one keeps ~/apt-archives on its disk
       - name: Restore system packages
         if: runner.environment == 'github-hosted'
         id: apt-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/apt-archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -133,7 +136,7 @@ jobs:
           sudo chown -R "$(id -u)" ~/apt-archives
       - name: Keep system packages
         if: runner.environment == 'github-hosted' && steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/apt-archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
@@ -142,7 +145,7 @@ jobs:
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
         run: for p in ffmpeg tesseract poppler; do brew list "$p" >/dev/null 2>&1 || brew install "$p"; done
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           # a cache that outlives the job on the self-hosted runner (the default is in the job's temp folder)
           cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
@@ -151,6 +154,9 @@ jobs:
       - name: Tests against the server
         timeout-minutes: 30
         run: uv run pytest -n 4
+      - name: Remove SurrealDB
+        if: always()
+        run: docker rm -f "$SURREAL_CONTAINER" || true
 
   frontend:
     name: Next.js
@@ -160,12 +166,12 @@ jobs:
         working-directory: ./nextjs-frontend
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           # the pnpm version comes from packageManager in the frontend's package.json
           package_json_file: nextjs-frontend/package.json
           run_install: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           # on the self-hosted runner pnpm's store stays on disk; saving it to GitHub's cache took minutes
@@ -179,7 +185,7 @@ jobs:
           set -o pipefail
           pnpm coverage --coverageReporters=text-summary --coverageReporters=lcov | tee coverage.txt
           { echo "### Frontend coverage"; echo '```'; sed -n '/Coverage summary/,/^=*$/p' coverage.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
           path: nextjs-frontend/coverage/lcov.info

@@ -70,12 +70,18 @@ nav:
   - Processing: processing.md
   - Components: components.md
   - Video: video.md
+  - Speech providers: speech-providers.md
   - Chat and batch runs: assistant.md
   - Notifications: notifications.md
   - Chat rooms: chat-rooms.md
   - Sensors: sensors.md
   - Telemetry: telemetry.md
+  - Activity and costs: activity.md
+  - Budgets: budgets.md
   - IIIF: iiif.md
+  - Graph and Cypher: graph.md
+  - Topics: topics.md
+  - Notes: notes.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md
   - API: api.md

@@ -16,6 +16,8 @@ Thanks for helping. The full guide, with the backend and frontend conventions, i
 - Backend: `make test-backend` and `make lint-backend` (ruff, mypy). Frontend: `make test-frontend` and
   `make lint-frontend`.
 - Add tests with the change, and update `docs/` when behaviour or configuration changes.
+- Changing the shape of stored data? Existing installs have real data: add an upgrade step
+  (docs/database.md, Upgrades) rather than expecting a fresh database.
 - One concern per pull request. Keep generated files (`openapi.json`, the frontend client) in the same PR as the API
   change that produced them.
 

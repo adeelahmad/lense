@@ -346,22 +346,26 @@ def record(name, value, attrs=None):
 def cost(model, input_tokens, output_tokens, prices=None):
     """Estimated cost in USD from the per-million-token prices for the model, or None when it has no price."""
     p = (prices if prices is not None else _state["cfg"].get("prices") or {}).get(model)
-    if not isinstance(p, dict):
+    if not isinstance(p, dict) or (p.get("unit") or "tokens") != "tokens":
         return None
     return round((input_tokens or 0) / 1e6 * float(p.get("input") or 0) + (output_tokens or 0) / 1e6 * float(p.get("output") or 0), 8)
 
 
 class ModelCall:
-    """One call to the model server: a client span (gen_ai.* attributes), its duration, tokens and estimated cost.
-    Neither the prompt nor the reply is recorded."""
+    """One call to the model server: a client span (gen_ai.* attributes), its duration, tokens and estimated cost, and
+    a row in the activity ledger (activity.py) whether or not telemetry is on. Neither the prompt nor the reply is
+    recorded."""
 
     def __init__(self, cfg, payload, operation="chat", current=True):
+        from . import activity  # the ledger counts every call, whether or not telemetry is on
+
+        self.model = payload.get("model")
+        self.operation, self.t0, self.done, self.response_model, self.usage = operation, time.monotonic(), False, None, None
+        self.ledger = activity.call(f"model.{operation}", cfg, self.model, price=activity.model_cost(cfg))
         self.on = active()
         if not self.on:
             return
         l = (cfg or {}).get("llm") or {}
-        self.model = payload.get("model")
-        self.operation, self.t0, self.done, self.response_model, self.usage = operation, time.monotonic(), False, None, None
         server = urllib.parse.urlsplit(l.get("base_url") or "")
         attrs = {
             "gen_ai.operation.name": operation,
@@ -386,7 +390,7 @@ class ModelCall:
 
     def reply(self, j):
         """Note the usage and model of a reply (a parsed JSON body or a streamed chunk); returns it."""
-        if self.on and isinstance(j, dict):
+        if isinstance(j, dict):
             if isinstance(j.get("usage"), dict):
                 self.usage = j["usage"]
             if isinstance(j.get("model"), str):
@@ -394,9 +398,15 @@ class ModelCall:
         return j
 
     def end(self, error=None):
-        if not self.on or self.done:
+        if self.done:
             return
         self.done = True
+        u = self.usage or {}
+        tin, tout = u.get("prompt_tokens", u.get("input_tokens")), u.get("completion_tokens", u.get("output_tokens"))
+        self.ledger.usage(tin, tout)
+        self.ledger.end(error)
+        if not self.on:
+            return
         seconds = time.monotonic() - self.t0
         base = {"gen_ai.operation.name": self.operation, "gen_ai.provider.name": "openai", "gen_ai.request.model": self.model}
         if self.response_model:
@@ -407,8 +417,6 @@ class ModelCall:
             record("gen_ai.client.operation.duration", seconds, {**base, "error.type": type(error).__name__})
         else:
             record("gen_ai.client.operation.duration", seconds, base)
-        u = self.usage or {}
-        tin, tout = u.get("prompt_tokens", u.get("input_tokens")), u.get("completion_tokens", u.get("output_tokens"))
         if isinstance(tin, int):
             self.span.set_attribute("gen_ai.usage.input_tokens", tin)
             record("gen_ai.client.token.usage", tin, {**base, "gen_ai.token.type": "input"})
@@ -434,7 +442,8 @@ class ModelCall:
 
 
 def model_call(cfg, payload, operation="chat", current=True):
-    """`with model_call(cfg, payload) as call: ... call.reply(json)`: a measured model call (a no-op while off)."""
+    """`with model_call(cfg, payload) as call: ... call.reply(json)`: a measured model call (only the ledger's row while
+    telemetry is off)."""
     return ModelCall(cfg, payload, operation, current)
 
 

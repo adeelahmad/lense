@@ -38,10 +38,12 @@ EDITABLE = {
     "decisions": None,
     "components": None,
     "voice": None,
+    "speech": None,
     "mail": None,
     "bridge": None,
     "notifications": None,
     "telemetry": None,
+    "activity": None,
     "encryption": None,
     "fedora": None,
     "tunnel": None,
@@ -91,6 +93,7 @@ SECRETS = {
     "embeddings": ("api_key",),
     "decisions": ("api_key",),
     "voice": ("tts_api_key",),
+    "speech": ("openai_api_key", "elevenlabs_api_key", "assemblyai_api_key", "deepgram_api_key"),
     "mail": ("password",),
     "bridge": ("token",),
     "telemetry": ("headers",),
@@ -98,9 +101,9 @@ SECRETS = {
     "tunnel": ("token", "api_token"),
 }
 ENUMS = {
-    ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper"},
+    ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
     ("transcribe", "device"): {"auto", "cpu", "cuda", "mps"},
-    ("diarize", "engine"): {"auto", "channels", "cluster", "pyannote", "none"},
+    ("diarize", "engine"): {"auto", "channels", "cluster", "pyannote", "provider", "none"},
     ("speakers", "embedder"): {"speechbrain", "none"},
     ("speakers", "cross_namespace"): {"suggest", "off"},
     ("analysis", "entities"): {"rules", "spacy"},
@@ -109,8 +112,10 @@ ENUMS = {
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
-    ("decisions", "engine"): {"auto", "jev", "llm", "off"},
+    ("decisions", "engine"): {"auto", "jev", "laya", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
+    ("voice", "stt"): {"same", "sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
+    ("voice", "tts_provider"): {"openai", "elevenlabs", "deepgram"},
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
@@ -354,6 +359,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "activity":
+        return _activity_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
     if section == "sensors":
@@ -376,6 +383,8 @@ def _check(section, key, value, default):
         if not (isinstance(value, str) and len(value.strip()) <= 500):
             raise ValueError(f"voice.{key} is text")
         return value.strip()
+    if section == "speech":
+        return _speech_setting(key, value)
     if section == "decisions" and key != "engine":
         return _decision_setting(key, value)
     if (section, key) == ("documents", "attachment_resources"):
@@ -425,6 +434,26 @@ def _check(section, key, value, default):
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
     return value
+
+
+def _speech_setting(key, value):
+    if key.endswith("_base_url"):
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError(f"speech.{key} is an http(s) address (the provider's, a proxy's or a compatible server's)")
+        return value.strip().rstrip("/")
+    if key.endswith("_model"):
+        if not (isinstance(value, str) and value.strip() and len(value.strip()) <= 200):
+            raise ValueError(f"speech.{key} is a model's name")
+        return value.strip()
+    if key == "sentiment":
+        if not isinstance(value, bool):
+            raise ValueError("speech.sentiment is true or false")
+        return value
+    if key == "timeout":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 30 <= value <= 86400):
+            raise ValueError("speech.timeout is a whole number of seconds from 30 to 86400")
+        return value
+    raise ValueError(f"unknown setting speech.{key}")
 
 
 EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -497,6 +526,18 @@ def _component_setting(key, value):
 
 
 def _decision_setting(key, value):
+    if key == "laya_model":
+        from . import decide
+
+        if value not in decide.LAYA_MODELS:
+            raise ValueError("decisions.laya_model is one of " + ", ".join(decide.LAYA_MODELS))
+        return value
+    if key == "laya_url":
+        if value is None or value == "":
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("decisions.laya_url is a Laya server's http(s) address, such as http://host.docker.internal:8790/v1")
+        return value.strip().rstrip("/")
     if key == "base_url":
         if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
             raise ValueError("decisions.base_url is the decision model's http(s) address, such as https://api.typesafe.ai/v1")
@@ -517,7 +558,25 @@ def _decision_setting(key, value):
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 1 <= value <= 120):
             raise ValueError("decisions.timeout is a number of seconds from 1 to 120")
         return value
+    if key == "price_per_call":
+        if value is None or value == "":
+            return None
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 100):
+            raise ValueError("decisions.price_per_call is what one decision costs, in USD, from 0 to 100")
+        return float(value)
     raise ValueError(f"unknown setting decisions.{key}")
+
+
+def _activity_setting(key, value):
+    if key in ("enabled", "reads"):
+        if not isinstance(value, bool):
+            raise ValueError(f"activity.{key} is true or false")
+        return value
+    if key == "keep_days":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 3650):
+            raise ValueError("activity.keep_days is a whole number of days from 1 to 3650")
+        return value
+    raise ValueError(f"unknown setting activity.{key}")
 
 
 EMBED_RANGES = {"passage_chars": (200, 4000), "batch_size": (1, 256), "neighbours": (5, 500), "timeout": (5, 600)}
@@ -684,21 +743,44 @@ def _origin(url):
 
 
 def _prices(value):
-    """{model: {input, output}}: USD per million tokens, for the cost estimates."""
-    msg = "telemetry.prices gives each model its input and output price in USD per million tokens"
+    """{model: price}: how each model's calls are costed (docs/activity.md#costs). By tokens, {input, output} USD per
+    million tokens (unit "tokens", the default); by time, {unit: "time", per_hour} USD per hour a call takes (a local
+    model on your own machine); or {unit: "off"}. A model left out isn't costed."""
+    msg = (
+        "telemetry.prices gives each model a price: {input, output} USD per million tokens, {unit: time, per_hour} "
+        "USD per hour, or {unit: off}"
+    )
     if value is None:
         return {}
     if not isinstance(value, dict) or len(value) > 200:
         raise ValueError(msg)
+
+    def num(n):
+        return isinstance(n, (int, float)) and not isinstance(n, bool) and 0 <= n <= 1_000_000
+
     out = {}
     for model, p in value.items():
         name = str(model).strip()
-        if not name or len(name) > 200 or not isinstance(p, dict) or set(p) - {"input", "output"}:
+        if not name or len(name) > 200 or not isinstance(p, dict):
             raise ValueError(msg)
-        nums = {k: p.get(k, 0) for k in ("input", "output")}
-        if not all(isinstance(n, (int, float)) and not isinstance(n, bool) and 0 <= n <= 1_000_000 for n in nums.values()):
+        unit = p.get("unit") or "tokens"
+        if unit == "tokens":
+            if set(p) - {"unit", "input", "output"}:
+                raise ValueError(msg)
+            nums = {k: p.get(k, 0) for k in ("input", "output")}
+            if not all(num(n) for n in nums.values()):
+                raise ValueError(msg)
+            out[name] = {k: float(n) for k, n in nums.items()}  # the unit stays implicit, as prices saved before units
+        elif unit == "time":
+            if set(p) - {"unit", "per_hour"} or not num(p.get("per_hour", 0)):
+                raise ValueError(msg)
+            out[name] = {"unit": "time", "per_hour": float(p.get("per_hour", 0))}
+        elif unit == "off":
+            if set(p) - {"unit"}:
+                raise ValueError(msg)
+            out[name] = {"unit": "off"}
+        else:
             raise ValueError(msg)
-        out[name] = {k: float(n) for k, n in nums.items()}
     return out
 
 

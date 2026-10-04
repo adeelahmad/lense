@@ -46,7 +46,7 @@ jobs:
           RUN_NUMBER: ${{ github.run_number }}
         # a release numbers its packages by run, so each one installs as an upgrade over the last
         run: BUILD=${INPUT_BUILD:-$(printf '%04d' "$RUN_NUMBER")} packaging/synology/build.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: lens-synology-${{ matrix.arch }}
           path: dist/synology/*.spk

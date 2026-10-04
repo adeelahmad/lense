@@ -19,6 +19,7 @@ import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
 import { useRecordingEntities } from "@/components/recording/hooks";
 import { fold, type EntityRef } from "@/components/recording/model";
+import { RecordingTopics } from "@/components/topics/recording-topics";
 import { Label } from "@/components/ui/panel";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,7 @@ export const ENTITY_GROUPS: {
   { type: "PLACE", label: "Places", icon: MapPin },
   { type: "EVENT", label: "Events", icon: CalendarDays },
   { type: "WORK", label: "Works", icon: BookOpen },
-  { type: "TERM", label: "Topics", icon: Hash },
+  { type: "TERM", label: "Terms", icon: Hash },
 ];
 
 /** Player entities grouped by type, in the design's order; unknown types go last under their own name. */
@@ -62,11 +63,11 @@ export function groupEntities(
 }
 
 /**
- * Entities tab: the keyword cloud, then entities by type with mentions in this recording. Choosing one marks its
+ * Entities tab: the topics it is about, the keyword cloud, then entities by type with mentions in this recording. Choosing one marks its
  * mentions ● on the waveform and jumps to the first; the chevron opens it in the graph.
  */
 export function EntitiesTab() {
-  const { model, id, entity, where } = useRec();
+  const { model, id, entity, where, ns, canEditNamespace } = useRec();
   const api = usePlayerApi();
   const list = useRecordingEntities(id, model.entities.length > 0);
   const groups = useMemo(() => groupEntities(model.entities), [model.entities]);
@@ -91,15 +92,20 @@ export function EntitiesTab() {
   const max = Math.max(1, ...top.map((k) => k.weight));
   const min = Math.min(...top.map((k) => k.weight), max);
 
+  const topics = <RecordingTopics id={id} ns={ns} canEdit={canEditNamespace} />;
   if (!model.entities.length && !model.keywords.length)
     return (
-      <EmptyState title="No entities yet" className="py-10">
-        People, organisations, products, places and topics are found by the Analyze step, with keywords for the cloud.
-      </EmptyState>
+      <>
+        {topics}
+        <EmptyState title="No entities yet" className="py-10">
+          People, organisations, products, places and terms are found by the Analyze step, with keywords for the cloud.
+        </EmptyState>
+      </>
     );
 
   return (
     <>
+      {topics}
       {top.length > 0 && (
         <div
           className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-border bg-surface p-3.5"

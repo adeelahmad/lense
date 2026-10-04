@@ -8,7 +8,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
-from app.domain import auth, store
+from app.domain import auth, migrations, store
 from app.domain import settings as app_settings
 from tests.conftest import TEST_URL
 from tests.helpers import login, make_user
@@ -61,7 +61,7 @@ def fresh(folder):
 def test_fresh_database_without_namespaces_starts(folder):
     db = store.connect(bare_cfg(folder))
     try:
-        assert db.values("SELECT VALUE n FROM $r", r=store.R("seq", "migrations")) == [2]
+        assert migrations.pending(db) == [] and [m["state"] for m in migrations.status(db)] == ["done", "done"]
         assert store.space_names(db) == {}
     finally:
         db.close()

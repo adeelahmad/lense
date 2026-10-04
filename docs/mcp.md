@@ -48,6 +48,11 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `get_entity` | one entity: its names, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
 | `explore_graph` | the knowledge graph around an entity (`e12`) or a speaker (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
+| `graph_schema` | what the property graph holds (labels, relationships, properties, counts) and example Cypher ([The graph](graph.md)) |
+| `graph_query` | read-only Cypher over the graph of one namespace or every shared one: columns, rows, and the nodes and relationships found |
+| `graph_related` | a node's parents, children, ancestors, descendants or neighbours |
+| `graph_paths` | the paths between two nodes, shortest first |
+| `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
 
 Results are JSON (as `structuredContent`, and the same as text). Links open the recording's page in the web app at
 that moment (`/resources/<id>?t=<seconds>`), on the address the client used. Mistakes the agent can fix (a wrong
@@ -55,7 +60,8 @@ argument, something it can't read) come back as a tool result with `isError`, so
 person's to read answers "not found", as the API does. `search` and `fetch` follow the shape ChatGPT's connectors
 expect (`results` with `id`, `title`, `url`; `fetch` by that `id`).
 
-There are no tools that change the archive yet: importing, editing and curating stay in the web app and the API.
+Every tool reads, except `propose_graph_change`, which records an undoable change (proposed by default).
+Importing, editing and curating stay in the web app and the API.
 
 ## Protocol
 

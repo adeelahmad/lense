@@ -9,6 +9,8 @@ const config: Config = {
   restoreMocks: true,
   coverageProvider: "v8",
   testEnvironment: "jsdom",
+  // the longer UI tests take over 5 s on a busy self-hosted runner
+  testTimeout: 20000,
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
   },

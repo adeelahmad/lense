@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Routines } from "@/app/openapi-client";
+import { ActivityPanel, BudgetPanel, Cost, HeldNotice } from "@/components/costs/costs";
 import type { RoutineRun } from "@/app/openapi-client/types.gen";
 import { useNames } from "@/components/routines/data";
 import { RoutineEditor } from "@/components/routines/routine-editor";
@@ -51,6 +52,22 @@ function RunLog({ id }: { id: number }) {
 
 function RunRow({ run, onUndo }: { run: RoutineRun; onUndo: (r: RoutineRun) => void }) {
   const [open, setOpen] = useState(false);
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const decide = useMutation({
+    mutationFn: (go: boolean) => data(Routines.decideHeldRun({ client, path: { run_id: run.id }, body: { run: go } })),
+    onSuccess: (_, go) => {
+      void qc.invalidateQueries({ queryKey: ["routine-runs", run.routine] });
+      void qc.invalidateQueries({ queryKey: ["routine", run.routine] });
+      toast(
+        go
+          ? { tone: "green", title: "Running it once", body: "It starts within half a minute." }
+          : { title: "Skipped" },
+      );
+    },
+    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t do that", body: e.message }),
+  });
   const applied = run.changes?.applied ?? 0;
   const proposed = run.changes?.proposed ?? 0;
   const results = (run.results ?? []) as Record<string, unknown>[];
@@ -77,6 +94,14 @@ function RunRow({ run, onUndo }: { run: RoutineRun; onUndo: (r: RoutineRun) => v
             {took(run.started_at, run.finished_at) ? ` · took ${took(run.started_at, run.finished_at)}` : ""}
           </span>
         </button>
+        {(run.cost_usd != null || run.tokens != null) && (
+          <Cost
+            usd={run.cost_usd}
+            tokens={run.tokens}
+            estimate={run.cost_estimate}
+            className="text-[12.5px] text-fg-secondary"
+          />
+        )}
         {proposed > 0 && (
           <Link
             href={`/routines/changes?run=${run.id}`}
@@ -91,7 +116,22 @@ function RunRow({ run, onUndo }: { run: RoutineRun; onUndo: (r: RoutineRun) => v
           </Button>
         )}
       </div>
-      <div className={cn("flex flex-col gap-2 pl-[42px] pr-4", (open || results.length > 0 || run.error) && "pb-3")}>
+      <div
+        className={cn(
+          "flex flex-col gap-2 pl-[42px] pr-4",
+          (open || results.length > 0 || run.error || run.hold) && "pb-3",
+        )}
+      >
+        {run.status === "held" ? (
+          <HeldNotice
+            hold={run.hold as { why?: string; missed?: number }}
+            busy={decide.isPending}
+            onRun={() => decide.mutate(true)}
+            onSkip={() => decide.mutate(false)}
+          />
+        ) : run.hold?.why ? (
+          <p className="text-[12.5px] text-fg-secondary">{String(run.hold.why)}</p>
+        ) : null}
         {results.length > 0 && (
           <ol className="flex flex-col gap-0.5 text-[12.5px]">
             {results.map((r, i) => (
@@ -112,7 +152,7 @@ function RunRow({ run, onUndo }: { run: RoutineRun; onUndo: (r: RoutineRun) => v
 }
 
 /** A routine: its recent runs (with their logs, and undo for graph changes) and its settings. */
-export function RoutineDetail({ id, tab: initialTab }: { id: number; tab?: "runs" | "settings" }) {
+export function RoutineDetail({ id, tab: initialTab }: { id: number; tab?: "runs" | "costs" | "settings" }) {
   const client = useApiClient();
   const qc = useQueryClient();
   const router = useRouter();
@@ -120,7 +160,7 @@ export function RoutineDetail({ id, tab: initialTab }: { id: number; tab?: "runs
   const { admin, me } = useArchive();
   const names = useNames();
   const { toggle } = useRoutineActions();
-  const [tab, setTab] = useState(initialTab ?? "runs");
+  const [tab, setTab] = useState<"runs" | "costs" | "settings">(initialTab ?? "runs");
   const [undoing, setUndoing] = useState<RoutineRun | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -235,14 +275,20 @@ export function RoutineDetail({ id, tab: initialTab }: { id: number; tab?: "runs
       <Tabs
         aria-label="Runs and settings"
         value={tab}
-        onChange={(v) => setTab(v as "runs" | "settings")}
+        onChange={(v) => setTab(v as "runs" | "costs" | "settings")}
         items={[
           { value: "runs", label: "Runs", count: runs.data?.length },
+          { value: "costs", label: "Costs and activity" },
           { value: "settings", label: "Settings" },
         ]}
       />
       {tab === "settings" ? (
         <RoutineEditor key={r.id} routine={r} onSaved={() => setTab("runs")} />
+      ) : tab === "costs" ? (
+        <div className="flex flex-col gap-4">
+          <BudgetPanel resource={`routine:${r.id}`} what="this routine" />
+          <ActivityPanel resource={`routine:${r.id}`} />
+        </div>
       ) : runs.isLoading ? (
         <SkeletonRows rows={3} />
       ) : runs.error ? (

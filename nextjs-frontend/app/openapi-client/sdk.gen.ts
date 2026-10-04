@@ -43,11 +43,17 @@ import type {
   ApproveAccessRequestData,
   ApproveAccessRequestErrors,
   ApproveAccessRequestResponses,
+  AskGraphData,
+  AskGraphErrors,
+  AskGraphResponses,
   BridgeStatusData,
   BridgeStatusResponses,
   BrowseSourceData,
   BrowseSourceErrors,
   BrowseSourceResponses,
+  BudgetStatusData,
+  BudgetStatusErrors,
+  BudgetStatusResponses,
   BulkUpdateMetadataData,
   BulkUpdateMetadataErrors,
   BulkUpdateMetadataResponses,
@@ -148,6 +154,9 @@ import type {
   CreateNotifyTargetData,
   CreateNotifyTargetErrors,
   CreateNotifyTargetResponses,
+  CreatePageData,
+  CreatePageErrors,
+  CreatePageResponses,
   CreatePipelineData,
   CreatePipelineErrors,
   CreatePipelineResponses,
@@ -178,6 +187,9 @@ import type {
   CreateTokenData,
   CreateTokenErrors,
   CreateTokenResponses,
+  CreateTopicData,
+  CreateTopicErrors,
+  CreateTopicResponses,
   CreateUserData,
   CreateUserErrors,
   CreateUserResponses,
@@ -196,6 +208,11 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecideHeldRunData,
+  DecideHeldRunErrors,
+  DecideHeldRunResponses,
+  DecisionStatusData,
+  DecisionStatusResponses,
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
@@ -259,6 +276,9 @@ import type {
   DeleteNotifyTargetData,
   DeleteNotifyTargetErrors,
   DeleteNotifyTargetResponses,
+  DeletePageData,
+  DeletePageErrors,
+  DeletePageResponses,
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
@@ -274,6 +294,9 @@ import type {
   DeleteSourceData,
   DeleteSourceErrors,
   DeleteSourceResponses,
+  DeleteTopicData,
+  DeleteTopicErrors,
+  DeleteTopicResponses,
   DeleteViewData,
   DeleteViewErrors,
   DeleteViewResponses,
@@ -303,6 +326,9 @@ import type {
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
+  EntityToTopicData,
+  EntityToTopicErrors,
+  EntityToTopicResponses,
   EstimateBatchData,
   EstimateBatchErrors,
   EstimateBatchResponses,
@@ -420,6 +446,9 @@ import type {
   GetNamespaceWordcloudData,
   GetNamespaceWordcloudErrors,
   GetNamespaceWordcloudResponses,
+  GetPageData,
+  GetPageErrors,
+  GetPageResponses,
   GetPdfData,
   GetPdfErrors,
   GetPdfResponses,
@@ -480,6 +509,9 @@ import type {
   GetTemplateData,
   GetTemplateErrors,
   GetTemplateResponses,
+  GetTopicData,
+  GetTopicErrors,
+  GetTopicResponses,
   GetUploadData,
   GetUploadErrors,
   GetUploadResponses,
@@ -489,6 +521,18 @@ import type {
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GraphPathsData,
+  GraphPathsErrors,
+  GraphPathsResponses,
+  GraphQueryData,
+  GraphQueryErrors,
+  GraphQueryResponses,
+  GraphRelatedData,
+  GraphRelatedErrors,
+  GraphRelatedResponses,
+  GraphSchemaData,
+  GraphSchemaErrors,
+  GraphSchemaResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
@@ -519,6 +563,9 @@ import type {
   LinkSpeakerData,
   LinkSpeakerErrors,
   LinkSpeakerResponses,
+  LinkTargetsData,
+  LinkTargetsErrors,
+  LinkTargetsResponses,
   ListAccessRequestsData,
   ListAccessRequestsErrors,
   ListAccessRequestsResponses,
@@ -534,6 +581,8 @@ import type {
   ListBackendsResponses,
   ListBatchesData,
   ListBatchesResponses,
+  ListBudgetsData,
+  ListBudgetsResponses,
   ListChatsData,
   ListChatsResponses,
   ListCollectionMembersData,
@@ -629,6 +678,9 @@ import type {
   ListOutputsData,
   ListOutputsErrors,
   ListOutputsResponses,
+  ListPagesData,
+  ListPagesErrors,
+  ListPagesResponses,
   ListPasskeysData,
   ListPasskeysResponses,
   ListPatternsData,
@@ -683,6 +735,9 @@ import type {
   ListTemplatesResponses,
   ListTokensData,
   ListTokensResponses,
+  ListTopicsData,
+  ListTopicsErrors,
+  ListTopicsResponses,
   ListUploadsData,
   ListUploadsResponses,
   ListUsersData,
@@ -727,9 +782,15 @@ import type {
   MergeSpeakerData,
   MergeSpeakerErrors,
   MergeSpeakerResponses,
+  MergeTopicsData,
+  MergeTopicsErrors,
+  MergeTopicsResponses,
   MoveMentionData,
   MoveMentionErrors,
   MoveMentionResponses,
+  MovePageData,
+  MovePageErrors,
+  MovePageResponses,
   MoveRecordingData,
   MoveRecordingErrors,
   MoveRecordingResponses,
@@ -742,6 +803,9 @@ import type {
   OpenRecordingToIpGroupData,
   OpenRecordingToIpGroupErrors,
   OpenRecordingToIpGroupResponses,
+  PageAboutData,
+  PageAboutErrors,
+  PageAboutResponses,
   PasskeyLoginData,
   PasskeyLoginErrors,
   PasskeyLoginResponses,
@@ -774,6 +838,9 @@ import type {
   PreviewWatchData,
   PreviewWatchErrors,
   PreviewWatchResponses,
+  ProposeGraphChangeData,
+  ProposeGraphChangeErrors,
+  ProposeGraphChangeResponses,
   PushData,
   PushResponses,
   PushStreamData,
@@ -788,6 +855,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  RecordingTopicsData,
+  RecordingTopicsErrors,
+  RecordingTopicsResponses,
   RedeemTicketData,
   RedeemTicketErrors,
   RedeemTicketResponses,
@@ -799,6 +869,12 @@ import type {
   RegisterResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  ReleaseJobData,
+  ReleaseJobErrors,
+  ReleaseJobResponses,
+  RemoveBudgetData,
+  RemoveBudgetErrors,
+  RemoveBudgetResponses,
   RemoveLoginProviderData,
   RemoveLoginProviderErrors,
   RemoveLoginProviderResponses,
@@ -832,6 +908,15 @@ import type {
   ResetPasswordData,
   ResetPasswordErrors,
   ResetPasswordResponses,
+  ResourceCostsData,
+  ResourceCostsErrors,
+  ResourceCostsResponses,
+  ResourceHistoryData,
+  ResourceHistoryErrors,
+  ResourceHistoryResponses,
+  ResourceTotalsData,
+  ResourceTotalsErrors,
+  ResourceTotalsResponses,
   RetagRecordingsData,
   RetagRecordingsErrors,
   RetagRecordingsResponses,
@@ -923,6 +1008,9 @@ import type {
   SendMessageData,
   SendMessageErrors,
   SendMessageResponses,
+  SetBudgetData,
+  SetBudgetErrors,
+  SetBudgetResponses,
   SetCollectionMemberData,
   SetCollectionMemberErrors,
   SetCollectionMemberResponses,
@@ -975,10 +1063,15 @@ import type {
   SuggestTermsResponses,
   SyncFedoraData,
   SyncFedoraResponses,
+  TagRecordingsData,
+  TagRecordingsErrors,
+  TagRecordingsResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestBridgeData,
   TestBridgeResponses,
+  TestDecisionsData,
+  TestDecisionsResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -994,6 +1087,9 @@ import type {
   TestSourceData,
   TestSourceErrors,
   TestSourceResponses,
+  TestSpeechData,
+  TestSpeechErrors,
+  TestSpeechResponses,
   TestTelemetryData,
   TestTelemetryResponses,
   TokenData,
@@ -1001,6 +1097,9 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TopResourcesData,
+  TopResourcesErrors,
+  TopResourcesResponses,
   TranscribeClipData,
   TranscribeClipResponses,
   TryWorkflowData,
@@ -1089,6 +1188,9 @@ import type {
   UpdateNotifyTargetData,
   UpdateNotifyTargetErrors,
   UpdateNotifyTargetResponses,
+  UpdatePageData,
+  UpdatePageErrors,
+  UpdatePageResponses,
   UpdatePatternData,
   UpdatePatternErrors,
   UpdatePatternResponses,
@@ -1116,6 +1218,9 @@ import type {
   UpdateSourceData,
   UpdateSourceErrors,
   UpdateSourceResponses,
+  UpdateTopicData,
+  UpdateTopicErrors,
+  UpdateTopicResponses,
   UpdateUserData,
   UpdateUserErrors,
   UpdateUserResponses,
@@ -2142,6 +2247,35 @@ export class Admin {
   }
 
   /**
+   * Decision Status
+   *
+   * Who takes routine decisions, and whether a local Laya model can here: on this machine (Apple Silicon, once
+   * fetched) or at a Laya server's address.
+   */
+  public static decisionStatus<ThrowOnError extends boolean = false>(
+    options?: Options<DecisionStatusData, ThrowOnError>,
+  ): RequestResult<DecisionStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<DecisionStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Decisions
+   *
+   * Take one made-up decision with the settings, to check them; says who answered.
+   */
+  public static testDecisions<ThrowOnError extends boolean = false>(
+    options?: Options<TestDecisionsData, ThrowOnError>,
+  ): RequestResult<TestDecisionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestDecisionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/test",
+      ...options,
+    });
+  }
+
+  /**
    * Test Embeddings
    *
    * Embed one sentence with the configured model, to check the address, key and model name.
@@ -2151,6 +2285,20 @@ export class Admin {
   ): RequestResult<TestEmbeddingsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestEmbeddingsResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/embeddings/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Speech
+   *
+   * Check a speech provider's address and key with the saved settings (lists its models; nothing is billed).
+   */
+  public static testSpeech<ThrowOnError extends boolean = false>(
+    options: Options<TestSpeechData, ThrowOnError>,
+  ): RequestResult<TestSpeechResponses, TestSpeechErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestSpeechResponses, TestSpeechErrors, ThrowOnError>({
+      url: "/api/v1/settings/speech/test",
       ...options,
     });
   }
@@ -2307,6 +2455,124 @@ export class Admin {
   ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
       url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Activity {
+  /**
+   * Resource History
+   *
+   * A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
+   * decision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries.
+   */
+  public static resourceHistory<ThrowOnError extends boolean = false>(
+    options: Options<ResourceHistoryData, ThrowOnError>,
+  ): RequestResult<ResourceHistoryResponses, ResourceHistoryErrors, ThrowOnError> {
+    return (options.client ?? client).get<ResourceHistoryResponses, ResourceHistoryErrors, ThrowOnError>({
+      url: "/api/v1/activity",
+      ...options,
+    });
+  }
+
+  /**
+   * Resource Totals
+   *
+   * What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time.
+   */
+  public static resourceTotals<ThrowOnError extends boolean = false>(
+    options?: Options<ResourceTotalsData, ThrowOnError>,
+  ): RequestResult<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError>({
+      url: "/api/v1/activity/totals",
+      ...options,
+    });
+  }
+
+  /**
+   * Resource Costs
+   *
+   * What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a
+   * figure is a floor (some calls had no price or token counts).
+   */
+  public static resourceCosts<ThrowOnError extends boolean = false>(
+    options: Options<ResourceCostsData, ThrowOnError>,
+  ): RequestResult<ResourceCostsResponses, ResourceCostsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ResourceCostsResponses, ResourceCostsErrors, ThrowOnError>({
+      url: "/api/v1/activity/costs",
+      ...options,
+    });
+  }
+
+  /**
+   * Top Resources
+   *
+   * The resources that cost most this period (admins).
+   */
+  public static topResources<ThrowOnError extends boolean = false>(
+    options?: Options<TopResourcesData, ThrowOnError>,
+  ): RequestResult<TopResourcesResponses, TopResourcesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<TopResourcesResponses, TopResourcesErrors, ThrowOnError>({
+      url: "/api/v1/activity/top",
+      ...options,
+    });
+  }
+}
+
+export class Budgets {
+  /**
+   * Remove Budget
+   */
+  public static removeBudget<ThrowOnError extends boolean = false>(
+    options: Options<RemoveBudgetData, ThrowOnError>,
+  ): RequestResult<RemoveBudgetResponses, RemoveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveBudgetResponses, RemoveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+    });
+  }
+
+  /**
+   * List Budgets
+   *
+   * Every budget, with where it stands now.
+   */
+  public static listBudgets<ThrowOnError extends boolean = false>(
+    options?: Options<ListBudgetsData, ThrowOnError>,
+  ): RequestResult<ListBudgetsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListBudgetsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Budget
+   */
+  public static setBudget<ThrowOnError extends boolean = false>(
+    options: Options<SetBudgetData, ThrowOnError>,
+  ): RequestResult<SetBudgetResponses, SetBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetBudgetResponses, SetBudgetErrors, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Budget Status
+   *
+   * Where a resource's budget stands, and what its next run will likely cost (also without a budget).
+   */
+  public static budgetStatus<ThrowOnError extends boolean = false>(
+    options: Options<BudgetStatusData, ThrowOnError>,
+  ): RequestResult<BudgetStatusResponses, BudgetStatusErrors, ThrowOnError> {
+    return (options.client ?? client).get<BudgetStatusResponses, BudgetStatusErrors, ThrowOnError>({
+      url: "/api/v1/budgets/status",
       ...options,
     });
   }
@@ -3405,6 +3671,132 @@ export class Notes {
   ): RequestResult<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/notes/{nid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Pages
+   *
+   * The namespace's free notes for the tree (no bodies), in order; `all=true` adds the pages of things.
+   */
+  public static listPages<ThrowOnError extends boolean = false>(
+    options: Options<ListPagesData, ThrowOnError>,
+  ): RequestResult<ListPagesResponses, ListPagesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListPagesResponses, ListPagesErrors, ThrowOnError>({
+      url: "/api/v1/notes",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Page
+   *
+   * Write a free note (optionally inside `parent`), or the page of a thing (`about`, like "recording:12"), which
+   * each thing has one of. Needs editor access to the namespace.
+   */
+  public static createPage<ThrowOnError extends boolean = false>(
+    options: Options<CreatePageData, ThrowOnError>,
+  ): RequestResult<CreatePageResponses, CreatePageErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreatePageResponses, CreatePageErrors, ThrowOnError>({
+      url: "/api/v1/notes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Link Targets
+   *
+   * What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other
+   * entities, collections and speakers.
+   */
+  public static linkTargets<ThrowOnError extends boolean = false>(
+    options: Options<LinkTargetsData, ThrowOnError>,
+  ): RequestResult<LinkTargetsResponses, LinkTargetsErrors, ThrowOnError> {
+    return (options.client ?? client).get<LinkTargetsResponses, LinkTargetsErrors, ThrowOnError>({
+      url: "/api/v1/notes/targets",
+      ...options,
+    });
+  }
+
+  /**
+   * Page About
+   *
+   * The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one.
+   */
+  public static pageAbout<ThrowOnError extends boolean = false>(
+    options: Options<PageAboutData, ThrowOnError>,
+  ): RequestResult<PageAboutResponses, PageAboutErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageAboutResponses, PageAboutErrors, ThrowOnError>({
+      url: "/api/v1/notes/about/{kind}/{key}",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Page
+   *
+   * Delete a page; the pages inside it move up a level. Needs editor access.
+   */
+  public static deletePage<ThrowOnError extends boolean = false>(
+    options: Options<DeletePageData, ThrowOnError>,
+  ): RequestResult<DeletePageResponses, DeletePageErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeletePageResponses, DeletePageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Page
+   *
+   * A page with its body, its links (with their targets' current names) and the pages linking to it.
+   */
+  public static getPage<ThrowOnError extends boolean = false>(
+    options: Options<GetPageData, ThrowOnError>,
+  ): RequestResult<GetPageResponses, GetPageErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetPageResponses, GetPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Page
+   *
+   * Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.
+   */
+  public static updatePage<ThrowOnError extends boolean = false>(
+    options: Options<UpdatePageData, ThrowOnError>,
+  ): RequestResult<UpdatePageResponses, UpdatePageErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdatePageResponses, UpdatePageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Move Page
+   *
+   * Move a free note in the tree: inside `parent` (null: the top), before `before` (null: at the end).
+   */
+  public static movePage<ThrowOnError extends boolean = false>(
+    options: Options<MovePageData, ThrowOnError>,
+  ): RequestResult<MovePageResponses, MovePageErrors, ThrowOnError> {
+    return (options.client ?? client).post<MovePageResponses, MovePageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/move",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4730,6 +5122,255 @@ export class Entities {
   }
 }
 
+export class Topics {
+  /**
+   * List Topics
+   *
+   * Topics of the namespaces you can read (or of `ns`), by label. `q` matches labels and other labels, `top` keeps
+   * those with no broader topic, `broader` lists the narrower topics of one.
+   */
+  public static listTopics<ThrowOnError extends boolean = false>(
+    options?: Options<ListTopicsData, ThrowOnError>,
+  ): RequestResult<ListTopicsResponses, ListTopicsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListTopicsResponses, ListTopicsErrors, ThrowOnError>({
+      url: "/api/v1/topics",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Topic
+   *
+   * Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows again.
+   */
+  public static deleteTopic<ThrowOnError extends boolean = false>(
+    options: Options<DeleteTopicData, ThrowOnError>,
+  ): RequestResult<DeleteTopicResponses, DeleteTopicErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteTopicResponses, DeleteTopicErrors, ThrowOnError>({
+      url: "/api/v1/topics/{tid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Topic
+   *
+   * A topic with its broader, narrower and related topics and the recordings about it.
+   */
+  public static getTopic<ThrowOnError extends boolean = false>(
+    options: Options<GetTopicData, ThrowOnError>,
+  ): RequestResult<GetTopicResponses, GetTopicErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetTopicResponses, GetTopicErrors, ThrowOnError>({
+      url: "/api/v1/topics/{tid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Topic
+   *
+   * Rename it, change its other labels or definition, or what it is narrower than or related to.
+   */
+  public static updateTopic<ThrowOnError extends boolean = false>(
+    options: Options<UpdateTopicData, ThrowOnError>,
+  ): RequestResult<UpdateTopicResponses, UpdateTopicErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateTopicResponses, UpdateTopicErrors, ThrowOnError>({
+      url: "/api/v1/topics/{tid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Create Topic
+   *
+   * Add a topic to the namespace's vocabulary.
+   */
+  public static createTopic<ThrowOnError extends boolean = false>(
+    options: Options<CreateTopicData, ThrowOnError>,
+  ): RequestResult<CreateTopicResponses, CreateTopicErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateTopicResponses, CreateTopicErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/topics",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Merge Topics
+   *
+   * Fold topics into one: their labels become its other labels and their recordings are about it.
+   */
+  public static mergeTopics<ThrowOnError extends boolean = false>(
+    options: Options<MergeTopicsData, ThrowOnError>,
+  ): RequestResult<MergeTopicsResponses, MergeTopicsErrors, ThrowOnError> {
+    return (options.client ?? client).post<MergeTopicsResponses, MergeTopicsErrors, ThrowOnError>({
+      url: "/api/v1/topics/merge",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Tag Recordings
+   *
+   * Say recordings of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.
+   */
+  public static tagRecordings<ThrowOnError extends boolean = false>(
+    options: Options<TagRecordingsData, ThrowOnError>,
+  ): RequestResult<TagRecordingsResponses, TagRecordingsErrors, ThrowOnError> {
+    return (options.client ?? client).post<TagRecordingsResponses, TagRecordingsErrors, ThrowOnError>({
+      url: "/api/v1/topics/{tid}/recordings",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Recording Topics
+   *
+   * The topics a recording is about, and those suggested for it.
+   */
+  public static recordingTopics<ThrowOnError extends boolean = false>(
+    options: Options<RecordingTopicsData, ThrowOnError>,
+  ): RequestResult<RecordingTopicsResponses, RecordingTopicsErrors, ThrowOnError> {
+    return (options.client ?? client).get<RecordingTopicsResponses, RecordingTopicsErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/topics",
+      ...options,
+    });
+  }
+
+  /**
+   * Entity To Topic
+   *
+   * Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the recordings that
+   * mention it are about the topic. The entity is hidden; deleting the topic shows it again.
+   */
+  public static entityToTopic<ThrowOnError extends boolean = false>(
+    options: Options<EntityToTopicData, ThrowOnError>,
+  ): RequestResult<EntityToTopicResponses, EntityToTopicErrors, ThrowOnError> {
+    return (options.client ?? client).post<EntityToTopicResponses, EntityToTopicErrors, ThrowOnError>({
+      url: "/api/v1/entities/{eid}/topic",
+      ...options,
+    });
+  }
+}
+
+export class Graph {
+  /**
+   * Graph Schema
+   *
+   * What the graph holds in this scope: labels, relationship types (and what they join), properties and counts, with
+   * example queries. Agents read this before writing Cypher.
+   */
+  public static graphSchema<ThrowOnError extends boolean = false>(
+    options?: Options<GraphSchemaData, ThrowOnError>,
+  ): RequestResult<GraphSchemaResponses, GraphSchemaErrors, ThrowOnError> {
+    return (options?.client ?? client).get<GraphSchemaResponses, GraphSchemaErrors, ThrowOnError>({
+      url: "/api/v1/graph/schema",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Related
+   *
+   * Nodes related to one node, nearest first, with the relationships between them.
+   */
+  public static graphRelated<ThrowOnError extends boolean = false>(
+    options: Options<GraphRelatedData, ThrowOnError>,
+  ): RequestResult<GraphRelatedResponses, GraphRelatedErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphRelatedResponses, GraphRelatedErrors, ThrowOnError>({
+      url: "/api/v1/graph/related",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Paths
+   *
+   * Paths from a to b, shortest first: every simple path up to max_depth hops, or just the shortest ones.
+   */
+  public static graphPaths<ThrowOnError extends boolean = false>(
+    options: Options<GraphPathsData, ThrowOnError>,
+  ): RequestResult<GraphPathsResponses, GraphPathsErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphPathsResponses, GraphPathsErrors, ThrowOnError>({
+      url: "/api/v1/graph/paths",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Query
+   *
+   * Run a read-only Cypher query over the graph you can read: {columns, rows, nodes, edges, truncated}. Nodes and
+   * relationships it returns are also listed in nodes and edges, ready to draw. Read-only tokens may query.
+   */
+  public static graphQuery<ThrowOnError extends boolean = false>(
+    options: Options<GraphQueryData, ThrowOnError>,
+  ): RequestResult<GraphQueryResponses, GraphQueryErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphQueryResponses, GraphQueryErrors, ThrowOnError>({
+      url: "/api/v1/graph/query",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Ask Graph
+   *
+   * A question in plain language: the language model writes read-only Cypher, Lens runs it over the graph you can
+   * read, and you get the answer with the query that found it ({question, cypher, explanation, result}).
+   */
+  public static askGraph<ThrowOnError extends boolean = false>(
+    options: Options<AskGraphData, ThrowOnError>,
+  ): RequestResult<AskGraphResponses, AskGraphErrors, ThrowOnError> {
+    return (options.client ?? client).post<AskGraphResponses, AskGraphErrors, ThrowOnError>({
+      url: "/api/v1/graph/ask",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Propose Graph Change
+   *
+   * Ask for a change to the graph. Proposed by default, for someone with editor access to accept in Proposed
+   * changes; `apply` makes it at once, and it can still be undone. Both need editor access to the two namespaces; read-only
+   * tokens can't ask.
+   */
+  public static proposeGraphChange<ThrowOnError extends boolean = false>(
+    options: Options<ProposeGraphChangeData, ThrowOnError>,
+  ): RequestResult<ProposeGraphChangeResponses, ProposeGraphChangeErrors, ThrowOnError> {
+    return (options.client ?? client).post<ProposeGraphChangeResponses, ProposeGraphChangeErrors, ThrowOnError>({
+      url: "/api/v1/graph/changes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
 export class Metadata {
   /**
    * Get Recording Metadata
@@ -5312,6 +5953,25 @@ export class Jobs {
     return (options.client ?? client).post<CancelJobResponses, CancelJobErrors, ThrowOnError>({
       url: "/api/v1/jobs/{jid}/cancel",
       ...options,
+    });
+  }
+
+  /**
+   * Release Job
+   *
+   * Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it
+   * (admins, who set the budgets).
+   */
+  public static releaseJob<ThrowOnError extends boolean = false>(
+    options: Options<ReleaseJobData, ThrowOnError>,
+  ): RequestResult<ReleaseJobResponses, ReleaseJobErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReleaseJobResponses, ReleaseJobErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/release",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 
@@ -6928,13 +7588,32 @@ export class Routines {
   /**
    * Run Routine
    *
-   * Run it as soon as the scheduler next looks (within half a minute), even when it is off.
+   * Run it as soon as the scheduler next looks (within half a minute), even when it is off. A run over one of its
+   * budgets is refused (409, saying where the budget stands) unless over_budget is true (docs/budgets.md).
    */
   public static runRoutine<ThrowOnError extends boolean = false>(
     options: Options<RunRoutineData, ThrowOnError>,
   ): RequestResult<RunRoutineResponses, RunRoutineErrors, ThrowOnError> {
     return (options.client ?? client).post<RunRoutineResponses, RunRoutineErrors, ThrowOnError>({
       url: "/api/v1/routines/{rid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Decide Held Run
+   *
+   * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
+   */
+  public static decideHeldRun<ThrowOnError extends boolean = false>(
+    options: Options<DecideHeldRunData, ThrowOnError>,
+  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+      url: "/api/v1/routines/runs/{run_id}/decide",
       ...options,
       headers: {
         "Content-Type": "application/json",
