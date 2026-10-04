@@ -142,7 +142,7 @@ export type ActivityEntry = {
   /**
    * Kind
    *
-   * in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry
+   * in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry, or a change to the entity graph (action `graph.<op>`)
    */
   kind: "in" | "out" | "run" | "change";
   /**

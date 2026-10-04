@@ -110,3 +110,22 @@ def test_the_explorer_and_cypher_as_of_a_version(env):
     assert schema.status_code == 200
     assert c.get("/api/v1/graph/schema", headers=vi, params={"as_of": "nope"}).status_code == 404
     assert c.get("/api/v1/graph/schema", headers=vi, params={"as_of": 10**6}).status_code == 400
+
+
+def test_graph_changes_in_activity_history(env):
+    c, ed, vi = env.c, env.h["editor"], env.h["viewer"]
+    dyno = env.eid("Dyno Therapeutics")
+    c.post(f"/api/v1/entities/{dyno}/rename", headers=ed, json={"name": "Dyno"})
+    got = c.get("/api/v1/activity", headers=vi, params={"resource": f"entity:{dyno}"})
+    assert got.status_code == 200, got.text
+    mine = [e for e in got.json() if e["action"].startswith("graph.")]
+    assert mine[0]["action"] == "graph.entity.rename" and mine[0]["kind"] == "change"
+    assert mine[0]["email"] == "ed@x.io" and mine[0]["detail"]["via"] == "web" and mine[0]["detail"]["version"]
+    # a namespace's history has its curation, and a recording's what analysing it changed
+    sid = env.db.one(f"SELECT space FROM entity:{dyno}")["space"]
+    acts = c.get("/api/v1/activity", headers=vi, params={"resource": f"space:{sid}", "kind": "change"}).json()
+    assert "graph.entity.rename" in {e["action"] for e in acts} and "graph.analysis" not in {e["action"] for e in acts}
+    rid = env.db.values("SELECT VALUE origin.recording FROM graph_event WHERE op = 'analysis' LIMIT 1")[0]
+    acts = c.get("/api/v1/activity", headers=ed, params={"resource": f"recording:{rid}"}).json()
+    assert "graph.analysis" in {e["action"] for e in acts}
+    assert c.get("/api/v1/activity", headers=vi, params={"resource": "entity:999999"}).status_code == 404

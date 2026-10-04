@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { Activity, Budgets } from "@/app/openapi-client";
 import type { ActivityEntry, BudgetSet, BudgetStatus, ResourceSpend } from "@/app/openapi-client/types.gen";
+import { OPS } from "@/components/routines/history-model";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -132,6 +133,10 @@ function actionText(e: ActivityEntry): string {
   if (a.startsWith("notify.")) return `Notification · ${a.slice(7)}`;
   if (a === "tool.http") return "Web tool";
   if (a.startsWith("budget.")) return a === "budget.over" ? "Budget used up" : "Budget nearly used";
+  if (a.startsWith("graph.")) {
+    const d = (e.detail ?? {}) as { version?: number; why?: string | null };
+    return `Graph · ${OPS[a.slice(6)] ?? a.slice(6)}${d.version != null ? ` · v${d.version}` : ""}${d.why ? ` · ${d.why}` : ""}`;
+  }
   return a;
 }
 

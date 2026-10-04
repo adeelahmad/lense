@@ -2720,7 +2720,7 @@
           "activity"
         ],
         "summary": "Resource History",
-        "description": "A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the\ndecision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries.",
+        "description": "A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the\ndecision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph\nchanges (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md).",
         "operationId": "resource_history",
         "parameters": [
           {
@@ -22161,7 +22161,7 @@
               "change"
             ],
             "title": "Kind",
-            "description": "in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry"
+            "description": "in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry, or a change to the entity graph (action `graph.<op>`)"
           },
           "action": {
             "type": "string",

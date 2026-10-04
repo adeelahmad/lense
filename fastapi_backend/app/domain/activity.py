@@ -358,7 +358,7 @@ def _when(at):
 
 
 def history(db, resource, limit=100, before=None, kind=None):
-    """A resource's activity, newest first: its ledger rows and its audit log entries, merged."""
+    """A resource's activity, newest first: its ledger rows, its audit log entries and its graph changes, merged."""
     where, p = ["resources CONTAINS $res"], {"res": resource, "n": limit}
     if before:
         where.append("at < $before")
@@ -388,6 +388,9 @@ def history(db, resource, limit=100, before=None, kind=None):
             }
             for a in audit
         ]
+        from . import graph_history  # the graph's own history (docs/graph-history.md)
+
+        rows += graph_history.activity(db, resource, before, limit)
         rows.sort(key=lambda r: _when(r.get("at")), reverse=True)
         rows = rows[:limit]
     return rows
