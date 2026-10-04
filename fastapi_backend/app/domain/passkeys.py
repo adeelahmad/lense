@@ -48,10 +48,19 @@ LINK_HOURS = 72
 MAX_PER_ACCOUNT = 20
 NAME_MAX = 60
 TRANSPORTS = {t.value for t in AuthenticatorTransport}
+UNKNOWN = (
+    "this passkey isn't one Lens knows: it was removed, or made before Lens was set up again here. "
+    "Pick another passkey, or get a sign-in link"
+)
 
 
 class PasskeyError(ValueError):
     """The browser's answer didn't check out, or the flow it answers is gone."""
+
+
+class UnknownPasskey(PasskeyError):
+    """A passkey this server doesn't know: removed, or made for an earlier install at the same address (it stays in the
+    password manager when Lens is set up again, and clearing the site's data doesn't remove it)."""
 
 
 def _later(seconds):
@@ -303,11 +312,11 @@ def login_finish(db, flow, credential):
     cred_id = credential.get("id") if isinstance(credential, dict) else None
     pk = db.one("SELECT * FROM $r", r=R("passkey", auth.sha(cred_id))) if isinstance(cred_id, str) and cred_id else None
     if not pk or pk.get("rp_id") != row["rp_id"]:
-        raise PasskeyError("this passkey isn't known here; sign in with another, or ask an admin for a sign-in link")
+        raise UnknownPasskey(UNKNOWN)
     handle = ((credential.get("response") or {}).get("userHandle")) or None
     acct = db.one("SELECT webauthn_user FROM $r", r=R("account", pk["account"])) or {}
     if handle and acct.get("webauthn_user") and handle != acct["webauthn_user"]:
-        raise PasskeyError("this passkey isn't known here")
+        raise UnknownPasskey(UNKNOWN)
     try:
         v = verify_authentication_response(
             credential=credential,

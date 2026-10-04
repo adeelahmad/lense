@@ -126,10 +126,14 @@ def passkey_options(request: Request, db: Db) -> PasskeyOptions:
 
 @router.post("/passkey")
 def passkey_login(body: PasskeyAnswer, request: Request, db: Db) -> LoginTicket:
-    """Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session."""
+    """Sign in with the passkey the browser picked. Answers a ticket the web app swaps for a session; 404 for a passkey
+    this server doesn't know (removed, or from before Lens was set up again)."""
     key = _throttle(request, "passkey")
     try:
         u = passkeys.login_finish(db, body.flow, body.credential)
+    except passkeys.UnknownPasskey as e:
+        # 404: the web app tells the browser to stop offering it (WebAuthn's signalUnknownCredential)
+        raise HTTPException(404, str(e)) from None
     except ValueError as e:
         _hit(key)
         raise HTTPException(401, str(e)) from None
