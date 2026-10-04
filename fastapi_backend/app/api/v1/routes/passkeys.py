@@ -45,7 +45,7 @@ def _visitor(request: Request) -> str:
 
 def _throttle(request: Request, what: str, shared: bool = False) -> str | None:
     """The throttle key for this visitor, or None when the server can't tell visitors apart (the web app isn't in
-    server.trusted_proxies, so everyone arrives from its address): one bucket for everyone would let anybody lock
+    server.trusted_proxies or LENS_TRUSTED_PROXY_HOSTS, so everyone arrives from its address): one bucket for everyone would let anybody lock
     everyone out. Passkey signatures and 256-bit links can't be guessed anyway; `shared` keeps one bucket for the
     setup code, which is shorter."""
     addr = visitor_address(request)

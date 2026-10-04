@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Hardening.** Sign-in throttles count each visitor behind the web app (Docker) instead of one bucket for everyone,
+  so one person's wrong tries can't lock others out and nobody gets unlimited tries. The web app's pages send
+  nosniff, referrer, permissions and frame policies, and HSTS when reached through Cloudflare. The containers run with
+  `no-new-privileges`, and the development API port listens on this machine only. See docs/deployment.md.
 - **Reach Lens from anywhere through a Cloudflare Tunnel.** Settings › Remote access turns on a tunnel Lens runs
   itself, with nothing to open on the router: a quick random trycloudflare.com address, a hostname on your own
   Cloudflare domain (Lens makes the tunnel and DNS record with an API token), or a tunnel made in the Cloudflare

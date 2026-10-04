@@ -5,6 +5,7 @@
 # The first-admin setup code is printed in the backend log.
 
 x-backend: &backend
+  security_opt: ["no-new-privileges:true"]  # nothing in Lens needs setuid programs
   build:
     context: fastapi_backend
     target: ${LENS_TARGET:-full}  # LibreOffice and Chromium, to read Office files, text, web pages and emails; lean: without
@@ -34,6 +35,8 @@ x-backend: &backend
     FRONTEND_URL: http://localhost:3000
     # where the Cloudflare tunnel (Settings › Remote access) sends visitors: the web app inside this stack
     LENS_TUNNEL_ORIGIN: http://frontend:3000
+    # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
+    LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
     CORS_ORIGINS: '["http://localhost:3000"]'
     OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
   volumes:
@@ -69,7 +72,7 @@ services:
     <<: *backend
     command: ./start.sh
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"         # the API, for this machine only (the web app proxies it)
 
   worker:
     <<: *backend
@@ -84,6 +87,7 @@ services:
       disable: true
 
   frontend:
+    security_opt: ["no-new-privileges:true"]
     build:
       context: ./nextjs-frontend
     user: node

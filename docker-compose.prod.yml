@@ -6,6 +6,7 @@
 # overwritten by these builds, and a later `docker compose up` would run the production images without hot reload.
 # LENS_VERSION tags them (default `prod`), for NAS setups (Synology, QNAP) that run a named image.
 x-backend: &backend
+  security_opt: ["no-new-privileges:true"]  # nothing in Lens needs setuid programs
   image: lens-backend:${LENS_VERSION:-prod}
   build:
     context: fastapi_backend
@@ -25,6 +26,8 @@ x-backend: &backend
     FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     # where the Cloudflare tunnel (Settings › Remote access) sends visitors: the web app inside this stack
     LENS_TUNNEL_ORIGIN: http://frontend:3000
+    # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
+    LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
     # Fedora (docs/fedora.md): empty keeps it off; with the fedora profile, http://fedora:8080/fcrepo/rest
     LENS_FEDORA_URL: ${LENS_FEDORA_URL:-}
     LENS_FEDORA_USER: ${LENS_FEDORA_USER:-}
@@ -93,6 +96,7 @@ services:
       disable: true
 
   frontend:
+    security_opt: ["no-new-privileges:true"]
     image: lens-frontend:${LENS_VERSION:-prod}
     build:
       context: ./nextjs-frontend

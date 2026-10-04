@@ -294,14 +294,46 @@ def domain_errors() -> Iterator[None]:
 
 
 def client_ip(request: Request) -> str:
-    return request.client.host if request.client else ""
+    """The visitor's address for throttles and the session's record: through the trusted proxies, else the peer's."""
+    addr = visitor_address(request)
+    return str(addr) if addr else (request.client.host if request.client else "")
+
+
+_PROXY_HOSTS: dict[str, tuple[float, tuple[str, ...]]] = {}
+
+
+def _proxy_hosts() -> tuple[str, ...]:
+    """The addresses of the hosts named in LENS_TRUSTED_PROXY_HOSTS (the web app's container, `frontend` in the
+    Docker Compose files, whose address changes when it's recreated), looked up at most every 30 seconds."""
+    import os
+    import socket
+    import time
+
+    names = [n.strip() for n in os.environ.get("LENS_TRUSTED_PROXY_HOSTS", "").split(",") if n.strip()]
+    out: list[str] = []
+    for name in names:
+        hit = _PROXY_HOSTS.get(name)
+        if not hit or time.monotonic() - hit[0] > 30:
+            try:
+                found = tuple(sorted({i[4][0] for i in socket.getaddrinfo(name, None)}))
+            except OSError:
+                found = ()
+            hit = _PROXY_HOSTS[name] = (time.monotonic(), found)
+        out += hit[1]
+    return tuple(out)
+
+
+def trusted_proxies(request: Request) -> tuple[str, ...]:
+    """server.trusted_proxies, and the web app's own container (LENS_TRUSTED_PROXY_HOSTS)."""
+    return tuple(request.app.state.settings.current()["server"].get("trusted_proxies") or ()) + _proxy_hosts()
 
 
 def visitor_address(request: Request) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
-    """The address a visitor comes from, for IP groups: the peer, or what the trusted proxies (server.trusted_proxies)
-    report in X-Forwarded-For. None when the server can't vouch for one (ipgroups.client_address())."""
+    """The address a visitor comes from, for IP groups and throttles: the peer, or what the trusted proxies
+    (server.trusted_proxies, LENS_TRUSTED_PROXY_HOSTS) report in X-Forwarded-For. None when the server can't vouch
+    for one (ipgroups.client_address())."""
     c = request.client
-    trusted = tuple(request.app.state.settings.current()["server"].get("trusted_proxies") or ())
+    trusted = trusted_proxies(request)
     forwarded = ", ".join(request.headers.getlist("x-forwarded-for"))
     return ipgroups.client_address(c.host if c else None, c.port if c else None, forwarded, trusted)
 

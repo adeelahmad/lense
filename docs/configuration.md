@@ -289,8 +289,11 @@ addresses or CIDR ranges. The default trusts this machine (`127.0.0.0/8` and `::
 API on one machine.
 
 * **List the web app.** The browser reaches the API through the web app, which passes on the `X-Forwarded-For` it
-  received. In Docker, list the compose network: `docker network inspect` shows its subnet, and `172.16.0.0/12` covers
-  Docker's default address pools.
+  received and adds the address it was reached from. The Docker Compose files do this for you:
+  `LENS_TRUSTED_PROXY_HOSTS=frontend,backend,worker` trusts those containers by name (their addresses, looked up
+  every 30 seconds, follow them when they're recreated; `backend` and `worker` run the Cloudflare tunnel). Elsewhere,
+  list the web app's address here, or name its host in `LENS_TRUSTED_PROXY_HOSTS`. Sign-in throttles follow the same
+  address, so without it everyone behind the web app shares one.
 * **Put a reverse proxy in front of the web app that sets `X-Forwarded-For`**: nginx with
   `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, or Caddy, which does by default. The web app can't
   tell a header a visitor made up from one a proxy set; the reverse proxy adds the real address last, and the server
