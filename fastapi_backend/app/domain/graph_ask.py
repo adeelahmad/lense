@@ -31,6 +31,10 @@ EXAMPLES = [
         "cypher": "MATCH p = shortestPath((s:Speaker {name: 'Alice'})-[*..6]-(e:Entity {name: 'Acme'})) RETURN [n IN nodes(p) | n.name] AS chain",
     },
     {
+        "ask": "Which recordings are about gene therapy, or anything narrower?",
+        "cypher": "MATCH (t:Topic)-[:NARROWER*0..6]->(n:Topic)<-[:ABOUT]-(r:Recording) WHERE toLower(t.name) = 'gene therapy' RETURN DISTINCT r, r.name, n.name",
+    },
+    {
         "ask": "Everything in the Interviews collection",
         "cypher": "MATCH (c:Collection {name: 'Interviews'})-[:CONTAINS*1..8]->(r:Recording) RETURN r.name, r.date ORDER BY r.date DESC",
     },

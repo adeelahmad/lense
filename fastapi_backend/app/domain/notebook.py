@@ -215,6 +215,7 @@ def create(db, sid, account, title, body="", summary=None, date=None, place=None
         "text": plain(body),
         "doc": _doc(doc),
         "author": author,
+        "refine_pending": True,
         "created_by": account,
         "updated_by": account,
         "created_at": t,
@@ -253,6 +254,8 @@ def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, p
     if place is not UNSET:
         sets.append("place = $place")
         args["place"] = _place(place)
+    if title is not None or body is not None:
+        sets.append("refine_pending = true")
     if body is not None:
         sets += ["body = $body", "text = $text"]
         args["body"] = _body(body)
@@ -398,3 +401,80 @@ def follow(db, thing, dst):
     for p in db.rows("SELECT record::id(id) AS id FROM note_page WHERE about = $a", a=thing):
         db.q("UPDATE $r SET space = $s, about_key = $k", r=R("note_page", p["id"]), s=dst, k=f"{dst}:{kind}:{key}")
         db.q("UPDATE note_link SET space = $s WHERE page = $p", s=dst, p=p["id"])
+
+
+# ---------- refining titles and summaries (ai.refine_notes) ----------
+QUIET_SECONDS = 120  # a page is refined once nobody has changed it for this long
+REFINE_BATCH = 5  # pages refined per pass
+REFINE_CHARS = 12_000  # of a page's text the model reads
+REFINE_SCHEMA = {
+    "type": "object",
+    "properties": {"title": {"type": "string"}, "summary": {"type": "string"}},
+    "required": ["title", "summary"],
+}
+REFINE_SYSTEM = (
+    "You keep a note's title and its one-line summary true to the whole note. The summary is the context an assistant "
+    "reads before deciding whether to open the note, so it says what the note holds, specifically, in one sentence of "
+    "at most 200 characters. Keep the title as it is unless it is empty, 'Untitled' or no longer describes the note; "
+    "then give a short, specific title of at most 80 characters. Write in the note's language."
+    ' Reply with JSON: {"title": ..., "summary": ...}.'
+)
+
+
+def refine(db, cfg, pid):
+    """Ask the model for the page's title and summary; saved unless someone changed the page meanwhile. Returns what
+    changed: {"title"?, "summary"?}."""
+    from . import llm
+
+    p = db.one("SELECT record::id(id) AS id, title, summary, text, updated_at FROM $r", r=R("note_page", int(pid)))
+    if not p:
+        raise KeyError(pid)
+    if not (p.get("text") or "").strip():
+        db.q("UPDATE $r SET refine_pending = false, refine_claim = NONE", r=R("note_page", p["id"]))
+        return {}
+    user = f"Title: {p['title']}\nSummary: {p.get('summary') or '(none)'}\n\nNote:\n{p['text'][:REFINE_CHARS]}"
+    out = llm.json_out(cfg, REFINE_SYSTEM, user, REFINE_SCHEMA)
+    title = " ".join(str(out.get("title") or "").split())[:TITLE_MAX] or p["title"]
+    summary = " ".join(str(out.get("summary") or "").split())[:SUMMARY_MAX] or p.get("summary")
+    now = db.one("SELECT updated_at FROM $r", r=R("note_page", p["id"]))
+    if not now or now.get("updated_at") != p.get("updated_at"):
+        db.q("UPDATE $r SET refine_claim = NONE", r=R("note_page", p["id"]))
+        return {}  # changed while the model was thinking: it's still pending, so a later pass looks again
+    changed = {k: v for k, v in (("title", title), ("summary", summary)) if v and v != p.get(k)}
+    sets = ["refine_pending = false", "refine_claim = NONE", "refined_at = $t"] + [f"{k} = ${k}" for k in changed]
+    if "summary" in changed:
+        sets.append("summary_by = 'assistant'")
+    db.q(f"UPDATE $r SET {', '.join(sets)}", r=R("note_page", p["id"]), t=store.now(), **changed)
+    return changed
+
+
+def refine_due(db, cfg, log=None):
+    """Refine the pages whose title or text changed since they were last refined and that nobody has touched for a
+    while (so a page being typed isn't sent on every keystroke). Off with ai.refine_notes, or without a model."""
+    from . import llm
+
+    if not cfg["ai"].get("refine_notes", True) or not llm.configured(cfg):
+        return 0
+    t = dt.datetime.now(dt.timezone.utc)
+    quiet = (t - dt.timedelta(seconds=QUIET_SECONDS)).isoformat(timespec="seconds")
+    rows = db.rows(
+        "SELECT record::id(id) AS id, refine_claim FROM note_page WHERE refine_pending = true AND updated_at < $q LIMIT $n",
+        q=quiet,
+        n=REFINE_BATCH * 4,
+    )
+    done = 0
+    for p in rows:
+        if done >= REFINE_BATCH:
+            break
+        if (p.get("refine_claim") or "") > quiet:
+            continue  # another process took it a moment ago
+        db.q("UPDATE $r SET refine_claim = $c", r=R("note_page", p["id"]), c=store.now())
+        try:
+            refine(db, cfg, p["id"])
+        except Exception as e:  # noqa: BLE001 - one page failing doesn't stop the others
+            if log:
+                log(f"notes: couldn't refine page {p['id']}: {type(e).__name__}: {e}")
+            # not again until it changes
+            db.q("UPDATE $r SET refine_pending = false, refine_claim = NONE", r=R("note_page", p["id"]))
+        done += 1
+    return done

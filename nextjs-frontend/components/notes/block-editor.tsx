@@ -24,6 +24,7 @@ type Props = {
 };
 
 const LENS_LINK = /^(recording|entity|collection|speaker|page):\d+$/;
+const WEB_LINK = /^(https?:|mailto:)/i;
 
 function toBase64(bytes: Uint8Array): string {
   let s = "";
@@ -144,16 +145,19 @@ export default function BlockEditor({ markdown, doc, readOnly, onChange, search,
       editor.mode = "page";
       host.current.replaceChildren(editor);
 
-      // Links to things in Lens open in the app, not as web addresses.
+      // Links to things in Lens open in the app, not as web addresses. Other links open only as web or mail addresses:
+      // BlockSuite renders any href it is given, and the Markdown may come from the assistant (`javascript:` and such).
       const onClick = (e: MouseEvent) => {
         const a = (e.composedPath().find((n) => n instanceof HTMLAnchorElement) ?? null) as HTMLAnchorElement | null;
-        const href = a?.getAttribute("href") ?? "";
-        if (!LENS_LINK.test(href)) return;
+        if (!a) return;
+        const href = (a.getAttribute("href") ?? "").trim();
+        if (WEB_LINK.test(href)) return;
         e.preventDefault();
         e.stopPropagation();
-        latest.current.onOpenLink(href);
+        if (e.type === "click" && LENS_LINK.test(href)) latest.current.onOpenLink(href);
       };
       host.current.addEventListener("click", onClick, true);
+      host.current.addEventListener("auxclick", onClick, true);
 
       let timer: ReturnType<typeof setTimeout> | undefined;
       const save = async (flush = false) => {
@@ -183,6 +187,7 @@ export default function BlockEditor({ markdown, doc, readOnly, onChange, search,
         clearTimeout(timer);
         changed.dispose();
         el.removeEventListener("click", onClick, true);
+        el.removeEventListener("auxclick", onClick, true);
         el.replaceChildren();
         collection.dispose();
       };

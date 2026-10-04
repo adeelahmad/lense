@@ -239,6 +239,7 @@ DEFAULTS = {
     "ai": {
         "tools": True,
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
+        "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -676,6 +677,14 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS term_rec ON term FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS term_space ON term FIELDS space",
     "DEFINE INDEX IF NOT EXISTS term_term ON term FIELDS term",
+    # each namespace's controlled vocabulary of topics, and which recordings are about which topic (app/domain/topics.py)
+    "DEFINE TABLE IF NOT EXISTS topic SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS topic_space ON topic FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS topic_key ON topic FIELDS tkey UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS topic_about SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS topic_about_rec ON topic_about FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS topic_about_topic ON topic_about FIELDS topic",
+    "DEFINE INDEX IF NOT EXISTS topic_about_space ON topic_about FIELDS space",
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
@@ -905,6 +914,7 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS note_page_space ON note_page FIELDS space",
     "DEFINE INDEX IF NOT EXISTS note_page_parent ON note_page FIELDS parent",
     "DEFINE INDEX IF NOT EXISTS note_page_about ON note_page FIELDS about_key UNIQUE",
+    "DEFINE INDEX IF NOT EXISTS note_page_refine ON note_page FIELDS refine_pending",
     # the links in a page's body (@ and # mentions), for backlinks and the graph
     "DEFINE TABLE IF NOT EXISTS note_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_link_page ON note_link FIELDS page",

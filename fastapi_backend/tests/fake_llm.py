@@ -129,6 +129,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
             )
         elif set(schema.get("properties", {})) == {"names"}:
             content = json.dumps({"names": Handler.names or ["travel", "Family Trips", "calls"]})
+        elif set(schema.get("properties", {})) == {"title", "summary"}:
+            # a note's title and summary (notebook.refine): the title kept, the first line of the note as its summary
+            text = body["messages"][-1]["content"]
+            title = re.search(r"^Title: (.*)$", text, re.M).group(1)
+            first = text.split("Note:\n", 1)[1].strip().splitlines()[0]
+            content = json.dumps({"title": "Capsid plan" if title == "Untitled" else title, "summary": f"About {first}"})
         elif set(schema.get("properties", {})) == {"choice", "confidence"}:
             content = json.dumps(Handler.decision or {"choice": schema["properties"]["choice"]["enum"][0], "confidence": 0.9})
         elif body.get("response_format"):
