@@ -24,6 +24,7 @@ import {
 } from "@/components/graph/model";
 import { NodePanel } from "@/components/graph/panel";
 import { GraphTable } from "@/components/graph/table";
+import { VersionPicker } from "@/components/graph/version-picker";
 import { useSpeakerDirectory } from "@/components/search/data";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ export function GraphPage() {
       : (topNs ?? namespaces.find((n) => n.graph !== "isolated")?.name ?? nsNames[0] ?? null);
   const scope = scopeMode === "all" || !ns ? "global" : `ns:${ns}`;
   const view = params.get("view") === "table" ? "table" : "graph";
+  const asOf = params.get("as_of");
 
   const [groups, setGroups] = useState<Set<string>>(ALL_GROUPS);
   const [kinds, setKinds] = useState<Set<string>>(DEFAULT_KINDS);
@@ -93,8 +95,9 @@ export function GraphPage() {
   };
 
   const graph = useQuery({
-    queryKey: ["graph", scope],
-    queryFn: async () => (await data(Search.getGraph({ client, query: { scope } }))) as unknown as GraphData,
+    queryKey: ["graph", scope, asOf],
+    queryFn: async () =>
+      (await data(Search.getGraph({ client, query: { scope, as_of: asOf } }))) as unknown as GraphData,
     staleTime: 60_000,
   });
   const settings = useQuery({
@@ -110,7 +113,7 @@ export function GraphPage() {
 
   const toast = useToast();
   const onError = useCallback((m: string) => toast({ title: "Couldn’t explore that", body: m, tone: "red" }), [toast]);
-  const ex = useExplorer(scope, onError);
+  const ex = useExplorer(scope, onError, asOf);
   const [menu, setMenu] = useState<{ id: string; at: { x: number; y: number } } | null>(null);
   const overview = useMemo(() => graph.data ?? { scope, namespaces: [], nodes: [], edges: [] }, [graph.data, scope]);
   // the overview plus what was found by exploring, less what was hidden
@@ -326,8 +329,20 @@ export function GraphPage() {
               route={ex.routePath}
               summary={summary}
             />
-            <ExplorerBar ex={ex} byId={byId} />
-            <GraphAsk ex={ex} scope={scope} onSelect={(id) => select(id)} />
+            <ExplorerBar
+              ex={ex}
+              byId={byId}
+              asOf={asOf}
+              onNow={() => set({ as_of: null })}
+              version={
+                <VersionPicker
+                  asOf={asOf}
+                  namespace={scope === "global" ? null : ns}
+                  onChange={(v) => set({ as_of: v })}
+                />
+              }
+            />
+            <GraphAsk ex={ex} scope={scope} asOf={asOf} onSelect={(id) => select(id)} />
             <NodeMenu
               node={menu ? (byId.get(menu.id) ?? null) : null}
               at={menu?.at ?? null}

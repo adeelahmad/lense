@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The graph canvas as of a version.** A clock menu on the canvas toolbar shows the entity graph as of a named
+  version or as it was before one of the latest changes. Exploring, paths and questions use that version too.
+
 - **Graph changes in activity history.** An entity's, a namespace's and a recording's activity history now list
   the graph changes that touched them, with who, how and why, and the version to find in Routines › History.
 - **The entity graph keeps its history.** Every change to entities, their other names, links across namespaces and

@@ -129,3 +129,21 @@ def test_graph_changes_in_activity_history(env):
     acts = c.get("/api/v1/activity", headers=ed, params={"resource": f"recording:{rid}"}).json()
     assert "graph.analysis" in {e["action"] for e in acts}
     assert c.get("/api/v1/activity", headers=vi, params={"resource": "entity:999999"}).status_code == 404
+
+
+def test_the_canvas_as_of_a_version(env):
+    c, ed, vi = env.c, env.h["editor"], env.h["viewer"]
+    c.post("/api/v1/graph/tags", headers=ed, json={"name": "before"})
+    dyno = env.eid("Dyno Therapeutics")
+
+    def labels(**extra):
+        r = c.get("/api/v1/graph", headers=vi, params={"scope": "ns:pods", **extra})
+        assert r.status_code == 200, r.text
+        return {n["label"] for n in r.json()["nodes"] if n["kind"] == "entity"}
+
+    assert "Dyno Therapeutics" in labels()
+    assert c.post(f"/api/v1/entities/{dyno}/hide", headers=ed, json={"reason": "test"}).status_code == 200
+    assert "Dyno Therapeutics" not in labels()
+    assert "Dyno Therapeutics" in labels(as_of="before") and labels(as_of="head") == labels()
+    assert c.get("/api/v1/graph", headers=vi, params={"as_of": "nope"}).status_code == 404
+    assert c.get("/api/v1/graph", headers=vi, params={"as_of": 10**6}).status_code == 400

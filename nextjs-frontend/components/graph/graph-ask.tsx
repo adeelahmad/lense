@@ -31,7 +31,17 @@ function nodeIn(v: unknown): string | null {
  * Ask the graph: a question in plain language (the language model writes the Cypher) or Cypher itself. The answer's
  * nodes join the canvas and light up; the query that found them is shown, to edit and run again.
  */
-export function GraphAsk({ ex, scope, onSelect }: { ex: Explorer; scope: string; onSelect: (id: string) => void }) {
+export function GraphAsk({
+  ex,
+  scope,
+  asOf = null,
+  onSelect,
+}: {
+  ex: Explorer;
+  scope: string;
+  asOf?: string | null;
+  onSelect: (id: string) => void;
+}) {
   const client = useApiClient();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -61,11 +71,13 @@ export function GraphAsk({ ex, scope, onSelect }: { ex: Explorer; scope: string;
     setError(null);
     try {
       if (question !== undefined) {
-        const out = (await data(GraphApi.askGraph({ client, body: { question, scope } }))) as unknown as Answer;
+        const out = (await data(
+          GraphApi.askGraph({ client, body: { question, scope, as_of: asOf } }),
+        )) as unknown as Answer;
         show(out);
       } else {
         const result = (await data(
-          GraphApi.graphQuery({ client, body: { query, scope, limit: 500 } }),
+          GraphApi.graphQuery({ client, body: { query, scope, limit: 500, as_of: asOf } }),
         )) as unknown as Result;
         show({ cypher: query, question: answer?.question, explanation: null, result });
       }

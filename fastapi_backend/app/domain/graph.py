@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 
 import numpy as np
 
+from . import graph_history
 from . import speakers as spk
 
 GRAPH_TYPES = ("PERSON", "ORG", "PRODUCT", "PLACE", "TERM", "EVENT", "WORK")
@@ -32,8 +33,9 @@ def scope_namespaces(db, scope, allowed=None):
     return [(r["id"], r["name"]) for r in db.rows("SELECT record::id(id) AS id, name FROM space WHERE graph = 'shared' ORDER BY name")]
 
 
-def build(db, cfg, scope="global", allowed=None):
-    """'ns:<name>' is one namespace; 'global' is every namespace whose graph is shared.
+def build(db, cfg, scope="global", allowed=None, as_of=None):
+    """'ns:<name>' is one namespace; 'global' is every namespace whose graph is shared. `as_of` (a graph version) takes
+    the entities as they were then (named, typed, hidden or merged; docs/graph-history.md); mentions are today's.
 
     Speaker nodes stay namespace-scoped. In the global graph, named things with the same name in
     different namespaces become one node, which is what connects namespaces; declared speaker links
@@ -70,11 +72,20 @@ def build(db, cfg, scope="global", allowed=None):
         if not cur or (r["n"], len(r["text"])) > cur[1]:
             shown[r["entity"]] = (r["text"], (r["n"], len(r["text"])))
     agg, node_of = {}, {}
-    for r in db.rows(
-        "SELECT record::id(id) AS id, space, key, type FROM entity WHERE space IN $s AND type IN $t AND hidden != true",
-        s=nids,
-        t=list(GRAPH_TYPES),
-    ):
+    if as_of is None:
+        rows = db.rows(
+            "SELECT record::id(id) AS id, space, key, type FROM entity WHERE space IN $s AND type IN $t AND hidden != true",
+            s=nids,
+            t=list(GRAPH_TYPES),
+        )
+    else:
+        past = graph_history.state_at(db, as_of, set(nids))["entity"]
+        rows = [
+            {"id": k, **e}
+            for k, e in sorted(past.items())
+            if e.get("space") in names and e.get("type") in GRAPH_TYPES and not e.get("hidden")
+        ]
+    for r in rows:
         if not counts.get(r["id"]):
             continue
         key = f"e:{r['key']}" if merged else f"e{r['id']}"

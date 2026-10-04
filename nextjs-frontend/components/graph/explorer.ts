@@ -62,7 +62,7 @@ function save(scope: string, s: Saved | null) {
  * The explorer's state over the overview graph: nodes and links found by exploring (a node's parents, ancestors…),
  * a highlight, a route through picked nodes, the layout and nodes dragged into place (kept per scope on this device).
  */
-export function useExplorer(scope: string, onError: (message: string) => void) {
+export function useExplorer(scope: string, onError: (message: string) => void, asOf: string | null = null) {
   const client = useApiClient();
   const [extra, setExtra] = useState<{ nodes: GraphNode[]; edges: GraphEdge[] }>({ nodes: [], edges: [] });
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -123,7 +123,10 @@ export function useExplorer(scope: string, onError: (message: string) => void) {
       setBusy(`${r.label} of ${node.label}`);
       try {
         const out = (await data(
-          GraphApi.graphRelated({ client, query: { node: node.id, relation, depth: r.depth, scope, limit: 150 } }),
+          GraphApi.graphRelated({
+            client,
+            query: { node: node.id, relation, depth: r.depth, scope, limit: 150, as_of: asOf },
+          }),
         )) as unknown as { start: string; nodes: ApiNode[]; edges: ApiEdge[]; truncated: boolean };
         const { ns, es } = add(out.nodes, out.edges);
         setHighlight({
@@ -139,7 +142,7 @@ export function useExplorer(scope: string, onError: (message: string) => void) {
         setBusy(null);
       }
     },
-    [client, scope, add, onError],
+    [client, scope, asOf, add, onError],
   );
 
   const paths = useCallback(
@@ -147,7 +150,7 @@ export function useExplorer(scope: string, onError: (message: string) => void) {
       setBusy(`Paths from ${from.label} to ${to.label}`);
       try {
         const out = (await data(
-          GraphApi.graphPaths({ client, query: { a: from.id, b: to.id, scope, max_depth: 5, limit: 8 } }),
+          GraphApi.graphPaths({ client, query: { a: from.id, b: to.id, scope, max_depth: 5, limit: 8, as_of: asOf } }),
         )) as unknown as { paths: { nodes: string[]; length: number }[]; nodes: ApiNode[]; edges: ApiEdge[] };
         const { ns, es } = add(out.nodes, out.edges);
         setHighlight({
@@ -164,7 +167,7 @@ export function useExplorer(scope: string, onError: (message: string) => void) {
         setBusy(null);
       }
     },
-    [client, scope, add, onError],
+    [client, scope, asOf, add, onError],
   );
 
   // the route: the shortest path between each pair of consecutive stops
@@ -182,7 +185,7 @@ export function useExplorer(scope: string, onError: (message: string) => void) {
           const out = (await data(
             GraphApi.graphPaths({
               client,
-              query: { a: route[i], b: route[i + 1], scope, max_depth: 8, limit: 1, shortest: true },
+              query: { a: route[i], b: route[i + 1], scope, max_depth: 8, limit: 1, shortest: true, as_of: asOf },
             }),
           )) as unknown as { paths: { nodes: string[] }[]; nodes: ApiNode[]; edges: ApiEdge[] };
           if (!live) return;
@@ -199,7 +202,14 @@ export function useExplorer(scope: string, onError: (message: string) => void) {
     return () => {
       live = false;
     };
-  }, [route, client, scope, add, onError]);
+  }, [route, client, scope, asOf, add, onError]);
+
+  // what was found at one version doesn't belong on the canvas of another
+  useEffect(() => {
+    setExtra({ nodes: [], edges: [] });
+    setHighlight(null);
+    setRoutePath(null);
+  }, [asOf]);
 
   const setLayout = useCallback((k: LayoutKind, from?: string | null) => {
     setLayoutState(k);

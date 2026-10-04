@@ -31,7 +31,7 @@ Todo:
 - [x] Rollback to a version, with a preview
 - [x] Checkpoints, replay and verify (`lens graph verify`, nightly checkpoint)
 - [x] The graph API and Cypher as of a version (`as_of`); the graph cache is keyed on the graph's version
-- [ ] An as-of picker in the explorer (with the graph explorer thread)
+- [x] An as-of picker in the explorer (with the graph explorer thread)
 - [x] Web app: a history timeline with diffs and rollback (Routines › History; an entity's History button)
 - [x] Graph events in each resource's activity history (an entity's, a namespace's, a recording's analysis)
 

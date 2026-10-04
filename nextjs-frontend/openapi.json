@@ -9436,7 +9436,7 @@
           "search"
         ],
         "summary": "Get Graph",
-        "description": "Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).",
+        "description": "Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).\n`as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.",
         "operationId": "get_graph",
         "parameters": [
           {
@@ -9450,6 +9450,24 @@
               "title": "Scope"
             },
             "description": "\"global\" or \"ns:<namespace>\""
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the entities as of a graph version: a number, a version's name, or head",
+              "title": "As Of"
+            },
+            "description": "the entities as of a graph version: a number, a version's name, or head"
           }
         ],
         "responses": {
@@ -30268,6 +30286,18 @@
             "minimum": 1.0,
             "title": "Limit",
             "default": 200
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of",
+            "description": "ask the graph as of a version: a number or a version's name"
           }
         },
         "type": "object",
