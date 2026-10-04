@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Routine choices on your own Mac with Laya.** `decisions.engine: laya` takes routine choices with a Laya typed
+  decision model on MLX (English, multilingual or typed-decisions), fetched by Lens itself, free and offline. Lens in
+  Docker on a Mac asks `lens decide-server` on the Mac. Elsewhere it says Laya isn't available and the LLM decides.
+  Jev stays the default. Settings → AI assistant → Routine choices has a Test button. See docs/assistant.md.
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or

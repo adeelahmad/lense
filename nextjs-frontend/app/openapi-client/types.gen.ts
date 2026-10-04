@@ -2535,6 +2535,71 @@ export type CustomNodeVersionCreate = {
 };
 
 /**
+ * DecisionStatus
+ *
+ * Who takes routine decisions now, and whether a local Laya model could.
+ */
+export type DecisionStatus = {
+  /**
+   * Engine
+   *
+   * the setting: auto, jev, laya, llm or off
+   */
+  engine: string;
+  /**
+   * By
+   *
+   * who answers now: jev, laya, llm, or none
+   */
+  by?: string | null;
+  /**
+   * Apple Silicon
+   *
+   * this machine can run MLX models
+   */
+  apple_silicon: boolean;
+  laya: LayaStatus;
+  /**
+   * Laya Models
+   */
+  laya_models: Array<LayaModel>;
+  [key: string]: unknown;
+};
+
+/**
+ * DecisionTestResult
+ */
+export type DecisionTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * By
+   *
+   * who answered: jev, laya or llm (the language model when the decision model failed)
+   */
+  by?: string | null;
+  /**
+   * Choice
+   */
+  choice?: string | null;
+  /**
+   * Confidence
+   */
+  confidence?: number | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Description
  *
  * What a model that can see images said a page or a shot shows.
@@ -5583,6 +5648,50 @@ export type LastSend = {
    * Event
    */
   event?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * LayaModel
+ */
+export type LayaModel = {
+  /**
+   * Id
+   *
+   * the Hugging Face repository
+   */
+  id: string;
+  /**
+   * About
+   */
+  about: string;
+  [key: string]: unknown;
+};
+
+/**
+ * LayaStatus
+ */
+export type LayaStatus = {
+  /**
+   * Available
+   */
+  available: boolean;
+  /**
+   * Where
+   *
+   * here (this machine runs it), server (a Laya server), or none
+   */
+  where?: string | null;
+  /**
+   * Model
+   */
+  model: string;
+  /**
+   * Reason
+   *
+   * why it can't answer, when it can't
+   */
+  reason?: string | null;
   [key: string]: unknown;
 };
 
@@ -15463,6 +15572,38 @@ export type TestBridgeResponses = {
 };
 
 export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
+
+export type DecisionStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/decisions/status";
+};
+
+export type DecisionStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: DecisionStatus;
+};
+
+export type DecisionStatusResponse = DecisionStatusResponses[keyof DecisionStatusResponses];
+
+export type TestDecisionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/decisions/test";
+};
+
+export type TestDecisionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: DecisionTestResult;
+};
+
+export type TestDecisionsResponse = TestDecisionsResponses[keyof TestDecisionsResponses];
 
 export type TestEmbeddingsData = {
   body?: never;

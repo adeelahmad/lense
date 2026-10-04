@@ -109,7 +109,7 @@ ENUMS = {
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "none"},
     ("video", "object_engine"): {"yolox", "ultralytics", "off"},
-    ("decisions", "engine"): {"auto", "jev", "llm", "off"},
+    ("decisions", "engine"): {"auto", "jev", "laya", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
@@ -493,6 +493,18 @@ def _component_setting(key, value):
 
 
 def _decision_setting(key, value):
+    if key == "laya_model":
+        from . import decide
+
+        if value not in decide.LAYA_MODELS:
+            raise ValueError("decisions.laya_model is one of " + ", ".join(decide.LAYA_MODELS))
+        return value
+    if key == "laya_url":
+        if value is None or value == "":
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("decisions.laya_url is a Laya server's http(s) address, such as http://host.docker.internal:8790/v1")
+        return value.strip().rstrip("/")
     if key == "base_url":
         if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
             raise ValueError("decisions.base_url is the decision model's http(s) address, such as https://api.typesafe.ai/v1")

@@ -267,7 +267,8 @@ DEFAULTS = {
     # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
     "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
-    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
+    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks. Engine laya runs a
+    # Laya model (laya_model) on this Mac, or asks a Laya server (laya_url, `lens decide-server`).
     "decisions": {
         "engine": "auto",
         "base_url": "https://api.typesafe.ai/v1",
@@ -275,6 +276,8 @@ DEFAULTS = {
         "api_key": None,
         "act_above": 0.8,
         "timeout": 10,
+        "laya_model": "aac6fef/laya-mlx",
+        "laya_url": None,
     },
     "video": {
         "sample_seconds": 5,

@@ -196,6 +196,8 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecisionStatusData,
+  DecisionStatusResponses,
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
@@ -991,6 +993,8 @@ import type {
   TelemetryStatusResponses,
   TestBridgeData,
   TestBridgeResponses,
+  TestDecisionsData,
+  TestDecisionsResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -2148,6 +2152,35 @@ export class Admin {
   ): RequestResult<TestBridgeResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestBridgeResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Decision Status
+   *
+   * Who takes routine decisions, and whether a local Laya model can here: on this machine (Apple Silicon, once
+   * fetched) or at a Laya server's address.
+   */
+  public static decisionStatus<ThrowOnError extends boolean = false>(
+    options?: Options<DecisionStatusData, ThrowOnError>,
+  ): RequestResult<DecisionStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<DecisionStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Decisions
+   *
+   * Take one made-up decision with the settings, to check them; says who answered.
+   */
+  public static testDecisions<ThrowOnError extends boolean = false>(
+    options?: Options<TestDecisionsData, ThrowOnError>,
+  ): RequestResult<TestDecisionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestDecisionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/test",
       ...options,
     });
   }
