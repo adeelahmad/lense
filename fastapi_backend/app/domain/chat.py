@@ -417,7 +417,9 @@ def request_stop(db, cid):
 
 TOOL_SYSTEM = (
     SYSTEM + " You can call tools to look things up in the archive. Cite moments with the [n] numbers the tools return, and "
-    "only those. Tools that run work or change data need the person's approval: say what you proposed and that it's waiting for them."
+    "only those. Tools that run work or change data need the person's approval: say what you proposed and that it's waiting for them. "
+    "Notes are your notebook and need no approval: look in them first (find_notes, read_note), and when you learn something "
+    "worth keeping, write or update a note (write_note, update_note), linking what it's about."
 )
 
 

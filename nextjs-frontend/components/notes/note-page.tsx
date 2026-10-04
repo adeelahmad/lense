@@ -260,6 +260,20 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
             ))}
           </select>
         </label>
+        {canEdit && !place && saved?.place_suggestion && (
+          <button
+            type="button"
+            onClick={() => {
+              setPlace(saved.place_suggestion!.place);
+              change({ place: saved.place_suggestion!.place });
+            }}
+            className="inline-flex items-center gap-1 rounded-pill border border-border px-2 py-0.5 text-fg-accent hover:bg-blue-surface"
+            title="The assistant wasn’t sure; file it there?"
+          >
+            <Sparkles className="size-3.5" />
+            File under {PLACES.find((x) => x.value === saved.place_suggestion!.place)?.label}
+          </button>
+        )}
         {saved?.updated_at && <span>Changed {shortDate(saved.updated_at)}</span>}
       </div>
       <BlockEditor

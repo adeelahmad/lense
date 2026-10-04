@@ -18,6 +18,7 @@ from . import (
     graph_ask,
     graph_model,
     entity_setup,
+    notebook,
     ops_tools,
     recsets,
     render,
@@ -83,6 +84,58 @@ TOOLS = [
         False,
     ),
     ("speaker_stats", "Speakers in a namespace with talk time and recordings.", {"namespace": _S}, ["namespace"], False),
+    (
+        "find_notes",
+        "Find notes (free notes and the pages of recordings, entities, collections and speakers) in scope by words in "
+        "their title, summary or text. Each has an id, title, one-line summary, where it's filed (PARA) and what it's "
+        "the page of.",
+        {"query": _S, "namespace": _S, "place": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "read_note",
+        "Read a note's Markdown, with its links and the notes linking to it: by note_id, or the page of a thing "
+        '(about, like "recording:12" or "entity:5").',
+        {"note_id": _I, "about": _S},
+        [],
+        False,
+    ),
+    (
+        "write_note",
+        'Write a new note, or the page of a thing (about, like "entity:5"; one each). You keep notes as you learn: '
+        "a specific title, a one-line summary of what it holds, Markdown text, and where it's filed: project (an "
+        "outcome with an end), area (a responsibility kept up), resource (a topic of interest) or archive (done). Link "
+        "with @[label](recording:12), @[label](entity:5), @[label](page:3), and topics with #[label](entity:9) (ids "
+        "from find_entities, find_notes and list_recordings). Put it inside another note with parent_id.",
+        {
+            "namespace": _S,
+            "title": _S,
+            "body": _S,
+            "summary": _S,
+            "place": {"type": "string", "enum": list(notebook.PLACES)},
+            "parent_id": _I,
+            "about": _S,
+        },
+        ["namespace", "title", "body"],
+        True,
+    ),
+    (
+        "update_note",
+        "Change a note: its title, summary, place, or its text (body replaces it; append adds to the end). Move a free "
+        "note in the tree with parent_id (0: the top).",
+        {
+            "note_id": _I,
+            "title": _S,
+            "summary": _S,
+            "place": {"type": "string", "enum": list(notebook.PLACES)},
+            "body": _S,
+            "append": _S,
+            "parent_id": _I,
+        },
+        ["note_id"],
+        True,
+    ),
     (
         "graph_schema",
         "What the graph holds (namespaces, collections, recordings, speakers, entities and how they link), with example "
@@ -641,6 +694,108 @@ class Toolbox(ops_tools.OpsTools):
         steps, label = batches.steps_for(self.db, {"template": t["id"]})
         est = batches.estimate(self.db, self.cfg, ids, steps)
         return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} recording(s)", est)
+
+    # ---- notes (notebook.py): the assistant reads and writes them at once; they're its notebook ----
+    def _note(self, note_id, edit=False):
+        try:
+            p = notebook.get(self.db, int(note_id))
+        except KeyError:
+            raise ValueError(f"no note {note_id}") from None
+        if p["space"] not in (self.editable if edit else self.readable):
+            raise ValueError(f"note {note_id} isn't {'yours to change' if edit else 'available'} in this conversation")
+        return p
+
+    def _space(self, namespace, edit=False):
+        names = {v: k for k, v in store.space_names(self.db).items()}
+        sid = names.get(namespace)
+        if sid not in (self.editable if edit else self.readable):
+            raise ValueError(f"no namespace called {namespace} {'you can write in' if edit else 'in scope'}")
+        return sid
+
+    def t_find_notes(self, query=None, namespace=None, place=None, limit=10):
+        spaces = [self._space(namespace)] if namespace else sorted(self.readable)
+        names = store.space_names(self.db)
+        q = " ".join(str(query or "").split()).casefold()
+        rows = self.db.rows(
+            "SELECT record::id(id) AS id, space, title, summary, place, about, updated_at, text FROM note_page WHERE space IN $s",
+            s=spaces,
+        )
+        hits = [
+            r
+            for r in rows
+            if (not place or r.get("place") == place)
+            and (not q or any(q in str(r.get(k) or "").casefold() for k in ("title", "summary", "text")))
+        ]
+        hits.sort(key=lambda r: (q not in str(r["title"]).casefold(), r.get("updated_at") or ""), reverse=False)
+        out = [
+            store.clean(
+                {
+                    "id": r["id"],
+                    "title": r["title"],
+                    "summary": r.get("summary"),
+                    "place": r.get("place"),
+                    "page_of": r.get("about"),
+                    "namespace": names.get(r["space"]),
+                }
+            )
+            for r in hits[: min(int(limit or 10), 30)]
+        ]
+        return {"total": len(hits), "notes": out}, f"Found {len(hits)} note(s)"
+
+    def t_read_note(self, note_id=None, about=None):
+        if note_id is None and not about:
+            raise ValueError("give note_id or about")
+        if note_id is None:
+            kind, _, key = str(about).partition(":")
+            sid = notebook.owner(self.db, kind, int(key)) if key.isdigit() else None
+            if sid not in self.readable:
+                raise ValueError(f"{about} isn't available in this conversation")
+            p = notebook.about(self.db, sid, about)
+            if not p:
+                return {
+                    "page_of": about,
+                    "note": None,
+                    "hint": "nobody has written its page yet: write_note with about",
+                }, f"{about} has no page yet"
+        else:
+            p = self._note(note_id)
+        targets = [f"page:{p['id']}"] + ([p["about"]] if p.get("about") else [])
+        out = store.clean(
+            {
+                "id": p["id"],
+                "title": p["title"],
+                "summary": p.get("summary"),
+                "date": p.get("date"),
+                "place": p.get("place"),
+                "page_of": p.get("about"),
+                "parent_id": p.get("parent"),
+                "namespace": store.space_names(self.db).get(p["space"]),
+                "written_by": p.get("author"),
+                "body": (p.get("body") or "")[:20_000],
+                "links": notebook.links(self.db, p["id"]),
+                "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
+            }
+        )
+        return out, f"Read the note {p['title']}"
+
+    def t_write_note(self, namespace, title, body, summary=None, place=None, parent_id=None, about=None):
+        sid = self._space(namespace, edit=True)
+        pid = notebook.create(self.db, sid, self.user["id"], title, body, summary, None, place, parent_id, about, author="assistant")
+        return {"note_id": pid, "url": f"/notes/{pid}"}, f"Wrote the note {title}"
+
+    def t_update_note(self, note_id, title=None, summary=None, place=None, body=None, append=None, parent_id=None):
+        p = self._note(note_id, edit=True)
+        if append:
+            body = ((body if body is not None else p.get("body") or "").rstrip() + "\n\n" + append).strip()
+        kw = {}
+        if summary is not None:
+            kw["summary"] = summary
+        if place is not None:
+            kw["place"] = place
+        notebook.update(self.db, p["id"], self.user["id"], title=title, body=body, author="assistant", **kw)
+        if parent_id is not None:
+            notebook.move(self.db, p["id"], int(parent_id) or None)
+        return {"note_id": p["id"], "url": f"/notes/{p['id']}"}, f"Changed the note {title or p['title']}"
 
     def t_entity_setup(self, namespace):
         names = {v: k for k, v in store.space_names(self.db).items()}

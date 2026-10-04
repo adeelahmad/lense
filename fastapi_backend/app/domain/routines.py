@@ -658,7 +658,7 @@ def start(db, cfg_fn, stop, log=None):
         every(lambda: cfg_fn()["sources"]["check_seconds"], sources.poll_due, "watched folders"),
         every(lambda: CHECK_SECONDS, run_due, "routines"),
         every(lambda: cfg_fn()["fedora"]["sync_seconds"], fedora.sync_due, "fedora"),
-        every(lambda: notebook.QUIET_SECONDS / 2, notebook.refine_due, "notes"),
+        every(lambda: notebook.QUIET_SECONDS / 2, notebook.organise_due, "notes"),
     ]
 
 

@@ -38,8 +38,8 @@ PAGES_MAX = 20_000  # per namespace
 DEPTH_MAX = 12
 MENTION = re.compile(r"([@#])\[([^\]\n]{1,200})\]\(([a-z]+):(\d{1,18})\)")
 FIELDS = (
-    "record::id(id) AS id, space, title, summary, summary_by, date, place, parent, position, about, author, "
-    "created_by, updated_by, created_at, updated_at"
+    "record::id(id) AS id, space, title, summary, summary_by, date, place, place_by, place_suggestion, parent, position, "
+    "about, author, created_by, updated_by, created_at, updated_at"
 )
 
 
@@ -207,6 +207,8 @@ def create(db, sid, account, title, body="", summary=None, date=None, place=None
         "summary_by": author if summary else None,
         "date": _date(date) or t[:10],
         "place": _place(place),
+        "place_by": author if place else None,
+        "filed": bool(place),
         "parent": parent,
         "position": None if about_thing else _last_position(db, sid, parent),
         "about": about_thing,
@@ -252,8 +254,10 @@ def update(db, pid, account, title=None, body=None, summary=UNSET, date=UNSET, p
         sets.append("date = $date")
         args["date"] = _date(date)
     if place is not UNSET:
-        sets.append("place = $place")
+        # whoever files it decides: the assistant doesn't file it again, and its suggestion is done with
+        sets += ["place = $place", "place_by = $place_by", "place_suggestion = NONE", "filed = true"]
         args["place"] = _place(place)
+        args["place_by"] = author if args["place"] else None
     if title is not None or body is not None:
         sets.append("refine_pending = true")
     if body is not None:
@@ -478,3 +482,59 @@ def refine_due(db, cfg, log=None):
             db.q("UPDATE $r SET refine_pending = false, refine_claim = NONE", r=R("note_page", p["id"]))
         done += 1
     return done
+
+
+# ---------- filing notes in PARA (ai.organise_notes) ----------
+PARA = {
+    "project": "Work toward an outcome with an end: a goal, a deliverable, something with a deadline.",
+    "area": "A responsibility kept up over time with no end date: health, a team, a home, finances.",
+    "resource": "A topic or interest kept for reference: research, how-tos, ideas, people, things to know.",
+    "archive": "Done, cancelled or no longer active: kept only for the record.",
+}
+FILE_BATCH = 10
+
+
+def file_due(db, cfg, log=None):
+    """File free notes nobody has filed yet in PARA, once their summary is written: a routine decision (a decision
+    model when one is set up, else the language model). Sure enough (decisions.act_above), it's filed; otherwise the
+    best guess waits on the page as a suggestion. Off with ai.organise_notes."""
+    from . import decide
+
+    if not cfg["ai"].get("organise_notes", True) or not decide.engine(cfg):
+        return 0
+    rows = db.rows(
+        "SELECT record::id(id) AS id, title, summary, text, updated_at FROM note_page "
+        "WHERE about = NONE AND filed != true AND refine_pending != true LIMIT $n",
+        n=FILE_BATCH,
+    )
+    done = 0
+    for p in rows:
+        state = {"title": p["title"], "summary": p.get("summary"), "text": (p.get("text") or "")[:4000]}
+        try:
+            d = decide.choose(cfg, "Where does this note belong in PARA (projects, areas, resources, archives)?", PARA, state)
+        except decide.Undecided as e:
+            if log:
+                log(f"notes: couldn't file page {p['id']}: {e}")
+            return done
+        now = db.one("SELECT updated_at, filed FROM $r", r=R("note_page", p["id"]))
+        if not now or now.get("filed") or now.get("updated_at") != p.get("updated_at"):
+            continue  # someone filed or changed it meanwhile
+        if decide.sure(cfg, d):
+            db.q(
+                "UPDATE $r SET place = $c, place_by = 'assistant', place_suggestion = NONE, filed = true",
+                r=R("note_page", p["id"]),
+                c=d["choice"],
+            )
+        else:
+            db.q(
+                "UPDATE $r SET place_suggestion = $s, filed = true",
+                r=R("note_page", p["id"]),
+                s={"place": d["choice"], "confidence": round(d["confidence"], 2), "by": d["by"]},
+            )
+        done += 1
+    return done
+
+
+def organise_due(db, cfg, log=None):
+    """The notes pass the scheduler runs: titles and summaries first, then filing."""
+    return refine_due(db, cfg, log) + file_due(db, cfg, log)

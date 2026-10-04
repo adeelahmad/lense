@@ -4,9 +4,9 @@ Every resource, entity and topic in Lens has a page of its own, and next to them
 assistant write. The assistant is the main writer and organiser; people can do everything it can.
 
 Status: **built**: pages (free notes in a tree, a page per recording, entity, collection or speaker), @ and # links
-with backlinks, the tree in the left navigation, the page view with the BlockSuite editor, and the model keeping
-titles and summaries up to date. **Planned**: assistant and MCP tools, a routine that files notes (PARA and the
-ontology), attachments on encrypted object storage, pages in the graph, # links to SKOS topics.
+with backlinks, the tree in the left navigation, the page view with the BlockSuite editor, the model keeping titles
+and summaries up to date, and assistant tools to find, read, write and update notes. **Planned**: MCP tools, page
+history, linking notes to entities and topics and nesting them under their project or area on their own, attachments on encrypted object storage, pages in the graph, # links to SKOS topics.
 
 ## A page
 
@@ -48,6 +48,21 @@ one-line summary to fit the whole note, and the title only when it is empty, "Un
 typed is never sent on each keystroke, empty notes are never sent, and nothing is sent without a model configured. The
 API and `lens worker` processes run this pass with the routines. Model calls are measured by telemetry; their costs go
 to the activity ledger once it exists.
+
+## Filing (PARA)
+
+With **Settings → Assistant → File notes in projects, areas, resources and archives** (`ai.organise_notes`, on by
+default), free notes nobody filed are filed once their summary is written. It's a routine decision, so a decision model
+takes it when one is set up (Settings → Assistant), else the language model. When it's sure (`decisions.act_above`) the
+note is filed (`place_by: assistant`); otherwise its best guess waits on the note as a suggestion to accept with one
+click. What a person files is never refiled.
+
+## The assistant
+
+The chat assistant keeps notes as its notebook: `find_notes`, `read_note`, `write_note` and `update_note` (Settings →
+Assistant lists them). It looks there first, and writes or updates a note when it learns something worth keeping,
+filed in PARA and linked with @ and #. Writing needs editor access to the namespace and takes effect at once, with no
+approval: notes it writes say so. It never deletes a note.
 
 ## Access
 

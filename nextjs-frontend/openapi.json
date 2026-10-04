@@ -33835,6 +33835,33 @@
             "title": "Place",
             "description": "where it's filed (PARA): project, area, resource or archive"
           },
+          "place_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place By",
+            "description": "who filed it"
+          },
+          "place_suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the assistant would file it, when it wasn't sure"
+          },
           "parent": {
             "anyOf": [
               {
@@ -34185,6 +34212,33 @@
             ],
             "title": "Place",
             "description": "where it's filed (PARA): project, area, resource or archive"
+          },
+          "place_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place By",
+            "description": "who filed it"
+          },
+          "place_suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the assistant would file it, when it wasn't sure"
           },
           "parent": {
             "anyOf": [
@@ -36452,6 +36506,37 @@
           "version"
         ],
         "title": "PipelineVersionInfo"
+      },
+      "PlaceSuggestion": {
+        "properties": {
+          "place": {
+            "type": "string",
+            "enum": [
+              "project",
+              "area",
+              "resource",
+              "archive"
+            ],
+            "title": "Place"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "by": {
+            "type": "string",
+            "title": "By",
+            "description": "what decided: jev (a decision model) or llm"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "place",
+          "confidence",
+          "by"
+        ],
+        "title": "PlaceSuggestion"
       },
       "Placed": {
         "properties": {

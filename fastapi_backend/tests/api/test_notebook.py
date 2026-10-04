@@ -203,3 +203,66 @@ def test_refining_titles_and_summaries(client, env, db, cfg, llm):
     _age(db, p["id"])
     notebook.refine_due(db, cfg)
     assert len(llm.seen) == n + 1
+
+
+def test_assistant_keeps_notes(client, env, db, cfg):
+    import json
+
+    from app.domain import ai_tools
+
+    uid = db.one("SELECT record::id(id) AS id FROM account WHERE email = 'ed@x.io'")["id"]
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    box = ai_tools.Toolbox(db, cfg, {"id": uid, "email": "ed@x.io"}, {pods}, {pods}, {}, None)
+    names = [t["function"]["name"] for t in box.specs()]
+    assert {"find_notes", "read_note", "write_note", "update_note"} <= set(names)
+
+    def call(name, **args):
+        out, _ = box.call(name, args)
+        return json.loads(out)
+
+    w = call("write_note", namespace="pods", title="Shipping", body=f"Plan for @[ep1](recording:{env['a']}).", place="project")
+    assert w["note_id"]
+    page = notebook.get(db, w["note_id"])
+    assert (page["author"], page["place"]) == ("assistant", "project")
+    assert call("write_note", namespace="calls", title="x", body="y")["error"]  # not a namespace it can write in
+    call("update_note", note_id=w["note_id"], append="Alice sends them.", summary="When the samples ship")
+    got = call("read_note", note_id=w["note_id"])
+    assert got["body"].endswith("Alice sends them.") and got["summary"] == "When the samples ship"
+    assert got["links"] == [{"sign": "@", "target": f"recording:{env['a']}", "label": "ep1"}]
+    assert call("read_note", about=f"recording:{env['a']}")["note"] is None
+    assert [n["id"] for n in call("find_notes", query="alice")["notes"]] == [w["note_id"]]
+    assert call("find_notes", place="area")["notes"] == []
+    # a viewer's assistant reads but doesn't write
+    view = ai_tools.Toolbox(db, cfg, {"id": uid, "email": "ed@x.io"}, {pods}, set(), {}, None)
+    vnames = [t["function"]["name"] for t in view.specs()]
+    assert "read_note" in vnames and "write_note" not in vnames
+    assert calls not in view.readable
+
+
+def test_filing_in_para(client, env, db, cfg, llm):
+    he = env["he"]
+    a = _new(client, he, title="Ship the samples", body="Ship by Friday.")
+    b = _new(client, he, title="Mine", body="Mine.", place="area")
+    c = _new(client, he, title="Unsure", body="Hmm.")
+    for p in (a, b, c):
+        db.q("UPDATE $r SET refine_pending = false", r=R("note_page", p["id"]))
+    llm.decision = {"choice": "project", "confidence": 0.95}
+    db.q("UPDATE $r SET filed = true", r=R("note_page", c["id"]))  # c waits for the next pass
+    assert notebook.file_due(db, cfg) == 1
+    got = client.get(f"/api/v1/notes/{a['id']}", headers=he).json()
+    assert (got["place"], got["place_by"], got["place_suggestion"]) == ("project", "assistant", None)
+    # what a person filed stays; an unsure answer waits as a suggestion, and filing it takes the suggestion away
+    assert client.get(f"/api/v1/notes/{b['id']}", headers=he).json()["place"] == "area"
+    db.q("UPDATE $r SET filed = false", r=R("note_page", c["id"]))
+    llm.decision = {"choice": "resource", "confidence": 0.4}
+    assert notebook.file_due(db, cfg) == 1
+    got = client.get(f"/api/v1/notes/{c['id']}", headers=he).json()
+    assert got["place"] is None and got["place_suggestion"]["place"] == "resource"
+    got = client.patch(f"/api/v1/notes/{c['id']}", headers=he, json={"place": "resource"}).json()
+    assert (got["place"], got["place_by"], got["place_suggestion"]) == ("resource", "person", None)
+    # switched off, nothing is decided
+    d = _new(client, he, title="Later", body="x")
+    db.q("UPDATE $r SET refine_pending = false", r=R("note_page", d["id"]))
+    cfg["ai"]["organise_notes"] = False
+    assert notebook.file_due(db, cfg) == 0
+    llm.decision = None

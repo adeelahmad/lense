@@ -1661,6 +1661,7 @@ export type {
   PlaceRecordingsErrors,
   PlaceRecordingsResponse,
   PlaceRecordingsResponses,
+  PlaceSuggestion,
   Player,
   PostNamespaceSparqlData,
   PostNamespaceSparqlError,

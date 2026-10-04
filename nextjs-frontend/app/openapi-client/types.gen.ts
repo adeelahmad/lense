@@ -7264,6 +7264,16 @@ export type NotePage = {
    */
   place?: "project" | "area" | "resource" | "archive" | null;
   /**
+   * Place By
+   *
+   * who filed it
+   */
+  place_by?: "person" | "assistant" | null;
+  /**
+   * where the assistant would file it, when it wasn't sure
+   */
+  place_suggestion?: PlaceSuggestion | null;
+  /**
    * Parent
    *
    * the page it's inside, in the tree
@@ -7453,6 +7463,16 @@ export type NotePageItem = {
    * where it's filed (PARA): project, area, resource or archive
    */
   place?: "project" | "area" | "resource" | "archive" | null;
+  /**
+   * Place By
+   *
+   * who filed it
+   */
+  place_by?: "person" | "assistant" | null;
+  /**
+   * where the assistant would file it, when it wasn't sure
+   */
+  place_suggestion?: PlaceSuggestion | null;
   /**
    * Parent
    *
@@ -8735,6 +8755,27 @@ export type PipelineVersionInfo = {
    * Created By
    */
   created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PlaceSuggestion
+ */
+export type PlaceSuggestion = {
+  /**
+   * Place
+   */
+  place: "project" | "area" | "resource" | "archive";
+  /**
+   * Confidence
+   */
+  confidence: number;
+  /**
+   * By
+   *
+   * what decided: jev (a decision model) or llm
+   */
+  by: string;
   [key: string]: unknown;
 };
 

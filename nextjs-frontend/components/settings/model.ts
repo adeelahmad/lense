@@ -349,6 +349,10 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     acts: false,
   },
   { name: "speaker_stats", label: "Speakers’ talk time", acts: false },
+  { name: "find_notes", label: "Find notes", acts: false },
+  { name: "read_note", label: "Read a note", acts: false },
+  { name: "write_note", label: "Write notes", acts: false },
+  { name: "update_note", label: "Change notes", acts: false },
   { name: "run_template", label: "Run a template on recordings", acts: true },
   {
     name: "propose_entity_change",
@@ -659,6 +663,13 @@ export const FIELDS: FieldSpec[] = [
     hint: "Without tools, answers use search results only.",
   },
   { section: "ai", key: "disabled_tools", label: "Tools", kind: "checks" },
+  {
+    section: "ai",
+    key: "organise_notes",
+    label: "File notes in projects, areas, resources and archives",
+    kind: "switch",
+    hint: "Notes nobody filed are filed for you; when the assistant isn't sure, its suggestion waits on the note.",
+  },
   {
     section: "ai",
     key: "refine_notes",

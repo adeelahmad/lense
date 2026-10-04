@@ -12,6 +12,12 @@ Place = Literal["project", "area", "resource", "archive"]
 Sign = Literal["@", "#"]
 
 
+class PlaceSuggestion(ResponseModel):
+    place: Place
+    confidence: float
+    by: str = Field(description="what decided: jev (a decision model) or llm")
+
+
 class NotePageItem(ResponseModel):
     id: int
     title: str
@@ -19,6 +25,8 @@ class NotePageItem(ResponseModel):
     summary_by: Literal["person", "assistant"] | None = Field(None, description="who wrote the summary")
     date: str | None = None
     place: Place | None = Field(None, description="where it's filed (PARA): project, area, resource or archive")
+    place_by: Literal["person", "assistant"] | None = Field(None, description="who filed it")
+    place_suggestion: PlaceSuggestion | None = Field(None, description="where the assistant would file it, when it wasn't sure")
     parent: int | None = Field(None, description="the page it's inside, in the tree")
     position: float | None = Field(None, description="its order among its siblings")
     about: str | None = Field(None, description='what this is the page of, like "recording:12"; null for a free note')
