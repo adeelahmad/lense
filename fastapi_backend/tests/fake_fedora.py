@@ -55,10 +55,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._reply(410)
         if parent != "/rest" and parent not in Handler.store:
             return self._reply(404, b"parent missing")
-        if self.headers.get("Content-Type") == "text/turtle" and 'handling=lenient' not in (self.headers.get("Prefer") or ""):
+        if self.headers.get("Content-Type") == "text/turtle" and "handling=lenient" not in (self.headers.get("Prefer") or ""):
             return self._reply(412)
         new = self.path not in Handler.store
-        Handler.store[self.path] = {"type": self.headers.get("Content-Type"), "body": body, "disposition": self.headers.get("Content-Disposition")}
+        Handler.store[self.path] = {
+            "type": self.headers.get("Content-Type"),
+            "body": body,
+            "disposition": self.headers.get("Content-Disposition"),
+        }
         self._reply(201 if new else 204)
 
     def do_DELETE(self):
