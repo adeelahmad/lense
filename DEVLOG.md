@@ -35,6 +35,57 @@ Todo:
 Refine later: per-minute prices for provider calls in the ledger; AssemblyAI and Deepgram summaries, chapters and
 entities as optional imports next to Lens's own analysis; several endpoints per service; speaker labels kept across
 chunks of long OpenAI-compatible transcriptions.
+## 2026-10-04 · anytopdf as the conversion engine (not started: wait for Adeel's go)
+
+Goal (Adeel): use the sister project [anytopdf-rs](https://github.com/adeelahmad/anytopdf-rs) (README on its sprint2
+branch) to turn any source into one searchable, cited PDF: OCR, captions, transcripts, keyframes and metadata as an
+invisible text layer, with an embedded manifest, chunks, source anchors and provenance. Do not start until Adeel says go.
+
+Why it fits: one static Rust binary (Linux x86_64 and arm64 musl, so a Raspberry Pi) that Lens can download as a
+component, instead of LibreOffice and Chromium in the full image; provenance per fact matches "trusted, cited memory".
+
+Todo (when started):
+
+- [ ] Wait for anytopdf's JSON output (`--json`, schemas, exit codes) and `extract --json` manifest to land
+- [ ] anytopdf as a component Lens installs itself (settings: auto, on, off), with its version recorded
+- [ ] A pipeline / workflow node "Make evidence PDF": inputs a recording or resource, outputs the PDF as a rendition
+      and its manifest chunks and anchors as Lens chunks (citations jump to time span, box or byte range)
+- [ ] Use it where Lens has no converter first (images, captions, mixed folders); keep LibreOffice and Chromium as
+      the default for Office, HTML and email until anytopdf reads them (its roadmap: PDF, HTML, EML, Office)
+- [ ] Reuse Lens's own OCR and transcripts as sidecars rather than running them twice
+- [ ] Run it with no network, size and time caps, plugins off unless an admin allows them (its plugins run with full
+      user rights until its sandbox lands)
+
+Refine later: anytopdf's intake channels (IMAP, webhooks, watched folders) and printing overlap Lens's sources and
+sensors; decide which side owns them. MCP server mode could be an extension.
+## 2026-10-04 · Notes: a page for everything
+
+Goal (Adeel): every resource, entity and topic has its own page (its note), next to free notes written by people or
+the assistant. The assistant is the main writer and organiser; people can do everything it can. Notes link to anything
+with @ (resources, people, entities) and # (topics). Free notes sit in a tree in the left navigation, like Notion;
+pages of resources are opened from those resources. docs/notes.md.
+
+Model: a `page` has a title, a one-line summary (the context the assistant reads; refined by the AI when switched
+on), a date, a place (PARA: project, area, resource, archive), a parent for the tree, the thing it's about (if any), a
+body and who wrote it (a person or the assistant). Links found in the body are kept as edges, with backlinks, and show
+in the graph.
+
+Todo:
+
+- [x] Pages: create, read, change, move in the tree, delete; a page per resource made on first open
+- [x] @ and # mentions: links and backlinks, a search to pick what to link
+- [ ] Web app: tree explorer in the left navigation, page view with title, summary, date, place and backlinks; the
+      page of a recording or entity reached from its detail view
+- [ ] Editor: BlockSuite (AFFiNE's block editor, OctoBase/Yjs documents) behind one component; plain text kept for
+      search and the assistant. Waits on Adeel's link for the exact editor
+- [ ] AI title and summary refinement (notes.refine, on by default, can be switched off); costs to the activity ledger
+- [ ] Assistant and MCP tools: find, read, write, link and file notes; changes by the assistant are undoable
+- [ ] Self-organising: a routine files notes into PARA and links them to entities and topics, proposing what it isn't
+      sure of
+- [ ] # topics move to the SKOS topics once the graph thread splits them from entities
+- [ ] Attachments on a page, encrypted through the keyring
+- [ ] Object storage (S3, or an rclone remote served as S3) in the setup wizard, no local storage; a downloadable
+      256-bit storage key. Design proposal waiting on Adeel (changes existing installs)
 
 ## 2026-10-04 · The graph, end to end
 

@@ -148,6 +148,9 @@ import type {
   CreateNotifyTargetData,
   CreateNotifyTargetErrors,
   CreateNotifyTargetResponses,
+  CreatePageData,
+  CreatePageErrors,
+  CreatePageResponses,
   CreatePipelineData,
   CreatePipelineErrors,
   CreatePipelineResponses,
@@ -259,6 +262,9 @@ import type {
   DeleteNotifyTargetData,
   DeleteNotifyTargetErrors,
   DeleteNotifyTargetResponses,
+  DeletePageData,
+  DeletePageErrors,
+  DeletePageResponses,
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
@@ -420,6 +426,9 @@ import type {
   GetNamespaceWordcloudData,
   GetNamespaceWordcloudErrors,
   GetNamespaceWordcloudResponses,
+  GetPageData,
+  GetPageErrors,
+  GetPageResponses,
   GetPdfData,
   GetPdfErrors,
   GetPdfResponses,
@@ -531,6 +540,9 @@ import type {
   LinkSpeakerData,
   LinkSpeakerErrors,
   LinkSpeakerResponses,
+  LinkTargetsData,
+  LinkTargetsErrors,
+  LinkTargetsResponses,
   ListAccessRequestsData,
   ListAccessRequestsErrors,
   ListAccessRequestsResponses,
@@ -641,6 +653,9 @@ import type {
   ListOutputsData,
   ListOutputsErrors,
   ListOutputsResponses,
+  ListPagesData,
+  ListPagesErrors,
+  ListPagesResponses,
   ListPasskeysData,
   ListPasskeysResponses,
   ListPatternsData,
@@ -742,6 +757,9 @@ import type {
   MoveMentionData,
   MoveMentionErrors,
   MoveMentionResponses,
+  MovePageData,
+  MovePageErrors,
+  MovePageResponses,
   MoveRecordingData,
   MoveRecordingErrors,
   MoveRecordingResponses,
@@ -754,6 +772,9 @@ import type {
   OpenRecordingToIpGroupData,
   OpenRecordingToIpGroupErrors,
   OpenRecordingToIpGroupResponses,
+  PageAboutData,
+  PageAboutErrors,
+  PageAboutResponses,
   PasskeyLoginData,
   PasskeyLoginErrors,
   PasskeyLoginResponses,
@@ -1104,6 +1125,9 @@ import type {
   UpdateNotifyTargetData,
   UpdateNotifyTargetErrors,
   UpdateNotifyTargetResponses,
+  UpdatePageData,
+  UpdatePageErrors,
+  UpdatePageResponses,
   UpdatePatternData,
   UpdatePatternErrors,
   UpdatePatternResponses,
@@ -3414,6 +3438,132 @@ export class Notes {
   ): RequestResult<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateNoteResponses, UpdateNoteErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/notes/{nid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Pages
+   *
+   * The namespace's free notes for the tree (no bodies), in order; `all=true` adds the pages of things.
+   */
+  public static listPages<ThrowOnError extends boolean = false>(
+    options: Options<ListPagesData, ThrowOnError>,
+  ): RequestResult<ListPagesResponses, ListPagesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListPagesResponses, ListPagesErrors, ThrowOnError>({
+      url: "/api/v1/notes",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Page
+   *
+   * Write a free note (optionally inside `parent`), or the page of a thing (`about`, like "recording:12"), which
+   * each thing has one of. Needs editor access to the namespace.
+   */
+  public static createPage<ThrowOnError extends boolean = false>(
+    options: Options<CreatePageData, ThrowOnError>,
+  ): RequestResult<CreatePageResponses, CreatePageErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreatePageResponses, CreatePageErrors, ThrowOnError>({
+      url: "/api/v1/notes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Link Targets
+   *
+   * What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other
+   * entities, collections and speakers.
+   */
+  public static linkTargets<ThrowOnError extends boolean = false>(
+    options: Options<LinkTargetsData, ThrowOnError>,
+  ): RequestResult<LinkTargetsResponses, LinkTargetsErrors, ThrowOnError> {
+    return (options.client ?? client).get<LinkTargetsResponses, LinkTargetsErrors, ThrowOnError>({
+      url: "/api/v1/notes/targets",
+      ...options,
+    });
+  }
+
+  /**
+   * Page About
+   *
+   * The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one.
+   */
+  public static pageAbout<ThrowOnError extends boolean = false>(
+    options: Options<PageAboutData, ThrowOnError>,
+  ): RequestResult<PageAboutResponses, PageAboutErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageAboutResponses, PageAboutErrors, ThrowOnError>({
+      url: "/api/v1/notes/about/{kind}/{key}",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Page
+   *
+   * Delete a page; the pages inside it move up a level. Needs editor access.
+   */
+  public static deletePage<ThrowOnError extends boolean = false>(
+    options: Options<DeletePageData, ThrowOnError>,
+  ): RequestResult<DeletePageResponses, DeletePageErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeletePageResponses, DeletePageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Page
+   *
+   * A page with its body, its links (with their targets' current names) and the pages linking to it.
+   */
+  public static getPage<ThrowOnError extends boolean = false>(
+    options: Options<GetPageData, ThrowOnError>,
+  ): RequestResult<GetPageResponses, GetPageErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetPageResponses, GetPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Page
+   *
+   * Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.
+   */
+  public static updatePage<ThrowOnError extends boolean = false>(
+    options: Options<UpdatePageData, ThrowOnError>,
+  ): RequestResult<UpdatePageResponses, UpdatePageErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdatePageResponses, UpdatePageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Move Page
+   *
+   * Move a free note in the tree: inside `parent` (null: the top), before `before` (null: at the end).
+   */
+  public static movePage<ThrowOnError extends boolean = false>(
+    options: Options<MovePageData, ThrowOnError>,
+  ): RequestResult<MovePageResponses, MovePageErrors, ThrowOnError> {
+    return (options.client ?? client).post<MovePageResponses, MovePageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/move",
       ...options,
       headers: {
         "Content-Type": "application/json",

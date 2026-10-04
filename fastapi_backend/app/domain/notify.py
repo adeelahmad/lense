@@ -305,10 +305,11 @@ def post(cfg, url, body, headers, timeout=TIMEOUT, deadline=DEADLINE):
             except OSError:
                 pass
 
+    # the clock starts before the timer, so a cut by the timer always counts as past the deadline
+    started = time.monotonic()
     timer = threading.Timer(deadline, cut)
     timer.daemon = True
     timer.start()
-    started = time.monotonic()
     try:
         conn.request("POST", path, body=body, headers={"User-Agent": UA, "Content-Type": "application/json", **headers})
         r = conn.getresponse()

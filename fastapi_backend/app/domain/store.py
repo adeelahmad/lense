@@ -921,6 +921,16 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS note SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_rec ON note FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS note_account ON note FIELDS account",
+    # notes as pages: free notes in a tree and a page per resource, entity or topic (app/domain/notebook.py);
+    # about_key is "<space>:<kind>:<id>" for a thing's own page
+    "DEFINE TABLE IF NOT EXISTS note_page SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_page_space ON note_page FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS note_page_parent ON note_page FIELDS parent",
+    "DEFINE INDEX IF NOT EXISTS note_page_about ON note_page FIELDS about_key UNIQUE",
+    # the links in a page's body (@ and # mentions), for backlinks and the graph
+    "DEFINE TABLE IF NOT EXISTS note_link SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_link_page ON note_link FIELDS page",
+    "DEFINE INDEX IF NOT EXISTS note_link_target ON note_link FIELDS target",
     # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",
