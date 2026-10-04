@@ -1,0 +1,62 @@
+name: Synology package
+
+# Publishing a release builds both packages and attaches them to it: through the release event, or, for a release the
+# Release workflow publishes with GITHUB_TOKEN (which fires no release event), through workflow_dispatch with `tag`.
+# Run by hand without a tag, it attaches the .spk files to the run instead.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach the packages to (the Release workflow passes it); blank: build this ref"
+        default: ""
+      target:
+        description: "Backend image: lean, or full (LibreOffice and Chromium; a much bigger package)"
+        default: lean
+        type: choice
+        options: [lean, full]
+      build:
+        description: "Package build number, such as 0002 (blank: the run number, so each build upgrades the last)"
+        default: ""
+
+jobs:
+  spk:
+    name: SPK (${{ matrix.arch }})
+    runs-on: [self-hosted, Linux, X64] # Docker builds: the Linux runner
+    permissions:
+      contents: write # to attach the packages to the release
+    strategy:
+      matrix:
+        arch: [x86_64, armv8]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      # the architecture that isn't the runner's own (armv8 on GitHub's runners, x86_64 on an Apple silicon Mac)
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker
+      - name: Build
+        env:
+          ARCH: ${{ matrix.arch }}
+          LENS_TARGET: ${{ inputs.target || 'lean' }}
+          INPUT_BUILD: ${{ inputs.build }}
+          RUN_NUMBER: ${{ github.run_number }}
+        # a release numbers its packages by run, so each one installs as an upgrade over the last
+        run: BUILD=${INPUT_BUILD:-$(printf '%04d' "$RUN_NUMBER")} packaging/synology/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lens-synology-${{ matrix.arch }}
+          path: dist/synology/*.spk
+          compression-level: 0
+      - name: Attach to the release
+        if: github.event_name == 'release' || inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$TAG" dist/synology/*.spk --clobber --repo "${{ github.repository }}"
+      - name: Remove the images it built
+        if: always()
+        run: docker image prune -af --filter label=net.lens.package=synology >/dev/null

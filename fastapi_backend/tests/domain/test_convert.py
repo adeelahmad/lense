@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import http.client
 import json
+import subprocess
 import sys
 import time
 from email.message import EmailMessage
@@ -175,3 +176,24 @@ def test_chromium_that_never_answers_is_stopped_in_time(tmp_path, monkeypatch):
     with netguard.Guard() as g, pytest.raises(ValueError, match=r"took longer than 2 s .*it last said: .*Waiting\."):
         convert.print_pdf(str(mute), g, netguard.DOCUMENT_URL, tmp_path / "a.pdf", 2)
     assert time.monotonic() - started < 10
+
+
+def _gone(pid):
+    # killed, or a zombie waiting for init to reap it
+    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True).stdout.strip()
+    return state == "" or state.startswith("Z")
+
+
+def test_run_kills_what_the_converter_started(tmp_path):
+    # soffice starts soffice.bin, which holds the pipes: a timeout must not wait on it, and nothing may outlive the run
+    pid_file = tmp_path / "child"
+    started = time.monotonic()
+    with pytest.raises(ValueError, match="longer than 1 s"):
+        convert._run(["sh", "-c", f"sleep 60 & echo $! > {pid_file}; wait"], 1)
+    assert time.monotonic() - started < 10
+    time.sleep(0.2)
+    assert _gone(int(pid_file.read_text()))
+
+    convert._run(["sh", "-c", f"sleep 60 >/dev/null 2>&1 & echo $! > {pid_file}"], 10)
+    time.sleep(0.2)
+    assert _gone(int(pid_file.read_text()))

@@ -12,6 +12,7 @@ import {
   FlaskConical,
   GripVertical,
   ScanFace,
+  ScanSearch,
   ScanText,
   Shapes,
   Sparkles,
@@ -64,10 +65,12 @@ const ICON: Record<string, LucideIcon> = {
   objects: Shapes,
   describe: Eye,
   analyze: TextSearch,
+  embed: ScanSearch,
   summarize: Sparkles,
   llm: Sparkles,
   report: FileText,
   export: FileOutput,
+  workflow: Workflow,
 };
 const LIB_ORDER = [
   "transcribe",
@@ -78,10 +81,12 @@ const LIB_ORDER = [
   "objects",
   "describe",
   "analyze",
+  "embed",
   "summarize",
   "llm",
   "report",
   "export",
+  "workflow",
 ];
 const TONE_BG: Record<string, string> = {
   intent: "bg-blue",
@@ -94,16 +99,22 @@ const TONE_BG: Record<string, string> = {
 type TestRun = { job: number; recording: string };
 
 /** "Run on a recording": a real run of the published version (the backend has no dry run yet). */
-function RunDialog({
+export function RunDialog({
   open,
   onOpenChange,
   onRun,
   pending,
+  title = "Run on a recording",
+  description = "This runs the published version for real: each step’s output is saved on the recording, as a Reprocess would.",
+  action = "Run",
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onRun: (rid: number, title: string) => void;
   pending: boolean;
+  title?: string;
+  description?: string;
+  action?: string;
 }) {
   const client = useApiClient();
   const { can } = useArchive();
@@ -122,8 +133,8 @@ function RunDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Run on a recording"
-      description="This runs the published version for real: each step’s output is saved on the recording, as a Reprocess would. The backend has no dry run yet."
+      title={title}
+      description={description}
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -137,7 +148,7 @@ function RunDialog({
               if (r) onRun(r.id, r.title ?? `Recording ${r.id}`);
             }}
           >
-            {pending ? "Starting…" : "Run"}
+            {pending ? "Starting…" : action}
           </Button>
         </>
       }
@@ -218,7 +229,7 @@ export function PipelineEditor({ id }: { id?: number }) {
   // Load the version being viewed (or the standard steps for a new pipeline).
   useEffect(() => {
     if (creating && catalog.data && !steps.length)
-      setSteps(["transcribe", "diarize", "analyze", "summarize", "report"].map((t) => ({ type: t })));
+      setSteps(["transcribe", "diarize", "analyze", "embed", "summarize", "report"].map((t) => ({ type: t })));
   }, [creating, catalog.data]);
   useEffect(() => {
     if (base) {
@@ -427,6 +438,13 @@ export function PipelineEditor({ id }: { id?: number }) {
           </span>
         )}
         <span className="flex-1" />
+        {!creating && (
+          <Button asChild size="sm" variant="ghost">
+            <Link href={`/pipelines/${id}/canvas`}>
+              <Workflow /> Canvas
+            </Link>
+          </Button>
+        )}
         {!creating && (base?.history?.length ?? 0) > 1 && (
           <Menu>
             <MenuTrigger asChild>

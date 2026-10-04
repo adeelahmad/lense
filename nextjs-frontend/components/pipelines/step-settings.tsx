@@ -1,8 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 
-import { Sources, Templates } from "@/app/openapi-client";
+import { Sources, Templates, Workflows } from "@/app/openapi-client";
 import type { TemplateSummary } from "@/app/openapi-client/types.gen";
 import { stepLabel } from "@/components/activity/job-model";
 import { DESCRIBE, PROVIDES, type StepSpec } from "@/components/pipelines/pipeline-model";
@@ -77,6 +78,12 @@ export function StepSettings({
     enabled: admin && step.type === "export",
     staleTime: 60_000,
   });
+  const workflows = useQuery({
+    queryKey: ["workflows"],
+    queryFn: () => data(Workflows.listWorkflows({ client })),
+    enabled: step.type === "workflow",
+    staleTime: 30_000,
+  });
   const set = (patch: Partial<StepSpec>) => onChange({ ...step, ...patch });
   const setWhen = (patch: Partial<NonNullable<StepSpec["when"]>>) => set({ when: { ...(step.when ?? {}), ...patch } });
   const kind = { llm: "prompt", report: "report", export: "export" }[step.type];
@@ -110,6 +117,38 @@ export function StepSettings({
           )}
         </Field>
 
+        {step.type === "workflow" && (
+          <Field
+            label="Workflow"
+            hint={
+              step.workflow != null ? (
+                <Link href={`/workflows/${step.workflow}`} className="text-fg-accent hover:underline">
+                  Open it on the canvas
+                </Link>
+              ) : (
+                "Runs after the steps before it; new runs use its published version"
+              )
+            }
+          >
+            {({ id, describedBy }) => (
+              <Select
+                id={id}
+                aria-describedby={describedBy}
+                value={step.workflow == null ? "" : String(step.workflow)}
+                onChange={(e) =>
+                  set({ workflow: e.target.value ? Number(e.target.value) : undefined, version: undefined })
+                }
+                options={[
+                  { value: "", label: workflows.isLoading ? "Loading…" : "Choose a workflow…" },
+                  ...(workflows.data?.workflows ?? []).map((w) => ({
+                    value: String(w.id),
+                    label: `${w.name} · v${w.current}`,
+                  })),
+                ]}
+              />
+            )}
+          </Field>
+        )}
         {kind && (
           <>
             <Field

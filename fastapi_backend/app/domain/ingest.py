@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import importlib.util
+import html
 import json
 import pathlib
 import re
@@ -66,15 +68,26 @@ def _probe_wav(path):
         return None, None
 
 
-def fingerprint(path, block=65536):
+def fingerprint(path, block=65536, db=None, cfg=None):
+    """What tells the same file apart from others: its size and its first and last 64 KB. An encrypted file (pass the
+    database and configuration) is fingerprinted by its plain bytes, so it matches the file it was."""
     p = pathlib.Path(path)
-    size = p.stat().st_size
-    h = hashlib.sha1(str(size).encode())
+    if db is not None:
+        from . import keyring
+
+        if keyring.is_encrypted(p):
+            with keyring.Reader(db, cfg, p) as f:
+                return _fingerprint(f, f.size, block)
     with open(p, "rb") as f:
+        return _fingerprint(f, p.stat().st_size, block)
+
+
+def _fingerprint(f, size, block):
+    h = hashlib.sha1(str(size).encode())
+    h.update(f.read(block))
+    if size > 2 * block:
+        f.seek(size - block)
         h.update(f.read(block))
-        if size > 2 * block:
-            f.seek(size - block)
-            h.update(f.read(block))
     return h.hexdigest()[:20]
 
 
@@ -240,7 +253,7 @@ class SenseVoice:
         try:
             from funasr import AutoModel
         except ImportError as e:
-            raise SystemExit("SenseVoice needs FunASR: uv sync --extra sensevoice") from e
+            raise EngineMissing("SenseVoice needs FunASR: uv sync --extra sensevoice, or EXTRAS=sensevoice for the Docker images") from e
         dev = pick_device(t["device"])
         kw = {"disable_update": True, "device": "cpu" if dev == "mps" else dev}
         if c.get("hub") == "hf":
@@ -304,7 +317,8 @@ class Whisper:
                     t["whisper"]["model"], device="cpu" if dev == "mps" else dev, compute_type=t["whisper"]["compute_type"]
                 )
         except ImportError as e:
-            raise SystemExit(f"uv sync --extra {'mlx' if mlx else 'whisper'}") from e
+            name = "mlx-whisper" if mlx else "faster-whisper"
+            raise EngineMissing(f"{name} isn't installed: uv sync --extra {'mlx' if mlx else 'whisper'}") from e
 
     def transcribe(self, audio):
         if self.mlx:
@@ -329,13 +343,49 @@ class Whisper:
         ]
 
 
-def get_engine(cfg):
-    e = cfg["transcribe"]["engine"]
+ENGINE_MODULES = {"sensevoice": "funasr", "mlx-whisper": "mlx_whisper", "whisper": "faster_whisper"}  # the order to fall back in
+
+
+class EngineMissing(ValueError):
+    """A speech-to-text engine's packages aren't installed (or don't import) on this worker."""
+
+
+def installed(engine):
+    return importlib.util.find_spec(ENGINE_MODULES[engine]) is not None
+
+
+def _make_engine(cfg, e):
     if e == "sensevoice":
         return SenseVoice(cfg)
     if e in ("whisper", "mlx-whisper"):
         return Whisper(cfg, mlx=e == "mlx-whisper")
     raise SystemExit(f"unknown transcribe.engine {e!r}")
+
+
+def get_engine(cfg, log=None):
+    """The configured engine; when it isn't installed here (or its packages are there but don't import, e.g. FunASR
+    without PyTorch), the first one that is (the Docker images and packages carry faster-whisper, not SenseVoice, the
+    default), so an import is transcribed rather than failing. With none at all, says how to add one."""
+    e = cfg["transcribe"]["engine"]
+    if e not in ENGINE_MODULES:
+        return _make_engine(cfg, e)
+    why = {}
+    for x in [e] + [x for x in ENGINE_MODULES if x != e]:
+        if x != e and not installed(x):
+            continue
+        try:
+            engine = _make_engine(cfg, x)
+        except EngineMissing as err:
+            why[x] = str(err)
+            continue
+        if x != e and log:
+            log(f"  {e} isn't installed on this worker ({why[e]}); transcribing with {x}")
+        return engine
+    raise EngineMissing(
+        f"no speech-to-text engine is installed on this worker ({why[e]}). In Docker, rebuild the images "
+        "(make dev, or docker compose up --build --renew-anon-volumes): they carry faster-whisper, and "
+        "EXTRAS=sensevoice adds SenseVoice. Elsewhere: uv sync --extra whisper (or --extra sensevoice)"
+    )
 
 
 def segment_rows(rid, nid, segs):
@@ -377,7 +427,7 @@ def write_transcript(db, rid, nid, segs, patch):
     """Replace a recording's transcript and everything derived from it, atomically."""
     rows = segment_rows(rid, nid, segs)  # overwrite segments in place and drop the extra ones (see store.DOWNSTREAM)
     db.run(
-        store.DOWNSTREAM + ["FOR $s IN $segs { UPSERT $s.id CONTENT $s; }", "UPDATE $rec MERGE $patch"],
+        store.DOWNSTREAM + ["FOR $s IN $segs { UPSERT $s.id CONTENT $s; }", "UPDATE $rec MERGE $patch", "UPDATE $rec SET embedded = NONE"],
         rid=rid,
         keep=len(rows),
         segs=rows,
@@ -387,13 +437,17 @@ def write_transcript(db, rid, nid, segs, patch):
     db.q("UPDATE $rec SET error = NONE, diarized_at = NONE, analyzed_at = NONE", rec=store.R("recording", rid))
 
 
-def audio_path(db, cfg, rec):
-    """A local file for a recording's audio: the file itself, or a cached copy of one on a storage source."""
+def audio_path(db, cfg, rec, plain=True):
+    """A local file for a recording's audio: the file itself, or a cached copy of one on a storage source. An
+    encrypted file comes as a plain working copy for the tools to read, unless `plain` is False."""
     if rec.get("remote"):
         from . import sources
 
         return str(sources.cached_copy(db, cfg, rec["remote"]["source"], rec["remote"]["path"]))
-    return store.resolve_path(cfg, rec.get("path"))
+    from . import keyring
+
+    path = store.resolve_path(cfg, rec.get("path"))
+    return keyring.working_copy(db, cfg, path) if plain else path
 
 
 def add_envelope(db, cfg, rid):
@@ -404,7 +458,7 @@ def add_envelope(db, cfg, rid):
 
 def transcribe_one(db, cfg, rid, log=print, engine=None):
     r = db.one("SELECT record::id(id) AS id, space, path, title, remote FROM $r", r=store.R("recording", rid))
-    engine, t = engine or get_engine(cfg), time.time()
+    engine, t = engine or get_engine(cfg, log), time.time()
     audio = decode(audio_path(db, cfg, r))
     segs = engine.transcribe(audio)
     env = envelope(audio)
@@ -432,10 +486,13 @@ def transcribe_pending(db, cfg, ns=None, limit=0, force=False, log=print):
     )[: limit or None]
     if not rows:
         return 0
-    engine, done = get_engine(cfg), 0
+    engine, done = get_engine(cfg, log), 0
+    from . import keyring
+
     for r in rows:
         try:
-            transcribe_one(db, cfg, r["id"], log, engine)
+            with keyring.work(cfg):
+                transcribe_one(db, cfg, r["id"], log, engine)
             done += 1
         except Exception as e:  # noqa: BLE001 - one bad file must not stop the batch
             db.q("UPDATE $r SET status = 'error', error = $e", r=store.R("recording", r["id"]), e=f"{type(e).__name__}: {e}"[:500])
@@ -700,8 +757,12 @@ def read_doc(path):
                 return out.stdout
     office = shutil.which("soffice") or shutil.which("libreoffice")
     if office:
+        from .convert import _run
+
         with tempfile.TemporaryDirectory() as d:
-            subprocess.run([office, "--headless", "--convert-to", "txt:Text", "--outdir", d, str(path)], capture_output=True)
+            # a profile of its own, so it neither waits on nor disturbs a LibreOffice the user has open
+            argv = [office, "--headless", "--norestore", "--nolockcheck", "--nodefault", "--nofirststartwizard"]
+            _run(argv + [f"-env:UserInstallation=file://{d}/profile", "--convert-to", "txt:Text", "--outdir", d, str(path)], 300, cwd=d)
             for f in pathlib.Path(d).glob("*.txt"):
                 return f.read_text(encoding="utf-8", errors="replace")
     raise SystemExit("reading .doc needs antiword, catdoc or LibreOffice installed (or save it as .docx)")
@@ -723,7 +784,36 @@ def read_pdf(path):
     return re.sub(r"(\w)-\n(\w)", r"\1\2", text)
 
 
+def _html_text(markup):
+    t = re.sub(r"(?is)<(script|style|head)\b.*?</\1>", "", markup or "")
+    t = re.sub(r"(?i)<br\s*/?>|</(p|div|li|tr|h[1-6])>", "\n", t)
+    t = re.sub(r"<[^>]+>", "", t)
+    return re.sub(r"\n{3,}", "\n\n", html.unescape(t)).strip()
+
+
+def read_email(path):
+    """An .eml email as Markdown: its subject as the heading, who sent it to whom and when, its attachments by name,
+    then its text (the details are 'Label — value' lines, which the transcript reader doesn't take for speakers)."""
+    from . import convert
+
+    e = convert.read_eml(path)
+    who = [re.sub(r"<([^<>\s]+@[^<>\s]+)>", r"(\1)", e[k] or "") for k in ("from", "to", "cc")]  # Markdown drops <mail>
+    rows = [("From", who[0]), ("To", who[1]), ("Cc", who[2]), ("Date", e["date"])]
+    rows.append(("Attachments", ", ".join(p["name"] for p in e["parts"] if p["attached"])))
+    body = e.get("text") if e.get("text") is not None else _html_text(e.get("html"))
+    head = [f"{k} — {v}" for k, v in rows if v]
+    return "\n".join([f"# {e['subject'] or '(no subject)'}", "", *head, "", (body or "").strip()]) + "\n"
+
+
+def read_calendar(path):
+    """An .ics calendar as Markdown, one section per event (calendars.py)."""
+    from . import calendars
+
+    return calendars.text(pathlib.Path(path).read_text(encoding="utf-8-sig", errors="replace"))
+
+
 DOC_READERS = {".docx": read_docx, ".doc": read_doc, ".pdf": read_pdf}
+MARKDOWN_READERS = {".eml": read_email, ".ics": read_calendar}  # their subject or event title is the title
 FORMATS = ("auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt")
 
 
@@ -808,6 +898,8 @@ def read_transcript(path, fmt="auto"):
     ext = p.suffix.lower()
     if ext in DOC_READERS:
         return read_text_transcript(DOC_READERS[ext](p), "text" if fmt == "auto" else fmt, p.name)
+    if ext in MARKDOWN_READERS:
+        return read_text_transcript(MARKDOWN_READERS[ext](p), "markdown" if fmt == "auto" else fmt, p.name)
     return read_text_transcript(p.read_text(encoding="utf-8-sig", errors="replace"), fmt, p.name)
 
 
@@ -864,7 +956,7 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
 
 
 def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=None, fmt="auto", log=print, collection=None):
-    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt), optionally with its audio, into a
+    """A transcript file (txt, md, mdx, docx, doc, pdf, json, jsonl, srt, vtt, eml, ics), optionally with its audio, into a
     collection of the namespace (default: its default collection)."""
     src = pathlib.Path(audio or tpath)
     t = read_transcript(tpath, fmt)

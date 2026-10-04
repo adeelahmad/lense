@@ -42,6 +42,13 @@ const ENV: Record<string, string> = {
   "llm.model": "LENS_LLM_MODEL",
   "llm.api_key": "LENS_LLM_API_KEY",
   "llm.vision_model": "LENS_LLM_VISION_MODEL",
+  "telemetry.enabled": "LENS_TELEMETRY",
+  "telemetry.endpoint": "LENS_TELEMETRY_ENDPOINT",
+  "telemetry.headers": "LENS_TELEMETRY_HEADERS",
+  "fedora.enabled": "LENS_FEDORA",
+  "fedora.url": "LENS_FEDORA_URL",
+  "fedora.user": "LENS_FEDORA_USER",
+  "fedora.password": "LENS_FEDORA_PASSWORD",
 };
 const CONFIRM_BASE = "CHANGE ALL IDENTIFIERS";
 
@@ -228,6 +235,21 @@ export function SettingsSection({
     : "";
   const manifests = namespaces.reduce((a, n) => a + (n.recordings ?? 0), 0);
 
+  // One click saves; only a new public base URL (every IIIF identifier changes) is reviewed and typed out first.
+  const canSave = dirty && errorCount === 0 && !save.isPending;
+  const commit = () => (baseChange ? setReviewing(true) : save.mutate());
+  const commitRef = useRef(commit);
+  commitRef.current = canSave ? commit : () => undefined;
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        commitRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
     <div className="relative flex min-h-full flex-col">
       <div className="flex max-w-[820px] flex-col gap-[18px] px-4 pb-24 pt-[22px] sm:px-8">
@@ -268,9 +290,9 @@ export function SettingsSection({
             size="sm"
             disabled={!dirty || errorCount > 0 || save.isPending}
             disabledReason={errorCount ? "Fix the fields marked in red first" : undefined}
-            onClick={() => setReviewing(true)}
+            onClick={commit}
           >
-            {save.isPending ? "Saving…" : "Review & save"}
+            {save.isPending ? "Saving…" : baseChange ? "Review & save" : "Save"}
           </Button>
         </div>
       )}

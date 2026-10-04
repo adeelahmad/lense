@@ -2,7 +2,7 @@
 
 The API lives under `/api/v1`. Interactive docs with every request and response schema are at `/docs` (Swagger UI) and `/redoc` on the backend; the schema at `/openapi.json` generates the frontend's typed client (one class per tag, e.g. `Recordings.getRecording`).
 
-Authenticate with `Authorization: Bearer <token>`: an access token from `POST /api/v1/auth/login`, or an API token (`la_…`). See [Authentication](authentication.md). Errors are JSON `{"detail": …}`; validation errors answer 422. Namespaces you can't read answer 404.
+Authenticate with `Authorization: Bearer <token>`: an access token from `POST /api/v1/auth/login`, an API token (`la_…`), or the access token of an app someone gave access to through OAuth (`lo_…`). See [Authentication](authentication.md). Errors are JSON `{"detail": …}`; validation errors answer 422. Namespaces you can't read answer 404.
 
 Outside `/api/v1`: IIIF resources under `/iiif/…` ([IIIF](iiif.md)), the embeddable player at `/embed/<id>` (and at a share link's short address, `/s/<code>`) and stored reports at `/reports/<namespace>/…`.
 
@@ -40,6 +40,46 @@ than `tokens.max_days`, or `0` (never expires) when `tokens.never_expire` is off
 `{default_days, max_days, never_expire}`. `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
 `DELETE /admin/tokens/{token_id}` revokes any of them; revoking is audited as `token.revoke`.
 
+## oauth
+
+```
+GET    /.well-known/oauth-authorization-server
+GET    /.well-known/oauth-protected-resource
+POST   /api/v1/oauth/register
+GET    /api/v1/oauth/authorize
+POST   /api/v1/oauth/authorize
+POST   /api/v1/oauth/token
+POST   /api/v1/oauth/revoke
+GET    /api/v1/oauth/grants
+DELETE /api/v1/oauth/grants/{grant_id}
+```
+
+Lens is an OAuth 2.1 authorization server for API and MCP clients ([Authentication](authentication.md#oauth)). The MCP
+server itself is at `/mcp`, outside `/api/v1` ([MCP server](mcp.md)).
+
+* `POST /oauth/register {redirect_uris, client_name?, client_uri?, token_endpoint_auth_method?}` (RFC 7591, no sign-in,
+  201) registers an app: `client_id` (`lc_…`), and a `client_secret` (`ls_…`, shown once) when it asked for
+  `client_secret_post` or `client_secret_basic` instead of `none`. Redirect addresses are https, `http://localhost`
+  or `127.0.0.1` (any port), or the app's own scheme; other metadata is ignored. Errors are
+  `{error, error_description}`; more than 8 apps from one address in 15 minutes is a 429.
+* `GET /oauth/authorize?client_id=&redirect_uri=&code_challenge=&code_challenge_method=S256&scope=` (signed in, as a
+  person) answers what the consent page shows: `{client: {id, name, uri}, redirect_uri, scope, granted}`, `scope`
+  being `read` or `read write` and `granted` what this app was given before. A request that can't be answered (an
+  unknown app, an address it didn't register, no S256 challenge) is a 400 with the reason.
+* `POST /oauth/authorize {client_id, redirect_uri, code_challenge, code_challenge_method, scope?, state?, resource?,
+  approve, grant?}` answers it: `{redirect_to}`, the app's address with `code` and `state`, or with
+  `error=access_denied`. `grant: "read"` gives less than was asked for.
+* `POST /oauth/token` (form-encoded) with `grant_type=authorization_code`, `code`, `redirect_uri`, `code_verifier` and
+  `client_id` (and `client_secret`, or HTTP Basic, for apps that have one), or with `grant_type=refresh_token` and
+  `refresh_token`: `{access_token, token_type: "Bearer", expires_in, refresh_token, scope}`. Errors are
+  `{error, error_description}` (`invalid_grant`, `invalid_client` with 401, `unsupported_grant_type`).
+* `POST /oauth/revoke` (form-encoded: `token`, `client_id`) ends the access the token belongs to; it answers
+  `{ok: true}` whether or not the token was known.
+* `GET /oauth/grants` lists the apps you gave access to (`id`, `client`, `name`, `uri`, `scope`, `created_at`,
+  `last_used_at`, `expires_at`); `DELETE /oauth/grants/{grant_id}` takes one's access away.
+
+`GET /auth/me` says `via: "oauth"` for an app's token, with `scope` `read` or `write`.
+
 ## users
 
 ```
@@ -56,10 +96,18 @@ PUT    /api/v1/namespaces/{name}/members
 GET    /api/v1/settings
 PUT    /api/v1/settings/{section}
 POST   /api/v1/settings/llm/test
+POST   /api/v1/settings/embeddings/test
 GET    /api/v1/audit
 GET    /api/v1/admin/health
 POST   /api/v1/admin/reindex
+GET    /api/v1/admin/semantic
+POST   /api/v1/admin/semantic/index
 ```
+
+`POST /settings/embeddings/test` embeds one sentence with the configured embedding model (`dimension`, `ms`, or the
+`error`). `GET /admin/semantic` says whether search by meaning is set up, with which model, and how many recordings
+and passages are indexed with it; `POST /admin/semantic/index?limit=500` queues the embed step for recordings not yet
+indexed with it (`remaining` when more are waiting).
 
 ## namespaces
 
@@ -73,6 +121,13 @@ GET    /api/v1/namespaces/{name}/ip-groups
 POST   /api/v1/namespaces/{name}/ip-groups
 PATCH  /api/v1/namespaces/{name}/ip-groups/{gid}
 DELETE /api/v1/namespaces/{name}/ip-groups/{gid}
+GET    /api/v1/namespaces/{name}/notifications
+POST   /api/v1/namespaces/{name}/notifications
+PATCH  /api/v1/namespaces/{name}/notifications/{tid}
+DELETE /api/v1/namespaces/{name}/notifications/{tid}
+POST   /api/v1/namespaces/{name}/notifications/{tid}/test
+POST   /api/v1/namespaces/{name}/notifications/{tid}/secret
+GET    /api/v1/namespaces/{name}/notifications/{tid}/deliveries
 GET    /api/v1/namespaces/{name}/collections
 POST   /api/v1/namespaces/{name}/collections
 GET    /api/v1/namespaces/{name}/collections/{cid}
@@ -101,6 +156,16 @@ your address as the server sees it (`null` when it can't tell; see `server.trust
 `{"name", "ranges", "everything"}` adds one: `ranges` are addresses or CIDR ranges, at most 100, none wider than `/8`
 (IPv4) or `/16` (IPv6); names are unique in the namespace. `PATCH` changes any of them and `DELETE` removes the group.
 All three answer with the list and are audited as `namespace.ip_group.create`, `.update` and `.delete`.
+
+`/namespaces/{name}/notifications` lists a namespace's notification targets ([Notifications](notifications.md),
+owners), the `events` they can get, and whether notifications are `enabled` for the server. `POST` with
+`{"name", "kind", "url", "events"}` adds one: `kind` is `webhook`, `matterbridge`, `slack` or `discord`, and a
+Matterbridge target also takes `gateway` (required), `username` and `token`. A webhook comes back with its signing
+`secret`, this once; `POST …/{tid}/secret` makes a new one. A target's `url` comes back as its scheme and host only.
+`PATCH` changes the name, events, `enabled`, the address (in full) and Matterbridge's gateway, name and token (`""`
+removes it). `POST …/{tid}/test` sends a test message now and answers `{ok, code, error}`; `GET …/{tid}/deliveries`
+lists the latest 50 messages with their `status` (`pending`, `sending`, `sent`, `failed`, `dropped`), `attempts`,
+answer `code` and `error`. Changes are audited as `namespace.notification.create`, `.update`, `.delete` and `.secret`.
 
 ### Collections of a namespace
 
@@ -560,6 +625,12 @@ supplementary file: its `file`, `file_role` and `file_label`, and which `line`).
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
 keeps to what was said.
 
+`mode` says how the words are matched ([search by meaning](processing.md#search-by-meaning)): `keyword` (BM25),
+`semantic` (passages an embedding model finds alike), `hybrid` (both, fused by rank) or `auto` (the default: hybrid
+when search by meaning is set up and the query has no "phrases" or OR, else keyword). The reply's `mode` is how it was
+matched, `semantic` whether search by meaning is set up, and `meaning` why it wasn't used when asked for. Each hit's
+`match` is `words`, `meaning` (with its `similarity`, cosine, and shown at the passage's best line) or `both`.
+
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
 in how many recordings (`limit`, default 8, at most 20); the web app offers them as "Try …".
@@ -849,6 +920,9 @@ question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. t
 a 400. Each answer records the `model` that wrote it. `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
 step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
+`POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and
+everything after it are replaced by this question and its new answer; 404 when `edit` isn't a question in that
+conversation. A conversation titled after the first question is retitled when that question is edited.
 
 A conversation's `scope` narrows what it draws on: `namespaces`, `recordings`, `collections`, `speakers`, `from` and
 `to`; every key narrows it further, and an empty scope is everything you can read. `collections` are ids of

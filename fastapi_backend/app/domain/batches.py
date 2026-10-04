@@ -15,7 +15,7 @@ from . import jobs, llm, pipelines, recsets, store, templates
 R = store.R
 SECONDS = {"transcribe": 0.12, "diarize": 0.05, "shots": 0.03}  # per second of media
 PER_FRAME = {"ocr": 0.4, "faces": 0.2, "objects": 0.2, "describe": 1.0}  # per sampled frame (describe: per shot)
-PER_RECORDING = {"analyze": 1.0, "report": 0.5, "export": 1.0}
+PER_RECORDING = {"analyze": 1.0, "embed": 1.0, "report": 0.5, "export": 1.0}
 
 
 def steps_for(db, run):
@@ -31,7 +31,7 @@ def steps_for(db, run):
         return pipelines.validate_steps(db, [step]), f"{t['name']} ({t['kind']})"
     if run.get("pipeline"):
         p = pipelines.get(db, int(run["pipeline"]))
-        return p["steps"], p["name"]
+        return pipelines.pin(db, p["steps"]), p["name"]
     steps = pipelines.validate_steps(db, run.get("steps"))
     return steps, ", ".join(s["type"] for s in steps)
 

@@ -17,10 +17,12 @@ export const STEP_TONE: Record<string, Tone> = {
   objects: "red",
   describe: "gate",
   analyze: "green",
+  embed: "green",
   summarize: "gate",
   llm: "gate",
   report: "gate",
   export: "gate",
+  workflow: "green",
 };
 
 export const STEP_LABEL: Record<string, string> = {
@@ -32,10 +34,12 @@ export const STEP_LABEL: Record<string, string> = {
   objects: "Objects",
   describe: "Describe",
   analyze: "Analyze",
+  embed: "Index for meaning",
   summarize: "Summarize",
   llm: "LLM",
   report: "Report",
   export: "Export",
+  workflow: "Workflow",
 };
 
 const FILL: Record<Tone, [string, string]> = {

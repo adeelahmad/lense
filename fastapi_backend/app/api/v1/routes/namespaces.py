@@ -73,7 +73,8 @@ def create_namespace(body: NamespaceCreate, user: AdminWriter, db: Db, request: 
 
 @router.patch("/{name}")
 def update_namespace(name: str, body: NamespaceUpdate, acl: Acl, user: Writer, db: Db, request: Request) -> Ok:
-    """Owners: the graph mode (shared or isolated) and the default pipeline (null for the built-in one)."""
+    """Owners: the graph mode (shared or isolated), the default pipeline (null for the built-in one) and a pipeline per
+    content type."""
     sid = acl.namespace(name, "owner")
     sent = body.model_fields_set
     if "graph" in sent:
@@ -87,6 +88,11 @@ def update_namespace(name: str, body: NamespaceUpdate, acl: Acl, user: Writer, d
             except (KeyError, TypeError, ValueError):
                 raise HTTPException(400, "no such pipeline") from None
         db.q("UPDATE $r SET pipeline = $p", r=R("space", sid), p=body.pipeline)
+    if body.pipelines:
+        try:
+            pipelines.set_content_types(db, sid, body.pipelines)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
     request.app.state.graph_cache.clear()
     return Ok()
 

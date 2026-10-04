@@ -63,6 +63,11 @@ graph:
 search:
   stemming: english                 # english | none (run `lens-archive reindex` after changing)
 
+embeddings:                         # search by meaning (also in the app, Settings → Search)
+  enabled: true
+  base_url: null                    # null: the llm server's; e.g. http://localhost:11434/v1 (Ollama)
+  model: nomic-embed-text           # `ollama pull nomic-embed-text`
+
 server:
   host: 127.0.0.1
   port: 8770
@@ -83,11 +88,12 @@ uploads:                            # audio and video uploaded in the web app, i
   expire_hours: 24                  # an unfinished upload is deleted this long after its last piece
 
 workers:                            # background jobs; everything below can also be changed in the app
-  inline: 1                         # workers inside the server (0 when separate `lens-archive worker` processes do the work)
+  inline: 1                         # workers inside the server (0 when separate `lens worker` processes do the work)
   poll_seconds: 2
   stale_minutes: 15                 # a job whose worker goes quiet this long is retried
   max_attempts: 3
-  steps: [transcribe, diarize, analyze, summarize, llm, report, export]
+  # the steps this server's workers run; a separate worker can be limited with `lens worker --steps`
+  steps: [transcribe, diarize, shots, ocr, faces, objects, describe, analyze, embed, summarize, llm, report, export, workflow]
 
 sources:                            # bootstrap-only: the web app can't change these
   rclone: null                      # path to rclone; null: rclone on PATH

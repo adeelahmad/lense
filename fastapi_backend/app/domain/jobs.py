@@ -7,17 +7,18 @@ Workers heartbeat while they run; a job whose worker goes quiet is requeued, up 
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import os
 import socket
 import threading
 import time
 
-from . import analyze, ingest, pipelines, render, speakers as spk, store
+from . import analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "summarize", "report"]
-AFTER_IMPORT = ["analyze", "summarize", "report"]
+PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
+AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running"]
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
@@ -70,6 +71,20 @@ def _analyze(db, cfg, rid, say, spec=None):
     say("analysed")
 
 
+def _embed(db, cfg, rid, say, spec=None):
+    from . import semantic
+
+    if not semantic.configured(cfg):
+        raise Skip("search by meaning is off, or has no embeddings server (Settings → Search)")
+    try:
+        made, kept = semantic.index_recording(db, cfg, rid, say)
+    except semantic.EmbedError as e:  # the server is down or lacks the model: the routine indexes it later
+        raise Skip(f"couldn't index it for search by meaning: {e}") from None
+    if not made and not kept:
+        return say("no text to index for search by meaning")
+    say(f"indexed for search by meaning: {made} passage(s) embedded" + (f", {kept} unchanged" if kept else ""))
+
+
 def _summarize(db, cfg, rid, say, spec=None):
     if not (cfg["llm"].get("base_url") and cfg["llm"].get("model")):
         raise Skip("no LLM is configured")
@@ -96,6 +111,14 @@ def _llm(db, cfg, rid, say, spec=None):
 
 def _export(db, cfg, rid, say, spec=None):
     pipelines.run_export(db, cfg, rid, spec, say)
+
+
+def _workflow(db, cfg, rid, say, spec=None):
+    from . import workflows
+
+    done = workflows.run(db, cfg, rid, int(spec["workflow"]), spec.get("version"), say)
+    ran = sum(1 for v in done.values() if v == "done") - 1  # not counting the input
+    say(f"workflow ran {ran} of {len(done) - 1} nodes")
 
 
 def _shots(db, cfg, rid, say, spec=None):
@@ -128,6 +151,7 @@ def _describe(db, cfg, rid, say, spec=None):
     descriptions.step_describe(db, cfg, rid, say)
 
 
+VIDEO_STEPS = {"shots", "ocr", "faces", "objects", "describe"}  # added after workers.steps lists were first written
 STEPS = {
     "transcribe": _transcribe,
     "diarize": _diarize,
@@ -137,10 +161,12 @@ STEPS = {
     "objects": _objects,
     "describe": _describe,
     "analyze": _analyze,
+    "embed": _embed,
     "summarize": _summarize,
     "report": _report,
     "llm": _llm,
     "export": _export,
+    "workflow": _workflow,
 }
 
 
@@ -151,7 +177,9 @@ def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None)
         raise KeyError(rid)
     ref = None
     if steps is None:
-        steps, ref = pipelines.resolve(db, rec["space"], pipeline)
+        from . import content_types
+
+        steps, ref = pipelines.resolve(db, rec["space"], pipeline, None if pipeline else content_types.of_recording(db, rid)[0])
     steps = [_spec(s) for s in steps]
     if not steps or any(s.get("type") not in STEPS for s in steps):
         raise ValueError(f"steps are {', '.join(STEPS)}")
@@ -213,15 +241,24 @@ def steps_for(rec):
 
 
 def enqueue_pending(db, space=None, by=None):
+    """Queue what scans and imports left waiting. A new file runs the pipeline its content type and namespace resolve
+    to, as an upload does; a transcript imported part-way runs what's left after import."""
     q = "SELECT record::id(id) AS id, status, source FROM recording WHERE status IN ['new', 'error', 'transcribed', 'diarized']"
-    return [enqueue(db, r["id"], steps_for(r), by) for r in db.rows(q + (" AND space = $s" if space else ""), s=space) if steps_for(r)]
+    out = []
+    for r in db.rows(q + (" AND space = $s" if space else ""), s=space):
+        steps = steps_for(r)
+        if steps:
+            out.append(enqueue(db, r["id"], None if steps is PIPELINE else steps, by))
+    return out
 
 
 def claim(db, worker, can):
+    locked = keyring.locked_vaults(db)  # a vault's work waits until someone unlocks it here
     for r in db.rows(
-        "SELECT record::id(id) AS id, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
-        "ORDER BY priority DESC, created_at ASC LIMIT 10",
+        "SELECT record::id(id) AS id, space, priority, created_at, started_at FROM job WHERE status = 'queued' AND next_step IN $can "
+        "AND space NOTINSIDE $locked ORDER BY priority DESC, created_at ASC LIMIT 10",
         can=sorted(can),
+        locked=sorted(locked),
     ):
         t = store.now()
         try:
@@ -417,6 +454,7 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
         return time.time()
 
     def finished(k, outcome, note, t0, outputs=None):
+        telemetry.record("lens.job.step.duration", time.time() - t0, {"lens.step": _spec(steps[k])["type"], "lens.step.outcome": outcome})
         runs[k] = store.clean(
             {
                 **runs[k],
@@ -494,15 +532,17 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
                 i, t0 = i + 1, None
                 continue
             before = _saved(db, rid)
-            try:
-                STEPS[step](db, cfg_fn(), rid, say, spec)
-            except Skip as e:
-                say(f"{step} skipped: {e}")
-                finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
-            else:
-                note = said[0]
-                say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
-                finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+            with telemetry.span(f"step {step}", {"lens.step": step, "lens.step.index": i, "lens.job.id": str(jid)}) as sp:
+                try:
+                    STEPS[step](db, cfg_fn(), rid, say, spec)
+                except Skip as e:
+                    say(f"{step} skipped: {e}")
+                    finished(i, "skipped", str(e), t0, _outputs(before, _saved(db, rid)))
+                else:
+                    note = said[0]
+                    say(f"{spec.get('name') or step} done in {time.time() - t0:.1f}s")
+                    finished(i, "done", note, t0, _outputs(before, _saved(db, rid)))
+                sp.set_attribute("lens.step.outcome", runs[i]["outcome"])
             _timed(db, rid, spec, runs[i]["seconds"], runs[i]["outcome"] == "skipped")
             i, t0 = i + 1, None
     except (Exception, SystemExit) as e:  # noqa: BLE001 - recorded on the job; SystemExit too (a missing engine says so)
@@ -517,6 +557,9 @@ def run_job(db, cfg_fn, job, worker, can, log=None):
         return "failed"
     finally:
         stop.set()
+        keyring.release()  # the plain working copies this job read may go once unused
+        with contextlib.suppress(Exception):
+            keyring.sweep(cfg_fn())
 
 
 def get(db, jid):
@@ -649,7 +692,9 @@ def machine_load():
 
 
 WORKER_BEAT = 15  # seconds between a busy worker's heartbeats
-WORKER_FIELDS = "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus"
+WORKER_FIELDS = (
+    "record::id(id) AS name, steps, host, heartbeat_at, current, paused, drain, paused_by, paused_at, load, cpus, components, machine"
+)
 
 
 def workers(db, now=None):
@@ -684,9 +729,21 @@ def control(db, name, action, by=None):
 class Worker:
     def __init__(self, db, cfg_fn, name=None, steps=None, log=None):
         self.db, self.cfg_fn, self.log = db, cfg_fn, log
+        cfg_fn()  # reads the saved settings now, so telemetry (if on) is set up before the first job's span
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
+        if "llm" in self.can:  # a workflow needs what an llm step needs; lists written before workflows existed run them too
+            self.can.add("workflow")
+        if not steps and "transcribe" in self.can and not self.can & VIDEO_STEPS:
+            # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
+            # without them every import would wait for a worker that can run shots
+            self.can |= VIDEO_STEPS
+        if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
+            self.can.add("embed")
+        if not steps and log and (missing := sorted(set(STEPS) - self.can)):
+            log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False
+        self.keeper = None  # fetches what this machine needs (components.py), once the loop starts
 
     def register(self, current=None):
         # SET, not CONTENT: being paused (from the app) outlasts restarts
@@ -714,11 +771,23 @@ class Worker:
     def run_once(self):
         if self.paused():
             return False
-        job = claim(self.db, self.name, self.can)
+        # steps whose engine or model is still being fetched wait for it
+        can = self.can - self.keeper.blocked() if self.keeper else self.can
+        job = claim(self.db, self.name, can) if can else None
         if not job:
             return False
         self.register(job["id"])
-        run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+        pipe = job.get("pipeline") if isinstance(job.get("pipeline"), dict) else {}
+        attrs = {
+            "lens.job.id": str(job["id"]),
+            "lens.recording.id": str(job["recording"]),
+            "lens.pipeline.id": str(pipe["id"]) if pipe.get("id") is not None else ("standard" if pipe else None),
+            "lens.pipeline.version": pipe.get("version"),
+        }
+        with telemetry.span("job", attrs) as sp:
+            outcome = run_job(self.db, self.cfg_fn, job, self.name, self.can, self.log)
+            sp.set_attribute("lens.job.outcome", outcome)
+        telemetry.record("lens.jobs", 1, {"lens.job.outcome": outcome})
         self.register()
         return True
 
@@ -730,6 +799,11 @@ class Worker:
         return n
 
     def loop(self, stop):
+        from . import components
+
+        self.keeper = components.Keeper(self.db, self.cfg_fn, self.name, self.can, self.log)
+        self.register()
+        self.keeper.start(stop)
         last = 0.0
         while not stop.is_set():
             try:

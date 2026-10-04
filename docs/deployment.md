@@ -13,7 +13,8 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 
 ## Checklist
 
-* **HTTPS in front of the web app** (Caddy, nginx, a cloud load balancer). The web app proxies `/api/v1`, `/iiif`,
+* **HTTPS in front of the web app**: [Remote access](remote-access.md) (a Cloudflare Tunnel Lens runs itself, set up in
+  the app), or your own reverse proxy (Caddy, nginx, a cloud load balancer). The web app proxies `/api/v1`, `/iiif`,
   `/embed`, `/s`, `/reports` and `/static` to the API, so only the frontend needs to be public. IIIF authorization
   requires HTTPS.
 * **Allowed hosts.** Add your public host name to `server.allowed_hosts` (in the app) or `ARCHIVE_ALLOWED_HOSTS`, next
@@ -21,20 +22,28 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 * **Uploads through the reverse proxy.** Audio and video go up in pieces of `uploads.chunk_mb` (8 MB); let the reverse
   proxy pass request bodies at least that big (nginx: `client_max_body_size 16m;`). Finished uploads are kept in
   `data_dir/uploads`, so size the `archive-data` volume for them. See [Uploads](configuration.md#uploads).
-* **Visitors' addresses, for IP groups.** Have the reverse proxy set `X-Forwarded-For`, and list the web app's address
-  (in Docker, the compose network) in `server.trusted_proxies`. See [Trusted proxies](configuration.md#trusted-proxies).
+* **Visitors' addresses, for IP groups and throttles.** The Docker Compose files trust the web app's container by name
+  (`LENS_TRUSTED_PROXY_HOSTS=frontend,backend,worker`, looked up every 30 seconds), so each visitor gets their own
+  sign-in throttle and IP groups see real addresses. A reverse proxy in front: have it set `X-Forwarded-For`, and list
+  its address in `server.trusted_proxies`. See [Trusted proxies](configuration.md#trusted-proxies).
+* **What's hardened already.** In the compose files: the database's password is random (the installer makes one), the
+  web app listens on this machine only unless `LENS_BIND=0.0.0.0`, the database, API and Fedora ports are bound to
+  127.0.0.1, the containers run as non-root users with `no-new-privileges`, and the web app sends `nosniff`, a
+  referrer policy, a permissions policy and a frame policy (plus HSTS when reached through Cloudflare).
 * **Stable secrets.** `ACCESS_SECRET_KEY` (changing it signs everyone out), `ARCHIVE_SECRET_KEY` (changing it makes
-  stored source credentials and LLM keys unreadable), `AUTH_SECRET`.
+  stored source credentials, LLM keys and everything [encrypted at rest](encryption.md) unreadable), `AUTH_SECRET`.
 * **SurrealDB storage engine**: `surrealkv` (as in the compose file), RocksDB or TiKV. Not `memory`; see
   [Database](database.md).
 * **Backups** of SurrealDB (`surreal export`) and of the `archive-data` volume.
-* **Mail** (`MAIL_*`) for password resets.
-* **Workers.** Scale with `docker compose up -d --scale worker=3`. For GPU transcription, build with
+* **Mail** for password resets and access requests: **Settings → Email** in the app (or `MAIL_*` in `.env`).
+* **Workers.** Scale with `docker compose up -d --scale worker=3`. The images transcribe with faster-whisper on the
+  CPU (SenseVoice, the default engine, is used where it is installed; elsewhere the job log notes the fallback). To
+  use SenseVoice in Docker, set `EXTRAS=sensevoice` in `.env` and rebuild (`make dev`); it adds PyTorch. For GPU transcription, build with
   `EXTRAS="sensevoice voices"` and give the worker the GPU; or run workers on other machines with `SURREAL_URL`
   pointing at the database and `--steps` limited to what they can do.
-* **Documents.** The default image reads PDFs and images. To read Word, PowerPoint and spreadsheet files, text,
-  Markdown, saved web pages and emails too, build the full image: `LENS_TARGET=full docker compose up` (or
-  `docker build --target full -t lens:full fastapi_backend`), which adds LibreOffice, Chromium and fonts for most
+* **Documents.** Docker Compose builds the full image, which reads Word, PowerPoint and spreadsheet files, text,
+  Markdown, saved web pages and emails as well as PDFs and images (`LENS_TARGET=lean` builds the smaller one that
+  reads only PDFs and images; a bare `docker build` makes the lean one unless given `--target full -t lens:full`): it adds LibreOffice, Chromium and fonts for most
   scripts, and ONNX Runtime with the YOLOX-s model for the objects step ([Configuration](configuration.md#objects));
   add `EXTRAS="msg"` for Outlook `.msg` emails ([Configuration](configuration.md#documents-and-images)), and
   `EXTRAS="doctr"` for docTR as the OCR engine (PyTorch: several GB;
@@ -45,6 +54,13 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
   addresses only. To keep Chromium's own sandbox as well, run the container with a seccomp profile that allows it
   (such as Chrome's).
 * **IIIF.** Set `iiif.base_url` to the stable public address before publishing anything; identifiers are built from it.
+
+## Cloudron
+
+The repository is also a Cloudron package: SurrealDB, the API, a worker and the web app in one app, installed from a
+checkout with `cloudron install --location lens -f Dockerfile.cloudron`. See
+[cloudron/README.md](https://github.com/adeelahmad/lense/blob/main/cloudron/README.md) for data locations, updates
+and publishing it as a community app.
 
 ## Frontend on Vercel
 

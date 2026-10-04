@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 
-import { Pipelines, Templates } from "@/app/openapi-client";
+import { ContentTypes, Pipelines, Templates, Workflows } from "@/app/openapi-client";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -28,13 +28,42 @@ export function useTemplateList() {
   });
 }
 
-/** PL1 header: "Pipelines" with the Pipelines / Templates tabs and the one "New" action. */
-export function CatalogHeader({ tab }: { tab: "pipelines" | "templates" }) {
-  const { admin } = useArchive();
+export function useWorkflowCatalog() {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["workflows"],
+    queryFn: () => data(Workflows.listWorkflows({ client })),
+    staleTime: 30_000,
+  });
+}
+
+export function useContentTypes() {
+  const client = useApiClient();
+  return useQuery({
+    queryKey: ["content-types"],
+    queryFn: () => data(ContentTypes.listContentTypes({ client })),
+    staleTime: 30_000,
+  });
+}
+
+const NEW = {
+  pipelines: ["/pipelines/new", "New pipeline"],
+  workflows: ["/workflows/new", "New workflow"],
+  nodes: ["/workflows/nodes/new", "New custom node"],
+  "content-types": ["/content-types#new", "New content type"],
+  templates: ["/templates/new", "New template"],
+} as const;
+
+/** PL1 header: "Pipelines" with the Pipelines / Workflows / Templates tabs and the one "New" action. */
+export function CatalogHeader({ tab }: { tab: "pipelines" | "workflows" | "nodes" | "content-types" | "templates" }) {
+  const { admin: isAdmin, can } = useArchive();
+  // Anyone who can edit somewhere can make custom nodes (their own, to share or not); the rest is for admins.
+  const admin = tab === "nodes" ? can("editor") : isAdmin;
   const pipelines = usePipelineCatalog();
+  const workflows = useWorkflowCatalog();
   const templates = useTemplateList();
-  const newHref = tab === "pipelines" ? "/pipelines/new" : "/templates/new";
-  const newLabel = tab === "pipelines" ? "New pipeline" : "New template";
+  const types = useContentTypes();
+  const [newHref, newLabel] = NEW[tab];
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -46,13 +75,19 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "templates" }) {
             </Link>
           </Button>
         ) : (
-          <Button size="sm" variant="primary" icon={<Plus />} disabled disabledReason={`Only admins can create ${tab}`}>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Plus />}
+            disabled
+            disabledReason={tab === "nodes" ? "Needs editor access to a namespace" : `Only admins can create ${tab}`}
+          >
             {newLabel}
           </Button>
         )}
       </div>
       <Tabs
-        aria-label="Pipelines and templates"
+        aria-label="Pipelines, workflows, content types and templates"
         value={tab}
         items={[
           {
@@ -60,6 +95,24 @@ export function CatalogHeader({ tab }: { tab: "pipelines" | "templates" }) {
             label: "Pipelines",
             count: pipelines.data ? pipelines.data.pipelines.length + 1 : undefined,
             href: "/pipelines",
+          },
+          {
+            value: "workflows",
+            label: "Workflows",
+            count: workflows.data?.workflows.length,
+            href: "/workflows",
+          },
+          {
+            value: "nodes",
+            label: "Custom nodes",
+            count: workflows.data?.custom_nodes?.length,
+            href: "/workflows/nodes",
+          },
+          {
+            value: "content-types",
+            label: "Content types",
+            count: types.data?.types.length,
+            href: "/content-types",
           },
           {
             value: "templates",

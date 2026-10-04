@@ -1,8 +1,9 @@
 """Request dependencies: the database, the effective configuration, who is calling and what they may touch.
 
 Who is calling comes from the ``Authorization: Bearer`` header, which carries either an access token issued at sign-in
-(the web app, through NextAuth) or an API token (``la_...``). Access tokens can write; API tokens are read-only unless
-created with the write scope. No cookies are involved, so there is nothing for CSRF to ride on.
+(the web app, through NextAuth), an API token (``la_...``) or the access token of an app the person gave access to
+through OAuth (``lo_...``, app/domain/oauth.py). Access tokens can write; API tokens and apps are read-only unless
+they have the write scope. No cookies are involved, so there is nothing for CSRF to ride on.
 
 Access is per namespace. A namespace you have no role in behaves as if it didn't exist (404); one you can read but not
 change says so (403). Admins own every namespace. A role on a collection adds to that for the recordings in it (and in
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import contextlib
 import ipaddress
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal
@@ -22,7 +24,7 @@ from fastapi import Depends, HTTPException, Request
 
 from app.core import security
 from app.domain import access as acc
-from app.domain import auth, hierarchy, ipgroups, store
+from app.domain import auth, hierarchy, ipgroups, oauth, store
 from app.domain.store import DB
 
 Config = dict[str, Any]
@@ -46,11 +48,12 @@ class Principal:
     email: str
     name: str | None
     admin: bool
-    via: Literal["access", "token"]  # a signed-in session, or an API token
+    via: Literal["access", "token", "oauth"]  # a signed-in session, an API token, or an app given access (OAuth)
     scope: Literal["read", "write"] = "write"
     sid: str | None = None
     roles: dict[int, str] = field(default_factory=dict)
     collections: dict[int, dict[int, str]] = field(default_factory=dict)  # roles on collections: {space: {collection: role}}
+    resource: str | None = None  # an app's token: the server it was given for (RFC 8707), when the app named one
 
     @property
     def can_write(self) -> bool:
@@ -72,6 +75,10 @@ def _principal(request: Request, db: DB) -> Principal | None:
             p = Principal(
                 u["id"], u["email"], u.get("name"), bool(u.get("admin")), "token", "write" if u.get("scope") == "write" else "read"
             )
+    elif raw.startswith("lo_"):
+        u = oauth.token_account(db, raw)
+        if u:
+            p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "oauth", u["scope"], resource=u.get("resource"))
     elif raw:
         claims = security.decode_access_token(raw)
         u = auth.active_account(db, claims.account) if claims and auth.session_active(db, claims.sid) else None
@@ -101,16 +108,22 @@ def writer(user: Annotated[Principal, Depends(current_user)]) -> Principal:
     return user
 
 
-def admin_reader(user: Annotated[Principal, Depends(current_user)]) -> Principal:
+def _admin(user: Principal) -> Principal:
+    """Administration (people, settings, the audit log) is for admins themselves, signed in or with their API key. An
+    app an admin gave access to has the admin's roles in every namespace, not the administration."""
     if not user.admin:
         raise HTTPException(403, "admins only")
+    if user.via == "oauth":
+        raise HTTPException(403, "admins only: apps given access can't administer the archive")
     return user
+
+
+def admin_reader(user: Annotated[Principal, Depends(current_user)]) -> Principal:
+    return _admin(user)
 
 
 def admin_writer(user: Annotated[Principal, Depends(writer)]) -> Principal:
-    if not user.admin:
-        raise HTTPException(403, "admins only")
-    return user
+    return _admin(user)
 
 
 OptionalUser = Annotated[Principal | None, Depends(optional_user)]
@@ -281,14 +294,46 @@ def domain_errors() -> Iterator[None]:
 
 
 def client_ip(request: Request) -> str:
-    return request.client.host if request.client else ""
+    """The visitor's address for throttles and the session's record: through the trusted proxies, else the peer's."""
+    addr = visitor_address(request)
+    return str(addr) if addr else (request.client.host if request.client else "")
+
+
+_PROXY_HOSTS: dict[str, tuple[float, tuple[str, ...]]] = {}
+
+
+def _proxy_hosts() -> tuple[str, ...]:
+    """The addresses of the hosts named in LENS_TRUSTED_PROXY_HOSTS (the web app's container, `frontend` in the
+    Docker Compose files, whose address changes when it's recreated), looked up at most every 30 seconds."""
+    import os
+    import socket
+    import time
+
+    names = [n.strip() for n in os.environ.get("LENS_TRUSTED_PROXY_HOSTS", "").split(",") if n.strip()]
+    out: list[str] = []
+    for name in names:
+        hit = _PROXY_HOSTS.get(name)
+        if not hit or time.monotonic() - hit[0] > 30:
+            try:
+                found = tuple(sorted({str(i[4][0]) for i in socket.getaddrinfo(name, None)}))
+            except OSError:
+                found = ()
+            hit = _PROXY_HOSTS[name] = (time.monotonic(), found)
+        out += hit[1]
+    return tuple(out)
+
+
+def trusted_proxies(request: Request) -> tuple[str, ...]:
+    """server.trusted_proxies, and the web app's own container (LENS_TRUSTED_PROXY_HOSTS)."""
+    return tuple(request.app.state.settings.current()["server"].get("trusted_proxies") or ()) + _proxy_hosts()
 
 
 def visitor_address(request: Request) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
-    """The address a visitor comes from, for IP groups: the peer, or what the trusted proxies (server.trusted_proxies)
-    report in X-Forwarded-For. None when the server can't vouch for one (ipgroups.client_address())."""
+    """The address a visitor comes from, for IP groups and throttles: the peer, or what the trusted proxies
+    (server.trusted_proxies, LENS_TRUSTED_PROXY_HOSTS) report in X-Forwarded-For. None when the server can't vouch
+    for one (ipgroups.client_address())."""
     c = request.client
-    trusted = tuple(request.app.state.settings.current()["server"].get("trusted_proxies") or ())
+    trusted = trusted_proxies(request)
     forwarded = ", ".join(request.headers.getlist("x-forwarded-for"))
     return ipgroups.client_address(c.host if c else None, c.port if c else None, forwarded, trusted)
 
@@ -298,3 +343,55 @@ def network(request: Request, db: DB) -> ipgroups.Network:
     if not hasattr(request.state, "network"):
         request.state.network = ipgroups.of(db, visitor_address(request))
     return request.state.network
+
+
+def _web_hosts(cfg: Config) -> set[str]:
+    """Host names the web app is known to be served at: FRONTEND_URL's, localhost and server.allowed_hosts."""
+    from urllib.parse import urlsplit
+
+    from app.config import settings as env
+
+    hosts = {h.lower() for h in cfg["server"].get("allowed_hosts") or () if h != "*"}
+    hosts |= {(urlsplit(env.FRONTEND_URL).hostname or "").lower(), "localhost", "127.0.0.1"}
+    return hosts - {""}
+
+
+def _tunnel_hosts(request: Request, cfg: Config) -> set[str]:
+    """The Cloudflare tunnel's public host names (Settings › Remote access): the fixed one, and the one it serves now."""
+    from app.domain import tunnel
+
+    hosts = {tunnel.hostname(cfg)}
+    if (cfg.get("tunnel") or {}).get("mode", "off") != "off":
+        try:
+            hosts.add(tunnel.public_host(request.app.state.db))
+        except Exception:  # noqa: BLE001 - the database is unreachable; the fixed name still counts
+            pass
+    return hosts - {""}
+
+
+def web_origin(request: Request) -> str:
+    """The web app's address the browser is on (for passkeys and sign-in redirects). Through the web app that's what
+    it says in X-Forwarded-Host, when the host is one Lens is served at (or the web app is a trusted proxy); otherwise
+    FRONTEND_URL. Called directly, the API's own address."""
+    from app.config import settings as env
+    from app.core.middleware import host_name
+
+    h = request.headers
+    host = (h.get("x-forwarded-host") or "").split(",")[0].strip()
+    if not host:
+        return str(request.base_url).rstrip("/")
+    proto = (h.get("x-forwarded-proto") or "").split(",")[0].strip() or request.url.scheme
+    cfg = request.app.state.settings.current()
+    peer = request.client.host if request.client else ""
+    try:
+        trusted = any(
+            ipaddress.ip_address(peer) in ipaddress.ip_network(t, strict=False) for t in cfg["server"].get("trusted_proxies") or ()
+        )
+    except ValueError:
+        trusted = False
+    shaped = re.fullmatch(r"[A-Za-z0-9.\-]+(:\d+)?|\[[0-9A-Fa-f:.]+\](:\d+)?", host)
+    if shaped and host.lower() in _tunnel_hosts(request, cfg):
+        return f"https://{host.lower()}"  # Cloudflare serves it over https; cloudflared reaches the web app over http
+    if shaped and proto in ("http", "https") and (trusted or host_name(host) in _web_hosts(cfg)):
+        return f"{proto}://{host}"
+    return env.FRONTEND_URL.rstrip("/")

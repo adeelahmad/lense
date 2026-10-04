@@ -57,6 +57,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       )}
       disabled={disabled && !explained ? true : undefined}
       aria-disabled={disabled || undefined}
+      data-variant={variant ?? "secondary"}
       onClick={disabled ? (e: React.MouseEvent<HTMLButtonElement>) => e.preventDefault() : onClick}
       {...props}
     >

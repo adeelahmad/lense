@@ -51,14 +51,14 @@ repos:
         language: system
         types: [ file ]
         files: ^nextjs-frontend/.*\.(js|jsx|ts|tsx)$
-        pass_filenames: true
+        pass_filenames: false # the command checks the whole app; with file names, pre-commit runs it once per batch of files, in parallel
       - id: frontend-prettier
         name: Run Prettier on frontend files
         entry: sh -c 'cd nextjs-frontend && pnpm run prettier'
         language: system
         types: [ file ]
         files: ^nextjs-frontend/.*\.(js|jsx|ts|tsx)$
-        pass_filenames: true
+        pass_filenames: false # the command checks the whole app; with file names, pre-commit runs it once per batch of files, in parallel
       - id: frontend-tsc
         name: run frontend tsc
         entry: sh -c 'cd nextjs-frontend && pnpm run tsc'

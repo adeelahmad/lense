@@ -5,11 +5,13 @@ import { useState } from "react";
 import {
   DRIVE_SCOPES,
   FIELD_LABEL,
+  IMAP_SECURITY,
   S3_PROVIDERS,
   WEBDAV_VENDORS,
   type BackendSpec,
   type ConnForm,
   type SourceType,
+  imapHost,
 } from "@/components/sources/source-model";
 import { TokenPaste } from "@/components/sources/token-paste";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,7 @@ export function ConnectionFields({
       hint?: string;
       label?: string;
       optional?: boolean;
+      onValue?: (v: string) => void;
     } = {},
   ) => (
     <Field
@@ -74,7 +77,7 @@ export function ConnectionFields({
           mono={opts.mono}
           value={p[k] ?? ""}
           placeholder={opts.placeholder}
-          onChange={(e) => set(k, e.target.value)}
+          onChange={(e) => (opts.onValue ?? ((v: string) => set(k, v)))(e.target.value)}
           autoComplete="off"
           spellCheck={false}
         />
@@ -255,6 +258,54 @@ export function ConnectionFields({
             {text("user")}
             {secret("pass")}
           </div>
+        </div>
+      );
+    case "imap":
+      return (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
+            {text("user", {
+              mono: true,
+              placeholder: "you@example.com",
+              // the server follows from the address until it's changed by hand
+              onValue: (v) =>
+                onChange({
+                  ...form,
+                  params: {
+                    ...p,
+                    user: v,
+                    ...(!p.host || p.host === imapHost(p.user ?? "") ? { host: imapHost(v) } : {}),
+                  },
+                }),
+            })}
+            {secret("pass", { hint: "An app password where the provider has them; never shown again after saving" })}
+          </div>
+          <div className="grid grid-cols-[1fr_90px] gap-2.5">
+            {text("host", { mono: true, placeholder: "imap.example.com" })}
+            {text("port", { placeholder: "993" })}
+          </div>
+          {select("security", IMAP_SECURITY)}
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            Mailboxes are folders and each message is an email. Lens only reads: messages stay unread and nothing is
+            moved or deleted.
+          </p>
+        </div>
+      );
+    case "ical":
+      return (
+        <div className="flex flex-col gap-3">
+          {secret("url", {
+            label: "Calendar address",
+            hint: "The iCal (.ics) link the calendar shares, https:// or webcal://. Kept like a password: never shown again",
+          })}
+          <div className="grid grid-cols-2 gap-2.5">
+            {text("user", { optional: true })}
+            {secret("pass", { label: "Password", hint: "Only if the address asks for one" })}
+          </div>
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            Each event becomes text: its title, when and where, who, and its description. An event that changes is read
+            again.
+          </p>
         </div>
       );
     default:

@@ -163,6 +163,21 @@ DEFAULTS = {
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
     "search": {"stemming": "english"},
+    # search by meaning (app/domain/semantic.py): an OpenAI-compatible embeddings server (null: the LLM provider's),
+    # the model, how long passages are, and how alike a passage must be to a query (null: what suits the model)
+    "embeddings": {
+        "enabled": True,
+        "base_url": None,
+        "model": "nomic-embed-text",
+        "api_key_env": None,
+        "query_prefix": None,
+        "document_prefix": None,
+        "passage_chars": 800,
+        "batch_size": 32,
+        "neighbours": 40,
+        "min_similarity": None,
+        "timeout": 60,
+    },
     "server": {
         "host": "127.0.0.1",
         "port": 8770,
@@ -174,9 +189,13 @@ DEFAULTS = {
         # proxies whose X-Forwarded-For names the visitor's address, for IP groups (docs/configuration.md)
         "trusted_proxies": ["127.0.0.0/8", "::1/128"],
     },
+    # signing in (docs/access.md#signing-in): whether passwords work at all. Passkeys always do. Fresh installs start
+    # without passwords; an install that already had them keeps them until an admin turns them off.
+    "auth": {"passwords": False},
     # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
-    # never expire
-    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False},
+    # never expire; and how long the tokens of apps given access through OAuth last (domain/oauth.py): the access token,
+    # and the grant after the app last renewed it
+    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False, "oauth_access_minutes": 60, "oauth_refresh_days": 30},
     # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
     # server.max_upload_mb
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
@@ -207,16 +226,19 @@ DEFAULTS = {
             "objects",
             "describe",
             "analyze",
+            "embed",
             "summarize",
             "llm",
             "report",
             "export",
+            "workflow",
         ],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
     # the chat assistant's tools, and the double check before batch runs
     "ai": {
         "tools": True,
+        "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -224,6 +246,35 @@ DEFAULTS = {
         "confirm_over_cost": None,
         "price_in": None,
         "price_out": None,
+    },
+    # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
+    # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
+    "voice": {"input": "auto", "tts_base_url": None, "tts_model": None, "tts_voice": None, "tts_api_key": None},
+    # the assistant in chat rooms through Matterbridge (bridge.py): url is its API (http://matterbridge:4242), token its
+    # API token; it answers as `account` (an email), when a message names it (answer "mention") or to every message
+    # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`
+    "bridge": {
+        "enabled": False,
+        "url": None,
+        "token": None,
+        "gateway": None,
+        "account": None,
+        "name": "Lens",
+        "answer": "mention",
+        "users": [],
+        "poll_seconds": 2,
+    },
+    # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
+    "components": {"auto": True, "also": []},
+    # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
+    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
+    "decisions": {
+        "engine": "auto",
+        "base_url": "https://api.typesafe.ai/v1",
+        "model": "jev-latest",
+        "api_key": None,
+        "act_above": 0.8,
+        "timeout": 10,
     },
     "video": {
         "sample_seconds": 5,
@@ -249,6 +300,77 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
+    # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
+    # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
+    # bind is a startup setting only.
+    "sensors": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "mqtt": True,
+        "mqtt_port": 1883,
+        "mqtt_anonymous": False,
+        "syslog": True,
+        "syslog_port": 5514,
+        "syslog_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
+        "max_payload_kb": 256,
+        "store": "all",
+        "raw_days": 30,
+        "rollup_days": 365,
+        "important_days": 180,
+        "max_per_minute": 600,
+        "triage": False,
+    },
+    # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
+    # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
+    # point (null: FRONTEND_URL)
+    # outgoing email (app/email.py): access requests and password resets. MAIL_* in .env set them instead, locked.
+    "mail": {
+        "server": None,
+        "port": 587,
+        "username": None,
+        "password": None,
+        "from_address": None,
+        "from_name": "Lens",
+        "security": "starttls",
+    },
+    # reaching Lens from the internet through a Cloudflare Tunnel run by Lens (domain/tunnel.py): mode off, quick (a
+    # random trycloudflare.com address), token (a tunnel made in the Cloudflare dashboard) or managed (Lens makes the
+    # tunnel and DNS record for hostname with api_token). origin: the web app as this server reaches it (default
+    # LENS_TUNNEL_ORIGIN, else FRONTEND_URL). token and api_token are secrets.
+    "tunnel": {"mode": "off", "hostname": "", "token": None, "api_token": None, "origin": ""},
+    "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
+    # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
+    # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
+    # endpoint's auth. prices: {model: {input, output}} in USD per million tokens, for cost estimates.
+    # encryption at rest (docs/encryption.md): files Lens keeps under data_dir, encrypted with their namespace's key;
+    # work_minutes: how long a plain working copy for ffmpeg and the other tools is kept after its last use
+    "encryption": {"files": False, "work_minutes": 30, "vault_minutes": 60},
+    "telemetry": {
+        "enabled": False,
+        "endpoint": None,
+        "headers": None,
+        "traces": True,
+        "metrics": True,
+        "sample_ratio": 1.0,
+        "export_seconds": 60,
+        "service_name": "lens",
+        "prices": {},
+    },
+    # Fedora (docs/fedora.md): a copy of the archive in a Fedora 6 repository, off until url is set (enabled: false pauses
+    # it). password is a
+    # secret; files: send recordings' files too (up to max_file_mb each, 0: any size).
+    "fedora": {
+        "enabled": True,
+        "url": None,
+        "user": None,
+        "password": None,
+        "root": "lens",
+        "files": True,
+        "max_file_mb": 0,
+        "sync_seconds": 60,
+        "full_hours": 24,
+    },
     # IIIF: identifiers are built from base_url (set it to the stable public HTTPS address; null: the request's address)
     "iiif": {
         "base_url": None,
@@ -293,6 +415,8 @@ def load_config(path=None, overrides=None):
             raise SystemExit(f"namespace {name}: graph must be shared or isolated")
         nss[name] = {"paths": [str((base / os.path.expanduser(x)).resolve()) for x in spec.get("paths", [])], "graph": graph}
     cfg["namespaces"] = nss
+    if extra := os.environ.get("LENS_WEB_NETWORKS"):  # for Docker and the packages, whose archive.yaml is in the image
+        cfg["documents"]["web_networks"] = [*(cfg["documents"].get("web_networks") or []), *extra.replace(",", " ").split()]
     if cfg["search"]["stemming"] not in ("english", "none"):
         raise SystemExit("search.stemming must be english or none")
     cfg["_path"] = str(p)
@@ -539,6 +663,11 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS entity SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS entity_space ON entity FIELDS space",
     "DEFINE INDEX IF NOT EXISTS entity_key ON entity FIELDS ekey UNIQUE",
+    # how a namespace (or one of its collections) organises its entities, and its own entity types (entity_setup.py)
+    "DEFINE TABLE IF NOT EXISTS entity_scope SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS entity_scope_space ON entity_scope FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS entity_kind SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS entity_kind_space ON entity_kind FIELDS space",
     "DEFINE TABLE IF NOT EXISTS mentions TYPE RELATION IN segment OUT entity",
     "DEFINE INDEX IF NOT EXISTS mentions_rec ON mentions FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS mentions_space ON mentions FIELDS space",
@@ -550,6 +679,10 @@ SCHEMA = [
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
+    # the Cloudflare tunnel: which process runs cloudflared, and what it's doing (app/domain/tunnel.py)
+    "DEFINE TABLE IF NOT EXISTS app_service SCHEMALESS",
+    # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
+    "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS account_email ON account FIELDS email UNIQUE",
     "DEFINE TABLE IF NOT EXISTS membership SCHEMALESS",
@@ -578,9 +711,33 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS login_session_sid ON login_session FIELDS sid",
     "DEFINE TABLE IF NOT EXISTS password_reset SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS password_reset_account ON password_reset FIELDS account",
+    # passkeys (domain/passkeys.py): passkey:<hash of the credential id>, the challenges being answered
+    # (webauthn_flow:<hash>), one-time tickets the web app swaps for a session (login_ticket:<hash>) and links for adding
+    # a passkey (signin_link:<hash>)
+    "DEFINE TABLE IF NOT EXISTS passkey SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS passkey_account ON passkey FIELDS account",
+    "DEFINE TABLE IF NOT EXISTS webauthn_flow SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS login_ticket SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS signin_link SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS signin_link_account ON signin_link FIELDS account",
+    # signing in with an outside account (domain/external_login.py): login_provider:<key> (sealed client secret),
+    # external_identity:<hash of provider|subject> (which Lens account it is) and external_flow:<hash of state>
+    "DEFINE TABLE IF NOT EXISTS login_provider SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS external_identity SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS external_identity_account ON external_identity FIELDS account",
+    "DEFINE INDEX IF NOT EXISTS external_identity_provider ON external_identity FIELDS provider",
+    "DEFINE TABLE IF NOT EXISTS external_flow SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",
+    # OAuth (app/domain/oauth.py): apps that registered, one-time codes, the access people gave them, and its tokens
+    # (oauth_client:<client id>; oauth_code and oauth_token by the hash of the code or token)
+    "DEFINE TABLE IF NOT EXISTS oauth_client SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS oauth_code SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS oauth_grant SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS oauth_grant_account ON oauth_grant FIELDS account",
+    "DEFINE TABLE IF NOT EXISTS oauth_token SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS oauth_token_gid ON oauth_token FIELDS gid",
     "DEFINE TABLE IF NOT EXISTS share_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS share_link_rec ON share_link FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS share_link_short ON share_link FIELDS short",
@@ -595,6 +752,18 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",
     "DEFINE INDEX IF NOT EXISTS job_rec ON job FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS job_updated ON job FIELDS updated_at",
+    "DEFINE INDEX IF NOT EXISTS job_finished ON job FIELDS finished_at",
+    "DEFINE INDEX IF NOT EXISTS recording_created ON recording FIELDS created_at",
+    # notifications (domain/notify.py): a namespace's targets (notify_target:<n>), what each was sent
+    # (notify_delivery:<random>), the events claimed for sending (notify_event:<hash of its key>) and where the
+    # notifier's next look starts (notify_state:scan)
+    "DEFINE TABLE IF NOT EXISTS notify_target SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS notify_target_space ON notify_target FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS notify_delivery SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS notify_delivery_target ON notify_delivery FIELDS target",
+    "DEFINE INDEX IF NOT EXISTS notify_delivery_status ON notify_delivery FIELDS status",
+    "DEFINE TABLE IF NOT EXISTS notify_event SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS notify_state SCHEMALESS",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
@@ -607,6 +776,32 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS watch_path_source ON watch_path FIELDS source",
     "DEFINE TABLE IF NOT EXISTS remote_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS remote_file_watch ON remote_file FIELDS watch",
+    # sensors (sensors.py): stream sensors are storage_source rows too, found by their key (mqtt:<prefix>,
+    # syslog:<address>, webhook:<id>) or a webhook's token hash; their streams (sensor_stream:<sensor>-<hash>), readings,
+    # hourly rollups (sensor_rollup:<stream>-<field>-<hour>), hub logins and the processes running the hub
+    "DEFINE INDEX IF NOT EXISTS storage_source_key ON storage_source FIELDS key",
+    "DEFINE INDEX IF NOT EXISTS storage_source_push ON storage_source FIELDS push_hash",
+    "DEFINE TABLE IF NOT EXISTS sensor_stream SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_stream_sensor ON sensor_stream FIELDS sensor",
+    "DEFINE TABLE IF NOT EXISTS sensor_reading SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_sensor ON sensor_reading FIELDS sensor, at",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_stream ON sensor_reading FIELDS stream, at",
+    "DEFINE TABLE IF NOT EXISTS sensor_rollup SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_rollup_stream ON sensor_rollup FIELDS stream, field, hour",
+    "DEFINE INDEX IF NOT EXISTS sensor_rollup_sensor ON sensor_rollup FIELDS sensor, hour",
+    # a log stream's patterns (sensor_pattern:<stream>-<hash of the template>): counts, a label (routine, notable,
+    # alert: by the decision model or a person) and an action (drop: counted, not kept)
+    "DEFINE TABLE IF NOT EXISTS sensor_pattern SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_sensor ON sensor_pattern FIELDS sensor, stream",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_stream ON sensor_pattern FIELDS stream",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_action ON sensor_pattern FIELDS action",
+    "DEFINE INDEX IF NOT EXISTS sensor_reading_pattern ON sensor_reading FIELDS pattern",
+    "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS sensor_service SCHEMALESS",
+    # the chat-room bridge (bridge.py): which process reads Matterbridge (bridge_state:lease); its conversations are
+    # chats with a `bridge` key (the room and person)
+    "DEFINE TABLE IF NOT EXISTS bridge_state SCHEMALESS",
     # templates, pipelines, outputs, chat, edits
     "DEFINE TABLE IF NOT EXISTS template SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS template_version SCHEMALESS",
@@ -614,6 +809,31 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS pipeline SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS pipeline_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS pipeline_version_p ON pipeline_version FIELDS pipeline",
+    "DEFINE TABLE IF NOT EXISTS workflow SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS content_type SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS workflow_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS workflow_version_w ON workflow_version FIELDS workflow",
+    # custom nodes: bodies of nodes saved under a name, used in workflows (custom_nodes.py)
+    "DEFINE TABLE IF NOT EXISTS custom_node SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS custom_node_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS custom_node_version_n ON custom_node_version FIELDS node",
+    # extensions: tools, skills, hooks and plugins added to the assistant (extensions.py)
+    "DEFINE TABLE IF NOT EXISTS extension SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS extension_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS extension_version_e ON extension_version FIELDS extension",
+    # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
+    "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
+    "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
+    # Fedora (fedora.py): what to send, what was sent (a hash per resource path) and how the last sync went
+    "DEFINE TABLE IF NOT EXISTS fedora_outbox SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS fedora_state SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS fedora_status SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS routine_run SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS routine_run_r ON routine_run FIELDS routine",
+    "DEFINE TABLE IF NOT EXISTS graph_change SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
+    "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",
+    "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",
@@ -657,6 +877,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS description SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS description_rec ON description FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS face_merge SCHEMALESS",
+    # passages embedded for search by meaning (app/domain/semantic.py), and which model's vectors they hold; their
+    # HNSW index is defined when the first vector is stored, since its dimension is the model's
+    "DEFINE TABLE IF NOT EXISTS passage SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS passage_rec ON passage FIELDS recording",
+    "DEFINE INDEX IF NOT EXISTS passage_space ON passage FIELDS space",
+    "DEFINE TABLE IF NOT EXISTS embedding_state SCHEMALESS",
     # collections, batch runs, assistant approvals
     "DEFINE TABLE IF NOT EXISTS saved_collection SCHEMALESS",
     # saved views of the Library (app/domain/views.py)
@@ -776,7 +1002,13 @@ def ns_id(db, name, create=True):
     if not NS_RX.match(name or ""):
         raise SystemExit(f"namespace names use lowercase letters, digits, - and _: {name!r}")
     sid = db.next_id("space")
-    db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    try:
+        db.q("CREATE $r CONTENT $d", r=R("space", sid), d={"name": name, "graph": "shared"})
+    except Exception:  # noqa: BLE001 - another process made it first (the API and a worker starting on a fresh database)
+        row = db.one("SELECT record::id(id) AS id FROM space WHERE name = $n LIMIT 1", n=name)
+        if not row:
+            raise
+        return row["id"]
     default_collection(db, sid)
     return sid
 
@@ -836,12 +1068,13 @@ DOWNSTREAM = [
     "DELETE section WHERE recording = $rid",
     "DELETE appearance WHERE recording = $rid",
     "DELETE segment WHERE recording = $rid AND idx >= $keep",
+    "DELETE passage WHERE recording = $rid",
 ]
 
 
 def reset_downstream(db, rid):
     """Remove everything derived from a recording's transcript."""
-    db.run(DOWNSTREAM, rid=rid, keep=0)
+    db.run(DOWNSTREAM + ["UPDATE $rec SET embedded = NONE"], rid=rid, keep=0, rec=R("recording", rid))
 
 
 def clean(d):

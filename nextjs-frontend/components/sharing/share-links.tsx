@@ -334,7 +334,11 @@ export function ShareLinks({
             value={days}
             disabled={!canShare}
             onChange={(e) => setDays(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && validDays && canShare && create.mutate(n)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              if (validDays && canShare) create.mutate(n);
+            }}
           />
         )}
       </Field>

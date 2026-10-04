@@ -7,7 +7,9 @@ How recordings move through Lens: where they come from, what each step does, and
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
   and so are files whose recording someone deleted or moved to another namespace (at the same path, or a copy of the same
   file).
-- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. A file that fails is marked and the batch carries on. For a
+- `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
+  doesn't import there), it uses the next one that is and says so in the job log; with none at all the step fails,
+  saying how to add one. A file that fails is marked and the batch carries on. For a
   document or an image it draws the pages and reads their text instead: a PDF's own text, and OCR for scans and images
   ([Documents and images](configuration.md#documents-and-images)).
 - `diarize` splits genuinely two-channel files by channel, otherwise clusters voice embeddings (or uses pyannote), then
@@ -84,9 +86,13 @@ Nodes are speakers and named things. Edges are:
 People, organisations, products, places, events, works and topics are extracted from every transcript. Dates and
 numbers are extracted too, but hidden unless asked for.
 
+The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab)
+and opens each in a side panel where editors rename, retype, describe and hide it.
+
 - **Index** (`GET /api/v1/entities`):
   - Search forgives misspellings and covers aliases.
-  - Filters: type, namespace, speaker, recording, date range, minimum mentions, and hidden entities.
+  - Filters: type, namespace, collection (and the collections inside it), speaker, recording, date range, minimum
+    mentions, and hidden entities.
   - Sorts: most mentioned, most recordings, most recent, rising, and name.
   - Options: grouping by name across namespaces, a twelve-month sparkline, and facets.
 - **Entity page:** its details and aliases, paged mentions (each line with the words highlighted, linking to its moment),
@@ -98,13 +104,48 @@ numbers are extracted too, but hidden unless asked for.
 - **Curation** (editors of the entity's namespace):
   - **Rename:** the old name stays as an alias. It can optionally correct the words in every transcript line, with a
     dry-run preview first, then re-analysis.
-  - **Change type, and hide or restore.**
+  - **Change type, describe (`PATCH /api/v1/entities/{id}`), and hide or restore.**
   - **Merge:** with undo.
   - **Mark two entities as not the same.**
   - **Move or remove a single mention.**
   - **Link the same thing across namespaces.**
 - **Merge suggestions:** same letters (ignoring case, spaces and punctuation), acronyms, one name containing the other,
   close spellings, and names that sound alike (likely transcription errors).
+
+### Entity setup
+
+Each namespace has an entity setup (Entities → Setup, `GET`/`PUT /api/v1/namespaces/{name}/entity-setup`): the types
+it keeps (names of other types are left out when a recording is analysed) and a description of what it's about. Any
+collection can have its own setup, which also holds for the collections inside it; a recording follows the setup of the
+nearest collection that has one, else its namespace's. Editors of the namespace change its setup and any collection's;
+editors of a collection change that collection's. A namespace can add entity types of its own (Entities → Types,
+`/api/v1/namespaces/{name}/entity-types`), each with a description of what counts as one; a type can be deleted once no
+entity has it. Changes apply to recordings analysed from then on; "Apply to analysed recordings"
+(`POST /api/v1/namespaces/{name}/entity-setup/apply`) analyses the namespace's or a collection's recordings again.
+
+A setup has a mode:
+
+- **Self-organizing** (the default): every name the extractors find becomes an entity, and people merge, rename and
+  describe them. Names of types the setup doesn't keep are left out.
+- **Fixed list:** editors define the entities (Entities → Add entity, `POST /api/v1/namespaces/{name}/entities`), each
+  with a type, the other ways it's said and a description, for the whole namespace or for one collection and those
+  inside it. Each name found goes to the defined entity it names (by name or another way it's said, in any case; the
+  defined names are looked for in the transcript too), else to **Unlabeled** when it belongs here (a type the setup
+  keeps; with every type kept, anything but dates and numbers), else to **Unknown**. Unknown and Unlabeled are always
+  there and can't be renamed, retyped, merged, hidden or deleted. Moving a mention to a new name in a fixed-list place
+  adds that name to the list. `PATCH /api/v1/entities/{id}` sets an entity's other names and whether it is on the list;
+  a defined entity nothing mentions can be deleted.
+- **Hybrid:** a few defined entities, then self-organizing. Names go to a defined entity as in the fixed list, or to
+  an entity they already are; any other name of a type that belongs here becomes an entity of its own, and names of
+  other types go to **Unknown**.
+
+**Matching names** is by name (in any case, or one of an entity's other names) unless the setup says "by name, then by
+description": then the names the rules can't place go to the LLM with the entities' descriptions, their other names and
+what the namespace is about. In the self-organizing mode it says which described entity a new name is, if any; the name
+then becomes one of that entity's other names, so the rules place it from then on. In the fixed mode it says which
+defined entity a name is, or that it doesn't belong here (Unknown); in the hybrid mode it may place a name on a defined
+or described entity, or say it doesn't belong here. Without a reachable LLM the rules decide. The assistant reads a namespace's setup (`entity_setup`) and proposes entity changes for approval, including
+descriptions, other names and new entities on a fixed list.
 
 Curation survives re-analysis: merged names become aliases, and moved or removed mentions become per-line overrides.
 Everything is audited. People who can't read a namespace never see its entities, mentions or graph nodes, and requests
@@ -116,6 +157,39 @@ All words must appear, matched after English stemming ("exploit" also finds expl
 must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. For archives that
 aren't in English set `search.stemming: none` and run `lens reindex`. Prefix search (`expl*`) from the SQLite
 version is gone; stemming covers most of what it was used for.
+
+### Search by meaning
+
+With an embedding model set up (Settings → Search, or `embeddings` in archive.yaml: see
+[configuration](configuration.md#search-by-meaning)), search also finds moments about what was asked in other words:
+"money worries" finds "we can't afford the rent this month". The `embed` step (in the standard pipeline, after
+analyze) joins a recording's transcript lines into passages of about `embeddings.passage_chars` characters (each within
+one page of a document), adds what its shots or pages are described as showing, and has the model embed each; the
+vectors live in the `passage` table under SurrealDB's HNSW index. Indexing a recording again only embeds the passages
+whose text changed, so a corrected line costs one request; correcting, splitting or merging lines and renaming an
+entity across the transcript run the step again.
+
+A search is matched three ways (`mode` on `GET /search`, the Match switch in the web app):
+
+* **auto** (the default): by its words and by meaning, fused by reciprocal rank, when search by meaning is set up and
+  the query has no "quoted phrases" or OR (those ask for exactly those words); else by its words.
+* **keyword**: only the words, as above.
+* **semantic**: only by meaning.
+
+A passage found by meaning is shown at its line that best fits (the speaker or emotion filtered on, else the one with
+most of the query's words), marked Related, with how alike it is (`similarity`, cosine). One that holds a keyword hit
+adds to that hit's rank instead of showing twice. Only passages at least `embeddings.min_similarity` alike count, and
+none much further than the closest one, so an unrelated query finds nothing rather than whatever is least unlike it.
+Facets count the moments found by meaning too. The assistant's search tool and chat's retrieval use the same passages,
+so a question finds excerpts that answer it without sharing its words.
+
+The vectors are only comparable within one model. When the model (or `embeddings.document_prefix`) changes, the old
+vectors are dropped and searches go by the words until recordings are indexed again: the **Index for search by
+meaning** routine (seeded, hourly at :20) queues the embed step for up to 500 recordings not yet indexed with the
+current model each time, and does nothing (no run is recorded) while search by meaning is off or everything is indexed;
+Settings → Search shows how far it has got and can queue more now; `lens embed` indexes here and now. When the
+embeddings server can't be reached, the step is skipped (the routine tries again later) and searches go by the words,
+saying why.
 
 ## Background work
 
@@ -143,10 +217,14 @@ has left.
 
     lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
 
+A worker that runs every step also scans watched folders and runs routines when they are due, so Docker and the
+packages need no other process for them. One limited with `--steps`, or started with `--no-schedule`, only runs jobs.
+A folder scan and a routine run are each claimed first, so several processes doing this never repeat one.
+
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
-WebDAV, or a folder on this machine. A watched folder maps a path on a source to a namespace, with include/exclude
+WebDAV, or a folder on this machine; or an email account (IMAP) or a calendar feed (iCal), below. A watched folder maps a path on a source to a namespace, with include/exclude
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
@@ -161,6 +239,31 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
   `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.
 - Folders on this machine can only be watched inside `sources.local_roots`, and the rclone binary can only be set in
   archive.yaml: the web app can neither open up the server's disk nor choose what runs.
+
+### Email (IMAP) and calendar feeds (iCal)
+
+Two kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
+importing chosen ones and watching work as above.
+
+- **Email (IMAP)**: host, port, security (SSL/TLS, STARTTLS or none), user and password (an app password where the
+  provider has them). Mailboxes are the folders, and each message is a file `<mailbox>/<uidvalidity>-<uid>.eml`,
+  named by its subject (a mailbox the server rebuilds gets new names, so an old one never reads another message). A message is an email like any uploaded one: a document whose attachments are kept and made resources of
+  their own, titled by its subject and dated when it was sent. On a server that can't make PDFs (no Chromium or
+  LibreOffice) it comes in as text instead, without its attachments. Watching the whole account (no path) takes every
+  mailbox but the bin, junk and drafts and the views of mail kept elsewhere (Gmail's All Mail, Starred and
+  Important), and a message several mailboxes show (one Message-ID) becomes one resource. A watch remembers the last
+  message it saw in each mailbox and asks only for newer ones. Lens only reads: mailboxes are opened read-only and
+  messages fetched without marking them read.
+- **Calendar feed (iCal)**: the calendar's iCal address (`https://` or `webcal://`; a user and password if it asks for
+  one). The address is kept encrypted like a password and never shown again, since a private calendar's address is
+  all it takes to read it. It is fetched the way web pages are captured: public addresses only (and the networks in
+  `documents.web_networks`), on ports 80 and 443, and the password is never sent on to another server the calendar
+  redirects to. The feed is one folder of events, each a file `<id>.ics` named by its date and title; a moved occurrence of a
+  repeating event is an event of its own. An event comes in as text (its title, when and where, the organizer and
+  attendees, how it repeats, and its description), dated when it starts: an all-day event on its date, wherever you
+  are. Time zones are read as IANA names, Windows' names (as Outlook writes them), or the calendar's own VTIMEZONE. An event that changes (its LAST-MODIFIED,
+  or its size) is read again into the resource it already is, rather than made a second one.
+- `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 
 ## Pipelines and templates
 
@@ -184,3 +287,81 @@ summary's `key_points` and `action_items` print as their text and have `text`, `
 strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
 `POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
 the model.
+
+## Workflows and the canvas
+
+A pipeline's steps make assets (a transcript, shots, text on screen, faces); workflows turn them into metadata. A
+workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Recording node, and each
+node passes what it makes along its connections.
+
+- **Entities:** Extract entities (rules) runs the built-in extractor analyze uses, plus your terms (`Name|TYPE`) and
+  regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
+  corrects or adds to any passed in; Merge joins lists; Save entities makes them the recording's entities (people's
+  corrections kept) and redoes keywords and chapters.
+- **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
+  `action_items.0.text`), Condition (yes and no branches) and Merge.
+- **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history) and
+  Save entities.
+
+A pipeline runs a workflow as a Workflow step, pinned to the workflow's published version when the run is queued
+(`POST /api/v1/workflows/{id}/run` runs one on a recording). Pipelines can be drawn on the canvas too: a connection
+means "runs after", and the graph is put in order (ties left to right) and kept as the version's steps, so runs and
+Activity work as before. A pipeline saved as a list is drawn as a chain.
+
+## Content types
+
+Every resource is video, audio, image or text (transcripts, documents, web pages, emails and calendar events are
+text), read from its file; a video file that hasn't been probed yet is told by its extension.
+Under each base type is a vocabulary of content types (Pipelines → Content types): Lens starts with podcast, interview
+and meeting (audio), screen-share tutorial and recorded meeting (video), photo and scanned page (image), transcript,
+document, web page, email and calendar event (text), plus a general type for each base. Admins can rename and change
+them, remove all but the general ones, and add their own. A default that's removed stays removed; defaults added in a
+later release appear on upgrade.
+
+A resource's content type is the one someone chose (its Details tab, `PUT /api/v1/recordings/{id}/content-type`), else
+the first of its base type whose rules all match (file extensions, a pattern in the file name or title, a length),
+else the general one. Patterns ignore case and see `_` as a space, so `\bcalls?\b` matches `team_call.mp3` but not
+`recall.mp3`. The pipeline that runs is the one chosen for the run, else the namespace's override for the
+content type, else the content type's pipeline, else the namespace default, else the standard pipeline. Content types
+start without a pipeline, so nothing changes until someone sets one. Files found by a folder scan go through the same
+choice as uploads.
+
+## Routines
+
+A routine does things on a schedule, like a cron job (Routines, admins only). It runs its actions in order over its
+namespaces, or all of them:
+
+- **Sync** scans watched folders now (all of the routine's namespaces' folders, or the ones you pick), so new files
+  come in and run their pipelines.
+- **Pipeline** queues a pipeline for recordings (one you pick, else the one each recording's content type gets, as
+  above): new ones (since the routine last looked), unprocessed ones, or all of them.
+- **Workflow** runs a workflow. One that runs on recordings is queued on them as a workflow step, pinned to its
+  published version; one that organises the graph runs over the namespaces there and then.
+
+The schedule is a five-field cron expression (minute hour day-of-month month day-of-week, e.g. `0 3 * * *`) or
+`@hourly`, `@daily`, `@weekly`, `@monthly`, in a time zone; without one a routine runs only when someone presses Run
+now. Every 30 seconds, `lens worker` checks (and so does the API process when it runs background work, and `lens watch`); a routine is
+never started twice at once, and one started in two processes runs once. Each run keeps what every action did and a
+log.
+
+### Organising the graph
+
+A workflow's scope is either recordings (above) or the graph. Graph workflows have their own nodes:
+
+- **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
+  letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across
+  namespaces whose graph is shared (link). Pairs someone said are different, and pairs already proposed, are skipped.
+- **Ask the model** (`llm_judge`) shows the model each pair with lines where the names were said and asks whether
+  they are the same thing, how sure it is, and which name to keep.
+- **Filter** keeps the pairs that pass a test, e.g. `verdict.same` equals true.
+- **Apply changes** merges or links the pairs whose confidence is at least *apply above* (at most *max apply* a run)
+  and proposes the rest. Without *apply above* it only proposes.
+
+A fresh archive has the workflow *Organise the entity graph* (both kinds of candidates, the model, then merges at 95%
+or more, 25 a run) and the routine *Organise the graph every night* that runs it at 03:00 UTC, switched off. Turn it
+on, or Run now with *propose only* first to see what it would do.
+
+Every change is recorded (`GET /api/v1/graph-changes`): editors of the namespaces involved accept or dismiss
+proposals (dismissing says the two are different, so the pair isn't suggested again) and undo applied changes; an
+admin can undo everything a run applied at once (`POST /api/v1/routine-runs/{id}/undo`). Merges are undone exactly as
+from an entity's page.

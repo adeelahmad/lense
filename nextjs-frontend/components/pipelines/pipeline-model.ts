@@ -20,6 +20,7 @@ export type StepSpec = {
   destination?: { source: number; path?: string };
   model?: string;
   force?: boolean;
+  workflow?: number;
 };
 
 export function toSpec(s: unknown): StepSpec {
@@ -39,6 +40,8 @@ export function cleanSpec(s: StepSpec): StepSpec | string {
   if (Object.keys(w).length) out.when = w;
   if (s.template != null) out.template = s.template;
   if (s.template != null && s.version != null) out.version = s.version;
+  if (s.workflow != null) out.workflow = s.workflow;
+  if (s.workflow != null && s.version != null) out.version = s.version;
   if (s.key?.trim()) out.key = s.key.trim();
   if (s.filename?.trim()) out.filename = s.filename.trim();
   if (s.destination?.source != null)
@@ -59,10 +62,12 @@ export const NEEDS: Record<string, string[]> = {
   objects: ["shots"],
   describe: ["shots"],
   analyze: ["transcribe", "diarize"],
+  embed: ["transcribe", "describe"],
   summarize: ["analyze"],
   llm: ["transcribe", "diarize", "analyze"],
   report: ["analyze", "summarize", "llm"],
   export: ["analyze", "summarize", "llm"],
+  workflow: ["transcribe", "diarize"],
 };
 
 /** What a step makes available to later steps and templates. */
@@ -75,10 +80,12 @@ export const PROVIDES: Record<string, string> = {
   objects: "objects[]",
   describe: "descriptions[]",
   analyze: "sections[] · entities[] · keywords[] · stats",
+  embed: "passages searchable by meaning",
   summarize: "summary.*",
   llm: "outputs.<key>",
   report: "a report page",
   export: "a file",
+  workflow: "outputs · fields · entities",
 };
 
 export const DESCRIBE: Record<string, string> = {
@@ -90,10 +97,12 @@ export const DESCRIBE: Record<string, string> = {
   objects: "Finds objects (people, cars, animals …) in keyframes and pages (Settings → Video)",
   describe: "Describes each shot and page with a model that can see images (Settings → LLM provider)",
   analyze: "Chapters, entities, keywords and talk-time stats",
+  embed: "Embeds passages so search finds them by meaning, not only their words (Settings → Search)",
   summarize: "The built-in summary with the LLM in Settings",
   llm: "Your prompt template; saves a structured output",
   report: "The recording’s report page, or your report template",
   export: "Writes a file from an export template, optionally to a source",
+  workflow: "Runs a workflow you drew on the canvas: outputs, custom fields and entities",
 };
 
 /**
@@ -162,7 +171,8 @@ export function specProblems(
   const out: Record<number, string> = {};
   steps.forEach((s, i) => {
     const need = { llm: "prompt", export: "export", report: "report" }[s.type];
-    if (s.type === "llm" && s.template == null) out[i] = "Choose a prompt template.";
+    if (s.type === "workflow" && s.workflow == null) out[i] = "Choose a workflow.";
+    else if (s.type === "llm" && s.template == null) out[i] = "Choose a prompt template.";
     else if (s.type === "export" && s.template == null) out[i] = "Choose an export template.";
     else if (need && s.template != null && templateKind(s.template) && templateKind(s.template) !== need)
       out[i] = `Needs a ${need} template.`;
@@ -178,4 +188,52 @@ export function specProblems(
 
 export function sameSteps(a: unknown[], b: unknown[]): boolean {
   return JSON.stringify(a.map((s) => cleanSpec(toSpec(s)))) === JSON.stringify(b.map((s) => cleanSpec(toSpec(s))));
+}
+
+export type PlNode = { id: string; step: StepSpec; x?: number; y?: number };
+export type PlEdge = { source: string; target: string };
+export type PlGraph = { nodes: PlNode[]; edges: PlEdge[] };
+
+/**
+ * The order a pipeline graph runs in, as the backend puts it: each step after the ones it follows, ties left to
+ * right (then top to bottom). Null when the graph has a loop.
+ */
+export function graphOrder(g: PlGraph): PlNode[] | null {
+  const pos = new Map(g.nodes.map((n, k) => [n.id, [n.x ?? 0, n.y ?? 0, k] as const]));
+  const cmp = (a: string, b: string) => {
+    const [ax, ay, ak] = pos.get(a)!;
+    const [bx, by, bk] = pos.get(b)!;
+    return ax - bx || ay - by || ak - bk;
+  };
+  const ins = new Map(g.nodes.map((n) => [n.id, 0]));
+  for (const e of g.edges) ins.set(e.target, (ins.get(e.target) ?? 0) + 1);
+  let ready = g.nodes
+    .filter((n) => !ins.get(n.id))
+    .map((n) => n.id)
+    .sort(cmp);
+  const out: string[] = [];
+  while (ready.length) {
+    const n = ready.shift()!;
+    out.push(n);
+    for (const e of g.edges)
+      if (e.source === n) {
+        ins.set(e.target, (ins.get(e.target) ?? 0) - 1);
+        if (!ins.get(e.target)) ready = [...ready, e.target].sort(cmp);
+      }
+  }
+  if (out.length !== g.nodes.length) return null;
+  const by = new Map(g.nodes.map((n) => [n.id, n]));
+  return out.map((i) => by.get(i)!);
+}
+
+export function cleanPipelineGraph(g: PlGraph) {
+  return {
+    nodes: g.nodes.map((n) => ({
+      id: n.id,
+      step: cleanSpec(n.step),
+      x: Math.round(n.x ?? 0),
+      y: Math.round(n.y ?? 0),
+    })),
+    edges: g.edges.map((e) => ({ source: e.source, target: e.target })),
+  };
 }

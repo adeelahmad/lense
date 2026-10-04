@@ -102,3 +102,26 @@ export function initials(name: string | null | undefined): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${count(n)} ${n === 1 ? one : many}`;
 }
+
+/** A namespace name as it's typed: lowercase, spaces become -, other characters are dropped ("Customer Calls" →
+ * "customer-calls"). */
+export function nsSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9_-]/g, "")
+    .replace(/^[-_]+/, "")
+    .slice(0, 41);
+}
+
+/** A display name from an email address: "ana.lopez@x.io" → "Ana Lopez". */
+export function nameFromEmail(email: string): string {
+  const local = email.trim().split("@")[0] ?? "";
+  return local
+    .split(/[._+-]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}

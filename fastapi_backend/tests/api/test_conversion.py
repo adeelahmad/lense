@@ -11,7 +11,8 @@ from email.message import EmailMessage
 
 import pytest
 
-from app.domain import convert, jobs, metadata, settings, sources, store
+from app.domain import convert, jobs, keyring, metadata, settings, sources, store
+from app.domain import files as files_mod
 from tests import fake_llm
 from tests.api.test_documents import HARBOUR, _png, _start, _upload
 from tests.helpers import chromium_binary, drain, login, make_user, scan, text_pdf, write_docx
@@ -152,7 +153,7 @@ def test_an_email_becomes_a_document_and_its_attachments_resources(client, env, 
     try:
         he, ha = env["he"], env["ha"]
         up = _upload(client, he, _email("Harbour report", srv.server_address[1]), "mail.eml")
-        drain(db, cfg)
+        drain(db, settings.effective(db, cfg))  # as the server's workers run: with the archive's settings (encrypting)
     finally:
         srv.shutdown()
     rid = up["recording"]
@@ -177,6 +178,10 @@ def test_an_email_becomes_a_document_and_its_attachments_resources(client, env, 
     assert rows["harbour.pdf"]["attached_to"] == {"resource": rid, "file": files["harbour.pdf"]["id"]}
     assert all(r["status"] == "analyzed" for r in rows.values()), rows
     assert "lighthouse keeper" in _text(db, made["harbour.pdf"]) and "Received with thanks." in _text(db, made["Re harbour.eml"])
+    # a new archive keeps them encrypted, once each: they download as they were sent
+    kept = db.one("SELECT path FROM $r", r=R("recording", made["harbour.pdf"]))["path"]
+    assert keyring.is_encrypted(kept) and keyring.is_encrypted(files_mod.path_of(cfg, {"recording": rid, **files["harbour.pdf"]}))
+    assert client.get(f"/api/v1/recordings/{made['harbour.pdf']}/media", headers=he).content == text_pdf(HARBOUR)
     att = client.get(f"/api/v1/resources/{made['harbour.pdf']}", headers=env["hv"]).json()
     assert att["attached_to"] == {"resource": rid, "file": files["harbour.pdf"]["id"], "title": "Harbour report"}
     log = client.get(f"/api/v1/jobs/{up['job']}/log", headers=he).json()["lines"]
@@ -219,12 +224,12 @@ def test_documents_the_server_cannot_convert(client, env, db, cfg, monkeypatch):
     r = _start(client, he, b"x", "deck.pptx")
     assert r.status_code == 400 and r.json()["detail"].endswith("(the lens:full image)")
     assert _start(client, he, b"%PDF", "a.pdf").status_code == 201
-    # a source's files: read as transcripts where they can be, else left
+    # a source's files: read as transcripts where they can be (an email's text, without its attachments), else left
     assert [sources.file_kind(cfg, n) for n in ("a.docx", "a.txt", "a.pptx", "a.eml", "a.pdf")] == [
         "transcript",
         "transcript",
         None,
-        None,
+        "transcript",
         "document",
     ]
     monkeypatch.setattr(convert, "soffice", lambda cfg: "/usr/bin/soffice")

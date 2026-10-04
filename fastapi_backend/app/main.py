@@ -14,14 +14,19 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.iiif import router as iiif_router
+from app.api.linked_data import router as linked_data_router
+from app.api.mcp import router as mcp_router
 from app.api.pages import router as pages_router
 from app.api.v1.router import api_router
+from app.api.v1.routes.oauth import bearer_challenge
+from app.api.v1.routes.oauth import well_known as oauth_well_known
 from app.config import settings
 from app.core import middleware
 from app.core.runtime import Archive
-from app.domain import __version__, store
+from app.domain import __version__, store, telemetry
 from app.domain.render import WEB_DIR
 from app.utils import simple_generate_unique_route_id
 
@@ -53,6 +58,7 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
             yield
         finally:
             archive.close()
+            telemetry.shutdown()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,
@@ -65,6 +71,8 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
         ready.prepare()
         _attach(app, ready)
 
+    # innermost, so the router has picked the route it names spans by; a no-op while telemetry is off
+    app.add_middleware(telemetry.Middleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=sorted(settings.CORS_ORIGINS),
@@ -77,7 +85,11 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
     app.add_middleware(middleware.ResourcePaths)
 
     app.include_router(api_router, prefix="/api/v1")
+    app.include_router(oauth_well_known)
+    app.include_router(mcp_router)
+    app.add_exception_handler(StarletteHTTPException, bearer_challenge)  # type: ignore[arg-type]
     app.include_router(iiif_router)
+    app.include_router(linked_data_router)
     app.include_router(pages_router)
     app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 

@@ -37,7 +37,7 @@ export function LibraryEmpty({ namespace }: { namespace: string | null }) {
             </p>
             {admin ? (
               <Button asChild variant="primary" size="sm" className="self-start">
-                <Link href="/sources">Connect a source</Link>
+                <Link href="/sources?add=1">Connect a source</Link>
               </Button>
             ) : (
               <Button

@@ -1,0 +1,30 @@
+{
+  "id": "net.adeelahmad.lens",
+  "title": "Lens",
+  "author": "Adeel Ahmad",
+  "tagline": "An archive for recorded speech and video",
+  "description": "file://cloudron/DESCRIPTION.md",
+  "changelog": "file://cloudron/CHANGELOG",
+  "postInstallMessage": "file://cloudron/POSTINSTALL.md",
+  "version": "0.3.0",
+  "upstreamVersion": "0.3.0",
+  "website": "https://github.com/adeelahmad/lense",
+  "packagerName": "Adeel Ahmad",
+  "packagerUrl": "https://github.com/adeelahmad",
+  "documentationUrl": "https://github.com/adeelahmad/lense/tree/main/docs",
+  "icon": "file://cloudron/logo.png",
+  "iconUrl": "https://raw.githubusercontent.com/adeelahmad/lense/main/cloudron/logo.png",
+  "mediaLinks": [
+    "https://raw.githubusercontent.com/adeelahmad/lense/main/cloudron/logo.png"
+  ],
+  "tags": ["media", "productivity"],
+  "healthCheckPath": "/api/v1/auth/status",
+  "httpPort": 3000,
+  "addons": {
+    "localstorage": {},
+    "sendmail": {}
+  },
+  "memoryLimit": 3221225472,
+  "minBoxVersion": "9.1.0",
+  "manifestVersion": 2
+}

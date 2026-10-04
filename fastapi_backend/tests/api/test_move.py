@@ -128,7 +128,7 @@ def test_moving_a_recording(client, new_client, env, db, cfg, folder):
     assert (reports / "calls" / notes.name).exists() and not notes.exists()
     assert db.one("SELECT * FROM $o", o=R("output", f"{clip}-report_notes"))["value"]["url"] == f"/reports/calls/{notes.name}"
     assert (exports / "calls" / "clip notes.md").exists() and not (exports / "pods" / "clip notes.md").exists()
-    assert [s["type"] for s in jobs.get(db, d["job"])["steps"]] == ["analyze", "report"]
+    assert [s["type"] for s in jobs.get(db, d["job"])["steps"]] == ["analyze", "embed", "report"]
     drain(db, cfg)
     assert jobs.get(db, d["job"])["status"] == "succeeded"
     audit = db.rows("SELECT detail FROM audit_log WHERE action = 'recording.move'")
@@ -153,4 +153,4 @@ def test_moving_again_from_its_voices(client, env, db):
     # the diarize step identifies the speakers again among the new namespace's voices
     assert not db.values("SELECT VALUE id FROM appearance WHERE recording = $r", r=clip)
     assert not [s for s in db.values("SELECT VALUE speaker FROM segment WHERE recording = $r", r=clip) if s]
-    assert [s["type"] for s in jobs.get(db, r.json()["job"])["steps"]] == ["diarize", "analyze", "report"]
+    assert [s["type"] for s in jobs.get(db, r.json()["job"])["steps"]] == ["diarize", "analyze", "embed", "report"]

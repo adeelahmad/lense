@@ -1,8 +1,8 @@
 import { apiBaseUrl } from "@/lib/api/client";
 
 /**
- * Serves the FastAPI backend's paths on this origin: /api/v1, /embed, /s (short share links), /iiif, /reports and
- * /static.
+ * Serves the FastAPI backend's paths on this origin: /api/v1, /embed, /s (short share links), /iiif, /reports,
+ * /static, and /id and /ns (linked data: the archive's RDF URIs and the Lens vocabulary).
  *
  * The API hands out relative signed media links (`/api/v1/recordings/12/audio?exp=..&sig=..`), so proxying them
  * makes <audio>, <video> and <img> work, and lets the browser call the API (including server-sent event streams)
@@ -11,6 +11,24 @@ import { apiBaseUrl } from "@/lib/api/client";
  */
 const HOP = new Set(["connection", "keep-alive", "transfer-encoding", "te", "upgrade", "proxy-connection", "host"]);
 
+/** Whether a reverse proxy in front of the web app sets X-Forwarded-Host and -Proto (TRUST_PROXY_HEADERS=true). */
+export function trustProxyHeaders(): boolean {
+  return ["1", "true", "yes"].includes((process.env.TRUST_PROXY_HEADERS || "").trim().toLowerCase());
+}
+
+/**
+ * The address the browser used, for links the API writes back to this origin (OAuth discovery, the embed player's
+ * own-site check). The API trusts these headers from the web app, so a browser's own X-Forwarded-* are passed on
+ * only when a reverse proxy in front is known to set them; otherwise the Host header (the URL Next hands over names
+ * the host it listens on) and the protocol Next was reached with.
+ */
+export function browserAddress(h: Headers, incoming: URL, trustProxy: boolean): { host: string; proto: string } {
+  const first = (v: string | null) => (v ?? "").split(",")[0].trim();
+  const host = (trustProxy && first(h.get("x-forwarded-host"))) || h.get("host") || incoming.host;
+  const proto = (trustProxy && first(h.get("x-forwarded-proto"))) || incoming.protocol.replace(":", "");
+  return { host, proto };
+}
+
 async function proxy(req: Request): Promise<Response> {
   const incoming = new URL(req.url);
   const target = new URL(incoming.pathname + incoming.search, apiBaseUrl());
@@ -18,8 +36,9 @@ async function proxy(req: Request): Promise<Response> {
   req.headers.forEach((v, k) => {
     if (!HOP.has(k)) headers.set(k, v);
   });
-  headers.set("x-forwarded-host", incoming.host);
-  headers.set("x-forwarded-proto", incoming.protocol.replace(":", ""));
+  const { host, proto } = browserAddress(req.headers, incoming, trustProxyHeaders());
+  headers.set("x-forwarded-host", host);
+  headers.set("x-forwarded-proto", proto);
   // Ask for identity so byte ranges and lengths stay exact.
   headers.set("accept-encoding", "identity");
 

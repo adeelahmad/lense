@@ -18,7 +18,22 @@ export function createApiClient(accessToken?: string, forwardedFor?: string | nu
   const headers: Record<string, string> = {};
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   if (forwardedFor) headers["X-Forwarded-For"] = forwardedFor;
-  return createClient(createConfig<ClientOptions>({ baseUrl: apiBaseUrl(), cache: "no-store", headers }));
+  return throwingNetworkErrors(
+    createClient(createConfig<ClientOptions>({ baseUrl: apiBaseUrl(), cache: "no-store", headers })),
+  );
+}
+
+/**
+ * Makes a request that never got a response (the API is down, the fetch was aborted) reject, as it did before
+ * @hey-api/openapi-ts 0.97. The generated client now returns those as `{ error, response: undefined }`, which callers
+ * would read as an API error. HTTP errors still come back as `{ error, response }`.
+ */
+export function throwingNetworkErrors(client: Client): Client {
+  client.interceptors.error.use((error, response) => {
+    if (!response) throw error;
+    return error;
+  });
+  return client;
 }
 
 type ErrorBody = { detail?: unknown } | undefined | null;
