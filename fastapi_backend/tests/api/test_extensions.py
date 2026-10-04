@@ -361,3 +361,81 @@ def test_made_in_chat_behind_an_approval(app, db, cfg, folder, new_client, llm):
         c.post(f"/api/v1/approvals/{a['id']}", headers=h, json={"decision": "approve"})
     got = c.get(f"/api/v1/extensions/{out['extension']}", headers=h).json()
     assert (got["version"], got["enabled"]) == (2, False) and "Swedish" in got["spec"]["params"][1]["options"]
+
+
+PY_TOOL = """name: word_count
+kind: tool
+description: Count the words in a piece of text.
+params:
+  - {name: text, kind: text, required: true}
+run:
+  type: python
+  seconds: 10
+  code: |
+    def run(text):
+        print("counting")
+        return {"words": len(text.split())}
+"""
+
+
+def test_python_tools_run_apart_and_only_admins_write_them(app, db, cfg, folder, new_client):
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    ca, ha = s.cl["admin"]
+    # only admins write code tools
+    r = c.post("/api/v1/extensions", headers=h, json={"text": PY_TOOL})
+    assert r.status_code == 400 and "only admins" in r.json()["detail"]
+    bad = ca.post("/api/v1/extensions/check", headers=ha, json={"text": PY_TOOL.replace("def run(text)", "def go(text)")})
+    assert bad.status_code == 400 and "run(**args)" in bad.json()["detail"]
+    bad = ca.post("/api/v1/extensions/check", headers=ha, json={"text": PY_TOOL.replace("print(", "print((")})
+    assert bad.status_code == 400 and "doesn't compile" in bad.json()["detail"]
+
+    r = ca.post("/api/v1/extensions", headers=ha, json={"text": PY_TOOL})
+    assert r.status_code == 200, r.text
+    eid = r.json()["id"]
+    got = ca.get(f"/api/v1/extensions/{eid}", headers=ha).json()
+    assert "code: |" in got["manifest"]  # the code goes back out as a block, as it was written
+    again = extensions.parse_manifest(got["manifest"])
+    assert again["run"]["code"] == got["spec"]["run"]["code"]
+    out = ca.post(f"/api/v1/extensions/{eid}/test", headers=ha, json={"args": {"text": "one two three"}}).json()["output"]
+    assert out == {"result": {"words": 3}, "printed": "counting"}
+
+    # shared with the editor's namespace, it runs for them; they can't change its code
+    ca.patch(f"/api/v1/extensions/{eid}", headers=ha, json={"visibility": "namespace", "namespaces": ["pods"]})
+    me = {"id": db.one("SELECT record::id(id) AS id FROM account WHERE email = 'ed@x.io'")["id"], "email": "ed@x.io"}
+    assert "word_count" in ai_tools.Toolbox(db, cfg, me, {s.pods}, {s.pods}, {}, None).ext.tools
+    # once its owner is no longer an admin, it stops running
+    root = db.one("SELECT record::id(id) AS id FROM account WHERE email = 'root@x.io'")["id"]
+    db.q("UPDATE $r SET admin = false", r=extensions.R("account", root))
+    assert "word_count" not in ai_tools.Toolbox(db, cfg, me, {s.pods}, {s.pods}, {}, None).ext.tools
+
+
+def run_code(code, args=None, **kw):
+    from app.domain import code_tools
+
+    return code_tools.run(code, args or {}, **kw)
+
+
+def test_python_code_is_kept_apart_from_the_server(monkeypatch):
+    from app.domain import code_tools
+
+    monkeypatch.setenv("LENS_SECRET_FOR_TEST", "s3cret")
+    assert "LENS_SECRET_FOR_TEST" not in run_code("import os\ndef run():\n    return list(os.environ)")["result"]
+    # its own folder only
+    assert run_code("def run():\n    open('notes.txt', 'w').write('x')\n    return open('notes.txt').read()")["result"] == "x"
+    for code, why in [
+        ("def run():\n    return open('/etc/passwd').read()", "own folder"),
+        ("def run():\n    open('/tmp/lens-escape', 'w')", "own folder"),
+        ("import subprocess\ndef run():\n    return subprocess.run(['id']).returncode", "other programs"),
+        ("import os\ndef run():\n    return os.system('id')", "other programs"),
+        ("import socket\ndef run():\n    socket.create_connection(('example.com', 80), timeout=2)", "no network"),
+        ("def run():\n    while True: pass", "stopped"),
+        ("def run():\n    raise RuntimeError('boom')", "boom"),
+        ("def run():\n    return 1", None),
+    ]:
+        if why is None:
+            assert run_code(code)["result"] == 1
+            continue
+        with pytest.raises(code_tools.CodeError) as e:
+            run_code(code, seconds=2)
+        assert why in str(e.value) or (why == "stopped" and "CPU time" in str(e.value)), (code, str(e.value))
