@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Safer upgrades of existing installs.** Data upgrades are now named steps that run once per database, under a lock
+  so only one process runs them while the others wait, with a record of when each ran and why one failed.
+  `lens migrations` lists them. A database with data is backed up into `<data_dir>/backups` before it is upgraded
+  (the newest three are kept), and `lens backup` takes one on demand. See docs/database.md, Upgrades.
 - **Routine choices on your own Mac with Laya.** `decisions.engine: laya` takes routine choices with a Laya typed
   decision model on MLX (English, multilingual or typed-decisions), fetched by Lens itself, free and offline. Lens in
   Docker on a Mac asks `lens decide-server` on the Mac. Elsewhere it says Laya isn't available and the LLM decides.
