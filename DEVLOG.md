@@ -69,7 +69,7 @@ Todo:
 - [x] Vocabulary in the backend: topics with labels, definition, broader/narrower/related; recordings about topics;
       create, edit, merge, delete; turn a TERM entity into a topic (and back, by deleting the topic); API with viewer
       reads and editor changes; topics in the property graph (Topic, ABOUT, NARROWER, RELATED) and in RDF as SKOS
-- [ ] Topics page: the tree of broader and narrower topics, a topic's recordings, edit and merge; a recording's topics
+- [x] Topics page: the tree of broader and narrower topics, a topic's recordings, edit and merge; a recording's topics
 - [ ] Analysis suggests topics (summary topics and keywords matched to the vocabulary; new ones as suggestions to
       accept); a namespace can keep its vocabulary fixed or open, as entities do
 - [ ] # links in notes point at topics; assistant and MCP tools for topics

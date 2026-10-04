@@ -19,6 +19,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `ABOUT`, `NARROWER` and `RELATED`; TERM entities are now labelled `Term` there) and in RDF (`/id/topic/<id>`). See
   docs/topics.md.
 
+- **A Topics page.** Topics in the navigation shows a namespace's vocabulary as a tree of broader and narrower topics,
+  with search, and a drawer to edit, merge or delete a topic and see the recordings about it. A recording's Entities
+  tab lists its topics for editors to add, remove or accept; a Term entity can be made a topic from its drawer; topics
+  show on the graph canvas as green tags. Entities of type TERM are now shown as Terms.
+
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or

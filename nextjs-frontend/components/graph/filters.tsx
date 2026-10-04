@@ -176,7 +176,8 @@ export function GraphFilters({
           (k) =>
             k.key !== "same thing" &&
             (!["contains", "speaks in", "mentioned in"].includes(k.key) ||
-              ["recording", "collection", "namespace"].some((g) => present.has(g))),
+              ["recording", "collection", "namespace"].some((g) => present.has(g))) &&
+            (!["about", "narrower", "related"].includes(k.key) || present.has("topic")),
         ).map((k) => (
           <Checkbox
             key={k.key}

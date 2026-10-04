@@ -33,7 +33,7 @@ BUILTIN_HELP = {
     "PLACE": "A country, city, building or other place.",
     "EVENT": "A named event: a conference, a launch, a war.",
     "WORK": "A book, paper, film, law or other named work.",
-    "TERM": "A topic or term that isn't one of the other types.",
+    "TERM": "A term or theme that isn't one of the other types (the vocabulary of topics is kept apart, under Topics).",
     "DATE": "A date or time.",
     "NUMBER": "An amount, percentage or other number.",
 }

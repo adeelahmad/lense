@@ -23,7 +23,7 @@ TYPES = {
     "PLACE": "Place",
     "EVENT": "Event",
     "WORK": "Work",
-    "TERM": "Topic",
+    "TERM": "Term",
     "DATE": "Date",
     "NUMBER": "Number",
 }
