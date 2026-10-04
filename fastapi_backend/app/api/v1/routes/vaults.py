@@ -31,6 +31,8 @@ def _run(fn, *args):
         return fn(*args)
     except keyring.Locked:
         raise HTTPException(423, "this vault is locked; unlock it with one of its passkeys first") from None
+    except RuntimeError:  # its keys changed meanwhile (keyring._save)
+        raise HTTPException(409, "the vault changed just now; try again") from None
     except (passkeys.PasskeyError, vaults.VaultError, ValueError) as e:
         raise HTTPException(400, str(e)) from None
     except KeyError:
@@ -39,8 +41,14 @@ def _run(fn, *args):
 
 @router.get("/{name}/vault")
 def get_vault(name: str, acl: Acl, db: Db) -> VaultStatus:
-    """Whether the namespace is a vault, whether it's open now, and which passkeys open it."""
-    return VaultStatus(**vaults.status(db, acl.namespace(name)))
+    """Whether the namespace is a vault, whether it's open now, and which passkeys open it (whose, for owners)."""
+    sid = acl.namespace(name)
+    out = vaults.status(db, sid)
+    try:
+        acl.need(sid, "owner")
+    except HTTPException:
+        out["passkeys"] = [{**p, "account": None, "email": None} for p in out["passkeys"]]
+    return VaultStatus(**out)
 
 
 @router.post("/{name}/vault/options")
@@ -91,8 +99,8 @@ def remove_vault_passkey(name: str, pid: str, user: Writer, acl: Acl, db: Db) ->
 
 @router.post("/{name}/vault/lock")
 def lock_vault(name: str, user: Writer, acl: Acl, db: Db) -> VaultStatus:
-    """Close the vault on this server now. Audited as `vault.lock`."""
-    sid = acl.namespace(name)
+    """Close the vault on this server now (owners). Audited as `vault.lock`."""
+    sid = acl.namespace(name, "owner")
     out = _run(vaults.lock, db, sid)
     auth.audit(db, user.as_audit(), "vault.lock", f"space:{sid}")
     return VaultStatus(**out)

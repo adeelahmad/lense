@@ -54,11 +54,13 @@ Owners turn one on in Admin › Namespaces › the namespace › **Vault** with 
   it with HKDF-SHA-256, unwraps the data key, and keeps neither. Recent phones, computers, password managers and
   security keys support PRF; a passkey that doesn't is refused with a message saying so.
 * **Unlocked for a while.** A vault stays open in the API process for `encryption.vault_minutes` (60 by default)
-  after each unlock, or until someone presses "Lock now". Locked, its files don't play or download (the API answers
-  423), and its queued work waits; it runs once the vault is unlocked again. Workers running in a separate process
+  after each unlock, or until an owner presses "Lock now". Locked, its files don't play or download (the API answers
+  423), its queued work waits (it runs once the vault is unlocked again), and its plain working copies are removed
+  as soon as no job is using them. Workers running in a separate process
   never get the key, so they skip vault jobs.
 * **More than one passkey.** While it's open, owners add their passkeys with "Add one of my passkeys". The last
-  passkey that opens a vault can't be removed, from the vault or from the account.
+  passkey that opens a vault can't be removed, from the vault or from the account, and an admin removing someone's
+  passkeys (Admin › People) is refused while they are the only way into a vault.
 * **No other way in.** There is no recovery code, password or admin override. If every passkey that opens a vault is
   lost, its files can't be recovered by anyone. Add a second passkey (a phone or a security key) right away.
 * **Its files are always encrypted.** Turning a namespace into a vault encrypts its files that aren't yet (when

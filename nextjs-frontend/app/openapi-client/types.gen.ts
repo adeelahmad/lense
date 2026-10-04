@@ -14891,7 +14891,12 @@ export type DropPasskeysData = {
      */
     uid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Lose Vaults
+     */
+    lose_vaults?: boolean;
+  };
   url: "/api/v1/users/{uid}/passkeys";
 };
 

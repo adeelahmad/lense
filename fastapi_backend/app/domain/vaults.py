@@ -133,19 +133,26 @@ def _answer(db, uid, sid, kind, flow, credential, prf):
 
 
 def seal(db, cfg, uid, sid, flow, credential, prf):
-    """Make the namespace a vault opened by this passkey. It stays open here for encryption.vault_minutes, and its
-    files not encrypted yet (encryption.files was off) are encrypted in the background."""
+    """Make the namespace a vault opened by this passkey. Its files not encrypted yet (encryption.files was off) are
+    encrypted first, while the server's key still opens it, so none is left plain. It then stays open here for
+    encryption.vault_minutes."""
     if keyring.status(db, sid)["vault"]:
         raise VaultError("this namespace is a vault already")
     pk, kek = _answer(db, uid, sid, "seal", flow, credential, prf)
     keyring.add_wrapper(db, cfg, sid, wrapper_of(pk), kek)
+    keyring.encrypt_all(db, cfg, space=sid, log=log.info)
     keyring.remove_wrapper(db, sid, keyring.SERVER)
     keyring.keep_open(db, sid, _minutes(cfg))
+    keyring.encrypt_all(db, cfg, space=sid, log=log.info)  # any stored while that ran
+    return status(db, sid)
+
+
+def _catch_up(db, cfg, sid):
+    """Encrypt, in the background, a vault's files that arrived plain (while it was being made a vault)."""
     encrypting[int(sid)] = th = threading.Thread(
         target=keyring.encrypt_all, args=(db, cfg), kwargs={"space": sid, "log": log.info}, daemon=True, name=f"vault-{sid}"
     )
-    th.start()  # its files stored plain so far (encryption.files was off): new ones are encrypted as they're stored
-    return status(db, sid)
+    th.start()
 
 
 encrypting: dict[int, threading.Thread] = {}
@@ -155,6 +162,7 @@ def unlock(db, cfg, uid, sid, flow, credential, prf):
     """Open the vault with one of its passkeys, for encryption.vault_minutes."""
     pk, kek = _answer(db, uid, sid, "unlock", flow, credential, prf)
     keyring.unlock(db, sid, wrapper_of(pk), kek, _minutes(cfg))
+    _catch_up(db, cfg, sid)
     return status(db, sid)
 
 
@@ -202,12 +210,14 @@ def _open(db, sid):
         raise keyring.Locked(sid)
 
 
-def guards(db, pid):
-    """The vaults a passkey is the only way into (removing it would lose them)."""
-    name = PREFIX + pid
+def guards(db, pids):
+    """The vaults these passkeys (ids) are the only way into: removing them would lose them. Wrappers of passkeys
+    already gone don't count, since nothing can answer for them."""
+    gone = {PREFIX + p for p in pids}
+    live = {PREFIX + passkeys._pid(c) for c in db.values("SELECT VALUE cred_id FROM passkey")} - gone
     out = []
     for row in db.rows("SELECT space, keys, current FROM data_key WHERE vault = true"):
-        w = row["keys"][str(row["current"])]["wrapped"]
-        if name in w and len([k for k in w if k.startswith(PREFIX)]) == 1:
+        w = set(row["keys"][str(row["current"])]["wrapped"])
+        if w & gone and not w & live:
             out.append(row["space"])
     return out

@@ -84,7 +84,8 @@ describe("a namespace's vault", () => {
     expect(await screen.findByText("Locked")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add one of my passkeys" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Unlock with my passkey" }));
-    expect(await screen.findByRole("button", { name: "Lock now" })).toBeInTheDocument();
+    expect(await screen.findByText(/Unlocked until/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Lock now" })).not.toBeInTheDocument(); // owners lock it
     expect(api.vaultOptions.mock.calls[0][0]).toMatchObject({ body: { kind: "unlock" } });
   });
 

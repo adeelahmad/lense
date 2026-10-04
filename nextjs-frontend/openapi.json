@@ -1531,7 +1531,7 @@
           "users"
         ],
         "summary": "Drop Passkeys",
-        "description": "Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link\nto add a new one. Audited as `user.passkeys_remove`.",
+        "description": "Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link\nto add a new one. Refused (409) when they are the only way into a vault, unless lose_vaults=true. Audited as\n`user.passkeys_remove`.",
         "operationId": "drop_passkeys",
         "parameters": [
           {
@@ -1541,6 +1541,16 @@
             "schema": {
               "type": "integer",
               "title": "Uid"
+            }
+          },
+          {
+            "name": "lose_vaults",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Lose Vaults"
             }
           }
         ],
@@ -18779,7 +18789,7 @@
           "vaults"
         ],
         "summary": "Get Vault",
-        "description": "Whether the namespace is a vault, whether it's open now, and which passkeys open it.",
+        "description": "Whether the namespace is a vault, whether it's open now, and which passkeys open it (whose, for owners).",
         "operationId": "get_vault",
         "parameters": [
           {
@@ -19125,7 +19135,7 @@
           "vaults"
         ],
         "summary": "Lock Vault",
-        "description": "Close the vault on this server now. Audited as `vault.lock`.",
+        "description": "Close the vault on this server now (owners). Audited as `vault.lock`.",
         "operationId": "lock_vault",
         "parameters": [
           {

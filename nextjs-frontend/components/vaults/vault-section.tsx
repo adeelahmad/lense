@@ -145,7 +145,7 @@ export function VaultSection({ ns, isOwner }: { ns: string; isOwner: boolean }) 
                 {waiting("unlock") ? "Waiting for your passkey…" : "Unlock with my passkey"}
               </Button>
             )}
-            {st.vault && st.unlocked && (
+            {st.vault && st.unlocked && isOwner && (
               <Button size="sm" icon={<Lock />} disabled={busy} onClick={() => lock.mutate()}>
                 Lock now
               </Button>

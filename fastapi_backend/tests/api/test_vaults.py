@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import time
 
 from app.domain import jobs, keyring, store
 from tests.api.test_passkeys import ORIGIN, WEB, _session, _setup
 from tests.fake_authenticator import Authenticator
-from tests.helpers import write_wav
+from tests.helpers import login, make_user, write_wav
 
 R = store.R
 
@@ -70,7 +71,9 @@ def test_a_vault_opens_only_with_its_passkeys(app, client, db, folder):
 
     # a second passkey opens it too; then the first can be let go
     o = client.post("/api/v1/auth/passkeys/options", headers={**h, **WEB}).json()
-    client.post("/api/v1/auth/passkeys", json={"flow": o["flow"], "credential": phone.create(o["options"], ORIGIN), "name": "Phone"}, headers=h)
+    client.post(
+        "/api/v1/auth/passkeys", json={"flow": o["flow"], "credential": phone.create(o["options"], ORIGIN), "name": "Phone"}, headers=h
+    )
     phone_id = next(iter(phone.keys))
     r = _ask(client, h, phone, "add", "/api/v1/namespaces/pods/vault/passkeys", cred_id=phone_id)
     assert r.status_code == 200 and len(r.json()["passkeys"]) == 2, r.text
@@ -123,9 +126,7 @@ def test_a_passkey_without_prf_or_the_wrong_answer_is_refused(app, client, db):
     o = client.post("/api/v1/namespaces/pods/vault/options", json={"kind": "unlock"}, headers={**h, **WEB}).json()
     cred = laptop.get(o["options"], ORIGIN)
     cred.pop("clientExtensionResults")
-    wrong = client.post(
-        "/api/v1/namespaces/pods/vault/unlock", json={"flow": o["flow"], "credential": cred, "prf": "A" * 43}, headers=h
-    )
+    wrong = client.post("/api/v1/namespaces/pods/vault/unlock", json={"flow": o["flow"], "credential": cred, "prf": "A" * 43}, headers=h)
     assert wrong.status_code == 423
     # an answer for unlocking can't seal, and API tokens can't do either
     raw = client.post("/api/v1/tokens", json={"name": "t", "scope": "write"}, headers=h).json()["token"]
@@ -136,6 +137,7 @@ def test_a_passkey_without_prf_or_the_wrong_answer_is_refused(app, client, db):
 def test_a_vault_encrypts_its_files_even_with_encryption_off(app, client, db, cfg, folder):
     from app.domain import settings, vaults
 
+    vaults.encrypting.clear()
     settings.save(db, cfg, "encryption", {"files": False})
     laptop = Authenticator()
     h = _session(client, _setup(app, client, laptop))
@@ -146,9 +148,57 @@ def test_a_vault_encrypts_its_files_even_with_encryption_off(app, client, db, cf
     old = db.one("SELECT path FROM $r", r=R("recording", rid))["path"]
     assert not keyring.is_encrypted(old)
     assert _ask(client, h, laptop, "seal", "/api/v1/namespaces/pods/vault").status_code == 200
-    vaults.encrypting[store.ns_id(db, "pods")].join(10)
-    assert keyring.is_encrypted(old)  # what it held already
+    assert keyring.is_encrypted(old)  # what it held already, before the server's key went
+    assert not vaults.encrypting
     write_wav(wav, seconds=2.0)
     new = _upload(client, h, wav.read_bytes(), "new.wav").json()["recording"]
     assert keyring.is_encrypted(db.one("SELECT path FROM $r", r=R("recording", new))["path"])  # and what comes in
     assert client.get(f"/api/v1/recordings/{rid}/audio", headers=h).content == data
+
+
+def test_locking_removes_its_plain_working_copies(app, client, db, cfg, folder):
+    laptop = Authenticator()
+    h = _session(client, _setup(app, client, laptop))
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    rid = _upload(client, h, wav.read_bytes()).json()["recording"]
+    path = db.one("SELECT path FROM $r", r=R("recording", rid))["path"]
+    assert _ask(client, h, laptop, "seal", "/api/v1/namespaces/pods/vault").status_code == 200
+    held = keyring.working_copy(db, cfg, path)  # a job using it
+    other = folder / "other.bin"
+    other.write_bytes(b"x")
+    keyring.encrypt_file(db, cfg, store.ns_id(db, "calls"), other)
+    elsewhere = keyring.working_copy(db, cfg, str(other))  # another namespace's
+    client.post("/api/v1/namespaces/pods/vault/lock", headers=h)
+    assert os.path.exists(held)  # still in use
+    with keyring.work(cfg):
+        pass  # the job ends
+    assert not os.path.exists(held) and os.path.exists(elsewhere)
+
+
+def test_only_owners_lock_or_see_whose_passkeys(app, client, db):
+    laptop = Authenticator()
+    h = _session(client, _setup(app, client, laptop))
+    assert _ask(client, h, laptop, "seal", "/api/v1/namespaces/pods/vault").status_code == 200
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    he = login(client, "ed@x.io", "editor password 1")
+    st = client.get("/api/v1/namespaces/pods/vault", headers=he).json()
+    assert st["vault"] and st["passkeys"][0]["email"] is None
+    assert client.get("/api/v1/namespaces/pods/vault", headers=h).json()["passkeys"][0]["email"]
+    assert client.post("/api/v1/namespaces/pods/vault/lock", headers=he).status_code == 403
+
+
+def test_an_admin_cannot_remove_the_passkeys_that_alone_open_a_vault(app, client, db):
+    laptop = Authenticator()
+    h = _session(client, _setup(app, client, laptop))
+    assert _ask(client, h, laptop, "seal", "/api/v1/namespaces/pods/vault").status_code == 200
+    owner = db.one("SELECT account FROM passkey")["account"]
+    make_user(db, "boss@x.io", "admin password 12", admin=True)
+    ha = login(client, "boss@x.io", "admin password 12")
+    r = client.delete(f"/api/v1/users/{owner}/passkeys", headers=ha)
+    assert r.status_code == 409 and "pods" in r.json()["detail"]
+    assert client.delete(f"/api/v1/users/{owner}/passkeys?lose_vaults=true", headers=ha).status_code == 200
+    # a vault whose passkeys are all gone guards nothing more
+    from app.domain import vaults
+
+    assert vaults.guards(db, ["whatever"]) == []

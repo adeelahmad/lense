@@ -1811,7 +1811,8 @@ export class Users {
    * Drop Passkeys
    *
    * Remove all of this person's passkeys and end their sessions (a lost or stolen device). Send them a sign-in link
-   * to add a new one. Audited as `user.passkeys_remove`.
+   * to add a new one. Refused (409) when they are the only way into a vault, unless lose_vaults=true. Audited as
+   * `user.passkeys_remove`.
    */
   public static dropPasskeys<ThrowOnError extends boolean = false>(
     options: Options<DropPasskeysData, ThrowOnError>,
@@ -7357,7 +7358,7 @@ export class Vaults {
   /**
    * Get Vault
    *
-   * Whether the namespace is a vault, whether it's open now, and which passkeys open it.
+   * Whether the namespace is a vault, whether it's open now, and which passkeys open it (whose, for owners).
    */
   public static getVault<ThrowOnError extends boolean = false>(
     options: Options<GetVaultData, ThrowOnError>,
@@ -7459,7 +7460,7 @@ export class Vaults {
   /**
    * Lock Vault
    *
-   * Close the vault on this server now. Audited as `vault.lock`.
+   * Close the vault on this server now (owners). Audited as `vault.lock`.
    */
   public static lockVault<ThrowOnError extends boolean = false>(
     options: Options<LockVaultData, ThrowOnError>,

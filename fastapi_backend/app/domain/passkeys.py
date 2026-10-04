@@ -412,7 +412,7 @@ def remove(db, uid, pid, passwords_on=False, here=None, others=0):
         return False
     from . import vaults
 
-    if only := vaults.guards(db, pid):
+    if only := vaults.guards(db, [pid]):
         names = store.space_names(db)
         raise ValueError(
             f"this passkey is the only one that opens {', '.join(names.get(s, str(s)) for s in only)}: add another passkey to "
@@ -436,8 +436,18 @@ def has_password(db, uid):
     return bool((db.one("SELECT pw FROM $r", r=R("account", uid)) or {}).get("pw"))
 
 
-def remove_all(db, uid):
-    """An admin removes everyone's passkeys for an account (a lost or stolen device); their sessions end too."""
+def remove_all(db, uid, lose_vaults=False):
+    """An admin removes everyone's passkeys for an account (a lost or stolen device); their sessions end too. Refused
+    when they are the only way into a vault, unless `lose_vaults` says its files may be lost."""
+    from . import vaults
+
+    pids = [_pid(c) for c in db.values("SELECT VALUE cred_id FROM passkey WHERE account = $a", a=uid)]
+    if not lose_vaults and (only := vaults.guards(db, pids)):
+        names = store.space_names(db)
+        raise ValueError(
+            f"these passkeys are the only ones that open {', '.join(names.get(s, str(s)) for s in only)}: its files "
+            "would be lost for good. Have an owner unlock it and add another passkey (or make it ordinary) first"
+        )
     n = len(db.rows("DELETE passkey WHERE account = $a RETURN BEFORE", a=uid))
     db.q("DELETE login_session WHERE account = $a", a=uid)
     return n
