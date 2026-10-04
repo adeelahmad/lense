@@ -205,6 +205,8 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecisionStatusData,
+  DecisionStatusResponses,
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
@@ -1070,6 +1072,8 @@ import type {
   TelemetryStatusResponses,
   TestBridgeData,
   TestBridgeResponses,
+  TestDecisionsData,
+  TestDecisionsResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -1085,6 +1089,9 @@ import type {
   TestSourceData,
   TestSourceErrors,
   TestSourceResponses,
+  TestSpeechData,
+  TestSpeechErrors,
+  TestSpeechResponses,
   TestTelemetryData,
   TestTelemetryResponses,
   TokenData,
@@ -2238,6 +2245,35 @@ export class Admin {
   }
 
   /**
+   * Decision Status
+   *
+   * Who takes routine decisions, and whether a local Laya model can here: on this machine (Apple Silicon, once
+   * fetched) or at a Laya server's address.
+   */
+  public static decisionStatus<ThrowOnError extends boolean = false>(
+    options?: Options<DecisionStatusData, ThrowOnError>,
+  ): RequestResult<DecisionStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<DecisionStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Decisions
+   *
+   * Take one made-up decision with the settings, to check them; says who answered.
+   */
+  public static testDecisions<ThrowOnError extends boolean = false>(
+    options?: Options<TestDecisionsData, ThrowOnError>,
+  ): RequestResult<TestDecisionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestDecisionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/test",
+      ...options,
+    });
+  }
+
+  /**
    * Test Embeddings
    *
    * Embed one sentence with the configured model, to check the address, key and model name.
@@ -2247,6 +2283,20 @@ export class Admin {
   ): RequestResult<TestEmbeddingsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestEmbeddingsResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/embeddings/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Speech
+   *
+   * Check a speech provider's address and key with the saved settings (lists its models; nothing is billed).
+   */
+  public static testSpeech<ThrowOnError extends boolean = false>(
+    options: Options<TestSpeechData, ThrowOnError>,
+  ): RequestResult<TestSpeechResponses, TestSpeechErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestSpeechResponses, TestSpeechErrors, ThrowOnError>({
+      url: "/api/v1/settings/speech/test",
       ...options,
     });
   }

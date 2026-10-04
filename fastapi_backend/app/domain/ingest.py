@@ -15,7 +15,7 @@ from difflib import SequenceMatcher
 
 import numpy as np
 
-from . import store
+from . import speech, store
 
 TAG_RX = re.compile(r"<\|([^|]*)\|>")
 SR = 16000
@@ -359,6 +359,11 @@ def _make_engine(cfg, e):
         return SenseVoice(cfg)
     if e in ("whisper", "mlx-whisper"):
         return Whisper(cfg, mlx=e == "mlx-whisper")
+    if e in speech.PROVIDERS:
+        try:
+            return speech.Engine(cfg, e)
+        except speech.ProviderError as err:
+            raise EngineMissing(str(err)) from None
     raise SystemExit(f"unknown transcribe.engine {e!r}")
 
 
@@ -404,6 +409,7 @@ def segment_rows(rid, nid, segs):
                     "t1": t1,
                     "dur": t1 - t0,
                     "local_speaker": s.get("speaker"),
+                    "provider_speaker": s.get("provider_speaker"),  # a speech provider's label (domain/speech.py)
                     "text": s["text"],
                     "raw_text": s.get("raw_text"),
                     "emotion": store.norm_emotion(s.get("emotion")),

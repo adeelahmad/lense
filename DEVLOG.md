@@ -37,6 +37,61 @@ Todo:
 
 Refine later: speakers (same-person links, names) in the history; a mention-level history.
 
+
+## 2026-10-04 · Local decision models: Laya on MLX
+
+Goal (Adeel): routine decisions can run on the machine itself with the Laya typed decision models on MLX
+(github.com/mizorewww/laya-mlx; aac6fef/laya-mlx, aac6fef/laya-multilingual-mlx, aac6fef/laya-typed-decisions-mlx),
+beside Jev. Jev stays the default: with nothing configured, decisions behave exactly as before.
+
+Laya takes the same questions as Jev's System One (choice, score, noul) and answers in the same shape, so it is a
+third engine behind decide.choose, falling back to the language model the way Jev does. MLX runs only on Apple
+Silicon, so Lens in Docker on a Mac (a Linux VM) can't run it in the container: there it reaches a Laya server on the
+Mac (`lens decide-server`), which speaks System One's API.
+
+Todo:
+
+- [x] Engine "laya" in decide.py: in this process on Apple Silicon, or a Laya server's address; Jev and auto unchanged
+- [x] Settings decisions.laya_model (the three models) and decisions.laya_url; "not available here" instead of failing
+- [x] Lens installs laya-mlx (extra `laya`) and downloads the chosen model itself (Settings → Components)
+- [x] `lens decide-server`: System One's API over Laya on a Mac, for Lens in Docker
+- [x] Status and test endpoints; Settings → AI assistant shows the engine, model, availability and a Test button
+- [ ] Log decision calls in the cost ledger once "Activity history and budgets" lands
+- Refine later: install.sh starts the decide server on a Mac host by itself; score and noul questions for callers;
+  Laya's router (language detection picks the multilingual model); shortlisting for large option sets
+## 2026-10-04 · Cloud speech providers and local GGUF models
+
+Goal (Adeel): transcription, speaker separation and emotion stay local by default (SenseVoice and friends, unchanged),
+but each voice task can be sent to a provider instead: an OpenAI-compatible Whisper endpoint, ElevenLabs (speech to
+text and text to speech), AssemblyAI and Deepgram (every capability that fits). Every service takes a custom base URL,
+for proxies and compatible servers. Also: run a local LLM with llama.cpp from a list of GGUF models this machine can run,
+downloaded from Hugging Face.
+
+Model:
+
+- Settings → Speech providers (`speech` section): per service a base URL, a model and an API key (sealed like every
+  other key). The defaults point at each vendor; change the URL for a proxy or a compatible server.
+- `transcribe.engine` gains openai, elevenlabs, assemblyai, deepgram. Their transcripts carry the provider's speaker
+  labels, language, audio events and sentiment (as emotion); `diarize.engine` gains provider, and auto uses those
+  labels when a transcript has them. Voice IDs across recordings still come from the local voiceprints.
+- Voice chat: `voice.stt` picks its own engine (default: the transcription engine); `voice.tts_provider` adds
+  ElevenLabs and Deepgram Aura next to the OpenAI-compatible speech server.
+- Provider calls go through the activity ledger once it lands (seconds of audio per call).
+- Local LLM: a catalog of GGUF chat models with the memory each needs; the ones this machine can run are offered,
+  downloaded from Hugging Face into data_dir/models/gguf, and served by llama.cpp's server, which becomes the LLM
+  provider.
+
+Todo:
+
+- [x] Speech providers: settings, OpenAI-compatible, ElevenLabs, AssemblyAI and Deepgram transcription with speakers,
+      language, events and sentiment; provider speaker labels in speaker separation
+- [x] Voice chat: own speech-to-text engine; ElevenLabs and Deepgram text to speech
+- [x] Settings → Speech providers in the web app; new engines in Transcription and Speaker separation
+- [ ] Local LLM: GGUF catalog filtered by this machine, download from Hugging Face, llama.cpp server as the provider
+
+Refine later: per-minute prices for provider calls in the ledger; AssemblyAI and Deepgram summaries, chapters and
+entities as optional imports next to Lens's own analysis; several endpoints per service; speaker labels kept across
+chunks of long OpenAI-compatible transcriptions.
 ## 2026-10-04 · Topics: a controlled vocabulary apart from entities
 
 Goal (Adeel): entities and topics are mixed (a topic is an entity of type TERM, which is also the fallback type for

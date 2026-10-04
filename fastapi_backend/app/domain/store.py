@@ -250,7 +250,35 @@ DEFAULTS = {
     },
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
-    "voice": {"input": "auto", "tts_base_url": None, "tts_model": None, "tts_voice": None, "tts_api_key": None},
+    # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
+    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram: the keys in speech)
+    "voice": {
+        "input": "auto",
+        "stt": "same",
+        "tts_provider": "openai",
+        "tts_base_url": None,
+        "tts_model": None,
+        "tts_voice": None,
+        "tts_api_key": None,
+    },
+    # speech providers (domain/speech.py): transcription, speakers and text to speech by a service instead of this
+    # server, picked in transcribe.engine, diarize.engine and voice. A base URL can be a proxy or a compatible server.
+    "speech": {
+        "openai_base_url": "https://api.openai.com/v1",
+        "openai_model": "whisper-1",
+        "openai_api_key": None,
+        "elevenlabs_base_url": "https://api.elevenlabs.io",
+        "elevenlabs_model": "scribe_v1",
+        "elevenlabs_api_key": None,
+        "assemblyai_base_url": "https://api.assemblyai.com",
+        "assemblyai_model": "universal",
+        "assemblyai_api_key": None,
+        "deepgram_base_url": "https://api.deepgram.com",
+        "deepgram_model": "nova-3",
+        "deepgram_api_key": None,
+        "sentiment": True,
+        "timeout": 1800,
+    },
     # the assistant in chat rooms through Matterbridge (bridge.py): url is its API (http://matterbridge:4242), token its
     # API token; it answers as `account` (an email), when a message names it (answer "mention") or to every message
     # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`
@@ -268,7 +296,8 @@ DEFAULTS = {
     # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
     "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
-    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
+    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks. Engine laya runs a
+    # Laya model (laya_model) on this Mac, or asks a Laya server (laya_url, `lens decide-server`).
     "decisions": {
         "engine": "auto",
         "base_url": "https://api.typesafe.ai/v1",
@@ -276,6 +305,8 @@ DEFAULTS = {
         "api_key": None,
         "act_above": 0.8,
         "timeout": 10,
+        "laya_model": "aac6fef/laya-mlx",
+        "laya_url": None,
     },
     "video": {
         "sample_seconds": 5,

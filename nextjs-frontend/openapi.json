@@ -2329,6 +2329,50 @@
         }
       }
     },
+    "/api/v1/settings/decisions/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Decision Status",
+        "description": "Who takes routine decisions, and whether a local Laya model can here: on this machine (Apple Silicon, once\nfetched) or at a Laya server's address.",
+        "operationId": "decision_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/decisions/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Decisions",
+        "description": "Take one made-up decision with the settings, to check them; says who answered.",
+        "operationId": "test_decisions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/embeddings/test": {
       "post": {
         "tags": [
@@ -2344,6 +2388,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EmbedTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/speech/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Speech",
+        "description": "Check a speech provider's address and key with the saved settings (lists its models; nothing is billed).",
+        "operationId": "test_speech",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(openai|elevenlabs|assemblyai|deepgram)$",
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpeechTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -25587,6 +25675,122 @@
         ],
         "title": "CustomNodeVersionCreate"
       },
+      "DecisionStatus": {
+        "properties": {
+          "engine": {
+            "type": "string",
+            "title": "Engine",
+            "description": "the setting: auto, jev, laya, llm or off"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who answers now: jev, laya, llm, or none"
+          },
+          "apple_silicon": {
+            "type": "boolean",
+            "title": "Apple Silicon",
+            "description": "this machine can run MLX models"
+          },
+          "laya": {
+            "$ref": "#/components/schemas/LayaStatus"
+          },
+          "laya_models": {
+            "items": {
+              "$ref": "#/components/schemas/LayaModel"
+            },
+            "type": "array",
+            "title": "Laya Models"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "engine",
+          "apple_silicon",
+          "laya",
+          "laya_models"
+        ],
+        "title": "DecisionStatus",
+        "description": "Who takes routine decisions now, and whether a local Laya model could."
+      },
+      "DecisionTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who answered: jev, laya or llm (the language model when the decision model failed)"
+          },
+          "choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choice"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "DecisionTestResult"
+      },
       "Description": {
         "properties": {
           "idx": {
@@ -30820,6 +31024,69 @@
           "ok"
         ],
         "title": "LastSend"
+      },
+      "LayaModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the Hugging Face repository"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "about"
+        ],
+        "title": "LayaModel"
+      },
+      "LayaStatus": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "where": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Where",
+            "description": "here (this machine runs it), server (a Laya server), or none"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "why it can't answer, when it can't"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "available",
+          "model"
+        ],
+        "title": "LayaStatus"
       },
       "LlmEstimate": {
         "properties": {
@@ -42583,6 +42850,54 @@
           "score"
         ],
         "title": "SpeakerSuggestion"
+      },
+      "SpeechTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what the provider answered, when it did"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "SpeechTestResult"
       },
       "Started": {
         "properties": {

@@ -145,3 +145,140 @@ def test_an_editor_with_one_namespace_needs_no_decision(app, db, cfg, folder, ne
     assert c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()["status"] == "done"
     assert db.values("SELECT VALUE name FROM space WHERE id = $s", s=store.R("space", s.pods)) == ["pods"]
     assert c.get(f"/api/v1/uploads/{up['id']}", headers=h).json()["state"] == "done"
+
+
+# ---------- Laya, a decision model on the machine itself ----------
+class FakeAgent:
+    """Stands in for laya_mlx.Agent: answers each choice with its last option, and remembers what it was asked."""
+
+    def __init__(self, model):
+        self.model, self.seen = model, []
+
+    def system_one(self, state, questions):
+        self.seen.append((state, questions))
+        answers = {}
+        for name, q in questions.items():
+            last = list(q["criteria"])[-1]
+            answers[name] = {
+                "type": "choice",
+                "choice": last,
+                "confidence": 0.93,
+                "probabilities": {k: (0.93 if k == last else 0.07) for k in q["criteria"]},
+            }
+        return {"model": "laya-rl-agent", "answers": answers, "usage": {"input_tokens": 30, "output_tokens": 0}}
+
+
+@pytest.fixture
+def mac(monkeypatch):
+    """This machine is an Apple Silicon Mac with laya-mlx and the model fetched."""
+    import sys
+    import types
+
+    from app.domain import components
+
+    loaded = {}
+    fake = types.SimpleNamespace(load=lambda model, **kw: loaded.setdefault(model, FakeAgent(model)))
+    monkeypatch.setitem(sys.modules, "laya_mlx", fake)
+    monkeypatch.setattr(decide, "laya_here", lambda: True)
+    monkeypatch.setattr(components.LAYA, "present", lambda cfg: True)
+    monkeypatch.setattr(decide, "_AGENTS", {})
+    return loaded
+
+
+def test_laya_decides_on_this_mac(cfg, llm, mac):
+    cfg["decisions"]["engine"] = "laya"
+    asked = len(llm.seen)
+    d = decide.choose(cfg, "Where does this go?", OPTIONS, {"subject": "Quarterly targets"})
+    assert (d["choice"], d["by"], d["confidence"]) == ("work", "laya", 0.93)
+    agent = mac["aac6fef/laya-mlx"]  # the default model
+    state, questions = agent.seen[-1]
+    assert json.loads(state)["subject"] == "Quarterly targets" and questions["q"]["criteria"] == OPTIONS
+    assert len(llm.seen) == asked
+    cfg["decisions"]["laya_model"] = "aac6fef/laya-multilingual-mlx"
+    decide.choose(cfg, "Where?", OPTIONS, "x")
+    assert "aac6fef/laya-multilingual-mlx" in mac
+
+
+def test_laya_asks_a_laya_server_where_mlx_cant_run(cfg, jev, llm, monkeypatch):
+    monkeypatch.setattr(decide, "laya_here", lambda: False)
+    url = cfg["decisions"]["base_url"]
+    cfg["decisions"].update(
+        engine="laya", base_url="https://api.typesafe.ai/v1", laya_url=url, laya_model="aac6fef/laya-typed-decisions-mlx"
+    )
+    jev.answer = {"type": "choice", "choice": "kids", "confidence": 0.88, "probabilities": {"kids": 0.88, "work": 0.12}}
+    d = decide.choose(cfg, "Where does this go?", OPTIONS, "the school trip form")
+    assert (d["choice"], d["by"]) == ("kids", "laya")
+    headers, body = jev.seen[-1]
+    assert "Authorization" not in headers  # Jev's key stays with Jev
+    assert body["model"] == "aac6fef/laya-typed-decisions-mlx" and body["state"] == "the school trip form"
+    assert decide.laya_status(cfg)["where"] == "server"
+
+
+def test_laya_says_it_cant_run_here_and_the_llm_decides(cfg, llm, monkeypatch):
+    monkeypatch.setattr(decide, "laya_here", lambda: False)
+    cfg["decisions"]["engine"] = "laya"
+    st = decide.laya_status(cfg)
+    assert not st["available"] and "Apple Silicon" in st["reason"]
+    llm.decision = {"choice": "kids", "confidence": 0.9}
+    assert decide.choose(cfg, "Where?", OPTIONS, "x")["by"] == "llm"
+
+
+def test_nothing_set_up_decides_as_before(cfg, llm, monkeypatch):
+    called = []
+    monkeypatch.setattr(decide, "_laya", lambda *a: called.append(a))
+    assert cfg["decisions"]["engine"] == "auto" and decide.engine(cfg) == "llm"
+    llm.decision = {"choice": "kids", "confidence": 0.9}
+    assert decide.choose(cfg, "Where?", OPTIONS, "x")["by"] == "llm" and not called
+
+
+def test_lens_fetches_laya_only_where_it_runs(cfg):
+    from app.domain import components
+
+    mac_m, linux_m = {"apple_silicon": True}, {"apple_silicon": False}
+    assert not components.LAYA.needed(cfg, mac_m)  # Jev stays the default
+    cfg["decisions"]["engine"] = "laya"
+    assert components.LAYA.needed(cfg, mac_m) and not components.LAYA.needed(cfg, linux_m)
+    cfg["decisions"]["laya_url"] = "http://host.docker.internal:8790/v1"
+    assert not components.LAYA.needed(cfg, mac_m)  # a server answers instead
+
+
+def test_the_decide_server_speaks_system_one(cfg, mac, monkeypatch):
+    import threading
+    import urllib.request
+
+    monkeypatch.setattr(decide, "ready_laya", lambda *a, **kw: None)
+    srv = decide.laya_server(cfg, port=0, say=lambda *a: None)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        url = f"http://127.0.0.1:{srv.server_address[1]}/v1"
+        cfg["decisions"].update(engine="laya", laya_url=url, laya_model="aac6fef/laya-multilingual-mlx")
+        monkeypatch.setattr(decide, "laya_here", lambda: False)  # as Lens in Docker sees it
+        d = decide.choose(cfg, "Where does this go?", OPTIONS, "x")
+        assert (d["choice"], d["by"]) == ("work", "laya") and "aac6fef/laya-multilingual-mlx" in mac
+        with urllib.request.urlopen(url + "/health") as r:
+            assert json.load(r)["ok"]
+        bad = urllib.request.Request(url + "/systemone", data=b'{"state": "x"}', method="POST")
+        with pytest.raises(urllib.error.HTTPError) as e:
+            urllib.request.urlopen(bad)
+        assert e.value.code == 400
+    finally:
+        srv.shutdown()
+
+
+def test_laya_settings_status_and_test_in_the_app(app, db, cfg, folder, new_client, llm, monkeypatch):
+    monkeypatch.setattr(decide, "laya_here", lambda: False)
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["admin"]
+    st = c.get("/api/v1/settings/decisions/status", headers=h).json()
+    assert st["engine"] == "auto" and st["by"] == "llm" and not st["laya"]["available"]
+    assert [m["id"] for m in st["laya_models"]][0] == "aac6fef/laya-mlx"
+    r = c.put("/api/v1/settings/decisions", headers=h, json={"engine": "laya", "laya_model": "aac6fef/laya-multilingual-mlx"})
+    assert r.status_code == 200, r.text
+    for bad in ({"laya_model": "someone/else"}, {"laya_url": "ftp://mac"}):
+        assert c.put("/api/v1/settings/decisions", headers=h, json=bad).status_code == 400, bad
+    st = c.get("/api/v1/settings/decisions/status", headers=h).json()
+    assert st["by"] == "laya" and st["laya"]["model"] == "aac6fef/laya-multilingual-mlx" and "Apple Silicon" in st["laya"]["reason"]
+    llm.decision = {"choice": "billing", "confidence": 0.97}
+    t = c.post("/api/v1/settings/decisions/test", headers=h).json()
+    assert t["ok"] and t["by"] == "llm" and t["choice"] == "billing"  # Laya can't run here, so the language model answered
+    assert c.put("/api/v1/settings/decisions", headers=h, json={"laya_url": ""}).status_code == 200
