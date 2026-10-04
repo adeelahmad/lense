@@ -7,6 +7,7 @@ import {
   LibraryBig,
   type LucideIcon,
   MessagesSquare,
+  NotebookPen,
   RadioTower,
   Search,
   Settings,
@@ -41,6 +42,7 @@ export const NAV: NavItem[] = [
   },
   { label: "Search", href: "/search", icon: Search },
   { label: "Chat", href: "/chat", icon: MessagesSquare },
+  { label: "Notes", href: "/notes", icon: NotebookPen },
   { label: "Entities", href: "/entities", icon: Shapes },
   { label: "Graph", href: "/graph", icon: Waypoints },
   {
