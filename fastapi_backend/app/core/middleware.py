@@ -10,6 +10,8 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from app.domain import graph_history
+
 IIIF_PRIVATE = ("/iiif/auth/access", "/iiif/auth/token", "/iiif/auth/logout")
 RESOURCES, RECORDINGS = "/api/v1/resources", "/api/v1/recordings"
 
@@ -70,7 +72,8 @@ def install(app: FastAPI) -> None:
             frames = " ".join(server["embed_frame_ancestors"]) or "'none'"
         else:
             frames = "'none'"
-        resp = await call_next(request)
+        with graph_history.acting(via="web"):  # the caller fills in who (deps._principal)
+            resp = await call_next(request)
         path = request.url.path
         # Built-in reports carry their player inline; reports rendered from people's templates may not run scripts at all.
         script = ("'none'" if "--" in path else "'self' 'unsafe-inline'") if path.startswith("/reports/") else "'self'"

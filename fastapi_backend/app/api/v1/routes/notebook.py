@@ -15,6 +15,9 @@ from app.domain import auth, notebook, store
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.notebook import (
+    NoteHistory,
+    NoteHomeSuggestion,
+    NoteLinkSuggestion,
     NoteLinkTarget,
     NotePage,
     NotePageCreate,
@@ -23,6 +26,8 @@ from app.schemas.notebook import (
     NotePageMove,
     NotePageUpdate,
     NoteTree,
+    NoteVersion,
+    NoteVersionItem,
 )
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -77,7 +82,18 @@ def create_page(body: NotePageCreate, user: Writer, acl: Acl, db: Db) -> NotePag
     sid = acl.namespace(body.ns, "editor")
     with domain_errors():
         pid = notebook.create(
-            db, sid, user.id, body.title, body.body, body.summary, body.date, body.place, body.parent, body.about, doc=body.doc
+            db,
+            sid,
+            user.id,
+            body.title,
+            body.body,
+            body.summary,
+            body.date,
+            body.place,
+            body.parent,
+            body.about,
+            doc=body.doc,
+            view=body.view,
         )
     return _out(acl, db, notebook.get(db, pid), user)
 
@@ -96,7 +112,7 @@ def link_targets(
 
 @router.get("/about/{kind}/{key}")
 def page_about(kind: str, key: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage | NotePageDraft:
-    """The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one."""
+    """The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one."""
     thing = f"{kind}:{key}"
     with domain_errors():
         notebook._about(thing)
@@ -126,14 +142,65 @@ def get_page(pid: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage:
 
 @router.patch("/{pid}")
 def update_page(pid: int, body: NotePageUpdate, user: Writer, acl: Acl, db: Db) -> NotePage:
-    """Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown."""
+    """Change what's given. A new body without `doc` keeps the editor's state (drawings on the canvas live there) but
+    marks it stale (`doc_stale`), so the editor brings its text in line with the body."""
     _page(acl, db, pid, "editor")
     given = body.model_fields_set
     kw: dict[str, Any] = {k: getattr(body, k) for k in ("summary", "date", "doc") if k in given}
+    if body.view is not None:
+        kw["view"] = body.view
     if "place" in given:
         kw["place"] = body.place or None
     with domain_errors():
         notebook.update(db, pid, user.id, title=body.title, body=body.body, **kw)
+    return _out(acl, db, notebook.get(db, pid), user)
+
+
+@router.get("/{pid}/suggestions")
+def link_suggestions(pid: int, user: CurrentUser, acl: Acl, db: Db) -> list[NoteLinkSuggestion]:
+    """What the page names but doesn't link yet: the namespace's topics and named things found in its text, to link
+    with one click. Matched against the namespace's own vocabulary; no model is asked."""
+    return [NoteLinkSuggestion(**x) for x in notebook.suggest_links(db, _page(acl, db, pid))]
+
+
+@router.get("/{pid}/homes")
+def home_suggestions(pid: int, user: CurrentUser, acl: Acl, db: Db) -> list[NoteHomeSuggestion]:
+    """The project or area pages a free note at the top of the tree could go inside, best first, from the links and
+    words they share; moving it there is one click (POST /{pid}/move). No model is asked."""
+    return [NoteHomeSuggestion(**x) for x in notebook.suggest_homes(db, _page(acl, db, pid))]
+
+
+def _version_out(db: DB, v: dict[str, Any], cls: type[NoteVersionItem] = NoteVersionItem) -> NoteVersionItem:
+    who = db.one("SELECT email FROM $r", r=store.R("account", v["by"])) if v.get("by") else None
+    return cls(**{**{k: x for k, x in v.items() if k not in ("by", "page", "doc")}, "by": (who or {}).get("email")})
+
+
+@router.get("/{pid}/history")
+def page_history(pid: int, user: CurrentUser, acl: Acl, db: Db, limit: int = Query(50, ge=1, le=100)) -> NoteHistory:
+    """What the page was before each change to its title, summary or text, newest first."""
+    _page(acl, db, pid)
+    return NoteHistory(versions=[_version_out(db, v) for v in notebook.history(db, pid, limit)])
+
+
+@router.get("/{pid}/history/{vid}")
+def page_version(pid: int, vid: int, user: CurrentUser, acl: Acl, db: Db) -> NoteVersion:
+    """One earlier version, with its text."""
+    _page(acl, db, pid)
+    try:
+        v = notebook.version(db, pid, vid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    return _version_out(db, v, NoteVersion)  # type: ignore[return-value]
+
+
+@router.post("/{pid}/history/{vid}/restore")
+def restore_version(pid: int, vid: int, user: Writer, acl: Acl, db: Db) -> NotePage:
+    """Put an earlier version back. What the page was becomes a version too, so this can be undone. Needs editor access."""
+    _page(acl, db, pid, "editor")
+    try:
+        notebook.restore(db, pid, vid, user.id)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
     return _out(acl, db, notebook.get(db, pid), user)
 
 

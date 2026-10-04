@@ -1,4 +1,5 @@
-"""The first-run setup wizard (admins): the first namespace, the model provider, storage and telemetry, then finishing it.
+"""The first-run setup wizard (admins): the first namespace, the model provider, storage, apps signing in (OAuth) and
+telemetry, then finishing it.
 
 The first admin is created before this, with the setup code (POST /auth/setup) or from the environment. Fields the
 environment sets are left out of every save and reported as locked (domain/setup.py).
@@ -10,7 +11,17 @@ from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import AdminReader, AdminWriter, Db
 from app.domain import auth, setup
-from app.schemas.setup import LocalModelServer, SetupFinish, SetupLlm, SetupNamespace, SetupSaved, SetupStorage, SetupTelemetry, SetupView
+from app.schemas.setup import (
+    LocalModelServer,
+    SetupFinish,
+    SetupLlm,
+    SetupNamespace,
+    SetupOAuth,
+    SetupSaved,
+    SetupStorage,
+    SetupTelemetry,
+    SetupView,
+)
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 
@@ -82,6 +93,18 @@ def save_telemetry(body: SetupTelemetry, user: AdminWriter, request: Request, db
         raise HTTPException(400, str(e)) from None
     if saved:
         auth.audit(db, user.as_audit(), "settings.save", "telemetry", saved)
+    return SetupSaved(saved=saved)
+
+
+@router.put("/oauth")
+def save_oauth(body: SetupOAuth, user: AdminWriter, request: Request, db: Db) -> SetupSaved:
+    """Let apps and AI assistants (MCP clients such as Claude or Cursor) sign people in with their Lens account, or
+    not, and how long their tokens last (docs/authentication.md#oauth). On unless turned off."""
+    try:
+        saved = setup.save_oauth(db, request.app.state.archive.base, body.enabled, body.access_minutes, body.refresh_days, user.email)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    auth.audit(db, user.as_audit(), "settings.save", "tokens", saved)
     return SetupSaved(saved=saved)
 
 

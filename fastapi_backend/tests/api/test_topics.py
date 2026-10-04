@@ -7,6 +7,8 @@ import pytest
 from rdflib import Graph, URIRef
 from rdflib.namespace import SKOS
 
+from app.domain import analyze, topics
+from app.domain.store import R
 from tests.api.test_entities import Env
 
 
@@ -86,6 +88,12 @@ def test_topic_from_entity(env):
     # deleting the topic shows the entity again
     c.delete(f"/api/v1/topics/{t['id']}", headers=ed)
     assert c.get(f"/api/v1/entities/{aws}", headers=vi).json()["hidden"] is False
+    # both are versions in the graph's history, with why
+    hist = c.get("/api/v1/graph/history", headers=vi, params={"entity": aws}).json()["versions"]
+    assert [(v["op"], v["why"]) for v in hist[:2]] == [
+        ("entity.show", f"topic {t['id']} was deleted"),
+        ("entity.hide", f"became topic {t['id']}"),
+    ]
 
 
 def test_topics_in_the_graph_and_rdf(env):
@@ -117,3 +125,39 @@ def test_topics_in_the_graph_and_rdf(env):
     assert any(s.endswith(f"/id/topic/{gene['id']}") for s in subjects)
     # a stranger to the namespace gets nothing
     assert c.get(f"/id/topic/{gene['id']}", headers={"Accept": "text/turtle"}).status_code == 404
+
+
+def test_analysis_suggests_topics(env):
+    c, ed, vi, db = env.c, env.h["editor"], env.h["viewer"], env.db
+    # a transcript that says a label (or another label) twice or more is suggested; once isn't enough
+    cap = make(c, ed, "Capsid design", alt=["capsid"])
+    bench = make(c, ed, "Benchmarks")
+    about = {(a["recording"], a["source"], a["status"]) for a in c.get(f"/api/v1/topics/{cap['id']}", headers=vi).json()["about"]}
+    assert about == {(env.a, "analysis", "suggested")}
+    b = c.get(f"/api/v1/topics/{bench['id']}", headers=vi).json()
+    assert [(a["recording"], a["status"]) for a in b["about"]] == [(env.b, "suggested")] and b["recordings"] == 0
+    # accepting keeps where it came from; dismissing is remembered, so analysis doesn't suggest it again
+    c.post(f"/api/v1/topics/{cap['id']}/recordings", json={"recordings": [env.a]}, headers=ed)
+    c.post(f"/api/v1/topics/{bench['id']}/recordings", json={"recordings": [env.b], "remove": True}, headers=ed)
+    assert [(t["label"], t["source"], t["status"]) for t in c.get(f"/api/v1/recordings/{env.a}/topics", headers=vi).json()] == [
+        ("Capsid design", "analysis", "accepted")
+    ]
+    assert c.get(f"/api/v1/recordings/{env.b}/topics", headers=vi).json() == []
+    c.patch(f"/api/v1/topics/{bench['id']}", json={"alt": ["benchmark results"]}, headers=ed)  # matches again
+    assert c.get(f"/api/v1/topics/{bench['id']}", headers=vi).json()["about"] == []
+    analyze.analyze_recording(db, env.cfg, env.b)  # re-analysis keeps people's choices
+    assert c.get(f"/api/v1/recordings/{env.b}/topics", headers=vi).json() == []
+    # summaries: a topic they name is suggested; what no topic covers is offered as a new one, until skipped
+    db.q("UPDATE $r SET summary = $s", r=R("recording", env.x), s={"topics": ["Machine learning", "Lab safety", "capsid"]})
+    db.q("UPDATE $r SET summary = $s", r=R("recording", env.b), s={"topics": ["lab safety"]})
+    ml = make(c, ed, "Machine learning")
+    assert [(a["recording"], a["weight"]) for a in ml["about"]] == [(env.x, topics.SUMMARY_WEIGHT)]
+    cands = c.get("/api/v1/namespaces/pods/topics/candidates", headers=vi).json()
+    assert cands == [{"label": "lab safety", "recordings": 2}]  # the first spelling when none is more common
+    assert c.post("/api/v1/namespaces/pods/topics/candidates/skip", json={"label": "lab  Safety"}, headers=vi).status_code == 403
+    assert c.post("/api/v1/namespaces/pods/topics/candidates/skip", json={"label": "lab  Safety"}, headers=ed).status_code == 200
+    assert c.get("/api/v1/namespaces/pods/topics/candidates", headers=vi).json() == []
+    # only accepted links are in the graph
+    q = {"scope": "ns:pods", "query": "MATCH (r:Recording)-[:ABOUT]->(t:Topic) RETURN r.id, t.name"}
+    rows = c.post("/api/v1/graph/query", json=q, headers=vi).json()["rows"]
+    assert rows == [[f"r{env.a}", "Capsid design"]]

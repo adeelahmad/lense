@@ -9,7 +9,7 @@ import re
 import urllib.request
 from collections import Counter, defaultdict
 
-from . import entity_map, entity_setup, store, telemetry
+from . import entity_map, entity_setup, graph_history, store, telemetry
 
 STOP = set(
     """a about above after again against all almost also am an and any are aren as at be because been before being
@@ -345,6 +345,44 @@ def talk_stats(segs):
     }
 
 
+def _place(db, cfg, nid, rec, setup, listed, first, segs, ch):
+    """{key: entity id} for the names found in a recording: existing entities, their other names, or new ones."""
+    if listed:  # mapped onto the defined entities, Unlabeled, Unknown or (hybrid) new entities (entity_map.py)
+        known = entity_map.place(db, cfg, nid, rec.get("collection"), setup, first, [s["text"] for s in segs])
+    else:
+        known = (
+            {
+                r["key"]: r["id"]
+                for r in db.rows("SELECT record::id(id) AS id, key FROM entity WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
+            }
+            if first
+            else {}
+        )
+        if first:  # names merged into another entity keep pointing at it
+            known.update(
+                {
+                    r["key"]: r["entity"]
+                    for r in db.rows("SELECT key, entity FROM entity_alias WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
+                }
+            )
+        new = {k: v for k, v in first.items() if k and k not in known}
+        if new and setup["matching"] == "model":  # the model may know a new name as a described entity
+            picked = entity_map.judge(db, cfg, nid, setup, new, entity_map.described(db, nid), ("new",), [s["text"] for s in segs])
+            placed = {k: v for k, v in picked.items() if isinstance(v, int)}
+            entity_map.learn(db, nid, placed)
+            known.update(placed)
+        for key, (name, typ) in first.items():
+            if key and key not in known:
+                known[key] = db.next_id("entity")
+                ch.created(known[key])
+                db.q(
+                    "CREATE $r CONTENT $d",
+                    r=R("entity", known[key]),
+                    d={"space": nid, "key": key, "ekey": f"{nid}:{key}", "name": name, "type": typ},
+                )
+    return known
+
+
 def analyze_recording(db, cfg, rid, seg_ents=None):
     """Entities, keywords, sections and talk statistics. `seg_ents` (per line, [(name, type)]) replaces the extractor:
     a workflow's save entities node passes what its nodes found."""
@@ -385,38 +423,8 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
     for es in seg_ents:
         for name, typ in es:
             first.setdefault(alias.get(ent_key(name), ent_key(name)), (name, typ))
-    if listed:  # mapped onto the defined entities, Unlabeled, Unknown or (hybrid) new entities (entity_map.py)
-        known = entity_map.place(db, cfg, nid, rec.get("collection"), setup, first, [s["text"] for s in segs])
-    else:
-        known = (
-            {
-                r["key"]: r["id"]
-                for r in db.rows("SELECT record::id(id) AS id, key FROM entity WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
-            }
-            if first
-            else {}
-        )
-        if first:  # names merged into another entity keep pointing at it
-            known.update(
-                {
-                    r["key"]: r["entity"]
-                    for r in db.rows("SELECT key, entity FROM entity_alias WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
-                }
-            )
-        new = {k: v for k, v in first.items() if k and k not in known}
-        if new and setup["matching"] == "model":  # the model may know a new name as a described entity
-            picked = entity_map.judge(db, cfg, nid, setup, new, entity_map.described(db, nid), ("new",), [s["text"] for s in segs])
-            placed = {k: v for k, v in picked.items() if isinstance(v, int)}
-            entity_map.learn(db, nid, placed)
-            known.update(placed)
-        for key, (name, typ) in first.items():
-            if key and key not in known:
-                known[key] = db.next_id("entity")
-                db.q(
-                    "CREATE $r CONTENT $d",
-                    r=R("entity", known[key]),
-                    d={"space": nid, "key": key, "ekey": f"{nid}:{key}", "name": name, "type": typ},
-                )
+    with graph_history.acting(via="analysis", recording=rid), graph_history.change(db, "analysis", recording=rid) as ch:
+        known = _place(db, cfg, nid, rec, setup, listed, first, segs, ch)
     over = {
         (o["segment"], o["key"]): o["target"]
         for o in db.rows("SELECT segment, key, target FROM entity_override WHERE recording = $r", r=rid)
@@ -459,6 +467,9 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
             for m in ments:
                 db.q("RELATE $a->mentions->$b CONTENT $d", a=m["in"], b=m["out"], d={k: v for k, v in m.items() if k not in ("in", "out")})
     db.q("UPDATE $r SET stats = $st, status = 'analyzed', analyzed_at = $t", r=R("recording", rid), st=talk_stats(segs), t=store.now())
+    from . import topics  # imported here: topics builds on this module
+
+    topics.suggest(db, nid, [rid])  # the vocabulary's topics its words name, for someone to accept
 
 
 def analyze_pending(db, cfg, ns=None, limit=0, force=False, log=print):
@@ -693,6 +704,9 @@ def summarize_recording(db, cfg, rid):
         for k in ("key_points", "action_items"):
             out[k] = [store.clean({**x, "page": page_at.get(x.get("t0"))}) for x in out[k]]
     db.q("UPDATE $r SET summary = $s, summarized_at = $t", r=R("recording", rid), s=out, t=store.now())
+    from . import topics  # imported here: topics builds on this module
+
+    topics.suggest(db, rec["space"], [rid])  # the summary's topics that the vocabulary has
     return out
 
 

@@ -7,12 +7,13 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.api.deps import Acl, AdminReader, AdminWriter, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, organize, routines, schedule
+from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors
+from app.domain import auth, budgets, organize, routines, schedule
 from app.schemas.common import Created, Ok
 from app.schemas.routines import (
     GraphChange,
     GraphChangeAccept,
+    HeldRunDecision,
     Routine,
     RoutineCatalog,
     RoutineCreate,
@@ -83,11 +84,26 @@ def delete_routine(rid: int, user: AdminWriter, db: Db) -> Ok:
 
 
 @router.post("/routines/{rid}/run")
-def run_routine(rid: int, body: RoutineRunRequest, user: AdminWriter, db: Db) -> Ok:
-    """Run it as soon as the scheduler next looks (within half a minute), even when it is off."""
+def run_routine(rid: int, body: RoutineRunRequest, user: AdminWriter, db: Db, cfg: Cfg) -> Ok:
+    """Run it as soon as the scheduler next looks (within half a minute), even when it is off. A run over one of its
+    budgets is refused (409, saying where the budget stands) unless over_budget is true (docs/budgets.md)."""
     with domain_errors():
-        routines.request_run(db, rid, user.email, body.propose_only)
-    auth.audit(db, user.as_audit(), "routine.run", f"routine:{rid}")
+        r = routines.get(db, rid)
+        if not body.over_budget:
+            verdict = budgets.check(db, cfg, routines.refs(db, r))
+            if not verdict["go"]:
+                raise HTTPException(409, verdict["why"] + " Run it anyway with over_budget.")
+        routines.request_run(db, rid, user.email, body.propose_only, body.over_budget)
+    auth.audit(db, user.as_audit(), "routine.run", f"routine:{rid}", {"over_budget": True} if body.over_budget else None)
+    return Ok()
+
+
+@router.post("/routines/runs/{run_id}/decide")
+def decide_held_run(run_id: int, body: HeldRunDecision, user: AdminWriter, db: Db) -> Ok:
+    """Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it."""
+    with domain_errors():
+        rid = routines.decide_held(db, run_id, body.run, user.email)
+    auth.audit(db, user.as_audit(), "routine.release" if body.run else "routine.skip", f"routine:{rid}", {"run": run_id})
     return Ok()
 
 

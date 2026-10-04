@@ -1,4 +1,4 @@
-/** Where a link in a note goes in the app: "recording:12", "entity:5", "page:3", "collection:4", "speaker:7". */
+/** Where a link in a note goes in the app: "recording:12", "entity:5", "topic:2", "page:3", "collection:4", "speaker:7". */
 export function hrefFor(target: string, ns?: string | null): string | null {
   const [kind, id] = target.split(":");
   if (!id || !/^\d+$/.test(id)) return null;
@@ -10,6 +10,8 @@ export function hrefFor(target: string, ns?: string | null): string | null {
       return `/resources/${id}`;
     case "entity":
       return `/entities?entity=${id}${q}`;
+    case "topic":
+      return `/topics/${id}`;
     case "speaker":
       return `/speakers/${id}`;
     case "collection":

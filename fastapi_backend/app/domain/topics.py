@@ -3,14 +3,16 @@
 Entities are the named things a transcript mentions (people, organisations, places...). A topic is a subject someone
 chose for the vocabulary, as a SKOS concept: a preferred label, other labels it goes by, a definition, broader and
 related topics. Narrower topics are the ones that name it as broader. Recordings are about topics (`topic_about`),
-put there by a person, by turning an entity of type TERM into a topic, or (suggested) by analysis.
+put there by a person, by turning an entity of type TERM into a topic, or (suggested) by analysis or an assistant.
 
     topic        {space, key, tkey: "<space>:<key>", label, alt: [labels], definition, broader: [ids], related: [ids],
                   origin: {entity}, created, updated, by}
     topic_about  topic_about:⟨"<recording>-<topic>"⟩ {space, recording, topic, source, weight, status, at, by}
 
 `source` says how a recording came to be about a topic (person, entity, analysis) and `status` whether it holds
-(accepted) or waits for someone to accept it (suggested). Labels are unique within a namespace, alternative labels too.
+(accepted), waits for someone to accept it (suggested) or was turned down (dismissed: analysis won't suggest it again).
+Analysis suggests the vocabulary's topics for recordings whose summary or transcript says one of their labels
+(`suggest`), and lists what summaries talk about that the vocabulary lacks (`candidates`), for people to add or skip. Labels are unique within a namespace, alternative labels too.
 A topic made from an entity hides that entity; deleting the topic shows it again. Callers check roles and write the
 audit log.
 """
@@ -19,7 +21,7 @@ from __future__ import annotations
 
 from collections import Counter
 
-from . import analyze, store
+from . import analyze, graph_history, notebook, store
 
 R = store.R
 FIELDS = "record::id(id) AS id, space, key, label, alt, definition, broader, related, origin, created, updated, by"
@@ -27,8 +29,11 @@ LABEL_MAX = 200
 ALT_MAX = 50
 DEFINITION_MAX = 2000
 LINKS_MAX = 50
-SOURCES = ("person", "entity", "analysis")
-STATUSES = ("accepted", "suggested")
+SOURCES = ("person", "entity", "analysis", "assistant")
+STATUSES = ("accepted", "suggested", "dismissed")
+SUGGEST_MIN = 2  # times a transcript says a label before analysis suggests its topic
+SUMMARY_WEIGHT = 5  # what a summary naming a topic adds to its weight
+CANDIDATES_MAX = 30
 
 
 def key_of(label):
@@ -166,6 +171,7 @@ def create(db, sid, label, alt=(), definition=None, broader=(), related=(), orig
         ),
     )
     _set_related(db, tid, [], related)
+    suggest(db, sid)
     return tid
 
 
@@ -204,6 +210,8 @@ def update(db, tid, label=None, alt=None, definition=None, broader=None, related
     db.q("UPDATE $r MERGE $d", r=R("topic", tid), d=sets)
     if "definition" in sets and sets["definition"] is None:
         db.q("UPDATE $r SET definition = NONE", r=R("topic", tid))
+    if new_label != t["label"] or new_alt != list(t.get("alt") or []):
+        suggest(db, sid)
     return tid
 
 
@@ -219,9 +227,11 @@ def delete(db, tid):
     _set_related(db, tid, t.get("related") or [], [])
     db.q("DELETE topic_about WHERE topic = $t", t=tid)
     db.q("DELETE $r", r=R("topic", tid))
+    notebook.release(db, f"topic:{tid}")  # its page stays, as a free note
     eid = (t.get("origin") or {}).get("entity")
     if eid and db.one("SELECT id FROM $r", r=R("entity", int(eid))):
-        db.q("UPDATE $r SET hidden = false, hidden_reason = NONE", r=R("entity", int(eid)))
+        with graph_history.change(db, "entity.show", entities=[int(eid)], why=f"topic {tid} was deleted"):
+            db.q("UPDATE $r SET hidden = false, hidden_reason = NONE", r=R("entity", int(eid)))
         return int(eid)
     return None
 
@@ -246,7 +256,7 @@ def merge(db, keep, others, user=None):
         related += o.get("related") or []
         for a in db.rows("SELECT recording, source, weight, status FROM topic_about WHERE topic = $t", t=o["id"]):
             mine = db.one("SELECT status, weight FROM $r", r=_about_id(a["recording"], keep))
-            if not mine or (mine.get("status") == "suggested" and a.get("status") == "accepted"):
+            if not mine or (mine.get("status") != "accepted" and a.get("status") == "accepted"):
                 _about(
                     db, k["space"], a["recording"], keep, a.get("source") or "person", a.get("weight"), a.get("status") or "accepted", user
                 )
@@ -262,6 +272,7 @@ def merge(db, keep, others, user=None):
             db.q("UPDATE $r SET broader = $b, related = $rel", r=R("topic", t["id"]), b=nb, rel=nr)
     for o in others:
         db.q("DELETE $r", r=R("topic", o))
+        notebook.release(db, f"topic:{o}")
     broader = [b for b in dict.fromkeys(broader) if b not in ids and b != keep]
     if _would_loop(db, k["space"], keep, broader):
         broader = list(k.get("broader") or [])
@@ -271,6 +282,7 @@ def merge(db, keep, others, user=None):
         r=R("topic", keep),
         d={"alt": _clean_alt(alt, k["label"])[:ALT_MAX], "broader": broader, "related": related, "updated": store.now(), "by": user},
     )
+    suggest(db, k["space"])
     return keep
 
 
@@ -307,11 +319,36 @@ def tag(db, tid, recordings, remove=False, user=None):
                 raise KeyError(r)
     for r in rids:
         if remove:
-            db.q("DELETE $r", r=_about_id(r, t["id"]))
+            prior = db.one("SELECT source FROM $r", r=_about_id(r, t["id"])) or {}
+            if prior.get("source") == "analysis":  # remembered, so analysis doesn't suggest it again
+                db.q("UPDATE $r SET status = 'dismissed', at = $t, by = $u", r=_about_id(r, t["id"]), t=store.now(), u=user)
+            else:
+                db.q("DELETE $r", r=_about_id(r, t["id"]))
         else:
             prior = db.one("SELECT source, weight FROM $r", r=_about_id(r, t["id"])) or {}
             _about(db, t["space"], r, t["id"], prior.get("source") or "person", prior.get("weight"), "accepted", user)
     return len(rids)
+
+
+def propose(db, tid, recordings, source="assistant", user=None):
+    """Suggest a topic for recordings of its namespace, for someone to accept: what already holds, waits or was
+    dismissed stays as it is. Returns the recordings it is now suggested for."""
+    t = _topic(db, tid)
+    rids = [int(r) for r in dict.fromkeys(recordings or [])]
+    if rids:
+        found = {
+            r["id"]: r["space"]
+            for r in db.rows("SELECT record::id(id) AS id, space FROM recording WHERE id IN $ids", ids=[R("recording", i) for i in rids])
+        }
+        for r in rids:
+            if found.get(r) != t["space"]:
+                raise KeyError(r)
+    made = []
+    for r in rids:
+        if not db.one("SELECT status FROM $r", r=_about_id(r, t["id"])):
+            _about(db, t["space"], r, t["id"], source, None, "suggested", user)
+            made.append(r)
+    return made
 
 
 def from_entity(db, eid, user=None):
@@ -337,7 +374,8 @@ def from_entity(db, eid, user=None):
         prior = db.one("SELECT status FROM $r", r=_about_id(m["recording"], tid))
         if not prior or prior.get("status") != "accepted":
             _about(db, sid, m["recording"], tid, "entity", m["n"], "accepted", user)
-    db.q("UPDATE $r SET hidden = true, hidden_reason = $why", r=R("entity", e["id"]), why=f"became topic {tid}")
+    with graph_history.change(db, "entity.hide", entities=[e["id"]], why=f"became topic {tid}", topic=tid):
+        db.q("UPDATE $r SET hidden = true, hidden_reason = $why", r=R("entity", e["id"]), why=f"became topic {tid}")
     return tid
 
 
@@ -400,7 +438,8 @@ def detail(db, tid, spaces=None):
     peers = {x["id"]: x for x in db.rows("SELECT record::id(id) AS id, label, broader FROM topic WHERE space = $s", s=t["space"])}
     narrow = sorted((x for x in peers.values() if t["id"] in (x.get("broader") or [])), key=lambda x: x["label"].lower())
     about = db.rows(
-        "SELECT recording, source, weight, status, at FROM topic_about WHERE topic = $t ORDER BY status, weight DESC", t=t["id"]
+        "SELECT recording, source, weight, status, at FROM topic_about WHERE topic = $t AND status != 'dismissed' ORDER BY status, weight DESC",
+        t=t["id"],
     )
     titles = {
         r["id"]: r.get("title")
@@ -438,7 +477,7 @@ def detail(db, tid, spaces=None):
 
 def of_recording(db, rid, status=None):
     """The topics a recording is about: [{id, label, source, weight, status}]."""
-    rows = db.rows("SELECT topic, source, weight, status FROM topic_about WHERE recording = $r", r=int(rid))
+    rows = db.rows("SELECT topic, source, weight, status FROM topic_about WHERE recording = $r AND status != 'dismissed'", r=int(rid))
     if status:
         rows = [a for a in rows if a.get("status") == status]
     labels = {
@@ -455,3 +494,105 @@ def of_recording(db, rid, status=None):
         if a["topic"] in labels
     ]
     return sorted(out, key=lambda x: (x["status"] != "accepted", x["label"].lower()))
+
+
+# ---------- suggestions from analysis ----------
+def match_key(label):
+    """A label as the keyword index keeps words: stemmed, short and stop words dropped ("Gene therapy" -> "gene therapi")."""
+    return " ".join(st for st, _ in analyze.words(str(label or "")))
+
+
+def _vocab(db, sid):
+    """The namespace's labels by key, and by match key for labels of one or two words (the keyword index's)."""
+    by_key, by_term = {}, {}
+    for t in db.rows("SELECT record::id(id) AS id, label, alt FROM topic WHERE space = $s", s=int(sid)):
+        for label in [t["label"], *(t.get("alt") or [])]:
+            by_key.setdefault(key_of(label), t["id"])
+            m = match_key(label)
+            if m and m.count(" ") <= 1:
+                by_term.setdefault(m, t["id"])
+    return by_key, by_term
+
+
+def _named(by_key, by_term, phrase):
+    return by_key.get(key_of(phrase)) or by_term.get(match_key(phrase))
+
+
+def suggest(db, sid, rids=None):
+    """Suggest the vocabulary's topics for the recordings of namespace `sid` (or just `rids`): a recording is about a
+    topic when its summary names one of the topic's labels, or its transcript says one (of a word or two) at least
+    SUGGEST_MIN times. The weight is how often, plus SUMMARY_WEIGHT when the summary names it. What people accepted or
+    dismissed stays; analysis suggestions that no longer match go. No model is called. Returns the suggestions made."""
+    sid = int(sid)
+    by_key, by_term = _vocab(db, sid)
+    only = [int(r) for r in rids] if rids is not None else None
+    if only == []:
+        return 0
+    found: Counter = Counter()
+    if by_term:
+        rows = db.rows(
+            "SELECT recording, term, n FROM term WHERE space = $s AND term IN $t" + (" AND recording IN $r" if only else ""),
+            s=sid,
+            t=sorted(by_term),
+            r=only,
+        )
+        for row in rows:
+            if row["n"] >= SUGGEST_MIN:
+                k = (row["recording"], by_term[row["term"]])
+                found[k] = max(found[k], row["n"])
+    if by_key:
+        rows = db.rows(
+            "SELECT record::id(id) AS id, summary.topics AS topics FROM recording WHERE space = $s AND summary"
+            + (" AND id IN $r" if only else ""),
+            s=sid,
+            r=[R("recording", i) for i in only or []],
+        )
+        for row in rows:
+            for tid in {_named(by_key, by_term, p) for p in row.get("topics") or []} - {None}:
+                found[(row["id"], tid)] += SUMMARY_WEIGHT
+    have = db.rows(
+        "SELECT recording, topic, source, status FROM topic_about WHERE space = $s" + (" AND recording IN $r" if only else ""),
+        s=sid,
+        r=only,
+    )
+    held = {(a["recording"], a["topic"]): a for a in have}
+    for (rid, tid), a in held.items():
+        if a.get("source") == "analysis" and a.get("status") == "suggested" and (rid, tid) not in found:
+            db.q("DELETE $r", r=_about_id(rid, tid))
+    made = 0
+    for (rid, tid), weight in found.items():
+        a = held.get((rid, tid))
+        if a is None or (a.get("source") == "analysis" and a.get("status") == "suggested"):
+            _about(db, sid, rid, tid, "analysis", float(weight), "suggested", None)
+            made += 1
+    return made
+
+
+def candidates(db, sid, limit=CANDIDATES_MAX):
+    """What the namespace's summaries say recordings are about that no topic's label covers and nobody skipped, the
+    most recordings first: [{label, recordings}]. People add the ones they want to the vocabulary."""
+    sid = int(sid)
+    by_key, by_term = _vocab(db, sid)
+    space = db.one("SELECT topic_skips FROM $r", r=R("space", sid)) or {}
+    skipped = set(space.get("topic_skips") or [])
+    seen: dict[str, dict] = {}
+    rows = db.rows("SELECT record::id(id) AS id, summary.topics AS topics FROM recording WHERE space = $s AND summary ORDER BY id", s=sid)
+    for row in rows:
+        for phrase in row.get("topics") or []:
+            label = " ".join(str(phrase or "").split())[:LABEL_MAX]
+            k = key_of(label)
+            if not k or k in skipped or _named(by_key, by_term, label):
+                continue
+            c = seen.setdefault(k, {"spellings": Counter(), "recordings": set()})
+            c["spellings"][label] += 1  # the most common spelling, else the first
+            c["recordings"].add(row["id"])
+    out = [{"label": c["spellings"].most_common(1)[0][0], "recordings": len(c["recordings"])} for c in seen.values()]
+    return sorted(out, key=lambda c: (-c["recordings"], c["label"].lower()))[: max(0, int(limit))]
+
+
+def skip_candidate(db, sid, label):
+    """Don't offer this label as a new topic again."""
+    k = key_of(label)
+    if not k:
+        raise ValueError("Say which label to skip.")
+    db.q("UPDATE $r SET topic_skips = array::union(topic_skips ?? [], [$k])", r=R("space", int(sid)), k=k)

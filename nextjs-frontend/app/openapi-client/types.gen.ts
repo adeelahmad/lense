@@ -103,6 +103,192 @@ export type AccountToken = {
 };
 
 /**
+ * ActivityCosts
+ */
+export type ActivityCosts = {
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Costs
+   *
+   * by resource; ones you can't see are left out
+   */
+  costs: {
+    [key: string]: ResourceSpend;
+  };
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityEntry
+ */
+export type ActivityEntry = {
+  /**
+   * Id
+   *
+   * the ledger row's id; none for an audit log entry
+   */
+  id?: string | null;
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Kind
+   *
+   * in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry, or a change to the entity graph (action `graph.<op>`)
+   */
+  kind: "in" | "out" | "run" | "change";
+  /**
+   * Action
+   *
+   * what it was: `POST /api/v1/routines/{rid}/run`, `model.chat`, `job.succeeded`, `routine.update`
+   */
+  action: string;
+  /**
+   * Resources
+   *
+   * every resource it counts for, as table:id
+   */
+  resources?: Array<string>;
+  /**
+   * Actor
+   *
+   * the account that made it, when a person did
+   */
+  actor?: number | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Tokens In
+   */
+  tokens_in?: number | null;
+  /**
+   * Tokens Out
+   */
+  tokens_out?: number | null;
+  /**
+   * Cost Usd
+   *
+   * estimated from the prices in Settings; none when the model has no price
+   */
+  cost_usd?: number | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Error
+   *
+   * the error's type or HTTP status; never its message
+   */
+  error?: string | null;
+  /**
+   * Detail
+   */
+  detail?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityTop
+ */
+export type ActivityTop = {
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Resources
+   */
+  resources: Array<ResourceCost>;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityTotals
+ */
+export type ActivityTotals = {
+  /**
+   * Resource
+   */
+  resource?: string | null;
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Failed
+   */
+  failed: number;
+  /**
+   * Tokens In
+   */
+  tokens_in: number;
+  /**
+   * Tokens Out
+   */
+  tokens_out: number;
+  /**
+   * Cost Usd
+   *
+   * what its calls cost (run rows repeat their calls' cost and aren't added again)
+   */
+  cost_usd: number;
+  /**
+   * Ms
+   */
+  ms: number;
+  /**
+   * Unpriced
+   *
+   * calls that cost something but have no figure (a model with no price, a reply without token counts)
+   */
+  unpriced?: number;
+  /**
+   * Estimate
+   *
+   * true when unpriced calls make cost_usd a floor rather than exact
+   */
+  estimate?: boolean;
+  /**
+   * By Kind
+   */
+  by_kind: {
+    [key: string]: KindTotals;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * AnswerCheck
  */
 export type AnswerCheck = {
@@ -918,6 +1104,142 @@ export type BrowseEntry = {
    * the recordings this file already is, and where
    */
   imported?: Array<ImportedAs>;
+  [key: string]: unknown;
+};
+
+/**
+ * Budget
+ */
+export type Budget = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Usd
+   */
+  usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * On Over
+   */
+  on_over: string;
+  /**
+   * Warn At
+   */
+  warn_at: number;
+  /**
+   * Note
+   */
+  note?: string | null;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Alert
+   *
+   * the last warning: {state near|over, since, at, share}
+   */
+  alert?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BudgetSet
+ */
+export type BudgetSet = {
+  /**
+   * Usd
+   *
+   * the cap in USD (from the costs in the activity ledger)
+   */
+  usd?: number | null;
+  /**
+   * Tokens
+   *
+   * the cap in tokens (in and out)
+   */
+  tokens?: number | null;
+  /**
+   * Period
+   *
+   * what the cap is for: one run, or a day, week or month (UTC)
+   */
+  period?: "run" | "day" | "week" | "month";
+  /**
+   * On Over
+   *
+   * a run that would go over: ask (hold it until someone picks run or skip), skip, or assistant (the decision model weighs it; it runs only when sure, else asks)
+   */
+  on_over?: "ask" | "skip" | "assistant";
+  /**
+   * Warn At
+   *
+   * the share spent at which it's marked near (and warned about)
+   */
+  warn_at?: number;
+  /**
+   * Note
+   */
+  note?: string | null;
+};
+
+/**
+ * BudgetStatus
+ */
+export type BudgetStatus = {
+  /**
+   * Resource
+   */
+  resource: string;
+  budget?: Budget | null;
+  /**
+   * State
+   */
+  state: "none" | "ok" | "near" | "over";
+  /**
+   * Since
+   *
+   * the start of the period being counted
+   */
+  since?: string | null;
+  spent?: Spent | null;
+  /**
+   * what one more run will likely cost: always an estimate
+   */
+  next: NextRun;
+  /**
+   * Left
+   */
+  left?: {
+    [key: string]: number;
+  } | null;
+  /**
+   * Share
+   *
+   * the largest share of a cap spent (1 is all of it)
+   */
+  share?: number | null;
+  /**
+   * Share After Next
+   *
+   * the share once the next run (estimated) is done
+   */
+  share_after_next?: number | null;
   [key: string]: unknown;
 };
 
@@ -2532,6 +2854,71 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DecisionStatus
+ *
+ * Who takes routine decisions now, and whether a local Laya model could.
+ */
+export type DecisionStatus = {
+  /**
+   * Engine
+   *
+   * the setting: auto, jev, laya, llm or off
+   */
+  engine: string;
+  /**
+   * By
+   *
+   * who answers now: jev, laya, llm, or none
+   */
+  by?: string | null;
+  /**
+   * Apple Silicon
+   *
+   * this machine can run MLX models
+   */
+  apple_silicon: boolean;
+  laya: LayaStatus;
+  /**
+   * Laya Models
+   */
+  laya_models: Array<LayaModel>;
+  [key: string]: unknown;
+};
+
+/**
+ * DecisionTestResult
+ */
+export type DecisionTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * By
+   *
+   * who answered: jev, laya or llm (the language model when the decision model failed)
+   */
+  by?: string | null;
+  /**
+   * Choice
+   */
+  choice?: string | null;
+  /**
+   * Confidence
+   */
+  confidence?: number | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -4398,6 +4785,12 @@ export type GraphQuery = {
    * rows at most
    */
   limit?: number;
+  /**
+   * As Of
+   *
+   * query the graph as of a version: a number or a version's name
+   */
+  as_of?: string | null;
 };
 
 /**
@@ -4418,6 +4811,12 @@ export type GraphQuestion = {
    * Limit
    */
   limit?: number;
+  /**
+   * As Of
+   *
+   * ask the graph as of a version: a number or a version's name
+   */
+  as_of?: string | null;
 };
 
 /**
@@ -4654,6 +5053,18 @@ export type Heard = {
    */
   seconds?: number;
   [key: string]: unknown;
+};
+
+/**
+ * HeldRunDecision
+ */
+export type HeldRunDecision = {
+  /**
+   * Run
+   *
+   * true: run it now, once, whatever its budgets say; false: skip it
+   */
+  run: boolean;
 };
 
 /**
@@ -5370,6 +5781,30 @@ export type Job = {
    */
   cancel_requested?: boolean | null;
   /**
+   * Cost Usd
+   *
+   * what its calls cost, from the activity ledger (docs/activity.md); set when it ends
+   */
+  cost_usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Cost Estimate
+   *
+   * true: some calls had no price or token counts, so cost_usd is a floor
+   */
+  cost_estimate?: boolean | null;
+  /**
+   * Hold
+   *
+   * held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}
+   */
+  hold?: {
+    [key: string]: unknown;
+  } | null;
+  /**
    * Log
    *
    * the last 200 lines; GET /jobs/{jid}/log has them all
@@ -5561,6 +5996,37 @@ export type JobsQueued = {
 };
 
 /**
+ * KindTotals
+ */
+export type KindTotals = {
+  /**
+   * Calls
+   */
+  calls?: number;
+  /**
+   * Tokens In
+   */
+  tokens_in?: number;
+  /**
+   * Tokens Out
+   */
+  tokens_out?: number;
+  /**
+   * Cost Usd
+   */
+  cost_usd?: number;
+  /**
+   * Ms
+   */
+  ms?: number;
+  /**
+   * Failed
+   */
+  failed?: number;
+  [key: string]: unknown;
+};
+
+/**
  * LanguageCount
  */
 export type LanguageCount = {
@@ -5603,6 +6069,50 @@ export type LastSend = {
    * Event
    */
   event?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * LayaModel
+ */
+export type LayaModel = {
+  /**
+   * Id
+   *
+   * the Hugging Face repository
+   */
+  id: string;
+  /**
+   * About
+   */
+  about: string;
+  [key: string]: unknown;
+};
+
+/**
+ * LayaStatus
+ */
+export type LayaStatus = {
+  /**
+   * Available
+   */
+  available: boolean;
+  /**
+   * Where
+   *
+   * here (this machine runs it), server (a Laya server), or none
+   */
+  where?: string | null;
+  /**
+   * Model
+   */
+  model: string;
+  /**
+   * Reason
+   *
+   * why it can't answer, when it can't
+   */
+  reason?: string | null;
   [key: string]: unknown;
 };
 
@@ -6553,6 +7063,31 @@ export type NamespaceUpdate = {
 };
 
 /**
+ * NextRun
+ */
+export type NextRun = {
+  /**
+   * Usd
+   */
+  usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Runs
+   *
+   * the past runs the estimate is drawn from
+   */
+  runs: number;
+  /**
+   * Basis
+   */
+  basis: string;
+  [key: string]: unknown;
+};
+
+/**
  * NodeParam
  */
 export type NodeParam = {
@@ -6810,6 +7345,48 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteHistory
+ */
+export type NoteHistory = {
+  /**
+   * Versions
+   */
+  versions: Array<NoteVersionItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteHomeSuggestion
+ */
+export type NoteHomeSuggestion = {
+  /**
+   * Page
+   *
+   * the project or area page it could go inside
+   */
+  page: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Place
+   */
+  place: "project" | "area";
+  /**
+   * Score
+   */
+  score: number;
+  /**
+   * Why
+   *
+   * what ties them: links between them, links they share, words of its title
+   */
+  why: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * NoteLink
  */
 export type NoteLink = {
@@ -6839,6 +7416,31 @@ export type NoteLink = {
    * Namespace
    */
   namespace?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteLinkSuggestion
+ */
+export type NoteLinkSuggestion = {
+  /**
+   * Target
+   */
+  target: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Kind
+   */
+  kind: "page" | "recording" | "entity" | "topic" | "collection" | "speaker";
+  /**
+   * Sign
+   *
+   * # for a topic, @ for anything else
+   */
+  sign: "@" | "#";
   [key: string]: unknown;
 };
 
@@ -6896,6 +7498,16 @@ export type NotePage = {
    */
   place?: "project" | "area" | "resource" | "archive" | null;
   /**
+   * Place By
+   *
+   * who filed it
+   */
+  place_by?: "person" | "assistant" | null;
+  /**
+   * where the assistant would file it, when it wasn't sure
+   */
+  place_suggestion?: PlaceSuggestion | null;
+  /**
    * Parent
    *
    * the page it's inside, in the tree
@@ -6920,6 +7532,12 @@ export type NotePage = {
    */
   author?: "person" | "assistant";
   /**
+   * View
+   *
+   * how the editor shows it (default: page)
+   */
+  view?: "page" | "edgeless" | null;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -6934,7 +7552,7 @@ export type NotePage = {
   /**
    * Body
    *
-   * Markdown, with mentions written @[label](kind:id) and #[label](entity:id)
+   * Markdown, with mentions written @[label](kind:id) and #[label](topic:id)
    */
   body?: string;
   /**
@@ -6943,6 +7561,12 @@ export type NotePage = {
    * the editor's own document state, if it kept one
    */
   doc?: string | null;
+  /**
+   * Doc Stale
+   *
+   * the body changed without the editor: its text follows the body
+   */
+  doc_stale?: boolean | null;
   /**
    * Created By
    *
@@ -7012,6 +7636,10 @@ export type NotePageCreate = {
    * Doc
    */
   doc?: string | null;
+  /**
+   * View
+   */
+  view?: "page" | "edgeless" | null;
 };
 
 /**
@@ -7086,6 +7714,16 @@ export type NotePageItem = {
    */
   place?: "project" | "area" | "resource" | "archive" | null;
   /**
+   * Place By
+   *
+   * who filed it
+   */
+  place_by?: "person" | "assistant" | null;
+  /**
+   * where the assistant would file it, when it wasn't sure
+   */
+  place_suggestion?: PlaceSuggestion | null;
+  /**
    * Parent
    *
    * the page it's inside, in the tree
@@ -7109,6 +7747,12 @@ export type NotePageItem = {
    * who wrote it
    */
   author?: "person" | "assistant";
+  /**
+   * View
+   *
+   * how the editor shows it (default: page)
+   */
+  view?: "page" | "edgeless" | null;
   /**
    * Created At
    */
@@ -7169,9 +7813,15 @@ export type NotePageUpdate = {
   /**
    * Doc
    *
-   * the editor's document state; a new body without it drops the old one
+   * the editor's document state; a new body without it marks the old one stale
    */
   doc?: string | null;
+  /**
+   * View
+   *
+   * show it as a page or on the edgeless canvas
+   */
+  view?: "page" | "edgeless" | null;
 };
 
 /**
@@ -7203,6 +7853,104 @@ export type NoteUpdate = {
    * share or unshare it (sharing needs editor access)
    */
   shared?: boolean | null;
+};
+
+/**
+ * NoteVersion
+ */
+export type NoteVersion = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   *
+   * when the page changed from this
+   */
+  at: string;
+  /**
+   * By
+   *
+   * who changed it (an email); none for the model
+   */
+  by?: string | null;
+  /**
+   * Author
+   *
+   * a person, or the assistant or model
+   */
+  author?: "person" | "assistant";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Size
+   *
+   * characters of text
+   */
+  size?: number;
+  /**
+   * Why
+   */
+  why?: string | null;
+  /**
+   * Body
+   */
+  body?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * NoteVersionItem
+ */
+export type NoteVersionItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * At
+   *
+   * when the page changed from this
+   */
+  at: string;
+  /**
+   * By
+   *
+   * who changed it (an email); none for the model
+   */
+  by?: string | null;
+  /**
+   * Author
+   *
+   * a person, or the assistant or model
+   */
+  author?: "person" | "assistant";
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Size
+   *
+   * characters of text
+   */
+  size?: number;
+  /**
+   * Why
+   */
+  why?: string | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -8367,6 +9115,27 @@ export type PipelineVersionInfo = {
    * Created By
    */
   created_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PlaceSuggestion
+ */
+export type PlaceSuggestion = {
+  /**
+   * Place
+   */
+  place: "project" | "area" | "resource" | "archive";
+  /**
+   * Confidence
+   */
+  confidence: number;
+  /**
+   * By
+   *
+   * what decided: jev (a decision model) or llm
+   */
+  by: string;
   [key: string]: unknown;
 };
 
@@ -10091,6 +10860,29 @@ export type ResetPasswordRequest = {
 };
 
 /**
+ * ResourceCost
+ */
+export type ResourceCost = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  [key: string]: unknown;
+};
+
+/**
  * ResourceFile
  */
 export type ResourceFile = {
@@ -10213,6 +11005,35 @@ export type ResourceFiles = {
 };
 
 /**
+ * ResourceSpend
+ */
+export type ResourceSpend = {
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Unpriced
+   */
+  unpriced: number;
+  /**
+   * Estimate
+   *
+   * true: cost_usd is a floor (unpriced calls); show it as an estimate
+   */
+  estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Reviewed
  */
 export type Reviewed = {
@@ -10221,6 +11042,30 @@ export type Reviewed = {
    */
   applied: number;
   [key: string]: unknown;
+};
+
+/**
+ * RollbackAsk
+ */
+export type RollbackAsk = {
+  /**
+   * To
+   *
+   * the version to go back to: a number, a version's name
+   */
+  to: string;
+  /**
+   * Namespace
+   *
+   * only this namespace (default: every namespace you can edit)
+   */
+  namespace?: string | null;
+  /**
+   * Dry Run
+   *
+   * only say what would change (the default); false to roll back
+   */
+  dry_run?: boolean;
 };
 
 /**
@@ -10417,6 +11262,30 @@ export type RoutineRun = {
    * Log
    */
   log?: Array<string> | null;
+  /**
+   * Cost Usd
+   *
+   * what its calls cost, from the activity ledger (docs/activity.md); set when it ends
+   */
+  cost_usd?: number | null;
+  /**
+   * Tokens
+   */
+  tokens?: number | null;
+  /**
+   * Cost Estimate
+   *
+   * true: some calls had no price or token counts, so cost_usd is a floor
+   */
+  cost_estimate?: boolean | null;
+  /**
+   * Hold
+   *
+   * held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}
+   */
+  hold?: {
+    [key: string]: unknown;
+  } | null;
   [key: string]: unknown;
 };
 
@@ -10430,6 +11299,12 @@ export type RoutineRunRequest = {
    * graph workflows propose every change instead of making the sure ones
    */
   propose_only?: boolean;
+  /**
+   * Over Budget
+   *
+   * run it even though it's over a budget (docs/budgets.md); without it, a run over budget is refused (409)
+   */
+  over_budget?: boolean;
 };
 
 /**
@@ -11561,6 +12436,43 @@ export type SetupNamespaceView = {
 };
 
 /**
+ * SetupOAuth
+ */
+export type SetupOAuth = {
+  /**
+   * Enabled
+   */
+  enabled?: boolean;
+  /**
+   * Access Minutes
+   */
+  access_minutes?: number | null;
+  /**
+   * Refresh Days
+   */
+  refresh_days?: number | null;
+};
+
+/**
+ * SetupOAuthView
+ */
+export type SetupOAuthView = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Access Minutes
+   */
+  access_minutes: number;
+  /**
+   * Refresh Days
+   */
+  refresh_days: number;
+  [key: string]: unknown;
+};
+
+/**
  * SetupRequest
  */
 export type SetupRequest = {
@@ -11696,6 +12608,7 @@ export type SetupView = {
   llm: SetupLlmView;
   storage: SetupStorageView;
   telemetry: SetupTelemetryView;
+  oauth: SetupOAuthView;
   [key: string]: unknown;
 };
 
@@ -12562,6 +13475,27 @@ export type SpeechTestResult = {
 };
 
 /**
+ * Spent
+ */
+export type Spent = {
+  /**
+   * Usd
+   */
+  usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Estimate
+   *
+   * true: some calls had no figure, so usd is a floor
+   */
+  estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Started
  *
  * Work that carries on after the response (202 Accepted).
@@ -12762,6 +13696,26 @@ export type Suggestion = {
    */
   reason: string;
   [key: string]: unknown;
+};
+
+/**
+ * TagAsk
+ */
+export type TagAsk = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Version
+   *
+   * a version or a version's name (default: head)
+   */
+  version?: string | null;
+  /**
+   * Note
+   */
+  note?: string | null;
 };
 
 /**
@@ -13241,7 +14195,7 @@ export type TopicAbout = {
   /**
    * Source
    *
-   * how it got there: person, entity or analysis
+   * how it got there: person, entity, analysis or assistant
    */
   source?: string | null;
   /**
@@ -13251,7 +14205,26 @@ export type TopicAbout = {
   /**
    * Status
    */
-  status?: "accepted" | "suggested" | null;
+  status?: "accepted" | "suggested" | "dismissed" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TopicCandidate
+ */
+export type TopicCandidate = {
+  /**
+   * Label
+   *
+   * what summaries say recordings are about, which no topic covers yet
+   */
+  label: string;
+  /**
+   * Recordings
+   *
+   * how many recordings' summaries say it
+   */
+  recordings: number;
   [key: string]: unknown;
 };
 
@@ -13453,6 +14426,16 @@ export type TopicRef = {
    */
   label: string;
   [key: string]: unknown;
+};
+
+/**
+ * TopicSkip
+ */
+export type TopicSkip = {
+  /**
+   * Label
+   */
+  label: string;
 };
 
 /**
@@ -16408,6 +17391,38 @@ export type TestBridgeResponses = {
 
 export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
 
+export type DecisionStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/decisions/status";
+};
+
+export type DecisionStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: DecisionStatus;
+};
+
+export type DecisionStatusResponse = DecisionStatusResponses[keyof DecisionStatusResponses];
+
+export type TestDecisionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/decisions/test";
+};
+
+export type TestDecisionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: DecisionTestResult;
+};
+
+export type TestDecisionsResponse = TestDecisionsResponses[keyof TestDecisionsResponses];
+
 export type TestEmbeddingsData = {
   body?: never;
   path?: never;
@@ -16644,6 +17659,280 @@ export type ReindexSearchResponses = {
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
 
+export type ResourceHistoryData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1
+     */
+    resource: string;
+    /**
+     * Kind
+     */
+    kind?: "in" | "out" | "run" | "change" | null;
+    /**
+     * Before
+     *
+     * only entries before this time (the last `at` of the page before)
+     */
+    before?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/activity";
+};
+
+export type ResourceHistoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResourceHistoryError = ResourceHistoryErrors[keyof ResourceHistoryErrors];
+
+export type ResourceHistoryResponses = {
+  /**
+   * Response Activity-Resource History
+   *
+   * Successful Response
+   */
+  200: Array<ActivityEntry>;
+};
+
+export type ResourceHistoryResponse = ResourceHistoryResponses[keyof ResourceHistoryResponses];
+
+export type ResourceTotalsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Resource
+     *
+     * table:id; none for everything (admins)
+     */
+    resource?: string | null;
+    /**
+     * Period
+     */
+    period?: "day" | "week" | "month" | "all";
+  };
+  url: "/api/v1/activity/totals";
+};
+
+export type ResourceTotalsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResourceTotalsError = ResourceTotalsErrors[keyof ResourceTotalsErrors];
+
+export type ResourceTotalsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityTotals;
+};
+
+export type ResourceTotalsResponse = ResourceTotalsResponses[keyof ResourceTotalsResponses];
+
+export type ResourceCostsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * table:id, repeated (up to 500): every row of a list at once
+     */
+    resource: Array<string>;
+    /**
+     * Period
+     */
+    period?: "day" | "week" | "month" | "all";
+  };
+  url: "/api/v1/activity/costs";
+};
+
+export type ResourceCostsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResourceCostsError = ResourceCostsErrors[keyof ResourceCostsErrors];
+
+export type ResourceCostsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityCosts;
+};
+
+export type ResourceCostsResponse = ResourceCostsResponses[keyof ResourceCostsResponses];
+
+export type TopResourcesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Table
+     *
+     * only this kind of resource: routine, pipeline, workflow, space
+     */
+    table?: string | null;
+    /**
+     * Period
+     */
+    period?: "day" | "week" | "month" | "all";
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/activity/top";
+};
+
+export type TopResourcesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TopResourcesError = TopResourcesErrors[keyof TopResourcesErrors];
+
+export type TopResourcesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityTop;
+};
+
+export type TopResourcesResponse = TopResourcesResponses[keyof TopResourcesResponses];
+
+export type RemoveBudgetData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     */
+    resource: string;
+  };
+  url: "/api/v1/budgets";
+};
+
+export type RemoveBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveBudgetError = RemoveBudgetErrors[keyof RemoveBudgetErrors];
+
+export type RemoveBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveBudgetResponse = RemoveBudgetResponses[keyof RemoveBudgetResponses];
+
+export type ListBudgetsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/budgets";
+};
+
+export type ListBudgetsResponses = {
+  /**
+   * Response Budgets-List Budgets
+   *
+   * Successful Response
+   */
+  200: Array<BudgetStatus>;
+};
+
+export type ListBudgetsResponse = ListBudgetsResponses[keyof ListBudgetsResponses];
+
+export type SetBudgetData = {
+  body: BudgetSet;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     */
+    resource: string;
+  };
+  url: "/api/v1/budgets";
+};
+
+export type SetBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetBudgetError = SetBudgetErrors[keyof SetBudgetErrors];
+
+export type SetBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetStatus;
+};
+
+export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
+
+export type BudgetStatusData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     */
+    resource: string;
+  };
+  url: "/api/v1/budgets/status";
+};
+
+export type BudgetStatusErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BudgetStatusError = BudgetStatusErrors[keyof BudgetStatusErrors];
+
+export type BudgetStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetStatus;
+};
+
+export type BudgetStatusResponse = BudgetStatusResponses[keyof BudgetStatusResponses];
+
 export type GetFedoraStatusData = {
   body?: never;
   path?: never;
@@ -16809,6 +18098,31 @@ export type SaveTelemetryResponses = {
 };
 
 export type SaveTelemetryResponse = SaveTelemetryResponses[keyof SaveTelemetryResponses];
+
+export type SaveOauthData = {
+  body: SetupOAuth;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/oauth";
+};
+
+export type SaveOauthErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveOauthError = SaveOauthErrors[keyof SaveOauthErrors];
+
+export type SaveOauthResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveOauthResponse = SaveOauthResponses[keyof SaveOauthResponses];
 
 export type FinishData = {
   body: SetupFinish;
@@ -19076,6 +20390,173 @@ export type UpdatePageResponses = {
 
 export type UpdatePageResponse = UpdatePageResponses[keyof UpdatePageResponses];
 
+export type LinkSuggestionsData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/suggestions";
+};
+
+export type LinkSuggestionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LinkSuggestionsError = LinkSuggestionsErrors[keyof LinkSuggestionsErrors];
+
+export type LinkSuggestionsResponses = {
+  /**
+   * Response Notes-Link Suggestions
+   *
+   * Successful Response
+   */
+  200: Array<NoteLinkSuggestion>;
+};
+
+export type LinkSuggestionsResponse = LinkSuggestionsResponses[keyof LinkSuggestionsResponses];
+
+export type HomeSuggestionsData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/homes";
+};
+
+export type HomeSuggestionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type HomeSuggestionsError = HomeSuggestionsErrors[keyof HomeSuggestionsErrors];
+
+export type HomeSuggestionsResponses = {
+  /**
+   * Response Notes-Home Suggestions
+   *
+   * Successful Response
+   */
+  200: Array<NoteHomeSuggestion>;
+};
+
+export type HomeSuggestionsResponse = HomeSuggestionsResponses[keyof HomeSuggestionsResponses];
+
+export type PageHistoryData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/notes/{pid}/history";
+};
+
+export type PageHistoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageHistoryError = PageHistoryErrors[keyof PageHistoryErrors];
+
+export type PageHistoryResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteHistory;
+};
+
+export type PageHistoryResponse = PageHistoryResponses[keyof PageHistoryResponses];
+
+export type PageVersionData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Vid
+     */
+    vid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/history/{vid}";
+};
+
+export type PageVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageVersionError = PageVersionErrors[keyof PageVersionErrors];
+
+export type PageVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteVersion;
+};
+
+export type PageVersionResponse = PageVersionResponses[keyof PageVersionResponses];
+
+export type RestoreVersionData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+    /**
+     * Vid
+     */
+    vid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/history/{vid}/restore";
+};
+
+export type RestoreVersionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreVersionError = RestoreVersionErrors[keyof RestoreVersionErrors];
+
+export type RestoreVersionResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type RestoreVersionResponse = RestoreVersionResponses[keyof RestoreVersionResponses];
+
 export type MovePageData = {
   body: NotePageMove;
   path: {
@@ -20336,6 +21817,12 @@ export type GetGraphData = {
      * "global" or "ns:<namespace>"
      */
     scope?: string;
+    /**
+     * As Of
+     *
+     * the entities as of a graph version: a number, a version's name, or head
+     */
+    as_of?: string | null;
   };
   url: "/api/v1/graph";
 };
@@ -21696,6 +23183,73 @@ export type CreateTopicResponses = {
 
 export type CreateTopicResponse = CreateTopicResponses[keyof CreateTopicResponses];
 
+export type TopicCandidatesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/namespaces/{name}/topics/candidates";
+};
+
+export type TopicCandidatesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TopicCandidatesError = TopicCandidatesErrors[keyof TopicCandidatesErrors];
+
+export type TopicCandidatesResponses = {
+  /**
+   * Response Topics-Topic Candidates
+   *
+   * Successful Response
+   */
+  200: Array<TopicCandidate>;
+};
+
+export type TopicCandidatesResponse = TopicCandidatesResponses[keyof TopicCandidatesResponses];
+
+export type SkipTopicCandidateData = {
+  body: TopicSkip;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/topics/candidates/skip";
+};
+
+export type SkipTopicCandidateErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SkipTopicCandidateError = SkipTopicCandidateErrors[keyof SkipTopicCandidateErrors];
+
+export type SkipTopicCandidateResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type SkipTopicCandidateResponse = SkipTopicCandidateResponses[keyof SkipTopicCandidateResponses];
+
 export type MergeTopicsData = {
   body: TopicMerge;
   path?: never;
@@ -21823,6 +23377,12 @@ export type GraphSchemaData = {
      * "global" (every shared namespace you can read) or "ns:<namespace>"
      */
     scope?: string;
+    /**
+     * As Of
+     *
+     * the graph as of a version: a number or a version's name (default: today's)
+     */
+    as_of?: string | null;
   };
   url: "/api/v1/graph/schema";
 };
@@ -21883,6 +23443,12 @@ export type GraphRelatedData = {
      * "global" (every shared namespace you can read) or "ns:<namespace>"
      */
     scope?: string;
+    /**
+     * As Of
+     *
+     * the graph as of a version: a number or a version's name (default: today's)
+     */
+    as_of?: string | null;
   };
   url: "/api/v1/graph/related";
 };
@@ -21947,6 +23513,12 @@ export type GraphPathsData = {
      * "global" (every shared namespace you can read) or "ns:<namespace>"
      */
     scope?: string;
+    /**
+     * As Of
+     *
+     * the graph as of a version: a number or a version's name (default: today's)
+     */
+    as_of?: string | null;
   };
   url: "/api/v1/graph/paths";
 };
@@ -22059,6 +23631,373 @@ export type ProposeGraphChangeResponses = {
 };
 
 export type ProposeGraphChangeResponse = ProposeGraphChangeResponses[keyof ProposeGraphChangeResponses];
+
+export type GraphHistoryListData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Namespace
+     *
+     * one namespace (default: every namespace you can read)
+     */
+    namespace?: string | null;
+    /**
+     * Entity
+     *
+     * only the changes that touched this entity
+     */
+    entity?: number | null;
+    /**
+     * Before
+     *
+     * older than this version (the next page)
+     */
+    before?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/graph/history";
+};
+
+export type GraphHistoryListErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphHistoryListError = GraphHistoryListErrors[keyof GraphHistoryListErrors];
+
+export type GraphHistoryListResponses = {
+  /**
+   * Response Graph-Graph History List
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphHistoryListResponse = GraphHistoryListResponses[keyof GraphHistoryListResponses];
+
+export type GraphHistoryEventData = {
+  body?: never;
+  path: {
+    /**
+     * Version
+     */
+    version: string;
+  };
+  query?: never;
+  url: "/api/v1/graph/history/{version}";
+};
+
+export type GraphHistoryEventErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphHistoryEventError = GraphHistoryEventErrors[keyof GraphHistoryEventErrors];
+
+export type GraphHistoryEventResponses = {
+  /**
+   * Response Graph-Graph History Event
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphHistoryEventResponse = GraphHistoryEventResponses[keyof GraphHistoryEventResponses];
+
+export type GraphAsOfData = {
+  body?: never;
+  path: {
+    /**
+     * Version
+     */
+    version: string;
+  };
+  query?: {
+    /**
+     * Namespace
+     *
+     * one namespace (default: every namespace you can read)
+     */
+    namespace?: string | null;
+  };
+  url: "/api/v1/graph/as-of/{version}";
+};
+
+export type GraphAsOfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphAsOfError = GraphAsOfErrors[keyof GraphAsOfErrors];
+
+export type GraphAsOfResponses = {
+  /**
+   * Response Graph-Graph As Of
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphAsOfResponse = GraphAsOfResponses[keyof GraphAsOfResponses];
+
+export type GraphDiffData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * From
+     *
+     * a version, a version's name, or head
+     */
+    from: string;
+    /**
+     * To
+     *
+     * a version, a version's name, or head
+     */
+    to?: string;
+    /**
+     * Namespace
+     *
+     * one namespace (default: every namespace you can read)
+     */
+    namespace?: string | null;
+  };
+  url: "/api/v1/graph/diff";
+};
+
+export type GraphDiffErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphDiffError = GraphDiffErrors[keyof GraphDiffErrors];
+
+export type GraphDiffResponses = {
+  /**
+   * Response Graph-Graph Diff
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphDiffResponse = GraphDiffResponses[keyof GraphDiffResponses];
+
+export type GraphTagsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/tags";
+};
+
+export type GraphTagsResponses = {
+  /**
+   * Response Graph-Graph Tags
+   *
+   * Successful Response
+   */
+  200: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type GraphTagsResponse = GraphTagsResponses[keyof GraphTagsResponses];
+
+export type GraphTagData = {
+  body: TagAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/tags";
+};
+
+export type GraphTagErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphTagError = GraphTagErrors[keyof GraphTagErrors];
+
+export type GraphTagResponses = {
+  /**
+   * Response Graph-Graph Tag
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphTagResponse = GraphTagResponses[keyof GraphTagResponses];
+
+export type GraphUntagData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/graph/tags/{name}";
+};
+
+export type GraphUntagErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphUntagError = GraphUntagErrors[keyof GraphUntagErrors];
+
+export type GraphUntagResponses = {
+  /**
+   * Response Graph-Graph Untag
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphUntagResponse = GraphUntagResponses[keyof GraphUntagResponses];
+
+export type GraphRollbackData = {
+  body: RollbackAsk;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/rollback";
+};
+
+export type GraphRollbackErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GraphRollbackError = GraphRollbackErrors[keyof GraphRollbackErrors];
+
+export type GraphRollbackResponses = {
+  /**
+   * Response Graph-Graph Rollback
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphRollbackResponse = GraphRollbackResponses[keyof GraphRollbackResponses];
+
+export type GraphVerifyData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/verify";
+};
+
+export type GraphVerifyResponses = {
+  /**
+   * Response Graph-Graph Verify
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphVerifyResponse = GraphVerifyResponses[keyof GraphVerifyResponses];
+
+export type GraphVerifyFixData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/verify";
+};
+
+export type GraphVerifyFixResponses = {
+  /**
+   * Response Graph-Graph Verify Fix
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphVerifyFixResponse = GraphVerifyFixResponses[keyof GraphVerifyFixResponses];
+
+export type GraphCheckpointsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/checkpoints";
+};
+
+export type GraphCheckpointsResponses = {
+  /**
+   * Response Graph-Graph Checkpoints
+   *
+   * Successful Response
+   */
+  200: Array<{
+    [key: string]: unknown;
+  }>;
+};
+
+export type GraphCheckpointsResponse = GraphCheckpointsResponses[keyof GraphCheckpointsResponses];
+
+export type GraphCheckpointData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/checkpoints";
+};
+
+export type GraphCheckpointResponses = {
+  /**
+   * Response Graph-Graph Checkpoint
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type GraphCheckpointResponse = GraphCheckpointResponses[keyof GraphCheckpointResponses];
 
 export type GetEntitySetupData = {
   body?: never;
@@ -23466,6 +25405,36 @@ export type CancelJobResponses = {
 };
 
 export type CancelJobResponse = CancelJobResponses[keyof CancelJobResponses];
+
+export type ReleaseJobData = {
+  body: HeldRunDecision;
+  path: {
+    /**
+     * Jid
+     */
+    jid: number;
+  };
+  query?: never;
+  url: "/api/v1/jobs/{jid}/release";
+};
+
+export type ReleaseJobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReleaseJobError = ReleaseJobErrors[keyof ReleaseJobErrors];
+
+export type ReleaseJobResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ReleaseJobResponse = ReleaseJobResponses[keyof ReleaseJobResponses];
 
 export type RetryJobData = {
   body?: never;
@@ -26429,6 +28398,36 @@ export type RunRoutineResponses = {
 };
 
 export type RunRoutineResponse = RunRoutineResponses[keyof RunRoutineResponses];
+
+export type DecideHeldRunData = {
+  body: HeldRunDecision;
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: number;
+  };
+  query?: never;
+  url: "/api/v1/routines/runs/{run_id}/decide";
+};
+
+export type DecideHeldRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DecideHeldRunError = DecideHeldRunErrors[keyof DecideHeldRunErrors];
+
+export type DecideHeldRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DecideHeldRunResponse = DecideHeldRunResponses[keyof DecideHeldRunResponses];
 
 export type ListRunsData = {
   body?: never;

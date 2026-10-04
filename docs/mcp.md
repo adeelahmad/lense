@@ -44,7 +44,7 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `get_transcript` | a recording's lines in order (speaker, time, text, link), a page at a time, from a line or a time window |
 | `fetch` | a recording's whole text at once, as `[m:ss] Speaker: …` lines |
 | `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said them, the recording and date, the time, the link, and all of it as Markdown |
-| `list_entities` | people, organisations, products, places, events, works and topics mentioned, by name, type, namespace or recording |
+| `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or recording |
 | `get_entity` | one entity: its names, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
 | `explore_graph` | the knowledge graph around an entity (`e12`) or a speaker (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
@@ -52,6 +52,12 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `graph_query` | read-only Cypher over the graph of one namespace or every shared one: columns, rows, and the nodes and relationships found |
 | `graph_related` | a node's parents, children, ancestors, descendants or neighbours |
 | `graph_paths` | the paths between two nodes, shortest first |
+| `list_topics` | each namespace's vocabulary of topics ([Topics](topics.md)), by any label, top topics or the narrower ones of a topic |
+| `get_topic` | one topic: its labels, definition, broader, narrower and related topics, and the recordings about it, with links |
+| `suggest_topic` | suggest that recordings are about a topic; it waits for someone to accept it. Needs a write-scope token and editor access |
+| `find_notes` | [notes](notes.md) by words in their title, summary or text, or by where they're filed (PARA), with links |
+| `read_note` | a note's Markdown with its links and backlinks, by id or as the page of a thing (`recording:12`) |
+| `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
 
 Results are JSON (as `structuredContent`, and the same as text). Links open the recording's page in the web app at
@@ -60,7 +66,8 @@ argument, something it can't read) come back as a tool result with `isError`, so
 person's to read answers "not found", as the API does. `search` and `fetch` follow the shape ChatGPT's connectors
 expect (`results` with `id`, `title`, `url`; `fetch` by that `id`).
 
-Every tool reads, except `propose_graph_change`, which records an undoable change (proposed by default).
+Every tool reads, except `suggest_topic`, which adds suggestions people accept or dismiss, `propose_graph_change`,
+which records an undoable change (proposed by default), and `write_note`, which adds a note.
 Importing, editing and curating stay in the web app and the API.
 
 ## Protocol

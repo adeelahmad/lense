@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/lens-horizontal-dark-tagline.svg">
+    <img src="docs/brand/lens-horizontal-light-tagline.svg" alt="Lens: Your life. Your AI." width="360">
+  </picture>
+</p>
+
 # Lens
 
 An archive for recorded speech and video. Lens transcribes recordings in batches, recognises speakers by voice within

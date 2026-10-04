@@ -45,7 +45,7 @@ describe("player address and snippet", () => {
     });
     expect(s).toContain('src="https://a.example/embed/1?s=x&t=2"');
     expect(s).toContain('width="360" height="520"');
-    expect(s).toContain('title="Lens Archive player: Episode &quot;12&quot;"');
+    expect(s).toContain('title="Lens player: Episode &quot;12&quot;"');
   });
 });
 

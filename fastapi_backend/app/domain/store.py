@@ -193,9 +193,16 @@ DEFAULTS = {
     # without passwords; an install that already had them keeps them until an admin turns them off.
     "auth": {"passwords": False},
     # how long API keys last (docs/configuration.md): what a new key gets, the most it may get, and whether keys may
-    # never expire; and how long the tokens of apps given access through OAuth last (domain/oauth.py): the access token,
-    # and the grant after the app last renewed it
-    "tokens": {"default_days": 90, "max_days": 365, "never_expire": False, "oauth_access_minutes": 60, "oauth_refresh_days": 30},
+    # never expire; and whether apps and MCP clients may sign people in through OAuth (domain/oauth.py), and how long
+    # their tokens last: the access token, and the grant after the app last renewed it
+    "tokens": {
+        "default_days": 90,
+        "max_days": 365,
+        "never_expire": False,
+        "oauth_enabled": True,
+        "oauth_access_minutes": 60,
+        "oauth_refresh_days": 30,
+    },
     # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
     # server.max_upload_mb
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
@@ -240,6 +247,7 @@ DEFAULTS = {
         "tools": True,
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
+        "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -309,7 +317,8 @@ DEFAULTS = {
     # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
     "components": {"auto": True, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
-    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks.
+    # has a key, else the language model. act_above: the confidence it acts on; below it, it asks. Engine laya runs a
+    # Laya model (laya_model) on this Mac, or asks a Laya server (laya_url, `lens decide-server`).
     "decisions": {
         "engine": "auto",
         "base_url": "https://api.typesafe.ai/v1",
@@ -317,6 +326,9 @@ DEFAULTS = {
         "api_key": None,
         "act_above": 0.8,
         "timeout": 10,
+        "price_per_call": None,  # USD per decision, for the activity ledger's cost (none: not counted)
+        "laya_model": "aac6fef/laya-mlx",
+        "laya_url": None,
     },
     "video": {
         "sample_seconds": 5,
@@ -388,6 +400,9 @@ DEFAULTS = {
     # encryption at rest (docs/encryption.md): files Lens keeps under data_dir, encrypted with their namespace's key;
     # work_minutes: how long a plain working copy for ffmpeg and the other tools is kept after its last use
     "encryption": {"files": False, "work_minutes": 30, "vault_minutes": 60},
+    # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
+    # default; reads: log API reads (GET) too; keep_days: how long rows are kept
+    "activity": {"enabled": True, "reads": False, "keep_days": 365},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -518,6 +533,7 @@ class DB:
         d = cfg["database"]
         url = os.environ.get("SURREAL_URL") or d.get("url") or "surrealkv://" + str(pathlib.Path(cfg["data_dir"]) / "surrealdb")
         self.url = url
+        self.data_dir = cfg.get("data_dir")
         scheme = url.split(":", 1)[0]
         self.embedded = scheme in ("mem", "memory", "surrealkv", "file")
         if scheme in ("surrealkv", "file"):
@@ -564,6 +580,23 @@ class DB:
                     raise
                 _backoff(attempt)
                 attempt += 1
+
+    @contextlib.contextmanager
+    def closed(self):
+        """Every connection closed meanwhile (once the queries in flight finish), then opened again: for copying an
+        embedded database's files."""
+        held = [self._pool.get() for _ in self._all]
+        for c in held:
+            with contextlib.suppress(Exception):
+                c.close()
+        try:
+            yield
+        finally:
+            self._all = []
+            for _ in held:
+                c = self._open()
+                self._all.append(c)
+                self._pool.put(c)
 
     @contextlib.contextmanager
     def conn(self):
@@ -658,10 +691,13 @@ class DB:
 
 
 SCHEMA = [
-    # counters (next_id), the migration marker and the settings version. Defined up front: SurrealDB 3 refuses to
+    # counters (next_id), the old migration counter and the settings version. Defined up front: SurrealDB 3 refuses to
     # SELECT from a table nobody has written to yet ("table 'seq' does not exist"), which a fresh database with no
     # namespaces in archive.yaml would otherwise hit in migrate() before anything had created it.
     "DEFINE TABLE IF NOT EXISTS seq SCHEMALESS",
+    # data upgrades (domain/migrations.py): migration:⟨name⟩ for each step run or failed, and the lock while one runs
+    "DEFINE TABLE IF NOT EXISTS migration SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS migration_lock SCHEMALESS",
     # first-run setup (domain/setup.py): setup:wizard while the web wizard is still to be finished
     "DEFINE TABLE IF NOT EXISTS setup SCHEMALESS",
     # No composite indexes: on SurrealDB 2.x a (space, x) index makes "space = $s" lookups return nothing, so
@@ -797,6 +833,13 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS share_embed_share ON share_embed FIELDS share",
     "DEFINE TABLE IF NOT EXISTS audit_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS audit_at ON audit_log FIELDS at",
+    "DEFINE INDEX IF NOT EXISTS audit_target ON audit_log FIELDS target",
+    # what happened to each resource and what it cost (domain/activity.py): a row per call in, call out and run
+    "DEFINE TABLE IF NOT EXISTS activity SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS activity_at ON activity FIELDS at",
+    "DEFINE INDEX IF NOT EXISTS activity_resources ON activity FIELDS resources",
+    # caps on what a routine, pipeline, workflow or namespace may cost (domain/budgets.py): budget:<table>_<id>
+    "DEFINE TABLE IF NOT EXISTS budget SCHEMALESS",
     # background work
     "DEFINE TABLE IF NOT EXISTS job SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_status ON job FIELDS status",
@@ -884,6 +927,12 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
     "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",
     "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
+    # the entity graph's history (graph_history.py): one append-only event per change, and named versions
+    "DEFINE TABLE IF NOT EXISTS graph_event SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS graph_tag SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS graph_checkpoint SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS graph_checkpoint_part SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS graph_checkpoint_part_cp ON graph_checkpoint_part FIELDS checkpoint",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",
@@ -954,6 +1003,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS note_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_link_page ON note_link FIELDS page",
     "DEFINE INDEX IF NOT EXISTS note_link_target ON note_link FIELDS target",
+    # what a page was before each change (notebook.snapshot): its history, to look back at and restore
+    "DEFINE TABLE IF NOT EXISTS note_version SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_version_page ON note_version FIELDS page",
     # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",
@@ -1013,7 +1065,9 @@ def _text_index(db):
     return found
 
 
-def connect(cfg):
+def connect(cfg, upgrade=True):
+    """Open the database, apply the schema and, unless upgrade=False (for `lens migrations`), bring its data up to
+    date (domain/migrations.py)."""
     db = DB(cfg)
     db.q(_analyzer(cfg))
     for s in SCHEMA:
@@ -1022,24 +1076,16 @@ def connect(cfg):
     for name, spec in cfg["namespaces"].items():
         sid = ns_id(db, name)
         db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
-    migrate(db)
+    if upgrade:
+        migrate(db)
     return db
 
 
-def _migrations():
-    from . import access, hierarchy  # each step lives with the code it serves
-
-    return [access.migrate_legacy, hierarchy.migrate_homes]
-
-
 def migrate(db):
-    """Data rewrites that run once per database, in order. The last one done is kept in seq:migrations; each step is
-    safe to repeat, so two processes starting together, or a start that stops half way, do no harm."""
-    done = int((db.one("SELECT n FROM $r", r=R("seq", "migrations")) or {}).get("n") or 0)
-    for n, step in enumerate(_migrations(), 1):
-        if n > done:
-            step(db)
-            db.q("UPSERT $r SET n = $n", r=R("seq", "migrations"), n=n)
+    """Run the data upgrades this database hasn't had yet (domain/migrations.py)."""
+    from . import migrations
+
+    return migrations.run(db)
 
 
 def reindex(db, cfg):

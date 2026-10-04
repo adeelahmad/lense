@@ -13,7 +13,7 @@ import math
 import re
 from collections import Counter, defaultdict, deque
 
-from . import analyze, entity_setup, notebook, render, store
+from . import analyze, entity_setup, graph_history, notebook, render, store
 
 R = store.R
 TYPES = {
@@ -23,7 +23,7 @@ TYPES = {
     "PLACE": "Place",
     "EVENT": "Event",
     "WORK": "Work",
-    "TERM": "Topic",
+    "TERM": "Term",
     "DATE": "Date",
     "NUMBER": "Number",
 }
@@ -656,7 +656,8 @@ def suggestions(db, spaces, eid=None, limit=50):
 # ---------- curation ----------
 def not_same(db, a, b):
     lo, hi = sorted((int(a), int(b)))
-    db.q("UPSERT $r CONTENT $d", r=R("entity_distinct", f"{lo}-{hi}"), d={"a": lo, "b": hi, "at": store.now()})
+    with graph_history.change(db, "distinct.add", entities=[lo, hi]):
+        db.q("UPSERT $r CONTENT $d", r=R("entity_distinct", f"{lo}-{hi}"), d={"a": lo, "b": hi, "at": store.now()})
 
 
 def _check_type(db, space, typ):
@@ -670,7 +671,8 @@ def retype(db, eids, typ):
         _not_builtin(e, "retyped")
     for sp in {e["space"] for e in db.rows("SELECT space FROM entity WHERE id IN $ids", ids=[R("entity", int(i)) for i in eids])}:
         _check_type(db, sp, typ)
-    db.q("UPDATE $ids SET type = $t", ids=[R("entity", int(i)) for i in eids], t=typ)
+    with graph_history.change(db, "entity.retype", entities=eids):
+        db.q("UPDATE $ids SET type = $t", ids=[R("entity", int(i)) for i in eids], t=typ)
 
 
 def describe(db, eid, description):
@@ -679,14 +681,19 @@ def describe(db, eid, description):
     text = str(description or "").strip()
     if len(text) > DESCRIPTION_MAX:
         raise ValueError(f"A description can have up to {DESCRIPTION_MAX} characters.")
-    db.q("UPDATE $r SET description = $d", r=R("entity", int(eid)), d=text or None)
+    with graph_history.change(db, "entity.describe", entities=[eid]):
+        db.q("UPDATE $r SET description = $d", r=R("entity", int(eid)), d=text or None)
 
 
 def hide(db, eid, hidden=True, reason=None):
     _not_builtin(_entity(db, eid), "hidden")
-    db.q(
-        "UPDATE $r SET hidden = $h, hidden_reason = $why", r=R("entity", int(eid)), h=bool(hidden), why=(reason or None) if hidden else None
-    )
+    with graph_history.change(db, "entity.hide" if hidden else "entity.show", entities=[eid], why=reason if hidden else None):
+        db.q(
+            "UPDATE $r SET hidden = $h, hidden_reason = $why",
+            r=R("entity", int(eid)),
+            h=bool(hidden),
+            why=(reason or None) if hidden else None,
+        )
 
 
 def _add_alias(db, space, key, eid):
@@ -733,10 +740,11 @@ def rename(db, eid, name, keep_alias=True, correct=False, dry_run=False):
                 lines.append({"segment": sid, "recording": s["recording"], "idx": s["idx"], "before": s["text"], "after": after})
     if dry_run:
         return {"name": new, "lines": len(lines), "recordings": len({x["recording"] for x in lines}), "preview": lines[:200]}
-    if keep_alias and e["key"] != new_key:
-        _add_alias(db, e["space"], e["key"], e["id"])
-    db.q("UPDATE $r SET name = $n, key = $k, ekey = $ek", r=R("entity", e["id"]), n=new, k=new_key, ek=f"{e['space']}:{new_key}")
-    db.q("DELETE entity_alias WHERE space = $s AND key = $k", s=e["space"], k=new_key)
+    with graph_history.change(db, "entity.rename", entities=[e["id"]], aliases=[(e["space"], new_key)]):
+        if keep_alias and e["key"] != new_key:
+            _add_alias(db, e["space"], e["key"], e["id"])
+        db.q("UPDATE $r SET name = $n, key = $k, ekey = $ek", r=R("entity", e["id"]), n=new, k=new_key, ek=f"{e['space']}:{new_key}")
+        db.q("DELETE entity_alias WHERE space = $s AND key = $k", s=e["space"], k=new_key)
     for x in lines:
         db.q("UPDATE $s SET text = $t", s=R("segment", x["segment"]), t=x["after"])
         db.q(
@@ -777,6 +785,13 @@ def merge(db, keep, others, user=None):
         )
     if not snaps:
         raise ValueError("pick at least one other entity")
+    with graph_history.change(db, "entity.merge", entities=[k["id"]] + [sn["entity"]["id"] for sn in snaps]) as ch:
+        mid = _merge(db, k, snaps, user)
+        ch.add(merge=mid)
+    return mid
+
+
+def _merge(db, k, snaps, user):
     for sn in snaps:
         o = sn["entity"]
         rows = [
@@ -817,6 +832,11 @@ def undo_merge(db, mid):
     m = db.one("SELECT * FROM $r", r=R("entity_merge", int(mid)))
     if not m or m.get("undone"):
         raise ValueError("nothing to undo")
+    with graph_history.change(db, "entity.unmerge", entities=[m["keep"]] + [sn["entity"]["id"] for sn in m["snapshots"]], merge=int(mid)):
+        _undo_merge(db, m, mid)
+
+
+def _undo_merge(db, m, mid):
     keep = m["keep"]
     for sn in m["snapshots"]:
         o = sn["entity"]
@@ -889,6 +909,14 @@ def move_mention(db, mention, target=None, new_name=None, new_type="TERM", remov
     m = db.one("SELECT record::id(in) AS segment, recording, space, speaker, text, entity FROM $r", r=R("mentions", mention))
     if not m:
         raise KeyError(mention)
+    with graph_history.change(db, "mention.remove" if remove else "mention.move", entities=[m["entity"]]) as ch:
+        tid = _move_mention(db, mention, m, ch, target, new_name, new_type, remove)
+        ch.mark(m["entity"], tid)
+        ch.add(mention=store.clean({"segment": m["segment"], "text": m["text"], "from": m["entity"], "to": tid or None}))
+    return tid
+
+
+def _move_mention(db, mention, m, ch, target, new_name, new_type, remove):
     key = analyze.ent_key(m["text"])
     tid = 0
     if not remove:
@@ -899,10 +927,12 @@ def move_mention(db, mention, target=None, new_name=None, new_type="TERM", remov
             fixed = entity_setup.effective(db, m["space"], rec.get("collection"))["mode"] == "fixed"
             if row:
                 tid = row["id"]
+                ch.touch([tid])
             else:
                 _check_type(db, m["space"], new_type)
                 tid = db.next_id("entity")
                 d = {"space": m["space"], "key": nk, "ekey": f"{m['space']}:{nk}", "name": new_name.strip(), "type": new_type}
+                ch.created(tid)
                 db.q("CREATE $r CONTENT $d", r=R("entity", tid), d=d)
             if fixed and not (row or {}).get("builtin"):  # a name given where the list is fixed joins the list
                 db.q("UPDATE $r SET defined = true", r=R("entity", tid))
@@ -937,7 +967,8 @@ def remove(db, eid):
         raise ValueError("Only a defined entity can be deleted; hide this one instead.")
     if db.rows("SELECT id FROM mentions WHERE entity = $e LIMIT 1", e=e["id"]):
         raise ValueError(f"{e['name']} is mentioned: merge it into another entity, or hide it.")
-    db.run(["DELETE entity_alias WHERE entity = $e", "DELETE $r"], e=e["id"], r=R("entity", e["id"]))
+    with graph_history.change(db, "entity.delete", entities=[e["id"]]):
+        db.run(["DELETE entity_alias WHERE entity = $e", "DELETE $r"], e=e["id"], r=R("entity", e["id"]))
     notebook.release(db, f"entity:{e['id']}")
 
 
@@ -946,9 +977,11 @@ def link(db, a, b, check_spaces=True):
     if check_spaces and x["space"] == y["space"]:
         raise ValueError("these are in the same namespace: merge them instead")
     lo, hi = sorted((x["id"], y["id"]))
-    db.q("UPSERT $r CONTENT $d", r=R("entity_link", f"{lo}-{hi}"), d={"a": lo, "b": hi})
+    with graph_history.change(db, "link.add", entities=[lo, hi]):
+        db.q("UPSERT $r CONTENT $d", r=R("entity_link", f"{lo}-{hi}"), d={"a": lo, "b": hi})
 
 
 def unlink(db, a, b):
     lo, hi = sorted((int(a), int(b)))
-    db.q("DELETE $r", r=R("entity_link", f"{lo}-{hi}"))
+    with graph_history.change(db, "link.remove", entities=[lo, hi]):
+        db.q("DELETE $r", r=R("entity_link", f"{lo}-{hi}"))

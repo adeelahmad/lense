@@ -1,0 +1,22 @@
+{
+  "brand": {
+    "blue": "#1A73E8",
+    "red": "#EA4335",
+    "green": "#34A853",
+    "gold": "#F9AB00"
+  },
+  "neutrals": {
+    "ink": "#202124",
+    "white": "#FFFFFF",
+    "secondary": "#5F6368",
+    "muted": "#80868B",
+    "surface": "#F8F9FA",
+    "border": "#DADCE0"
+  },
+  "type": {
+    "family": "DM Sans",
+    "wordmarkWeight": 750,
+    "bodyWeight": 500
+  },
+  "source": "Uploaded Aladdin design-system tokens; gold is #F9AB00."
+}

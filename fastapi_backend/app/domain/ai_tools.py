@@ -18,6 +18,8 @@ from . import (
     graph_ask,
     graph_model,
     entity_setup,
+    graph_history,
+    notebook,
     ops_tools,
     recsets,
     render,
@@ -25,6 +27,7 @@ from . import (
     speakers as spk,
     store,
     templates,
+    topics,
 )
 
 R = store.R
@@ -62,7 +65,7 @@ TOOLS = [
     ),
     (
         "find_entities",
-        "Find people, organisations, products, places and topics mentioned in scope.",
+        "Find people, organisations, products, places and terms mentioned in scope (for subjects, use find_topics).",
         {"query": _S, "type": _S, "namespace": _S, "limit": _I},
         [],
         False,
@@ -76,6 +79,29 @@ TOOLS = [
     ),
     ("entity_timeline", "How often an entity was mentioned per month.", {"entity_id": _I}, ["entity_id"], False),
     (
+        "find_topics",
+        "Find topics: each namespace's controlled vocabulary of what recordings are about, with other labels, a "
+        "definition, broader topics and how many recordings are about each.",
+        {"query": _S, "namespace": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "topic_recordings",
+        "One topic: its broader, narrower and related topics and the recordings about it (accepted, and suggested).",
+        {"topic_id": _I},
+        ["topic_id"],
+        False,
+    ),
+    (
+        "suggest_topic",
+        "Suggest that recordings are about a topic. It waits on the recording and the topic for someone to accept; "
+        "nothing they accepted or dismissed changes.",
+        {"topic_id": _I, "recording_ids": {"type": "array", "items": _I}},
+        ["topic_id", "recording_ids"],
+        True,
+    ),
+    (
         "graph_neighbours",
         "Who and what is connected to an entity or speaker in the knowledge graph.",
         {"entity_id": _I, "speaker_id": _I, "limit": _I},
@@ -84,8 +110,60 @@ TOOLS = [
     ),
     ("speaker_stats", "Speakers in a namespace with talk time and recordings.", {"namespace": _S}, ["namespace"], False),
     (
+        "find_notes",
+        "Find notes (free notes and the pages of recordings, entities, collections and speakers) in scope by words in "
+        "their title, summary or text. Each has an id, title, one-line summary, where it's filed (PARA) and what it's "
+        "the page of.",
+        {"query": _S, "namespace": _S, "place": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "read_note",
+        "Read a note's Markdown, with its links and the notes linking to it: by note_id, or the page of a thing "
+        '(about, like "recording:12" or "entity:5").',
+        {"note_id": _I, "about": _S},
+        [],
+        False,
+    ),
+    (
+        "write_note",
+        'Write a new note, or the page of a thing (about, like "entity:5"; one each). You keep notes as you learn: '
+        "a specific title, a one-line summary of what it holds, Markdown text, and where it's filed: project (an "
+        "outcome with an end), area (a responsibility kept up), resource (a topic of interest) or archive (done). Link "
+        "with @[label](recording:12), @[label](entity:5), @[label](page:3), and topics with #[label](topic:9) (ids "
+        "from find_entities, find_topics, find_notes and list_recordings). Put it inside another note with parent_id.",
+        {
+            "namespace": _S,
+            "title": _S,
+            "body": _S,
+            "summary": _S,
+            "place": {"type": "string", "enum": list(notebook.PLACES)},
+            "parent_id": _I,
+            "about": _S,
+        },
+        ["namespace", "title", "body"],
+        True,
+    ),
+    (
+        "update_note",
+        "Change a note: its title, summary, place, or its text (body replaces it; append adds to the end). Move a free "
+        "note in the tree with parent_id (0: the top); read_note lists could_go_in, the projects and areas it fits under.",
+        {
+            "note_id": _I,
+            "title": _S,
+            "summary": _S,
+            "place": {"type": "string", "enum": list(notebook.PLACES)},
+            "body": _S,
+            "append": _S,
+            "parent_id": _I,
+        },
+        ["note_id"],
+        True,
+    ),
+    (
         "graph_schema",
-        "What the graph holds (namespaces, collections, recordings, speakers, entities and how they link), with example "
+        "What the graph holds (namespaces, collections, recordings, speakers, entities, topics and how they link), with example "
         "Cypher. Read it before graph_query.",
         {"namespace": _S},
         [],
@@ -102,7 +180,7 @@ TOOLS = [
     (
         "graph_related",
         "A node's parents, children, ancestors, descendants (recording, collection, namespace...) or neighbours. Nodes "
-        "are n<id> namespaces, c<id> collections, r<id> recordings, s<id> speakers, e<id> entities.",
+        "are n<id> namespaces, c<id> collections, r<id> recordings, s<id> speakers, e<id> entities, t<id> topics.",
         {
             "node": _S,
             "relation": {"type": "string", "enum": ["parents", "children", "ancestors", "descendants", "neighbours"]},
@@ -533,6 +611,65 @@ class Toolbox(ops_tools.OpsTools):
     def t_entity_timeline(self, entity_id):
         return entities.timeline(self.db, [int(entity_id)], self.readable), "Counted mentions by month"
 
+    def t_find_topics(self, query=None, namespace=None, limit=20):
+        spaces = self.readable
+        if namespace:
+            sid = {v: k for k, v in store.space_names(self.db).items()}.get(namespace)
+            if sid not in self.readable:
+                raise ValueError(f"no namespace called {namespace} in scope")
+            spaces = {sid}
+        res = topics.list_topics(self.db, spaces, query or "", limit=max(1, min(int(limit or 20), 50)))
+        up = sorted({b for t in res["items"] for b in t["broader"]})
+        label = {
+            t["id"]: t["label"]
+            for t in (
+                self.db.rows("SELECT record::id(id) AS id, label FROM topic WHERE id IN $ids", ids=[R("topic", b) for b in up])
+                if up
+                else []
+            )
+        }
+        out = [
+            store.clean(
+                {
+                    "id": t["id"],
+                    "label": t["label"],
+                    "namespace": t.get("namespace"),
+                    "also": t["alt"] or None,
+                    "definition": t.get("definition"),
+                    "broader": [label.get(b, b) for b in t["broader"]] or None,
+                    "recordings": t["recordings"],
+                }
+            )
+            for t in res["items"]
+        ]
+        return {"total": res["total"], "topics": out}, f"Found {res['total']} topic(s)"
+
+    def t_topic_recordings(self, topic_id):
+        t = topics.detail(self.db, int(topic_id), self.readable)
+        about = [a for a in t["about"] if self.allowed is None or a["recording"] in self.allowed]
+        out = {
+            "id": t["id"],
+            "label": t["label"],
+            "namespace": t.get("namespace"),
+            "definition": t.get("definition"),
+            "broader": t["broader"],
+            "narrower": t["narrower"],
+            "related": t["related"],
+            "recordings": [{"recording_id": a["recording"], "title": a["title"], "status": a["status"]} for a in about],
+        }
+        return out, f"Read the topic {t['label']}"
+
+    def t_suggest_topic(self, topic_id, recording_ids):
+        row = self.db.one("SELECT space, label FROM $r", r=R("topic", int(topic_id)))
+        if not row or row["space"] not in self.readable:
+            raise ValueError(f"no topic {topic_id} in scope")
+        if row["space"] not in self.editable:
+            raise ValueError("suggesting topics needs editor access to the namespace")
+        for rid in recording_ids or []:
+            self._ok(rid)
+        made = topics.propose(self.db, int(topic_id), recording_ids, "assistant", self.user.get("email"))
+        return {"suggested_for": made, "note": "waiting for someone to accept"}, f"Suggested {row['label']} for {len(made)} recording(s)"
+
     def t_graph_neighbours(self, entity_id=None, speaker_id=None, limit=15):
         if not entity_id and not speaker_id:
             raise ValueError("give an entity_id or a speaker_id")
@@ -642,6 +779,103 @@ class Toolbox(ops_tools.OpsTools):
         est = batches.estimate(self.db, self.cfg, ids, steps)
         return self._approval("run_template", {"template_id": t["id"], "recordings": ids}, f"Run {label} on {len(ids)} recording(s)", est)
 
+    # ---- notes (notebook.py): the assistant reads and writes them at once; they're its notebook ----
+    def _note(self, note_id, edit=False):
+        try:
+            p = notebook.get(self.db, int(note_id))
+        except KeyError:
+            raise ValueError(f"no note {note_id}") from None
+        if p["space"] not in (self.editable if edit else self.readable):
+            raise ValueError(f"note {note_id} isn't {'yours to change' if edit else 'available'} in this conversation")
+        return p
+
+    def _space(self, namespace, edit=False):
+        names = {v: k for k, v in store.space_names(self.db).items()}
+        sid = names.get(namespace)
+        if sid not in (self.editable if edit else self.readable):
+            raise ValueError(f"no namespace called {namespace} {'you can write in' if edit else 'in scope'}")
+        return sid
+
+    def t_find_notes(self, query=None, namespace=None, place=None, limit=10):
+        spaces = [self._space(namespace)] if namespace else sorted(self.readable)
+        names = store.space_names(self.db)
+        total, hits = notebook.find(self.db, spaces, query, place, min(int(limit or 10), 30))
+        out = [
+            store.clean(
+                {
+                    "id": r["id"],
+                    "title": r["title"],
+                    "summary": r.get("summary"),
+                    "place": r.get("place"),
+                    "page_of": r.get("about"),
+                    "namespace": names.get(r["space"]),
+                }
+            )
+            for r in hits
+        ]
+        return {"total": total, "notes": out}, f"Found {total} note(s)"
+
+    def t_read_note(self, note_id=None, about=None):
+        if note_id is None and not about:
+            raise ValueError("give note_id or about")
+        if note_id is None:
+            kind, _, key = str(about).partition(":")
+            sid = notebook.owner(self.db, kind, int(key)) if key.isdigit() else None
+            if sid not in self.readable:
+                raise ValueError(f"{about} isn't available in this conversation")
+            p = notebook.about(self.db, sid, about)
+            if not p:
+                return {
+                    "page_of": about,
+                    "note": None,
+                    "hint": "nobody has written its page yet: write_note with about",
+                }, f"{about} has no page yet"
+        else:
+            p = self._note(note_id)
+        targets = [f"page:{p['id']}"] + ([p["about"]] if p.get("about") else [])
+        out = store.clean(
+            {
+                "id": p["id"],
+                "title": p["title"],
+                "summary": p.get("summary"),
+                "date": p.get("date"),
+                "place": p.get("place"),
+                "page_of": p.get("about"),
+                "parent_id": p.get("parent"),
+                "namespace": store.space_names(self.db).get(p["space"]),
+                "written_by": p.get("author"),
+                "body": (p.get("body") or "")[:20_000],
+                "links": notebook.links(self.db, p["id"]),
+                "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
+                "could_link": [f"{x['sign']}[{x['label']}]({x['target']})" for x in notebook.suggest_links(self.db, p)] or None,
+                "could_go_in": [
+                    {"parent_id": x["page"], "title": x["title"], "place": x["place"], "why": x["why"]}
+                    for x in notebook.suggest_homes(self.db, p)
+                ]
+                or None,
+            }
+        )
+        return out, f"Read the note {p['title']}"
+
+    def t_write_note(self, namespace, title, body, summary=None, place=None, parent_id=None, about=None):
+        sid = self._space(namespace, edit=True)
+        pid = notebook.create(self.db, sid, self.user["id"], title, body, summary, None, place, parent_id, about, author="assistant")
+        return {"note_id": pid, "url": f"/notes/{pid}"}, f"Wrote the note {title}"
+
+    def t_update_note(self, note_id, title=None, summary=None, place=None, body=None, append=None, parent_id=None):
+        p = self._note(note_id, edit=True)
+        if append:
+            body = ((body if body is not None else p.get("body") or "").rstrip() + "\n\n" + append).strip()
+        kw = {}
+        if summary is not None:
+            kw["summary"] = summary
+        if place is not None:
+            kw["place"] = place
+        notebook.update(self.db, p["id"], self.user["id"], title=title, body=body, author="assistant", **kw)
+        if parent_id is not None:
+            notebook.move(self.db, p["id"], int(parent_id) or None)
+        return {"note_id": p["id"], "url": f"/notes/{p['id']}"}, f"Changed the note {title or p['title']}"
+
     def t_entity_setup(self, namespace):
         names = {v: k for k, v in store.space_names(self.db).items()}
         sid = names.get(namespace)
@@ -738,6 +972,19 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
             "UPDATE $r SET status = 'declined', decided_at = $t, decided_by = $u", r=R("approval", a["id"]), t=store.now(), u=user["email"]
         )
         return {"status": "declined"}
+    with graph_history.acting(actor=user["email"], via="assistant", approval=a["id"]):
+        result = _carry_out(db, cfg, a, user, editable, decision, base, admin, readable)
+    db.q(
+        "UPDATE $r SET status = 'done', decided_at = $t, decided_by = $u, result = $res",
+        r=R("approval", a["id"]),
+        t=store.now(),
+        u=user["email"],
+        res=result,
+    )
+    return {"status": "done", **result}
+
+
+def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
     args = a["args"]
     if a["tool"] == "extension":
         box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
@@ -789,14 +1036,7 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
         else:
             entities.retype(db, [eid], args.get("new_type"))
             result = {"type": args.get("new_type")}
-    db.q(
-        "UPDATE $r SET status = 'done', decided_at = $t, decided_by = $u, result = $res",
-        r=R("approval", a["id"]),
-        t=store.now(),
-        u=user["email"],
-        res=result,
-    )
-    return {"status": "done", **result}
+    return result
 
 
 def run_extension(db, cfg, args, user, admin, readable, toolbox=None):

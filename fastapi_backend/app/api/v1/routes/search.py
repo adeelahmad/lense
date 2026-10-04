@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from app.api.deps import Acl, Cfg, CurrentUser, Db
 from app.api.media import sign_urls
 from app.domain import graph as graphmod
-from app.domain import render, store
+from app.domain import graph_history, render, store
 from app.domain import search as searchmod
 from app.schemas.search import Graph, Mention, SearchResults, TermSuggestion
 
@@ -97,20 +97,30 @@ def get_graph(
     db: Db,
     cfg: Cfg,
     scope: str = Query("global", description='"global" or "ns:<namespace>"'),
+    as_of: str | None = Query(None, description="the entities as of a graph version: a number, a version's name, or head"),
 ) -> Graph:
-    """Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope)."""
+    """Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
+    `as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's."""
     allowed = set(acl.roles)
     if scope.startswith("ns:"):
         acl.need(acl.nsid(scope[3:]))
+    version = None
+    if as_of not in (None, "", "head"):
+        try:
+            version = graph_history.resolve(db, as_of)
+        except KeyError:
+            raise HTTPException(404, f"no version is called {as_of}") from None
     cache = request.app.state.graph_cache
     latest = db.rows("SELECT analyzed_at FROM recording ORDER BY analyzed_at DESC LIMIT 1")
     stamp = (tuple(db.values("SELECT VALUE n FROM seq")), tuple(r.get("analyzed_at") for r in latest))
-    key = (scope, tuple(sorted(allowed)), stamp)
+    key = ("canvas", scope, tuple(sorted(allowed)), stamp, graph_history.head(db), version)
     if key not in cache:
         try:
-            cache[key] = graphmod.build(db, cfg, scope, allowed)
+            cache[key] = graphmod.build(db, cfg, scope, allowed, as_of=version)
         except KeyError:
             raise HTTPException(404, "not found") from None
+        except ValueError as e:  # a version the graph hasn't reached
+            raise HTTPException(400, str(e)) from None
     return cache[key]
 
 

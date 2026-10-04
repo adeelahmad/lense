@@ -100,6 +100,37 @@ class LlmTestResult(ResponseModel):
     model: str | None = None
 
 
+class LayaModel(ResponseModel):
+    id: str = Field(description="the Hugging Face repository")
+    about: str
+
+
+class LayaStatus(ResponseModel):
+    available: bool
+    where: str | None = Field(None, description="here (this machine runs it), server (a Laya server), or none")
+    model: str
+    reason: str | None = Field(None, description="why it can't answer, when it can't")
+
+
+class DecisionStatus(ResponseModel):
+    """Who takes routine decisions now, and whether a local Laya model could."""
+
+    engine: str = Field(description="the setting: auto, jev, laya, llm or off")
+    by: str | None = Field(None, description="who answers now: jev, laya, llm, or none")
+    apple_silicon: bool = Field(description="this machine can run MLX models")
+    laya: LayaStatus
+    laya_models: list[LayaModel]
+
+
+class DecisionTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    by: str | None = Field(None, description="who answered: jev, laya or llm (the language model when the decision model failed)")
+    choice: str | None = None
+    confidence: float | None = None
+    ms: int | None = None
+
+
 class EmbedTestResult(ResponseModel):
     ok: bool
     error: str | None = None

@@ -51,6 +51,9 @@ import type {
   BrowseSourceData,
   BrowseSourceErrors,
   BrowseSourceResponses,
+  BudgetStatusData,
+  BudgetStatusErrors,
+  BudgetStatusResponses,
   BulkUpdateMetadataData,
   BulkUpdateMetadataErrors,
   BulkUpdateMetadataResponses,
@@ -205,6 +208,11 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecideHeldRunData,
+  DecideHeldRunErrors,
+  DecideHeldRunResponses,
+  DecisionStatusData,
+  DecisionStatusResponses,
   DeclineAccessRequestData,
   DeclineAccessRequestErrors,
   DeclineAccessRequestResponses,
@@ -513,6 +521,22 @@ import type {
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GraphAsOfData,
+  GraphAsOfErrors,
+  GraphAsOfResponses,
+  GraphCheckpointData,
+  GraphCheckpointResponses,
+  GraphCheckpointsData,
+  GraphCheckpointsResponses,
+  GraphDiffData,
+  GraphDiffErrors,
+  GraphDiffResponses,
+  GraphHistoryEventData,
+  GraphHistoryEventErrors,
+  GraphHistoryEventResponses,
+  GraphHistoryListData,
+  GraphHistoryListErrors,
+  GraphHistoryListResponses,
   GraphPathsData,
   GraphPathsErrors,
   GraphPathsResponses,
@@ -522,12 +546,30 @@ import type {
   GraphRelatedData,
   GraphRelatedErrors,
   GraphRelatedResponses,
+  GraphRollbackData,
+  GraphRollbackErrors,
+  GraphRollbackResponses,
   GraphSchemaData,
   GraphSchemaErrors,
   GraphSchemaResponses,
+  GraphTagData,
+  GraphTagErrors,
+  GraphTagResponses,
+  GraphTagsData,
+  GraphTagsResponses,
+  GraphUntagData,
+  GraphUntagErrors,
+  GraphUntagResponses,
+  GraphVerifyData,
+  GraphVerifyFixData,
+  GraphVerifyFixResponses,
+  GraphVerifyResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
+  HomeSuggestionsData,
+  HomeSuggestionsErrors,
+  HomeSuggestionsResponses,
   ImportFromSourceData,
   ImportFromSourceErrors,
   ImportFromSourceResponses,
@@ -555,6 +597,9 @@ import type {
   LinkSpeakerData,
   LinkSpeakerErrors,
   LinkSpeakerResponses,
+  LinkSuggestionsData,
+  LinkSuggestionsErrors,
+  LinkSuggestionsResponses,
   LinkTargetsData,
   LinkTargetsErrors,
   LinkTargetsResponses,
@@ -573,6 +618,8 @@ import type {
   ListBackendsResponses,
   ListBatchesData,
   ListBatchesResponses,
+  ListBudgetsData,
+  ListBudgetsResponses,
   ListChatsData,
   ListChatsResponses,
   ListCollectionMembersData,
@@ -798,6 +845,12 @@ import type {
   PageAboutData,
   PageAboutErrors,
   PageAboutResponses,
+  PageHistoryData,
+  PageHistoryErrors,
+  PageHistoryResponses,
+  PageVersionData,
+  PageVersionErrors,
+  PageVersionResponses,
   PasskeyLoginData,
   PasskeyLoginErrors,
   PasskeyLoginResponses,
@@ -861,6 +914,12 @@ import type {
   RegisterResponses,
   ReindexSearchData,
   ReindexSearchResponses,
+  ReleaseJobData,
+  ReleaseJobErrors,
+  ReleaseJobResponses,
+  RemoveBudgetData,
+  RemoveBudgetErrors,
+  RemoveBudgetResponses,
   RemoveLocalModelData,
   RemoveLocalModelErrors,
   RemoveLocalModelResponses,
@@ -897,6 +956,18 @@ import type {
   ResetPasswordData,
   ResetPasswordErrors,
   ResetPasswordResponses,
+  ResourceCostsData,
+  ResourceCostsErrors,
+  ResourceCostsResponses,
+  ResourceHistoryData,
+  ResourceHistoryErrors,
+  ResourceHistoryResponses,
+  ResourceTotalsData,
+  ResourceTotalsErrors,
+  ResourceTotalsResponses,
+  RestoreVersionData,
+  RestoreVersionErrors,
+  RestoreVersionResponses,
   RetagRecordingsData,
   RetagRecordingsErrors,
   RetagRecordingsResponses,
@@ -956,6 +1027,9 @@ import type {
   SaveNamespaceData,
   SaveNamespaceErrors,
   SaveNamespaceResponses,
+  SaveOauthData,
+  SaveOauthErrors,
+  SaveOauthResponses,
   SaveResourceFieldsData,
   SaveResourceFieldsErrors,
   SaveResourceFieldsResponses,
@@ -985,6 +1059,9 @@ import type {
   SendMessageData,
   SendMessageErrors,
   SendMessageResponses,
+  SetBudgetData,
+  SetBudgetErrors,
+  SetBudgetResponses,
   SetCollectionMemberData,
   SetCollectionMemberErrors,
   SetCollectionMemberResponses,
@@ -1015,6 +1092,9 @@ import type {
   SigninLinkUseData,
   SigninLinkUseErrors,
   SigninLinkUseResponses,
+  SkipTopicCandidateData,
+  SkipTopicCandidateErrors,
+  SkipTopicCandidateResponses,
   SpeakTextData,
   SpeakTextErrors,
   SpeakTextResponses,
@@ -1044,6 +1124,8 @@ import type {
   TelemetryStatusResponses,
   TestBridgeData,
   TestBridgeResponses,
+  TestDecisionsData,
+  TestDecisionsResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -1069,6 +1151,12 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TopicCandidatesData,
+  TopicCandidatesErrors,
+  TopicCandidatesResponses,
+  TopResourcesData,
+  TopResourcesErrors,
+  TopResourcesResponses,
   TranscribeClipData,
   TranscribeClipResponses,
   TryWorkflowData,
@@ -2009,7 +2097,8 @@ export class Oauth {
    * Consent
    *
    * What the consent page shows for an app's request: the app, where it takes you back to and what it asks for.
-   * 400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge).
+   * 400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge); 403
+   * when apps can't sign in to this server.
    */
   public static consent<ThrowOnError extends boolean = false>(
     options: Options<ConsentData, ThrowOnError>,
@@ -2244,6 +2333,35 @@ export class Admin {
   }
 
   /**
+   * Decision Status
+   *
+   * Who takes routine decisions, and whether a local Laya model can here: on this machine (Apple Silicon, once
+   * fetched) or at a Laya server's address.
+   */
+  public static decisionStatus<ThrowOnError extends boolean = false>(
+    options?: Options<DecisionStatusData, ThrowOnError>,
+  ): RequestResult<DecisionStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<DecisionStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Decisions
+   *
+   * Take one made-up decision with the settings, to check them; says who answered.
+   */
+  public static testDecisions<ThrowOnError extends boolean = false>(
+    options?: Options<TestDecisionsData, ThrowOnError>,
+  ): RequestResult<TestDecisionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestDecisionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/decisions/test",
+      ...options,
+    });
+  }
+
+  /**
    * Test Embeddings
    *
    * Embed one sentence with the configured model, to check the address, key and model name.
@@ -2428,6 +2546,125 @@ export class Admin {
   }
 }
 
+export class Activity {
+  /**
+   * Resource History
+   *
+   * A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
+   * decision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph
+   * changes (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md).
+   */
+  public static resourceHistory<ThrowOnError extends boolean = false>(
+    options: Options<ResourceHistoryData, ThrowOnError>,
+  ): RequestResult<ResourceHistoryResponses, ResourceHistoryErrors, ThrowOnError> {
+    return (options.client ?? client).get<ResourceHistoryResponses, ResourceHistoryErrors, ThrowOnError>({
+      url: "/api/v1/activity",
+      ...options,
+    });
+  }
+
+  /**
+   * Resource Totals
+   *
+   * What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time.
+   */
+  public static resourceTotals<ThrowOnError extends boolean = false>(
+    options?: Options<ResourceTotalsData, ThrowOnError>,
+  ): RequestResult<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError>({
+      url: "/api/v1/activity/totals",
+      ...options,
+    });
+  }
+
+  /**
+   * Resource Costs
+   *
+   * What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a
+   * figure is a floor (some calls had no price or token counts).
+   */
+  public static resourceCosts<ThrowOnError extends boolean = false>(
+    options: Options<ResourceCostsData, ThrowOnError>,
+  ): RequestResult<ResourceCostsResponses, ResourceCostsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ResourceCostsResponses, ResourceCostsErrors, ThrowOnError>({
+      url: "/api/v1/activity/costs",
+      ...options,
+    });
+  }
+
+  /**
+   * Top Resources
+   *
+   * The resources that cost most this period (admins).
+   */
+  public static topResources<ThrowOnError extends boolean = false>(
+    options?: Options<TopResourcesData, ThrowOnError>,
+  ): RequestResult<TopResourcesResponses, TopResourcesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<TopResourcesResponses, TopResourcesErrors, ThrowOnError>({
+      url: "/api/v1/activity/top",
+      ...options,
+    });
+  }
+}
+
+export class Budgets {
+  /**
+   * Remove Budget
+   */
+  public static removeBudget<ThrowOnError extends boolean = false>(
+    options: Options<RemoveBudgetData, ThrowOnError>,
+  ): RequestResult<RemoveBudgetResponses, RemoveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveBudgetResponses, RemoveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+    });
+  }
+
+  /**
+   * List Budgets
+   *
+   * Every budget, with where it stands now.
+   */
+  public static listBudgets<ThrowOnError extends boolean = false>(
+    options?: Options<ListBudgetsData, ThrowOnError>,
+  ): RequestResult<ListBudgetsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListBudgetsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Budget
+   */
+  public static setBudget<ThrowOnError extends boolean = false>(
+    options: Options<SetBudgetData, ThrowOnError>,
+  ): RequestResult<SetBudgetResponses, SetBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetBudgetResponses, SetBudgetErrors, ThrowOnError>({
+      url: "/api/v1/budgets",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Budget Status
+   *
+   * Where a resource's budget stands, and what its next run will likely cost (also without a budget).
+   */
+  public static budgetStatus<ThrowOnError extends boolean = false>(
+    options: Options<BudgetStatusData, ThrowOnError>,
+  ): RequestResult<BudgetStatusResponses, BudgetStatusErrors, ThrowOnError> {
+    return (options.client ?? client).get<BudgetStatusResponses, BudgetStatusErrors, ThrowOnError>({
+      url: "/api/v1/budgets/status",
+      ...options,
+    });
+  }
+}
+
 export class Fedora {
   /**
    * Get Fedora Status
@@ -2550,6 +2787,25 @@ export class Setup {
   ): RequestResult<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError> {
     return (options.client ?? client).put<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError>({
       url: "/api/v1/setup/telemetry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Oauth
+   *
+   * Let apps and AI assistants (MCP clients such as Claude or Cursor) sign people in with their Lens account, or
+   * not, and how long their tokens last (docs/authentication.md#oauth). On unless turned off.
+   */
+  public static saveOauth<ThrowOnError extends boolean = false>(
+    options: Options<SaveOauthData, ThrowOnError>,
+  ): RequestResult<SaveOauthResponses, SaveOauthErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveOauthResponses, SaveOauthErrors, ThrowOnError>({
+      url: "/api/v1/setup/oauth",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -3561,7 +3817,7 @@ export class Notes {
   /**
    * Page About
    *
-   * The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one.
+   * The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one.
    */
   public static pageAbout<ThrowOnError extends boolean = false>(
     options: Options<PageAboutData, ThrowOnError>,
@@ -3603,7 +3859,8 @@ export class Notes {
   /**
    * Update Page
    *
-   * Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.
+   * Change what's given. A new body without `doc` keeps the editor's state (drawings on the canvas live there) but
+   * marks it stale (`doc_stale`), so the editor brings its text in line with the body.
    */
   public static updatePage<ThrowOnError extends boolean = false>(
     options: Options<UpdatePageData, ThrowOnError>,
@@ -3615,6 +3872,78 @@ export class Notes {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Link Suggestions
+   *
+   * What the page names but doesn't link yet: the namespace's topics and named things found in its text, to link
+   * with one click. Matched against the namespace's own vocabulary; no model is asked.
+   */
+  public static linkSuggestions<ThrowOnError extends boolean = false>(
+    options: Options<LinkSuggestionsData, ThrowOnError>,
+  ): RequestResult<LinkSuggestionsResponses, LinkSuggestionsErrors, ThrowOnError> {
+    return (options.client ?? client).get<LinkSuggestionsResponses, LinkSuggestionsErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/suggestions",
+      ...options,
+    });
+  }
+
+  /**
+   * Home Suggestions
+   *
+   * The project or area pages a free note at the top of the tree could go inside, best first, from the links and
+   * words they share; moving it there is one click (POST /{pid}/move). No model is asked.
+   */
+  public static homeSuggestions<ThrowOnError extends boolean = false>(
+    options: Options<HomeSuggestionsData, ThrowOnError>,
+  ): RequestResult<HomeSuggestionsResponses, HomeSuggestionsErrors, ThrowOnError> {
+    return (options.client ?? client).get<HomeSuggestionsResponses, HomeSuggestionsErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/homes",
+      ...options,
+    });
+  }
+
+  /**
+   * Page History
+   *
+   * What the page was before each change to its title, summary or text, newest first.
+   */
+  public static pageHistory<ThrowOnError extends boolean = false>(
+    options: Options<PageHistoryData, ThrowOnError>,
+  ): RequestResult<PageHistoryResponses, PageHistoryErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageHistoryResponses, PageHistoryErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/history",
+      ...options,
+    });
+  }
+
+  /**
+   * Page Version
+   *
+   * One earlier version, with its text.
+   */
+  public static pageVersion<ThrowOnError extends boolean = false>(
+    options: Options<PageVersionData, ThrowOnError>,
+  ): RequestResult<PageVersionResponses, PageVersionErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageVersionResponses, PageVersionErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/history/{vid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Version
+   *
+   * Put an earlier version back. What the page was becomes a version too, so this can be undone. Needs editor access.
+   */
+  public static restoreVersion<ThrowOnError extends boolean = false>(
+    options: Options<RestoreVersionData, ThrowOnError>,
+  ): RequestResult<RestoreVersionResponses, RestoreVersionErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreVersionResponses, RestoreVersionErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/history/{vid}/restore",
+      ...options,
     });
   }
 
@@ -4283,6 +4612,7 @@ export class Search {
    * Get Graph
    *
    * Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
+   * `as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.
    */
   public static getGraph<ThrowOnError extends boolean = false>(
     options?: Options<GetGraphData, ThrowOnError>,
@@ -5034,6 +5364,39 @@ export class Topics {
   }
 
   /**
+   * Topic Candidates
+   *
+   * What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.
+   * Adding one as a topic suggests it for those recordings; skipping one stops it being offered.
+   */
+  public static topicCandidates<ThrowOnError extends boolean = false>(
+    options: Options<TopicCandidatesData, ThrowOnError>,
+  ): RequestResult<TopicCandidatesResponses, TopicCandidatesErrors, ThrowOnError> {
+    return (options.client ?? client).get<TopicCandidatesResponses, TopicCandidatesErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/topics/candidates",
+      ...options,
+    });
+  }
+
+  /**
+   * Skip Topic Candidate
+   *
+   * Stop offering a label as a new topic.
+   */
+  public static skipTopicCandidate<ThrowOnError extends boolean = false>(
+    options: Options<SkipTopicCandidateData, ThrowOnError>,
+  ): RequestResult<SkipTopicCandidateResponses, SkipTopicCandidateErrors, ThrowOnError> {
+    return (options.client ?? client).post<SkipTopicCandidateResponses, SkipTopicCandidateErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/topics/candidates/skip",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Merge Topics
    *
    * Fold topics into one: their labels become its other labels and their recordings are about it.
@@ -5198,6 +5561,188 @@ export class Graph {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Graph History List
+   *
+   * The graph's versions, newest first: what changed, who changed it, through what (web, token, oauth, assistant,
+   * mcp, routine, workflow, analysis, cli, system) and why, with the entities each touched.
+   */
+  public static graphHistoryList<ThrowOnError extends boolean = false>(
+    options?: Options<GraphHistoryListData, ThrowOnError>,
+  ): RequestResult<GraphHistoryListResponses, GraphHistoryListErrors, ThrowOnError> {
+    return (options?.client ?? client).get<GraphHistoryListResponses, GraphHistoryListErrors, ThrowOnError>({
+      url: "/api/v1/graph/history",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph History Event
+   *
+   * One version in full: every record it changed, as it was before and after.
+   */
+  public static graphHistoryEvent<ThrowOnError extends boolean = false>(
+    options: Options<GraphHistoryEventData, ThrowOnError>,
+  ): RequestResult<GraphHistoryEventResponses, GraphHistoryEventErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphHistoryEventResponses, GraphHistoryEventErrors, ThrowOnError>({
+      url: "/api/v1/graph/history/{version}",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph As Of
+   *
+   * The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone
+   * said are different. Mentions aren't versioned: counts elsewhere are today's.
+   */
+  public static graphAsOf<ThrowOnError extends boolean = false>(
+    options: Options<GraphAsOfData, ThrowOnError>,
+  ): RequestResult<GraphAsOfResponses, GraphAsOfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphAsOfResponses, GraphAsOfErrors, ThrowOnError>({
+      url: "/api/v1/graph/as-of/{version}",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Diff
+   *
+   * What changed between two versions: entities added, removed and changed (field by field), and other names,
+   * links and distinct pairs added and removed.
+   */
+  public static graphDiff<ThrowOnError extends boolean = false>(
+    options: Options<GraphDiffData, ThrowOnError>,
+  ): RequestResult<GraphDiffResponses, GraphDiffErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphDiffResponses, GraphDiffErrors, ThrowOnError>({
+      url: "/api/v1/graph/diff",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Tags
+   *
+   * Named versions, newest first.
+   */
+  public static graphTags<ThrowOnError extends boolean = false>(
+    options?: Options<GraphTagsData, ThrowOnError>,
+  ): RequestResult<GraphTagsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphTagsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/tags",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Tag
+   *
+   * Name a version ("before the cleanup") to come back to it; naming again moves the name. Editors of a namespace
+   * (or admins) can.
+   */
+  public static graphTag<ThrowOnError extends boolean = false>(
+    options: Options<GraphTagData, ThrowOnError>,
+  ): RequestResult<GraphTagResponses, GraphTagErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphTagResponses, GraphTagErrors, ThrowOnError>({
+      url: "/api/v1/graph/tags",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Graph Untag
+   */
+  public static graphUntag<ThrowOnError extends boolean = false>(
+    options: Options<GraphUntagData, ThrowOnError>,
+  ): RequestResult<GraphUntagResponses, GraphUntagErrors, ThrowOnError> {
+    return (options.client ?? client).delete<GraphUntagResponses, GraphUntagErrors, ThrowOnError>({
+      url: "/api/v1/graph/tags/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Rollback
+   *
+   * Take the graph back to a version: every change since then in these namespaces is undone, newest first, as one
+   * new version (so it can be rolled back too). Merges come undone with their mentions and moved mentions go back;
+   * what analysis found since stays. Preview first (`dry_run`, the default). Needs editor access to every namespace the
+   * changes touched.
+   */
+  public static graphRollback<ThrowOnError extends boolean = false>(
+    options: Options<GraphRollbackData, ThrowOnError>,
+  ): RequestResult<GraphRollbackResponses, GraphRollbackErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphRollbackResponses, GraphRollbackErrors, ThrowOnError>({
+      url: "/api/v1/graph/rollback",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Graph Verify
+   *
+   * Replay the history from its newest checkpoint and compare it with today's graph: what differs was written
+   * without being recorded. Admins.
+   */
+  public static graphVerify<ThrowOnError extends boolean = false>(
+    options?: Options<GraphVerifyData, ThrowOnError>,
+  ): RequestResult<GraphVerifyResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphVerifyResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/verify",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Verify Fix
+   *
+   * Record what differs from the replayed history as one change (`graph.drift`), so they match again. Admins.
+   */
+  public static graphVerifyFix<ThrowOnError extends boolean = false>(
+    options?: Options<GraphVerifyFixData, ThrowOnError>,
+  ): RequestResult<GraphVerifyFixResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<GraphVerifyFixResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/verify",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Checkpoints
+   *
+   * The versions the graph is kept whole at, to replay from (taken with the first change, then every 1000).
+   */
+  public static graphCheckpoints<ThrowOnError extends boolean = false>(
+    options?: Options<GraphCheckpointsData, ThrowOnError>,
+  ): RequestResult<GraphCheckpointsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphCheckpointsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/checkpoints",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Checkpoint
+   *
+   * Keep the whole graph as it is now. Admins.
+   */
+  public static graphCheckpoint<ThrowOnError extends boolean = false>(
+    options?: Options<GraphCheckpointData, ThrowOnError>,
+  ): RequestResult<GraphCheckpointResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<GraphCheckpointResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/checkpoints",
+      ...options,
     });
   }
 }
@@ -5784,6 +6329,25 @@ export class Jobs {
     return (options.client ?? client).post<CancelJobResponses, CancelJobErrors, ThrowOnError>({
       url: "/api/v1/jobs/{jid}/cancel",
       ...options,
+    });
+  }
+
+  /**
+   * Release Job
+   *
+   * Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it
+   * (admins, who set the budgets).
+   */
+  public static releaseJob<ThrowOnError extends boolean = false>(
+    options: Options<ReleaseJobData, ThrowOnError>,
+  ): RequestResult<ReleaseJobResponses, ReleaseJobErrors, ThrowOnError> {
+    return (options.client ?? client).post<ReleaseJobResponses, ReleaseJobErrors, ThrowOnError>({
+      url: "/api/v1/jobs/{jid}/release",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 
@@ -7400,13 +7964,32 @@ export class Routines {
   /**
    * Run Routine
    *
-   * Run it as soon as the scheduler next looks (within half a minute), even when it is off.
+   * Run it as soon as the scheduler next looks (within half a minute), even when it is off. A run over one of its
+   * budgets is refused (409, saying where the budget stands) unless over_budget is true (docs/budgets.md).
    */
   public static runRoutine<ThrowOnError extends boolean = false>(
     options: Options<RunRoutineData, ThrowOnError>,
   ): RequestResult<RunRoutineResponses, RunRoutineErrors, ThrowOnError> {
     return (options.client ?? client).post<RunRoutineResponses, RunRoutineErrors, ThrowOnError>({
       url: "/api/v1/routines/{rid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Decide Held Run
+   *
+   * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
+   */
+  public static decideHeldRun<ThrowOnError extends boolean = false>(
+    options: Options<DecideHeldRunData, ThrowOnError>,
+  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+      url: "/api/v1/routines/runs/{run_id}/decide",
       ...options,
       headers: {
         "Content-Type": "application/json",

@@ -357,6 +357,10 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     acts: false,
   },
   { name: "speaker_stats", label: "Speakers’ talk time", acts: false },
+  { name: "find_notes", label: "Find notes", acts: false },
+  { name: "read_note", label: "Read a note", acts: false },
+  { name: "write_note", label: "Write notes", acts: false },
+  { name: "update_note", label: "Change notes", acts: false },
   { name: "run_template", label: "Run a template on recordings", acts: true },
   {
     name: "propose_entity_change",
@@ -667,6 +671,13 @@ export const FIELDS: FieldSpec[] = [
     hint: "Without tools, answers use search results only.",
   },
   { section: "ai", key: "disabled_tools", label: "Tools", kind: "checks" },
+  {
+    section: "ai",
+    key: "organise_notes",
+    label: "File notes in projects, areas, resources and archives",
+    kind: "switch",
+    hint: "Notes nobody filed are filed for you; when the assistant isn't sure, its suggestion waits on the note.",
+  },
   {
     section: "ai",
     key: "refine_notes",
@@ -1030,6 +1041,7 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "auto", label: "Decision model when it has a key, else the LLM" },
       { value: "jev", label: "Decision model (Jev)" },
+      { value: "laya", label: "Laya, a local decision model (Apple Silicon)" },
       { value: "llm", label: "LLM provider" },
       { value: "off", label: "Nobody: always ask me" },
     ],
@@ -1060,6 +1072,26 @@ export const FIELDS: FieldSpec[] = [
     max: 120,
   },
   { section: "decisions", key: "api_key", label: "API key", kind: "secret" },
+  {
+    section: "decisions",
+    key: "laya_model",
+    label: "Laya model",
+    kind: "select",
+    options: [
+      { value: "aac6fef/laya-mlx", label: "Laya (English)" },
+      { value: "aac6fef/laya-multilingual-mlx", label: "Laya multilingual (faster)" },
+      { value: "aac6fef/laya-typed-decisions-mlx", label: "Laya typed decisions (English)" },
+    ],
+  },
+  {
+    section: "decisions",
+    key: "laya_url",
+    label: "Laya server",
+    kind: "text",
+    mono: true,
+    placeholder: "http://host.docker.internal:8790/v1",
+    hint: "Only when Lens runs where MLX can't, such as Docker on a Mac",
+  },
   // Search
   {
     section: "search",
@@ -1720,6 +1752,13 @@ export const FIELDS: FieldSpec[] = [
     mono: true,
     placeholder: "gpt-4o-mini 0.15 0.60",
     hint: "One model per line: its name, then the input and output price in dollars per million tokens. The AI assistant’s prices count for the configured model",
+  },
+  {
+    section: "tokens",
+    key: "oauth_enabled",
+    label: "Let apps and AI assistants sign in",
+    kind: "switch",
+    hint: "Claude, ChatGPT, Cursor and other apps sign in with a person’s Lens account (OAuth) and act with their roles. Off: apps need an API key, and the ones people allowed stop working until it’s back on",
   },
   {
     section: "tokens",

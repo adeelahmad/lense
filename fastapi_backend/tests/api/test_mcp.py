@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import mcp, mcp_tools
+from app.domain import store, topics
 from tests.api.test_oauth import O, _bearer, _grant
 from tests.helpers import login, make_user, seed
 
@@ -69,8 +70,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     tools = rpc(client, env["h"], "tools/list")["result"]["tools"]
     assert [t["name"] for t in tools] == list(mcp_tools.TOOLS)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
-    # every tool only reads, except asking for a graph change (which needs the write scope)
-    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == ["propose_graph_change"]
+    # every tool only reads, except suggesting a topic and asking for a graph change (which need the write scope)
+    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == ["suggest_topic", "propose_graph_change", "write_note"]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
     assert rpc(client, env["hv"], "ping")["result"] == {}
@@ -352,10 +353,74 @@ def test_graph_tools(client, db, env):
     assert q["columns"] == ["s.name", "e.name"] and ["Alice", "Dyno Therapeutics"] in q["rows"]
     assert "read-only" in tool_error(client, h, "graph_query", query="MATCH (n) DELETE n")
     assert "query error" in tool_error(client, h, "graph_query", query="MATCH (n RETURN n")
-    dyno = q["rows"][0] and tool(client, h, "graph_query", query="MATCH (e:Entity {name: 'Dyno Therapeutics'}) RETURN e.ids")["rows"][0][0][0]
+    dyno = (
+        q["rows"][0] and tool(client, h, "graph_query", query="MATCH (e:Entity {name: 'Dyno Therapeutics'}) RETURN e.ids")["rows"][0][0][0]
+    )
     up = tool(client, h, "graph_related", node=f"e{dyno}", relation="ancestors", depth=4, namespace="pods")
     assert {"Recording", "Namespace"} <= {n["labels"][0] for n in up["nodes"]}
     alice = tool(client, h, "graph_query", query="MATCH (s:Speaker {name: 'Alice'}) RETURN id(s)", namespace="pods")["rows"][0][0]
     assert tool(client, h, "graph_paths", from_node=alice, to_node=f"e{dyno}", namespace="pods")["paths"]
     assert tool_error(client, h, "graph_schema", namespace="calls")  # not theirs
     assert "read-only" in tool_error(client, h, "propose_graph_change", kind="merge", a=f"e{dyno}", b="e1")
+
+
+def test_topic_tools(client, db, env):
+    h = env["h"]  # a read-only app token for a pods viewer
+    a, b, _ = env["ids"]
+    pods = store.ns_id(db, "pods")
+    bio = topics.create(db, pods, "Biology")
+    gene = topics.create(db, pods, "Gene therapy", alt=["GT"], broader=[bio])
+    topics.tag(db, gene, [a])
+    found = tool(client, h, "list_topics", query="gt")
+    assert [(t["topic_id"], t["label"], t["broader_ids"], t["recordings"]) for t in found["topics"]] == [(gene, "Gene therapy", [bio], 1)]
+    assert [t["label"] for t in tool(client, h, "list_topics", top=True)["topics"]] == ["Biology"]
+    t = tool(client, h, "get_topic", topic_id=gene)
+    assert t["broader"] == [{"topic_id": bio, "label": "Biology"}]
+    assert [(r["recording_id"], r["status"]) for r in t["recordings"]] == [(a, "accepted")] and t["recordings"][0]["url"].endswith(
+        f"/resources/{a}"
+    )
+    assert "read-only" in tool_error(client, h, "suggest_topic", topic_id=gene, recording_ids=[b])
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    he = login(client, "ed@x.io", "editor password 1")
+    assert tool(client, he, "suggest_topic", topic_id=gene, recording_ids=[a, b])["suggested_for"] == [b]  # a already holds
+    assert [(r["recording_id"], r["status"]) for r in tool(client, h, "get_topic", topic_id=gene)["recordings"]] == [
+        (a, "accepted"),
+        (b, "suggested"),
+    ]
+    assert "list of whole numbers" in tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=["x"])
+    assert tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=[env["ids"][2]])  # calls isn't theirs
+
+
+def test_note_tools(client, db, env):
+    h = env["h"]  # a read-only app token for a pods viewer
+    a, _, call = env["ids"]
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    from app.domain import notebook
+
+    plan = notebook.create(
+        db, pods, None, "Capsid plan", f"Ship on Friday, see @[ep1](recording:{a}).", "Shipping capsids", place="project"
+    )
+    notebook.create(db, pods, None, "Hiring", "Two roles open.")
+    notebook.create(db, calls, None, "Capsid call notes", "Not for pods viewers.")
+    found = tool(client, h, "find_notes", query="capsid")
+    assert [(n["note_id"], n["summary"], n["place"]) for n in found["notes"]] == [(plan, "Shipping capsids", "project")]
+    assert found["notes"][0]["url"].endswith(f"/notes/{plan}")
+    assert tool(client, h, "find_notes", place="area")["total"] == 0
+    got = tool(client, h, "read_note", note_id=plan)
+    assert got["body"].startswith("Ship on Friday") and got["links"] == [{"target": f"recording:{a}", "name": got["links"][0]["name"]}]
+    assert tool(client, h, "read_note", about=f"recording:{a}") == {
+        "page_of": f"recording:{a}",
+        "note": None,
+        "title": tool(client, h, "read_note", about=f"recording:{a}")["title"],
+        "linked_from": ["Capsid plan"],
+    }
+    other = db.one("SELECT record::id(id) AS id FROM note_page WHERE space = $s", s=calls)["id"]
+    assert "not found" in tool_error(client, h, "read_note", note_id=other)
+    assert "not found" in tool_error(client, h, "read_note", about=f"recording:{call}")
+    assert "read-only" in tool_error(client, h, "write_note", namespace="pods", title="x", body="y")
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    he = login(client, "ed@x.io", "editor password 1")
+    made = tool(client, he, "write_note", namespace="pods", title="Agent notes", body="From an agent.", place="resource", parent_id=plan)
+    p = notebook.get(db, made["note_id"])
+    assert (p["author"], p["place"], p["parent"]) == ("assistant", "resource", plan)
+    assert tool_error(client, he, "write_note", namespace="calls", title="x", body="y")

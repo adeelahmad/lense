@@ -86,7 +86,8 @@ namespaces; `ids` lists the entities behind it, and `e<id>` finds the merged nod
 ## The assistant and MCP
 
 The assistant in Chat has the graph as tools, over the namespaces of the chat (or every shared one): `graph_schema`,
-`graph_query` (Cypher), `graph_related` and `graph_paths`. They only read.
+`graph_query` (Cypher), `graph_related` and `graph_paths`. They only read. For topics it has `find_topics`,
+`topic_recordings` and `suggest_topic` ([Topics](topics.md)).
 
 The MCP server (docs/mcp.md) has the same four, marked read-only, and `propose_graph_change`, which needs a
 write-scope token and editor access; the change waits in Proposed changes unless `apply` makes it at once, and can be

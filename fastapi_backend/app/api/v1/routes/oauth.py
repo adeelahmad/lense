@@ -45,6 +45,15 @@ NO_STORE = {"Cache-Control": "no-store", "Pragma": "no-cache"}
 MCP, MCP_SCOPE = "/mcp", "read"  # the MCP server (app/api/mcp.py), and the scope its tools need
 
 
+OFF = "apps can't sign in to this server; an admin turns it on in Settings → API keys"
+
+
+def _on(request: Request) -> bool:
+    """Whether apps and MCP clients may sign people in (tokens.oauth_enabled). Off, discovery is gone, apps can't
+    register, ask or renew, and their tokens don't work; people still see and revoke the apps they allowed."""
+    return oauth.enabled(request.app.state.settings.current())
+
+
 def _first(value: str | None) -> str:
     return (value or "").split(",")[0].strip()
 
@@ -107,7 +116,7 @@ def _client_credentials(request: Request, client_id: str | None, client_secret: 
 
 async def bearer_challenge(request: Request, exc: StarletteHTTPException) -> Response:
     """401s that ask for a bearer token say where to find out how to get one (RFC 9728 §5.1), as MCP clients expect."""
-    if exc.status_code == 401 and (exc.headers or {}).get("WWW-Authenticate") == "Bearer":
+    if exc.status_code == 401 and (exc.headers or {}).get("WWW-Authenticate") == "Bearer" and _on(request):
         # the MCP server is a resource of its own (/mcp), so clients that check what the metadata names see their URL;
         # its tools only read, so that's all it asks for
         mcp = request.url.path == MCP
@@ -121,6 +130,8 @@ async def bearer_challenge(request: Request, exc: StarletteHTTPException) -> Res
 @well_known.get("/.well-known/oauth-authorization-server/{rest:path}")
 def authorization_server(request: Request) -> JSONResponse:
     """Authorization server metadata (RFC 8414)."""
+    if not _on(request):
+        raise HTTPException(404, "not found")
     base = public_base(request)
     doc = {
         "issuer": base,
@@ -143,7 +154,7 @@ def authorization_server(request: Request) -> JSONResponse:
 def protected_resource(request: Request, rest: str = "") -> JSONResponse:
     """Protected resource metadata (RFC 9728): who issues the tokens this server takes."""
     base = public_base(request)
-    if rest and not RESOURCE.fullmatch(rest):
+    if not _on(request) or (rest and not RESOURCE.fullmatch(rest)):
         raise HTTPException(404, "not found")
     doc = {
         "resource": f"{base}/{rest}" if rest else base,
@@ -159,6 +170,8 @@ def protected_resource(request: Request, rest: str = "") -> JSONResponse:
 def register(body: ClientRegistration, request: Request, db: Db) -> Any:
     """An app registers itself (RFC 7591), without signing in: it gets a `client_id`, and a `client_secret` if it
     asked for one. It can do nothing until someone gives it access. Audited as `oauth.client.register`."""
+    if not _on(request):
+        return _oauth_error(oauth.OAuthError("access_denied", OFF, 403))
     key = f"oauth-register|{visitor_address(request) or client_ip(request)}"
     if auth.throttled(key):
         raise HTTPException(429, "too many apps registered from this address; try again in a few minutes")
@@ -185,13 +198,16 @@ def register(body: ClientRegistration, request: Request, db: Db) -> Any:
     )
 
 
-def _person(user: CurrentUser) -> None:
+def _person(user: CurrentUser, request: Request | None = None) -> None:
+    if request is not None and not _on(request):
+        raise HTTPException(403, OFF)
     if user.via != "access":
         raise HTTPException(403, "sign in to give an app access; API tokens and apps can't")
 
 
 @router.get("/authorize")
 def consent(
+    request: Request,
     user: CurrentUser,
     db: Db,
     client_id: str = Query(),
@@ -202,8 +218,9 @@ def consent(
     scope: str | None = Query(None),
 ) -> Consent:
     """What the consent page shows for an app's request: the app, where it takes you back to and what it asks for.
-    400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge)."""
-    _person(user)
+    400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge); 403
+    when apps can't sign in to this server."""
+    _person(user, request)
     with domain_errors():
         return Consent(
             **oauth.authorization(db, user.id, client_id, redirect_uri, response_type, code_challenge, code_challenge_method, scope)
@@ -211,11 +228,11 @@ def consent(
 
 
 @router.post("/authorize")
-def answer(body: ConsentAnswer, user: CurrentUser, db: Db) -> ConsentResult:
+def answer(body: ConsentAnswer, request: Request, user: CurrentUser, db: Db) -> ConsentResult:
     """Your answer to an app's request. Yes gives it a one-time code (five minutes) at its redirect address, which
     it swaps for tokens that act as you, with your roles; no sends it `error=access_denied`. Audited as
     `oauth.grant`."""
-    _person(user)
+    _person(user, request)
     with domain_errors():
         info = oauth.authorization(
             db, user.id, body.client_id, body.redirect_uri, body.response_type, body.code_challenge, body.code_challenge_method, body.scope
@@ -243,6 +260,8 @@ def token(
     """The app swaps its code (`grant_type=authorization_code`, with `code_verifier` and the same `redirect_uri`)
     or its refresh token (`grant_type=refresh_token`) for an access token and a new refresh token. Form-encoded, as
     OAuth has it; errors are `{error, error_description}`."""
+    if not _on(request):
+        return _oauth_error(oauth.OAuthError("access_denied", OFF, 403))
     try:
         cid, secret = _client_credentials(request, client_id, client_secret)
         if grant_type == "authorization_code":

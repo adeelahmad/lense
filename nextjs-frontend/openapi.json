@@ -1629,7 +1629,7 @@
           "oauth"
         ],
         "summary": "Consent",
-        "description": "What the consent page shows for an app's request: the app, where it takes you back to and what it asks for.\n400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge).",
+        "description": "What the consent page shows for an app's request: the app, where it takes you back to and what it asks for.\n400 when the request can't be answered (an unknown app, an address it didn't register, no PKCE challenge); 403\nwhen apps can't sign in to this server.",
         "operationId": "consent",
         "parameters": [
           {
@@ -2395,6 +2395,50 @@
         }
       }
     },
+    "/api/v1/settings/decisions/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Decision Status",
+        "description": "Who takes routine decisions, and whether a local Laya model can here: on this machine (Apple Silicon, once\nfetched) or at a Laya server's address.",
+        "operationId": "decision_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/decisions/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Decisions",
+        "description": "Take one made-up decision with the settings, to check them; says who answered.",
+        "operationId": "test_decisions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/embeddings/test": {
       "post": {
         "tags": [
@@ -2736,6 +2780,485 @@
         }
       }
     },
+    "/api/v1/activity": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource History",
+        "description": "A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the\ndecision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph\nchanges (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md).",
+        "operationId": "resource_history",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1",
+              "title": "Resource"
+            },
+            "description": "table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "in",
+                    "out",
+                    "run",
+                    "change"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only entries before this time (the last `at` of the page before)",
+              "title": "Before"
+            },
+            "description": "only entries before this time (the last `at` of the page before)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityEntry"
+                  },
+                  "title": "Response Activity-Resource History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activity/totals": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource Totals",
+        "description": "What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time.",
+        "operationId": "resource_totals",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "table:id; none for everything (admins)",
+              "title": "Resource"
+            },
+            "description": "table:id; none for everything (admins)"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityTotals"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activity/costs": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource Costs",
+        "description": "What each of many resources cost this period, for lists; ones you can't see are left out. `estimate` says a\nfigure is a floor (some calls had no price or token counts).",
+        "operationId": "resource_costs",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "table:id, repeated (up to 500): every row of a list at once",
+              "title": "Resource"
+            },
+            "description": "table:id, repeated (up to 500): every row of a list at once"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityCosts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activity/top": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Top Resources",
+        "description": "The resources that cost most this period (admins).",
+        "operationId": "top_resources",
+        "parameters": [
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z_]{1,40}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only this kind of resource: routine, pipeline, workflow, space",
+              "title": "Table"
+            },
+            "description": "only this kind of resource: routine, pipeline, workflow, space"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityTop"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/budgets": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "List Budgets",
+        "description": "Every budget, with where it stands now.",
+        "operationId": "list_budgets",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BudgetStatus"
+                  },
+                  "title": "Response Budgets-List Budgets"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Set Budget",
+        "operationId": "set_budget",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "title": "Resource"
+            },
+            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetSet"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Remove Budget",
+        "operationId": "remove_budget",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "title": "Resource"
+            },
+            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/budgets/status": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Budget Status",
+        "description": "Where a resource's budget stands, and what its next run will likely cost (also without a budget).",
+        "operationId": "budget_status",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "title": "Resource"
+            },
+            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/fedora": {
       "get": {
         "tags": [
@@ -2966,6 +3489,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SetupTelemetry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/oauth": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Oauth",
+        "description": "Let apps and AI assistants (MCP clients such as Claude or Cursor) sign people in with their Lens account, or\nnot, and how long their tokens last (docs/authentication.md#oauth). On unless turned off.",
+        "operationId": "save_oauth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupOAuth"
               }
             }
           },
@@ -6626,7 +7191,7 @@
           "notes"
         ],
         "summary": "Page About",
-        "description": "The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one.",
+        "description": "The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one.",
         "operationId": "page_about",
         "parameters": [
           {
@@ -6727,7 +7292,7 @@
           "notes"
         ],
         "summary": "Update Page",
-        "description": "Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.",
+        "description": "Change what's given. A new body without `doc` keeps the editor's state (drawings on the canvas live there) but\nmarks it stale (`doc_stale`), so the editor brings its text in line with the body.",
         "operationId": "update_page",
         "parameters": [
           {
@@ -6798,6 +7363,259 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/suggestions": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Link Suggestions",
+        "description": "What the page names but doesn't link yet: the namespace's topics and named things found in its text, to link\nwith one click. Matched against the namespace's own vocabulary; no model is asked.",
+        "operationId": "link_suggestions",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteLinkSuggestion"
+                  },
+                  "title": "Response Notes-Link Suggestions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/homes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Home Suggestions",
+        "description": "The project or area pages a free note at the top of the tree could go inside, best first, from the links and\nwords they share; moving it there is one click (POST /{pid}/move). No model is asked.",
+        "operationId": "home_suggestions",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteHomeSuggestion"
+                  },
+                  "title": "Response Notes-Home Suggestions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/history": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Page History",
+        "description": "What the page was before each change to its title, summary or text, newest first.",
+        "operationId": "page_history",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteHistory"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/history/{vid}": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Page Version",
+        "description": "One earlier version, with its text.",
+        "operationId": "page_version",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "vid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Vid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteVersion"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/history/{vid}/restore": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Restore Version",
+        "description": "Put an earlier version back. What the page was becomes a version too, so this can be undone. Needs editor access.",
+        "operationId": "restore_version",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          },
+          {
+            "name": "vid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Vid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
                 }
               }
             }
@@ -8937,7 +9755,7 @@
           "search"
         ],
         "summary": "Get Graph",
-        "description": "Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).",
+        "description": "Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).\n`as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.",
         "operationId": "get_graph",
         "parameters": [
           {
@@ -8951,6 +9769,24 @@
               "title": "Scope"
             },
             "description": "\"global\" or \"ns:<namespace>\""
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the entities as of a graph version: a number, a version's name, or head",
+              "title": "As Of"
+            },
+            "description": "the entities as of a graph version: a number, a version's name, or head"
           }
         ],
         "responses": {
@@ -11217,6 +12053,116 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/topics/candidates": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Topic Candidates",
+        "description": "What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.\nAdding one as a topic suggests it for those recordings; skipping one stops it being offered.",
+        "operationId": "topic_candidates",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopicCandidate"
+                  },
+                  "title": "Response Topics-Topic Candidates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/topics/candidates/skip": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Skip Topic Candidate",
+        "description": "Stop offering a label as a new topic.",
+        "operationId": "skip_topic_candidate",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopicSkip"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/topics/merge": {
       "post": {
         "tags": [
@@ -11422,6 +12368,24 @@
               "title": "Scope"
             },
             "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the graph as of a version: a number or a version's name (default: today's)",
+              "title": "As Of"
+            },
+            "description": "the graph as of a version: a number or a version's name (default: today's)"
           }
         ],
         "responses": {
@@ -11540,6 +12504,24 @@
               "title": "Scope"
             },
             "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the graph as of a version: a number or a version's name (default: today's)",
+              "title": "As Of"
+            },
+            "description": "the graph as of a version: a number or a version's name (default: today's)"
           }
         ],
         "responses": {
@@ -11666,6 +12648,24 @@
               "title": "Scope"
             },
             "description": "\"global\" (every shared namespace you can read) or \"ns:<namespace>\""
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the graph as of a version: a number or a version's name (default: today's)",
+              "title": "As Of"
+            },
+            "description": "the graph as of a version: a number or a version's name (default: today's)"
           }
         ],
         "responses": {
@@ -11819,6 +12819,546 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/history": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph History List",
+        "description": "The graph's versions, newest first: what changed, who changed it, through what (web, token, oauth, assistant,\nmcp, routine, workflow, analysis, cli, system) and why, with the entities each touched.",
+        "operationId": "graph_history_list",
+        "parameters": [
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace (default: every namespace you can read)",
+              "title": "Namespace"
+            },
+            "description": "one namespace (default: every namespace you can read)"
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only the changes that touched this entity",
+              "title": "Entity"
+            },
+            "description": "only the changes that touched this entity"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "older than this version (the next page)",
+              "title": "Before"
+            },
+            "description": "older than this version (the next page)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph History List"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/history/{version}": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph History Event",
+        "description": "One version in full: every record it changed, as it was before and after.",
+        "operationId": "graph_history_event",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph History Event"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/as-of/{version}": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph As Of",
+        "description": "The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone\nsaid are different. Mentions aren't versioned: counts elsewhere are today's.",
+        "operationId": "graph_as_of",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace (default: every namespace you can read)",
+              "title": "Namespace"
+            },
+            "description": "one namespace (default: every namespace you can read)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph As Of"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/diff": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Diff",
+        "description": "What changed between two versions: entities added, removed and changed (field by field), and other names,\nlinks and distinct pairs added and removed.",
+        "operationId": "graph_diff",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "a version, a version's name, or head",
+              "title": "From"
+            },
+            "description": "a version, a version's name, or head"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "a version, a version's name, or head",
+              "default": "head",
+              "title": "To"
+            },
+            "description": "a version, a version's name, or head"
+          },
+          {
+            "name": "namespace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace (default: every namespace you can read)",
+              "title": "Namespace"
+            },
+            "description": "one namespace (default: every namespace you can read)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph Diff"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/tags": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Tags",
+        "description": "Named versions, newest first.",
+        "operationId": "graph_tags",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Graph-Graph Tags"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Tag",
+        "description": "Name a version (\"before the cleanup\") to come back to it; naming again moves the name. Editors of a namespace\n(or admins) can.",
+        "operationId": "graph_tag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Tag"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/tags/{name}": {
+      "delete": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Untag",
+        "operationId": "graph_untag",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Graph-Graph Untag"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/rollback": {
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Rollback",
+        "description": "Take the graph back to a version: every change since then in these namespaces is undone, newest first, as one\nnew version (so it can be rolled back too). Merges come undone with their mentions and moved mentions go back;\nwhat analysis found since stays. Preview first (`dry_run`, the default). Needs editor access to every namespace the\nchanges touched.",
+        "operationId": "graph_rollback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackAsk"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Rollback"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/verify": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Verify",
+        "description": "Replay the history from its newest checkpoint and compare it with today's graph: what differs was written\nwithout being recorded. Admins.",
+        "operationId": "graph_verify",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Verify"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Verify Fix",
+        "description": "Record what differs from the replayed history as one change (`graph.drift`), so they match again. Admins.",
+        "operationId": "graph_verify_fix",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Verify Fix"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/graph/checkpoints": {
+      "get": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Checkpoints",
+        "description": "The versions the graph is kept whole at, to replay from (taken with the first change, then every 1000).",
+        "operationId": "graph_checkpoints",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Graph-Graph Checkpoints"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Graph Checkpoint",
+        "description": "Keep the whole graph as it is now. Admins.",
+        "operationId": "graph_checkpoint",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Graph Checkpoint"
                 }
               }
             }
@@ -14154,6 +15694,59 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{jid}/release": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Release Job",
+        "description": "Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it\n(admins, who set the budgets).",
+        "operationId": "release_job",
+        "parameters": [
+          {
+            "name": "jid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Jid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeldRunDecision"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -18841,7 +20434,7 @@
           "routines"
         ],
         "summary": "Run Routine",
-        "description": "Run it as soon as the scheduler next looks (within half a minute), even when it is off.",
+        "description": "Run it as soon as the scheduler next looks (within half a minute), even when it is off. A run over one of its\nbudgets is refused (409, saying where the budget stands) unless over_budget is true (docs/budgets.md).",
         "operationId": "run_routine",
         "parameters": [
           {
@@ -18860,6 +20453,59 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RoutineRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/routines/runs/{run_id}/decide": {
+      "post": {
+        "tags": [
+          "routines"
+        ],
+        "summary": "Decide Held Run",
+        "description": "Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.",
+        "operationId": "decide_held_run",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeldRunDecision"
               }
             }
           }
@@ -20791,6 +22437,311 @@
         "title": "AccountToken",
         "description": "Anyone's key, for admins."
       },
+      "ActivityCosts": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "costs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ResourceSpend"
+            },
+            "type": "object",
+            "title": "Costs",
+            "description": "by resource; ones you can't see are left out"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "costs"
+        ],
+        "title": "ActivityCosts"
+      },
+      "ActivityEntry": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "the ledger row's id; none for an audit log entry"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out",
+              "run",
+              "change"
+            ],
+            "title": "Kind",
+            "description": "in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry, or a change to the entity graph (action `graph.<op>`)"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "what it was: `POST /api/v1/routines/{rid}/run`, `model.chat`, `job.succeeded`, `routine.update`"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Resources",
+            "description": "every resource it counts for, as table:id"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor",
+            "description": "the account that made it, when a person did"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "tokens_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Out"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "estimated from the prices in Settings; none when the model has no price"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "the error's type or HTTP status; never its message"
+          },
+          "detail": {
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "at",
+          "kind",
+          "action"
+        ],
+        "title": "ActivityEntry"
+      },
+      "ActivityTop": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceCost"
+            },
+            "type": "array",
+            "title": "Resources"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "resources"
+        ],
+        "title": "ActivityTop"
+      },
+      "ActivityTotals": {
+        "properties": {
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "tokens_in": {
+            "type": "integer",
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "type": "integer",
+            "title": "Tokens Out"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "description": "what its calls cost (run rows repeat their calls' cost and aren't added again)"
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms"
+          },
+          "unpriced": {
+            "type": "integer",
+            "title": "Unpriced",
+            "description": "calls that cost something but have no figure (a model with no price, a reply without token counts)",
+            "default": 0
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "true when unpriced calls make cost_usd a floor rather than exact",
+            "default": false
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/KindTotals"
+            },
+            "type": "object",
+            "title": "By Kind"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "calls",
+          "failed",
+          "tokens_in",
+          "tokens_out",
+          "cost_usd",
+          "ms",
+          "by_kind"
+        ],
+        "title": "ActivityTotals"
+      },
       "AnswerCheck": {
         "properties": {
           "claims": {
@@ -22204,6 +24155,279 @@
           "dir"
         ],
         "title": "BrowseEntry"
+      },
+      "Budget": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "on_over": {
+            "type": "string",
+            "title": "On Over"
+          },
+          "warn_at": {
+            "type": "number",
+            "title": "Warn At"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "alert": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alert",
+            "description": "the last warning: {state near|over, since, at, share}"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "period",
+          "on_over",
+          "warn_at"
+        ],
+        "title": "Budget"
+      },
+      "BudgetSet": {
+        "properties": {
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd",
+            "description": "the cap in USD (from the costs in the activity ledger)"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens",
+            "description": "the cap in tokens (in and out)"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "run",
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period",
+            "description": "what the cap is for: one run, or a day, week or month (UTC)",
+            "default": "month"
+          },
+          "on_over": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "skip",
+              "assistant"
+            ],
+            "title": "On Over",
+            "description": "a run that would go over: ask (hold it until someone picks run or skip), skip, or assistant (the decision model weighs it; it runs only when sure, else asks)",
+            "default": "ask"
+          },
+          "warn_at": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.1,
+            "title": "Warn At",
+            "description": "the share spent at which it's marked near (and warned about)",
+            "default": 0.8
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BudgetSet"
+      },
+      "BudgetStatus": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Budget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "none",
+              "ok",
+              "near",
+              "over"
+            ],
+            "title": "State"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since",
+            "description": "the start of the period being counted"
+          },
+          "spent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Spent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "$ref": "#/components/schemas/NextRun",
+            "description": "what one more run will likely cost: always an estimate"
+          },
+          "left": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Left"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share",
+            "description": "the largest share of a cap spent (1 is all of it)"
+          },
+          "share_after_next": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Share After Next",
+            "description": "the share once the next run (estimated) is done"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "state",
+          "next"
+        ],
+        "title": "BudgetStatus"
       },
       "ChangeAsk": {
         "properties": {
@@ -25102,6 +27326,122 @@
           "graph"
         ],
         "title": "CustomNodeVersionCreate"
+      },
+      "DecisionStatus": {
+        "properties": {
+          "engine": {
+            "type": "string",
+            "title": "Engine",
+            "description": "the setting: auto, jev, laya, llm or off"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who answers now: jev, laya, llm, or none"
+          },
+          "apple_silicon": {
+            "type": "boolean",
+            "title": "Apple Silicon",
+            "description": "this machine can run MLX models"
+          },
+          "laya": {
+            "$ref": "#/components/schemas/LayaStatus"
+          },
+          "laya_models": {
+            "items": {
+              "$ref": "#/components/schemas/LayaModel"
+            },
+            "type": "array",
+            "title": "Laya Models"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "engine",
+          "apple_silicon",
+          "laya",
+          "laya_models"
+        ],
+        "title": "DecisionStatus",
+        "description": "Who takes routine decisions now, and whether a local Laya model could."
+      },
+      "DecisionTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who answered: jev, laya or llm (the language model when the decision model failed)"
+          },
+          "choice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choice"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "DecisionTestResult"
       },
       "Description": {
         "properties": {
@@ -28225,6 +30565,18 @@
             "title": "Limit",
             "description": "rows at most",
             "default": 500
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of",
+            "description": "query the graph as of a version: a number or a version's name"
           }
         },
         "type": "object",
@@ -28253,6 +30605,18 @@
             "minimum": 1.0,
             "title": "Limit",
             "default": 200
+          },
+          "as_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of",
+            "description": "ask the graph as of a version: a number or a version's name"
           }
         },
         "type": "object",
@@ -28652,6 +31016,21 @@
           "text"
         ],
         "title": "Heard"
+      },
+      "HeldRunDecision": {
+        "properties": {
+          "run": {
+            "type": "boolean",
+            "title": "Run",
+            "description": "true: run it now, once, whatever its budgets say; false: skip it"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "title": "HeldRunDecision"
       },
       "Highlight": {
         "properties": {
@@ -29921,6 +32300,54 @@
             ],
             "title": "Cancel Requested"
           },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "what its calls cost, from the activity ledger (docs/activity.md); set when it ends"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "cost_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimate",
+            "description": "true: some calls had no price or token counts, so cost_usd is a floor"
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold",
+            "description": "held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}"
+          },
           "log": {
             "anyOf": [
               {
@@ -30246,6 +32673,43 @@
         ],
         "title": "JobsQueued"
       },
+      "KindTotals": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "tokens_in": {
+            "type": "integer",
+            "title": "Tokens In",
+            "default": 0
+          },
+          "tokens_out": {
+            "type": "integer",
+            "title": "Tokens Out",
+            "default": 0
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "default": 0
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "KindTotals"
+      },
       "LanguageCount": {
         "properties": {
           "language": {
@@ -30324,6 +32788,69 @@
           "ok"
         ],
         "title": "LastSend"
+      },
+      "LayaModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the Hugging Face repository"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "about"
+        ],
+        "title": "LayaModel"
+      },
+      "LayaStatus": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "where": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Where",
+            "description": "here (this machine runs it), server (a Laya server), or none"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "why it can't answer, when it can't"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "available",
+          "model"
+        ],
+        "title": "LayaStatus"
       },
       "LlmEstimate": {
         "properties": {
@@ -31878,6 +34405,48 @@
         "title": "NamespaceUpdate",
         "description": "Only the fields you send change; send ``pipeline: null`` to go back to the default pipeline."
       },
+      "NextRun": {
+        "properties": {
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs",
+            "description": "the past runs the estimate is drawn from"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "runs",
+          "basis"
+        ],
+        "title": "NextRun"
+      },
       "NodeParam": {
         "properties": {
           "name": {
@@ -32317,6 +34886,66 @@
         ],
         "title": "NoteCreate"
       },
+      "NoteHistory": {
+        "properties": {
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/NoteVersionItem"
+            },
+            "type": "array",
+            "title": "Versions"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "versions"
+        ],
+        "title": "NoteHistory"
+      },
+      "NoteHomeSuggestion": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page",
+            "description": "the project or area page it could go inside"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "place": {
+            "type": "string",
+            "enum": [
+              "project",
+              "area"
+            ],
+            "title": "Place"
+          },
+          "score": {
+            "type": "integer",
+            "title": "Score"
+          },
+          "why": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Why",
+            "description": "what ties them: links between them, links they share, words of its title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "page",
+          "title",
+          "place",
+          "score",
+          "why"
+        ],
+        "title": "NoteHomeSuggestion"
+      },
       "NoteLink": {
         "properties": {
           "sign": {
@@ -32369,6 +34998,48 @@
           "label"
         ],
         "title": "NoteLink"
+      },
+      "NoteLinkSuggestion": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "page",
+              "recording",
+              "entity",
+              "topic",
+              "collection",
+              "speaker"
+            ],
+            "title": "Kind"
+          },
+          "sign": {
+            "type": "string",
+            "enum": [
+              "@",
+              "#"
+            ],
+            "title": "Sign",
+            "description": "# for a topic, @ for anything else"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "target",
+          "label",
+          "kind",
+          "sign"
+        ],
+        "title": "NoteLinkSuggestion"
       },
       "NoteLinkTarget": {
         "properties": {
@@ -32469,6 +35140,33 @@
             "title": "Place",
             "description": "where it's filed (PARA): project, area, resource or archive"
           },
+          "place_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place By",
+            "description": "who filed it"
+          },
+          "place_suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the assistant would file it, when it wasn't sure"
+          },
           "parent": {
             "anyOf": [
               {
@@ -32515,6 +35213,22 @@
             "description": "who wrote it",
             "default": "person"
           },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "how the editor shows it (default: page)"
+          },
           "created_at": {
             "anyOf": [
               {
@@ -32544,7 +35258,7 @@
           "body": {
             "type": "string",
             "title": "Body",
-            "description": "Markdown, with mentions written @[label](kind:id) and #[label](entity:id)",
+            "description": "Markdown, with mentions written @[label](kind:id) and #[label](topic:id)",
             "default": ""
           },
           "doc": {
@@ -32558,6 +35272,18 @@
             ],
             "title": "Doc",
             "description": "the editor's own document state, if it kept one"
+          },
+          "doc_stale": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Stale",
+            "description": "the body changed without the editor: its text follows the body"
           },
           "created_by": {
             "anyOf": [
@@ -32696,6 +35422,21 @@
               }
             ],
             "title": "Doc"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View"
           }
         },
         "additionalProperties": false,
@@ -32820,6 +35561,33 @@
             "title": "Place",
             "description": "where it's filed (PARA): project, area, resource or archive"
           },
+          "place_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place By",
+            "description": "who filed it"
+          },
+          "place_suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlaceSuggestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the assistant would file it, when it wasn't sure"
+          },
           "parent": {
             "anyOf": [
               {
@@ -32865,6 +35633,22 @@
             "title": "Author",
             "description": "who wrote it",
             "default": "person"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "how the editor shows it (default: page)"
           },
           "created_at": {
             "anyOf": [
@@ -33011,7 +35795,23 @@
               }
             ],
             "title": "Doc",
-            "description": "the editor's document state; a new body without it drops the old one"
+            "description": "the editor's document state; a new body without it marks the old one stale"
+          },
+          "view": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page",
+                  "edgeless"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "View",
+            "description": "show it as a page or on the edgeless canvas"
           }
         },
         "additionalProperties": false,
@@ -33071,6 +35871,173 @@
         "additionalProperties": false,
         "type": "object",
         "title": "NoteUpdate"
+      },
+      "NoteVersion": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "title": "At",
+            "description": "when the page changed from this"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who changed it (an email); none for the model"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "person",
+              "assistant"
+            ],
+            "title": "Author",
+            "description": "a person, or the assistant or model",
+            "default": "person"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "characters of text",
+            "default": 0
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "default": ""
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "at"
+        ],
+        "title": "NoteVersion"
+      },
+      "NoteVersionItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "title": "At",
+            "description": "when the page changed from this"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By",
+            "description": "who changed it (an email); none for the model"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "person",
+              "assistant"
+            ],
+            "title": "Author",
+            "description": "a person, or the assistant or model",
+            "default": "person"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "characters of text",
+            "default": 0
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "at"
+        ],
+        "title": "NoteVersionItem"
       },
       "NotifyDelivery": {
         "properties": {
@@ -35086,6 +38053,37 @@
           "version"
         ],
         "title": "PipelineVersionInfo"
+      },
+      "PlaceSuggestion": {
+        "properties": {
+          "place": {
+            "type": "string",
+            "enum": [
+              "project",
+              "area",
+              "resource",
+              "archive"
+            ],
+            "title": "Place"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "by": {
+            "type": "string",
+            "title": "By",
+            "description": "what decided: jev (a decision model) or llm"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "place",
+          "confidence",
+          "by"
+        ],
+        "title": "PlaceSuggestion"
       },
       "Placed": {
         "properties": {
@@ -38022,6 +41020,35 @@
         ],
         "title": "ResetPasswordRequest"
       },
+      "ResourceCost": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "ResourceCost"
+      },
       "ResourceFile": {
         "properties": {
           "id": {
@@ -38234,6 +41261,41 @@
         ],
         "title": "ResourceFiles"
       },
+      "ResourceSpend": {
+        "properties": {
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "unpriced": {
+            "type": "integer",
+            "title": "Unpriced"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "true: cost_usd is a floor (unpriced calls); show it as an estimate"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "cost_usd",
+          "tokens",
+          "calls",
+          "unpriced",
+          "estimate"
+        ],
+        "title": "ResourceSpend"
+      },
       "Reviewed": {
         "properties": {
           "applied": {
@@ -38247,6 +41309,38 @@
           "applied"
         ],
         "title": "Reviewed"
+      },
+      "RollbackAsk": {
+        "properties": {
+          "to": {
+            "type": "string",
+            "title": "To",
+            "description": "the version to go back to: a number, a version's name"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "only this namespace (default: every namespace you can edit)"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "only say what would change (the default); false to roll back",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "to"
+        ],
+        "title": "RollbackAsk"
       },
       "Routine": {
         "properties": {
@@ -38624,6 +41718,54 @@
               }
             ],
             "title": "Log"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "what its calls cost, from the activity ledger (docs/activity.md); set when it ends"
+          },
+          "tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens"
+          },
+          "cost_estimate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Estimate",
+            "description": "true: some calls had no price or token counts, so cost_usd is a floor"
+          },
+          "hold": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hold",
+            "description": "held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), decided: {run, by, at} once someone picked}"
           }
         },
         "additionalProperties": true,
@@ -38642,6 +41784,12 @@
             "type": "boolean",
             "title": "Propose Only",
             "description": "graph workflows propose every change instead of making the sure ones",
+            "default": false
+          },
+          "over_budget": {
+            "type": "boolean",
+            "title": "Over Budget",
+            "description": "run it even though it's over a budget (docs/budgets.md); without it, a run over budget is refused (409)",
             "default": false
           }
         },
@@ -40693,6 +43841,64 @@
         ],
         "title": "SetupNamespaceView"
       },
+      "SetupOAuth": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "access_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Minutes"
+          },
+          "refresh_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupOAuth"
+      },
+      "SetupOAuthView": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "access_minutes": {
+            "type": "integer",
+            "title": "Access Minutes"
+          },
+          "refresh_days": {
+            "type": "integer",
+            "title": "Refresh Days"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "access_minutes",
+          "refresh_days"
+        ],
+        "title": "SetupOAuthView"
+      },
       "SetupRequest": {
         "properties": {
           "code": {
@@ -40919,6 +44125,9 @@
           },
           "telemetry": {
             "$ref": "#/components/schemas/SetupTelemetryView"
+          },
+          "oauth": {
+            "$ref": "#/components/schemas/SetupOAuthView"
           }
         },
         "additionalProperties": true,
@@ -40929,7 +44138,8 @@
           "namespace",
           "llm",
           "storage",
-          "telemetry"
+          "telemetry",
+          "oauth"
         ],
         "title": "SetupView"
       },
@@ -42366,6 +45576,31 @@
         ],
         "title": "SpeechTestResult"
       },
+      "Spent": {
+        "properties": {
+          "usd": {
+            "type": "number",
+            "title": "Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate",
+            "description": "true: some calls had no figure, so usd is a floor"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "usd",
+          "tokens",
+          "estimate"
+        ],
+        "title": "Spent"
+      },
       "Started": {
         "properties": {
           "ok": {
@@ -42719,6 +45954,45 @@
           "reason"
         ],
         "title": "Suggestion"
+      },
+      "TagAsk": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "a version or a version's name (default: head)"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TagAsk"
       },
       "TagCount": {
         "properties": {
@@ -43547,7 +46821,7 @@
               }
             ],
             "title": "Source",
-            "description": "how it got there: person, entity or analysis"
+            "description": "how it got there: person, entity, analysis or assistant"
           },
           "weight": {
             "anyOf": [
@@ -43566,7 +46840,8 @@
                 "type": "string",
                 "enum": [
                   "accepted",
-                  "suggested"
+                  "suggested",
+                  "dismissed"
                 ]
               },
               {
@@ -43582,6 +46857,27 @@
           "recording"
         ],
         "title": "TopicAbout"
+      },
+      "TopicCandidate": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "what summaries say recordings are about, which no topic covers yet"
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "description": "how many recordings' summaries say it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "label",
+          "recordings"
+        ],
+        "title": "TopicCandidate"
       },
       "TopicCreate": {
         "properties": {
@@ -43932,6 +47228,22 @@
           "label"
         ],
         "title": "TopicRef"
+      },
+      "TopicSkip": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Label"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "TopicSkip"
       },
       "TopicUpdate": {
         "properties": {

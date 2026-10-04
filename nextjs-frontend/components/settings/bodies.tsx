@@ -204,7 +204,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
                 Custom vocabulary <span className="font-normal text-fg-muted">· one per line, Name | TYPE</span>
               </>
             }
-            hint="Types: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM. A line without a type is a topic."
+            hint="Types: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM. A line without a type is a term."
           />
         </>
       );
@@ -341,6 +341,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="tokens.max_days" />
           </div>
           <F ctx={ctx} id="tokens.never_expire" />
+          <F ctx={ctx} id="tokens.oauth_enabled" />
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="tokens.oauth_access_minutes" />
             <F ctx={ctx} id="tokens.oauth_refresh_days" />
@@ -964,10 +965,6 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
 }
 
 function AiBody({ ctx }: { ctx: BodyCtx }) {
-  const d = ctx.view.decisions;
-  const secret = (d?.values?.api_key ?? {}) as { set?: boolean };
-  const key = ctx.state("decisions.api_key");
-  const keyFromEnv = (d?.locked ?? []).includes("api_key");
   const tools = ctx.state("ai.disabled_tools");
   const off = (tools.value as string[]) ?? [];
   const enabled = Boolean(ctx.form["ai.tools"]);
@@ -979,6 +976,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       </p>
       <F ctx={ctx} id="ai.tools" />
       <F ctx={ctx} id="ai.refine_notes" />
+      <F ctx={ctx} id="ai.organise_notes" />
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Tools</span>
         <ul className="flex flex-col gap-2">
@@ -1055,35 +1053,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         )}
       </div>
-      <div className="flex flex-col gap-3">
-        <span className="text-[13px] font-bold leading-tight text-fg-strong">Routine choices</span>
-        <p className="text-[13px] leading-normal text-fg-secondary">
-          Choices like which namespace a file goes in are made for you. A decision model answers them faster and for far
-          less than the LLM; get a key at typesafe.ai.
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <F ctx={ctx} id="decisions.engine" />
-          <F ctx={ctx} id="decisions.act_above" />
-        </div>
-        {keyFromEnv ? (
-          <p className="text-[13px] text-fg-secondary">The decision model’s key is set by TYPESAFE_API_KEY in .env.</p>
-        ) : (
-          <SecretSetting
-            key={d?.updated_at ?? "none"}
-            label="Decision model API key"
-            isSet={Boolean(secret.set)}
-            updatedBy={d?.updated_by}
-            updatedAt={d?.updated_at}
-            value={key.value as string | undefined}
-            onChange={(x) => key.onChange(x)}
-          />
-        )}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <F ctx={ctx} id="decisions.base_url" />
-          <F ctx={ctx} id="decisions.model" />
-          <F ctx={ctx} id="decisions.timeout" />
-        </div>
-      </div>
+      <RoutineChoices ctx={ctx} />
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold text-fg-strong">Limits per role</span>
         <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-2.5 gap-y-1 text-[13px] leading-[1.4]">
@@ -1098,6 +1068,107 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
     </>
   );
 }
+
+function RoutineChoices({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const d = ctx.view.decisions;
+  const secret = (d?.values?.api_key ?? {}) as { set?: boolean };
+  const key = ctx.state("decisions.api_key");
+  const keyFromEnv = (d?.locked ?? []).includes("api_key");
+  const engine = String(ctx.form["decisions.engine"] ?? "auto");
+  const status = useQuery({
+    queryKey: ["decision-status", d?.updated_at ?? "none"],
+    queryFn: () => data(Admin.decisionStatus({ client })),
+    enabled: engine === "laya",
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testDecisions({ client })) });
+  const laya = status.data?.laya;
+  return (
+    <div className="flex flex-col gap-3">
+      <span className="text-[13px] font-bold leading-tight text-fg-strong">Routine choices</span>
+      <p className="text-[13px] leading-normal text-fg-secondary">
+        Choices like which namespace a file goes in are made for you. A decision model answers them faster and for far
+        less than the LLM: Jev online (get a key at typesafe.ai), or Laya on this machine for free.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="decisions.engine" />
+        <F ctx={ctx} id="decisions.act_above" />
+      </div>
+      {engine === "laya" ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="decisions.laya_model" />
+            <F ctx={ctx} id="decisions.laya_url" />
+          </div>
+          {laya && !ctx.dirty && (
+            <Banner
+              tone={laya.available ? "success" : "warning"}
+              title={
+                laya.available
+                  ? laya.where === "server"
+                    ? "Laya answers from the Laya server."
+                    : "Laya answers on this machine."
+                  : "Laya can’t answer here yet; the LLM takes these choices until it can."
+              }
+            >
+              {laya.available
+                ? `${laya.model}. Lens fetched laya-mlx and the model itself.`
+                : status.data?.apple_silicon
+                  ? `${laya.reason}.`
+                  : "Laya runs on MLX, which needs a Mac with Apple Silicon. On a Mac running Lens in Docker, run lens decide-server on the Mac and put its address in Laya server (http://host.docker.internal:8790/v1)."}
+            </Banner>
+          )}
+        </>
+      ) : (
+        <>
+          {keyFromEnv ? (
+            <p className="text-[13px] text-fg-secondary">
+              The decision model’s key is set by TYPESAFE_API_KEY in .env.
+            </p>
+          ) : (
+            <SecretSetting
+              key={d?.updated_at ?? "none"}
+              label="Decision model API key"
+              isSet={Boolean(secret.set)}
+              updatedBy={d?.updated_by}
+              updatedAt={d?.updated_at}
+              value={key.value as string | undefined}
+              onChange={(x) => key.onChange(x)}
+            />
+          )}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <F ctx={ctx} id="decisions.base_url" />
+            <F ctx={ctx} id="decisions.model" />
+            <F ctx={ctx} id="decisions.timeout" />
+          </div>
+        </>
+      )}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Testing…" : "Test"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Tests the saved settings, not your unsaved changes"
+            : "Takes one made-up choice and says who answered"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title={`${WHO[test.data.by ?? ""] ?? test.data.by} answered.`}>
+            Chose {test.data.choice}, {Math.round((test.data.confidence ?? 0) * 100)}% sure · {test.data.ms} ms
+          </Banner>
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </div>
+  );
+}
+
+const WHO: Record<string, string> = { jev: "Jev", laya: "Laya", llm: "The LLM" };
 
 function SearchBody({ ctx }: { ctx: BodyCtx }) {
   const client = useApiClient();

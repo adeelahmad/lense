@@ -3,9 +3,11 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    activity,
     admin,
     auth,
     batches,
+    budgets,
     chats,
     collections,
     comments,
@@ -20,6 +22,7 @@ from app.api.v1.routes import (
     fields,
     files,
     graph,
+    graph_history,
     hierarchy,
     iiif,
     imports,
@@ -64,6 +67,8 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    activity,
+    budgets,
     fedora,
     setup,
     namespaces,
@@ -82,6 +87,7 @@ for module in (
     entities,
     topics,
     graph,
+    graph_history,
     entity_setup,
     metadata,
     rdf,

@@ -14,11 +14,13 @@ from app.domain.store import DB, R
 from app.schemas.common import Ok
 from app.schemas.topics import (
     RecordingTopic,
+    TopicCandidate,
     TopicCreate,
     TopicDetail,
     TopicList,
     TopicMerge,
     TopicRecordings,
+    TopicSkip,
     TopicUpdate,
 )
 
@@ -82,6 +84,26 @@ def create_topic(name: str, body: TopicCreate, request: Request, user: Writer, a
     auth.audit(db, user.as_audit(), "topic.create", f"topic:{tid}", body.model_dump())
     _changed(request)
     return _detail(db, acl, tid)
+
+
+@router.get("/namespaces/{name}/topics/candidates")
+def topic_candidates(name: str, user: CurrentUser, acl: Acl, db: Db, limit: int = 30) -> list[TopicCandidate]:
+    """What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.
+    Adding one as a topic suggests it for those recordings; skipping one stops it being offered."""
+    sid = acl.nsid(name)
+    acl.need(sid)
+    return [TopicCandidate(**c) for c in topics.candidates(db, sid, min(max(limit, 1), 100))]
+
+
+@router.post("/namespaces/{name}/topics/candidates/skip")
+def skip_topic_candidate(name: str, body: TopicSkip, user: Writer, acl: Acl, db: Db) -> Ok:
+    """Stop offering a label as a new topic."""
+    sid = acl.nsid(name)
+    acl.need(sid, "editor")
+    with domain_errors():
+        topics.skip_candidate(db, sid, body.label)
+    auth.audit(db, user.as_audit(), "topic.skip", f"namespace:{name}", {"label": body.label})
+    return Ok()
 
 
 @router.patch("/topics/{tid}")

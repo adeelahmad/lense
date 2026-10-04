@@ -116,7 +116,21 @@ export function NodeMenu({
 }
 
 /** Layout buttons, reset, and what is lit up (an explored set, paths, a route), over the canvas. */
-export function ExplorerBar({ ex, byId }: { ex: Explorer; byId: Map<string, GraphNode> }) {
+export function ExplorerBar({
+  ex,
+  byId,
+  version,
+  asOf,
+  onNow,
+}: {
+  ex: Explorer;
+  byId: Map<string, GraphNode>;
+  /** the version picker, at the end of the toolbar */
+  version?: React.ReactNode;
+  /** the version shown, when it isn't now */
+  asOf?: string | null;
+  onNow?: () => void;
+}) {
   const options = LAYOUTS.filter((l) => l.key !== "route" || ex.route.length > 1);
   const label = (id: string) => byId.get(id)?.label ?? id;
   return (
@@ -150,12 +164,23 @@ export function ExplorerBar({ ex, byId }: { ex: Explorer; byId: Map<string, Grap
         >
           <RotateCcw /> Reset
         </button>
+        {version && (
+          <>
+            <span className="mx-0.5 h-5 w-px bg-border" />
+            {version}
+          </>
+        )}
         {ex.busy && (
           <span className="inline-flex items-center gap-1.5 px-2 text-[12px] text-fg-muted" aria-live="polite">
             <Loader2 className="size-3.5 animate-spin" /> {ex.busy}…
           </span>
         )}
       </div>
+      {asOf && onNow && (
+        <Chip onClear={onNow} label="Back to now">
+          As of {/^\d+$/.test(asOf) ? `version ${asOf}` : `“${asOf}”`}; mentions are today’s
+        </Chip>
+      )}
       {ex.highlight && (
         <Chip onClear={ex.clearHighlight} label="Clear highlight">
           {ex.highlight.title}

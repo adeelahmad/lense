@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 import { pipelineLabel } from "@/components/activity/job-model";
+import { ActivityPanel } from "@/components/costs/costs";
 import { useRec } from "@/components/recording/context";
 import { ChangeHistoryList } from "@/components/recording/edit";
 import { useJob } from "@/components/recording/hooks";
@@ -46,6 +47,7 @@ export function HistoryTab() {
         <Label as="h3">Transcript corrections</Label>
         <ChangeHistoryList />
       </section>
+      <ActivityPanel resource={`recording:${rec.id}`} title="Costs and activity" />
     </>
   );
 }

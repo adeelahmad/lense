@@ -31,6 +31,8 @@ dependencies = [
 sensevoice = ["funasr", "modelscope", "torch", "torchaudio"]
 whisper = ["faster-whisper"]
 mlx = ["mlx-whisper"]
+# Laya typed decision models on MLX (Apple Silicon only): a local decision engine beside Jev
+laya = ["laya-mlx>=0.3"]
 voices = ["speechbrain", "torch", "torchaudio"]
 pyannote = ["pyannote.audio"]
 # Video: faces and alternative OCR engines (Tesseract is used through its binary)

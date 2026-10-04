@@ -6,17 +6,18 @@ with read-only Cypher. Every call sees only the namespaces its caller can read: 
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer
-from app.domain import auth, cypher, graph_ask, graph_model, llm, organize
+from app.domain import auth, cypher, graph_ask, graph_history, graph_model, llm, organize
 from app.domain.store import DB
 
 router = APIRouter(tags=["graph"])
 SCOPE = Query("global", description='"global" (every shared namespace you can read) or "ns:<namespace>"')
+AS_OF = Annotated[str | None, Query(description="the graph as of a version: a number or a version's name (default: today's)")]
 _KEEP = 8  # property graphs kept in memory per process
 
 
@@ -25,19 +26,28 @@ def _stamp(db: DB):
     return tuple(db.values("SELECT VALUE n FROM seq")), tuple(r.get("analyzed_at") for r in latest)
 
 
-def projection(request: Request, db: DB, acl, scope: str) -> graph_model.Graph:
-    """The caller's graph for a scope, cached until anything in the archive changes."""
+def projection(request: Request, db: DB, acl, scope: str, as_of: str | None = None) -> graph_model.Graph:
+    """The caller's graph for a scope, cached per graph version (graph_history.head) until anything else in the
+    archive changes; `as_of` is the graph at an earlier version (a number or a version's name)."""
     scope = "global" if scope in ("", "all", "global") else scope
     if not (scope == "global" or scope.startswith("ns:")):
         raise HTTPException(400, 'scope is "global" or "ns:<namespace>"')
+    version = None
+    if as_of not in (None, "", "head"):
+        try:
+            version = graph_history.resolve(db, as_of)
+        except KeyError:
+            raise HTTPException(404, f"no version is called {as_of}") from None
     readable = acl.readable()
     cache = request.app.state.graph_cache
-    key = ("property", scope, None if readable is None else tuple(sorted(readable)), _stamp(db))
+    key = ("property", scope, None if readable is None else tuple(sorted(readable)), version, graph_history.head(db), _stamp(db))
     if key not in cache:
         try:
-            g = graph_model.build(db, scope, readable)
+            g = graph_model.build(db, scope, readable, as_of=version)
         except KeyError:
             raise HTTPException(404, "not found") from None
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
         mine = [k for k in cache if isinstance(k, tuple) and k[:1] == ("property",)]
         for old in mine[: max(0, len(mine) - _KEEP + 1)]:
             cache.pop(old, None)
@@ -56,10 +66,10 @@ def _types(raw: str | None) -> list[str] | None:
 
 
 @router.get("/graph/schema")
-def graph_schema(request: Request, user: CurrentUser, acl: Acl, db: Db, scope: str = SCOPE) -> dict[str, Any]:
+def graph_schema(request: Request, user: CurrentUser, acl: Acl, db: Db, scope: str = SCOPE, as_of: AS_OF = None) -> dict[str, Any]:
     """What the graph holds in this scope: labels, relationship types (and what they join), properties and counts, with
     example queries. Agents read this before writing Cypher."""
-    g = projection(request, db, acl, scope)
+    g = projection(request, db, acl, scope, as_of)
     return {**graph_model.schema(g), "examples": graph_ask.EXAMPLES, "query_language": "cypher (read-only subset; see docs/graph.md)"}
 
 
@@ -77,9 +87,10 @@ def graph_related(
     ),
     limit: int = Query(200, ge=1, le=graph_model.MAX_RESULTS),
     scope: str = SCOPE,
+    as_of: AS_OF = None,
 ) -> dict[str, Any]:
     """Nodes related to one node, nearest first, with the relationships between them."""
-    g = projection(request, db, acl, scope)
+    g = projection(request, db, acl, scope, as_of)
     try:
         return graph_model.related(g, node, relation, depth, _types(types), limit)
     except KeyError:
@@ -100,9 +111,10 @@ def graph_paths(
     directed: bool = False,
     shortest: bool = False,
     scope: str = SCOPE,
+    as_of: AS_OF = None,
 ) -> dict[str, Any]:
     """Paths from a to b, shortest first: every simple path up to max_depth hops, or just the shortest ones."""
-    g = projection(request, db, acl, scope)
+    g = projection(request, db, acl, scope, as_of)
     try:
         return graph_model.paths(g, a, b, max_depth, limit, _types(types), directed, shortest)
     except KeyError:
@@ -114,10 +126,11 @@ class GraphQuery(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict, description="values for $parameters in the query")
     scope: str = "global"
     limit: int = Field(500, ge=1, le=5000, description="rows at most")
+    as_of: str | None = Field(None, description="query the graph as of a version: a number or a version's name")
 
 
 def run_query(request: Request, db: DB, acl, body: GraphQuery) -> dict[str, Any]:
-    g = projection(request, db, acl, body.scope)
+    g = projection(request, db, acl, body.scope, body.as_of)
     try:
         out = cypher.run(g, body.query, body.params, max_rows=body.limit)
     except cypher.CypherError as e:
@@ -136,6 +149,7 @@ class GraphQuestion(BaseModel):
     question: str = Field(min_length=1, max_length=1000, description="a question in plain language")
     scope: str = "global"
     limit: int = Field(200, ge=1, le=2000)
+    as_of: str | None = Field(None, description="ask the graph as of a version: a number or a version's name")
 
 
 @router.post("/graph/ask")
@@ -144,7 +158,7 @@ def ask_graph(request: Request, body: GraphQuestion, user: CurrentUser, acl: Acl
     read, and you get the answer with the query that found it ({question, cypher, explanation, result})."""
     if not llm.configured(cfg):
         raise HTTPException(409, "no language model is set up; ask in Cypher instead, or set one up in Settings")
-    g = projection(request, db, acl, body.scope)
+    g = projection(request, db, acl, body.scope, body.as_of)
     try:
         out = graph_ask.ask(cfg, g, body.question, graph_ask.EXAMPLES, max_rows=body.limit)
     except cypher.CypherError as e:

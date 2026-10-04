@@ -1,0 +1,14 @@
+:root {
+  --lens-blue: #1A73E8;
+  --lens-red: #EA4335;
+  --lens-green: #34A853;
+  --lens-gold: #F9AB00;
+  --lens-ink: #202124;
+  --lens-white: #FFFFFF;
+  --lens-secondary: #5F6368;
+  --lens-muted: #80868B;
+  --lens-surface: #F8F9FA;
+  --lens-border: #DADCE0;
+  --lens-blue-tint: #E8F0FE;
+  --lens-font: "DM Sans", system-ui, -apple-system, sans-serif;
+}

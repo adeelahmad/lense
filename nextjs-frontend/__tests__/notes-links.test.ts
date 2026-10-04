@@ -5,6 +5,7 @@ describe("links in notes", () => {
     expect(hrefFor("page:3")).toBe("/notes/3");
     expect(hrefFor("recording:12")).toBe("/resources/12");
     expect(hrefFor("entity:5", "pods")).toBe("/entities?entity=5&ns=pods");
+    expect(hrefFor("topic:2", "pods")).toBe("/topics/2");
     expect(hrefFor("speaker:7")).toBe("/speakers/7");
     expect(hrefFor("collection:4", "pods")).toBe("/library?namespace=pods&collection=4");
   });

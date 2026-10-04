@@ -14,7 +14,7 @@ import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import HTTPException, Request
 
@@ -22,11 +22,14 @@ from app.api.deps import Access, Principal
 from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
+from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
-from app.domain import analyze, library, rdf, render, store
+from app.api.v1.routes import topics as topic_routes
+from app.domain import analyze, graph_history, library, notebook, rdf, render, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
+from app.domain import topics as topicmod
 from app.domain.store import DB
 from app.schemas.entities import EntityList
 from app.schemas.search import SearchResults
@@ -75,6 +78,8 @@ class Arg:
     def schema(self) -> dict[str, Any]:
         if self.type == "string[]":
             s: dict[str, Any] = {"type": "array", "items": {"type": "string", **({"enum": list(self.enum)} if self.enum else {})}}
+        elif self.type == "integer[]":
+            s = {"type": "array", "items": {"type": "integer"}, "maxItems": self.maximum or 500}
         else:
             s = {"type": self.type}
             if self.enum:
@@ -82,7 +87,7 @@ class Arg:
         s["description"] = self.description
         if self.minimum is not None:
             s["minimum"] = self.minimum
-        if self.maximum is not None:
+        if self.maximum is not None and self.type != "integer[]":
             s["maximum"] = self.maximum
         if self.max_length is not None:
             s["maxLength"] = self.max_length
@@ -136,6 +141,19 @@ class Arg:
                 bad = [x for x in value if x not in self.enum]
                 if bad:
                     raise ToolError(f"{self.name}: {', '.join(bad)} isn't one of {', '.join(self.enum)}")
+            return value or self.default
+        elif t == "integer[]":
+            if isinstance(value, str):
+                value = [x.strip() for x in value.split(",") if x.strip()]
+            if not isinstance(value, list) or not all(
+                (isinstance(x, int) and not isinstance(x, bool)) or (isinstance(x, str) and re.fullmatch(r"\d+", x)) for x in value
+            ):
+                raise ToolError(f"{self.name} is a list of whole numbers")
+            value = [int(x) for x in value]
+            if self.maximum is not None and len(value) > self.maximum:
+                raise ToolError(f"{self.name} has at most {self.maximum} items")
+            if self.required and not value:
+                raise ToolError(f"{self.name} is required")
             return value or self.default
         if self.enum and t != "string[]" and value not in self.enum:
             raise ToolError(f"{self.name} is one of {', '.join(self.enum)}")
@@ -210,7 +228,8 @@ def call(ctx: Context, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if unknown:
             raise ToolError(f"unknown argument {', '.join(unknown)}; {name} takes {', '.join(a.name for a in t.args) or 'none'}")
         values = {a.name: a.parse(arguments.get(a.name)) for a in t.args}
-        return _text(t.run(ctx, **values))
+        with graph_history.acting(via="mcp", tool=name):
+            return _text(t.run(ctx, **values))
     except ToolError as e:
         return _text({"error": str(e)}, error=True)
     except HTTPException as e:
@@ -688,7 +707,7 @@ def _entity_row(e: dict[str, Any]) -> dict[str, Any]:
 @tool(
     "list_entities",
     "Find entities",
-    "Entities: the people, organisations, products, places, events, works and topics mentioned in recordings, the most "
+    "Entities: the people, organisations, products, places, events, works and terms mentioned in recordings, the most "
     "mentioned first. Find one by name with query; its entity_id opens it in get_entity and the graph.",
     Arg("query", "string", "a name, or part of one", max_length=200),
     Arg("types", "string[]", "only these types", enum=ENTITY_TYPES),
@@ -939,9 +958,10 @@ def _gscope(namespace: str | None) -> str:
 @tool(
     "graph_schema",
     "What the graph holds",
-    "The archive as a property graph: node labels (Namespace, Collection, Recording, Speaker, Entity and its type) with "
-    "their properties and counts, relationship types (CONTAINS, HAS_SPEAKER, MENTIONS, SAID, MENTIONED_WITH, "
-    "SPOKE_WITH, SAME_AS, SAME_THING) and what they join, and example Cypher. Read it before graph_query.",
+    "The archive as a property graph: node labels (Namespace, Collection, Recording, Speaker, Entity and its type, "
+    "Topic) with their properties and counts, relationship types (CONTAINS, HAS_SPEAKER, MENTIONS, SAID, "
+    "MENTIONED_WITH, SPOKE_WITH, SAME_AS, SAME_THING, ABOUT, NARROWER, RELATED) and what they join, and example "
+    "Cypher. Read it before graph_query.",
     Arg("namespace", "string", "one namespace (else every namespace that shares its graph)"),
 )
 def graph_schema(ctx: Context, namespace: str | None) -> dict[str, Any]:
@@ -968,16 +988,24 @@ def graph_query(ctx: Context, query: str, namespace: str | None, limit: int) -> 
 @tool(
     "graph_related",
     "Walk the graph from a node",
-    "A node's parents, children, ancestors or descendants (along CONTAINS, HAS_SPEAKER, MENTIONS and SAID: namespace "
-    "> collection > recording > speaker and entity), or its neighbours over any relationship, nearest first. Nodes "
-    "are n<id>, c<id>, r<id>, s<id> and e<id> (e:<key> for an entity across namespaces).",
+    "A node's parents, children, ancestors or descendants (along CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and "
+    "NARROWER: namespace > collection > recording > speaker, entity and topic > narrower topic), or its neighbours "
+    "over any relationship, nearest first. Nodes are n<id>, c<id>, r<id>, s<id>, e<id> (e:<key> for an entity across "
+    "namespaces) and t<id>.",
     Arg("node", "string", "the node id", required=True, max_length=200),
     Arg("relation", "string", "which way to walk", required=True, enum=("parents", "children", "ancestors", "descendants", "neighbours")),
     Arg("depth", "integer", "steps out (ancestors, descendants, neighbours)", default=1, minimum=1, maximum=8),
     Arg("namespace", "string", "one namespace (else every namespace that shares its graph)"),
     Arg("limit", "integer", "nodes at most", default=200, minimum=1, maximum=2000),
 )
-def graph_related(ctx: Context, node: str, relation: str, depth: int, namespace: str | None, limit: int) -> dict[str, Any]:
+def graph_related(
+    ctx: Context,
+    node: str,
+    relation: Literal["children", "parents", "ancestors", "descendants", "neighbours"],
+    depth: int,
+    namespace: str | None,
+    limit: int,
+) -> dict[str, Any]:
     return graph_routes.graph_related(
         ctx.request,
         ctx.user,
@@ -1020,6 +1048,87 @@ def graph_paths(ctx: Context, from_node: str, to_node: str, max_depth: int, shor
 
 
 @tool(
+    "list_topics",
+    "Find topics",
+    "Topics: each namespace's controlled vocabulary of what its recordings are about (SKOS concepts), by label, with "
+    "other labels, a definition, broader topics and how many recordings are about each. query matches any label.",
+    Arg("query", "string", "a label, or part of one", max_length=200),
+    Arg("namespace", "string", "only this namespace"),
+    Arg("top", "boolean", "only topics with no broader topic", default=False),
+    Arg("broader_id", "integer", "only the narrower topics of this one"),
+    Arg("limit", "integer", "how many", default=50, minimum=1, maximum=200),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0),
+)
+def list_topics(
+    ctx: Context, query: str | None, namespace: str | None, top: bool, broader_id: int | None, limit: int, offset: int
+) -> dict[str, Any]:
+    res = topic_routes.list_topics(ctx.user, ctx.acl, ctx.db, query or "", namespace or "", top, broader_id, limit, offset)
+    out: dict[str, Any] = {
+        "total": res.total,
+        "topics": [
+            {
+                "topic_id": t.id,
+                "label": t.label,
+                "namespace": t.namespace,
+                "also": t.alt or None,
+                "definition": t.definition,
+                "broader_ids": t.broader or None,
+                "narrower": t.narrower,
+                "recordings": t.recordings,
+            }
+            for t in res.items
+        ],
+    }
+    if offset + len(res.items) < res.total:
+        out["next_offset"] = offset + len(res.items)
+    return out
+
+
+@tool(
+    "get_topic",
+    "Get a topic",
+    "One topic: its labels and definition, its broader, narrower and related topics, and the recordings about it "
+    "(accepted, and suggested ones waiting for someone), each with a url.",
+    Arg("topic_id", "integer", "the topic (from list_topics or the graph's t<id>)", required=True),
+)
+def get_topic(ctx: Context, topic_id: int) -> dict[str, Any]:
+    d = topic_routes.get_topic(topic_id, ctx.user, ctx.acl, ctx.db)
+    return {
+        "topic_id": d.id,
+        "label": d.label,
+        "namespace": d.namespace,
+        "also": d.alt or None,
+        "definition": d.definition,
+        "broader": [{"topic_id": x.id, "label": x.label} for x in d.broader],
+        "narrower": [{"topic_id": x.id, "label": x.label} for x in d.narrower],
+        "related": [{"topic_id": x.id, "label": x.label} for x in d.related],
+        "recordings": [{"recording_id": a.recording, "title": a.title, "status": a.status, "url": ctx.link(a.recording)} for a in d.about],
+    }
+
+
+@tool(
+    "suggest_topic",
+    "Suggest a topic for recordings",
+    "Say recordings are about a topic, as a suggestion that waits for someone to accept it on the recording or the "
+    "topic. What they accepted or dismissed stays. Needs a token with the write scope and editor access.",
+    Arg("topic_id", "integer", "the topic", required=True),
+    Arg("recording_ids", "integer[]", "the recordings, in the topic's namespace", required=True, maximum=500),
+    writes=True,
+)
+def suggest_topic(ctx: Context, topic_id: int, recording_ids: list[int]) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to suggest topics")
+    row = ctx.db.one("SELECT space FROM $r", r=R("topic", int(topic_id)))
+    if not row:
+        raise KeyError(topic_id)
+    ctx.acl.need(row["space"], "editor")
+    for rid in recording_ids:
+        ctx.acl.recording(rid)
+    made = topicmod.propose(ctx.db, topic_id, recording_ids, "assistant", ctx.user.email)
+    return {"suggested_for": made, "waiting": "for someone to accept on the recording or the topic"}
+
+
+@tool(
     "propose_graph_change",
     "Propose a change to the graph",
     "Ask for two entities to be merged (same namespace; a is kept) or linked as the same thing (different namespaces). "
@@ -1037,3 +1146,117 @@ def propose_graph_change(ctx: Context, kind: str, a: str, b: str, reason: str | 
         raise ToolError("this token is read-only: ask for a token with the write scope to propose changes")
     body = graph_routes.ChangeAsk(kind=kind, a=a, b=b, reason=reason, apply=apply)
     return graph_routes.propose_graph_change(ctx.request, body, ctx.user, ctx.acl, ctx.db)
+
+
+# ---------- notes (docs/notes.md) ----------
+def _note_url(ctx: Context, pid: int) -> str:
+    return f"{ctx.web}/notes/{pid}"
+
+
+@tool(
+    "find_notes",
+    "Find notes",
+    "Notes in the namespaces you can read: free notes and the pages of recordings, entities, topics, collections and "
+    "speakers, found by words in their title, one-line summary or text (title matches first, then the latest). Each "
+    "has its id, one-line summary, where it is filed (PARA: project, area, resource, archive), what it is the page of, "
+    "and a url.",
+    Arg("query", "string", "words to look for", max_length=200),
+    Arg("namespace", "string", "only this namespace"),
+    Arg("place", "string", "only notes filed here", enum=notebook.PLACES),
+    Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
+)
+def find_notes(ctx: Context, query: str | None, namespace: str | None, place: str | None, limit: int) -> dict[str, Any]:
+    spaces = [ctx.acl.namespace(namespace)] if namespace else ctx.acl.spaces()
+    names = store.space_names(ctx.db)
+    total, hits = notebook.find(ctx.db, spaces, query, place, limit)
+    return {
+        "total": total,
+        "notes": [
+            store.clean(
+                {
+                    "note_id": r["id"],
+                    "title": r["title"],
+                    "summary": r.get("summary"),
+                    "place": r.get("place"),
+                    "page_of": r.get("about"),
+                    "namespace": names.get(r["space"]),
+                    "updated": r.get("updated_at"),
+                    "url": _note_url(ctx, r["id"]),
+                }
+            )
+            for r in hits
+        ],
+    }
+
+
+@tool(
+    "read_note",
+    "Read a note",
+    "A note's Markdown, with what it links to and the notes linking to it: by note_id, or the page of a thing "
+    '(about, like "recording:12", "entity:5" or "topic:9"). Links in the Markdown are written @[label](kind:id) and, for '
+    "topics, #[label](topic:id).",
+    Arg("note_id", "integer", "the note (from find_notes)"),
+    Arg("about", "string", 'the thing whose page to read, like "recording:12"', max_length=60),
+)
+def read_note(ctx: Context, note_id: int | None, about: str | None) -> dict[str, Any]:
+    if note_id is None and not about:
+        raise ToolError("give note_id or about")
+    if note_id is not None:
+        p = note_routes.get_page(note_id, ctx.user, ctx.acl, ctx.db)
+    else:
+        kind, _, key = str(about).partition(":")
+        if not key.isdigit():
+            raise ToolError('about is a thing like "recording:12"')
+        p = note_routes.page_about(kind, int(key), ctx.user, ctx.acl, ctx.db)
+        if p.id is None:
+            return {"page_of": about, "note": None, "title": p.title, "linked_from": [b.title for b in p.backlinks] or None}
+    return store.clean(
+        {
+            "note_id": p.id,
+            "title": p.title,
+            "summary": p.summary,
+            "date": p.date,
+            "place": p.place,
+            "page_of": p.about,
+            "parent_id": p.parent,
+            "namespace": p.namespace,
+            "written_by": p.author,
+            "body": _cut(p.body, FETCH_CHARS),
+            "links": [{"target": x.target, "name": x.name} for x in p.links] or None,
+            "linked_from": [{"note_id": b.page, "title": b.title} for b in p.backlinks] or None,
+            "url": _note_url(ctx, p.id),
+        }
+    )
+
+
+@tool(
+    "write_note",
+    "Write a note",
+    "Write a new note in a namespace, or the page of a thing (about; each thing has one). Give it a specific title, a "
+    "one-line summary of what it holds, Markdown text linking with @[label](recording:12), @[label](entity:5), "
+    "@[label](page:3) and #[label](topic:9), and where it is filed. It is marked as written by an assistant. Needs a "
+    "token with the write scope and editor access.",
+    Arg("namespace", "string", "the namespace", required=True),
+    Arg("title", "string", "the title", required=True, max_length=200),
+    Arg("body", "string", "the text, in Markdown", required=True, max_length=200_000),
+    Arg("summary", "string", "one line on what it holds", max_length=300),
+    Arg("place", "string", "where it is filed", enum=notebook.PLACES),
+    Arg("parent_id", "integer", "put it inside this note"),
+    Arg("about", "string", 'make it the page of this thing, like "entity:5"', max_length=60),
+    writes=True,
+)
+def write_note(
+    ctx: Context,
+    namespace: str,
+    title: str,
+    body: str,
+    summary: str | None,
+    place: str | None,
+    parent_id: int | None,
+    about: str | None,
+) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to write notes")
+    sid = ctx.acl.namespace(namespace, "editor")
+    pid = notebook.create(ctx.db, sid, ctx.user.id, title, body, summary, None, place, parent_id, about, author="assistant")
+    return {"note_id": pid, "url": _note_url(ctx, pid)}

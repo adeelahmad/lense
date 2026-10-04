@@ -11,6 +11,7 @@ from typing import Any
 
 from app.config import settings as env
 from app.domain import (
+    activity,
     auth,
     bridge,
     components,
@@ -37,6 +38,7 @@ class Archive:
         self.base = cfg or store.load_config(env.ARCHIVE_CONFIG)
         components.activate(self.base)  # packages and models fetched into the data folder
         self.db = db or store.connect(self.base)
+        activity.bind(self.db)  # calls made outside any job, run or request still reach the ledger
         self.owns_db = db is None
         self.settings = settings.Settings(self.db, self.base)
         self.stop = threading.Event()

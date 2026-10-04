@@ -24,7 +24,7 @@ from fastapi import Depends, HTTPException, Request
 
 from app.core import security
 from app.domain import access as acc
-from app.domain import auth, hierarchy, ipgroups, oauth, store
+from app.domain import auth, graph_history, hierarchy, ipgroups, oauth, store
 from app.domain.store import DB
 
 Config = dict[str, Any]
@@ -64,6 +64,13 @@ class Principal:
 
 
 def _principal(request: Request, db: DB) -> Principal | None:
+    p = _resolve(request, db)
+    if p:  # graph changes made in this request are recorded as theirs (graph_history.py)
+        graph_history.note(actor=p.email, via={"access": "web", "token": "token", "oauth": "oauth"}[p.via])
+    return p
+
+
+def _resolve(request: Request, db: DB) -> Principal | None:
     if hasattr(request.state, "principal"):
         return request.state.principal
     p: Principal | None = None
@@ -76,7 +83,8 @@ def _principal(request: Request, db: DB) -> Principal | None:
                 u["id"], u["email"], u.get("name"), bool(u.get("admin")), "token", "write" if u.get("scope") == "write" else "read"
             )
     elif raw.startswith("lo_"):
-        u = oauth.token_account(db, raw)
+        # with OAuth turned off, apps' tokens stop working at once (their grants stay, so turning it back on restores them)
+        u = oauth.token_account(db, raw) if oauth.enabled(request.app.state.settings.current()) else None
         if u:
             p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "oauth", u["scope"], resource=u.get("resource"))
     elif raw:
