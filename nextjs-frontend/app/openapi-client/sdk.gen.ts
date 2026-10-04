@@ -489,6 +489,18 @@ import type {
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GraphAsOfData,
+  GraphAsOfErrors,
+  GraphAsOfResponses,
+  GraphDiffData,
+  GraphDiffErrors,
+  GraphDiffResponses,
+  GraphHistoryEventData,
+  GraphHistoryEventErrors,
+  GraphHistoryEventResponses,
+  GraphHistoryListData,
+  GraphHistoryListErrors,
+  GraphHistoryListResponses,
   GraphPathsData,
   GraphPathsErrors,
   GraphPathsResponses,
@@ -501,6 +513,14 @@ import type {
   GraphSchemaData,
   GraphSchemaErrors,
   GraphSchemaResponses,
+  GraphTagData,
+  GraphTagErrors,
+  GraphTagResponses,
+  GraphTagsData,
+  GraphTagsResponses,
+  GraphUntagData,
+  GraphUntagErrors,
+  GraphUntagResponses,
   HideEntityData,
   HideEntityErrors,
   HideEntityResponses,
@@ -4802,6 +4822,110 @@ export class Graph {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Graph History List
+   *
+   * The graph's versions, newest first: what changed, who changed it, through what (web, token, oauth, assistant,
+   * mcp, routine, workflow, analysis, cli, system) and why, with the entities each touched.
+   */
+  public static graphHistoryList<ThrowOnError extends boolean = false>(
+    options?: Options<GraphHistoryListData, ThrowOnError>,
+  ): RequestResult<GraphHistoryListResponses, GraphHistoryListErrors, ThrowOnError> {
+    return (options?.client ?? client).get<GraphHistoryListResponses, GraphHistoryListErrors, ThrowOnError>({
+      url: "/api/v1/graph/history",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph History Event
+   *
+   * One version in full: every record it changed, as it was before and after.
+   */
+  public static graphHistoryEvent<ThrowOnError extends boolean = false>(
+    options: Options<GraphHistoryEventData, ThrowOnError>,
+  ): RequestResult<GraphHistoryEventResponses, GraphHistoryEventErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphHistoryEventResponses, GraphHistoryEventErrors, ThrowOnError>({
+      url: "/api/v1/graph/history/{version}",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph As Of
+   *
+   * The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone
+   * said are different. Mentions aren't versioned: counts elsewhere are today's.
+   */
+  public static graphAsOf<ThrowOnError extends boolean = false>(
+    options: Options<GraphAsOfData, ThrowOnError>,
+  ): RequestResult<GraphAsOfResponses, GraphAsOfErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphAsOfResponses, GraphAsOfErrors, ThrowOnError>({
+      url: "/api/v1/graph/as-of/{version}",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Diff
+   *
+   * What changed between two versions: entities added, removed and changed (field by field), and other names,
+   * links and distinct pairs added and removed.
+   */
+  public static graphDiff<ThrowOnError extends boolean = false>(
+    options: Options<GraphDiffData, ThrowOnError>,
+  ): RequestResult<GraphDiffResponses, GraphDiffErrors, ThrowOnError> {
+    return (options.client ?? client).get<GraphDiffResponses, GraphDiffErrors, ThrowOnError>({
+      url: "/api/v1/graph/diff",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Tags
+   *
+   * Named versions, newest first.
+   */
+  public static graphTags<ThrowOnError extends boolean = false>(
+    options?: Options<GraphTagsData, ThrowOnError>,
+  ): RequestResult<GraphTagsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GraphTagsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/graph/tags",
+      ...options,
+    });
+  }
+
+  /**
+   * Graph Tag
+   *
+   * Name a version ("before the cleanup") to come back to it; naming again moves the name. Editors of a namespace
+   * (or admins) can.
+   */
+  public static graphTag<ThrowOnError extends boolean = false>(
+    options: Options<GraphTagData, ThrowOnError>,
+  ): RequestResult<GraphTagResponses, GraphTagErrors, ThrowOnError> {
+    return (options.client ?? client).post<GraphTagResponses, GraphTagErrors, ThrowOnError>({
+      url: "/api/v1/graph/tags",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Graph Untag
+   */
+  public static graphUntag<ThrowOnError extends boolean = false>(
+    options: Options<GraphUntagData, ThrowOnError>,
+  ): RequestResult<GraphUntagResponses, GraphUntagErrors, ThrowOnError> {
+    return (options.client ?? client).delete<GraphUntagResponses, GraphUntagErrors, ThrowOnError>({
+      url: "/api/v1/graph/tags/{name}",
+      ...options,
     });
   }
 }

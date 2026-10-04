@@ -6,7 +6,7 @@ Plans and progress for work in flight. Newest first.
 
 Goal (Adeel): make the graph replayable and versioned.
 
-Model (fastapi_backend/app/domain/graph_history.py, docs/graph.md "History"):
+Model (fastapi_backend/app/domain/graph_history.py, docs/graph-history.md):
 
 - Every change to the curated entity graph is one append-only `graph_event`: its number is the graph's version. It
   says when, who (a person, a routine, the assistant, analysis), through what (web app, API token, OAuth app,

@@ -15,6 +15,7 @@ from . import (
     extensions,
     entity_map,
     entity_setup,
+    graph_history,
     ops_tools,
     recsets,
     render,
@@ -646,6 +647,19 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
             "UPDATE $r SET status = 'declined', decided_at = $t, decided_by = $u", r=R("approval", a["id"]), t=store.now(), u=user["email"]
         )
         return {"status": "declined"}
+    with graph_history.acting(actor=user["email"], via="assistant", approval=a["id"]):
+        result = _carry_out(db, cfg, a, user, editable, decision, base, admin, readable)
+    db.q(
+        "UPDATE $r SET status = 'done', decided_at = $t, decided_by = $u, result = $res",
+        r=R("approval", a["id"]),
+        t=store.now(),
+        u=user["email"],
+        res=result,
+    )
+    return {"status": "done", **result}
+
+
+def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
     args = a["args"]
     if a["tool"] == "extension":
         box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
@@ -697,14 +711,7 @@ def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=F
         else:
             entities.retype(db, [eid], args.get("new_type"))
             result = {"type": args.get("new_type")}
-    db.q(
-        "UPDATE $r SET status = 'done', decided_at = $t, decided_by = $u, result = $res",
-        r=R("approval", a["id"]),
-        t=store.now(),
-        u=user["email"],
-        res=result,
-    )
-    return {"status": "done", **result}
+    return result
 
 
 def run_extension(db, cfg, args, user, admin, readable, toolbox=None):

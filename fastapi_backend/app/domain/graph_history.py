@@ -1,0 +1,479 @@
+"""The entity graph's history: every change is an append-only event, so the graph can be seen as of any version,
+compared between two versions, and an entity's own history read (docs/graph-history.md).
+
+What is versioned is what people and agents curate: the rows of `entity` (name, type, description, hidden, defined),
+`entity_alias` (the other ways a name is said), `entity_link` (the same thing in two namespaces) and `entity_distinct`
+(two things someone said aren't one). Mentions are not: analysis makes them from transcripts, whose edits have their
+own history (segment_edit). An as-of view uses today's mentions.
+
+A `graph_event:<n>` row is one change, and `n` is the graph's version after it:
+{at, op, actor, via, why, spaces, entities, ops: [{t: table, k: key, b: row before, a: row after, s: spaces}], origin}.
+`op` names what happened (entity.rename, entity.merge, link.add, analysis, ...); `actor` who did it (an email,
+`routine:<id>`, `analysis`, `system`); `via` through what (web, token, oauth, assistant, mcp, routine, analysis, cli);
+`origin` what it came from (a graph change, a merge, a routine run, a recording, an approval). Events are never
+changed or deleted; undoing a change is a new event.
+
+Writers wrap their writes: `with graph_history.change(db, "entity.rename", entities=[eid]):` snapshots the rows of the
+entities (and their aliases, links and distinct pairs) before and after the block, and records what differs. Changes
+inside a change join it, so a define that folds others in by a merge is one event. Who and why come from
+`graph_history.acting(actor=..., via=..., why=...)` around the work (the API sets the caller for each request).
+"""
+
+from __future__ import annotations
+
+import contextlib
+import contextvars
+import re
+
+from . import store
+
+R = store.R
+TABLES = ("entity", "entity_alias", "entity_link", "entity_distinct")
+VIAS = ("web", "token", "oauth", "assistant", "mcp", "routine", "workflow", "analysis", "cli", "system")
+SUMMARY = "record::id(id) AS version, at, op, actor, via, why, spaces, entities, origin, array::len(ops) AS changes"
+TAG_NAME = re.compile(r"^[\w .:+-]{1,80}$")
+
+_acting: contextvars.ContextVar[dict | None] = contextvars.ContextVar("lens_graph_acting", default=None)
+_open: contextvars.ContextVar[Change | None] = contextvars.ContextVar("lens_graph_change", default=None)
+
+
+# ---------- who, through what, why ----------
+@contextlib.contextmanager
+def acting(actor=None, via=None, why=None, **origin):
+    """Changes made inside are recorded as made by `actor`, through `via`, because of `why`, from `origin` (routine,
+    run, workflow, graph_change, recording, approval, ...). Nested ones add to (and override) the outer ones."""
+    outer = _acting.get() or {}
+    mine = store.clean({"actor": actor, "via": via, "why": why})
+    token = _acting.set({**outer, **mine, "origin": {**(outer.get("origin") or {}), **store.clean(origin)}})
+    try:
+        yield
+    finally:
+        _acting.reset(token)
+
+
+def note(**kw):
+    """Fill in the current `acting` block in place (the API learns who is calling after the request has started)."""
+    cur = _acting.get()
+    if cur is not None:
+        cur.update(store.clean(kw))
+
+
+def who():
+    return dict(_acting.get() or {})
+
+
+# ---------- snapshots ----------
+def _key(table, k):
+    return int(k) if table == "entity" else str(k)
+
+
+def _pairs(rows):
+    out = {}
+    for r in rows:
+        r = dict(r)
+        k = r.pop("id")
+        out[k] = r
+    return out
+
+
+def _snap(db, eids=(), keys=()):
+    """{(table, key): row or None} for these entities, the aliases, links and distinct pairs that name them, and the
+    records named in `keys` [(table, key)]."""
+    out = {}
+    ids = sorted({int(e) for e in eids})
+    if ids:
+        refs = [R("entity", i) for i in ids]
+        got = _pairs(db.rows("SELECT * FROM entity WHERE id IN $ids", ids=refs))
+        for i in ids:
+            out[("entity", i)] = got.get(i)
+        for k, r in _pairs(db.rows("SELECT * FROM entity_alias WHERE entity IN $e", e=ids)).items():
+            out[("entity_alias", str(k))] = r
+        for t in ("entity_link", "entity_distinct"):
+            for k, r in _pairs(db.rows(f"SELECT * FROM {t} WHERE a IN $e OR b IN $e", e=ids)).items():
+                out[(t, str(k))] = r
+    by_table = {}
+    for t, k in keys:
+        if (t, _key(t, k)) not in out:
+            by_table.setdefault(t, set()).add(_key(t, k))
+    for t, ks in by_table.items():
+        got = _pairs(db.rows(f"SELECT * FROM {t} WHERE id IN $ids", ids=[R(t, k) for k in sorted(ks, key=str)]))
+        for k in ks:
+            out[(t, k)] = got.get(k)
+    return out
+
+
+def _row_spaces(t, row, space_of):
+    if not row:
+        return set()
+    if t in ("entity", "entity_alias"):
+        return {row.get("space")} - {None}
+    return {space_of(row.get("a")), space_of(row.get("b"))} - {None}
+
+
+class Change:
+    """One change being made: what it touches, what it was before."""
+
+    def __init__(self, db, op, why, origin):
+        self.db, self.op, self.why, self.origin = db, op, why, dict(origin)
+        self.before: dict = {}
+        self.ids: set[int] = set()
+        self.keys: set = set()
+        self.version: int | None = None
+        self.always = False
+        self.marked: set[int] = set()
+
+    def touch(self, eids=(), aliases=(), keys=()):
+        """Watch these entities (before they change), alias keys [(space, key)] and records [(table, key)]."""
+        new_ids = {int(e) for e in eids if e is not None} - self.ids
+        new_keys = {("entity_alias", f"{int(s)}:{k}") for s, k in aliases} | {(t, _key(t, k)) for t, k in keys}
+        new_keys -= self.keys
+        if new_ids or new_keys:
+            for k, v in _snap(self.db, new_ids, new_keys).items():
+                self.before.setdefault(k, v)
+            self.ids |= new_ids
+            self.keys |= new_keys
+
+    def created(self, *eids):
+        """Entities this change made: they were nothing before."""
+        for e in eids:
+            if e is not None:
+                self.before.setdefault(("entity", int(e)), None)
+                self.ids.add(int(e))
+
+    def add(self, **origin):
+        self.origin.update(store.clean(origin))
+
+    def mark(self, *eids):
+        """Record the event even when no versioned row changed (a moved mention), as about these entities."""
+        self.always = True
+        self.marked |= {int(e) for e in eids if e}
+
+    def ops(self):
+        after = _snap(self.db, self.ids, self.keys | set(self.before))
+        out, ents = [], {}
+        for (t, k), row in {**self.before, **after}.items():
+            if t == "entity":
+                ents[k] = after.get((t, k)) or self.before.get((t, k))
+        for t, k in sorted(set(self.before) | set(after), key=lambda x: (TABLES.index(x[0]), str(x[1]))):
+            b, a = self.before.get((t, k)), after.get((t, k))
+            if b != a:
+                out.append({"t": t, "k": k, "b": b, "a": a})
+        missing = {
+            int(x)
+            for o in out
+            if o["t"] in ("entity_link", "entity_distinct")
+            for x in ((o.get("a") or o.get("b")).get("a"), (o.get("a") or o.get("b")).get("b"))
+            if x is not None and int(x) not in ents
+        }
+        if missing:
+            for r in self.db.rows("SELECT record::id(id) AS id, space FROM entity WHERE id IN $ids", ids=[R("entity", i) for i in missing]):
+                ents[r["id"]] = r
+
+        def space_of(e):
+            return (ents.get(int(e)) or {}).get("space") if e is not None else None
+
+        for o in out:
+            o["s"] = sorted(_row_spaces(o["t"], o.get("a"), space_of) | _row_spaces(o["t"], o.get("b"), space_of))
+        return out
+
+
+@contextlib.contextmanager
+def change(db, op, entities=(), aliases=(), keys=(), why=None, **origin):
+    """Record what the block changes as one event (none when nothing changed). Inside another change, it joins it."""
+    outer = _open.get()
+    if outer is not None:
+        outer.touch(entities, aliases, keys)
+        outer.add(**origin)
+        yield outer
+        return
+    ch = Change(db, op, why, origin)
+    ch.touch(entities, aliases, keys)
+    token = _open.set(ch)
+    try:
+        yield ch
+    finally:
+        _open.reset(token)
+    ops = ch.ops()
+    spaces = None
+    if ch.marked and not ops:
+        spaces = sorted(set(db.values("SELECT VALUE space FROM entity WHERE id IN $i", i=[R("entity", e) for e in ch.marked])))
+    ch.version = record(db, ch.op, ops, why=ch.why, origin=ch.origin, entities=ch.marked, spaces=spaces, always=ch.always)
+
+
+def record(db, op, ops, why=None, origin=None, actor=None, via=None, entities=(), spaces=None, always=False):
+    """Write one event for these ops; its version (None when there is nothing to record)."""
+    if not ops and not always:
+        return None
+    w = who()
+    n = db.next_id("graph_event")
+    ents = {int(o["k"]) for o in ops if o["t"] == "entity"} | {int(x) for o in ops if o["t"] != "entity" for x in _ends(o)}
+    ents = sorted(ents | {int(e) for e in entities})
+    row = store.clean(
+        {
+            "at": store.now(),
+            "op": op,
+            "actor": actor or w.get("actor") or (w.get("via") if w.get("via") in ("analysis", "routine", "cli") else None) or "system",
+            "via": via or w.get("via") or "system",
+            "why": (str(why or w.get("why") or "")[:500]) or None,
+            "spaces": sorted({s for o in ops for s in o["s"]} | set(spaces or [])),
+            "entities": ents,
+            "ops": ops,
+            "origin": {**(w.get("origin") or {}), **store.clean(origin or {})} or None,
+        }
+    )
+    db.q("CREATE $r CONTENT $d", r=R("graph_event", n), d=row)
+    return n
+
+
+def _ends(o):
+    row = o.get("a") or o.get("b") or {}
+    if o["t"] == "entity_alias":
+        return [row["entity"]] if row.get("entity") is not None else []
+    return [x for x in (row.get("a"), row.get("b")) if x is not None]
+
+
+# ---------- reading the history ----------
+def head(db):
+    """The graph's current version (0 before anything was recorded)."""
+    got = db.values("SELECT VALUE n FROM $r", r=R("seq", "graph_event"))
+    return int(got[0]) if got and got[0] is not None else 0
+
+
+def _visible(ev, spaces):
+    return spaces is None or set(ev.get("spaces") or []) <= set(spaces)
+
+
+def versions(db, spaces=None, entity=None, before=None, limit=50):
+    """Events, newest first, whose namespaces are all in `spaces` (None: all); with `entity`, the ones that touched it."""
+    where, args = [], {"n": int(limit)}
+    if spaces is not None:
+        where.append("spaces ALLINSIDE $s")
+        args["s"] = sorted(spaces)
+    if entity is not None:
+        where.append("$e INSIDE entities")
+        args["e"] = int(entity)
+    if before is not None:
+        where.append("id < $b")
+        args["b"] = R("graph_event", int(before))
+    sql = f"SELECT {SUMMARY} FROM graph_event" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY version DESC LIMIT $n"
+    rows = db.rows(sql, **args)
+    names = _names(db, {e for r in rows for e in r.get("entities") or []}, rows_of=None)
+    tags = _tags_by_version(db)
+    for r in rows:
+        r["names"] = {str(e): names[e] for e in r.get("entities") or [] if e in names}
+        r["tags"] = tags.get(r["version"], [])
+    return rows
+
+
+def event(db, version, spaces=None):
+    ev = db.one("SELECT *, record::id(id) AS version FROM $r", r=R("graph_event", int(version)))
+    if not ev or not _visible(ev, spaces):
+        raise KeyError(version)
+    ev.pop("id", None)
+    ev["tags"] = _tags_by_version(db).get(ev["version"], [])
+    return ev
+
+
+def _events_after(db, version, upto=None):
+    sql = "SELECT record::id(id) AS version, ops FROM graph_event WHERE id > $v" + (" AND id <= $u" if upto is not None else "")
+    return db.rows(sql + " ORDER BY version", v=R("graph_event", int(version)), u=R("graph_event", int(upto or 0)))
+
+
+def live(db):
+    """Today's graph: {table: {key: row}}."""
+    return {t: {_key(t, k): r for k, r in _pairs(db.rows(f"SELECT * FROM {t}")).items()} for t in TABLES}
+
+
+def _scoped(state, spaces):
+    if spaces is None:
+        return state
+    sp = set(spaces)
+    ents = {k: r for k, r in state["entity"].items() if r.get("space") in sp}
+    return {
+        "entity": ents,
+        "entity_alias": {k: r for k, r in state["entity_alias"].items() if r.get("space") in sp},
+        "entity_link": {k: r for k, r in state["entity_link"].items() if r.get("a") in ents and r.get("b") in ents},
+        "entity_distinct": {k: r for k, r in state["entity_distinct"].items() if r.get("a") in ents and r.get("b") in ents},
+    }
+
+
+def state_at(db, version, spaces=None):
+    """The graph as it was at `version`: today's rows with every later event walked back."""
+    version = int(version)
+    if version < 0 or version > head(db):
+        raise ValueError(f"the graph has versions 0 to {head(db)}")
+    s = live(db)
+    for ev in reversed(_events_after(db, version)):
+        for o in reversed(ev["ops"]):
+            k = _key(o["t"], o["k"])
+            if o.get("b") is None:
+                s[o["t"]].pop(k, None)
+            else:
+                s[o["t"]][k] = o.get("b")
+    return _scoped(s, spaces)
+
+
+def as_of(db, version, spaces=None):
+    """The graph at a version, for people: entities with their other names, links and distinct pairs."""
+    s = state_at(db, version, spaces)
+    al = {}
+    for r in s["entity_alias"].values():
+        al.setdefault(r["entity"], []).append(r["key"])
+    return {
+        "version": int(version),
+        "entities": [
+            store.clean({"id": k, **{f: r.get(f) for f in ENTITY_FIELDS}, "aliases": sorted(al.get(k, [])) or None})
+            for k, r in sorted(s["entity"].items())
+        ],
+        "links": [[r["a"], r["b"]] for _, r in sorted(s["entity_link"].items())],
+        "distinct": [[r["a"], r["b"]] for _, r in sorted(s["entity_distinct"].items())],
+    }
+
+
+ENTITY_FIELDS = ("space", "key", "name", "type", "description", "hidden", "hidden_reason", "defined", "builtin", "collection")
+
+
+def diff(db, a, b, spaces=None):
+    """What changed between versions a and b (a < b): entities added, removed and changed (field by field), and the
+    aliases, links and distinct pairs added and removed."""
+    a, b = int(a), int(b)
+    if a > b:
+        a, b = b, a
+    top = head(db)
+    if b > top:
+        raise ValueError(f"the graph has versions 0 to {top}")
+    first, last, events = {}, {}, 0
+    for ev in _events_after(db, a, b):
+        events += 1
+        for o in ev["ops"]:
+            k = (o["t"], _key(o["t"], o["k"]))
+            first.setdefault(k, o.get("b"))
+            last[k] = o.get("a")
+    sp = set(spaces) if spaces is not None else None
+    ent_space = {}
+    for (t, k), row in {**first, **last}.items():
+        if t == "entity" and row:
+            ent_space[k] = row.get("space")
+    need = {
+        int(x)
+        for (t, _), row in {**first, **last}.items()
+        if t in ("entity_link", "entity_distinct") and row
+        for x in (row.get("a"), row.get("b"))
+        if int(x) not in ent_space
+    }
+    if need:
+        for r in db.rows("SELECT record::id(id) AS id, space FROM entity WHERE id IN $i", i=[R("entity", x) for x in need]):
+            ent_space[r["id"]] = r["space"]
+
+    def seen(t, row):
+        if sp is None or not row:
+            return True
+        if t in ("entity", "entity_alias"):
+            return row.get("space") in sp
+        return ent_space.get(row.get("a")) in sp and ent_space.get(row.get("b")) in sp
+
+    out = {
+        "from": a,
+        "to": b,
+        "events": events,
+        "entities": {"added": [], "removed": [], "changed": []},
+        "aliases": {"added": [], "removed": []},
+        "links": {"added": [], "removed": []},
+        "distinct": {"added": [], "removed": []},
+    }
+    names = _names(db, set(ent_space), rows_of={k: (last.get(("entity", k)) or first.get(("entity", k))) for k in ent_space})
+    for t, k in sorted(first, key=lambda x: (TABLES.index(x[0]), str(x[1]))):
+        before, after = first[(t, k)], last[(t, k)]
+        if before == after or not (seen(t, before) and seen(t, after)):
+            continue
+        if t == "entity":
+            if before is None:
+                out["entities"]["added"].append(store.clean({"id": k, **{f: after.get(f) for f in ENTITY_FIELDS}}))
+            elif after is None:
+                out["entities"]["removed"].append(store.clean({"id": k, **{f: before.get(f) for f in ENTITY_FIELDS}}))
+            else:
+                fields = {
+                    f: [before.get(f), after.get(f)]
+                    for f in sorted(set(before) | set(after))
+                    if f != "ekey" and before.get(f) != after.get(f)
+                }
+                out["entities"]["changed"].append({"id": k, "name": after.get("name"), "fields": fields})
+        elif t == "entity_alias":
+            for row, kind in ((before, "removed"), (after, "added")):
+                if row:
+                    out["aliases"][kind].append(
+                        {"key": row["key"], "entity": row["entity"], "name": names.get(row["entity"]), "space": row["space"]}
+                    )
+        else:
+            kind = {"entity_link": "links", "entity_distinct": "distinct"}[t]
+            row = after or before
+            pair = {"a": row["a"], "b": row["b"], "names": [names.get(row["a"]), names.get(row["b"])]}
+            out[kind]["added" if after else "removed"].append(pair)
+    return out
+
+
+def _names(db, eids, rows_of=None):
+    out = {k: r.get("name") for k, r in (rows_of or {}).items() if r}
+    rest = [e for e in eids if e not in out]
+    if rest:
+        for r in db.rows("SELECT record::id(id) AS id, name FROM entity WHERE id IN $i", i=[R("entity", int(e)) for e in rest]):
+            out[r["id"]] = r["name"]
+        left = [e for e in rest if e not in out]
+        if left:  # gone since: the name from the last event that had it
+            for ev in db.rows(
+                "SELECT record::id(id) AS version, ops FROM graph_event WHERE entities ANYINSIDE $e ORDER BY version DESC", e=left
+            ):
+                for o in ev["ops"]:
+                    row = o.get("b") or o.get("a")
+                    if o["t"] == "entity" and row and int(o["k"]) in left and int(o["k"]) not in out:
+                        out[int(o["k"])] = row.get("name")
+    return out
+
+
+# ---------- named versions ----------
+def _tags_by_version(db):
+    out = {}
+    for r in db.rows("SELECT name, version FROM graph_tag ORDER BY version"):
+        out.setdefault(r["version"], []).append(r["name"])
+    return out
+
+
+def tags(db):
+    return db.rows("SELECT name, version, note, by, at FROM graph_tag ORDER BY version DESC")
+
+
+def tag(db, name, version=None, note=None, by=None):
+    """Name a version (default: the current one). A name is used once; naming again moves it."""
+    name = " ".join(str(name or "").split())
+    if not TAG_NAME.match(name):
+        raise ValueError("a name is 1 to 80 letters, digits, spaces or . : + -")
+    top = head(db)
+    v = top if version is None else int(version)
+    if not 0 <= v <= top:
+        raise ValueError(f"the graph has versions 0 to {top}")
+    db.q(
+        "UPSERT $r CONTENT $d",
+        r=R("graph_tag", name.lower()),
+        d=store.clean({"name": name, "version": v, "note": (str(note)[:300] if note else None), "by": by, "at": store.now()}),
+    )
+    return {"name": name, "version": v}
+
+
+def untag(db, name):
+    key = " ".join(str(name or "").split()).lower()
+    if not db.one("SELECT id FROM $r", r=R("graph_tag", key)):
+        raise KeyError(name)
+    db.q("DELETE $r", r=R("graph_tag", key))
+
+
+def resolve(db, ref):
+    """A version from a number, a name, or `head`."""
+    if ref is None or str(ref).strip().lower() in ("", "head", "now", "latest"):
+        return head(db)
+    s = str(ref).strip()
+    if s.lstrip("v").isdigit():
+        return int(s.lstrip("v"))
+    got = db.one("SELECT version FROM $r", r=R("graph_tag", " ".join(s.split()).lower()))
+    if not got:
+        raise KeyError(ref)
+    return int(got["version"])

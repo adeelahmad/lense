@@ -24,7 +24,7 @@ from fastapi import Depends, HTTPException, Request
 
 from app.core import security
 from app.domain import access as acc
-from app.domain import auth, hierarchy, ipgroups, oauth, store
+from app.domain import auth, graph_history, hierarchy, ipgroups, oauth, store
 from app.domain.store import DB
 
 Config = dict[str, Any]
@@ -64,6 +64,13 @@ class Principal:
 
 
 def _principal(request: Request, db: DB) -> Principal | None:
+    p = _resolve(request, db)
+    if p:  # graph changes made in this request are recorded as theirs (graph_history.py)
+        graph_history.note(actor=p.email, via={"access": "web", "token": "token", "oauth": "oauth"}[p.via])
+    return p
+
+
+def _resolve(request: Request, db: DB) -> Principal | None:
     if hasattr(request.state, "principal"):
         return request.state.principal
     p: Principal | None = None

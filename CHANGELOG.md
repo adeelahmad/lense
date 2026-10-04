@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The entity graph keeps its history.** Every change to entities, their other names, links across namespaces and
+  "not the same" pairs is recorded as a numbered version: what changed, who (a person, a routine, the assistant,
+  analysis), through what (the web app, a token, an app, MCP) and why. `GET /api/v1/graph/history` lists versions
+  (one entity's with `entity`), `/graph/as-of/{version}` shows the graph as it was, `/graph/diff` what changed
+  between two versions, and `/graph/tags` names versions to come back to. See docs/graph-history.md.
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or

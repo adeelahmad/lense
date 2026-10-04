@@ -834,6 +834,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS graph_change_run ON graph_change FIELDS run",
     "DEFINE INDEX IF NOT EXISTS graph_change_status ON graph_change FIELDS status",
     "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
+    # the entity graph's history (graph_history.py): one append-only event per change, and named versions
+    "DEFINE TABLE IF NOT EXISTS graph_event SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS graph_tag SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",
