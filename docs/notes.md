@@ -5,8 +5,9 @@ assistant write. The assistant is the main writer and organiser; people can do e
 
 Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
-model keeping titles and summaries up to date, and assistant tools to find, read, write and update notes.
-**Planned**: MCP tools, page history, linking notes to entities and topics and nesting them under their project or
+model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
+find, read and write them ([MCP](mcp.md)).
+**Planned**: page history, linking notes to entities and topics and nesting them under their project or
 area on their own, attachments on encrypted object storage, pages in the graph.
 
 ## A page

@@ -71,7 +71,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     assert [t["name"] for t in tools] == list(mcp_tools.TOOLS)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
     # every tool only reads, except suggesting a topic and asking for a graph change (which need the write scope)
-    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == ["suggest_topic", "propose_graph_change"]
+    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == ["suggest_topic", "propose_graph_change", "write_note"]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
     assert rpc(client, env["hv"], "ping")["result"] == {}
@@ -389,3 +389,38 @@ def test_topic_tools(client, db, env):
     ]
     assert "list of whole numbers" in tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=["x"])
     assert tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=[env["ids"][2]])  # calls isn't theirs
+
+
+def test_note_tools(client, db, env):
+    h = env["h"]  # a read-only app token for a pods viewer
+    a, _, call = env["ids"]
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    from app.domain import notebook
+
+    plan = notebook.create(
+        db, pods, None, "Capsid plan", f"Ship on Friday, see @[ep1](recording:{a}).", "Shipping capsids", place="project"
+    )
+    notebook.create(db, pods, None, "Hiring", "Two roles open.")
+    notebook.create(db, calls, None, "Capsid call notes", "Not for pods viewers.")
+    found = tool(client, h, "find_notes", query="capsid")
+    assert [(n["note_id"], n["summary"], n["place"]) for n in found["notes"]] == [(plan, "Shipping capsids", "project")]
+    assert found["notes"][0]["url"].endswith(f"/notes/{plan}")
+    assert tool(client, h, "find_notes", place="area")["total"] == 0
+    got = tool(client, h, "read_note", note_id=plan)
+    assert got["body"].startswith("Ship on Friday") and got["links"] == [{"target": f"recording:{a}", "name": got["links"][0]["name"]}]
+    assert tool(client, h, "read_note", about=f"recording:{a}") == {
+        "page_of": f"recording:{a}",
+        "note": None,
+        "title": tool(client, h, "read_note", about=f"recording:{a}")["title"],
+        "linked_from": ["Capsid plan"],
+    }
+    other = db.one("SELECT record::id(id) AS id FROM note_page WHERE space = $s", s=calls)["id"]
+    assert "not found" in tool_error(client, h, "read_note", note_id=other)
+    assert "not found" in tool_error(client, h, "read_note", about=f"recording:{call}")
+    assert "read-only" in tool_error(client, h, "write_note", namespace="pods", title="x", body="y")
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    he = login(client, "ed@x.io", "editor password 1")
+    made = tool(client, he, "write_note", namespace="pods", title="Agent notes", body="From an agent.", place="resource", parent_id=plan)
+    p = notebook.get(db, made["note_id"])
+    assert (p["author"], p["place"], p["parent"]) == ("assistant", "resource", plan)
+    assert tool_error(client, he, "write_note", namespace="calls", title="x", body="y")

@@ -201,7 +201,8 @@ Todo:
 - [x] AI title and summary refinement (ai.refine_notes, on by default, can be switched off)
 - [x] Costs of refinement and filing to the activity ledger (`note_page:id` and its namespace; shown on the page)
 - [x] Assistant tools: find, read, write and update notes (at once, no approval: notes are its notebook)
-- [ ] MCP tools to read notes; page history so the assistant's changes can be undone
+- [x] MCP tools to find, read and write notes (find_notes, read_note, write_note)
+- [ ] Page history so the assistant's changes can be undone
 - [x] Self-organising, first step: notes nobody filed are filed in PARA by a decision model (or the LLM), with a
       suggestion when it isn't sure (ai.organise_notes)
 - [ ] Self-organising, next: link notes to entities and topics, nest them under their project or area
