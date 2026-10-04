@@ -17,6 +17,7 @@ from app.domain import (
     components,
     content_types,
     jobs,
+    local_llm,
     notify,
     routines,
     sensors,
@@ -78,6 +79,7 @@ class Archive:
         sensors.start(self.db, self.current, self.stop, log=log.info, name=f"api-{os.getpid()}")
         bridge.start(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
         tunnel.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
+        local_llm.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
 
     def close(self) -> None:
         self.stop.set()

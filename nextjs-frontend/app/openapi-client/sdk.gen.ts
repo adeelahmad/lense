@@ -787,6 +787,8 @@ import type {
   ListWorkersResponses,
   ListWorkflowsData,
   ListWorkflowsResponses,
+  LocalLlmStatusData,
+  LocalLlmStatusResponses,
   LockVaultData,
   LockVaultErrors,
   LockVaultResponses,
@@ -918,6 +920,9 @@ import type {
   RemoveBudgetData,
   RemoveBudgetErrors,
   RemoveBudgetResponses,
+  RemoveLocalModelData,
+  RemoveLocalModelErrors,
+  RemoveLocalModelResponses,
   RemoveLoginProviderData,
   RemoveLoginProviderErrors,
   RemoveLoginProviderResponses,
@@ -2265,6 +2270,35 @@ export class Admin {
   ): RequestResult<BridgeStatusResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<BridgeStatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge",
+      ...options,
+    });
+  }
+
+  /**
+   * Local Llm Status
+   *
+   * The chat model Lens runs itself: the models this machine can run, which are downloaded, and how the server is
+   * doing (fetching llama.cpp, downloading, starting, running).
+   */
+  public static localLlmStatus<ThrowOnError extends boolean = false>(
+    options?: Options<LocalLlmStatusData, ThrowOnError>,
+  ): RequestResult<LocalLlmStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<LocalLlmStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/local-llm/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Remove Local Model
+   *
+   * Delete a downloaded model's file to free the disk (not the one running).
+   */
+  public static removeLocalModel<ThrowOnError extends boolean = false>(
+    options: Options<RemoveLocalModelData, ThrowOnError>,
+  ): RequestResult<RemoveLocalModelResponses, RemoveLocalModelErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveLocalModelResponses, RemoveLocalModelErrors, ThrowOnError>({
+      url: "/api/v1/settings/local-llm/models",
       ...options,
     });
   }

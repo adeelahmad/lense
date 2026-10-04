@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, bridge, decide, jobs, llm, semantic, settings, sources, speech, store, telemetry, tunnel
+from app.domain import auth, bridge, decide, jobs, llm, local_llm, semantic, settings, sources, speech, store, telemetry, tunnel
 from app.schemas.admin import (
     AuditEntry,
     BridgeStatus,
@@ -24,7 +24,9 @@ from app.schemas.admin import (
     Health,
     IndexQueued,
     LlmTestResult,
+    LocalLlmStatus,
     MailTestResult,
+    Removed,
     SemanticStatus,
     SpeechTestResult,
     Started,
@@ -95,6 +97,25 @@ async def test_mail(user: AdminWriter, cfg: Cfg) -> MailTestResult:
 def bridge_status(user: AdminReader, cfg: Cfg, db: Db) -> BridgeStatus:
     """How the assistant's chat-room bridge (Matterbridge) is doing."""
     return BridgeStatus(**bridge.status(db, cfg))
+
+
+@router.get("/settings/local-llm/status")
+def local_llm_status(user: AdminReader, cfg: Cfg, db: Db) -> LocalLlmStatus:
+    """The chat model Lens runs itself: the models this machine can run, which are downloaded, and how the server is
+    doing (fetching llama.cpp, downloading, starting, running)."""
+    return LocalLlmStatus.model_validate(local_llm.status(db, cfg))
+
+
+@router.delete("/settings/local-llm/models")
+def remove_local_model(user: AdminWriter, cfg: Cfg, db: Db, model: str = Query(..., max_length=400)) -> Removed:
+    """Delete a downloaded model's file to free the disk (not the one running)."""
+    try:
+        removed = local_llm.remove(cfg, model)
+    except local_llm.LocalModelError as e:
+        raise HTTPException(409, str(e)) from None
+    if removed:
+        auth.audit(db, user.as_audit(), "local_llm.remove", None, {"model": model})
+    return Removed(removed=removed)
 
 
 @router.get("/settings/tunnel/status")

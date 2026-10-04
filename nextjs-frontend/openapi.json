@@ -2285,6 +2285,72 @@
         }
       }
     },
+    "/api/v1/settings/local-llm/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Local Llm Status",
+        "description": "The chat model Lens runs itself: the models this machine can run, which are downloaded, and how the server is\ndoing (fetching llama.cpp, downloading, starting, running).",
+        "operationId": "local_llm_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalLlmStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/local-llm/models": {
+      "delete": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Remove Local Model",
+        "description": "Delete a downloaded model's file to free the disk (not the one running).",
+        "operationId": "remove_local_model",
+        "parameters": [
+          {
+            "name": "model",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 400,
+              "title": "Model"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Removed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/tunnel/status": {
       "get": {
         "tags": [
@@ -32890,6 +32956,254 @@
         ],
         "title": "LlmTestResult"
       },
+      "LocalLlmProgress": {
+        "properties": {
+          "done": {
+            "type": "integer",
+            "title": "Done"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "done"
+        ],
+        "title": "LocalLlmProgress"
+      },
+      "LocalLlmStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "off",
+              "fetching-server",
+              "downloading",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "Phase"
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocalLlmProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "the OpenAI-compatible address it answers at, while running"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "llama-server's last lines"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the server process running it"
+          },
+          "server": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server",
+            "description": "llama-server's path, when it's here"
+          },
+          "catalog": {
+            "items": {
+              "$ref": "#/components/schemas/LocalModel"
+            },
+            "type": "array",
+            "title": "Catalog"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/LocalModelFile"
+            },
+            "type": "array",
+            "title": "Files"
+          },
+          "machine": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Machine"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "phase",
+          "catalog",
+          "files",
+          "machine"
+        ],
+        "title": "LocalLlmStatus"
+      },
+      "LocalModel": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "repo": {
+            "type": "string",
+            "title": "Repo"
+          },
+          "file": {
+            "type": "string",
+            "title": "File"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          },
+          "tools": {
+            "type": "boolean",
+            "title": "Tools",
+            "description": "good at the assistant's tool calls"
+          },
+          "size_gb": {
+            "type": "number",
+            "title": "Size Gb"
+          },
+          "memory_gb": {
+            "type": "number",
+            "title": "Memory Gb",
+            "description": "memory it needs to run, with room for Lens"
+          },
+          "downloaded": {
+            "type": "boolean",
+            "title": "Downloaded"
+          },
+          "fits": {
+            "type": "boolean",
+            "title": "Fits",
+            "description": "this machine has the memory (or GPU memory) for it"
+          },
+          "room": {
+            "type": "boolean",
+            "title": "Room",
+            "description": "there's disk for it, or it's downloaded"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "repo",
+          "file",
+          "about",
+          "tools",
+          "size_gb",
+          "memory_gb",
+          "downloaded",
+          "fits",
+          "room"
+        ],
+        "title": "LocalModel"
+      },
+      "LocalModelFile": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "size_gb": {
+            "type": "number",
+            "title": "Size Gb"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path",
+          "size_gb"
+        ],
+        "title": "LocalModelFile"
+      },
       "LocalModelServer": {
         "properties": {
           "kind": {
@@ -40606,6 +40920,20 @@
           "refresh_token"
         ],
         "title": "RefreshRequest"
+      },
+      "Removed": {
+        "properties": {
+          "removed": {
+            "type": "boolean",
+            "title": "Removed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "removed"
+        ],
+        "title": "Removed"
       },
       "Rendition": {
         "properties": {

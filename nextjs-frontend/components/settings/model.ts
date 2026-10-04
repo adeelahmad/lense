@@ -57,6 +57,7 @@ export type SectionId =
   | "voice-ids"
   | "analysis"
   | "llm"
+  | "local-model"
   | "ai"
   | "search"
   | "reports"
@@ -133,6 +134,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "LLM provider",
     backend: ["llm"],
     description: "The OpenAI-compatible model used for summaries, templates and chat.",
+  },
+  {
+    id: "local-model",
+    label: "Local model",
+    backend: ["local_llm"],
+    description:
+      "Run a chat model on this machine with llama.cpp: pick one that fits, and Lens downloads it from Hugging Face and serves it as the LLM provider.",
   },
   {
     id: "ai",
@@ -939,6 +947,55 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "the LLM provider’s",
   },
   { section: "voice", key: "tts_api_key", label: "Speech server API key", kind: "secret" },
+  // Local model
+  { section: "local_llm", key: "enabled", label: "Run a model here", kind: "switch" },
+  {
+    section: "local_llm",
+    key: "model",
+    label: "Model",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "pick one below",
+    hint: "One from the list, or any GGUF on Hugging Face as hf:owner/repo/file.gguf",
+  },
+  {
+    section: "local_llm",
+    key: "use_as_provider",
+    label: "Make it the LLM provider",
+    kind: "switch",
+    hint: "Off: it runs, and you point the LLM provider (or anything else) at it yourself",
+  },
+  { section: "local_llm", key: "context", label: "Context", kind: "int", min: 512, max: 262144, unit: "tokens" },
+  {
+    section: "local_llm",
+    key: "threads",
+    label: "CPU threads",
+    kind: "int",
+    min: 1,
+    max: 512,
+    nullable: true,
+    placeholder: "auto",
+  },
+  {
+    section: "local_llm",
+    key: "gpu_layers",
+    label: "Layers on the GPU",
+    kind: "int",
+    min: 0,
+    max: 999,
+    hint: "999: as many as fit; 0: CPU only",
+  },
+  { section: "local_llm", key: "port", label: "Port", kind: "int", min: 1024, max: 65535 },
+  {
+    section: "local_llm",
+    key: "host",
+    label: "Address others reach it at",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "automatic",
+  },
   // Speech providers
   ...SPEECH_PROVIDERS.flatMap((p): FieldSpec[] => [
     {

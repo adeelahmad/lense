@@ -210,6 +210,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       );
     case "llm":
       return <LlmBody ctx={ctx} />;
+    case "local-model":
+      return <LocalModelBody ctx={ctx} />;
     case "ai":
       return <AiBody ctx={ctx} />;
     case "search":
@@ -1588,6 +1590,123 @@ function SpeechTest({ provider, dirty }: { provider: string; dirty: boolean }) {
           </Banner>
         ))}
       {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+const PHASE: Record<string, string> = {
+  off: "Off",
+  "fetching-server": "Fetching llama.cpp",
+  downloading: "Downloading the model",
+  starting: "Starting",
+  running: "Running",
+  error: "Not running",
+};
+
+function gb(n: number) {
+  return `${n < 10 ? n.toFixed(1) : Math.round(n)} GB`;
+}
+
+function LocalModelBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const status = useQuery({
+    queryKey: ["local-llm-status"],
+    queryFn: () => data(Admin.localLlmStatus({ client })),
+    refetchInterval: (q) => {
+      const p = q.state.data?.phase;
+      return p && p !== "off" && p !== "running" ? 2_000 : 15_000;
+    },
+  });
+  const remove = useMutation({
+    mutationFn: (model: string) => data(Admin.removeLocalModel({ client, query: { model } })),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["local-llm-status"] }),
+  });
+  const pick = ctx.state("local_llm.model");
+  const picked = String(ctx.form["local_llm.model"] ?? "");
+  const s = status.data;
+  const mach = (s?.machine ?? {}) as { memory_gb?: number | null; disk_free_gb?: number | null; cpus?: number };
+  const pct = s?.progress?.total ? Math.round((s.progress.done / s.progress.total) * 100) : null;
+  return (
+    <>
+      {s && s.enabled && (
+        <Banner
+          tone={s.phase === "running" ? "success" : s.phase === "error" ? "error" : "info"}
+          title={`${PHASE[s.phase] ?? s.phase}${s.model ? `: ${s.model}` : ""}${pct != null ? ` · ${pct}%` : ""}`}
+        >
+          {s.phase === "running" ? `Answering at ${s.url}` : (s.error ?? s.log?.at(-1) ?? "Getting it ready")}
+        </Banner>
+      )}
+      <F ctx={ctx} id="local_llm.enabled" />
+      <p className="m-0 text-[12.5px] leading-[1.45] text-fg-secondary">
+        This machine: {mach.memory_gb != null ? `${gb(mach.memory_gb)} memory` : "memory unknown"}
+        {mach.disk_free_gb != null ? `, ${gb(mach.disk_free_gb)} free disk` : ""}
+        {mach.cpus ? `, ${mach.cpus} CPUs` : ""}. Models that don’t fit are greyed out; small ones run on a Raspberry
+        Pi.
+      </p>
+      {!s && <Skeleton className="h-40" />}
+      {s && (
+        <ul className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label="Models">
+          {s.catalog.map((m) => (
+            <li key={m.id}>
+              <button
+                type="button"
+                aria-pressed={picked === m.id}
+                disabled={!m.fits || !m.room}
+                onClick={() => pick.onChange(m.id)}
+                className={cn(
+                  "grid w-full grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-md border px-3 py-2 text-left",
+                  picked === m.id ? "border-blue bg-blue-surface" : "border-border",
+                  (!m.fits || !m.room) && "opacity-50",
+                )}
+              >
+                <span className="text-[13px] font-semibold">
+                  {m.label}
+                  {m.downloaded && <span className="ml-2 text-[11px] font-semibold text-fg-muted">downloaded</span>}
+                </span>
+                <span className="text-[12px] text-fg-secondary">
+                  {gb(m.size_gb)} · needs {gb(m.memory_gb)}
+                </span>
+                <span className="text-[12px] text-fg-secondary">
+                  {m.about}
+                  {m.tools ? "" : " No tool calls."}
+                </span>
+                <span className="text-[11px] text-fg-muted">
+                  {!m.fits ? "too big here" : !m.room ? "no room on disk" : (m.license ?? "")}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <F ctx={ctx} id="local_llm.model" label="Model (or any GGUF on Hugging Face)" />
+      <F ctx={ctx} id="local_llm.use_as_provider" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="local_llm.context" />
+        <F ctx={ctx} id="local_llm.threads" />
+        <F ctx={ctx} id="local_llm.gpu_layers" />
+        <F ctx={ctx} id="local_llm.port" />
+        <F ctx={ctx} id="local_llm.host" />
+      </div>
+      {s && s.files.length > 0 && (
+        <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+          <Sub>Downloaded</Sub>
+          {s.files.map((f) => {
+            const m = s.catalog.find((x) => f.path.endsWith(`/${x.file}`));
+            const ref = m ? m.id : `hf:${f.path.replace("__", "/")}`;
+            return (
+              <div key={f.path} className="flex items-center gap-2.5 text-[13px]">
+                <span className="flex-1 font-mono text-[12px]">{f.path}</span>
+                <span className="text-fg-muted">{gb(f.size_gb)}</span>
+                <Button size="sm" onClick={() => remove.mutate(ref)} disabled={remove.isPending}>
+                  Delete
+                </Button>
+              </div>
+            );
+          })}
+          {remove.isError && <Banner tone="error">{remove.error.message}</Banner>}
+        </div>
+      )}
     </>
   );
 }
