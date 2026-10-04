@@ -16,8 +16,8 @@ in the graph.
 
 Todo:
 
-- [ ] Pages: create, read, change, move in the tree, archive, delete; a page per resource made on first open
-- [ ] @ and # mentions: links and backlinks, a search to pick what to link
+- [x] Pages: create, read, change, move in the tree, delete; a page per resource made on first open
+- [x] @ and # mentions: links and backlinks, a search to pick what to link
 - [ ] Web app: tree explorer in the left navigation, page view with title, summary, date, place and backlinks; the
       page of a recording or entity reached from its detail view
 - [ ] Editor: BlockSuite (AFFiNE's block editor, OctoBase/Yjs documents) behind one component; plain text kept for

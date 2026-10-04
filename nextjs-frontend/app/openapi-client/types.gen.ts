@@ -395,6 +395,29 @@ export type Backend = {
 };
 
 /**
+ * Backlink
+ */
+export type Backlink = {
+  /**
+   * Page
+   */
+  page: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * About
+   */
+  about?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Batch
  */
 export type Batch = {
@@ -5587,6 +5610,25 @@ export type LastSend = {
 };
 
 /**
+ * LinkTarget
+ */
+export type LinkTarget = {
+  /**
+   * Target
+   */
+  target: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Kind
+   */
+  kind: "page" | "recording" | "entity" | "topic" | "collection" | "speaker";
+  [key: string]: unknown;
+};
+
+/**
  * LlmEstimate
  */
 export type LlmEstimate = {
@@ -7157,61 +7199,6 @@ export type Output = {
 };
 
 /**
- * Page
- *
- * A page of a document, or an image (a TIFF has one per frame).
- */
-export type Page = {
-  /**
-   * Idx
-   *
-   * from 0
-   */
-  idx: number;
-  /**
-   * Width
-   *
-   * pixels of its image
-   */
-  width?: number | null;
-  /**
-   * Height
-   */
-  height?: number | null;
-  /**
-   * Image
-   *
-   * a signed link to it, drawn; none when it couldn't be
-   */
-  image?: string | null;
-  /**
-   * Thumb
-   *
-   * a signed link to it, small
-   */
-  thumb?: string | null;
-  /**
-   * Text
-   *
-   * how its text was read: from the PDF, or by OCR; none without text
-   */
-  text?: "pdf" | "ocr" | null;
-  /**
-   * Chars
-   *
-   * characters of text on it
-   */
-  chars?: number;
-  /**
-   * Label
-   *
-   * the PDF's own name for it (iv, A-1, …) when it isn't its number
-   */
-  label?: string | null;
-  [key: string]: unknown;
-};
-
-/**
  * PageContext
  *
  * The page a question was asked from (chat on any page): where it is, and what of it the person shared.
@@ -7239,6 +7226,264 @@ export type PageContext = {
    * text the person highlighted on it (only the first 4,000 characters are used)
    */
   selection?: string | null;
+};
+
+/**
+ * PageCreate
+ */
+export type PageCreate = {
+  /**
+   * Ns
+   *
+   * the namespace it goes in
+   */
+  ns: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Body
+   */
+  body?: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Date
+   *
+   * YYYY-MM-DD (default: today)
+   */
+  date?: string | null;
+  /**
+   * Place
+   */
+  place?: "project" | "area" | "resource" | "archive" | null;
+  /**
+   * Parent
+   *
+   * put it inside this page
+   */
+  parent?: number | null;
+  /**
+   * About
+   *
+   * make the page of this thing, like "recording:12" or "entity:5"
+   */
+  about?: string | null;
+  /**
+   * Doc
+   */
+  doc?: string | null;
+};
+
+/**
+ * PageDraft
+ *
+ * A thing's page before anyone has written on it.
+ */
+export type PageDraft = {
+  /**
+   * Id
+   */
+  id?: null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * About
+   */
+  about: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Body
+   */
+  body?: string;
+  /**
+   * Backlinks
+   */
+  backlinks?: Array<Backlink>;
+  /**
+   * Can Edit
+   */
+  can_edit?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * PageItem
+ */
+export type PageItem = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   *
+   * one line on what the page holds: the context the assistant reads first
+   */
+  summary?: string | null;
+  /**
+   * Summary By
+   *
+   * who wrote the summary
+   */
+  summary_by?: "person" | "assistant" | null;
+  /**
+   * Date
+   */
+  date?: string | null;
+  /**
+   * Place
+   *
+   * where it's filed (PARA): project, area, resource or archive
+   */
+  place?: "project" | "area" | "resource" | "archive" | null;
+  /**
+   * Parent
+   *
+   * the page it's inside, in the tree
+   */
+  parent?: number | null;
+  /**
+   * Position
+   *
+   * its order among its siblings
+   */
+  position?: number | null;
+  /**
+   * About
+   *
+   * what this is the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Author
+   *
+   * who wrote it
+   */
+  author?: "person" | "assistant";
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PageLink
+ */
+export type PageLink = {
+  /**
+   * Sign
+   */
+  sign: "@" | "#";
+  /**
+   * Target
+   *
+   * what it links to, like "recording:12" or "page:3"
+   */
+  target: string;
+  /**
+   * Label
+   *
+   * the text the link shows
+   */
+  label: string;
+  /**
+   * Name
+   *
+   * the target's current name; null when it's gone or you can't see it
+   */
+  name?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PageMove
+ */
+export type PageMove = {
+  /**
+   * Parent
+   *
+   * the page to put it inside; null for the top
+   */
+  parent?: number | null;
+  /**
+   * Before
+   *
+   * put it before this sibling; null for the end
+   */
+  before?: number | null;
+};
+
+/**
+ * PageTree
+ */
+export type PageTree = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Pages
+   */
+  pages: Array<PageItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * PageUpdate
+ */
+export type PageUpdate = {
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Body
+   */
+  body?: string | null;
+  /**
+   * Summary
+   *
+   * empty to clear it
+   */
+  summary?: string | null;
+  /**
+   * Date
+   */
+  date?: string | null;
+  /**
+   * Place
+   *
+   * "" to unfile it
+   */
+  place?: "project" | "area" | "resource" | "archive" | "" | null;
+  /**
+   * Doc
+   *
+   * the editor's document state; a new body without it drops the old one
+   */
+  doc?: string | null;
 };
 
 /**
@@ -7895,7 +8140,7 @@ export type Player = {
    *
    * a document's or an image's pages, in order
    */
-  pages?: Array<Page> | null;
+  pages?: Array<AppSchemasRecordingsPage> | null;
   /**
    * Objects
    *
@@ -13980,6 +14225,164 @@ export type WorkflowVersionInfo = {
   [key: string]: unknown;
 };
 
+/**
+ * Page
+ */
+export type AppSchemasNotebookPage = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   *
+   * one line on what the page holds: the context the assistant reads first
+   */
+  summary?: string | null;
+  /**
+   * Summary By
+   *
+   * who wrote the summary
+   */
+  summary_by?: "person" | "assistant" | null;
+  /**
+   * Date
+   */
+  date?: string | null;
+  /**
+   * Place
+   *
+   * where it's filed (PARA): project, area, resource or archive
+   */
+  place?: "project" | "area" | "resource" | "archive" | null;
+  /**
+   * Parent
+   *
+   * the page it's inside, in the tree
+   */
+  parent?: number | null;
+  /**
+   * Position
+   *
+   * its order among its siblings
+   */
+  position?: number | null;
+  /**
+   * About
+   *
+   * what this is the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Author
+   *
+   * who wrote it
+   */
+  author?: "person" | "assistant";
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Body
+   *
+   * Markdown, with mentions written @[label](kind:id) and #[label](entity:id)
+   */
+  body?: string;
+  /**
+   * Doc
+   *
+   * the editor's own document state, if it kept one
+   */
+  doc?: string | null;
+  /**
+   * Created By
+   *
+   * its writer's email
+   */
+  created_by?: string | null;
+  /**
+   * Links
+   */
+  links?: Array<PageLink>;
+  /**
+   * Backlinks
+   */
+  backlinks?: Array<Backlink>;
+  /**
+   * Can Edit
+   */
+  can_edit?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * Page
+ *
+ * A page of a document, or an image (a TIFF has one per frame).
+ */
+export type AppSchemasRecordingsPage = {
+  /**
+   * Idx
+   *
+   * from 0
+   */
+  idx: number;
+  /**
+   * Width
+   *
+   * pixels of its image
+   */
+  width?: number | null;
+  /**
+   * Height
+   */
+  height?: number | null;
+  /**
+   * Image
+   *
+   * a signed link to it, drawn; none when it couldn't be
+   */
+  image?: string | null;
+  /**
+   * Thumb
+   *
+   * a signed link to it, small
+   */
+  thumb?: string | null;
+  /**
+   * Text
+   *
+   * how its text was read: from the PDF, or by OCR; none without text
+   */
+  text?: "pdf" | "ocr" | null;
+  /**
+   * Chars
+   *
+   * characters of text on it
+   */
+  chars?: number;
+  /**
+   * Label
+   *
+   * the PDF's own name for it (iv, A-1, …) when it isn't its number
+   */
+  label?: string | null;
+  [key: string]: unknown;
+};
+
 export type StatusData = {
   body?: never;
   path?: never;
@@ -17872,6 +18275,265 @@ export type UpdateNoteResponses = {
 };
 
 export type UpdateNoteResponse = UpdateNoteResponses[keyof UpdateNoteResponses];
+
+export type ListPagesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+    /**
+     * All
+     */
+    all?: boolean;
+  };
+  url: "/api/v1/notes";
+};
+
+export type ListPagesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListPagesError = ListPagesErrors[keyof ListPagesErrors];
+
+export type ListPagesResponses = {
+  /**
+   * Successful Response
+   */
+  200: PageTree;
+};
+
+export type ListPagesResponse = ListPagesResponses[keyof ListPagesResponses];
+
+export type CreatePageData = {
+  body: PageCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes";
+};
+
+export type CreatePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreatePageError = CreatePageErrors[keyof CreatePageErrors];
+
+export type CreatePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: AppSchemasNotebookPage;
+};
+
+export type CreatePageResponse = CreatePageResponses[keyof CreatePageResponses];
+
+export type LinkTargetsData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+    /**
+     * Q
+     */
+    q?: string;
+    /**
+     * Sign
+     */
+    sign?: string;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/notes/targets";
+};
+
+export type LinkTargetsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LinkTargetsError = LinkTargetsErrors[keyof LinkTargetsErrors];
+
+export type LinkTargetsResponses = {
+  /**
+   * Response Notes-Link Targets
+   *
+   * Successful Response
+   */
+  200: Array<LinkTarget>;
+};
+
+export type LinkTargetsResponse = LinkTargetsResponses[keyof LinkTargetsResponses];
+
+export type PageAboutData = {
+  body?: never;
+  path: {
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Key
+     */
+    key: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/about/{kind}/{key}";
+};
+
+export type PageAboutErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageAboutError = PageAboutErrors[keyof PageAboutErrors];
+
+export type PageAboutResponses = {
+  /**
+   * Response Notes-Page About
+   *
+   * Successful Response
+   */
+  200: AppSchemasNotebookPage | PageDraft;
+};
+
+export type PageAboutResponse = PageAboutResponses[keyof PageAboutResponses];
+
+export type DeletePageData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}";
+};
+
+export type DeletePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletePageError = DeletePageErrors[keyof DeletePageErrors];
+
+export type DeletePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeletePageResponse = DeletePageResponses[keyof DeletePageResponses];
+
+export type GetPageData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}";
+};
+
+export type GetPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetPageError = GetPageErrors[keyof GetPageErrors];
+
+export type GetPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: AppSchemasNotebookPage;
+};
+
+export type GetPageResponse = GetPageResponses[keyof GetPageResponses];
+
+export type UpdatePageData = {
+  body: PageUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}";
+};
+
+export type UpdatePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdatePageError = UpdatePageErrors[keyof UpdatePageErrors];
+
+export type UpdatePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: AppSchemasNotebookPage;
+};
+
+export type UpdatePageResponse = UpdatePageResponses[keyof UpdatePageResponses];
+
+export type MovePageData = {
+  body: PageMove;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/move";
+};
+
+export type MovePageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MovePageError = MovePageErrors[keyof MovePageErrors];
+
+export type MovePageResponses = {
+  /**
+   * Successful Response
+   */
+  200: AppSchemasNotebookPage;
+};
+
+export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
 
 export type ListCommentsData = {
   body?: never;

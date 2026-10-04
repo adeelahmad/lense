@@ -6338,6 +6338,426 @@
         }
       }
     },
+    "/api/v1/notes": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "List Pages",
+        "description": "The namespace's free notes for the tree (no bodies), in order; `all=true` adds the pages of things.",
+        "operationId": "list_pages",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "All"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageTree"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Create Page",
+        "description": "Write a free note (optionally inside `parent`), or the page of a thing (`about`, like \"recording:12\"), which\neach thing has one of. Needs editor access to the namespace.",
+        "operationId": "create_page",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__notebook__Page"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/targets": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Link Targets",
+        "description": "What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other\nentities, collections and speakers.",
+        "operationId": "link_targets",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Q"
+            }
+          },
+          {
+            "name": "sign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "@",
+              "title": "Sign"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LinkTarget"
+                  },
+                  "title": "Response Notes-Link Targets"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/about/{kind}/{key}": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Page About",
+        "description": "The page of a recording, entity, collection or speaker: its page, or a draft while nobody has written one.",
+        "operationId": "page_about",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/app__schemas__notebook__Page"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PageDraft"
+                    }
+                  ],
+                  "title": "Response Notes-Page About"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Get Page",
+        "description": "A page with its body, its links (with their targets' current names) and the pages linking to it.",
+        "operationId": "get_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__notebook__Page"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Update Page",
+        "description": "Change what's given. A new body without `doc` drops the editor's state, so it's rebuilt from the Markdown.",
+        "operationId": "update_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__notebook__Page"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Delete Page",
+        "description": "Delete a page; the pages inside it move up a level. Needs editor access.",
+        "operationId": "delete_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/{pid}/move": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Move Page",
+        "description": "Move a free note in the tree: inside `parent` (null: the top), before `before` (null: at the end).",
+        "operationId": "move_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageMove"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__schemas__notebook__Page"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/comments": {
       "get": {
         "tags": [
@@ -20192,6 +20612,47 @@
         ],
         "title": "Backend"
       },
+      "Backlink": {
+        "properties": {
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "page",
+          "title"
+        ],
+        "title": "Backlink"
+      },
       "Batch": {
         "properties": {
           "id": {
@@ -29250,6 +29711,38 @@
         ],
         "title": "LastSend"
       },
+      "LinkTarget": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "page",
+              "recording",
+              "entity",
+              "topic",
+              "collection",
+              "speaker"
+            ],
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "target",
+          "label",
+          "kind"
+        ],
+        "title": "LinkTarget"
+      },
       "LlmEstimate": {
         "properties": {
           "calls": {
@@ -31894,103 +32387,6 @@
         ],
         "title": "Output"
       },
-      "Page": {
-        "properties": {
-          "idx": {
-            "type": "integer",
-            "title": "Idx",
-            "description": "from 0"
-          },
-          "width": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Width",
-            "description": "pixels of its image"
-          },
-          "height": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Height"
-          },
-          "image": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image",
-            "description": "a signed link to it, drawn; none when it couldn't be"
-          },
-          "thumb": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Thumb",
-            "description": "a signed link to it, small"
-          },
-          "text": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "pdf",
-                  "ocr"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Text",
-            "description": "how its text was read: from the PDF, or by OCR; none without text"
-          },
-          "chars": {
-            "type": "integer",
-            "title": "Chars",
-            "description": "characters of text on it",
-            "default": 0
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label",
-            "description": "the PDF's own name for it (iv, A-1, \u2026) when it isn't its number"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "idx"
-        ],
-        "title": "Page",
-        "description": "A page of a document, or an image (a TIFF has one per frame)."
-      },
       "PageContext": {
         "properties": {
           "url": {
@@ -32046,6 +32442,497 @@
         ],
         "title": "PageContext",
         "description": "The page a question was asked from (chat on any page): where it is, and what of it the person shared."
+      },
+      "PageCreate": {
+        "properties": {
+          "ns": {
+            "type": "string",
+            "title": "Ns",
+            "description": "the namespace it goes in"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 200000,
+            "title": "Body",
+            "default": ""
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "YYYY-MM-DD (default: today)"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "put it inside this page"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "make the page of this thing, like \"recording:12\" or \"entity:5\""
+          },
+          "doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ns",
+          "title"
+        ],
+        "title": "PageCreate"
+      },
+      "PageDraft": {
+        "properties": {
+          "id": {
+            "type": "null",
+            "title": "Id"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "about": {
+            "type": "string",
+            "title": "About"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "default": ""
+          },
+          "backlinks": {
+            "items": {
+              "$ref": "#/components/schemas/Backlink"
+            },
+            "type": "array",
+            "title": "Backlinks",
+            "default": []
+          },
+          "can_edit": {
+            "type": "boolean",
+            "title": "Can Edit",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "about",
+          "title"
+        ],
+        "title": "PageDraft",
+        "description": "A thing's page before anyone has written on it."
+      },
+      "PageItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "one line on what the page holds: the context the assistant reads first"
+          },
+          "summary_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary By",
+            "description": "who wrote the summary"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place",
+            "description": "where it's filed (PARA): project, area, resource or archive"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the page it's inside, in the tree"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "its order among its siblings"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "what this is the page of, like \"recording:12\"; null for a free note"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "person",
+              "assistant"
+            ],
+            "title": "Author",
+            "description": "who wrote it",
+            "default": "person"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "PageItem"
+      },
+      "PageLink": {
+        "properties": {
+          "sign": {
+            "type": "string",
+            "enum": [
+              "@",
+              "#"
+            ],
+            "title": "Sign"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target",
+            "description": "what it links to, like \"recording:12\" or \"page:3\""
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "the text the link shows"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the target's current name; null when it's gone or you can't see it"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "sign",
+          "target",
+          "label"
+        ],
+        "title": "PageLink"
+      },
+      "PageMove": {
+        "properties": {
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the page to put it inside; null for the top"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "put it before this sibling; null for the end"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PageMove"
+      },
+      "PageTree": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageItem"
+            },
+            "type": "array",
+            "title": "Pages"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "pages"
+        ],
+        "title": "PageTree"
+      },
+      "PageUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "empty to clear it"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "string",
+                "const": ""
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place",
+            "description": "\"\" to unfile it"
+          },
+          "doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc",
+            "description": "the editor's document state; a new body without it drops the old one"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PageUpdate"
       },
       "Passage": {
         "properties": {
@@ -33161,7 +34048,7 @@
             "anyOf": [
               {
                 "items": {
-                  "$ref": "#/components/schemas/Page"
+                  "$ref": "#/components/schemas/app__schemas__recordings__Page"
                 },
                 "type": "array"
               },
@@ -43822,6 +44709,303 @@
           "version"
         ],
         "title": "WorkflowVersionInfo"
+      },
+      "app__schemas__notebook__Page": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary",
+            "description": "one line on what the page holds: the context the assistant reads first"
+          },
+          "summary_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary By",
+            "description": "who wrote the summary"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place",
+            "description": "where it's filed (PARA): project, area, resource or archive"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the page it's inside, in the tree"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "its order among its siblings"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "what this is the page of, like \"recording:12\"; null for a free note"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "person",
+              "assistant"
+            ],
+            "title": "Author",
+            "description": "who wrote it",
+            "default": "person"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "description": "Markdown, with mentions written @[label](kind:id) and #[label](entity:id)",
+            "default": ""
+          },
+          "doc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc",
+            "description": "the editor's own document state, if it kept one"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By",
+            "description": "its writer's email"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PageLink"
+            },
+            "type": "array",
+            "title": "Links",
+            "default": []
+          },
+          "backlinks": {
+            "items": {
+              "$ref": "#/components/schemas/Backlink"
+            },
+            "type": "array",
+            "title": "Backlinks",
+            "default": []
+          },
+          "can_edit": {
+            "type": "boolean",
+            "title": "Can Edit",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "namespace"
+        ],
+        "title": "Page"
+      },
+      "app__schemas__recordings__Page": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx",
+            "description": "from 0"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Width",
+            "description": "pixels of its image"
+          },
+          "height": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image",
+            "description": "a signed link to it, drawn; none when it couldn't be"
+          },
+          "thumb": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb",
+            "description": "a signed link to it, small"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pdf",
+                  "ocr"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "how its text was read: from the PDF, or by OCR; none without text"
+          },
+          "chars": {
+            "type": "integer",
+            "title": "Chars",
+            "description": "characters of text on it",
+            "default": 0
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "the PDF's own name for it (iv, A-1, \u2026) when it isn't its number"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "idx"
+        ],
+        "title": "Page",
+        "description": "A page of a document, or an image (a TIFF has one per frame)."
       }
     }
   }
