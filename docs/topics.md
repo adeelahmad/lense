@@ -5,8 +5,22 @@ entities. Entities are the named things a transcript mentions (people, organisat
 subject someone chose for the vocabulary, like "Gene therapy" or "Funding".
 
 Status: **built**: the vocabulary (labels, definitions, broader, narrower and related topics), recordings about
-topics, topics made from topic-like entities, the API, topics in the graph and in RDF. **Planned**: a Topics page,
-topic suggestions from analysis, `#` links in notes pointing at topics, and assistant and MCP tools for topics.
+topics, topics made from topic-like entities, the API, the Topics page, a recording's topics, topics in the graph
+(and on its canvas) and in RDF. **Planned**: topic suggestions from analysis, `#` links in notes pointing at topics,
+and assistant and MCP tools for topics.
+
+## In the web app
+
+**Topics** in the navigation shows a namespace's vocabulary as a tree: top topics first, each opening onto its
+narrower ones (a topic under two broader topics shows under both). Search finds topics by any of their labels. Pick
+a topic to edit it in a drawer: its labels, definition, broader and related topics, its narrower topics, and the
+recordings about it, where suggested ones can be accepted or removed. The drawer also merges topics and deletes one.
+Editors add topics at the top or under another with **+**.
+
+A recording's **Entities** tab starts with its topics: editors add one from the vocabulary, take one off, or accept
+or dismiss a suggestion. An entity of type Term has **Make a topic** in its drawer. On the graph canvas topics are
+green tags, with About, Narrower and Related edges; ask the graph (for example `MATCH (t:Topic) RETURN t`) or open a
+recording's children to bring them in.
 
 ## A topic
 

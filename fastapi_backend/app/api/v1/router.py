@@ -3,9 +3,11 @@
 from fastapi import APIRouter
 
 from app.api.v1.routes import (
+    activity,
     admin,
     auth,
     batches,
+    budgets,
     chats,
     collections,
     comments,
@@ -65,6 +67,8 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    activity,
+    budgets,
     fedora,
     setup,
     namespaces,

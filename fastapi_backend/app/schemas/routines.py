@@ -62,6 +62,13 @@ class RoutineUpdate(RequestModel):
 
 class RoutineRunRequest(RequestModel):
     propose_only: bool = Field(False, description="graph workflows propose every change instead of making the sure ones")
+    over_budget: bool = Field(
+        False, description="run it even though it's over a budget (docs/budgets.md); without it, a run over budget is refused (409)"
+    )
+
+
+class HeldRunDecision(RequestModel):
+    run: bool = Field(description="true: run it now, once, whatever its budgets say; false: skip it")
 
 
 class RoutineRun(ResponseModel):
@@ -76,6 +83,14 @@ class RoutineRun(ResponseModel):
     error: str | None = None
     changes: dict[str, int] | None = None
     log: list[str] | None = None
+    cost_usd: float | None = Field(None, description="what its calls cost, from the activity ledger (docs/activity.md); set when it ends")
+    tokens: int | None = None
+    cost_estimate: bool | None = Field(None, description="true: some calls had no price or token counts, so cost_usd is a floor")
+    hold: dict[str, Any] | None = Field(
+        None,
+        description="held or skipped over a budget (docs/budgets.md): {why, resource (the budget), action (ask, skip), "
+        "decided: {run, by, at} once someone picked}",
+    )
 
 
 class SchedulePreview(ResponseModel):

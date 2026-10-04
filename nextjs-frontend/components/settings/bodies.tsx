@@ -204,7 +204,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
                 Custom vocabulary <span className="font-normal text-fg-muted">· one per line, Name | TYPE</span>
               </>
             }
-            hint="Types: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM. A line without a type is a topic."
+            hint="Types: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM. A line without a type is a term."
           />
         </>
       );
@@ -339,6 +339,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="tokens.max_days" />
           </div>
           <F ctx={ctx} id="tokens.never_expire" />
+          <F ctx={ctx} id="tokens.oauth_enabled" />
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="tokens.oauth_access_minutes" />
             <F ctx={ctx} id="tokens.oauth_refresh_days" />

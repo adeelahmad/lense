@@ -37,6 +37,13 @@ class SetupTelemetryView(ResponseModel):
     locked: list[str]
 
 
+class SetupOAuthView(ResponseModel):
+    # whether apps and MCP clients may sign people in with their Lens account (tokens.oauth_enabled)
+    enabled: bool
+    access_minutes: int
+    refresh_days: int
+
+
 class SetupView(ResponseModel):
     pending: bool
     admin: SetupAdmin
@@ -44,6 +51,7 @@ class SetupView(ResponseModel):
     llm: SetupLlmView
     storage: SetupStorageView
     telemetry: SetupTelemetryView
+    oauth: SetupOAuthView
 
 
 class SetupNamespace(RequestModel):
@@ -77,6 +85,13 @@ class SetupTelemetry(RequestModel):
     enabled: bool = False
     # the OTLP/HTTP address of a collector, like http://localhost:4318; needed to turn telemetry on
     endpoint: str | None = Field(default=None, max_length=500)
+
+
+class SetupOAuth(RequestModel):
+    enabled: bool = True
+    # left out: unchanged
+    access_minutes: int | None = None
+    refresh_days: int | None = None
 
 
 class SetupFinish(RequestModel):

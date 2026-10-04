@@ -1,5 +1,6 @@
 "use client";
 
+import { CostCell, useBudgets, useCosts } from "@/components/costs/costs";
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { Workflow } from "lucide-react";
 import Link from "next/link";
@@ -29,6 +30,8 @@ export function PipelinesPage() {
   const { namespaces, can } = useArchive();
   const catalog = usePipelineCatalog();
   const list = catalog.data?.pipelines ?? [];
+  const costs = useCosts(list.map((p) => `pipeline:${p.id}`));
+  const budgets = useBudgets();
   const details = useQueries({
     queries: list.map((p) => ({
       queryKey: ["pipeline", p.id],
@@ -119,6 +122,7 @@ export function PipelinesPage() {
                   <Th>Steps</Th>
                   <Th>Version</Th>
                   <Th>Default in</Th>
+                  <Th className="text-right">This month</Th>
                   <Th>Updated</Th>
                 </tr>
               </THead>
@@ -139,6 +143,7 @@ export function PipelinesPage() {
                     <code className="whitespace-nowrap font-mono text-[12px] text-fg-muted">built-in</code>
                   </Td>
                   <Td className="text-fg-secondary">{onStandard.length ? onStandard.join(", ") : "—"}</Td>
+                  <Td className="text-right text-fg-muted">—</Td>
                   <Td className="text-fg-muted">—</Td>
                 </Tr>
                 {list.map((p, i) => {
@@ -178,6 +183,9 @@ export function PipelinesPage() {
                         </span>
                       </Td>
                       <Td className="text-fg-secondary">{used.length ? used.join(", ") : "—"}</Td>
+                      <Td className="whitespace-nowrap text-right text-[13px] text-fg-secondary">
+                        <CostCell resource={`pipeline:${p.id}`} costs={costs.data?.costs} budgets={budgets} />
+                      </Td>
                       <Td className="tabular whitespace-nowrap text-fg-muted">{relative(p.updated_at)}</Td>
                     </Tr>
                   );

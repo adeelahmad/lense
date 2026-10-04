@@ -3,7 +3,7 @@
  * server's layout, and typed, weighted edges. Filtering, sizing, keyboard movement and the text summary live here.
  */
 
-export type NodeKind = "speaker" | "entity" | "recording" | "collection" | "namespace";
+export type NodeKind = "speaker" | "entity" | "recording" | "collection" | "namespace" | "topic";
 
 export type GraphNode = {
   id: string;
@@ -34,19 +34,31 @@ export const NODE_GROUPS: { key: string; label: string; shape: Shape }[] = [
   { key: "ORG", label: "Organisations", shape: "square" },
   { key: "PRODUCT", label: "Products", shape: "diamond" },
   { key: "PLACE", label: "Places", shape: "triangle" },
-  { key: "TERM", label: "Topics", shape: "pill" },
+  { key: "TERM", label: "Terms", shape: "pill" },
   { key: "EVENT", label: "Events", shape: "hexagon" },
   { key: "WORK", label: "Works", shape: "rounded" },
   { key: "recording", label: "Recordings", shape: "doc" },
   { key: "collection", label: "Collections", shape: "folder" },
   { key: "namespace", label: "Namespaces", shape: "octagon" },
+  { key: "topic", label: "Topics", shape: "tag" },
 ];
 
 export type Shape =
-  "circle" | "ring" | "square" | "diamond" | "triangle" | "pill" | "hexagon" | "rounded" | "doc" | "folder" | "octagon";
+  | "circle"
+  | "ring"
+  | "square"
+  | "diamond"
+  | "triangle"
+  | "pill"
+  | "hexagon"
+  | "rounded"
+  | "doc"
+  | "folder"
+  | "octagon"
+  | "tag";
 
 /** Node kinds that only appear once you explore (a node's parents, ancestors…), never in the overview. */
-export const STRUCTURE_KINDS = new Set<NodeKind>(["recording", "collection", "namespace"]);
+export const STRUCTURE_KINDS = new Set<NodeKind>(["recording", "collection", "namespace", "topic"]);
 
 /** Edge kinds: each has its own dash pattern, so they differ by more than colour. */
 export const EDGE_KINDS: {
@@ -77,6 +89,9 @@ export const EDGE_KINDS: {
   { key: "contains", label: "Contains", width: 1.2 },
   { key: "speaks in", label: "Speaks in", dash: "4 2", width: 1.1 },
   { key: "mentioned in", label: "Mentioned in", dash: "2 2", width: 1 },
+  { key: "about", label: "About", dash: "5 2", width: 1.2 },
+  { key: "narrower", label: "Narrower", width: 1.4 },
+  { key: "related", label: "Related", dash: "1 2", width: 1.1 },
 ];
 
 export function edgeStyle(kind: string) {
@@ -102,7 +117,7 @@ export function nodeShape(n: Pick<GraphNode, "kind" | "type">): Shape {
 export function typeLabel(n: Pick<GraphNode, "kind" | "type">): string {
   const g = NODE_GROUPS.find((x) => x.key === nodeGroup(n));
   if (!g) return "Entity";
-  return g.key === "TERM" ? "Topic" : g.label.replace(/s$/, "");
+  return g.label.replace(/s$/, "");
 }
 
 /** Identity links are shown whatever their weight. */
@@ -264,7 +279,9 @@ export type ApiEdge = {
 export function fromApiNode(n: ApiNode): GraphNode {
   const label = n.labels[0]?.toLowerCase();
   const kind: NodeKind =
-    label === "speaker" || label === "recording" || label === "collection" || label === "namespace" ? label : "entity";
+    label === "speaker" || label === "recording" || label === "collection" || label === "namespace" || label === "topic"
+      ? label
+      : "entity";
   const num = Number(n.id.replace(/^[a-z]/, ""));
   return {
     id: n.id,
@@ -308,6 +325,7 @@ export function nodeHref(n: Pick<GraphNode, "kind" | "refs" | "id">): string | n
   if (n.kind === "recording") return `/recordings/${id}`;
   if (n.kind === "collection") return `/collections/${id}`;
   if (n.kind === "entity" && n.refs.length === 1) return `/entities/${id}`;
+  if (n.kind === "topic" && n.refs.length === 1) return `/topics/${id}`;
   return null;
 }
 

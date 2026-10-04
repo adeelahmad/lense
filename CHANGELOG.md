@@ -14,6 +14,29 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   docs/graph-history.md.
   In the web app, Routines › History shows every change and what it did, and names or rolls back to a version; an
   entity's History button shows its own.
+- **Apps and AI assistants in the setup wizard.** A new optional step, Apps and AI, asks whether apps and AI
+  assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in with their Lens account, how long
+  their tokens last, and shows the MCP server's address to add to an assistant. Skipping it keeps OAuth on, as
+  before. Admins can also turn it off in Settings → API keys (`tokens.oauth_enabled`): discovery and registration go
+  away and apps' tokens stop working until it is back on. API: `PUT /api/v1/setup/oauth`.
+- **Budgets for routines, pipelines, workflows and namespaces.** An admin caps what a resource may cost, in USD,
+  tokens or both, per run, day, week or month. Before a routine runs or a job starts, Lens estimates the run from past
+  ones; one that would go over is held until someone picks run or skip (or is skipped, or the decision model weighs
+  it when asked to). Budgets near or over their cap are flagged once per period. Off unless set. See docs/budgets.md.
+- **Local models cost nothing unless you price them.** A model's price is by tokens (USD per million), by time (USD
+  per hour, for a model on your own machine) or off, the default for a model without one.
+
+- **Every resource has an activity history, with what it cost.** Lens now keeps a ledger of every request that
+  changes something, every call it makes out (models, embeddings, the decision model, text to speech, webhooks, web
+  tools) and every job and routine run, each counted for the resources it touched: a model call in a job a routine
+  queued counts for the job, its recording, namespace, pipeline, workflow and the routine. Tokens and estimated cost
+  come from the prices in Settings. `GET /api/v1/activity?resource=routine:3` gives a resource's history (with its
+  audit log entries), `/activity/totals` what it cost this day, week or month, `/activity/top` what cost most. On by
+  default; `activity.keep_days` (365) keeps it in bounds. See docs/activity.md.
+- **Safer upgrades of existing installs.** Data upgrades are now named steps that run once per database, under a lock
+  so only one process runs them while the others wait, with a record of when each ran and why one failed.
+  `lens migrations` lists them. A database with data is backed up into `<data_dir>/backups` before it is upgraded
+  (the newest three are kept), and `lens backup` takes one on demand. See docs/database.md, Upgrades.
 - **Routine choices on your own Mac with Laya.** `decisions.engine: laya` takes routine choices with a Laya typed
   decision model on MLX (English, multilingual or typed-decisions), fetched by Lens itself, free and offline. Lens in
   Docker on a Mac asks `lens decide-server` on the Mac. Elsewhere it says Laya isn't available and the LLM decides.
@@ -24,6 +47,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Editors create, edit, merge and delete topics through `/api/v1/topics`. Topics are in the graph (`Topic`, with
   `ABOUT`, `NARROWER` and `RELATED`; TERM entities are now labelled `Term` there) and in RDF (`/id/topic/<id>`). See
   docs/topics.md.
+
+- **A Topics page.** Topics in the navigation shows a namespace's vocabulary as a tree of broader and narrower topics,
+  with search, and a drawer to edit, merge or delete a topic and see the recordings about it. A recording's Entities
+  tab lists its topics for editors to add, remove or accept; a Term entity can be made a topic from its drawer; topics
+  show on the graph canvas as green tags. Entities of type TERM are now shown as Terms.
 
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO

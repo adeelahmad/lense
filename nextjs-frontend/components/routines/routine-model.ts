@@ -179,6 +179,9 @@ export const STATUS: Record<string, { label: string; tone: Tone }> = {
   partly: { label: "Partly done", tone: "gate" },
   error: { label: "Failed", tone: "red" },
   running: { label: "Running", tone: "intent" },
+  held: { label: "Waiting for you", tone: "gate" },
+  released: { label: "Let through", tone: "neutral" },
+  skipped: { label: "Skipped", tone: "neutral" },
 };
 
 export function statusOf(s: string | null | undefined) {

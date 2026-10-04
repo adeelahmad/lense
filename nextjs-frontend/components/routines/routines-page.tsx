@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Routines } from "@/app/openapi-client";
 import type { Routine } from "@/app/openapi-client/types.gen";
 import { useGraphChanges, useNames, useRoutines } from "@/components/routines/data";
+import { CostCell, useBudgets, useCosts } from "@/components/costs/costs";
 import { routineText, statusOf, touchesGraph, type RoutineAction } from "@/components/routines/routine-model";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import { DateTime, EmptyState, SkeletonRows } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
-import { data, useApiClient } from "@/lib/api/browser";
+import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 
 /** "Routines" with the Routines / Proposed changes / History tabs; people who aren't admins see only the graph tabs. */
@@ -65,12 +66,18 @@ export function useRoutineActions() {
     void qc.invalidateQueries({ queryKey: ["routines"] });
     void qc.invalidateQueries({ queryKey: ["routine", id] });
   };
+  const [overBudget, setOverBudget] = useState<{ routine: Routine; proposeOnly?: boolean; why: string } | null>(null);
   const run = useMutation({
-    mutationFn: (v: { routine: Routine; proposeOnly?: boolean }) =>
+    mutationFn: (v: { routine: Routine; proposeOnly?: boolean; overBudget?: boolean }) =>
       data(
-        Routines.runRoutine({ client, path: { rid: v.routine.id }, body: { propose_only: Boolean(v.proposeOnly) } }),
+        Routines.runRoutine({
+          client,
+          path: { rid: v.routine.id },
+          body: { propose_only: Boolean(v.proposeOnly), over_budget: Boolean(v.overBudget) },
+        }),
       ),
     onSuccess: (_, v) => {
+      setOverBudget(null);
       refresh(v.routine.id);
       void qc.invalidateQueries({ queryKey: ["routine-runs", v.routine.id] });
       toast({
@@ -79,7 +86,12 @@ export function useRoutineActions() {
         body: `${v.routine.name} starts within half a minute.`,
       });
     },
-    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t start the run", body: e.message }),
+    onError: (e: Error, v) => {
+      // over budget: say where it stands and let the person choose (docs/budgets.md)
+      if (e instanceof ApiError && e.status === 409)
+        setOverBudget({ routine: v.routine, proposeOnly: v.proposeOnly, why: e.message });
+      else toast({ tone: "red", title: "Couldn’t start the run", body: e.message });
+    },
   });
   const toggle = useMutation({
     mutationFn: (v: { routine: Routine; enabled: boolean }) =>
@@ -90,7 +102,29 @@ export function useRoutineActions() {
     },
     onError: (e: Error) => toast({ tone: "red", title: "Couldn’t change the routine", body: e.message }),
   });
-  return { run, toggle };
+  const overBudgetDialog = (
+    <Dialog
+      open={Boolean(overBudget)}
+      onOpenChange={(o) => !o && setOverBudget(null)}
+      title="Run it over budget?"
+      description={overBudget?.why.replace(/ Run it anyway with over_budget\.$/, "")}
+      actions={
+        <>
+          <Button variant="ghost" onClick={() => setOverBudget(null)}>
+            Don’t run
+          </Button>
+          <Button
+            variant="primary"
+            disabled={run.isPending}
+            onClick={() => overBudget && run.mutate({ ...overBudget, overBudget: true })}
+          >
+            Run anyway
+          </Button>
+        </>
+      }
+    />
+  );
+  return { run, toggle, overBudgetDialog };
 }
 
 export function DeleteRoutineDialog({
@@ -137,36 +171,42 @@ export function DeleteRoutineDialog({
 
 /** Run now, with "propose only" next to it when the routine organises the graph. */
 export function RunButton({ routine, graph, size = "sm" }: { routine: Routine; graph: boolean; size?: "xs" | "sm" }) {
-  const { run } = useRoutineActions();
+  const { run, overBudgetDialog } = useRoutineActions();
   const busy = Boolean(routine.running) || (run.isPending && run.variables?.routine.id === routine.id);
   const why = routine.running ? "It’s running now" : "Asking…";
   if (!graph || busy)
     return (
-      <Button
-        size={size}
-        variant="secondary"
-        icon={<Play />}
-        disabled={busy}
-        disabledReason={why}
-        onClick={() => run.mutate({ routine })}
-      >
-        Run now
-      </Button>
+      <>
+        <Button
+          size={size}
+          variant="secondary"
+          icon={<Play />}
+          disabled={busy}
+          disabledReason={why}
+          onClick={() => run.mutate({ routine })}
+        >
+          Run now
+        </Button>
+        {overBudgetDialog}
+      </>
     );
   return (
-    <Menu>
-      <MenuTrigger asChild>
-        <Button size={size} variant="secondary" icon={<Play />}>
-          Run now <ChevronDown />
-        </Button>
-      </MenuTrigger>
-      <MenuContent align="end" className="w-[280px]">
-        <MenuItem onSelect={() => run.mutate({ routine })}>Run now</MenuItem>
-        <MenuItem onSelect={() => run.mutate({ routine, proposeOnly: true })}>
-          Run now, only propose graph changes
-        </MenuItem>
-      </MenuContent>
-    </Menu>
+    <>
+      <Menu>
+        <MenuTrigger asChild>
+          <Button size={size} variant="secondary" icon={<Play />}>
+            Run now <ChevronDown />
+          </Button>
+        </MenuTrigger>
+        <MenuContent align="end" className="w-[280px]">
+          <MenuItem onSelect={() => run.mutate({ routine })}>Run now</MenuItem>
+          <MenuItem onSelect={() => run.mutate({ routine, proposeOnly: true })}>
+            Run now, only propose graph changes
+          </MenuItem>
+        </MenuContent>
+      </Menu>
+      {overBudgetDialog}
+    </>
   );
 }
 
@@ -195,6 +235,8 @@ export function RoutinesPage() {
   const { toggle } = useRoutineActions();
   const [deleting, setDeleting] = useState<Routine | null>(null);
   const list = routines.data?.routines ?? [];
+  const costs = useCosts(list.map((r) => `routine:${r.id}`));
+  const budgets = useBudgets();
 
   if (me && !admin)
     return (
@@ -253,6 +295,7 @@ export function RoutinesPage() {
                 <Th>When</Th>
                 <Th>Next run</Th>
                 <Th>Last run</Th>
+                <Th className="text-right">This month</Th>
                 <Th>On</Th>
                 <Th>
                   <span className="sr-only">Actions</span>
@@ -291,6 +334,9 @@ export function RoutinesPage() {
                         <StatusBadge status={r.last_status} running={r.running} />
                         {r.last_run_at && <DateTime iso={r.last_run_at} className="text-[12px] text-fg-muted" />}
                       </div>
+                    </Td>
+                    <Td className="whitespace-nowrap text-right text-[13px] text-fg-secondary">
+                      <CostCell resource={`routine:${r.id}`} costs={costs.data?.costs} budgets={budgets} />
                     </Td>
                     <Td>
                       <Switch

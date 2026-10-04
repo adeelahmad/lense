@@ -9,6 +9,7 @@ import { Namespaces, Pipelines, Users } from "@/app/openapi-client";
 import { IpGroupsSection } from "@/components/access/ip-groups";
 import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
 import { roleLabel, type Role } from "@/components/admin/people-model";
+import { ActivityPanel, BudgetPanel, CostCell, useBudgets, useCosts } from "@/components/costs/costs";
 import { isUnreachable } from "@/components/errors/error-states";
 import { NotificationsSection } from "@/components/notifications/notifications-section";
 import { runtime } from "@/components/iiif/iiif-model";
@@ -38,6 +39,8 @@ export function NamespacesPage() {
   const [creating, setCreating] = useState(false);
   const shown = namespaces.filter((n) => admin || roleIn(n.name) === "owner");
   const members = (ns: string) => (people.data ?? []).filter((p) => !p.admin && p.roles?.[ns]).length;
+  const costs = useCosts(shown.map((n) => `space:${n.id}`));
+  const budgets = useBudgets();
   return (
     <AdminFrame
       tab="namespaces"
@@ -74,6 +77,7 @@ export function NamespacesPage() {
                 <Th>Recordings</Th>
                 <Th>Graph</Th>
                 {admin && <Th>Members</Th>}
+                <Th className="text-right">This month</Th>
                 <Th>Your role</Th>
               </tr>
             </THead>
@@ -90,6 +94,9 @@ export function NamespacesPage() {
                   </Td>
                   <Td className="text-fg-secondary">{n.graph === "isolated" ? "Isolated" : "Shared"}</Td>
                   {admin && <Td className="tabular text-fg-secondary">{people.data ? count(members(n.name)) : "…"}</Td>}
+                  <Td className="text-right">
+                    <CostCell resource={`space:${n.id}`} costs={costs.data?.costs} budgets={budgets} />
+                  </Td>
                   <Td>
                     <RoleChip role={roleIn(n.name) as Role} />
                   </Td>
@@ -468,6 +475,8 @@ export function NamespaceDetail({ ns }: { ns: string }) {
           <IpGroupsSection ns={ns} isOwner={isOwner} admin={admin} />
           <NotificationsSection ns={ns} isOwner={isOwner} admin={admin} />
           {known && <VaultSection ns={ns} isOwner={isOwner} />}
+          {known && <BudgetPanel resource={`space:${known.id}`} what={`work in ${ns}`} />}
+          {known && <ActivityPanel resource={`space:${known.id}`} title={`Activity in ${ns}`} />}
         </div>
 
         <section className="flex flex-col gap-3.5 rounded-md border border-border bg-background px-4 py-5 sm:px-6">
