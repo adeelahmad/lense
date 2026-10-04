@@ -12,6 +12,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   preview, undoing merges with their mentions; a rollback can be rolled back too. Checkpoints let the graph be replayed
   from its history, and `lens history verify` (or `/graph/verify`) checks the replay matches today's graph. See
   docs/graph-history.md.
+  In the web app, Routines › History shows every change and what it did, and names or rolls back to a version; an
+  entity's History button shows its own.
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or

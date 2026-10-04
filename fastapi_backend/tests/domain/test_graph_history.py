@@ -101,6 +101,7 @@ def test_diff_history_and_scopes(db, cfg, spaces):
     assert changed[dyno]["name"] == ["Dyno Therapeutics", "Dyno"]
     assert d["links"]["added"] == [{"a": min(dyno, calls_dyno), "b": max(dyno, calls_dyno), "names": d["links"]["added"][0]["names"]}]
     assert d["events"] == 3
+    assert d["aliases"]["added"] == [{"key": "dyno therapeutics", "entity": dyno, "name": "Dyno", "space": pods}]  # the old name
     only_pods = gh.diff(db, v0, gh.head(db), {pods})
     assert only_pods["links"]["added"] == []  # one end isn't readable
     assert dyno in {c["id"] for c in only_pods["entities"]["changed"]}

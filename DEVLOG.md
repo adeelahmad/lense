@@ -31,7 +31,7 @@ Todo:
 - [x] Rollback to a version, with a preview
 - [x] Checkpoints, replay and verify (`lens graph verify`, nightly checkpoint)
 - [ ] The explorer and Cypher as of a version (with the graph explorer thread)
-- [ ] Web app: a history timeline with diffs and rollback
+- [x] Web app: a history timeline with diffs and rollback (Routines › History; an entity's History button)
 - [ ] Graph events in each resource's activity history (with the activity history thread)
 
 Refine later: speakers (same-person links, names) in the history; a mention-level history.

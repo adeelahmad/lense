@@ -390,7 +390,10 @@ def _describe(db, first, last, spaces):
         "links": {"added": [], "removed": []},
         "distinct": {"added": [], "removed": []},
     }
-    names = _names(db, set(ent_space), rows_of={k: (last.get(("entity", k)) or first.get(("entity", k))) for k in ent_space})
+    named = set(ent_space) | {
+        int(row["entity"]) for (t, _), row in {**first, **last}.items() if t == "entity_alias" and row and row.get("entity") is not None
+    }
+    names = _names(db, named, rows_of={k: (last.get(("entity", k)) or first.get(("entity", k))) for k in ent_space})
     for t, k in sorted(first, key=lambda x: (TABLES.index(x[0]), str(x[1]))):
         before, after = first[(t, k)], last[(t, k)]
         if before == after or not (seen(t, before) and seen(t, after)):

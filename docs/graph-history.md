@@ -5,7 +5,10 @@ graph's version. So the graph can be seen as it was at any version, two versions
 read: who renamed it, who merged what into it, which routine linked it, and why.
 
 Built: the event log, versions, as-of, diffs, entity history, named versions, rollback to a version, checkpoints with
-replay and verify. Planned: the explorer and Cypher as of a version, a history timeline in the web app (DEVLOG.md).
+replay and verify, the History tab. Planned: the explorer and Cypher as of a version (DEVLOG.md).
+
+In the web app, Routines › History lists every version; open one to see what changed, name it, or roll back to it
+(with a preview). An entity's History button shows only its changes.
 
 ## What is versioned
 
