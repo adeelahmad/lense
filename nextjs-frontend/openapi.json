@@ -7314,6 +7314,53 @@
         }
       }
     },
+    "/api/v1/notes/{pid}/suggestions": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Link Suggestions",
+        "description": "What the page names but doesn't link yet: the namespace's topics and named things found in its text, to link\nwith one click. Matched against the namespace's own vocabulary; no model is asked.",
+        "operationId": "link_suggestions",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteLinkSuggestion"
+                  },
+                  "title": "Response Notes-Link Suggestions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/{pid}/history": {
       "get": {
         "tags": [
@@ -34547,6 +34594,48 @@
           "label"
         ],
         "title": "NoteLink"
+      },
+      "NoteLinkSuggestion": {
+        "properties": {
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "page",
+              "recording",
+              "entity",
+              "topic",
+              "collection",
+              "speaker"
+            ],
+            "title": "Kind"
+          },
+          "sign": {
+            "type": "string",
+            "enum": [
+              "@",
+              "#"
+            ],
+            "title": "Sign",
+            "description": "# for a topic, @ for anything else"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "target",
+          "label",
+          "kind",
+          "sign"
+        ],
+        "title": "NoteLinkSuggestion"
       },
       "NoteLinkTarget": {
         "properties": {

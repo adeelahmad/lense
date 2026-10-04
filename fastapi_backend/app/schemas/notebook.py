@@ -130,3 +130,7 @@ class NoteLinkTarget(ResponseModel):
     target: str
     label: str
     kind: Literal["page", "recording", "entity", "topic", "collection", "speaker"]
+
+
+class NoteLinkSuggestion(NoteLinkTarget):
+    sign: Sign = Field(description="# for a topic, @ for anything else")

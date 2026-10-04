@@ -11,6 +11,7 @@ import { Notes } from "@/app/openapi-client";
 import type { NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
 import { ActivityPanel } from "@/components/costs/costs";
 import type { EditorChange, LinkTarget } from "@/components/notes/block-editor";
+import { LinkSuggestions } from "@/components/notes/link-suggestions";
 import { NoteHistory } from "@/components/notes/note-history";
 import { PLACES, hrefFor } from "@/components/notes/links";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,8 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
   const [date, setDate] = useState("");
   const [place, setPlace] = useState("");
   const [showHistory, setShowHistory] = useState(false);
-  const [restored, setRestored] = useState(0); // a restore brings the editor back with the old text
+  const [restored, setRestored] = useState(0); // a restore (or an added link) brings the editor back with the new text
+  const [linking, setLinking] = useState(false);
   const [view, setView] = useState<View>("page");
   const loadedFor = useRef<string | null>(null);
   useEffect(() => {
@@ -335,6 +337,33 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
         search={search}
         onOpenLink={openLink}
       />
+      {canEdit && saved && (
+        <LinkSuggestions
+          pid={saved.id}
+          version={saved.updated_at}
+          busy={linking}
+          onLink={async (s) => {
+            // whatever is being typed goes first; the link is added on a line of its own, and the editor reloads
+            setLinking(true);
+            try {
+              await flush();
+              const cur = qc.getQueryData<Page>(key) ?? saved;
+              const body = `${(cur.body ?? "").trimEnd()}\n\n${s.sign}[${s.label}](${s.target})`;
+              const out = await data(Notes.updatePage({ client, path: { pid: saved.id }, body: { body } }));
+              qc.setQueryData(key, out);
+              setRestored((n) => n + 1);
+            } catch (err) {
+              toast({
+                title: "Couldn’t link it",
+                body: err instanceof ApiError ? err.message : "Please try again.",
+                tone: "red",
+              });
+            } finally {
+              setLinking(false);
+            }
+          }}
+        />
+      )}
       <Backlinks items={page.backlinks ?? []} />
       {showHistory && saved && (
         <NoteHistory

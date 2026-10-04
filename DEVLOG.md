@@ -205,7 +205,9 @@ Todo:
 - [x] Page history (note_version): a version before each change, one per sitting, restore that is itself undoable
 - [x] Self-organising, first step: notes nobody filed are filed in PARA by a decision model (or the LLM), with a
       suggestion when it isn't sure (ai.organise_notes)
-- [ ] Self-organising, next: link notes to entities and topics, nest them under their project or area
+- [x] Self-organising: suggested links to the topics and named things a note mentions (no model; one click; the
+  assistant sees them as could_link)
+- [ ] Self-organising, next: nest notes under their project or area
 - [ ] # topics move to the SKOS topics once the graph thread splits them from entities
 - [ ] Attachments on a page, encrypted through the keyring
 - [ ] Object storage (S3, or an rclone remote served as S3) in the setup wizard, no local storage; a downloadable
