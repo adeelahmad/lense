@@ -43,6 +43,9 @@ import type {
   ApproveAccessRequestData,
   ApproveAccessRequestErrors,
   ApproveAccessRequestResponses,
+  AskGraphData,
+  AskGraphErrors,
+  AskGraphResponses,
   BridgeStatusData,
   BridgeStatusResponses,
   BrowseSourceData,
@@ -4927,6 +4930,25 @@ export class Graph {
   ): RequestResult<GraphQueryResponses, GraphQueryErrors, ThrowOnError> {
     return (options.client ?? client).post<GraphQueryResponses, GraphQueryErrors, ThrowOnError>({
       url: "/api/v1/graph/query",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Ask Graph
+   *
+   * A question in plain language: the language model writes read-only Cypher, Lens runs it over the graph you can
+   * read, and you get the answer with the query that found it ({question, cypher, explanation, result}).
+   */
+  public static askGraph<ThrowOnError extends boolean = false>(
+    options: Options<AskGraphData, ThrowOnError>,
+  ): RequestResult<AskGraphResponses, AskGraphErrors, ThrowOnError> {
+    return (options.client ?? client).post<AskGraphResponses, AskGraphErrors, ThrowOnError>({
+      url: "/api/v1/graph/ask",
       ...options,
       headers: {
         "Content-Type": "application/json",

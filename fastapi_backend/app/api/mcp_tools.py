@@ -20,6 +20,7 @@ from fastapi import HTTPException, Request
 
 from app.api.deps import Access, Principal
 from app.api.v1.routes import entities as entity_routes
+from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
@@ -152,6 +153,7 @@ class Tool:
     description: str
     args: tuple[Arg, ...]
     run: Callable[..., dict[str, Any]] = field(compare=False)
+    writes: bool = False  # asks for a change: needs a write-scope token, and says so in its annotations
 
     def definition(self) -> dict[str, Any]:
         return {
@@ -166,9 +168,9 @@ class Tool:
             },
             "annotations": {
                 "title": self.title,
-                "readOnlyHint": True,
+                "readOnlyHint": not self.writes,
                 "destructiveHint": False,
-                "idempotentHint": True,
+                "idempotentHint": not self.writes,
                 "openWorldHint": False,
             },
         }
@@ -177,9 +179,11 @@ class Tool:
 TOOLS: dict[str, Tool] = {}
 
 
-def tool(name: str, title: str, description: str, *args: Arg) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
+def tool(
+    name: str, title: str, description: str, *args: Arg, writes: bool = False
+) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
     def register(fn: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
-        TOOLS[name] = Tool(name, title, description, args, fn)
+        TOOLS[name] = Tool(name, title, description, args, fn, writes)
         return fn
 
     return register
@@ -925,3 +929,111 @@ def sparql(ctx: Context, namespace: str, query: str) -> dict[str, Any]:
     if kind == "results":
         return out
     return {"turtle": rdf.serialize(out, "turtle").decode()[:200000]}
+
+
+# ---------- the graph as a property graph, in Cypher (docs/graph.md) ----------
+def _gscope(namespace: str | None) -> str:
+    return f"ns:{namespace}" if namespace else "global"
+
+
+@tool(
+    "graph_schema",
+    "What the graph holds",
+    "The archive as a property graph: node labels (Namespace, Collection, Recording, Speaker, Entity and its type) with "
+    "their properties and counts, relationship types (CONTAINS, HAS_SPEAKER, MENTIONS, SAID, MENTIONED_WITH, "
+    "SPOKE_WITH, SAME_AS, SAME_THING) and what they join, and example Cypher. Read it before graph_query.",
+    Arg("namespace", "string", "one namespace (else every namespace that shares its graph)"),
+)
+def graph_schema(ctx: Context, namespace: str | None) -> dict[str, Any]:
+    return graph_routes.graph_schema(ctx.request, ctx.user, ctx.acl, ctx.db, scope=_gscope(namespace))
+
+
+@tool(
+    "graph_query",
+    "Query the graph in Cypher",
+    "Read-only Cypher over the namespaces you can read, e.g. MATCH (s:Speaker)-[x:SAID]->(e:Organisation) RETURN "
+    "s.name, e.name, x.count ORDER BY x.count DESC LIMIT 10. MATCH, OPTIONAL MATCH, WHERE, WITH, UNWIND, RETURN, "
+    "ORDER BY, SKIP, LIMIT, UNION, variable-length and shortestPath patterns, aggregation and the usual functions; "
+    "never CREATE, MERGE, SET or DELETE (use propose_graph_change). Errors say what to fix.",
+    Arg("query", "string", "the Cypher query", required=True, max_length=20000),
+    Arg("namespace", "string", "one namespace (else every namespace that shares its graph)"),
+    Arg("limit", "integer", "rows at most", default=200, minimum=1, maximum=2000),
+)
+def graph_query(ctx: Context, query: str, namespace: str | None, limit: int) -> dict[str, Any]:
+    body = graph_routes.GraphQuery(query=query, scope=_gscope(namespace), limit=limit)
+    out = graph_routes.run_query(ctx.request, ctx.db, ctx.acl, body)
+    return {k: out[k] for k in ("columns", "rows", "truncated", "namespaces")}
+
+
+@tool(
+    "graph_related",
+    "Walk the graph from a node",
+    "A node's parents, children, ancestors or descendants (along CONTAINS, HAS_SPEAKER, MENTIONS and SAID: namespace "
+    "> collection > recording > speaker and entity), or its neighbours over any relationship, nearest first. Nodes "
+    "are n<id>, c<id>, r<id>, s<id> and e<id> (e:<key> for an entity across namespaces).",
+    Arg("node", "string", "the node id", required=True, max_length=200),
+    Arg("relation", "string", "which way to walk", required=True, enum=("parents", "children", "ancestors", "descendants", "neighbours")),
+    Arg("depth", "integer", "steps out (ancestors, descendants, neighbours)", default=1, minimum=1, maximum=8),
+    Arg("namespace", "string", "one namespace (else every namespace that shares its graph)"),
+    Arg("limit", "integer", "nodes at most", default=200, minimum=1, maximum=2000),
+)
+def graph_related(ctx: Context, node: str, relation: str, depth: int, namespace: str | None, limit: int) -> dict[str, Any]:
+    return graph_routes.graph_related(
+        ctx.request,
+        ctx.user,
+        ctx.acl,
+        ctx.db,
+        node=node,
+        relation=relation,
+        depth=depth,
+        types=None,
+        limit=limit,
+        scope=_gscope(namespace),
+    )
+
+
+@tool(
+    "graph_paths",
+    "Find the paths between two nodes",
+    "Every simple path between two nodes up to max_depth hops, shortest first (or only the shortest ones).",
+    Arg("from_node", "string", "one end", required=True, max_length=200),
+    Arg("to_node", "string", "the other end", required=True, max_length=200),
+    Arg("max_depth", "integer", "hops at most", default=4, minimum=1, maximum=8),
+    Arg("shortest", "boolean", "only the shortest paths", default=False),
+    Arg("namespace", "string", "one namespace (else every namespace that shares its graph)"),
+)
+def graph_paths(ctx: Context, from_node: str, to_node: str, max_depth: int, shortest: bool, namespace: str | None) -> dict[str, Any]:
+    return graph_routes.graph_paths(
+        ctx.request,
+        ctx.user,
+        ctx.acl,
+        ctx.db,
+        a=from_node,
+        b=to_node,
+        max_depth=max_depth,
+        limit=10,
+        types=None,
+        directed=False,
+        shortest=shortest,
+        scope=_gscope(namespace),
+    )
+
+
+@tool(
+    "propose_graph_change",
+    "Propose a change to the graph",
+    "Ask for two entities to be merged (same namespace; a is kept) or linked as the same thing (different namespaces). "
+    "It waits in Proposed changes for someone to accept, unless apply is true, which makes it at once (it can still be "
+    "undone). Needs a token with the write scope and editor access to both namespaces.",
+    Arg("kind", "string", "merge or link", required=True, enum=("merge", "link")),
+    Arg("a", "string", "an entity: e<id>", required=True, max_length=40),
+    Arg("b", "string", "the other entity: e<id>", required=True, max_length=40),
+    Arg("reason", "string", "why, in a few words", max_length=300),
+    Arg("apply", "boolean", "make it now instead of proposing it", default=False),
+    writes=True,
+)
+def propose_graph_change(ctx: Context, kind: str, a: str, b: str, reason: str | None, apply: bool) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to propose changes")
+    body = graph_routes.ChangeAsk(kind=kind, a=a, b=b, reason=reason, apply=apply)
+    return graph_routes.propose_graph_change(ctx.request, body, ctx.user, ctx.acl, ctx.db)

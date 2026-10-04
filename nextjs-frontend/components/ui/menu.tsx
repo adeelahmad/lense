@@ -13,16 +13,19 @@ export function MenuContent({
   children,
   align = "end",
   className,
+  onFocusOutside,
 }: {
   children: ReactNode;
   align?: "start" | "end" | "center";
   className?: string;
+  onFocusOutside?: M.DropdownMenuContentProps["onFocusOutside"];
 }) {
   return (
     <M.Portal>
       <M.Content
         align={align}
         sideOffset={6}
+        onFocusOutside={onFocusOutside}
         className={cn(
           "z-[150] min-w-[220px] rounded-md border border-border bg-background p-1.5 shadow-2 animate-fade-in",
           className,
