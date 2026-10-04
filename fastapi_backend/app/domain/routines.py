@@ -22,7 +22,21 @@ from __future__ import annotations
 import datetime as dt
 import threading
 
-from . import fedora, jobs, organize, schedule, semantic, sensor_digests, sensor_patterns, sensors, sources, store, telemetry, workflows
+from . import (
+    fedora,
+    jobs,
+    notebook,
+    organize,
+    schedule,
+    semantic,
+    sensor_digests,
+    sensor_patterns,
+    sensors,
+    sources,
+    store,
+    telemetry,
+    workflows,
+)
 
 R = store.R
 ACTIONS = ("sync", "pipeline", "workflow", "sensors")
@@ -524,6 +538,7 @@ def start(db, cfg_fn, stop, log=None):
         every(lambda: cfg_fn()["sources"]["check_seconds"], sources.poll_due, "watched folders"),
         every(lambda: CHECK_SECONDS, run_due, "routines"),
         every(lambda: cfg_fn()["fedora"]["sync_seconds"], fedora.sync_due, "fedora"),
+        every(lambda: notebook.QUIET_SECONDS / 2, notebook.refine_due, "notes"),
     ]
 
 

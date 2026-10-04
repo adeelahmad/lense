@@ -155,3 +155,51 @@ def test_domain_helpers():
     body = "**Hi** @[Ada](entity:5) and #[Caps](entity:9), @[Ada](entity:5) twice, @[x](nope:1)\n\n- [ ] [site](http://x)"
     assert notebook.mentions(body) == [("@", "entity", 5, "Ada"), ("#", "entity", 9, "Caps")]
     assert notebook.plain(body) == "Hi Ada and Caps, Ada twice, x\n\nsite"
+
+
+@pytest.fixture
+def llm(cfg):
+    from tests import fake_llm
+
+    srv, url = fake_llm.start()
+    cfg["llm"].update(base_url=url, model="fake")
+    fake_llm.Handler.seen = []
+    yield fake_llm.Handler
+    srv.shutdown()
+
+
+def _age(db, pid, seconds=600):
+    import datetime as dt
+
+    old = (dt.datetime.now(dt.UTC) - dt.timedelta(seconds=seconds)).isoformat(timespec="seconds")
+    db.q("UPDATE $r SET updated_at = $t", r=R("note_page", pid), t=old)
+
+
+def test_refining_titles_and_summaries(client, env, db, cfg, llm):
+    he = env["he"]
+    p = _new(client, he, title="Untitled", body="Capsid samples ship on Friday.\n\nAlice sends them.")
+    # nothing happens while someone may still be typing
+    assert notebook.refine_due(db, cfg) == 0
+    _age(db, p["id"])
+    assert notebook.refine_due(db, cfg) == 1
+    got = client.get(f"/api/v1/notes/{p['id']}", headers=he).json()
+    assert (got["title"], got["summary"], got["summary_by"]) == ("Capsid plan", "About Capsid samples ship on Friday.", "assistant")
+    # done until the note changes; a person's title change makes it due again, and their own title stays
+    assert notebook.refine_due(db, cfg) == 0
+    client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"title": "Shipping"})
+    _age(db, p["id"])
+    assert notebook.refine_due(db, cfg) == 1
+    assert client.get(f"/api/v1/notes/{p['id']}", headers=he).json()["title"] == "Shipping"
+    # switched off, nothing is sent
+    client.patch(f"/api/v1/notes/{p['id']}", headers=he, json={"body": "New text"})
+    _age(db, p["id"])
+    cfg["ai"]["refine_notes"] = False
+    n = len(llm.seen)
+    assert notebook.refine_due(db, cfg) == 0 and len(llm.seen) == n
+    # empty notes aren't sent
+    cfg["ai"]["refine_notes"] = True
+    e = _new(client, he, title="Empty")
+    _age(db, e["id"])
+    _age(db, p["id"])
+    notebook.refine_due(db, cfg)
+    assert len(llm.seen) == n + 1
