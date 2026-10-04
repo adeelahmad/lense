@@ -22,10 +22,11 @@ from app.api.deps import Access, Principal
 from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
+from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
-from app.domain import analyze, graph_history, library, rdf, render, store
+from app.domain import analyze, graph_history, library, notebook, rdf, render, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
@@ -1145,3 +1146,117 @@ def propose_graph_change(ctx: Context, kind: str, a: str, b: str, reason: str | 
         raise ToolError("this token is read-only: ask for a token with the write scope to propose changes")
     body = graph_routes.ChangeAsk(kind=kind, a=a, b=b, reason=reason, apply=apply)
     return graph_routes.propose_graph_change(ctx.request, body, ctx.user, ctx.acl, ctx.db)
+
+
+# ---------- notes (docs/notes.md) ----------
+def _note_url(ctx: Context, pid: int) -> str:
+    return f"{ctx.web}/notes/{pid}"
+
+
+@tool(
+    "find_notes",
+    "Find notes",
+    "Notes in the namespaces you can read: free notes and the pages of recordings, entities, topics, collections and "
+    "speakers, found by words in their title, one-line summary or text (title matches first, then the latest). Each "
+    "has its id, one-line summary, where it is filed (PARA: project, area, resource, archive), what it is the page of, "
+    "and a url.",
+    Arg("query", "string", "words to look for", max_length=200),
+    Arg("namespace", "string", "only this namespace"),
+    Arg("place", "string", "only notes filed here", enum=notebook.PLACES),
+    Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
+)
+def find_notes(ctx: Context, query: str | None, namespace: str | None, place: str | None, limit: int) -> dict[str, Any]:
+    spaces = [ctx.acl.namespace(namespace)] if namespace else ctx.acl.spaces()
+    names = store.space_names(ctx.db)
+    total, hits = notebook.find(ctx.db, spaces, query, place, limit)
+    return {
+        "total": total,
+        "notes": [
+            store.clean(
+                {
+                    "note_id": r["id"],
+                    "title": r["title"],
+                    "summary": r.get("summary"),
+                    "place": r.get("place"),
+                    "page_of": r.get("about"),
+                    "namespace": names.get(r["space"]),
+                    "updated": r.get("updated_at"),
+                    "url": _note_url(ctx, r["id"]),
+                }
+            )
+            for r in hits
+        ],
+    }
+
+
+@tool(
+    "read_note",
+    "Read a note",
+    "A note's Markdown, with what it links to and the notes linking to it: by note_id, or the page of a thing "
+    '(about, like "recording:12", "entity:5" or "topic:9"). Links in the Markdown are written @[label](kind:id) and, for '
+    "topics, #[label](topic:id).",
+    Arg("note_id", "integer", "the note (from find_notes)"),
+    Arg("about", "string", 'the thing whose page to read, like "recording:12"', max_length=60),
+)
+def read_note(ctx: Context, note_id: int | None, about: str | None) -> dict[str, Any]:
+    if note_id is None and not about:
+        raise ToolError("give note_id or about")
+    if note_id is not None:
+        p = note_routes.get_page(note_id, ctx.user, ctx.acl, ctx.db)
+    else:
+        kind, _, key = str(about).partition(":")
+        if not key.isdigit():
+            raise ToolError('about is a thing like "recording:12"')
+        p = note_routes.page_about(kind, int(key), ctx.user, ctx.acl, ctx.db)
+        if p.id is None:
+            return {"page_of": about, "note": None, "title": p.title, "linked_from": [b.title for b in p.backlinks] or None}
+    return store.clean(
+        {
+            "note_id": p.id,
+            "title": p.title,
+            "summary": p.summary,
+            "date": p.date,
+            "place": p.place,
+            "page_of": p.about,
+            "parent_id": p.parent,
+            "namespace": p.namespace,
+            "written_by": p.author,
+            "body": _cut(p.body, FETCH_CHARS),
+            "links": [{"target": x.target, "name": x.name} for x in p.links] or None,
+            "linked_from": [{"note_id": b.page, "title": b.title} for b in p.backlinks] or None,
+            "url": _note_url(ctx, p.id),
+        }
+    )
+
+
+@tool(
+    "write_note",
+    "Write a note",
+    "Write a new note in a namespace, or the page of a thing (about; each thing has one). Give it a specific title, a "
+    "one-line summary of what it holds, Markdown text linking with @[label](recording:12), @[label](entity:5), "
+    "@[label](page:3) and #[label](topic:9), and where it is filed. It is marked as written by an assistant. Needs a "
+    "token with the write scope and editor access.",
+    Arg("namespace", "string", "the namespace", required=True),
+    Arg("title", "string", "the title", required=True, max_length=200),
+    Arg("body", "string", "the text, in Markdown", required=True, max_length=200_000),
+    Arg("summary", "string", "one line on what it holds", max_length=300),
+    Arg("place", "string", "where it is filed", enum=notebook.PLACES),
+    Arg("parent_id", "integer", "put it inside this note"),
+    Arg("about", "string", 'make it the page of this thing, like "entity:5"', max_length=60),
+    writes=True,
+)
+def write_note(
+    ctx: Context,
+    namespace: str,
+    title: str,
+    body: str,
+    summary: str | None,
+    place: str | None,
+    parent_id: int | None,
+    about: str | None,
+) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to write notes")
+    sid = ctx.acl.namespace(namespace, "editor")
+    pid = notebook.create(ctx.db, sid, ctx.user.id, title, body, summary, None, place, parent_id, about, author="assistant")
+    return {"note_id": pid, "url": _note_url(ctx, pid)}
