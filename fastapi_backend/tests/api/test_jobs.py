@@ -366,3 +366,14 @@ def test_jobs_of_a_namespace_or_batch(client, db, cfg, folder):
     everyone = client.get("/api/v1/jobs", headers=hr).json()
     assert everyone["namespaces"] == {"pods": 2, "calls": 1} and sum(everyone["counts"].values()) == 3
     assert client.get("/api/v1/jobs", params={"batch": 8}, headers=hr).json()["jobs"] == []
+
+
+def test_a_steps_list_from_before_the_video_steps_runs_them_too(db, cfg):
+    """archive.yaml copied from an older example lists no video steps: imports would wait forever at shots."""
+    old = ["transcribe", "diarize", "analyze", "summarize", "llm", "report", "export", "workflow"]
+    said = []
+    w = jobs.Worker(db, lambda: {**cfg, "workers": {**cfg["workers"], "steps": old}}, name="old", log=said.append)
+    assert w.can == set(jobs.STEPS) and not said
+    w = jobs.Worker(db, lambda: {**cfg, "workers": {**cfg["workers"], "steps": [*old, "shots"]}}, name="chosen", log=said.append)
+    assert "ocr" not in w.can and "leaves out describe, faces, objects, ocr" in said[0]
+    assert jobs.Worker(db, lambda: cfg, name="mac", steps=["transcribe"], log=said.append).can == {"transcribe"} and len(said) == 1

@@ -174,13 +174,31 @@ def _last_said(text):
 
 
 def _run(argv, seconds, env=None, cwd=None):
+    """Run a converter in a process group of its own, and leave nothing of it behind: soffice starts soffice.bin,
+    which kept the pipes open (so a timeout waited forever) and could outlive the run."""
+    p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, cwd=cwd, start_new_session=True)
     try:
-        return subprocess.run(argv, capture_output=True, text=True, timeout=seconds, env=env, cwd=cwd)
-    except subprocess.TimeoutExpired as e:
-        said = _last_said(e.stderr)
+        out, err = p.communicate(timeout=seconds)
+    except subprocess.TimeoutExpired:
+        _kill_group(p)
+        _, err = p.communicate()
+        said = _last_said(err)
         raise ValueError(
             f"converting it took longer than {seconds} s (documents.convert_seconds){f'; it last said: {said}' if said else ''}"
         ) from None
+    except BaseException:
+        _kill_group(p)
+        p.communicate()
+        raise
+    _kill_group(p)  # whatever it left running
+    return subprocess.CompletedProcess(argv, p.returncode, out, err)
+
+
+def _kill_group(p):
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
 
 
 def office_pdf(cfg, src, out):
@@ -277,20 +295,19 @@ def _print(argv, env, url, seconds, settle_ms):
     said = tempfile.TemporaryFile()
     err = _high(os.dup(said.fileno()))
     deadline, buf, n = time.monotonic() + seconds, b"", 0
+    file_actions = [
+        (os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0),
+        (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
+        (os.POSIX_SPAWN_DUP2, err, 2),
+        (os.POSIX_SPAWN_DUP2, to_read, 3),
+        (os.POSIX_SPAWN_DUP2, from_write, 4),
+    ]
     try:
-        pid = os.posix_spawn(
-            argv[0],
-            [*argv, "--remote-debugging-pipe", "about:blank"],
-            env,
-            file_actions=[
-                (os.POSIX_SPAWN_OPEN, 0, os.devnull, os.O_RDONLY, 0),
-                (os.POSIX_SPAWN_OPEN, 1, os.devnull, os.O_WRONLY, 0),
-                (os.POSIX_SPAWN_DUP2, err, 2),
-                (os.POSIX_SPAWN_DUP2, to_read, 3),
-                (os.POSIX_SPAWN_DUP2, from_write, 4),
-            ],
-            setsid=True,  # its own process group, so that it goes with all its helpers
-        )
+        # its own process group, so that it goes with all its helpers
+        try:
+            pid = os.posix_spawn(argv[0], [*argv, "--remote-debugging-pipe", "about:blank"], env, file_actions=file_actions, setsid=True)
+        except NotImplementedError:  # Pythons built against an old glibc (uv's own builds) have no setsid here
+            pid = os.posix_spawn(argv[0], [*argv, "--remote-debugging-pipe", "about:blank"], env, file_actions=file_actions, setpgroup=0)
     finally:
         for fd in (to_read, from_write, err):
             os.close(fd)
@@ -767,10 +784,10 @@ def keep_attachments(db, cfg, rid, attachments, say):
 
 def _resource_of(db, cfg, rid, rec, f, kind):
     """One attachment as a resource of its own (or the one the same file is already, in its namespace): 1 if made."""
-    from . import files, ingest, jobs
+    from . import files, ingest, jobs, keyring
 
     src = files.path_of(cfg, f)
-    fp = ingest.fingerprint(src)
+    fp = ingest.fingerprint(src, db=db, cfg=cfg)
     known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{rec['space']}:{fp}")
     if known:
         db.q("UPDATE $r SET resource = $x", r=R("resource_file", f["id"]), x=known["id"])
@@ -778,7 +795,9 @@ def _resource_of(db, cfg, rid, rec, f, kind):
     ns = store.space_names(db).get(rec["space"]) or str(rec["space"])
     dest = pathlib.Path(cfg["data_dir"]) / "uploads" / ns / f"attachment-{int(rid)}-{f['id']}" / f["name"]
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(src, dest)
+    shutil.copyfile(src, dest)  # an encrypted attachment stays encrypted: its header names the key it needs
+    if not keyring.is_encrypted(src):
+        keyring.protect(db, cfg, rec["space"], dest)
     st = dest.stat()
     new = db.next_id("recording")
     db.q(
@@ -791,7 +810,7 @@ def _resource_of(db, cfg, rid, rec, f, kind):
                 "path": str(dest),
                 "source": kind,
                 "media": {"kind": kind} if kind != "audio" else None,
-                "size": st.st_size,
+                "size": keyring.plain_size(db, cfg, dest),
                 "mtime": st.st_mtime,
                 "fingerprint": fp,
                 "fp_key": f"{rec['space']}:{fp}",

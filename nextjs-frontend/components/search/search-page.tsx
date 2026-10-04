@@ -22,6 +22,7 @@ import {
   parseQuery,
   toParams,
   type SearchFilters,
+  type SearchMode,
 } from "@/components/search/query";
 import { ResultGroups } from "@/components/search/results";
 import { SaveSearchDialog } from "@/components/search/save-search";
@@ -31,6 +32,7 @@ import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/states";
+import { Segmented } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { count, plural } from "@/lib/format";
@@ -66,7 +68,7 @@ export function SearchPage() {
   const qc = useQueryClient();
   const toast = useToast();
   const { namespaces, can } = useArchive();
-  const { q, filters } = useMemo(() => fromParams(new URLSearchParams(params.toString())), [params]);
+  const { q, filters, mode } = useMemo(() => fromParams(new URLSearchParams(params.toString())), [params]);
   const [draft, setDraft] = useState(q);
   const [problem, setProblem] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -94,7 +96,7 @@ export function SearchPage() {
   const enabled = hasTerms(q);
   const nFilters = activeFilterCount(filters);
   const results = useInfiniteQuery({
-    queryKey: ["search-results", q, filters],
+    queryKey: ["search-results", q, filters, mode],
     queryFn: ({ pageParam }) =>
       data(
         Search.searchTranscripts({
@@ -106,6 +108,7 @@ export function SearchPage() {
             emotion: filters.emotion,
             recording: filters.recording,
             object: filters.object,
+            mode,
             limit: PAGE,
             offset: pageParam,
             // without filters, the first page brings the facets too
@@ -123,8 +126,8 @@ export function SearchPage() {
   });
   // Facets and "without filters" counts come from the words alone.
   const base = useQuery({
-    queryKey: ["search-base", q],
-    queryFn: () => data(Search.searchTranscripts({ client, query: { q, limit: PAGE, facets: true } })),
+    queryKey: ["search-base", q, mode],
+    queryFn: () => data(Search.searchTranscripts({ client, query: { q, mode, limit: PAGE, facets: true } })),
     enabled: enabled && nFilters > 0,
     staleTime: 30_000,
   });
@@ -152,7 +155,10 @@ export function SearchPage() {
     return out;
   }, [filters, baseData, hits, index.byId]);
 
-  const go = useCallback((nq: string, f: SearchFilters) => router.push(`/search?${toParams(nq, f)}`), [router]);
+  const go = useCallback(
+    (nq: string, f: SearchFilters, m: SearchMode = mode) => router.push(`/search?${toParams(nq, f, m)}`),
+    [router, mode],
+  );
   const setFilter = (key: keyof SearchFilters, value: string | number | undefined) =>
     go(q, { ...filters, [key]: value });
   const clearFilter = (key: keyof SearchFilters | "all") =>
@@ -364,6 +370,14 @@ export function SearchPage() {
               ))}
             </div>
           )}
+          {enabled && first && (first.semantic || mode !== "auto") && (
+            <MatchMode mode={mode} onChange={(m) => go(q, filters, m)} />
+          )}
+          {enabled && first?.meaning && (
+            <p role="status" className="m-0 text-[13px] text-fg-secondary">
+              These moments match the words: {first.meaning}.
+            </p>
+          )}
           {enabled && first && total > 0 && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="tabular m-0 text-[13px] text-fg-secondary" aria-live="polite">
@@ -472,13 +486,35 @@ export function SearchPage() {
   );
 }
 
+const MODES: { value: SearchMode; label: string; hint: string }[] = [
+  { value: "auto", label: "Words and meaning", hint: "Moments with the words, and passages about the same thing" },
+  { value: "keyword", label: "Words only", hint: "Only moments with the words (or their forms)" },
+  { value: "semantic", label: "Meaning only", hint: "Passages about what you typed, whatever their words" },
+];
+
+/** How the search matches: by its words, by meaning, or both (when an embedding model is set up). */
+function MatchMode({ mode, onChange }: { mode: SearchMode; onChange: (m: SearchMode) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <Segmented
+        label="Match"
+        value={mode}
+        onChange={(v) => onChange(v as SearchMode)}
+        items={MODES.map((m) => ({ value: m.value, label: <span title={m.hint}>{m.label}</span> }))}
+      />
+      <span className="hidden text-[12.5px] text-fg-muted md:inline">{MODES.find((m) => m.value === mode)?.hint}</span>
+    </div>
+  );
+}
+
 function Intro({ onPick }: { onPick: (example: string) => void }) {
   return (
     <div className="flex max-w-[620px] flex-col gap-5 py-10">
       <div className="flex flex-col gap-1.5">
         <h2 className="text-[20px] font-bold leading-tight text-fg">Search what was said</h2>
         <p className="m-0 text-[14px] leading-normal text-fg-secondary">
-          Every word must appear in the same segment, and word forms match (English stemming). Results only come from
+          Every word must appear in the same segment, and word forms match (English stemming). When search by meaning is
+          set up, passages about the same thing in other words come too, marked Related. Results only come from
           namespaces you can read, grouped by recording. Pick an example to start from it.
         </p>
       </div>

@@ -41,6 +41,11 @@ class UploadStart(RequestModel):
     modified: int | None = Field(
         None, ge=0, description="the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't"
     )
+    hold: bool = Field(
+        False,
+        description="keep it out of the archive once it's here (state `held`), to attach to a chat message: the assistant puts it "
+        "in a namespace (no `namespace` needed)",
+    )
 
 
 class Upload(ResponseModel):
@@ -50,7 +55,7 @@ class Upload(ResponseModel):
     title: str | None = None
     size: int
     offset: int = Field(description="how many bytes have arrived: the next chunk starts here")
-    state: Literal["receiving", "done"]
+    state: Literal["receiving", "held", "done"] = Field(description="held: all here, waiting to be put in a namespace")
     attach: int | None = Field(None, description="the transcript-only recording it becomes the audio of")
     pipeline: int | None = Field(None, description="the pipeline chosen to run once it's here (default: the namespace's)")
     recording: int | None = Field(None, description="the recording it became (or was attached to), once done")

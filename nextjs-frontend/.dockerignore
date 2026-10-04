@@ -1,0 +1,12 @@
+# The build context of Dockerfile and Dockerfile.prod (docker-compose, the NAS packages). Without this, `COPY . .`
+# brings in what a native `pnpm install` / `pnpm dev` left here: node_modules built for the host (macOS binaries
+# over the image's Linux ones, an older openapi-ts after a dependency bump), .next caches and .env.local's secrets.
+node_modules
+.next
+.next-*
+coverage
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+shared-data

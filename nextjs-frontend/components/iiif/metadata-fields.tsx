@@ -6,6 +6,8 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 
 import { Entities } from "@/app/openapi-client";
 import {
+  DC_TERM_LABEL,
+  DC_TERMS,
   FIELD_MAPS,
   inLang,
   LANG_RX,
@@ -19,7 +21,9 @@ import {
   type Pair,
   type Person,
   type Related,
+  type Statement,
   type Subject,
+  type Terms,
 } from "@/components/iiif/metadata-model";
 import { canonicalRights, RIGHTS, rightsFor } from "@/components/iiif/rights";
 import { Button } from "@/components/ui/button";
@@ -1064,6 +1068,103 @@ export function Pairs({ draft, set, errors, readOnly, lang }: FieldProps & { lan
         <AddButton onClick={() => set("metadata", [...pairs, { label: {}, value: {} }])}>Add pair</AddButton>
       )}
       {errors.metadata && <p className="text-[12px] text-red-dark">{errors.metadata}</p>}
+    </div>
+  );
+}
+
+type TermRow = { term: string; value: string };
+
+function termRows(terms: Terms | null | undefined): TermRow[] {
+  return Object.entries(terms ?? {}).flatMap(([term, vals]) => vals.map((value) => ({ term, value })));
+}
+
+function rowsToTerms(rows: TermRow[]): Terms | null {
+  const out: Terms = {};
+  for (const r of rows) (out[r.term] ??= []).push(r.value);
+  return Object.keys(out).length ? out : null;
+}
+
+/** The short name of an RDF property: the part after # or the last /. */
+function shortIri(iri: string): string {
+  return iri.replace(/^.*[#/]/, "") || iri;
+}
+
+/**
+ * Every other DCMI term (dcterms:spatial, dcterms:alternative, …), one value per row; a value that is an http(s)
+ * address is a link in RDF. Below them, the other RDF statements an import kept, which can be removed.
+ */
+export function DublinCore({ draft, set, errors, readOnly }: FieldProps) {
+  const rows = termRows(draft.terms);
+  const statements: Statement[] = draft.statements ?? [];
+  const write = (next: TermRow[]) => set("terms", rowsToTerms(next));
+  const unused = DC_TERMS.find((t) => !rows.some((r) => r.term === t.term))?.term ?? "coverage";
+  const options = DC_TERMS.map((t) => ({ value: t.term, label: t.label }));
+  return (
+    <div className="flex flex-col gap-3.5">
+      <SectionHead title="More Dublin Core" maps={FIELD_MAPS.terms} />
+      <div className="flex flex-col gap-1.5">
+        {rows.map((r, i) => (
+          <div key={i} className="grid grid-cols-[minmax(0,0.6fr)_minmax(0,1fr)_28px] items-center gap-2">
+            <Select
+              aria-label="Dublin Core term"
+              size="sm"
+              value={r.term}
+              disabled={readOnly}
+              onChange={(e) => write(rows.map((x, j) => (j === i ? { ...x, term: e.target.value } : x)))}
+              options={DC_TERM_LABEL[r.term] ? options : [{ value: r.term, label: r.term }, ...options]}
+            />
+            <Input
+              aria-label={`${DC_TERM_LABEL[r.term] ?? r.term} value`}
+              placeholder={DC_TERMS.find((t) => t.term === r.term)?.hint || "text, or an https:// link"}
+              value={r.value}
+              readOnly={readOnly}
+              onChange={(e) => write(rows.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))}
+              className="h-8 text-[12.5px]"
+            />
+            <RemoveButton
+              label="Remove term"
+              disabled={readOnly}
+              onClick={() => write(rows.filter((_, j) => j !== i))}
+            />
+          </div>
+        ))}
+        {!readOnly && <AddButton onClick={() => write([...rows, { term: unused, value: "" }])}>Add term</AddButton>}
+        <p className={cn("text-[12px]", errors.terms ? "text-red-dark" : "text-fg-muted")}>
+          {errors.terms ?? "Place, period, audience, source, alternative title and the rest of DCMI Metadata Terms"}
+        </p>
+      </div>
+      {statements.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-bold leading-tight text-fg-strong">
+            Other RDF statements{" "}
+            <span className="font-mono text-[11px] font-medium text-fg-muted">kept from imports</span>
+          </span>
+          {statements.map((st, i) => (
+            <div
+              key={i}
+              className="grid grid-cols-[minmax(0,0.6fr)_minmax(0,1fr)_28px] items-center gap-2 text-[12.5px]"
+            >
+              <Tooltip content={st.p}>
+                <span className="truncate font-mono text-fg-muted">{shortIri(st.p)}</span>
+              </Tooltip>
+              <span className="truncate">
+                {st.o}
+                {st.lang ? <span className="text-fg-muted"> @{st.lang}</span> : null}
+              </span>
+              <RemoveButton
+                label="Remove statement"
+                disabled={readOnly}
+                onClick={() =>
+                  set(
+                    "statements",
+                    statements.filter((_, j) => j !== i),
+                  )
+                }
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

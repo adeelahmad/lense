@@ -4,10 +4,14 @@ namespaces (or all of them), at the times its schedule says, or when someone ask
 - `sync`: pull from sources: scan watched folders now (the routine's namespaces' watches, or the ones it names),
   so new files come in and run their pipelines.
 - `pipeline`: queue a pipeline (one chosen, else the one each recording's content type gets: see content_types.py)
-  for recordings: new ones (made since the routine last looked), unprocessed ones, or all of them.
+  for recordings: new ones (made since the routine last looked), unprocessed ones, all of them, or the ones not yet
+  indexed for search by meaning with the current embedding model (to run the embed step on).
 - `workflow`: run a workflow. One that runs on recordings is queued on them as a workflow step (as above); one that
   organises the graph (scope graph, see organize.py) runs over the routine's namespaces there and then, proposing or
   making changes to their entities.
+- `sensors`: look after stream sensors' data (sensors.py), every stream sensor whatever the routine's namespaces, or
+  the ones it names: drop readings and hourly summaries past each sensor's retention, label new log patterns where
+  triage is on (sensor_patterns.py), and write the daily digests of sensors that keep them (sensor_digests.py).
 
 Each run is a `routine_run` row with what every action did and a log. A run's graph changes can be undone together.
 A routine whose run is still going isn't started again; a run that stops reporting for STALE_MINUTES is taken as dead.
@@ -16,21 +20,24 @@ A routine whose run is still going isn't started again; a run that stops reporti
 from __future__ import annotations
 
 import datetime as dt
+import threading
 
-from . import jobs, organize, schedule, sources, store, telemetry, workflows
+from . import fedora, jobs, organize, schedule, semantic, sensor_digests, sensor_patterns, sensors, sources, store, telemetry, workflows
 
 R = store.R
-ACTIONS = ("sync", "pipeline", "workflow")
+ACTIONS = ("sync", "pipeline", "workflow", "sensors")
 ACTION_KEYS = {
     "sync": {"type", "watches"},
+    "sensors": {"type", "sensors"},
     "pipeline": {"type", "pipeline", "steps", "recordings", "limit"},
     "workflow": {"type", "workflow", "version", "recordings", "limit", "propose_only"},
 }
-PICKS = ("new", "unprocessed", "all")
+PICKS = ("new", "unprocessed", "all", "unindexed")  # unindexed: not yet searchable by meaning with the current model
 UNPROCESSED = ["new", "error", "transcribed", "diarized"]
 MAX_ACTIONS, DEFAULT_LIMIT, MAX_LIMIT = 20, 500, 5000
 STALE_MINUTES = 180
 CHECK_SECONDS = 30  # how often the scheduler looks for routines that are due
+MIN_WAIT_SECONDS = 5  # the shortest wait between rounds, whatever sources.check_seconds says
 LOG_MAX = 500
 FIELDS = (
     "record::id(id) AS id, name, description, enabled, schedule, timezone, namespaces, actions, next_run_at, last_run_at, "
@@ -74,7 +81,7 @@ def _check(db, d):
     if "actions" in d:
         acts = d["actions"] or []
         if not isinstance(acts, list) or not acts:
-            raise ValueError("a routine does at least one thing: sync, pipeline or workflow")
+            raise ValueError("a routine does at least one thing: sync, pipeline, workflow or sensors")
         if len(acts) > MAX_ACTIONS:
             raise ValueError(f"a routine has at most {MAX_ACTIONS} actions")
         out["actions"] = [_check_action(db, k, a) for k, a in enumerate(acts, 1)]
@@ -102,6 +109,17 @@ def _check_action(db, k, a):
             for x in w:
                 if not db.one("SELECT id FROM $r", r=R("watch_path", x)):
                     raise ValueError(f"action {k}: no watched folder {x}")
+    elif t == "sensors":
+        ids = a.get("sensors")
+        if ids is not None:
+            if not isinstance(ids, list) or not all(isinstance(x, int) for x in ids):
+                raise ValueError(f"action {k}: sensors is a list of stream sensor ids, or none for all of them")
+            for x in ids:
+                try:
+                    if sensors.family(sensors.get(db, x)["type"]) != "stream":
+                        raise KeyError(x)
+                except KeyError:
+                    raise ValueError(f"action {k}: no stream sensor {x}") from None
     elif t == "pipeline":
         if a.get("pipeline") is not None:
             if not isinstance(a["pipeline"], int) or not db.one("SELECT id FROM $r", r=R("pipeline", a["pipeline"])):
@@ -246,10 +264,13 @@ def _last_recording(db):
     return row["id"] if row else 0
 
 
-def _recordings(db, spaces, pick, seen, limit):
+def _recordings(db, spaces, pick, seen, limit, cfg=None):
     """Recording ids an action takes. New ones are those after `seen["since"]` (the newest recording the last run
     covered); how far this action got is left in `seen["pending"]` (the newest it took when it hit its limit, else
-    the newest there was), for the run to keep once the action has done its work."""
+    the newest there was), for the run to keep once the action has done its work. Unindexed ones are those whose
+    passages aren't embedded with the configured model (semantic.py)."""
+    if pick == "unindexed":
+        return semantic.unindexed(db, cfg, spaces, limit)
     q, upto = "SELECT record::id(id) AS id FROM recording WHERE space IN $s", _last_recording(db)
     if pick == "new":
         q += " AND record::id(id) > $since AND record::id(id) <= $upto"
@@ -300,22 +321,30 @@ def _action(db, cfg, routine, run_id, a, seen, propose_only, say):
     limit = a.get("limit") or DEFAULT_LIMIT
     if a["type"] == "sync":
         return _sync(db, cfg, a, spaces, say)
+    if a["type"] == "sensors":
+        got = sensors.tidy(db, cfg, a.get("sensors"), say=say)
+        got["triaged"] = sensor_patterns.triage(db, cfg, a.get("sensors"), say=say)
+        got["digests"] = sensor_digests.write(db, cfg, a.get("sensors"), say=say)
+        return got
+    if a.get("recordings") == "unindexed" and not semantic.configured(cfg):
+        say("search by meaning is off, or has no embeddings server: nothing to index")
+        return {"recordings": 0, "queued": 0, "errors": 0}
     if a["type"] == "pipeline":
-        rids = _recordings(db, spaces, a.get("recordings", "new"), seen, limit)
+        rids = _recordings(db, spaces, a.get("recordings", "new"), seen, limit, cfg)
         return _queue(db, rids, a.get("steps"), by, a.get("pipeline"), say=say)
     w = workflows.get(db, int(a["workflow"]), a.get("version"))
     if w["scope"] == "graph":
         origin = {"routine": routine["id"], "run": run_id}
         done, stats = organize.run(db, cfg, w["id"], spaces, w["version"], say, origin, propose_only or a.get("propose_only", False))
         return {"workflow": w["name"], "version": w["version"], "nodes": sum(v == "done" for v in done.values()), **stats}
-    rids = _recordings(db, spaces, a.get("recordings", "new"), seen, limit)
+    rids = _recordings(db, spaces, a.get("recordings", "new"), seen, limit, cfg)
     step = {"type": "workflow", "workflow": w["id"], "version": w["version"]}
     return {"workflow": w["name"], "version": w["version"], **_queue(db, rids, [step], by, add=True, say=say)}
 
 
 def _takes_new(db, a):
     """Whether an action works on new recordings (a graph workflow doesn't look at recordings)."""
-    if a["type"] == "sync" or a.get("recordings", "new") != "new":
+    if a["type"] in ("sync", "sensors") or a.get("recordings", "new") != "new":
         return False
     if a["type"] == "workflow":
         try:
@@ -429,18 +458,33 @@ def sweep(db, now=None):
     return n
 
 
+def _idle(db, cfg, r):
+    """Whether a routine's every action indexes for search by meaning, and there's nothing to index: it's off, its
+    server failed a moment ago, or every recording in its namespaces is indexed."""
+    acts = r.get("actions") or []
+    if acts and all(a.get("type") == "sensors" for a in acts):
+        return not sensors.any_streams(db)
+    if not acts or any(a.get("type") != "pipeline" or a.get("recordings") != "unindexed" for a in acts):
+        return False
+    return not semantic.configured(cfg) or bool(semantic.failing(db, cfg)) or not semantic.unindexed(db, cfg, _spaces(db, r), 1)
+
+
 def run_due(db, cfg, log=print, now=None):
     """Run every routine that is due (or asked to run now); how many ran."""
     now = now or dt.datetime.now(dt.timezone.utc)
     stamp = _iso(now)
     sweep(db, now)
     due = db.rows(
-        "SELECT record::id(id) AS id, schedule, timezone, next_run_at, run_now FROM routine "
+        "SELECT record::id(id) AS id, schedule, timezone, next_run_at, run_now, namespaces, actions FROM routine "
         "WHERE run_now != NONE OR (enabled = true AND next_run_at != NONE AND next_run_at <= $n)",
         n=stamp,
     )
     done = 0
     for r in due:
+        if not r.get("run_now") and _idle(db, cfg, r):  # nothing to do: its next time, without a run to show for it
+            nxt = _iso(schedule.next_after(r["schedule"], r.get("timezone") or "UTC", now)) if r.get("schedule") else None
+            db.q("UPDATE $r SET next_run_at = $nxt WHERE next_run_at = $was", r=R("routine", r["id"]), nxt=nxt, was=r.get("next_run_at"))
+            continue
         if not _claim(db, r, now):
             continue
         req = r.get("run_now") or {}
@@ -458,11 +502,67 @@ def run_due(db, cfg, log=print, now=None):
     return done
 
 
+def start(db, cfg_fn, stop, log=None):
+    """The scheduling threads, until `stop` is set: watched folders scanned when due (every sources.check_seconds) and
+    routines run when due (every CHECK_SECONDS). The API runs them with its background work; `lens worker` runs them too,
+    since Docker and the packages run the API without it."""
+
+    def every(seconds, fn, what):
+        def loop():
+            while not stop.wait(max(MIN_WAIT_SECONDS, seconds())):
+                try:
+                    fn(db, cfg_fn(), log=log)
+                except Exception as e:  # noqa: BLE001 - keep going
+                    if log:
+                        log(f"{what}: {type(e).__name__}: {e}")
+
+        th = threading.Thread(target=loop, daemon=True, name=what)
+        th.start()
+        return th
+
+    return [
+        every(lambda: cfg_fn()["sources"]["check_seconds"], sources.poll_due, "watched folders"),
+        every(lambda: CHECK_SECONDS, run_due, "routines"),
+        every(lambda: cfg_fn()["fedora"]["sync_seconds"], fedora.sync_due, "fedora"),
+    ]
+
+
 # ---------- what a fresh archive starts with ----------
+INDEX_NAME = "Index for search by meaning"
+SENSORS_NAME = "Tidy sensor data"
+
+
 def seed(db):
-    """The graph-organising workflow, and a routine that runs it every night (off until someone turns it on)."""
-    if db.one("SELECT id FROM $r", r=R("seed", "routines")):
-        return
+    """The graph-organising workflow, and a routine that runs it every night (off until someone turns it on); and a
+    routine that indexes, every hour, what isn't yet searchable by meaning (it does nothing while that's off)."""
+    if not db.one("SELECT id FROM $r", r=R("seed", "routines")):
+        _seed_graph(db)
+        db.q("UPSERT $r CONTENT $d", r=R("seed", "routines"), d={"at": store.now()})
+    if not db.one("SELECT id FROM $r", r=R("seed", "semantic")):
+        create(
+            db,
+            INDEX_NAME,
+            [{"type": "pipeline", "steps": ["embed"], "recordings": "unindexed", "limit": DEFAULT_LIMIT}],
+            "20 * * * *",
+            description="Embeds the passages of recordings not yet searchable by meaning with the current embedding model "
+            "(after the model changes, or for recordings made before search by meaning was set up), 500 an hour.",
+            user="lens-archive",
+        )
+        db.q("UPSERT $r CONTENT $d", r=R("seed", "semantic"), d={"at": store.now()})
+    if not db.one("SELECT id FROM $r", r=R("seed", "sensors")):
+        create(
+            db,
+            SENSORS_NAME,
+            [{"type": "sensors"}],
+            "40 * * * *",
+            description="Drops sensor readings and hourly summaries past each sensor's retention, every hour (it does nothing "
+            "while there are no stream sensors).",
+            user="lens-archive",
+        )
+        db.q("UPSERT $r CONTENT $d", r=R("seed", "sensors"), d={"at": store.now()})
+
+
+def _seed_graph(db):
     wid = next((w["id"] for w in workflows.list_workflows(db) if w["name"] == organize.DEFAULT_NAME), None)
     if wid is None:
         wid = workflows.create(db, organize.DEFAULT_NAME, organize.DEFAULT_GRAPH, organize.DEFAULT_DESCRIPTION, "lens-archive", "graph")
@@ -475,4 +575,3 @@ def seed(db):
         enabled=False,
         user="lens-archive",
     )
-    db.q("UPSERT $r CONTENT $d", r=R("seed", "routines"), d={"at": store.now()})

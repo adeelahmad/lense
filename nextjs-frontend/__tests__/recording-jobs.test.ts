@@ -273,7 +273,7 @@ describe("reprocess picker (R9)", () => {
   const audio = reprocessOptions({ video: false, hasAudio: true });
   const transcript = reprocessOptions({ video: false, hasAudio: false });
   it("offers the backend's steps; video steps only for videos", () => {
-    expect(audio.map((o) => o.key)).toEqual(["transcribe", "diarize", "analyze", "summarize", "report"]);
+    expect(audio.map((o) => o.key)).toEqual(["transcribe", "diarize", "analyze", "embed", "summarize", "report"]);
     expect(reprocessOptions({ video: true, hasAudio: true }).map((o) => o.key)).toEqual([
       "transcribe",
       "diarize",
@@ -283,6 +283,7 @@ describe("reprocess picker (R9)", () => {
       "objects",
       "describe",
       "analyze",
+      "embed",
       "summarize",
       "report",
     ]);
@@ -294,6 +295,7 @@ describe("reprocess picker (R9)", () => {
       "objects",
       "describe",
       "analyze",
+      "embed",
       "summarize",
       "report",
     ]);

@@ -37,12 +37,18 @@ LABELS = tuple(w.replace("_", " ") for w in COCO.split())
 
 
 def yolox_model(cfg):
-    """The YOLOX model to use: video.yolox_model, else the first yolox*.onnx in MODELS (None without one)."""
+    """The YOLOX model to use: video.yolox_model, else the first yolox*.onnx in MODELS or the data folder's models
+    (fetched by components.py; None without one)."""
+    from . import components
+
     named = cfg["video"].get("yolox_model")
     if named:
         return str(named)
-    found = sorted(MODELS.glob("yolox*.onnx")) if MODELS.is_dir() else []
-    return str(found[0]) if found else None
+    for d in (MODELS, components.models_dir(cfg)):
+        found = sorted(d.glob("yolox*.onnx")) if d.is_dir() else []
+        if found:
+            return str(found[0])
+    return None
 
 
 def _letterbox(img, size):

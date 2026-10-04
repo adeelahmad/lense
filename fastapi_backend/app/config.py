@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # docker-compose runs a separate worker service and sets this to false.
     RUN_BACKGROUND: bool | None = None
 
-    # Email (password reset)
+    # Email: Settings → Email in the app; set here (MAIL_SERVER...), these win and show locked there
     MAIL_USERNAME: str | None = None
     MAIL_PASSWORD: str | None = None
     MAIL_FROM: str | None = None
@@ -53,10 +53,6 @@ class Settings(BaseSettings):
     CORS_ORIGINS: set[str] = {"http://localhost:3000"}
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-    @property
-    def mail_enabled(self) -> bool:
-        return bool(self.MAIL_SERVER and self.MAIL_FROM)
 
 
 settings = Settings()

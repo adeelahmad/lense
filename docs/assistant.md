@@ -15,14 +15,61 @@ then.
   is writing it); what came before is saved, marked stopped. A model call already under way finishes first.
 - **Reopening:** a conversation's answers keep the tools the assistant used (and with what), any notice (the model
   couldn't use tools), the error when there was no answer, and their latest source check.
+- **Editing a question:** Edit on a question you asked asks it again as edited; the answer and everything after it
+  are replaced (`POST /api/v1/chats/<id>/messages` with `edit`).
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
 - **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
   server lists); Try another model asks a question again with a different one. Each answer records the model that
   wrote it.
+- **Chat on any page:** every page except Chat itself has an Ask button that opens a chat panel beside the page (full
+  screen on phones). Its conversation follows you between pages, and across visits in the same browser, until New
+  chat; it is an ordinary conversation, also listed in Chat. Each question can share the page's text (the page chip,
+  on by default) and text highlighted on the page (Ask about this, above any selection). The model reads them with the
+  question (up to 12,000 characters of page text and 4,000 of the highlight) as what the person is looking at, not as
+  citable excerpts. The question keeps the page's address, title and highlight, shown above it; the page's text isn't
+  stored. A recording's transcript and document keep their own selection toolbar, whose Ask in chat goes to the
+  recording's chat.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
   is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
 
 Retrieval is keyword-based for now; vector search is not built yet.
+
+### Picking the namespace for a conversation over everything
+
+When a conversation has no scope (the assistant home starts it over everything), its first question goes to the
+decision model (`decide.choose`, see the decisions settings) with the namespaces the person can read, a line about each
+(its description and recent titles) and how many matching excerpts each holds. A choice at or above
+`decisions.act_above` narrows the conversation to that namespace before it answers: the stream starts with a `scoped`
+event and the answer records a `choose_namespace` step. When it isn't sure, a `suggested` event offers the likeliest
+namespaces; when "none of these" wins, admins are also offered a couple of new names from the language model. The app
+shows them as chips above the composer (in voice mode too, where saying a name picks it); a new one is created only
+when picked, and nothing changes if none is. A scope the person set, setup conversations and later questions are
+never narrowed this way.
+
+### Assistant mode and voice
+
+Home opens in **assistant mode** (one field and a big mic, like a search page) when the archive has any content, and
+on the overview when it's empty; the switch at the top right remembers the person's pick in the browser. The field
+opens a new conversation over everything the person can read (`/chat?global=1`, plus `q=` with what was typed); the
+mic opens one in voice mode (`/chat?global=1&voice=1`). Voice mode listens, sends what was heard, reads the answer
+aloud (without citation marks) and listens again, until the mic is tapped off or nothing is said twice in a row. The
+chat composer's mic turns it on in any conversation.
+
+Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`listen`, `speak`, `stop`).
+
+- **Hearing.** When the server has a speech-to-text engine (SenseVoice or Whisper, which it fetches for itself, see
+  [Components](components.md)), the browser records the mic and the server turns it into text with that engine:
+  speech stays on the server, and it works in every browser that can record (Firefox too). What's been heard so far
+  shows in the field while talking; a pause of about a second ends the turn, and nothing said for seven seconds ends
+  listening. Without a server engine, or with `voice.input: browser`, the browser's own recognition listens (Chrome,
+  Edge and Safari; Chrome sends the audio to its own speech service).
+- **Speaking.** Answers are read by a speech model when one is set (`voice.tts_model`: any OpenAI-compatible
+  `/audio/speech`, such as Kokoro-FastAPI, LocalAI or OpenAI's `tts-1`, on `voice.tts_base_url` or the LLM provider);
+  else by the browser.
+
+Settings → AI assistant → Voice holds these. The API: `GET /voice` (what the server does; it also starts loading the
+engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text}`; 204 when
+the browser should read it).
 
 ## The assistant's tools
 
@@ -34,12 +81,83 @@ When the configured model supports function calling, chat becomes an agent.
   `ai.max_steps` and `ai.max_transcript_reads`.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
-- **Approvals:** running a template on recordings and merging, renaming or retyping entities don't happen directly.
+- **Approvals:** running a template on recordings and changing entities (merging, renaming, retyping, describing one
+  and the other ways it's said, hiding one, or adding one to a namespace's fixed list) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
   (`POST /api/v1/approvals/<id>`). Viewers only get the read tools.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it
   cites, and lists sentences that cite nothing.
-- **Fallback:** a model that can't call tools falls back to search-and-answer, with a notice.
+- **Fallback:** a model that can't call tools falls back to search-and-answer, with a notice. A model that answers
+  straight away without looking anything up gets the same, when the archive has passages that match.
+- **Files:** attach files to a message with the clip, or by dropping or pasting them on the box. They upload as you
+  type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
+  with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
+- **Keep typing:** what you send while an answer is being written waits its turn and goes next.
+
+## Extending the assistant: tools, skills, hooks and plugins
+
+Anyone who can edit can add to what the assistant does. Each addition is an *extension*: versioned, kept private or
+shared with namespaces (admins can share with everyone), and switched on or off in one place (`/api/v1/extensions`).
+
+- **Tool**: something the assistant can call, with typed parameters. Its body is a prompt (`{{param}}` in the text), a
+  web request (public addresses only), or a graph drawn on the canvas (`ask_model`, `call_tool` and the primitives,
+  from `arg` nodes to `return` nodes), or Python code (admins only, below). A tool with `effect: change` asks for
+  approval before it runs.
+- **Skill**: instructions and a line saying when to use them. The assistant sees the line, and reads the instructions
+  only when the skill applies.
+- **Hook**: runs when a question arrives, before or after a tool, or after an answer, to add context, block a tool or
+  call one. Your own hooks run in your conversations; other people's run only when an admin shared them.
+- **Plugin**: a bundle of tools, skills and hooks, shared and switched off as one.
+
+Make one however suits you:
+
+- **Code**: a manifest, Markdown with YAML frontmatter (the body is a skill's instructions or a prompt tool's prompt),
+  or YAML. `POST /api/v1/extensions/check` checks it without saving, `GET /api/v1/extensions/{id}` gives it back.
+- **Canvas**: a tool whose `run` is `{type: graph, graph}`.
+- **Python** (admins only): a tool whose `run` is `{type: python, code, seconds, network}`, where `code` defines
+  `run(**args)` and returns something JSON can hold. It runs in a Python process of its own, from an empty folder it
+  alone reads and writes, with none of the server's environment (no keys or database address), the standard library
+  only, limits on CPU time (`seconds`, up to 60), memory and files, and no web unless `network: true` (a network
+  namespace of its own where the machine allows one, and a guard on sockets either way). What it prints comes back
+  next to its result. It stops running if its owner stops being an admin. The guard raises the bar, it isn't a wall,
+  which is why only admins write these.
+- **Chat or voice**: ask the assistant ("make me a tool that translates text into French"). It drafts the manifest,
+  fixes what the check says, and asks for your approval before saving, changing or switching anything.
+
+```markdown
+---
+name: meeting_recap
+kind: skill
+description: Recaps a meeting
+when: someone asks for a recap of a meeting
+---
+
+Find the meeting, read it, and answer with three bullets: decisions, owners, dates.
+```
+
+`ai.extensions: false` turns every extension off.
+
+## Setting up and running the server by chat
+
+Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
+`read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens) and
+`create_namespace`. In an ordinary conversation their changes are approval cards. In a **setup conversation**
+(`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
+connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
+changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
+Turning telemetry on or off always asks first.
+
+### Routine choices
+
+The assistant makes routine choices for you instead of asking. The first is where files sent in a conversation go:
+`import_files` without a namespace picks one from the namespaces you can add to, judging from their descriptions,
+what's in them lately, the file names and your message. You're asked only when it isn't sure: below
+`decisions.act_above` (0.8) confidence it lists the namespaces, its best guess first.
+
+A **decision model** answers these: Jev, typesafe.ai's System One, which takes a few hundred milliseconds and costs a
+fraction of an LLM call. Set its key in **Settings → AI assistant → Routine choices**, or `TYPESAFE_API_KEY` in `.env`.
+Without a key, or if it can't be reached, the LLM provider decides. `decisions.engine` is `auto` (the default), `jev`,
+`llm`, or `off` to always be asked.
 
 ## Collections, batch runs and collection reports
 

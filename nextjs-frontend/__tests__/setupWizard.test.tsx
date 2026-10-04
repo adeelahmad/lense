@@ -12,6 +12,7 @@ jest.mock("@/app/openapi-client", () => ({
     getSetup: jest.fn(),
     saveNamespace: jest.fn(),
     saveLlm: jest.fn(),
+    detectLlm: jest.fn(),
     saveStorage: jest.fn(),
     saveTelemetry: jest.fn(),
     finish: jest.fn(),
@@ -52,9 +53,42 @@ function wrap(ui: ReactNode) {
   );
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  m(Setup.detectLlm).mockImplementation(() => ok([]));
+});
 
 describe("SetupWizard", () => {
+  it("starts at the model provider when the namespace is set, filled in from a server found nearby", async () => {
+    m(Setup.getSetup).mockImplementation(() => ok(VIEW({ namespace: { existing: ["media"], locked: false } })));
+    m(Setup.detectLlm).mockImplementation(() =>
+      ok([
+        {
+          kind: "Ollama",
+          base_url: "http://host.docker.internal:11434/v1",
+          models: ["qwen3:8b", "nomic-embed-text"],
+          suggested: "qwen3:8b",
+        },
+        { kind: "LM Studio", base_url: "http://localhost:1234/v1", models: ["gemma-3"], suggested: "gemma-3" },
+      ]),
+    );
+    m(Setup.saveLlm).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    await waitFor(() => expect(screen.getByLabelText("Base URL")).toHaveValue("http://host.docker.internal:11434/v1"));
+    expect(screen.getByLabelText("Model")).toHaveValue("qwen3:8b");
+    expect(screen.getByText(/Pick one of the 2 on Ollama/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /LM Studio/ }));
+    expect(screen.getByLabelText("Model")).toHaveValue("gemma-3");
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() =>
+      expect(m(Setup.saveLlm).mock.calls[0][0].body).toEqual({
+        base_url: "http://localhost:1234/v1",
+        model: "gemma-3",
+        api_key: null,
+      }),
+    );
+  });
+
   it("walks through namespace, model provider, storage and telemetry, then finishes", async () => {
     m(Setup.getSetup).mockImplementation(() => ok(VIEW()));
     m(Setup.saveNamespace).mockImplementation(() => ok({ ok: true }));
@@ -138,9 +172,8 @@ describe("SetupWizard", () => {
       ),
     );
     wrap(<SetupWizard />);
-    expect(await screen.findByText("media")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    const base = await screen.findByLabelText("Base URL");
+    const base = await screen.findByLabelText("Base URL"); // nothing to choose for the namespace: straight here
+    expect(Setup.detectLlm).not.toHaveBeenCalled(); // the address is set in .env: nothing to look for
     expect(base).toBeDisabled();
     expect(base).toHaveValue("http://vllm:8000/v1");
     expect(base).toHaveAccessibleDescription(/LENS_LLM_BASE_URL/);
@@ -151,11 +184,31 @@ describe("SetupWizard", () => {
   it("counts a namespace seeded before the wizard as set up", async () => {
     m(Setup.getSetup).mockImplementation(() => ok(VIEW({ namespace: { existing: ["media"], locked: false } })));
     wrap(<SetupWizard />);
+    expect(await screen.findByLabelText("Base URL")).toBeInTheDocument(); // the namespace step is skipped
+    fireEvent.click(screen.getByRole("button", { name: /Namespace/ }));
     expect(await screen.findByText(/already has one/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Create and continue" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    expect(await screen.findByLabelText("Base URL")).toBeInTheDocument();
     expect(Setup.saveNamespace).not.toHaveBeenCalled();
+  });
+
+  it("hands the rest to the assistant once a model is set", async () => {
+    m(Setup.getSetup).mockImplementation(() =>
+      ok(
+        VIEW({
+          namespace: { existing: ["media"], locked: false },
+          llm: {
+            values: { base_url: "http://x/v1", model: "qwen3:8b", api_key: { secret: true, set: false } },
+            locked: [],
+          },
+        }),
+      ),
+    );
+    m(Setup.finish).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    fireEvent.click(await screen.findByRole("button", { name: /Storage/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Finish with the assistant" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/chat?setup=1"));
+    expect(Setup.finish).toHaveBeenCalledWith(expect.objectContaining({ body: { skipped: false } }));
   });
 
   it("can skip the whole wizard", async () => {

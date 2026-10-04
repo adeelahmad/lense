@@ -27,7 +27,8 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `ARCHIVE_ALLOWED_HOSTS` | | break-glass override of allowed Host headers if a bad setting locks everyone out |
 | `RUN_BACKGROUND` | follows `workers.inline` | run job workers and folder watching inside the API process |
 | `LENS_SETUP_CODE` | random | fix the first-run setup code (automation) |
-| `LENS_ADMIN_EMAIL` / `LENS_ADMIN_PASSWORD` / `LENS_ADMIN_NAME` | | create the first admin at startup, with no setup code ([First-run setup](#first-run-setup)) |
+| `LENS_ADMIN_EMAIL` / `LENS_ADMIN_NAME` | | create the first admin at startup, with no setup code; the log prints a sign-in link for adding their passkey ([First-run setup](#first-run-setup)) |
+| `LENS_ADMIN_PASSWORD` | | give that admin a password instead (passwords stay on) |
 | `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
 | `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
@@ -35,15 +36,16 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |
-| `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_STARTTLS`, `MAIL_SSL_TLS`, `USE_CREDENTIALS`, `VALIDATE_CERTS` | | SMTP for password reset and for telling owners about requests for access; without `MAIL_SERVER` the links are logged |
+| `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM`, `MAIL_STARTTLS`, `MAIL_SSL_TLS`, `USE_CREDENTIALS`, `VALIDATE_CERTS` | | SMTP for password reset and for telling owners about requests for access. Usually set in the app instead (**Settings → Email**, with **Send a test email**); set here, they win and show locked there. Without a server the links are logged |
 
 ## First-run setup
 
 A fresh install (no accounts when the API first starts) walks its first admin through setup in the web app:
 
 1. **Admin account**, with the one-time setup code from the log (`make setup-code`), so a stranger who finds a new
-   public server can't claim it. Skipped when `LENS_ADMIN_EMAIL` and `LENS_ADMIN_PASSWORD` create the admin at
-   startup; then you sign in with those.
+   public server can't claim it. The admin signs in with a passkey ([Authentication](authentication.md#signing-in-passkeys)).
+   Skipped when `LENS_ADMIN_EMAIL` creates the admin at startup; then open the sign-in link the log prints (or sign
+   in with `LENS_ADMIN_PASSWORD`, if you set one).
 2. **Namespace**: the first one, with its knowledge graph shared or isolated. Already done when archive.yaml or
    `LENS_NAMESPACE` names namespaces, or an install script made one.
 3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,
@@ -62,7 +64,7 @@ show locked. Installs that already had accounts never see the wizard. The API si
 |---|---|
 | `API_BASE_URL` | where the Next.js server reaches the API (`http://localhost:8000`, `http://backend:8000` in Docker) |
 | `AUTH_SECRET` | encrypts the NextAuth session cookie (`npx auth secret`) |
-| `AUTH_URL` | the public URL of the web app, when it can't be inferred |
+| `AUTH_URL` | pins sign-in to one public URL of the web app. Leave it unset (the Docker Compose files do) so sign-in follows the address the browser is on: its LAN name, https:// address or Cloudflare tunnel |
 | `AUTH_TRUST_HOST` | `true` behind a proxy or in Docker |
 | `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host` and `-Proto`: they're passed on to the API, which names that address in OAuth discovery. Off, the web app reports the `Host` the browser sent |
 
@@ -79,10 +81,42 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 
 ## Settings in the app
 
-Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search,
+Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search
+(and search by meaning),
 reports, workers, IIIF, the assistant, video, uploads, documents and images, and server options (embed frame ancestors, transcript upload
 limit, allowed hosts, trusted proxies, session length). The API refuses an allowed-host list that leaves out the address
 you are using.
+
+## Search by meaning
+
+Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
+/embeddings`), so search can find moments by meaning ([how it works](processing.md#search-by-meaning)). By default it
+asks the LLM provider's server (`llm.base_url`, with its key) for `nomic-embed-text`, a small model that runs offline
+in Ollama (`ollama pull nomic-embed-text`); set `embeddings.base_url` to use another server, such as Ollama next to
+LM Studio, or llama.cpp's `llama-server --embeddings`. Without a server, search goes by the words as before.
+
+```yaml
+embeddings:
+  base_url: http://localhost:11434/v1   # null: the LLM provider's
+  model: nomic-embed-text
+```
+
+| Setting | Default | |
+|---|---|---|
+| `embeddings.enabled` | true | off: no passages are embedded, and searches go by the words |
+| `embeddings.base_url` | null | the embeddings server; null: the LLM provider's (and its key). `LENS_EMBED_BASE_URL` sets it |
+| `embeddings.model` | nomic-embed-text | the embedding model (`LENS_EMBED_MODEL`); e.g. mxbai-embed-large, bge-m3, all-minilm, text-embedding-3-small |
+| `embeddings.api_key` / `api_key_env` | none | a key for the embeddings server, stored encrypted (`LENS_EMBED_API_KEY`), or the variable that holds it |
+| `embeddings.min_similarity` | null | how alike (cosine, 0–1) a passage must be to count; null: what suits the model (0.52 for nomic-embed-text) |
+| `embeddings.neighbours` | 40 | passages found per search, 5–500 (more when a page of results needs them) |
+| `embeddings.passage_chars` | 800 | how long passages are, 200–4000 characters |
+| `embeddings.batch_size` | 32 | passages sent per request, 1–256 |
+| `embeddings.timeout` | 60 | seconds per request (a search waits at most 15) |
+| `embeddings.query_prefix` / `document_prefix` | null | what searches and passages start with; null: what the model wants (`search_query: ` and `search_document: ` for nomic-embed-text, an instruction for mxbai and bge, `query: ` / `passage: ` for e5) |
+
+Changing the model drops the stored vectors (another model's can't be compared) until recordings are indexed again. When the server fails to index (it's down, or
+doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
+waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
 
 ## Chat models
 
@@ -153,7 +187,7 @@ Set at startup only (the config file; the web app can't choose what the server r
 |---|---|---|
 | `documents.soffice` | `soffice` or `libreoffice` on PATH | LibreOffice |
 | `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too); it also captures web pages ([API](api.md#web-pages)) |
-| `documents.web_networks` | `[]` | networks (CIDR, such as `10.20.0.0/16`) that web pages may be captured from besides the public internet: for an intranet; loopback and cloud metadata addresses stay out unless listed |
+| `documents.web_networks` | `[]` | networks (CIDR, such as `10.20.0.0/16`) that web pages and calendar feeds may be fetched from besides the public internet: for an intranet, or a calendar server at home; loopback and cloud metadata addresses stay out unless listed. `LENS_WEB_NETWORKS` in `.env` (comma-separated) adds to it, for Docker and the packages |
 
 Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
 every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.
@@ -255,8 +289,11 @@ addresses or CIDR ranges. The default trusts this machine (`127.0.0.0/8` and `::
 API on one machine.
 
 * **List the web app.** The browser reaches the API through the web app, which passes on the `X-Forwarded-For` it
-  received. In Docker, list the compose network: `docker network inspect` shows its subnet, and `172.16.0.0/12` covers
-  Docker's default address pools.
+  received and adds the address it was reached from. The Docker Compose files do this for you:
+  `LENS_TRUSTED_PROXY_HOSTS=frontend,backend,worker` trusts those containers by name (their addresses, looked up
+  every 30 seconds, follow them when they're recreated; `backend` and `worker` run the Cloudflare tunnel). Elsewhere,
+  list the web app's address here, or name its host in `LENS_TRUSTED_PROXY_HOSTS`. Sign-in throttles follow the same
+  address, so without it everyone behind the web app shares one.
 * **Put a reverse proxy in front of the web app that sets `X-Forwarded-For`**: nginx with
   `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, or Caddy, which does by default. The web app can't
   tell a header a visitor made up from one a proxy set; the reverse proxy adds the real address last, and the server

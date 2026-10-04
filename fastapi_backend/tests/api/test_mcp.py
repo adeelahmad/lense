@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api import mcp, mcp_tools
-from tests.api.test_oauth import _bearer, _grant
+from tests.api.test_oauth import O, _bearer, _grant
 from tests.helpers import login, make_user, seed
 
 MODERN = "2026-07-28"
@@ -79,6 +79,26 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     assert client.post("/mcp", headers=env["h"], json={"jsonrpc": "2.0", "id": 1, "method": "ping"}).status_code == 401
 
 
+def test_tokens_given_for_another_server(client, env):
+    # an app names the server it wants a token for (RFC 8707); one for Lens or its MCP server works here, on any
+    # address Lens is reached at, and keeps working when renewed
+    renew = lambda app, t: client.post(  # noqa: E731
+        f"{O}/token", data={"grant_type": "refresh_token", "client_id": app["client_id"], "refresh_token": t["refresh_token"]}
+    )
+    for resource in ("http://127.0.0.1/mcp", "http://localhost:3000/mcp", "http://localhost:3000/", "http://127.0.0.1"):
+        app, t = _grant(client, env["hv"], scope="read", resource=resource)
+        assert rpc(client, _bearer(t), "ping")["result"] == {}
+        r = renew(app, t)
+        assert rpc(client, _bearer(r.json()), "ping")["result"] == {}
+    # one for another server is refused, renewed or not, and the app is told where to sign in for this one
+    app, t = _grant(client, env["hv"], scope="read", resource="https://elsewhere.example/mcp")
+    r = client.post("/mcp", headers=_bearer(t), json={"jsonrpc": "2.0", "id": 1, "method": "ping"})
+    assert r.status_code == 401 and "oauth-protected-resource/mcp" in r.headers["www-authenticate"]
+    r = renew(app, t)
+    assert client.post("/mcp", headers=_bearer(r.json()), json={"jsonrpc": "2.0", "id": 1, "method": "ping"}).status_code == 401
+    assert client.get("/api/v1/auth/me", headers=_bearer(r.json())).status_code == 200  # the check is the MCP server's
+
+
 def test_the_transport(client, env):
     h = env["h"]
     post = lambda body, **hd: client.post("/mcp", headers={**h, **hd}, content=body if isinstance(body, str) else json.dumps(body))  # noqa: E731
@@ -89,6 +109,14 @@ def test_the_transport(client, env):
     r = post([{"jsonrpc": "2.0", "id": 1, "method": "ping"}, {"jsonrpc": "2.0", "method": "notifications/initialized"}])
     assert r.json() == [{"jsonrpc": "2.0", "id": 1, "result": {}}]
     assert post([]).status_code == 400
+    assert post([{"jsonrpc": "2.0", "id": i, "method": "ping"} for i in range(mcp.MAX_BATCH)]).status_code == 200
+    r = post([{"jsonrpc": "2.0", "id": i, "method": "ping"} for i in range(mcp.MAX_BATCH + 1)])
+    assert r.status_code == 400 and r.json()["error"]["code"] == -32600
+    # too large: said by Content-Length, or found while reading one sent in chunks (which has none), never read whole
+    big = b" " * (mcp.MAX_BODY + 1)
+    assert post(big.decode()).status_code == 413
+    r = client.post("/mcp", headers=h, content=iter([b'{"jsonrpc": "2.0", "id": 1, "method": "ping"}', big]))
+    assert r.status_code == 413 and r.json()["error"]["code"] == -32600
     # JSON-RPC errors
     assert post("{nope").json()["error"]["code"] == -32700
     assert post({"id": 1, "method": "ping"}).json()["error"]["code"] == -32600
@@ -224,6 +252,7 @@ def test_entities_and_the_graph(client, env, monkeypatch):
 
     e = tool(client, h, "get_entity", entity_id=dyno["entity_id"], mentions=2)
     assert e["name"] == "Dyno Therapeutics" and e["mentions"] == 4 and e["next_mentions_offset"] == 2
+    assert tool_error(client, h, "get_entity", entity_id=dyno["entity_id"], mentions_offset=10001).startswith("mentions_offset")
     assert {m["name"] for m in e["mentioned_most_by"]} == {"Alice", "Bob", "Carol"}
     line = e["lines"][0]
     assert line["recording_id"] in (ep1, ep2) and "Dyno Therapeutics" in line["text"]
@@ -299,3 +328,15 @@ def test_a_real_mcp_client(app, env):
         assert got == version
         assert names == list(mcp_tools.TOOLS)
         assert found["results"][0]["recording_id"] == env["ids"][0] and json.loads(text) == found
+
+
+def test_sparql(client, env):
+    q = "SELECT ?name WHERE { ?e a skos:Concept ; skos:prefLabel ?name }"
+    out = tool(client, env["h"], "sparql", namespace="pods", query=q)
+    assert "Dyno Therapeutics" in [b["name"]["value"] for b in out["results"]["bindings"]]
+    built = tool(client, env["h"], "sparql", namespace="pods", query="DESCRIBE ?r WHERE { ?r a lens:Item } LIMIT 1")
+    assert "dcterms:" in built["turtle"]
+    assert "SERVICE" in tool_error(
+        client, env["h"], "sparql", namespace="pods", query="SELECT * WHERE { SERVICE <https://x.example/q> { ?s ?p ?o } }"
+    )
+    assert "not found" in tool_error(client, env["h"], "sparql", namespace="calls", query=q)  # not theirs
