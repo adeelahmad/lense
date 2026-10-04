@@ -3,7 +3,16 @@
 import { useState } from "react";
 
 import type { FieldDef, TemplateSummary } from "@/app/openapi-client/types.gen";
-import { OPS, infoFor, type Scope, type WfNode } from "@/components/workflows/workflow-model";
+import { FlowSettings } from "@/components/workflows/flow-settings";
+import {
+  OPS,
+  infoFor,
+  paramRef,
+  type BodyKind,
+  type CustomDef,
+  type Scope,
+  type WfNode,
+} from "@/components/workflows/workflow-model";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
 
 export type NsField = FieldDef & { namespace: string };
@@ -78,6 +87,12 @@ export function NodeSettings({
   readOnly,
   problem,
   scope = "recording",
+  custom,
+  bodyKind = "workflow",
+  onUpgrade,
+  params,
+  settings,
+  peek,
 }: {
   node: WfNode;
   onChange: (n: WfNode) => void;
@@ -86,18 +101,34 @@ export function NodeSettings({
   readOnly?: boolean;
   problem?: string;
   scope?: Scope;
+  custom?: (id: number) => CustomDef | undefined;
+  bodyKind?: BodyKind;
+  onUpgrade?: () => void;
+  /** In a custom node: its parameters, which settings can be bound to. */
+  params?: string[];
+  /** The node type's settings (from the catalog), for binding them to parameters. */
+  settings?: string[];
+  /** What it passed on in the last try. */
+  peek?: { status: string; value?: string | null; error?: string | null };
 }) {
   const info = infoFor(node.type, scope);
-  const c = node.config;
+  // Settings bound to a parameter show as unset below; setting them again unbinds them.
+  const c = Object.fromEntries(Object.entries(node.config).filter(([, v]) => !paramRef(v)));
+  const bound = Object.entries(node.config).filter(([, v]) => paramRef(v));
   const set = (patch: Record<string, unknown>) => {
-    const config = { ...c, ...patch };
+    const config = { ...node.config, ...patch };
     for (const k of Object.keys(config)) if (config[k] === undefined || config[k] === "") delete config[k];
     onChange({ ...node, config });
   };
   return (
     <div className="flex flex-col gap-3" key={node.id}>
       <div>
-        <h2 className="text-[15px] font-bold text-fg">{node.label || info?.label || node.type}</h2>
+        <h2 className="text-[15px] font-bold text-fg">
+          {node.label ||
+            (node.type === "custom" ? custom?.(Number(node.config.node))?.name : undefined) ||
+            info?.label ||
+            node.type}
+        </h2>
         <p className="mt-0.5 text-[12.5px] text-fg-secondary">{info?.describe}</p>
         <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12px]">
           <dt className="text-fg-muted">Takes</dt>
@@ -116,6 +147,19 @@ export function NodeSettings({
           {problem}
         </p>
       )}
+      {peek && (
+        <div className="flex flex-col gap-1 rounded-sm border border-border bg-surface px-3 py-2">
+          <span className="label-caps">
+            Last try: {peek.status === "done" ? "ran" : peek.status === "failed" ? "failed" : "skipped"}
+          </span>
+          {peek.error && <p className="text-[12.5px] text-red-dark">{peek.error}</p>}
+          {peek.value && (
+            <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap break-all font-mono text-[11.5px] text-fg">
+              {pretty(peek.value)}
+            </pre>
+          )}
+        </div>
+      )}
       <fieldset disabled={readOnly} className="flex flex-col gap-3">
         {node.type !== "input" && (
           <Field label="Label" optional hint="Shown on the canvas and in the run’s log">
@@ -130,6 +174,8 @@ export function NodeSettings({
             )}
           </Field>
         )}
+
+        <FlowSettings node={node} set={set} custom={custom} bodyKind={bodyKind} onUpgrade={onUpgrade} />
 
         {node.type === "llm" && (
           <>
@@ -163,6 +209,70 @@ export function NodeSettings({
                 />
               )}
             </Field>
+          </>
+        )}
+
+        {node.type === "ask_model" && (
+          <>
+            <Field label="Prompt" hint="What came in is {{ input }}, e.g. Summarise {{ input.text }} in one line">
+              {({ id, describedBy }) => (
+                <Textarea
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  rows={5}
+                  value={String(c.prompt ?? "")}
+                  onChange={(e) => set({ prompt: e.target.value })}
+                />
+              )}
+            </Field>
+            <Field label="System prompt" optional>
+              {({ id }) => (
+                <Textarea
+                  id={id}
+                  rows={2}
+                  value={String(c.system ?? "")}
+                  onChange={(e) => set({ system: e.target.value })}
+                />
+              )}
+            </Field>
+            <Checkbox
+              checked={Boolean(c.json)}
+              onCheckedChange={(v) => set({ json: v || undefined })}
+              label="The reply is JSON: pass it on as data"
+            />
+            <Field label="Model" optional hint="Leave empty for the model in Settings → LLM">
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  value={String(c.model ?? "")}
+                  onChange={(e) => set({ model: e.target.value })}
+                />
+              )}
+            </Field>
+          </>
+        )}
+
+        {node.type === "call_tool" && (
+          <>
+            <Field
+              label="Tool"
+              hint="Its name: one of the assistant’s own (search_transcripts, find_entities…) or an extension’s"
+            >
+              {({ id, describedBy }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  mono
+                  value={String(c.tool ?? "")}
+                  placeholder="search_transcripts"
+                  onChange={(e) => set({ tool: e.target.value })}
+                />
+              )}
+            </Field>
+            <ArgsField value={c.args} onChange={(args) => set({ args })} />
           </>
         )}
 
@@ -496,7 +606,86 @@ export function NodeSettings({
             )}
           </>
         )}
+        {params && (bound.length > 0 || (params.length > 0 && (settings?.length ?? 0) > 0)) && (
+          <div className="flex flex-col gap-1.5 border-t border-border pt-3">
+            <span className="label-caps">Set by a parameter</span>
+            <p className="text-[12px] text-fg-muted">
+              Where the custom node is used, people fill these in. Changing a setting above unbinds it.
+            </p>
+            {(settings ?? [])
+              .filter((k) => k !== "body")
+              .map((k) => (
+                <div key={k} className="grid grid-cols-[110px_1fr] items-center gap-2">
+                  <code className="truncate font-mono text-[12px] text-fg">{k}</code>
+                  <Select
+                    aria-label={`What sets ${k}`}
+                    size="sm"
+                    value={paramRef(node.config[k]) ?? ""}
+                    onChange={(e) => set({ [k]: e.target.value ? { $param: e.target.value } : undefined })}
+                    options={[
+                      { value: "", label: "Its setting above" },
+                      ...params.map((p) => ({ value: p, label: `Parameter ${p}` })),
+                    ]}
+                  />
+                </div>
+              ))}
+          </div>
+        )}
       </fieldset>
     </div>
+  );
+}
+
+function pretty(v: string): string {
+  try {
+    return JSON.stringify(JSON.parse(v), null, 2);
+  } catch {
+    return v;
+  }
+}
+
+/** A call tool node's fixed arguments, as JSON; what comes in is laid over them. */
+function ArgsField({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (v: Record<string, unknown> | undefined) => void;
+}) {
+  const [text, setText] = useState(() => (value ? JSON.stringify(value, null, 2) : ""));
+  const [bad, setBad] = useState(false);
+  return (
+    <Field
+      label="Arguments"
+      optional
+      hint={'JSON, e.g. {"limit": 5}; what comes in (an object) is laid over them'}
+      error={bad ? "That isn’t a JSON object" : undefined}
+    >
+      {({ id, describedBy }) => (
+        <Textarea
+          id={id}
+          aria-describedby={describedBy}
+          mono
+          rows={3}
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (!e.target.value.trim()) {
+              setBad(false);
+              onChange(undefined);
+              return;
+            }
+            try {
+              const v = JSON.parse(e.target.value);
+              const ok = v != null && typeof v === "object" && !Array.isArray(v);
+              setBad(!ok);
+              if (ok) onChange(v as Record<string, unknown>);
+            } catch {
+              setBad(true);
+            }
+          }}
+        />
+      )}
+    </Field>
   );
 }

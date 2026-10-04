@@ -233,12 +233,13 @@ def _verifier_ok(verifier, challenge):
     return hmac.compare_digest(calc, challenge or "")
 
 
-def _issue(db, cfg, grant, uid, scope):
+def _issue(db, cfg, grant, uid, scope, resource=None):
     life = lifetimes(cfg)
     access, refresh = "lo_" + secrets.token_urlsafe(32), "lr_" + secrets.token_urlsafe(32)
     ttl = life["access_minutes"] * 60
     ends = _later(life["refresh_days"] * 86400)
-    base = {"gid": grant, "account": uid, "scope": scope, "created_at": store.now()}
+    # resource: the server the tokens are for (RFC 8707), when the app named one; that server checks it
+    base = store.clean({"gid": grant, "account": uid, "scope": scope, "resource": resource, "created_at": store.now()})
     # a grant revoked while its app was renewing gets nothing: the tokens hang off the grant
     if not db.rows("UPDATE $g SET expires_at = $ends RETURN id", g=R("oauth_grant", grant), ends=ends):
         raise OAuthError("invalid_grant", "this access was revoked")
@@ -287,18 +288,22 @@ def exchange_code(db, cfg, client_id, client_secret, code, redirect_uri, verifie
             "name": c["name"],
             "uri": c.get("uri"),
             "scope": row["scope"],
+            "resource": row.get("resource"),
             "created_at": store.now(),
         },
         c=R("oauth_client", c["id"]),
     )
-    return _issue(db, cfg, gid, row["account"], row["scope"]), {"id": gid, "account": row["account"], "client": c["id"], "name": c["name"]}
+    tokens = _issue(db, cfg, gid, row["account"], row["scope"], row.get("resource"))
+    return tokens, {"id": gid, "account": row["account"], "client": c["id"], "name": c["name"]}
 
 
 def refresh(db, cfg, client_id, client_secret, raw):
     """A new pair for a refresh token, which then stops working. One that was swapped a while ago and comes back
     ends the grant: it was probably copied."""
     c = _client(db, client_id, client_secret, check_secret=True)
-    t = db.one("SELECT gid, account, kind, scope, expires_at, rotated, rotated_at FROM $r", r=R("oauth_token", auth.sha(raw or "")))
+    t = db.one(
+        "SELECT gid, account, kind, scope, resource, expires_at, rotated, rotated_at FROM $r", r=R("oauth_token", auth.sha(raw or ""))
+    )
     g = db.one("SELECT client FROM $r", r=R("oauth_grant", t["gid"])) if t else None
     if not t or not g or t["kind"] != "refresh" or g["client"] != c["id"] or t["expires_at"] < store.now():
         raise OAuthError("invalid_grant", "the refresh token is wrong, was revoked or has expired")
@@ -318,14 +323,15 @@ def refresh(db, cfg, client_id, client_secret, raw):
         now=now,
         g=t["gid"],
     )
-    return _issue(db, cfg, t["gid"], t["account"], t["scope"])
+    return _issue(db, cfg, t["gid"], t["account"], t["scope"], t.get("resource"))
 
 
 def token_account(db, raw):
-    """The account an access token acts as ({…account, scope}), or None. Refresh tokens don't open the API."""
+    """The account an access token acts as ({…account, scope, grant, resource}), or None. Refresh tokens don't open
+    the API. resource is the server the token was given for, when the app named one."""
     if not raw or not raw.startswith("lo_"):
         return None
-    t = db.one("SELECT gid, account, kind, scope, expires_at FROM $r", r=R("oauth_token", auth.sha(raw)))
+    t = db.one("SELECT gid, account, kind, scope, resource, expires_at FROM $r", r=R("oauth_token", auth.sha(raw)))
     if not t or t["kind"] != "access" or t["expires_at"] < store.now():
         return None
     u = auth.active_account(db, t["account"])
@@ -333,7 +339,7 @@ def token_account(db, raw):
         return None
     if not db.rows("UPDATE $r SET last_used_at = $n RETURN id", r=R("oauth_grant", t["gid"]), n=store.now()):
         return None  # its grant is gone
-    return {**u, "scope": "write" if can_write(t["scope"]) else "read", "grant": t["gid"]}
+    return {**u, "scope": "write" if can_write(t["scope"]) else "read", "grant": t["gid"], "resource": t.get("resource")}
 
 
 # ---------- grants: the apps a person gave access to ----------

@@ -88,14 +88,23 @@ export function hasTerms(text: string): boolean {
   return tokens(text).some((t) => t.toUpperCase() !== "OR" && /[\p{L}\p{N}]/u.test(t));
 }
 
+/**
+ * How the words are matched: "auto" (by their words and, when search by meaning is set up, by what they mean),
+ * "keyword" (only the words) or "semantic" (only by meaning). The URL keeps it as `by=words` or `by=meaning`.
+ */
+export type SearchMode = "auto" | "keyword" | "semantic";
+
 /** Read the search state from URL parameters. */
 export function fromParams(p: URLSearchParams): {
   q: string;
   filters: SearchFilters;
+  mode: SearchMode;
 } {
   const int = (v: string | null) => (v && /^\d+$/.test(v) ? Number(v) : undefined);
+  const by = p.get("by");
   return {
     q: p.get("q") ?? "",
+    mode: by === "words" ? "keyword" : by === "meaning" ? "semantic" : "auto",
     filters: {
       namespace: p.get("ns") || undefined,
       speaker: int(p.get("speaker")),
@@ -107,7 +116,7 @@ export function fromParams(p: URLSearchParams): {
 }
 
 /** The URL query for a search state (empty values left out). */
-export function toParams(q: string, f: SearchFilters): string {
+export function toParams(q: string, f: SearchFilters, mode: SearchMode = "auto"): string {
   const p = new URLSearchParams();
   if (q.trim()) p.set("q", q.trim());
   if (f.namespace) p.set("ns", f.namespace);
@@ -115,6 +124,7 @@ export function toParams(q: string, f: SearchFilters): string {
   if (f.emotion) p.set("emotion", f.emotion);
   if (f.recording != null) p.set("recording", String(f.recording));
   if (f.object) p.set("object", f.object);
+  if (mode !== "auto") p.set("by", mode === "keyword" ? "words" : "meaning");
   return p.toString();
 }
 

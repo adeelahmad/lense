@@ -23,7 +23,7 @@ from app.api.v1.routes import entities as entity_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
-from app.domain import analyze, library, render, store
+from app.domain import analyze, library, rdf, render, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain.store import DB
@@ -299,6 +299,7 @@ def search(
         ctx.acl,
         ctx.user,
         ctx.db,
+        ctx.cfg,
         q=query,
         ns=namespace,
         speaker=speaker_id,
@@ -308,6 +309,7 @@ def search(
         limit=limit,
         offset=offset,
         facets=False,
+        mode="auto",  # by meaning too, when it's set up
     )
     found = SearchResults.model_validate(res)  # the route hands back the dict it signed
     results = []
@@ -748,7 +750,7 @@ def _entities(
     "it most, and the lines that mention it (newest first), each with a url to that moment.",
     Arg("entity_id", "integer", "the entity (from list_entities, get_recording or the graph)", required=True),
     Arg("mentions", "integer", "how many mentioning lines", default=10, minimum=0, maximum=100),
-    Arg("mentions_offset", "integer", "skip this many lines (for the next page)", default=0, minimum=0),
+    Arg("mentions_offset", "integer", "skip this many lines (for the next page)", default=0, minimum=0, maximum=10000),
     Arg("sort", "string", "the lines' order", default="newest", enum=("newest", "oldest", "most")),
 )
 def get_entity(ctx: Context, entity_id: int, mentions: int, mentions_offset: int, sort: str) -> dict[str, Any]:
@@ -900,3 +902,26 @@ def find_path(ctx: Context, from_node: str, to_node: str, namespace: str | None)
             for e in link.get("evidence", [])
         ]
     return res
+
+
+@tool(
+    "sparql",
+    "Query the archive with SPARQL",
+    "A read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data: recordings "
+    "described with Dublin Core (dcterms:title, creator, subject, created, references the entities they mention, …), "
+    "collections, entities (skos:Concept with skos:prefLabel) and speakers (foaf:Person). Prefixes dcterms, dcmitype, "
+    "foaf, skos, owl, rdf, rdfs, xsd and lens are known. SELECT and ASK give SPARQL JSON results; CONSTRUCT and "
+    "DESCRIBE give Turtle.",
+    Arg("namespace", "string", "the namespace to query", required=True),
+    Arg("query", "string", "the SPARQL query", required=True, max_length=20000),
+)
+def sparql(ctx: Context, namespace: str, query: str) -> dict[str, Any]:
+    sid = ctx.acl.namespace(namespace)
+    base = (ctx.cfg["iiif"].get("base_url") or ctx.web).rstrip("/")
+    try:
+        kind, out = rdf.sparql(rdf.namespace_graph(ctx.db, ctx.cfg, base, sid), query, base)
+    except rdf.QueryProblem as e:
+        raise ToolError(str(e)) from None
+    if kind == "results":
+        return out
+    return {"turtle": rdf.serialize(out, "turtle").decode()[:200000]}

@@ -5,6 +5,7 @@
 # lives under LENS_DATA, which outlasts removing the app.
 
 x-backend: &backend
+  security_opt: ["no-new-privileges:true"]  # nothing in Lens needs setuid programs
   image: lens-backend:qnap-${LENS_VERSION:?}
   environment:
     ARCHIVE_CONFIG: /qnap/archive.yaml
@@ -16,6 +17,9 @@ x-backend: &backend
     SURREAL_PASS: ${SURREAL_PASS:?set SURREAL_PASS in lens.env}
     RUN_BACKGROUND: "false"
     FRONTEND_URL: ${FRONTEND_URL:?set FRONTEND_URL in lens.env}
+    LENS_TUNNEL_ORIGIN: http://frontend:3000  # where the Cloudflare tunnel (Settings › Remote access) sends visitors
+    # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
+    LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
     CORS_ORIGINS: '["${FRONTEND_URL}"]'
     ARCHIVE_ALLOWED_HOSTS: ${ARCHIVE_ALLOWED_HOSTS:-backend,localhost,127.0.0.1}
     MAIL_SERVER: ${MAIL_SERVER:-}
@@ -72,12 +76,13 @@ services:
       disable: true
 
   frontend:
+    security_opt: ["no-new-privileges:true"]
     image: lens-frontend:qnap-${LENS_VERSION:?}
     environment:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in lens.env}
       AUTH_TRUST_HOST: "true"
-      AUTH_URL: ${FRONTEND_URL:?}
+      # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
     ports:
       - "${LENS_PORT:-3000}:3000"
     depends_on: [backend]

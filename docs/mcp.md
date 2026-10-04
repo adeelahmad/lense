@@ -21,7 +21,8 @@ locally). Add it to the client as a remote (Streamable HTTP) server, and the cli
 Signing in is OAuth ([Authentication](authentication.md#oauth)): the client finds out where to sign in from the 401 it
 gets first (`WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource/mcp"`), registers
 itself, and opens Lens's consent page, where you sign in if you aren't and choose Allow. Read access is all it needs.
-The client renews its token by itself; you see it under API tokens → Apps with access, and take its access away
+A token an app asked for another server (its `resource`, RFC 8707) doesn't work here; one for Lens or for its
+`/mcp` is fine. The client renews its token by itself; you see it under API tokens → Apps with access, and take its access away
 there.
 
 A client that can't sign in can send an API token instead (`Authorization: Bearer la_…`, made under API tokens), for
@@ -71,5 +72,5 @@ Streamable HTTP without sessions: every request is a `POST /mcp` answered with J
 The `MCP-Protocol-Version` header decides the era: none or a handshake version is the first, anything else the
 second, where a version Lens doesn't speak is answered `-32022` with the ones it does. Requests from a browser must
 come from the web app's own address or one in `CORS_ORIGINS` (403 otherwise), which keeps other sites from using a
-signed-in browser to reach it. Implemented in `fastapi_backend/app/api/mcp.py` (protocol) and `mcp_tools.py` (tools);
+signed-in browser to reach it. A message may be 1 MB at most (413), and a batch 20 messages. Implemented in `fastapi_backend/app/api/mcp.py` (protocol) and `mcp_tools.py` (tools);
 the tests run the official MCP SDK's client against it in both eras.

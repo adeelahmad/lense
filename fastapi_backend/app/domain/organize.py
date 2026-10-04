@@ -1,7 +1,8 @@
 """Organising the entity graph with a workflow: graph workflows (scope `graph`) run over namespaces rather than over one
 recording, usually from a routine, and propose or make changes to the entities in them.
 
-Their nodes, besides `input`, `pick`, `condition` and `merge` (as in any workflow):
+Their nodes, besides the primitives every workflow has (flow.py: input, pick, condition, switch, merge, set, template,
+filter, for each, repeat, group and custom nodes):
 
 - `candidates`: pairs of entities that may be one thing, found by rules (same letters, acronym, spelling, sounds alike,
   one name inside the other). `kind` merge looks inside each namespace; link looks across namespaces whose graph is
@@ -9,8 +10,6 @@ Their nodes, besides `input`, `pick`, `condition` and `merge` (as in any workflo
   out, and so are pairs with a change already proposed.
 - `llm_judge`: asks the model, a batch of pairs at a time, whether each pair is the same thing, with lines where each
   name was said; each pair gets a `verdict` {same, confidence, keep, why}.
-- `filter`: keeps the items of a list that pass a test (a path in each item, an operator and a value), e.g.
-  `verdict.same equals true`.
 - `apply_changes`: makes the changes it is given (merges, links), or proposes them for someone to accept. Only pairs
   whose confidence (the model's, else the rules') is at least `apply_above` are made, at most `max_apply` a run;
   without `apply_above` everything is proposed. Every change is recorded and can be undone, one by one or a whole run.
@@ -27,6 +26,7 @@ from . import entities, llm, store
 
 R = store.R
 GRAPH_NODES = ("input", "pick", "condition", "merge", "candidates", "llm_judge", "filter", "apply_changes")
+OWN_NODES = ("candidates", "llm_judge", "apply_changes")
 CONFIG = {
     "candidates": {"kind", "min_confidence", "limit", "types"},
     "llm_judge": {"model", "instructions", "batch"},
@@ -137,7 +137,7 @@ def candidates(db, spaces, c):
     ents = [
         e
         for e in db.rows(f"SELECT {entities.FIELDS} FROM entity WHERE space IN $s", s=sorted(spaces))
-        if not e.get("hidden") and e["type"] not in entities.QUIET and (not types or e["type"] in types)
+        if not e.get("hidden") and not e.get("builtin") and e["type"] not in entities.QUIET and (not types or e["type"] in types)
     ]
     counts = Counter(db.values("SELECT VALUE entity FROM mentions WHERE space IN $s", s=sorted(spaces)))
     ents = [e for e in ents if counts[e["id"]]]
@@ -292,6 +292,45 @@ def apply_changes(db, items, c, origin=None, propose_only=False, say=print):
     return stats
 
 
+def propose(db, kind, a, b, reason=None, origin=None, apply=False, user=None):
+    """One change someone or an agent asked for (a merge inside a namespace, a link across namespaces): proposed for
+    a person to accept, or made at once when `apply` (callers check the rights). Returns (change id, status)."""
+    if kind not in KINDS:
+        raise ValueError(f"kind is one of {', '.join(KINDS)}")
+    x, y = (entities._entity(db, int(e)) for e in (a, b))
+    if x["id"] == y["id"]:
+        raise ValueError("pick two different entities")
+    if kind == "merge" and x["space"] != y["space"]:
+        raise ValueError("these are in different namespaces: link them instead")
+    if kind == "link" and x["space"] == y["space"]:
+        raise ValueError("these are in the same namespace: merge them instead")
+    pk = _pair_key(kind, x["id"], y["id"])
+    held = db.one("SELECT record::id(id) AS id FROM graph_change WHERE pair = $p AND status = 'proposed' LIMIT 1", p=pk)
+    if held and not apply:
+        return held["id"], "proposed"
+    names, counts = store.space_names(db), Counter(db.values("SELECT VALUE entity FROM mentions WHERE entity IN $e", e=[x["id"], y["id"]]))
+    item = {
+        "kind": kind,
+        "pair": pk,
+        "a": _side(db, x, counts[x["id"]], names),
+        "b": _side(db, y, counts[y["id"]], names),
+        "reason": (str(reason)[:300] if reason else None) or "asked for",
+        "confidence": None,
+    }
+    if not apply:
+        return _record(db, item, "proposed", origin), "proposed"
+    done = _make(db, {**item, "keep": x["id"] if kind == "merge" else None}, user)
+    if held:
+        db.q("UPDATE $r SET status = 'dismissed', decided_at = $t, decided_by = $u", r=R("graph_change", held["id"]), t=store.now(), u=user)
+    return _record(
+        db,
+        {**item},
+        "applied",
+        origin,
+        {**(done or {}), "keep": x["id"] if kind == "merge" else None, "decided_at": store.now(), "decided_by": user},
+    ), "applied"
+
+
 def get_change(db, cid):
     ch = db.one("SELECT *, record::id(id) AS id FROM $r", r=R("graph_change", int(cid)))
     if not ch:
@@ -384,55 +423,37 @@ def list_changes(db, spaces, status=None, run=None, limit=200):
 def run(db, cfg, wid, spaces, version=None, say=print, origin=None, propose_only=False):
     """Run one version (default: the current one) of a graph workflow over namespaces `spaces`. Returns
     ({node id: done | skipped}, {applied, proposed, skipped})."""
-    from . import workflows
+    from . import flow, workflows
 
     w = workflows.get(db, wid, version)
     if w.get("scope") != "graph":
         raise ValueError(f"workflow {w['name']} runs on recordings, not on the graph")
-    graph = w["graph"]
-    by_id = {n["id"]: n for n in graph["nodes"]}
     names = store.space_names(db)
     ctx = {"namespaces": [{"id": s, "name": names.get(s)} for s in sorted(spaces)]}
     origin = {**(origin or {}), "workflow": w["id"], "workflow_version": w["version"]}
-    values, outcome, passed = {}, {}, {}
-    totals = {"applied": 0, "proposed": 0, "skipped": 0}
-    for nid in workflows.order(graph["nodes"], graph["edges"]):
-        node = by_id[nid]
-        name, c = node.get("label") or f"{node['type']} {nid}", node["config"]
-        if node["type"] == "input":
-            values[nid], outcome[nid] = ctx, "done"
-            continue
-        live = [
-            e["source"]
-            for e in graph["edges"]
-            if e["target"] == nid
-            and outcome.get(e["source"]) == "done"
-            and (by_id[e["source"]]["type"] != "condition" or passed.get(e["source"]) == (e.get("branch") == "yes"))
-        ]
-        if not live:
-            outcome[nid] = "skipped"
-            continue
-        value = values[live[0]]
-        if node["type"] == "pick":
-            values[nid] = workflows.dig(value, c["path"])
-        elif node["type"] == "condition":
-            values[nid], passed[nid] = value, workflows.test(c, value)
-            say(f"{name}: {'yes' if passed[nid] else 'no'}")
-        elif node["type"] == "merge":
-            values[nid] = workflows.merge([values[s] for s in live])
-        elif node["type"] == "candidates":
-            values[nid] = candidates(db, spaces, c)
-            say(f"{name}: {len(values[nid])} pairs")
-        elif node["type"] == "llm_judge":
-            values[nid] = judge(cfg, value if isinstance(value, list) else [], c, say)
-        elif node["type"] == "filter":
-            values[nid] = [x for x in value if workflows.test(c, x)] if isinstance(value, list) else []
-            say(f"{name}: kept {len(values[nid])}")
-        elif node["type"] == "apply_changes":
-            got = apply_changes(db, value, c, origin, propose_only, say)
-            totals = {k: totals[k] + got[k] for k in totals}
-        outcome[nid] = "done"
-    return {n["id"]: outcome.get(n["id"], "skipped") for n in graph["nodes"]}, totals
+    r = flow.Run(db, cfg, workflows.KITS["graph"], ctx, say, origin=origin, spaces=set(spaces), propose_only=propose_only)
+    r.totals = {"applied": 0, "proposed": 0, "skipped": 0}
+    flow.run_graph(r, w["graph"])
+    done = {n["id"]: "done" if r.trace.get(n["id"], {}).get("status") == "done" else "skipped" for n in w["graph"]["nodes"]}
+    return done, r.totals
+
+
+def run_node(r, f, node, value, vals):
+    """What a graph workflow's own nodes do (flow.py runs the rest): {output port: value}."""
+    t, c, name = node["type"], node["config"], node.get("label") or f"{node['type']} {node['id']}"
+    if t == "candidates":
+        out = candidates(r.db, r.extra["spaces"], c)
+        r.say(f"{name}: {len(out)} pairs")
+        return {"out": out}
+    if t == "llm_judge":
+        return {"out": judge(r.cfg, value if isinstance(value, list) else [], c, r.say)}
+    if t == "apply_changes":
+        if r.dry:
+            r.say(f"{name}: would make or propose {len(value) if isinstance(value, list) else 0} changes")
+            return {}
+        got = apply_changes(r.db, value, c, r.origin, r.extra.get("propose_only"), r.say)
+        r.totals = {k: r.totals.get(k, 0) + got[k] for k in ("applied", "proposed", "skipped")}
+    return {}
 
 
 # ---------- the built-in workflow ----------

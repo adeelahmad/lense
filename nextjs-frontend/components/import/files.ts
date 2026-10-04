@@ -408,9 +408,16 @@ export function namespaceNameProblem(name: string): string | null {
     : "Use lowercase letters, digits, - and _ (up to 41 characters), starting with a letter or digit.";
 }
 
+/** The address as typed, with https:// added when it has no scheme (example.org/news, localhost:8080/a). */
+export function webAddress(text: string): string {
+  const t = text.trim();
+  if (!t || t.includes("://") || /^[a-z][a-z0-9+.-]*:(?!\d)/i.test(t)) return t;
+  return `https://${t}`;
+}
+
 /** Why a web address can't be captured as it's typed (null when it can be tried): the server checks the rest. */
 export function webAddressProblem(text: string): string | null {
-  const t = text.trim();
+  const t = webAddress(text);
   if (!t) return "Give the page’s address.";
   let u: URL;
   try {

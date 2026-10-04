@@ -81,6 +81,7 @@ def test_schedules():
 
 def test_routines_are_checked_and_run_when_due(client, db, cfg, env):
     h = env["admin"]
+    db.q("UPDATE routine SET enabled = false WHERE name = $n", n=routines.INDEX_NAME)  # these are about the routines made here
     pods = store.ns_id(db, "pods")
     ed = login(client, "ed@x.io", "editor password 1")
     assert client.get("/api/v1/routines", headers=ed).status_code == 403
@@ -174,7 +175,8 @@ def test_graph_workflows_organise_entities(client, new_client, db, cfg, env, fol
     routines.seed(db)
     routines.seed(db)  # once only
     cat = client.get("/api/v1/routines", headers=h).json()
-    assert [r["name"] for r in cat["routines"]] == ["Organise the graph every night"] and not cat["routines"][0]["enabled"]
+    assert [r["name"] for r in cat["routines"]] == ["Organise the graph every night", routines.INDEX_NAME, routines.SENSORS_NAME]
+    assert not cat["routines"][0]["enabled"] and cat["routines"][1]["enabled"]
     wf = client.get("/api/v1/workflows", headers=h).json()
     graph_wf = [w for w in wf["workflows"] if w["scope"] == "graph"][0]
     assert graph_wf["name"] == organize.DEFAULT_NAME

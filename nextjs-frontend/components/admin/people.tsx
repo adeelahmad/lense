@@ -1,10 +1,10 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Ellipsis, RefreshCw, UserPlus, Users as UsersIcon } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 
-import { Users } from "@/app/openapi-client";
+import { Auth, Users } from "@/app/openapi-client";
 import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
 import {
   cellKey,
@@ -20,13 +20,13 @@ import { isUnreachable } from "@/components/errors/error-states";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Field, Input, Switch } from "@/components/ui/field";
+import { Field, Input, Select, Switch } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
 import { Avatar, CodeBlock, EmptyState, SkeletonRows } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
-import { count, shortDate } from "@/lib/format";
+import { count, nameFromEmail, shortDate } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
@@ -35,8 +35,9 @@ const ROLES: (Role | "")[] = ["", "viewer", "editor", "owner"];
 type Dialogs =
   | { kind: "create" }
   | { kind: "reset"; person: Person }
-  | { kind: "disable"; person: Person }
-  | { kind: "rename"; person: Person };
+  | { kind: "rename"; person: Person }
+  | { kind: "link"; person: Person }
+  | { kind: "passkeys"; person: Person };
 
 /** People: accounts with their role in every namespace (Admin AD1); create, reset, disable (AD2). */
 export function PeoplePage() {
@@ -47,6 +48,8 @@ export function PeoplePage() {
   const people = usePeople();
   const [pending, setPending] = useState<Map<string, Pending>>(new Map());
   const [dialog, setDialog] = useState<Dialogs | null>(null);
+  const status = useQuery({ queryKey: ["auth-status"], queryFn: () => data(Auth.status({ client })) });
+  const passwords = Boolean(status.data?.passwords);
 
   const list = (people.data ?? []) as Person[];
   const disabled = list.filter((p) => p.disabled).length;
@@ -104,6 +107,20 @@ export function PeoplePage() {
       });
     },
   });
+  // Disabling keeps roles, notes and edits, so it's done at once with an Undo rather than asked first.
+  const disable = useMutation({
+    mutationFn: (p: Person) => data(Users.updateUser({ client, path: { uid: p.id }, body: { disabled: true } })),
+    onSuccess: (_r, p) => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+      toast({
+        title: `Disabled ${p.name || p.email}`,
+        body: "Signed out, and their API tokens stop working. Roles, notes and edits are kept.",
+        tone: "green",
+        action: { label: "Undo", onClick: () => enable.mutate(p) },
+      });
+    },
+    onError: (e: Error, p) => toast({ tone: "red", title: `Couldn’t disable ${p.name || p.email}`, body: e.message }),
+  });
 
   const changes = [...pending.values()];
   return (
@@ -140,8 +157,15 @@ export function PeoplePage() {
           namespaces={nsNames}
           pending={pending}
           myId={me?.user.id}
+          passwords={passwords}
           onEdit={(p) => setPending((m) => withPending(m, list, p))}
-          onAction={(kind, person) => (kind === "enable" ? enable.mutate(person) : setDialog({ kind, person }))}
+          onAction={(kind, person) =>
+            kind === "enable"
+              ? enable.mutate(person)
+              : kind === "disable"
+                ? disable.mutate(person)
+                : setDialog({ kind, person })
+          }
         />
       )}
       {(changes.length > 0 || save.isError) && (
@@ -176,15 +200,16 @@ export function PeoplePage() {
         Each cell is a role: — (none), Viewer, Editor or Owner. Arrow keys move between cells; Enter opens the role.
         Platform admins own every namespace.
       </p>
-      {dialog?.kind === "create" && <CreateDialog onClose={() => setDialog(null)} />}
+      {dialog?.kind === "create" && <CreateDialog passwords={passwords} onClose={() => setDialog(null)} />}
+      {dialog?.kind === "link" && <LinkDialog person={dialog.person} onClose={() => setDialog(null)} />}
+      {dialog?.kind === "passkeys" && <PasskeysDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "reset" && <ResetDialog person={dialog.person} onClose={() => setDialog(null)} />}
-      {dialog?.kind === "disable" && <DisableDialog person={dialog.person} onClose={() => setDialog(null)} />}
       {dialog?.kind === "rename" && <RenameDialog person={dialog.person} onClose={() => setDialog(null)} />}
     </AdminFrame>
   );
 }
 
-type Action = "reset" | "disable" | "enable" | "rename";
+type Action = "reset" | "disable" | "enable" | "rename" | "link" | "passkeys";
 
 /** The role matrix, an ARIA grid: arrows move between cells, Enter opens the cell's control, Escape comes back. */
 function RoleGrid({
@@ -192,6 +217,7 @@ function RoleGrid({
   namespaces,
   pending,
   myId,
+  passwords,
   onEdit,
   onAction,
 }: {
@@ -199,6 +225,7 @@ function RoleGrid({
   namespaces: string[];
   pending: Map<string, Pending>;
   myId?: number;
+  passwords?: boolean;
   onEdit: (p: Pending) => void;
   onAction: (kind: Action, p: Person) => void;
 }) {
@@ -414,13 +441,21 @@ function RoleGrid({
                   </MenuTrigger>
                   <MenuContent className="w-[220px]">
                     <MenuItem onSelect={() => onAction("rename", p)}>Rename…</MenuItem>
-                    <MenuItem onSelect={() => onAction("reset", p)}>Reset password…</MenuItem>
+                    <MenuItem disabled={Boolean(p.disabled)} onSelect={() => onAction("link", p)}>
+                      Send a sign-in link…
+                    </MenuItem>
+                    {passwords && <MenuItem onSelect={() => onAction("reset", p)}>Reset password…</MenuItem>}
+                    {!me && Boolean(p.passkeys) && (
+                      <MenuItem danger onSelect={() => onAction("passkeys", p)}>
+                        Remove passkeys…
+                      </MenuItem>
+                    )}
                     <MenuSeparator />
                     {p.disabled ? (
                       <MenuItem onSelect={() => onAction("enable", p)}>Enable account</MenuItem>
                     ) : (
                       <MenuItem danger disabled={me} onSelect={() => onAction("disable", p)}>
-                        {me ? "You can’t disable yourself" : "Disable account…"}
+                        {me ? "You can’t disable yourself" : "Disable account"}
                       </MenuItem>
                     )}
                   </MenuContent>
@@ -513,31 +548,59 @@ function Done({ title, password }: { title: string; password: string }) {
   );
 }
 
-function CreateDialog({ onClose }: { onClose: () => void }) {
+/** A one-time sign-in link to share privately: it adds a passkey on the device it's opened on. */
+function LinkDone({ title, url }: { title: string; url: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <Banner tone="success">{title}</Banner>
+      <span className="text-[13px] text-fg-secondary">
+        Send them this sign-in link privately. It works once, for three days, and isn’t shown again. Opening it adds a
+        passkey (fingerprint, face or device PIN) on their device.
+      </span>
+      <CodeBlock text={url} label="sign-in link" />
+    </div>
+  );
+}
+
+function CreateDialog({ passwords, onClose }: { passwords: boolean; onClose: () => void }) {
   const client = useApiClient();
   const qc = useQueryClient();
+  const { namespaces, namespace: topNs } = useArchive();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(() => tempPassword());
+  const [withPassword, setWithPassword] = useState(false);
   const [admin, setAdmin] = useState(false);
+  const usePassword = passwords && withPassword;
+  const [ns, setNs] = useState(topNs ?? namespaces[0]?.name ?? "");
+  const [role, setRole] = useState<"none" | "viewer" | "editor" | "owner">("viewer");
+  const shownName = name.trim() || nameFromEmail(email);
   const create = useMutation({
-    mutationFn: () =>
-      data(
+    mutationFn: async () => {
+      const made = await data(
         Users.createUser({
           client,
           body: {
-            name: name.trim() || null,
+            name: shownName || null,
             email: email.trim(),
-            password,
+            password: usePassword ? password : null,
             admin,
           },
         }),
-      ),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["users"] }),
+      );
+      // a role in a namespace in the same step, so nobody is sent to the role matrix afterwards
+      if (!admin && ns && role !== "none")
+        await data(Users.setMember({ client, path: { name: ns }, body: { account: made.id, role } }));
+      return usePassword ? null : await data(Users.makeSigninLink({ client, path: { uid: made.id } }));
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+      void qc.invalidateQueries({ queryKey: ["members"] });
+    },
   });
   const err = create.error instanceof ApiError ? create.error.message : create.error?.message;
   const emailErr = err && /email/i.test(err) ? err[0].toUpperCase() + err.slice(1) : null;
-  const ready = /^\S+@\S+\.\S+$/.test(email.trim()) && password.length >= 10;
+  const ready = /^\S+@\S+\.\S+$/.test(email.trim()) && (!usePassword || password.length >= 10);
   return (
     <Dialog
       open
@@ -556,7 +619,9 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
             <Button
               variant="primary"
               disabled={!ready || create.isPending}
-              disabledReason={!ready ? "Enter an email and a password of at least 10 characters" : undefined}
+              disabledReason={
+                !ready ? `Enter an email${usePassword ? " and a password of at least 10 characters" : ""}` : undefined
+              }
               onClick={() => create.mutate()}
             >
               {create.isPending ? "Creating…" : "Create account"}
@@ -566,12 +631,13 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
       }
     >
       {create.isSuccess ? (
-        <Done title={`Created ${name.trim() || email.trim()}.`} password={password} />
+        create.data ? (
+          <LinkDone title={`Created ${shownName || email.trim()}.`} url={create.data.url} />
+        ) : (
+          <Done title={`Created ${shownName || email.trim()}.`} password={password} />
+        )
       ) : (
         <>
-          <Field label="Name">
-            {(f) => <Input id={f.id} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}
-          </Field>
           <Field label="Email" error={emailErr}>
             {(f) => (
               <Input
@@ -581,14 +647,58 @@ function CreateDialog({ onClose }: { onClose: () => void }) {
                 type="email"
                 value={email}
                 onChange={(e) => (setEmail(e.target.value), create.reset())}
+                autoFocus
               />
             )}
           </Field>
-          <PasswordField value={password} onChange={setPassword} />
+          <Field label="Name" optional>
+            {(f) => (
+              <Input
+                id={f.id}
+                value={name}
+                placeholder={nameFromEmail(email) || undefined}
+                onChange={(e) => setName(e.target.value)}
+              />
+            )}
+          </Field>
+          {passwords && (
+            <Switch
+              checked={withPassword}
+              onCheckedChange={setWithPassword}
+              label="Give them a temporary password instead of a sign-in link"
+            />
+          )}
+          {usePassword && <PasswordField value={password} onChange={setPassword} />}
           <Switch checked={admin} onCheckedChange={setAdmin} label="Platform admin" />
-          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
-            New accounts have no namespace roles. Add them in the role matrix or from a namespace’s members.
-          </p>
+          {!admin && namespaces.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Namespace">
+                {(f) => (
+                  <Select
+                    id={f.id}
+                    value={ns}
+                    onChange={(e) => setNs(e.target.value)}
+                    options={namespaces.map((n) => n.name)}
+                  />
+                )}
+              </Field>
+              <Field label="Role there">
+                {(f) => (
+                  <Select
+                    id={f.id}
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as typeof role)}
+                    options={[
+                      { value: "viewer", label: "Viewer" },
+                      { value: "editor", label: "Editor" },
+                      { value: "owner", label: "Owner" },
+                      { value: "none", label: "No role yet" },
+                    ]}
+                  />
+                )}
+              </Field>
+            </div>
+          )}
           {err && !emailErr && <Banner tone="error">{err}</Banner>}
         </>
       )}
@@ -652,53 +762,6 @@ function ResetDialog({ person, onClose }: { person: Person; onClose: () => void 
   );
 }
 
-function DisableDialog({ person, onClose }: { person: Person; onClose: () => void }) {
-  const client = useApiClient();
-  const qc = useQueryClient();
-  const toast = useToast();
-  const who = person.name || person.email;
-  const first = (person.name || person.email).split(/[\s@]/)[0];
-  const disable = useMutation({
-    mutationFn: () =>
-      data(
-        Users.updateUser({
-          client,
-          path: { uid: person.id },
-          body: { disabled: true },
-        }),
-      ),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["users"] });
-      toast({
-        title: `Disabled ${who}`,
-        body: "Re-enable from the same menu to restore everything.",
-        tone: "green",
-      });
-      onClose();
-    },
-  });
-  return (
-    <Dialog
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title={`Disable ${who}?`}
-      description={`${first} is signed out now and can’t sign in. Their API tokens stop working. Their roles, notes and edits are kept, so re-enabling restores everything.`}
-      actions={
-        <>
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button variant="danger" disabled={disable.isPending} onClick={() => disable.mutate()}>
-            {disable.isPending ? "Disabling…" : "Disable account"}
-          </Button>
-        </>
-      }
-    >
-      {disable.isError && <Banner tone="error">{disable.error.message}</Banner>}
-    </Dialog>
-  );
-}
-
 function RenameDialog({ person, onClose }: { person: Person; onClose: () => void }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -738,6 +801,78 @@ function RenameDialog({ person, onClose }: { person: Person; onClose: () => void
         {(f) => <Input id={f.id} value={name} onChange={(e) => setName(e.target.value)} maxLength={80} autoFocus />}
       </Field>
       {rename.isError && <Banner tone="error">{rename.error.message}</Banner>}
+    </Dialog>
+  );
+}
+
+function LinkDialog({ person, onClose }: { person: Person; onClose: () => void }) {
+  const client = useApiClient();
+  const who = person.name || person.email;
+  const make = useMutation({ mutationFn: () => data(Users.makeSigninLink({ client, path: { uid: person.id } })) });
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={`A sign-in link for ${who}`}
+      description={
+        make.isSuccess
+          ? undefined
+          : "For someone new, or who lost their passkey: opening it adds a passkey on their device and signs them in. A link made before stops working."
+      }
+      actions={
+        make.isSuccess ? (
+          <Button variant="primary" onClick={onClose}>
+            Done
+          </Button>
+        ) : (
+          <>
+            <Button variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="primary" disabled={make.isPending} onClick={() => make.mutate()} autoFocus>
+              {make.isPending ? "Making…" : "Make the link"}
+            </Button>
+          </>
+        )
+      }
+    >
+      {make.isSuccess && <LinkDone title={`The link for ${who} is ready.`} url={make.data.url} />}
+      {make.isError && <Banner tone="error">{make.error.message}</Banner>}
+    </Dialog>
+  );
+}
+
+function PasskeysDialog({ person, onClose }: { person: Person; onClose: () => void }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const who = person.name || person.email;
+  const drop = useMutation({
+    mutationFn: () => data(Users.dropPasskeys({ client, path: { uid: person.id } })),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["users"] });
+      toast({ title: `Removed ${who}’s passkeys`, body: "Send them a sign-in link to add a new one.", tone: "green" });
+      onClose();
+    },
+  });
+  return (
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={`Remove ${who}’s passkeys?`}
+      description={`For a lost or stolen device: all ${person.passkeys ?? ""} of their passkeys stop working and they're signed out everywhere. Their API tokens keep working. Send them a sign-in link afterwards to add a new passkey.`}
+      actions={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="danger" disabled={drop.isPending} onClick={() => drop.mutate()}>
+            {drop.isPending ? "Removing…" : "Remove passkeys"}
+          </Button>
+        </>
+      }
+    >
+      {drop.isError && <Banner tone="error">{drop.error.message}</Banner>}
     </Dialog>
   );
 }

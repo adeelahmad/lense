@@ -66,7 +66,7 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
         <MenuItem asChild className={ITEM}>
           <Link href="/account">
             <UserRound />
-            <span className="flex-1">Profile and password</span>
+            <span className="flex-1">Profile and sign-in</span>
           </Link>
         </MenuItem>
         <MenuItem asChild className={ITEM}>

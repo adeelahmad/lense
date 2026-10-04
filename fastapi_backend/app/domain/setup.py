@@ -5,7 +5,9 @@ admin through the rest (the first namespace, the model provider, storage) until 
 already had accounts never see the wizard. Whatever the environment sets is applied at startup and wins: the wizard
 shows those fields locked.
 
-  LENS_ADMIN_EMAIL, LENS_ADMIN_PASSWORD, LENS_ADMIN_NAME   the first admin, created at startup (no setup code needed)
+  LENS_ADMIN_EMAIL, LENS_ADMIN_NAME                        the first admin, created at startup (no setup code needed);
+                                                           the log prints a link for adding their passkey
+  LENS_ADMIN_PASSWORD                                      ... with a password instead (passwords stay on)
   LENS_NAMESPACE                                           the first namespace, created at startup while there is none
   LENS_LLM_BASE_URL, LENS_LLM_MODEL, LENS_LLM_API_KEY      the model provider (settings.ENV_OVERRIDES)
   LENS_TELEMETRY, LENS_TELEMETRY_ENDPOINT                  opt-in telemetry (off unless set on; docs/telemetry.md)
@@ -16,8 +18,12 @@ The first admin still needs the one-time setup code (or the environment), so a s
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+import urllib.error
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 from . import auth, settings, sources, store
 
@@ -38,10 +44,15 @@ def pending(db):
     return bool(row) and not row.get("done_at")
 
 
-def mark_fresh(db):
-    """Called at startup while no accounts exist: this install gets the wizard (once; finishing it is kept)."""
+def mark_fresh(db, cfg=None):
+    """Called at startup while no accounts exist: this install gets the wizard (once; finishing it is kept). A new
+    archive (nothing in it yet) also encrypts the files it keeps from the start (docs/encryption.md); one that has
+    files already keeps its setting, and `lens encrypt` converts it."""
     if not db.one("SELECT id FROM $r", r=R(*WIZARD)):
         db.q("UPSERT $r CONTENT $d", r=R(*WIZARD), d={"created_at": store.now()})
+        empty = not db.values("SELECT VALUE id FROM recording LIMIT 1")
+        if cfg is not None and empty and not db.one("SELECT id FROM $r", r=R("app_setting", "encryption")):
+            settings.save(db, cfg, "encryption", {"files": True}, user="setup")
 
 
 def finish(db, user=None, skipped=False):
@@ -50,7 +61,7 @@ def finish(db, user=None, skipped=False):
 
 def env_admin():
     email, password = os.environ.get("LENS_ADMIN_EMAIL", "").strip(), os.environ.get("LENS_ADMIN_PASSWORD", "")
-    return (email, password, os.environ.get("LENS_ADMIN_NAME", "").strip() or None) if email and password else None
+    return (email, password or None, os.environ.get("LENS_ADMIN_NAME", "").strip() or None) if email else None
 
 
 def env_namespace():
@@ -69,6 +80,11 @@ def apply_env(db):
         else:
             auth.audit(db, {"id": uid, "email": admin[0]}, "setup", detail=["environment"])
             log.info("Created the first admin %s from the environment", admin[0])
+            if not admin[1]:
+                from . import passkeys
+
+                raw = passkeys.create_link(db, uid)
+                log.warning("Add the first admin's passkey at %s", passkeys.link_url(raw))
     name = env_namespace()
     if name and not store.space_names(db):
         if not store.NS_RX.match(name):
@@ -156,3 +172,43 @@ def save_storage(db, cfg, max_upload_mb=None, folder=None, namespace=None, user=
     if src is None:
         src = sources.create(db, cfg, "Folders on this machine", "local", {}, {}, user)
     return sources.create_watch(db, cfg, src, folder, sid, user)
+
+
+# Model servers people run themselves, on the ports they listen on by default. Looked for on this machine, on the
+# Docker host (host.docker.internal; the compose files map it on Linux too) and as a compose service named ollama.
+LOCAL_SERVERS = (("Ollama", 11434), ("LM Studio", 1234), ("llama.cpp", 8080), ("vLLM", 8000), ("LocalAI", 8081))
+LOCAL_HOSTS = ("localhost", "host.docker.internal", "ollama")
+NOT_CHAT = ("embed", "rerank", "whisper", "tts", "clip", "bge-", "minilm")
+
+
+_DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # local addresses: never through a proxy
+
+
+def _models_at(base_url, timeout):
+    try:
+        with _DIRECT.open(base_url + "/models", timeout=timeout) as r:
+            data = json.load(r).get("data")
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError, AttributeError):
+        return None
+    if not isinstance(data, list):
+        return None
+    return sorted({str(m["id"]) for m in data if isinstance(m, dict) and m.get("id")})
+
+
+def detect_llm(timeout=1.5, hosts=None, servers=None):
+    """OpenAI-compatible model servers that answer on their usual ports, with their models: what the wizard offers
+    so nobody has to type an address. One entry per server (the first address that reaches it), chat models first,
+    with the one to suggest."""
+    tries = [(kind, f"http://{h}:{port}/v1") for kind, port in servers or LOCAL_SERVERS for h in hosts or LOCAL_HOSTS]
+    with ThreadPoolExecutor(max_workers=len(tries)) as pool:
+        answers = list(pool.map(lambda t: _models_at(t[1], timeout), tries))
+    found, seen = [], set()
+    for (kind, url), models in zip(tries, answers, strict=True):
+        if not models or (kind, tuple(models)) in seen:
+            continue
+        seen.add((kind, tuple(models)))
+        chat = [m for m in models if not any(w in m.lower() for w in NOT_CHAT)]
+        found.append(
+            {"kind": kind, "base_url": url, "models": chat + [m for m in models if m not in chat], "suggested": (chat or models)[0]}
+        )
+    return found
