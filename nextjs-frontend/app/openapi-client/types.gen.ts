@@ -4401,6 +4401,26 @@ export type GraphQuery = {
 };
 
 /**
+ * GraphQuestion
+ */
+export type GraphQuestion = {
+  /**
+   * Question
+   *
+   * a question in plain language
+   */
+  question: string;
+  /**
+   * Scope
+   */
+  scope?: string;
+  /**
+   * Limit
+   */
+  limit?: number;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -21143,6 +21163,35 @@ export type GraphQueryResponses = {
 };
 
 export type GraphQueryResponse = GraphQueryResponses[keyof GraphQueryResponses];
+
+export type AskGraphData = {
+  body: GraphQuestion;
+  path?: never;
+  query?: never;
+  url: "/api/v1/graph/ask";
+};
+
+export type AskGraphErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AskGraphError = AskGraphErrors[keyof AskGraphErrors];
+
+export type AskGraphResponses = {
+  /**
+   * Response Graph-Ask Graph
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: unknown;
+  };
+};
+
+export type AskGraphResponse = AskGraphResponses[keyof AskGraphResponses];
 
 export type ProposeGraphChangeData = {
   body: ChangeAsk;

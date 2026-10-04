@@ -163,8 +163,11 @@ def spaces_for(db, scope, readable):
     return [(r["id"], r["name"], r.get("graph") != "isolated") for r in rows]
 
 
-def build(db, scope="global", readable=None):
+def build(db, scope="global", readable=None, recordings=None):
+    """The graph of a scope over the namespaces in `readable` (None: all); `recordings` (a set of ids) keeps only those
+    recordings and what is said in them, for a conversation limited to some recordings."""
     nss = spaces_for(db, scope, readable)
+    keep = (lambda rid: rid in recordings) if recordings is not None else (lambda rid: True)
     merged = not (scope or "").startswith("ns:")
     g = Graph(scope or "global", [n for _, n, _ in nss])
     if not nss:
@@ -181,6 +184,8 @@ def build(db, scope="global", readable=None):
         g.link("CONTAINS", f"c{c['parent']}" if c.get("parent") else f"n{c['space']}", f"c{c['id']}")
 
     for r in db.rows("SELECT record::id(id) AS id, space, collection, title, recorded_at, media FROM recording WHERE space IN $s", s=sids):
+        if not keep(r["id"]):
+            continue
         date = r.get("recorded_at")
         g.add(
             f"r{r['id']}",
@@ -197,10 +202,13 @@ def build(db, scope="global", readable=None):
     talk = db.rows(
         "SELECT speaker, recording, math::sum(dur) AS ms FROM segment WHERE space IN $s AND speaker > 0 GROUP BY speaker, recording", s=sids
     )
+    talk = [t for t in talk if keep(t["recording"])]
     total = Counter()
     for t in talk:
         total[t["speaker"]] += t["ms"] or 0
     for s in db.rows("SELECT record::id(id) AS id, space, name, label FROM speaker WHERE space IN $s", s=sids):
+        if recordings is not None and not total[s["id"]]:
+            continue
         g.add(
             f"s{s['id']}",
             ["Speaker"],
@@ -237,7 +245,7 @@ def build(db, scope="global", readable=None):
     count, rec_m, spk_m, seg_e = Counter(), Counter(), Counter(), defaultdict(set)
     for m in ms:
         nid = node_of.get(m["entity"])
-        if not nid:
+        if not nid or not keep(m["recording"]):
             continue
         count[nid] += 1
         rec_m[(f"r{m['recording']}", nid)] += 1

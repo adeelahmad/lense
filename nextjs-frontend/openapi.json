@@ -11155,6 +11155,50 @@
         }
       }
     },
+    "/api/v1/graph/ask": {
+      "post": {
+        "tags": [
+          "graph"
+        ],
+        "summary": "Ask Graph",
+        "description": "A question in plain language: the language model writes read-only Cypher, Lens runs it over the graph you can\nread, and you get the answer with the query that found it ({question, cypher, explanation, result}).",
+        "operationId": "ask_graph",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GraphQuestion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Graph-Ask Graph"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/graph/changes": {
       "post": {
         "tags": [
@@ -27605,6 +27649,34 @@
           "query"
         ],
         "title": "GraphQuery"
+      },
+      "GraphQuestion": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question",
+            "description": "a question in plain language"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "global"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 2000.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "default": 200
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "GraphQuestion"
       },
       "HTTPValidationError": {
         "properties": {

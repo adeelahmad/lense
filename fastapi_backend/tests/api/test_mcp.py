@@ -68,7 +68,9 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     assert rpc(client, env["h"], "initialize", {"protocolVersion": "1999-01-01"})["result"]["protocolVersion"] == "2025-11-25"
     tools = rpc(client, env["h"], "tools/list")["result"]["tools"]
     assert [t["name"] for t in tools] == list(mcp_tools.TOOLS)
-    assert all(t["annotations"]["readOnlyHint"] and t["inputSchema"]["type"] == "object" for t in tools)
+    assert all(t["inputSchema"]["type"] == "object" for t in tools)
+    # every tool only reads, except asking for a graph change (which needs the write scope)
+    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == ["propose_graph_change"]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
     assert rpc(client, env["hv"], "ping")["result"] == {}
@@ -340,3 +342,20 @@ def test_sparql(client, env):
         client, env["h"], "sparql", namespace="pods", query="SELECT * WHERE { SERVICE <https://x.example/q> { ?s ?p ?o } }"
     )
     assert "not found" in tool_error(client, env["h"], "sparql", namespace="calls", query=q)  # not theirs
+
+
+def test_graph_tools(client, db, env):
+    h = env["h"]  # a read-only app token for a pods viewer
+    s = tool(client, h, "graph_schema")
+    assert s["namespaces"] == ["pods"] and s["examples"]
+    q = tool(client, h, "graph_query", query="MATCH (s:Speaker)-[x:SAID]->(e:Organisation) RETURN s.name, e.name ORDER BY s.name")
+    assert q["columns"] == ["s.name", "e.name"] and ["Alice", "Dyno Therapeutics"] in q["rows"]
+    assert "read-only" in tool_error(client, h, "graph_query", query="MATCH (n) DELETE n")
+    assert "query error" in tool_error(client, h, "graph_query", query="MATCH (n RETURN n")
+    dyno = q["rows"][0] and tool(client, h, "graph_query", query="MATCH (e:Entity {name: 'Dyno Therapeutics'}) RETURN e.ids")["rows"][0][0][0]
+    up = tool(client, h, "graph_related", node=f"e{dyno}", relation="ancestors", depth=4, namespace="pods")
+    assert {"Recording", "Namespace"} <= {n["labels"][0] for n in up["nodes"]}
+    alice = tool(client, h, "graph_query", query="MATCH (s:Speaker {name: 'Alice'}) RETURN id(s)", namespace="pods")["rows"][0][0]
+    assert tool(client, h, "graph_paths", from_node=alice, to_node=f"e{dyno}", namespace="pods")["paths"]
+    assert tool_error(client, h, "graph_schema", namespace="calls")  # not theirs
+    assert "read-only" in tool_error(client, h, "propose_graph_change", kind="merge", a=f"e{dyno}", b="e1")

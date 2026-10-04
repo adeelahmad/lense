@@ -45,11 +45,11 @@ Todo:
 - [x] Property graph: namespaces, collections, recordings, speakers, entities; hierarchy and association relationships
 - [x] Walk it: parents, children, ancestors, descendants, neighbours, every path / shortest paths
 - [x] Read-only Cypher engine with a step and time budget; API with read (any token) and change (write + editor) rights
-- [ ] Explorer canvas: drag nodes, pan and zoom, pinch and long-press on touch; one-click layouts (force, BFS tree,
+- [x] Explorer canvas: drag nodes, pan and zoom, pinch and long-press on touch; one-click layouts (force, BFS tree,
       DFS tree, radial) and reset; a custom route through picked nodes; right-click menu for parents, children,
       ancestors, descendants, neighbours and paths
-- [ ] Questions in plain language: the question becomes Cypher (shown, editable), the answer lights up on the canvas
-- [ ] Assistant and MCP tools: graph schema, query, related, paths; proposing changes behind an approval
+- [x] Questions in plain language: the question becomes Cypher (shown, editable), the answer lights up on the canvas
+- [x] Assistant and MCP tools: graph schema, query, related, paths; proposing changes behind an approval
 - [ ] Topics as a controlled vocabulary (SKOS), apart from entities (authority records); asked Adeel when
 
 ## 2026-10-03 · Assistant extensions: tools, skills, hooks, plugins
