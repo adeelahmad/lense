@@ -75,15 +75,24 @@ beforeEach(() => {
 });
 
 describe("the collections dialog", () => {
-  it("lists the tree and makes, renames, moves, defaults and deletes collections", async () => {
-    const onPick = jest.fn();
+  // one flow per test: together they took over 30 s on the self-hosted runner
+  const open = async (onPick?: (id: number) => void) => {
     wrap(<CollectionsDialog ns="pods" open onOpenChange={() => {}} onPick={onPick} />);
-    const list = await screen.findByRole("list", { name: "Collections in pods" });
+    return screen.findByRole("list", { name: "Collections in pods" });
+  };
+
+  it("lists the tree, and a name shows that collection in the Library", async () => {
+    const onPick = jest.fn();
+    const list = await open(onPick);
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getByText("Default")).toBeInTheDocument();
     expect(within(list).getAllByText("3 recordings").length).toBeGreaterThan(0);
+    fireEvent.click(within(list).getByRole("button", { name: /^General/ }));
+    expect(onPick).toHaveBeenCalledWith(1);
+  });
 
-    // a new one at the top
+  it("makes a new one at the top", async () => {
+    await open();
     m(Namespaces.createNamespaceCollection).mockImplementation(() => ok(node(4, "Interviews", null, 0)));
     fireEvent.change(screen.getByLabelText("New collection"), { target: { value: "  Interviews " } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
@@ -94,49 +103,62 @@ describe("the collections dialog", () => {
       }),
     );
     await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Made “Interviews”" })));
+  });
 
-    // renamed
-    m(Namespaces.updateNamespaceCollection).mockImplementation((o: { path: { cid: number }; body: object }) =>
-      ok({ ...TREE.find((n) => n.id === o.path.cid), ...o.body }),
-    );
-    await choose("Talks", "Rename");
-    const name = await screen.findByLabelText("New name for Talks");
-    fireEvent.change(name, { target: { value: "Lectures" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() =>
-      expect(m(Namespaces.updateNamespaceCollection).mock.calls[0][0]).toMatchObject({
-        path: { name: "pods", cid: 2 },
-        body: { name: "Lectures" },
-      }),
-    );
+  describe("arranging", () => {
+    beforeEach(() => {
+      m(Namespaces.updateNamespaceCollection).mockImplementation((o: { path: { cid: number }; body: object }) =>
+        ok({ ...TREE.find((n) => n.id === o.path.cid), ...o.body }),
+      );
+    });
 
-    // moved inside another: only where it may go is offered (not inside itself)
-    await choose("Talks", "Move to…");
-    const where = await screen.findByLabelText("Where to move Talks");
-    expect(
-      within(where)
-        .getAllByRole("option")
-        .map((o) => o.textContent),
-    ).toEqual(["The top of pods", "General (default)"]);
-    fireEvent.change(where, { target: { value: "1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Move" }));
-    await waitFor(() =>
-      expect(m(Namespaces.updateNamespaceCollection).mock.calls[1][0]).toMatchObject({
-        path: { cid: 2 },
-        body: { parent: 1 },
-      }),
-    );
+    it("renames one", async () => {
+      await open();
+      await choose("Talks", "Rename");
+      const name = await screen.findByLabelText("New name for Talks");
+      fireEvent.change(name, { target: { value: "Lectures" } });
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(m(Namespaces.updateNamespaceCollection).mock.calls[0][0]).toMatchObject({
+          path: { name: "pods", cid: 2 },
+          body: { name: "Lectures" },
+        }),
+      );
+    });
 
-    // made the default
-    await choose("2024", "Make it the default");
-    await waitFor(() =>
-      expect(m(Namespaces.updateNamespaceCollection).mock.calls[2][0]).toMatchObject({
-        path: { cid: 3 },
-        body: { default: true },
-      }),
-    );
+    it("moves one inside another, offering only where it may go (not inside itself)", async () => {
+      await open();
+      await choose("Talks", "Move to…");
+      const where = await screen.findByLabelText("Where to move Talks");
+      expect(
+        within(where)
+          .getAllByRole("option")
+          .map((o) => o.textContent),
+      ).toEqual(["The top of pods", "General (default)"]);
+      fireEvent.change(where, { target: { value: "1" } });
+      fireEvent.click(screen.getByRole("button", { name: "Move" }));
+      await waitFor(() =>
+        expect(m(Namespaces.updateNamespaceCollection).mock.calls[0][0]).toMatchObject({
+          path: { cid: 2 },
+          body: { parent: 1 },
+        }),
+      );
+    });
 
-    // deleted, once confirmed; the default and a collection holding others can't be
+    it("makes one the default", async () => {
+      await open();
+      await choose("2024", "Make it the default");
+      await waitFor(() =>
+        expect(m(Namespaces.updateNamespaceCollection).mock.calls[0][0]).toMatchObject({
+          path: { cid: 3 },
+          body: { default: true },
+        }),
+      );
+    });
+  });
+
+  it("deletes one once confirmed; the default and a collection holding others can't be", async () => {
+    await open();
     const trigger = screen.getByRole("button", { name: "Actions for General" });
     fireEvent.keyDown(trigger, { key: "Enter" });
     expect(await screen.findByRole("menuitem", { name: /default collection/ })).toHaveAttribute("data-disabled");
@@ -150,10 +172,6 @@ describe("the collections dialog", () => {
         path: { name: "pods", cid: 3 },
       }),
     );
-
-    // a name shows that collection in the Library
-    fireEvent.click(within(list).getByRole("button", { name: /^General/ }));
-    expect(onPick).toHaveBeenCalledWith(1);
   });
 
   it("is read-only for viewers, and says why", async () => {
