@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -100,3 +100,32 @@ class IpGroupUpdate(RequestModel):
     name: str | None = Field(None, min_length=1, max_length=80)
     ranges: list[str] | None = Field(None, min_length=1, max_length=100)
     everything: bool | None = None
+
+
+class VaultPasskey(ResponseModel):
+    """A passkey that opens a vault."""
+
+    id: str
+    name: str | None = None
+    account: int | None = None
+    email: str | None = None
+
+
+class VaultStatus(ResponseModel):
+    """Whether a namespace is a vault, whether it's open on this server (until when, a Unix time), and the passkeys that
+    open it."""
+
+    vault: bool
+    unlocked: bool
+    unlocked_until: float | None = None
+    passkeys: list[VaultPasskey] = []
+
+
+class VaultStart(RequestModel):
+    kind: Literal["seal", "unlock", "add"] = Field(description="seal: make it a vault; unlock: open it; add: let another passkey open it")
+
+
+class VaultAnswer(RequestModel):
+    flow: str
+    credential: dict[str, Any] = Field(description="the browser's PublicKeyCredential, as JSON, without its PRF results")
+    prf: str = Field(description="the PRF extension's first result for the salt in the options, base64url")

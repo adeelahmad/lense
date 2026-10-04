@@ -10,8 +10,9 @@ export default defineConfig({
   // types, so `make openapi`, the dev watcher and the pre-commit hook would each write a different client.
   input: path.resolve(process.env.OPENAPI_OUTPUT_FILE || "openapi.json"),
   output: {
-    format: "prettier",
-    lint: "eslint",
+    // Prettier only: eslint.config.mjs ignores the generated client, and ESLint exits non-zero when every file it is
+    // given is ignored.
+    postProcess: ["prettier"],
     path: "app/openapi-client",
   },
   plugins: [

@@ -9,7 +9,7 @@ import re
 import urllib.request
 from collections import Counter, defaultdict
 
-from . import store
+from . import entity_map, entity_setup, store, telemetry
 
 STOP = set(
     """a about above after again against all almost also am an and any are aren as at be because been before being
@@ -348,12 +348,16 @@ def talk_stats(segs):
 def analyze_recording(db, cfg, rid, seg_ents=None):
     """Entities, keywords, sections and talk statistics. `seg_ents` (per line, [(name, type)]) replaces the extractor:
     a workflow's save entities node passes what its nodes found."""
-    nid = db.one("SELECT space FROM $r", r=R("recording", rid))["space"]
+    rec = db.one("SELECT space, collection FROM $r", r=R("recording", rid))
+    nid = rec["space"]
+    setup = entity_setup.effective(db, nid, rec.get("collection"))
+    listed = setup["mode"] != "self"  # fixed or hybrid: a list of defined entities comes first
     segs = db.rows(
         "SELECT record::id(id) AS id, idx, t0, t1, speaker, text, emotion, event, lang FROM segment WHERE recording = $r ORDER BY idx",
         r=rid,
     )
-    gaz = parse_gazetteer(cfg["analysis"].get("gazetteer"))
+    extra = entity_map.terms(db, nid, entity_map.chain_of(db, rec.get("collection"))) if listed else []
+    gaz = parse_gazetteer(list(cfg["analysis"].get("gazetteer") or []) + extra)  # the defined entities, however written
     use_spacy = cfg["analysis"]["entities"] == "spacy"
     given, seg_ents, toks, wc, tn, ts = seg_ents, [], [], [], Counter(), defaultdict(Counter)
     for k, s in enumerate(segs):
@@ -370,6 +374,8 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
         for (a, sa), (b, sb) in zip(ws, ws[1:]):
             tn[a + " " + b] += 1
             ts[a + " " + b][sa + " " + sb] += 1
+    if setup["types"] and not listed:  # the namespace (or collection) keeps only some types
+        seg_ents = [[(n, t) for n, t in es if entity_setup.keeps(setup, t)] for es in seg_ents]
     surface = {t: c.most_common(1)[0][0] for t, c in ts.items()}
     starts = [0] + tiling(toks, wc) if segs else []
     titles = section_titles(starts, toks, surface, seg_ents, len(segs)) if segs else []
@@ -379,29 +385,38 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
     for es in seg_ents:
         for name, typ in es:
             first.setdefault(alias.get(ent_key(name), ent_key(name)), (name, typ))
-    known = (
-        {
-            r["key"]: r["id"]
-            for r in db.rows("SELECT record::id(id) AS id, key FROM entity WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
-        }
-        if first
-        else {}
-    )
-    if first:  # names merged into another entity keep pointing at it
-        known.update(
+    if listed:  # mapped onto the defined entities, Unlabeled, Unknown or (hybrid) new entities (entity_map.py)
+        known = entity_map.place(db, cfg, nid, rec.get("collection"), setup, first, [s["text"] for s in segs])
+    else:
+        known = (
             {
-                r["key"]: r["entity"]
-                for r in db.rows("SELECT key, entity FROM entity_alias WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
+                r["key"]: r["id"]
+                for r in db.rows("SELECT record::id(id) AS id, key FROM entity WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
             }
+            if first
+            else {}
         )
-    for key, (name, typ) in first.items():
-        if key and key not in known:
-            known[key] = db.next_id("entity")
-            db.q(
-                "CREATE $r CONTENT $d",
-                r=R("entity", known[key]),
-                d={"space": nid, "key": key, "ekey": f"{nid}:{key}", "name": name, "type": typ},
+        if first:  # names merged into another entity keep pointing at it
+            known.update(
+                {
+                    r["key"]: r["entity"]
+                    for r in db.rows("SELECT key, entity FROM entity_alias WHERE space = $s AND key IN $k", s=nid, k=sorted(first))
+                }
             )
+        new = {k: v for k, v in first.items() if k and k not in known}
+        if new and setup["matching"] == "model":  # the model may know a new name as a described entity
+            picked = entity_map.judge(db, cfg, nid, setup, new, entity_map.described(db, nid), ("new",), [s["text"] for s in segs])
+            placed = {k: v for k, v in picked.items() if isinstance(v, int)}
+            entity_map.learn(db, nid, placed)
+            known.update(placed)
+        for key, (name, typ) in first.items():
+            if key and key not in known:
+                known[key] = db.next_id("entity")
+                db.q(
+                    "CREATE $r CONTENT $d",
+                    r=R("entity", known[key]),
+                    d={"space": nid, "key": key, "ekey": f"{nid}:{key}", "name": name, "type": typ},
+                )
     over = {
         (o["segment"], o["key"]): o["target"]
         for o in db.rows("SELECT segment, key, target FROM entity_override WHERE recording = $r", r=rid)
@@ -412,7 +427,7 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
             k = ent_key(n)
             if not k:
                 continue
-            eid = over.get((s["id"], k), known[alias.get(k, k)])  # people's corrections outrank the extractor
+            eid = over.get((s["id"], k), known.get(alias.get(k, k)))  # people's corrections outrank the extractor
             if eid:
                 ments.append(
                     store.clean(
@@ -628,8 +643,8 @@ def _llm(cfg, user, system=SUMMARY_SYSTEM):
     req = urllib.request.Request(
         l["base_url"].rstrip("/") + "/chat/completions", data=json.dumps(body).encode(), headers=headers, method="POST"
     )
-    with urllib.request.urlopen(req, timeout=l.get("timeout", 300)) as r:
-        text = json.loads(r.read().decode())["choices"][0]["message"]["content"]
+    with telemetry.model_call(cfg, body) as call, urllib.request.urlopen(req, timeout=l.get("timeout", 300)) as r:
+        text = call.reply(json.loads(r.read().decode()))["choices"][0]["message"]["content"]
     text = re.sub(r"^```(?:json)?|```$", "", text.strip()).strip()
     obj = json.loads(text[text.find("{") : text.rfind("}") + 1])
     missing = [k for k in SUMMARY_NEEDS if k not in obj]

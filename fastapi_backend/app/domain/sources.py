@@ -93,7 +93,7 @@ def obscure(cfg, value):
 
 def get(db, sid):
     row = db.one("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM $r", r=R("storage_source", sid))
-    if not row:
+    if not row or row["type"] not in BACKENDS:  # a stream sensor (sensors.py) shares the table, but isn't a source
         raise KeyError(sid)
     return row
 
@@ -361,6 +361,7 @@ def list_sources(db):
     return [
         {**view(s), "watches": counts.get(s["id"], 0)}
         for s in db.rows("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM storage_source ORDER BY id")
+        if s["type"] in BACKENDS
     ]
 
 
@@ -639,11 +640,19 @@ def poll_due(db, cfg, log=print):
     for w in db.rows(
         "SELECT record::id(id) AS id, poll_minutes, next_scan_at FROM watch_path WHERE enabled = true AND next_scan_at <= $n", n=store.now()
     ):
+        nxt = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=w.get("poll_minutes") or 5)).isoformat(timespec="seconds")
+        # taken first, so a second process polling (the API and a worker) doesn't scan it too
+        if not db.rows(
+            "UPDATE $r SET next_scan_at = $n WHERE next_scan_at = $was RETURN AFTER",
+            r=R("watch_path", w["id"]),
+            n=nxt,
+            was=w["next_scan_at"],
+        ):
+            continue
         try:
             poll_watch(db, cfg, w["id"], log)
             done += 1
         except Exception as e:  # noqa: BLE001 - recorded on the watch, retried next time
-            nxt = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=w.get("poll_minutes") or 5)).isoformat(timespec="seconds")
             db.q("UPDATE $r SET last_error = $e, next_scan_at = $n", r=R("watch_path", w["id"]), e=f"{type(e).__name__}: {e}"[:300], n=nxt)
             log(f"  watch {w['id']}: {type(e).__name__}: {e}")
     return done

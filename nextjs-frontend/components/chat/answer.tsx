@@ -8,7 +8,14 @@ import { useMemo } from "react";
 import { Chats, Search } from "@/app/openapi-client";
 import type { AnswerCheck, Passage } from "@/app/openapi-client/types.gen";
 import { ApprovalCard, type ApprovalView } from "@/components/chat/approval";
-import { citedNumbers, isNoModelAnswer, NO_ANSWER, NOTHING_MATCHES, quoteOf } from "@/components/chat/cite";
+import {
+  citedNumbers,
+  isNoModelAnswer,
+  NO_ANSWER,
+  NOTHING_MATCHES,
+  quoteOf,
+  saysNotCovered,
+} from "@/components/chat/cite";
 import { CitationChip } from "@/components/chat/citation";
 import { keywords } from "@/components/chat/keywords";
 import { RichText } from "@/components/chat/rich-text";
@@ -154,7 +161,9 @@ export function Answer(p: AnswerProps) {
     !noModel &&
     p.passages?.length === 0 &&
     !p.steps?.length &&
-    (p.text === NOTHING_MATCHES || cites.length === 0);
+    // the canned "nothing matches", or the model saying so; anything else it says (a greeting, setting the server up)
+    // is shown as written
+    (p.text === NOTHING_MATCHES || (cites.length === 0 && saysNotCovered(p.text)));
   const failed = p.status === "error" || (p.status === "done" && p.text === NO_ANSWER);
   const check = useMutation({
     mutationFn: () =>

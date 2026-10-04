@@ -68,12 +68,22 @@ nav:
   - Database: database.md
   - Configuration: configuration.md
   - Processing: processing.md
+  - Components: components.md
   - Video: video.md
   - Chat and batch runs: assistant.md
   - Notifications: notifications.md
+  - Chat rooms: chat-rooms.md
+  - Sensors: sensors.md
+  - Telemetry: telemetry.md
   - IIIF: iiif.md
+  - Graph and Cypher: graph.md
+  - Linked data (RDF): rdf.md
+  - Fedora repository: fedora.md
   - API: api.md
+  - MCP server: mcp.md
   - API work the design needs: backend-gaps.md
+  - Encryption: encryption.md
+  - Remote access: remote-access.md
   - Deployment: deployment.md
   - Technology: technology-selection.md
   - Contributing: contributing.md

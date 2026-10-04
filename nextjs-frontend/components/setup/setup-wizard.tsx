@@ -3,9 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Admin, Setup, type LlmTestResult, type SetupView } from "@/app/openapi-client";
+import { Admin, Setup, type LlmTestResult, type SetupView, type TelemetryTestResult } from "@/app/openapi-client";
 import { AuthAlert, AuthBrand } from "@/components/auth/auth-card";
 import { SegmentedChoice } from "@/components/settings/controls";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ const STEPS = [
   { id: "namespace", label: "Namespace" },
   { id: "llm", label: "Model provider" },
   { id: "storage", label: "Storage" },
+  { id: "telemetry", label: "Telemetry" },
 ] as const;
 type StepId = (typeof STEPS)[number]["id"];
 
@@ -29,15 +30,17 @@ const LLM_ENV: Record<string, string> = {
   model: "LENS_LLM_MODEL",
   api_key: "LENS_LLM_API_KEY",
 };
+const TELEMETRY_ENV: Record<string, string> = { enabled: "LENS_TELEMETRY", endpoint: "LENS_TELEMETRY_ENDPOINT" };
 const NS = /^[a-z0-9][a-z0-9_-]{0,40}$/;
+const URL_RX = /^https?:\/\/[^\s]+$/;
 
 function errorText(e: unknown): string {
   return e instanceof ApiError ? e.message : "Something went wrong. Please try again.";
 }
 
 /**
- * First-run setup for a fresh install (the admin already exists): the first namespace, the model provider and
- * storage, one step at a time. Each step can be skipped, and the whole wizard too; everything stays in Settings.
+ * First-run setup for a fresh install (the admin already exists): the first namespace, the model provider, storage
+ * and whether to send telemetry (off unless chosen), one step at a time. Each step can be skipped, and the whole wizard too; everything stays in Settings.
  * Fields .env sets are shown locked, since the environment wins.
  */
 export function SetupWizard() {
@@ -56,6 +59,13 @@ export function SetupWizard() {
   useEffect(() => {
     if (seeded) setDone((d) => (d.has("namespace") ? d : new Set(d).add("namespace")));
   }, [seeded]);
+  // With nothing to choose for the namespace (seeded, or set in archive.yaml), start at the model provider.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!view.data || started.current) return;
+    started.current = true;
+    if (seeded || view.data.namespace.locked) setStep((s) => (s === "namespace" ? "llm" : s));
+  }, [view.data, seeded]);
 
   const finish = useMutation({
     mutationFn: (skipped: boolean) => data(Setup.finish({ client, body: { skipped } })),
@@ -63,6 +73,18 @@ export function SetupWizard() {
       queryClient.invalidateQueries();
       router.replace("/");
       router.refresh();
+    },
+  });
+
+  // Once a model answers, the assistant can do the rest by conversation (a setup chat makes the changes itself).
+  const llmSet = Boolean(
+    (view.data?.llm.values as { base_url?: string | null; model?: string | null } | undefined)?.model,
+  );
+  const withAssistant = useMutation({
+    mutationFn: () => data(Setup.finish({ client, body: { skipped: false } })),
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      router.replace("/chat?setup=1");
     },
   });
 
@@ -96,7 +118,7 @@ export function SetupWizard() {
         </p>
       </div>
 
-      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Setup steps">
+      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-5" aria-label="Setup steps">
         {STEPS.map((s, i) => {
           const on = s.id === step;
           const ok = done.has(s.id);
@@ -129,6 +151,18 @@ export function SetupWizard() {
         })}
       </ol>
 
+      {llmSet && step !== "llm" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-border bg-blue-surface px-4 py-3">
+          <p className="text-[13.5px] text-fg">
+            <span className="font-semibold">Rather talk it through?</span> The assistant can set up the rest with you,
+            and you can drop files in as you go.
+          </p>
+          <Button variant="primary" size="sm" onClick={() => withAssistant.mutate()} disabled={withAssistant.isPending}>
+            Finish with the assistant
+          </Button>
+        </div>
+      )}
+
       <section className="flex flex-col gap-4 rounded-xl border border-border bg-background p-6 sm:p-7">
         {view.isPending ? (
           <Skeleton className="h-40" />
@@ -138,8 +172,10 @@ export function SetupWizard() {
           <NamespaceStep view={view.data} onNext={(saved) => next("namespace", saved)} />
         ) : step === "llm" ? (
           <LlmStep view={view.data} onNext={(saved) => next("llm", saved)} />
+        ) : step === "storage" ? (
+          <StorageStep view={view.data} onNext={(saved) => next("storage", saved)} />
         ) : (
-          <StorageStep view={view.data} pending={finish.isPending} onNext={(saved) => next("storage", saved)} />
+          <TelemetryStep view={view.data} pending={finish.isPending} onNext={(saved) => next("telemetry", saved)} />
         )}
         {finish.error && <AuthAlert tone="error">{errorText(finish.error)}</AuthAlert>}
       </section>
@@ -309,6 +345,23 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
     onSuccess: setTested,
   });
   const allLocked = ["base_url", "model", "api_key"].every((k) => locked.has(k));
+  // Model servers already running nearby (Ollama, LM Studio, ...): the first fills the form in, the rest are a click.
+  const canPick = !locked.has("base_url") && !locked.has("model");
+  const nearby = useQuery({
+    queryKey: ["setup", "llm", "detect"],
+    queryFn: () => data(Setup.detectLlm({ client })),
+    enabled: canPick,
+    staleTime: Infinity,
+  });
+  const servers = nearby.data ?? [];
+  const filled = useRef(false);
+  useEffect(() => {
+    if (filled.current || !servers.length || v.base_url) return;
+    filled.current = true;
+    setBaseUrl(servers[0].base_url);
+    setModel(servers[0].suggested);
+  }, [servers, v.base_url]);
+  const here = servers.find((s) => s.base_url === baseUrl);
 
   const field = (
     key: "base_url" | "model",
@@ -316,19 +369,30 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
     value: string,
     set: (s: string) => void,
     hint: ReactNode,
+    options?: string[],
   ) => (
     <Field label={label} hint={locked.has(key) ? <LockedHint env={LLM_ENV[key]} /> : hint}>
       {({ id, describedBy }) => (
-        <Input
-          id={id}
-          aria-describedby={describedBy}
-          mono
-          value={value}
-          onChange={(e) => set(e.target.value)}
-          disabled={locked.has(key)}
-          autoComplete="off"
-          spellCheck={false}
-        />
+        <>
+          <Input
+            id={id}
+            aria-describedby={describedBy}
+            mono
+            value={value}
+            onChange={(e) => set(e.target.value)}
+            disabled={locked.has(key)}
+            autoComplete="off"
+            spellCheck={false}
+            list={options?.length ? `${id}-options` : undefined}
+          />
+          {options?.length ? (
+            <datalist id={`${id}-options`}>
+              {options.map((o) => (
+                <option key={o} value={o} />
+              ))}
+            </datalist>
+          ) : null}
+        </>
       )}
     </Field>
   );
@@ -339,8 +403,45 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
         Summaries, chat and descriptions use any OpenAI-compatible server: OpenAI, or one you run yourself such as
         Ollama, llama.cpp, LM Studio or vLLM. Transcription runs on this server and needs none.
       </StepHead>
+      {canPick && nearby.isPending && <p className="text-[12.5px] text-fg-muted">Looking for model servers nearby…</p>}
+      {servers.length > 0 && (
+        <div className="flex flex-col gap-1.5" role="group" aria-label="Model servers found">
+          <p className="text-[12.5px] font-semibold text-fg">Found running nearby</p>
+          <div className="flex flex-wrap gap-2">
+            {servers.map((s) => (
+              <button
+                key={s.base_url}
+                type="button"
+                onClick={() => {
+                  setBaseUrl(s.base_url);
+                  setModel(s.suggested);
+                }}
+                aria-pressed={s.base_url === baseUrl}
+                className={cn(
+                  "flex flex-col rounded-md border px-3 py-1.5 text-left text-[12.5px]",
+                  s.base_url === baseUrl ? "border-blue bg-blue-surface" : "border-border hover:border-blue-border",
+                )}
+              >
+                <span className="font-semibold text-fg">{s.kind}</span>
+                <span className="text-fg-muted">
+                  {s.models.length} model{s.models.length === 1 ? "" : "s"} · {s.base_url}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {field("base_url", "Base URL", baseUrl, setBaseUrl, "For example http://localhost:11434/v1 (Ollama)")}
-      {field("model", "Model", model, setModel, "The model's name on that server, for example llama3.1")}
+      {field(
+        "model",
+        "Model",
+        model,
+        setModel,
+        here
+          ? `Pick one of the ${here.models.length} on ${here.kind}, or type another`
+          : "The model's name on that server, for example llama3.1",
+        here?.models,
+      )}
       <Field
         label="API key"
         optional={!locked.has("api_key")}
@@ -397,15 +498,7 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
   );
 }
 
-function StorageStep({
-  view,
-  pending,
-  onNext,
-}: {
-  view: SetupView;
-  pending: boolean;
-  onNext: (saved: boolean) => void;
-}) {
+function StorageStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) => void }) {
   const client = useApiClient();
   const s = view.storage;
   const [maxMb, setMaxMb] = useState(String(s.max_upload_mb));
@@ -516,10 +609,141 @@ function StorageStep({
       <Actions
         onSkip={() => onNext(false)}
         onSave={() => save.mutate()}
-        saveText="Save and finish"
-        pending={save.isPending || pending}
+        pending={save.isPending}
         disabled={!validMb || (Boolean(folder.trim()) && !namespace)}
       />
+    </>
+  );
+}
+
+function TelemetryStep({
+  view,
+  pending,
+  onNext,
+}: {
+  view: SetupView;
+  pending: boolean;
+  onNext: (saved: boolean) => void;
+}) {
+  const client = useApiClient();
+  const t = view.telemetry;
+  const locked = new Set(t.locked);
+  const [on, setOn] = useState(t.enabled ? "on" : "off");
+  const [endpoint, setEndpoint] = useState(t.endpoint ?? "");
+  const [tested, setTested] = useState<TelemetryTestResult | null>(null);
+  useEffect(() => setTested(null), [endpoint]);
+  const body = () => ({ enabled: on === "on", endpoint: endpoint.trim() || null });
+  const save = useMutation({ mutationFn: () => data(Setup.saveTelemetry({ client, body: body() })) });
+  const test = useMutation({
+    mutationFn: async () => {
+      // the test uses the saved address; saving it with telemetry off sends nothing else
+      await data(Setup.saveTelemetry({ client, body: { enabled: t.enabled, endpoint: endpoint.trim() } }));
+      return data(Admin.testTelemetry({ client }));
+    },
+    onSuccess: setTested,
+  });
+  const wantsEndpoint = on === "on" && !locked.has("endpoint");
+  const badEndpoint = Boolean(endpoint.trim()) && !URL_RX.test(endpoint.trim());
+  const missing = wantsEndpoint && !endpoint.trim();
+
+  return (
+    <>
+      <StepHead title="Telemetry">
+        Lens can send traces and metrics about its own work (requests, jobs, model calls with token counts and estimated
+        cost) to an OpenTelemetry collector you run, to see how it performs. It is off unless you turn it on, and
+        nothing is ever sent anywhere else.
+      </StepHead>
+      <Field
+        label="Send telemetry"
+        hint={
+          locked.has("enabled") ? (
+            <LockedHint env={TELEMETRY_ENV.enabled} />
+          ) : (
+            "You can change this any time in Settings → Telemetry."
+          )
+        }
+      >
+        {() => (
+          <SegmentedChoice
+            label="Send telemetry"
+            value={on}
+            onChange={locked.has("enabled") ? () => undefined : setOn}
+            options={[
+              { value: "off", label: "Off" },
+              { value: "on", label: "On" },
+            ]}
+            className="w-full max-w-[220px]"
+          />
+        )}
+      </Field>
+      {on === "on" && (
+        <>
+          <Field
+            label="OTLP endpoint"
+            hint={
+              locked.has("endpoint") ? (
+                <LockedHint env={TELEMETRY_ENV.endpoint} />
+              ) : (
+                "Your collector's OTLP/HTTP address, for example http://localhost:4318"
+              )
+            }
+            error={badEndpoint ? "Use an http(s) address" : undefined}
+          >
+            {({ id, describedBy, invalid }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                mono
+                placeholder="http://localhost:4318"
+                value={endpoint}
+                onChange={(e) => setEndpoint(e.target.value)}
+                disabled={locked.has("endpoint")}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            )}
+          </Field>
+          <p className="-mt-2 text-[12px] text-fg-muted">
+            Sent: route templates, job steps, record ids, model names, token counts, durations and costs. Never
+            transcripts, prompts, file names, titles or people.
+          </p>
+        </>
+      )}
+      {tested &&
+        (tested.ok ? (
+          <AuthAlert tone="success">The collector took a test span in {tested.ms} ms.</AuthAlert>
+        ) : (
+          <AuthAlert tone="error">The collector didn&apos;t take the test span: {tested.error}</AuthAlert>
+        ))}
+      {(save.error || test.error) && <AuthAlert tone="error">{errorText(save.error || test.error)}</AuthAlert>}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        {on === "on" ? (
+          <Button
+            variant="secondary"
+            onClick={() => test.mutate()}
+            disabled={test.isPending || badEndpoint || !endpoint.trim() || locked.has("endpoint")}
+          >
+            {test.isPending ? "Sending…" : "Send a test span"}
+          </Button>
+        ) : (
+          <span />
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" onClick={() => onNext(false)} disabled={save.isPending || pending}>
+            Skip this step
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() =>
+              locked.has("enabled") ? onNext(true) : save.mutate(undefined, { onSuccess: () => onNext(true) })
+            }
+            disabled={save.isPending || pending || badEndpoint || missing}
+          >
+            {save.isPending || pending ? "Saving…" : "Save and finish"}
+          </Button>
+        </div>
+      </div>
     </>
   );
 }

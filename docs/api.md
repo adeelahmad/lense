@@ -54,7 +54,8 @@ GET    /api/v1/oauth/grants
 DELETE /api/v1/oauth/grants/{grant_id}
 ```
 
-Lens is an OAuth 2.1 authorization server for API and MCP clients ([Authentication](authentication.md#oauth)).
+Lens is an OAuth 2.1 authorization server for API and MCP clients ([Authentication](authentication.md#oauth)). The MCP
+server itself is at `/mcp`, outside `/api/v1` ([MCP server](mcp.md)).
 
 * `POST /oauth/register {redirect_uris, client_name?, client_uri?, token_endpoint_auth_method?}` (RFC 7591, no sign-in,
   201) registers an app: `client_id` (`lc_…`), and a `client_secret` (`ls_…`, shown once) when it asked for
@@ -95,10 +96,18 @@ PUT    /api/v1/namespaces/{name}/members
 GET    /api/v1/settings
 PUT    /api/v1/settings/{section}
 POST   /api/v1/settings/llm/test
+POST   /api/v1/settings/embeddings/test
 GET    /api/v1/audit
 GET    /api/v1/admin/health
 POST   /api/v1/admin/reindex
+GET    /api/v1/admin/semantic
+POST   /api/v1/admin/semantic/index
 ```
+
+`POST /settings/embeddings/test` embeds one sentence with the configured embedding model (`dimension`, `ms`, or the
+`error`). `GET /admin/semantic` says whether search by meaning is set up, with which model, and how many recordings
+and passages are indexed with it; `POST /admin/semantic/index?limit=500` queues the embed step for recordings not yet
+indexed with it (`remaining` when more are waiting).
 
 ## namespaces
 
@@ -616,6 +625,12 @@ supplementary file: its `file`, `file_role` and `file_label`, and which `line`).
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
 keeps to what was said.
 
+`mode` says how the words are matched ([search by meaning](processing.md#search-by-meaning)): `keyword` (BM25),
+`semantic` (passages an embedding model finds alike), `hybrid` (both, fused by rank) or `auto` (the default: hybrid
+when search by meaning is set up and the query has no "phrases" or OR, else keyword). The reply's `mode` is how it was
+matched, `semantic` whether search by meaning is set up, and `meaning` why it wasn't used when asked for. Each hit's
+`match` is `words`, `meaning` (with its `similarity`, cosine, and shown at the passage's best line) or `both`.
+
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
 in how many recordings (`limit`, default 8, at most 20); the web app offers them as "Try …".
@@ -905,6 +920,9 @@ question can name another (`POST /chats/{cid}/messages {content, model}`, e.g. t
 a 400. Each answer records the `model` that wrote it. `POST /chats/{cid}/stop` stops the answer being written in your conversation after the piece or tool
 step it's on: the stream sends `stopped`, then `done` with the saved message, whose `stopped` is true and whose
 `content` is what came before (`(stopped)` when nothing had). `{stopping: false}` when nothing was being written.
+`POST /chats/{cid}/messages {content, edit}` edits one of your earlier questions (`edit` is its message id): it and
+everything after it are replaced by this question and its new answer; 404 when `edit` isn't a question in that
+conversation. A conversation titled after the first question is retitled when that question is edited.
 
 A conversation's `scope` narrows what it draws on: `namespaces`, `recordings`, `collections`, `speakers`, `from` and
 `to`; every key narrows it further, and an empty scope is everything you can read. `collections` are ids of

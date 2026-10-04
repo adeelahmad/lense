@@ -4,6 +4,225 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
+  recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
+  GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or
+  neighbours, `/graph/paths` the paths between two nodes, and `/graph/schema` what a query can ask about. Agents with
+  a write-scope token and editor access ask for merges and links with `POST /api/v1/graph/changes`; they wait in
+  Proposed changes unless asked to apply. See docs/graph.md.
+
+- **Lock a namespace to your passkeys.** An owner turns a namespace into a vault (Admin › Namespaces › Vault): its
+  files open only after one of its passkeys unlocks it, for an hour by default (`encryption.vault_minutes`), and its
+  queued work waits while it's locked. The passkey's WebAuthn PRF secret makes the key; the server keeps nothing that
+  opens it, and there is no recovery code, so add a second passkey. Owners add and remove passkeys while it's open
+  (never the last one) and can make it ordinary again. See docs/encryption.md#vaults.
+- **Hardening.** Sign-in throttles count each visitor behind the web app (Docker) instead of one bucket for everyone,
+  so one person's wrong tries can't lock others out and nobody gets unlimited tries. The web app's pages send
+  nosniff, referrer, permissions and frame policies, and HSTS when reached through Cloudflare. The containers run with
+  `no-new-privileges`, and the development API port listens on this machine only. See docs/deployment.md.
+- **Reach Lens from anywhere through a Cloudflare Tunnel.** Settings › Remote access turns on a tunnel Lens runs
+  itself, with nothing to open on the router: a quick random trycloudflare.com address, a hostname on your own
+  Cloudflare domain (Lens makes the tunnel and DNS record with an API token), or a tunnel made in the Cloudflare
+  dashboard. The page shows the address, whether it's connected and cloudflared's last lines; Lens fetches cloudflared
+  when it isn't installed. Passkeys and email links use the tunnel's https:// address. See docs/remote-access.md.
+- **Signing out keeps you at the address you're on.** Opened at another address than the one Lens was installed with
+  (its LAN name, an https:// address, the tunnel), signing out sent you to http://localhost:3000. Sign-in now follows
+  the browser's address; the Docker Compose files no longer pin AUTH_URL.
+- **Sign in with Google, GitHub, Microsoft or your own OpenID Connect provider.** Admins add them in Settings ›
+  Sign-in (client id, secret, and the redirect URI to register, which the dialog shows), and the sign-in page gets a
+  "Continue with ..." button for each. People are matched to their Lens account by an email the provider confirms, or
+  connect an account in Profile and sign-in › Connected accounts. Sign-up for people without an account is optional,
+  and can be limited to some email domains. See docs/authentication.md.
+- **An old passkey no longer blocks signing in.** After Lens is set up again at the same address, the browser still
+  offered the passkey from before (clearing the site's data doesn't remove passkeys from the password manager), and
+  signing in with it failed. Lens now says the passkey is from before, and tells Chrome and Safari to stop offering it,
+  so the next try shows the new one.
+- **A watched folder says which pipeline it runs.** "Namespace pipeline" names the namespace's default pipeline (or
+  the standard steps) right there, instead of pointing you to the Pipelines page to find out.
+- **Sensors in the web app.** Admins get **Sensors** in place of Sources: the hub's state, new devices with a
+  suggested handling to apply or ignore, each sensor's streams with charts of hourly averages and its latest
+  readings, its kinds of log line to label or drop, and what it keeps and for how long. Webhooks (token shown once),
+  bridges, hub logins and Settings → Sensors are all there; storage, email and calendars stay a tab away.
+- **An email connection fills in its server.** Type the address first and the IMAP server follows from it (Gmail,
+  Outlook, iCloud, Yahoo and other big providers by name, otherwise imap.<domain>) until you change it by hand.
+- **Fewer confirms, fewer dead ends.** Import sends the files that are ready and keeps the ones that still need a
+  field mapped in the list, instead of blocking everything. Disabling an account and deleting your own saved view
+  happen at once with Undo instead of a confirm. Adding a member to a namespace suggests the people who aren't in it
+  yet. Add file on a recording opens the file picker first (or take a file dropped on the tab) and guesses its role
+  and language from the name (talk.en.vtt is English).
+- **Sign in with a passkey, no passwords.** People sign in with their fingerprint, face or device PIN (or a phone
+  nearby). The first admin makes a passkey on the setup page; everyone else gets a one-time sign-in link from People
+  (or `lens users link`), and "Lost your passkey?" emails one. Profile and sign-in lists your passkeys, adds more and
+  removes old ones. Fresh installs have no passwords at all; installs that already use passwords keep them until an
+  admin turns them off in Settings › Sign-in (which needs an admin with a passkey). Passkeys need an `https://`
+  address or `localhost`; on a plain `http://` address setup takes the code alone and a sign-in link signs in by
+  itself, so there is still no password.
+- **Adding a source takes fewer steps.** Picking a type moves straight to its details, the tested connection is
+  named on the same screen (its suggested name kept with **Done**), and the folder browser opens next so you can pick
+  what to watch. "Connect a source" links elsewhere in the app open Add connection directly.
+- **Settings save in one click.** Save (or Ctrl/Cmd+S) applies a section's changes at once; only a new public base
+  URL, which changes every IIIF identifier, is still reviewed and typed out first.
+- **Less typing and clicking.** Every dialog opens on its first field, and Enter there runs its main action. A web
+  page's address needs no https://, namespace names are cleaned up as you type ("Customer Calls" becomes
+  customer-calls), a routine left unnamed is named from its schedule and actions, and a new account gets its name from
+  its email and a role in a namespace in the same step. Deleting a connection with no watched folders no longer asks
+  you to type its name. The entities page offers Clear filters and Add an entity when it's empty, and a setup chat
+  has no empty sources column.
+- **Global chats pick their namespace.** The first question in a conversation over everything (the assistant home)
+  is matched to the namespace it's about by the decision model (or the language model without one), using what each
+  namespace holds and where the question's excerpts are. A sure match narrows the conversation (a `scoped` event and a
+  "Looked in …" step; the app says so, with **Use everything** to undo). When it isn't sure, the likeliest namespaces
+  are offered to tap (a `suggested` event); when none fits, admins are also offered new ones named for the question,
+  created only when picked. In voice mode, saying one picks it. Nothing changes until something is picked. A scope you
+  chose, and later questions, are left alone.
+- **Files are encrypted at rest.** Each namespace has its own AES-256-GCM key, and uploads, attachments, captured web
+  pages and IIIF imports are stored encrypted with it. Audio and video still stream with seeking. New archives encrypt
+  from the start. For an archive that already has files, `lens encrypt` turns it on and converts them. See
+  docs/encryption.md.
+- **Sensors understand their logs.** Log lines are grouped into patterns (`query[A] <name> from <ip>`), each with a
+  count, an example, a label (routine, notable, alert) and an action (drop: counted, not kept). With `triage` on, the
+  decision model labels new patterns, one question per pattern, not per line. Brokers you already run (Mosquitto, Home
+  Assistant) can be bridged in: Lens subscribes to the topics you name. With `digest` on, each day of a sensor becomes
+  a document in its namespace. All three run in the **Tidy sensor data** routine.
+- **The assistant answers in chat rooms.** Through Matterbridge, Lens answers what's said to it in Slack, Discord,
+  Telegram, Matrix and other rooms ("Lens, …" or @Lens), as one Lens account, reading only what that account can and
+  asking for approval in the web app before changing anything. Each person in each room is a conversation listed in
+  Chat. Set up in Settings → Chat rooms with **Check the connection**; one server process reads the rooms at a time.
+  See docs/chat-rooms.md.
+- **Email is set up in the app.** Settings → Email holds the SMTP server, its password (kept secret) and the From
+  address, with **Send a test email**; `MAIL_*` in `.env` still work and show locked. Links in emails use
+  `notifications.app_url` when it's set.
+- **Sensors.** Everything that feeds Lens is a sensor, in one list (`GET /sensors`): the storage, email and
+  calendar sources as they are, and new stream sensors. Lens runs an MQTT hub (an ordinary local broker on 1883, with
+  hub logins), listens for syslog from local networks (UDP and TCP 5514) and takes webhooks. Devices and hosts become
+  sensors the first time they report, marked new, with their streams and kinds worked out from what they send.
+  Readings are stored as they come (numbers also as hourly summaries), with per-sensor handling (all, changes,
+  summaries only, none), retention (raw, important log lines, summaries) and a rate cap; a suggested handling is
+  applied only when chosen. Retention runs as a routine action (**Tidy sensor data**, hourly). Off until turned on in
+  Settings → Sensors; no model is called. See docs/sensors.md.
+- **Voice stays on the server.** The mic records in the browser and this server turns it into text with its own
+  transcription engine (`POST /voice/transcribe`), showing what's been heard while you talk and ending at a pause;
+  it works in any browser that can record. Spoken answers can come from a speech model (`voice.tts_model`, any
+  OpenAI-compatible `/audio/speech`), else the browser reads them. Settings → AI assistant → Voice.
+
+- **Lens fetches what it needs.** Each worker checks what the settings ask for (SenseVoice or a Whisper model, voice
+  IDs, face and object models, the chat and embedding models on Ollama) and fetches what's missing into the data folder,
+  sized to its machine (PyTorch's CPU build without a GPU). Steps wait for their engine instead of falling back. Models
+  now outlast container rebuilds. **Settings → Components** shows each worker's machine and where everything is
+  (docs/components.md).
+- **Assistant mode.** Home opens on a page with one field and a big mic once the archive has something in it (an
+  empty archive still opens on the overview; the **Assistant / Overview** switch at the top right remembers your
+  pick). Touching or typing in the field turns it into a chat over all your namespaces; the mic starts a voice
+  conversation straight away: it listens, sends what you said, reads the answer aloud and listens again, until you tap
+  the mic or say nothing twice. Recent conversations are a tap below the field. Chat's composer has the same mic.
+  Voice uses the browser's speech recognition and synthesis for now, behind one hook (`lib/voice.ts`).
+- **The assistant decides routine choices.** Files sent in a conversation go into the namespace that fits without
+  asking, chosen by a decision model (Jev, with a key in Settings → AI assistant or `TYPESAFE_API_KEY`) or the LLM.
+  Below `decisions.act_above` confidence it asks, best guess first. The admin tools are now listed in Settings → AI
+  assistant, where each can be turned off.
+
+- **Set up Lens by talking to it.** Once a model is connected, **Finish with the assistant** in the setup wizard
+  opens a setup conversation: the assistant checks what's missing and sets it up (the model provider, namespaces,
+  search by meaning) through new admin tools (`server_status`, `find_model_servers`, `read_settings`,
+  `change_settings`, `create_namespace`), and says what it changed. In other conversations those changes are approval
+  cards; telemetry always asks.
+- **Files in chat.** Attach files to a message (the clip, or drop or paste them): they upload while you type, held
+  out of the archive (`hold` on `POST /uploads`), and the assistant imports them into the namespace that fits.
+- **No waiting to type.** A message sent while an answer is being written waits its turn and goes next.
+- **Chat shows answers that cite nothing.** An answer without citations (a greeting, setting the server up) was
+  replaced by "Nothing in this scope answers that"; that card now shows only when the model says the archive doesn't
+  cover the question.
+- **Setup finds your model server.** The setup wizard looks for Ollama, LM Studio, llama.cpp, vLLM and LocalAI on
+  their usual ports (this machine, the Docker host and an `ollama` service; `GET /setup/llm/detect`) and fills in the
+  address and a chat model, with the server's models to pick from, so connecting one is a single click. The compose
+  files map `host.docker.internal` on Linux too. When the namespace is already set, the wizard starts at the model
+  provider instead of a step with nothing to choose.
+- **Install in one line.** `curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh`
+  installs Docker if it's missing, gets Lens, writes the secrets once, builds and starts the stack and opens the setup
+  page with the setup code filled in. On a server without a desktop, Lens is reachable from the network
+  (`LENS_BIND`/`LENS_PORT` in `docker-compose.prod.yml`, `127.0.0.1:3000` by default as before). Running it again
+  updates Lens and keeps the data.
+- **The whole graph fits on the canvas.** Workflow and pipeline canvases showed wide graphs cut off at both edges, or
+  an empty canvas, because the view couldn't zoom out past half size and was fitted only once, before the nodes were
+  measured. The canvas now zooms out as far as it needs to, fits again when the nodes are measured, when nodes are
+  added or removed and when the canvas changes size (until you pan or zoom yourself), and the minimap shows the nodes.
+- **Chat answers from the archive even when the model skips its tools.** Some models answer straight away instead of
+  searching, so chat said the archive didn't cover things it did. When the model answers without looking anything up
+  and the archive has matching passages, the answer now comes from those passages, with citations, as it does for a
+  model that can't use tools.
+- **Docker Compose builds the full image by default.** `docker compose up` and `make dev` built the lean image, so
+  capturing web pages and converting Office files, text and emails failed with "needs Chromium or LibreOffice on the
+  server" until you rebuilt with `LENS_TARGET=full` (`make run` already used it). `LENS_TARGET=lean` still builds the
+  smaller one.
+- **Set up the first admin without copying the code.** The API log now prints a link next to the setup code
+  (`…/setup?code=…`, from `FRONTEND_URL`) that opens the setup page with the code filled in and the cursor in Name.
+  Without the link, the page offers `make setup-code` with a copy button; it named a `lens` container that no
+  install uses.
+- **First start on a fresh database.** `docker compose up` on an empty database could stop the API with "Database
+  index `space_name` already contains 'podcasts'": the API and the worker both created the configured namespaces at
+  once. The one that loses now uses the other's.
+- **The dev web app no longer breaks when the API schema is rewritten twice at once.** The Docker dev stack's watcher
+  regenerated the API client on every change to `openapi.json`, and two generations at once deleted each other's
+  files ("Module not found: Can't resolve '../core/auth'"). It now runs one at a time and runs once more for changes
+  made during a run.
+- **Calendar feeds on your own network.** A calendar server at home or on an intranet (Nextcloud, Radicale) was
+  refused with "only public web pages can be captured", and Docker and the packages had no way to allow it.
+  `LENS_WEB_NETWORKS` in `.env` (e.g. `192.168.1.0/24`) now adds networks to `documents.web_networks`, and the error
+  says so.
+- **Search by meaning.** Search now also finds moments about what you asked in other words: "money worries" finds
+  "we can't afford the rent this month". A new `embed` pipeline step (in the standard pipeline, after analyze) has an
+  OpenAI-compatible embedding model embed each recording's passages (runs of transcript lines, page text, and what
+  shots and pages are described as showing) into SurrealDB's HNSW vector index; by default the LLM provider's server
+  with `nomic-embed-text`, which runs offline in Ollama, or a server of its own (Settings → Search, `embeddings` in
+  archive.yaml, `LENS_EMBED_*`). Searches fuse the keyword (BM25) hits with the passages found by meaning by
+  reciprocal rank; a query with "phrases" or OR stays exact, and the web app's Match switch (Words and meaning, Words
+  only, Meaning only; `mode` on `GET /search`) chooses. Moments found only by meaning are marked Related, with how
+  alike they are, and count in the facets. The assistant's search tool and chat's retrieval find passages by meaning
+  too. Only changed passages are embedded again (after corrections, splits, merges and entity renames). A seeded
+  hourly routine, **Index for search by meaning**, indexes recordings made before it was set up, or after the model
+  changes (which drops the old vectors); Settings → Search tests the model, shows how much is indexed and can queue
+  more now, and `lens embed` indexes from the command line (docs/processing.md#search-by-meaning).
+- **Audio and video are transcribed out of the box in Docker and the packages.** The images (and the Proxmox
+  install) had no transcription engine, so every import failed at Transcribe with "SenseVoice needs FunASR". They
+  now carry faster-whisper, and a worker whose configured engine isn't installed transcribes with one that is, saying
+  so in the run's log.
+- **Imports no longer wait forever at "shots" on a native setup.** `archive.yaml` written from the example before the
+  video steps existed lists no `shots`, `ocr`, `faces`, `objects` or `describe` in `workers.steps`, so no worker
+  took them. A worker with such a list now runs them too, a worker whose list leaves steps out says so when it
+  starts, and the example lists every step.
+- **Watched folders and routines work in Docker and the packages.** They were checked only by the API's own
+  background work, which Docker, Synology, QNAP, Cloudron and Proxmox all turn off in favour of a `lens worker`
+  process; so folders were never scanned and routines never ran. `lens worker` now does both (not a worker limited
+  with `--steps`, nor one started with `--no-schedule`), and a folder scan is claimed first, as routine runs are.
+- **Security: backend dependencies patched.** FastAPI moves to 0.142 and Starlette to 1.7, which fixes the Host-header
+  URL, multipart, Range-header and form-limit advisories; cryptography moves to 50 (its bundled OpenSSL and the
+  PKCS#7 and certificate-chain advisories) and pytest to 9.0.3. Secrets sealed before the upgrade still open (AES-GCM
+  is unchanged). API validation errors now include the `input` and `ctx` fields, and responses carry
+  `Vary: Origin` alongside `Vary: Authorization`.
+- **MCP server: agents search, read and cite the archive.** Add `https://<your Lens>/mcp` to Claude, Cursor, VS Code
+  or another MCP client, sign in on Lens's consent page (OAuth), and the agent sees what you see: your namespaces,
+  the collections you were given a role on, and their graphs. Read-only tools: `search` (moments said, on screen or
+  written, with links to each), `list_namespaces`, `list_recordings`, `list_speakers`, `get_recording` (summary,
+  chapters, entities), `get_transcript` (paged), `fetch` (the whole text), `cite` (the words, who said them, the
+  time and a link, as Markdown), `list_entities`, `get_entity`, `explore_graph` and `find_path`. Links open the
+  recording at that moment in the web app. Streamable HTTP without sessions, in both protocol eras (the 2025
+  `initialize` handshake and 2026-07-28's per-request envelope); an API token works for clients that can't sign in
+  (docs/mcp.md). An app's token keeps the server it was asked for (`resource`, RFC 8707), and the MCP server refuses
+  one asked for another.
+- **Opt-in telemetry.** Lens can send OpenTelemetry traces and metrics about its own work to a collector you choose:
+  API requests by route, jobs and each step, routines, workflow runs, and model calls with their tokens and an
+  estimated cost (from per-model prices you set). It is off by default and never on unless you turn it on, in
+  Settings → Telemetry, the setup wizard's new last step, or `LENS_TELEMETRY=on` with `LENS_TELEMETRY_ENDPOINT` in
+  .env (`LENS_TELEMETRY=off` keeps it off). It goes only to that endpoint, over OTLP/HTTP; there is no built-in
+  destination. Spans and metrics carry ids, step types, model names, counts and timings, never transcript, prompt or
+  answer text, file names, titles, people, paths or addresses. Settings shows whether it is on and how the last
+  exports went, and can send a test span; the API and each worker follow a change without a restart
+  (docs/telemetry.md).
+- **Security: the API client generator is upgraded.** `@hey-api/openapi-ts` moves from 0.83 to 0.99, which removes
+  the critical handlebars and tar alerts it brought in and fixes a prototype-chain issue in the generated client
+  itself. `make openapi` regenerates `app/openapi-client` as before. The client keeps its old behaviour of failing
+  loudly when the API can't be reached (`throwingNetworkErrors` in `lib/api/client.ts`), so an API outage still shows
+  as an error rather than as "Wrong email or password".
 - **Security: frontend dependencies patched.** The web app's lockfile now pulls fixed versions of form-data, ws,
   brace-expansion, minimatch, picomatch, glob, js-yaml, flatted, browserslist, Babel and the other packages GitHub
   flagged, each kept inside the major version its parent asks for (`overrides` in `nextjs-frontend/pnpm-workspace.yaml`).

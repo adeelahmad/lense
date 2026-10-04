@@ -8,7 +8,7 @@ import pathlib
 import shutil
 import sys
 
-from .domain import analyze, graph, ingest, render, store
+from .domain import analyze, components, graph, ingest, render, store
 from .domain import search as searchmod
 from .domain import speakers as spk
 
@@ -22,6 +22,14 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
         log("diarize:", spk.diarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "analyze" in which:
         log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "recording(s)")
+    if "embed" in which:
+        from .domain import semantic, settings
+
+        ecfg = settings.effective(db, cfg)
+        if semantic.configured(ecfg):
+            log("embed:", semantic.index_pending(db, ecfg, ns, limit, force, log), "recording(s)")
+        else:
+            log("embed: skipped; search by meaning is off, or has no embeddings server and model (embeddings in archive.yaml)")
     if "summarize" in which:
         log("summarize:", analyze.summarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "report" in which:
@@ -44,8 +52,9 @@ def _main_base(argv=None):
         ("transcribe", "transcribe new recordings"),
         ("diarize", "split speakers and match voice IDs within each namespace"),
         ("analyze", "named things, keywords, sections and talk statistics"),
+        ("embed", "index passages for search by meaning (with the configured embedding model)"),
         ("summarize", "optional LLM summaries"),
-        ("run", "scan, transcribe, diarize, analyze, summarize and report, resuming where it stopped"),
+        ("run", "scan, transcribe, diarize, analyze, embed, summarize and report, resuming where it stopped"),
     ):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--ns")
@@ -79,6 +88,7 @@ def _main_base(argv=None):
     p.add_argument("q")
     p.add_argument("--ns")
     p.add_argument("--limit", type=int, default=20)
+    p.add_argument("--mode", choices=["auto", "keyword", "semantic", "hybrid"], default="auto", help="by words, by meaning, or both")
     p = sub.add_parser("graph")
     p.add_argument("--scope", default="global", help="global, or ns:<name>")
     p.add_argument("--out")
@@ -87,6 +97,8 @@ def _main_base(argv=None):
     p.add_argument("--port", type=int)
     sub.add_parser("status")
     sub.add_parser("reindex", help="rebuild the search index (after changing search.tokenizer)")
+    p = sub.add_parser("encrypt", help="encrypt the files Lens keeps, and keep encrypting new ones (docs/encryption.md)")
+    p.add_argument("--off", action="store_true", help="decrypt them again and stop encrypting new ones")
     a = ap.parse_args(argv)
 
     if a.cmd == "init":
@@ -112,8 +124,8 @@ def _main_base(argv=None):
         return
     conn = store.connect(cfg)
     try:
-        if a.cmd in ("scan", "transcribe", "diarize", "analyze", "summarize", "run", "report"):
-            which = ["scan", "transcribe", "diarize", "analyze", "summarize", "report"] if a.cmd == "run" else [a.cmd]
+        if a.cmd in ("scan", "transcribe", "diarize", "analyze", "embed", "summarize", "run", "report"):
+            which = ["scan", "transcribe", "diarize", "analyze", "embed", "summarize", "report"] if a.cmd == "run" else [a.cmd]
             with store.lock(cfg, "pipeline"):
                 run_steps(
                     conn,
@@ -146,11 +158,14 @@ def _main_base(argv=None):
             elif a.action == "link":
                 spk.link(conn, a.a, a.b)
         elif a.cmd == "search":
-            res = searchmod.search(conn, a.q, a.ns, limit=a.limit)
-            print(f"{res['total']} match(es) for {res['query']}")
+            from .domain import settings
+
+            res = searchmod.search(conn, a.q, a.ns, limit=a.limit, cfg=settings.effective(conn, cfg), mode=a.mode)
+            print(f"{res['total']} match(es) for {res['query']} ({res['mode']})" + (f"; {res['meaning']}" if res.get("meaning") else ""))
             for h in res["hits"]:
                 snip = h["snippet"].replace("<mark>", "[").replace("</mark>", "]")
-                print(f"  {h['namespace']}/{h['recording_id']} {store.tc(h['t0'])} {h['speaker'] or '?'}: {snip}")
+                how = {"meaning": " ~", "both": " +"}.get(h.get("match") or "", "")
+                print(f"  {h['namespace']}/{h['recording_id']} {store.tc(h['t0'])} {h['speaker'] or '?'}{how}: {snip}")
         elif a.cmd == "graph":
             g = graph.build(conn, cfg, a.scope)
             text = json.dumps(g, ensure_ascii=False, indent=1)
@@ -172,6 +187,12 @@ def _main_base(argv=None):
         elif a.cmd == "reindex":
             store.reindex(conn, cfg)
             print("search index rebuilt")
+        elif a.cmd == "encrypt":
+            from .domain import keyring, settings
+
+            # the setting first, so files that arrive meanwhile are already encrypted (or no longer)
+            settings.save(conn, cfg, "encryption", {"files": not a.off}, user="cli")
+            keyring.encrypt_all(conn, cfg, decrypt=a.off)
     except store.Busy as e:
         sys.exit(f"another '{e}' run is in progress" if str(e) else "busy")
     except (ValueError, KeyError) as e:
@@ -185,10 +206,11 @@ PLATFORM_CMDS = ("users", "worker", "watch")
 
 def platform_main(argv, config):
     import getpass
+    import os
     import threading
     import time
 
-    from .domain import auth, jobs, notify, routines, settings, sources
+    from .domain import auth, bridge, jobs, notify, passkeys, routines, sensors, settings, sources, telemetry, tunnel
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -198,7 +220,11 @@ def platform_main(argv, config):
     x.add_argument("--name")
     x.add_argument("--admin", action="store_true")
     x.add_argument("--password-stdin", action="store_true", help="read the password from stdin instead of prompting")
+    x.add_argument("--password", action="store_true", help="give them a password (where passwords are on) instead of a sign-in link")
     us.add_parser("list")
+    x = us.add_parser("link", help="print a one-time link for adding a passkey and signing in (a new person, or a lost passkey)")
+    x.add_argument("email")
+    x.add_argument("--hours", type=float, default=72)
     x = us.add_parser("role", help="give someone a role in a namespace (none removes it)")
     x.add_argument("email")
     x.add_argument("ns")
@@ -212,10 +238,16 @@ def platform_main(argv, config):
     w.add_argument("--name")
     w.add_argument("--steps", help="comma-separated steps this worker runs (default: all)")
     w.add_argument("--once", action="store_true", help="run what is queued, then exit")
+    w.add_argument(
+        "--no-schedule",
+        action="store_true",
+        help="don't scan watched folders or run routines (a worker limited with --steps never does)",
+    )
     x = sub.add_parser("watch", help="scan watched folders on storage sources and run the routines that are due")
     x.add_argument("--once", action="store_true")
     a = ap.parse_args(argv)
     cfg = store.load_config(config)
+    components.activate(cfg)  # packages and models fetched into the data folder
     db = store.connect(cfg)
     C = settings.Settings(db, cfg).current
 
@@ -230,8 +262,11 @@ def platform_main(argv, config):
     try:
         if a.cmd == "users":
             if a.action == "add":
-                uid = auth.create_account(db, a.email, password(), a.name, a.admin)
+                with_password = a.password or a.password_stdin
+                uid = auth.create_account(db, a.email, password() if with_password else None, a.name, a.admin)
                 print(f"created account {uid} for {a.email}" + (" (admin)" if a.admin else ""))
+                if not with_password:
+                    print(f"sign-in link (works once, for 3 days): {passkeys.link_url(passkeys.create_link(db, uid))}")
             elif a.action == "list":
                 for r in db.rows("SELECT record::id(id) AS id, email, name, admin, disabled FROM account ORDER BY id"):
                     flags = ("admin " if r.get("admin") else "") + ("disabled" if r.get("disabled") else "")
@@ -240,7 +275,11 @@ def platform_main(argv, config):
                 acct = auth.find_account(db, a.email)
                 if not acct:
                     raise SystemExit(f"no account for {a.email}")
-                if a.action == "role":
+                if a.action == "link":
+                    raw = passkeys.create_link(db, acct["id"], hours=a.hours, by="lens users link")
+                    auth.audit(db, None, "user.signin_link", f"account:{acct['id']}", ["cli"])
+                    print(f"sign-in link for {a.email} (works once): {passkeys.link_url(raw)}")
+                elif a.action == "role":
                     auth.set_role(db, acct["id"], store.ns_id(db, a.ns, create=False), None if a.role == "none" else a.role)
                     print(f"{a.email}: {a.role} in {a.ns}")
                 elif a.action == "disable":
@@ -250,6 +289,7 @@ def platform_main(argv, config):
                     auth.update_account(db, acct["id"], password=password())
                     print(f"password changed for {a.email}")
         elif a.cmd == "worker":
+            telemetry.set_role("worker")
             wk = jobs.Worker(db, C, a.name, a.steps.split(",") if a.steps else None, log=print)
             if a.once:
                 print(f"ran {wk.drain()} job(s)")
@@ -257,17 +297,25 @@ def platform_main(argv, config):
                 print(f"worker {wk.name} runs {', '.join(sorted(wk.can))}; Ctrl-C to stop")
                 stop = threading.Event()
                 notify.start(db, C, stop, name=wk.name, log=print)  # sends notifications too (docs/notifications.md)
+                if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
+                    routines.start(db, C, stop, log=print)
+                    sensors.start(db, C, stop, log=print, name=wk.name)  # and the sensor hub, while sensors are on
+                    bridge.start(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat-room bridge, while it's on
+                    tunnel.start(db, C, stop, name=wk.name, log=print)  # and the Cloudflare tunnel, while it's on
                 _stop_on_term()
                 try:
                     wk.loop(stop)
                 except KeyboardInterrupt:
                     stop.set()
         elif a.once:
+            telemetry.set_role("watcher")
             print(f"scanned {sources.poll_due(db, C(), print)} folder(s)")
             print(f"ran {routines.run_due(db, C(), print)} routine(s)")
         else:
+            telemetry.set_role("watcher")
             print("watching storage sources and running routines; Ctrl-C to stop")
             _stop_on_term()
+            sensors.start(db, C, threading.Event(), log=print, name=f"watch-{os.getpid()}")
             try:
                 while True:
                     sources.poll_due(db, C(), print)
@@ -278,6 +326,7 @@ def platform_main(argv, config):
     except (ValueError, KeyError) as e:
         raise SystemExit(str(e)) from None
     finally:
+        telemetry.shutdown()  # sends what is buffered
         db.close()
 
 

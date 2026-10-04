@@ -42,11 +42,11 @@ ENV PATH="/app/code/venv/bin:/usr/local/node-24.19.0/bin:$PATH" \
 WORKDIR /app/code/backend
 COPY fastapi_backend/pyproject.toml fastapi_backend/uv.lock fastapi_backend/README.md ./
 RUN UV_PROJECT_ENVIRONMENT=/app/code/venv UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
-    uv sync --frozen --no-dev --no-install-project --python /usr/bin/python3.12 \
+    uv sync --frozen --no-dev --extra whisper --no-install-project --python /usr/bin/python3.12 \
       $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done)
 COPY fastapi_backend/ ./
 RUN UV_PROJECT_ENVIRONMENT=/app/code/venv UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
-    uv sync --frozen --no-dev --python /usr/bin/python3.12 \
+    uv sync --frozen --no-dev --extra whisper --python /usr/bin/python3.12 \
       $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
     && rm -rf /root/.cache
 

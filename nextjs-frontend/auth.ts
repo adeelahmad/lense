@@ -28,9 +28,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           client: createApiClient(),
           body: parsed.data,
         });
-        if (response.status === 429) throw new ThrottledSignin();
+        if (response?.status === 429) throw new ThrottledSignin();
         if (!data) return null;
 
+        return { ...sessionUser(data.user), tokens: tokensFromPair(data) };
+      },
+    }),
+    // Passkeys and outside accounts: the browser finished signing in with the API, which handed it a one-time
+    // ticket; this swaps it for the session (the API checks and uses up the ticket).
+    Credentials({
+      id: "ticket",
+      credentials: { ticket: { label: "Ticket", type: "text" } },
+      async authorize(credentials) {
+        const ticket = typeof credentials?.ticket === "string" ? credentials.ticket : "";
+        if (!ticket) return null;
+        const { data } = await Auth.redeemTicket({ client: createApiClient(), body: { ticket } });
+        if (!data) return null;
         return { ...sessionUser(data.user), tokens: tokensFromPair(data) };
       },
     }),

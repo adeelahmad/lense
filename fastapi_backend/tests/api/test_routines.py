@@ -81,6 +81,7 @@ def test_schedules():
 
 def test_routines_are_checked_and_run_when_due(client, db, cfg, env):
     h = env["admin"]
+    db.q("UPDATE routine SET enabled = false WHERE name = $n", n=routines.INDEX_NAME)  # these are about the routines made here
     pods = store.ns_id(db, "pods")
     ed = login(client, "ed@x.io", "editor password 1")
     assert client.get("/api/v1/routines", headers=ed).status_code == 403
@@ -174,7 +175,8 @@ def test_graph_workflows_organise_entities(client, new_client, db, cfg, env, fol
     routines.seed(db)
     routines.seed(db)  # once only
     cat = client.get("/api/v1/routines", headers=h).json()
-    assert [r["name"] for r in cat["routines"]] == ["Organise the graph every night"] and not cat["routines"][0]["enabled"]
+    assert [r["name"] for r in cat["routines"]] == ["Organise the graph every night", routines.INDEX_NAME, routines.SENSORS_NAME]
+    assert not cat["routines"][0]["enabled"] and cat["routines"][1]["enabled"]
     wf = client.get("/api/v1/workflows", headers=h).json()
     graph_wf = [w for w in wf["workflows"] if w["scope"] == "graph"][0]
     assert graph_wf["name"] == organize.DEFAULT_NAME
@@ -339,3 +341,25 @@ def test_one_failed_batch_or_undone_merge_doesnt_stop_the_rest(db, cfg, env, llm
         if a.get("merge"):
             entities.undo_merge(db, a["merge"])  # undone from the entity page first
     assert organize.undo_run(db, run_id) == (len(applied), 0)
+
+
+def test_scheduling_threads_scan_folders_and_run_routines(db, cfg, monkeypatch):
+    """What the API's background work and `lens worker` start: both rounds, until told to stop."""
+    import threading
+
+    from app.domain import sources
+
+    calls = {"watched folders": threading.Event(), "routines": threading.Event()}
+    monkeypatch.setattr(routines, "MIN_WAIT_SECONDS", 0.01)
+    monkeypatch.setattr(routines, "CHECK_SECONDS", 0.01)
+    monkeypatch.setattr(sources, "poll_due", lambda db, cfg, log=None: calls["watched folders"].set())
+    monkeypatch.setattr(routines, "run_due", lambda db, cfg, log=None: calls["routines"].set())
+    stop = threading.Event()
+    threads = routines.start(db, lambda: {**cfg, "sources": {**cfg["sources"], "check_seconds": 0}}, stop)
+    try:
+        assert all(e.wait(5) for e in calls.values())
+    finally:
+        stop.set()
+        for t in threads:
+            t.join(5)
+    assert not any(t.is_alive() for t in threads)

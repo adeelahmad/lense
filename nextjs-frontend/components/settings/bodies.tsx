@@ -1,15 +1,18 @@
 "use client";
 
-import { useMutation, useQueries } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { Admin, Metadata } from "@/app/openapi-client";
+import { Admin, Fedora, Metadata, Sensors } from "@/app/openapi-client";
+import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
+import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
+import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { AI_TOOLS, type FieldSpec, type SectionId, type SettingsView } from "@/components/settings/model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -186,12 +189,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "ai":
       return <AiBody ctx={ctx} />;
     case "search":
-      return (
-        <>
-          <F ctx={ctx} id="search.stemming" />
-          <Reindex />
-        </>
-      );
+      return <SearchBody ctx={ctx} />;
     case "reports":
       return (
         <>
@@ -270,6 +268,19 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "mail":
+      return <MailBody ctx={ctx} />;
+    case "bridge":
+      return <BridgeBody ctx={ctx} />;
+    case "remote-access":
+      return <TunnelBody ctx={ctx} />;
+    case "components":
+      return (
+        <>
+          <F ctx={ctx} id="components.auto" />
+          <ComponentsStatus ctx={ctx} />
+        </>
+      );
     case "access":
       return (
         <>
@@ -283,6 +294,17 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             </div>
           </div>
           <F ctx={ctx} id="server.max_upload_mb" />
+        </>
+      );
+    case "sign-in":
+      return (
+        <>
+          <F ctx={ctx} id="auth.passwords" />
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from
+            People (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
+          </p>
+          <SignInProviders />
         </>
       );
     case "tokens":
@@ -320,6 +342,12 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "telemetry":
+      return <TelemetryBody ctx={ctx} />;
+    case "fedora":
+      return <FedoraBody ctx={ctx} />;
+    case "sensors":
+      return <SensorsBody ctx={ctx} />;
     case "uploads":
       return (
         <>
@@ -414,7 +442,506 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
   );
 }
 
+function exportLine(e: { at: number; ok: boolean; error?: string | null } | null | undefined, what: string) {
+  if (!e) return null;
+  const when = new Date(e.at * 1000).toLocaleTimeString();
+  return e.ok ? `${what} last sent at ${when}` : `${what} failed at ${when}: ${e.error ?? "refused"}`;
+}
+
+function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const t = ctx.view.telemetry;
+  const saved = t?.values ?? {};
+  const secret = (saved.headers ?? {}) as { set?: boolean };
+  const headers = ctx.state("telemetry.headers");
+  const locked = t?.locked ?? [];
+  const status = useQuery({
+    queryKey: ["telemetry-status", t?.updated_at ?? null],
+    queryFn: () => data(Admin.telemetryStatus({ client })),
+    refetchInterval: 30_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testTelemetry({ client })) });
+  const on = Boolean(saved.enabled);
+  const where = (saved.endpoint as string | null | undefined) ?? null;
+  const s = status.data;
+  const lines = [exportLine(s?.last_traces, "Traces"), exportLine(s?.last_metrics, "Metrics")].filter(Boolean);
+  const failed = Boolean((s?.last_traces && !s.last_traces.ok) || (s?.last_metrics && !s.last_metrics.ok));
+  return (
+    <>
+      {on && where ? (
+        <Banner tone={failed ? "error" : "success"} title={`On: sending to ${s?.endpoint ?? where}`}>
+          {lines.length
+            ? lines.join(" · ")
+            : "Nothing sent from the server yet; the first export follows its first traced work."}
+        </Banner>
+      ) : on ? (
+        <Banner tone="error" title="On, but there is nowhere to send to.">
+          Set the endpoint below; until then nothing is collected or sent.
+        </Banner>
+      ) : (
+        <Banner title="Off: nothing is collected or sent.">
+          Lens never sends telemetry anywhere unless you turn it on here, in the setup wizard or with{" "}
+          <code className="font-mono">LENS_TELEMETRY=on</code> in .env, and then only to the endpoint you set.
+        </Banner>
+      )}
+      <F ctx={ctx} id="telemetry.enabled" />
+      <F ctx={ctx} id="telemetry.endpoint" />
+      <SecretSetting
+        key={t?.updated_at ?? "none"}
+        label={locked.includes("headers") ? "Headers (set by LENS_TELEMETRY_HEADERS in .env)" : "Headers"}
+        placeholder="Authorization=Bearer%20token,X-Scope-OrgID=home"
+        isSet={Boolean(secret.set)}
+        updatedBy={t?.updated_by}
+        updatedAt={t?.updated_at}
+        value={headers.value as string | undefined}
+        onChange={(x) => headers.onChange(x)}
+      />
+      <p className="-mt-2 text-[12px] text-fg-muted">
+        Optional: key=value pairs, separated by commas and URL-encoded, for a collector that needs a token.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="telemetry.traces" />
+        <F ctx={ctx} id="telemetry.metrics" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <F ctx={ctx} id="telemetry.sample_ratio" />
+        <F ctx={ctx} id="telemetry.export_seconds" />
+        <F ctx={ctx} id="telemetry.service_name" />
+      </div>
+      <F ctx={ctx} id="telemetry.prices" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        What is sent: route templates (never paths or queries), job steps and how they ended, record ids, model names,
+        token counts, durations and estimated cost. Never transcript, prompt or answer text, file names, titles,
+        namespace names, people or addresses. Each worker follows these settings on its own.
+      </p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending || !where}>
+          {test.isPending ? "Sending…" : "Send a test span"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Uses the saved settings, not your unsaved changes"
+            : "Sends one span named lens.telemetry.test, even while telemetry is off"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="The endpoint took the test span.">
+            {test.data.ms} ms
+          </Banner>
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+/** "Sent 12, 3 files, 140 unchanged" from the last sync's counts. */
+export function fedoraCounts(c: Record<string, unknown> | null | undefined): string {
+  if (!c) return "";
+  const n = (k: string) => Number(c[k] ?? 0);
+  return [
+    `${n("sent")} sent`,
+    n("files") ? `${n("files")} file${n("files") === 1 ? "" : "s"}` : "",
+    `${n("unchanged")} unchanged`,
+    n("deleted") ? `${n("deleted")} deleted` : "",
+    n("failed") ? `${n("failed")} failed` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function FedoraBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const f = ctx.view.fedora;
+  const saved = f?.values ?? {};
+  const secret = (saved.password ?? {}) as { set?: boolean };
+  const password = ctx.state("fedora.password");
+  const locked = f?.locked ?? [];
+  const status = useQuery({
+    queryKey: ["fedora-status", f?.updated_at ?? null],
+    queryFn: () => data(Fedora.getFedoraStatus({ client })),
+    refetchInterval: 30_000,
+  });
+  const sync = useMutation({
+    mutationFn: () => data(Fedora.syncFedora({ client })),
+    onSuccess: () => void status.refetch(),
+  });
+  const s = status.data;
+  const url = (saved.url as string | null | undefined) ?? null;
+  return (
+    <>
+      {s?.enabled ? (
+        <Banner tone={s.last_error ? "error" : "success"} title={`On: ${s.resources} resources kept in ${s.url}`}>
+          {s.last_error
+            ? `Last problem: ${s.last_error}`
+            : s.last_sync
+              ? `Last sent ${new Date(s.last_sync).toLocaleString()}: ${fedoraCounts(s.last_counts)}${s.pending ? ` · ${s.pending} waiting` : ""}`
+              : "Nothing sent yet: the first sync sends everything."}
+        </Banner>
+      ) : (
+        <Banner title="Off: the archive lives in SurrealDB only.">
+          Run Fedora with <code className="font-mono">docker compose --profile fedora up</code>, then set its address
+          here or with <code className="font-mono">LENS_FEDORA_URL</code> in .env. Lens keeps working the same without
+          it.
+        </Banner>
+      )}
+      <F ctx={ctx} id="fedora.url" />
+      <F ctx={ctx} id="fedora.enabled" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="fedora.user" />
+        <SecretSetting
+          key={f?.updated_at ?? "none"}
+          label={locked.includes("password") ? "Password (set by LENS_FEDORA_PASSWORD in .env)" : "Password"}
+          placeholder="fedoraAdmin"
+          isSet={Boolean(secret.set)}
+          updatedBy={f?.updated_by}
+          updatedAt={f?.updated_at}
+          value={password.value as string | undefined}
+          onChange={(x) => password.onChange(x)}
+        />
+      </div>
+      <F ctx={ctx} id="fedora.root" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="fedora.files" />
+        <F ctx={ctx} id="fedora.max_file_mb" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="fedora.sync_seconds" />
+        <F ctx={ctx} id="fedora.full_hours" />
+      </div>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Each resource is described with Dublin Core and links back to its Lens address (owl:sameAs). Changes to a
+        recording’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed,
+        new recordings and deletions follow. The workers send it.
+      </p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<RefreshCw />} onClick={() => sync.mutate()} disabled={sync.isPending || !url}>
+          {sync.isPending ? "Sending…" : "Compare and send now"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty ? "Uses the saved settings, not your unsaved changes" : "Sends only what differs from Fedora"}
+        </span>
+      </div>
+      {sync.data && (
+        <Banner tone={sync.data.failed ? "error" : "success"} title={fedoraCounts(sync.data)}>
+          {sync.data.errors[0] ?? "Fedora has everything."}
+        </Banner>
+      )}
+      {sync.isError && <Banner tone="error">{sync.error.message}</Banner>}
+    </>
+  );
+}
+
+function SensorsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const status = useQuery({
+    queryKey: ["sensors", ctx.view.sensors?.updated_at ?? null],
+    queryFn: () => data(Sensors.listSensors({ client })),
+    refetchInterval: 15_000,
+  });
+  const hub = status.data?.hub;
+  const h = hub ? hubText(hub) : null;
+  const on = ctx.values["sensors.enabled"] === true;
+  return (
+    <>
+      {h && (
+        <Banner
+          tone={h.tone}
+          title={h.title}
+          action={
+            <Button asChild size="xs" variant="secondary">
+              <Link href="/sensors">See sensors</Link>
+            </Button>
+          }
+        >
+          {hub?.enabled ? h.body : "Turn it on below; the workers start listening within seconds."}
+        </Banner>
+      )}
+      <F ctx={ctx} id="sensors.enabled" />
+      <Sub>MQTT</Sub>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.mqtt" />
+        <F ctx={ctx} id="sensors.mqtt_anonymous" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.mqtt_port" />
+        <F ctx={ctx} id="sensors.max_payload_kb" />
+      </div>
+      <Sub>Syslog</Sub>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.syslog" />
+        <F ctx={ctx} id="sensors.syslog_port" />
+      </div>
+      <F ctx={ctx} id="sensors.syslog_networks" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        With Docker, the worker container publishes 1883 and 5514; set <code className="font-mono">LENS_MQTT_PORT</code>{" "}
+        or <code className="font-mono">LENS_SYSLOG_PORT</code> in .env to publish them on other ports of the host.
+        {on ? "" : " Nothing listens until the hub is on."}
+      </p>
+      <Sub>What’s kept</Sub>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Defaults for every sensor; each one can choose its own on its page. The hourly Tidy sensor data routine removes
+        what’s past its time.
+      </p>
+      <F ctx={ctx} id="sensors.store" />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <F ctx={ctx} id="sensors.raw_days" />
+        <F ctx={ctx} id="sensors.important_days" />
+        <F ctx={ctx} id="sensors.rollup_days" />
+      </div>
+      <F ctx={ctx} id="sensors.max_per_minute" />
+      <F ctx={ctx} id="sensors.triage" />
+    </>
+  );
+}
+
+function MailBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const m = ctx.view.mail;
+  const locked = m?.locked ?? [];
+  const pw = ctx.state("mail.password");
+  const test = useMutation({ mutationFn: () => data(Admin.testMail({ client })) });
+  return (
+    <>
+      {locked.length > 0 && (
+        <p className="text-[13px] text-fg-secondary">
+          Some of these are set in the server’s .env (MAIL_*), which wins: {locked.join(", ")}.
+        </p>
+      )}
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+        <F ctx={ctx} id="mail.server" />
+        <F ctx={ctx} id="mail.port" />
+      </div>
+      <F ctx={ctx} id="mail.security" />
+      <F ctx={ctx} id="mail.username" />
+      {locked.includes("password") ? (
+        <p className="text-[13px] text-fg-secondary">The password is set by MAIL_PASSWORD in .env.</p>
+      ) : (
+        <SecretSetting
+          key={m?.updated_at ?? "none"}
+          label="Password"
+          isSet={Boolean(((m?.values?.password ?? {}) as { set?: boolean }).set)}
+          updatedBy={m?.updated_by}
+          updatedAt={m?.updated_at}
+          value={pw.value as string | undefined}
+          onChange={(x) => pw.onChange(x)}
+        />
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="mail.from_address" />
+        <F ctx={ctx} id="mail.from_name" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Sending…" : "Send a test email"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty ? "Uses the saved settings, not your unsaved changes" : "To your own address"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Sent.">
+            Check {test.data.to} for “Lens can send email”.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="It couldn’t be sent.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+/** Settings › Remote access: the Cloudflare tunnel Lens runs, and how it's doing right now. */
+function TunnelBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const t = ctx.view.tunnel;
+  const mode = (ctx.state("tunnel.mode").value as string | undefined) ?? "off";
+  const token = ctx.state("tunnel.token");
+  const apiToken = ctx.state("tunnel.api_token");
+  const status = useQuery({
+    queryKey: ["tunnel-status", t?.updated_at ?? null],
+    queryFn: () => data(Admin.tunnelStatus({ client })),
+    refetchInterval: (q) => (q.state.data?.mode === "off" ? false : q.state.data?.connected ? 15_000 : 3_000),
+  });
+  const s = status.data;
+  const secret = (k: string) => Boolean(((t?.values?.[k] ?? {}) as { set?: boolean }).set);
+  return (
+    <>
+      {!s || s.mode === "off" ? (
+        <Banner title="Off.">
+          Lens is reached only where it runs. Pick a way below to reach it from anywhere at an https:// address, where
+          passkeys work too.
+        </Banner>
+      ) : s.connected && s.url ? (
+        <Banner tone="success" title="Reachable from anywhere.">
+          <a href={s.url} target="_blank" rel="noreferrer" className="font-mono font-semibold hover:underline">
+            {s.url}
+          </a>
+          {s.mode === "quick" && " · this address changes when the tunnel restarts."}
+        </Banner>
+      ) : s.error ? (
+        <Banner
+          tone="error"
+          title={s.running ? "Not connected yet: cloudflared keeps trying." : "The tunnel isn’t up."}
+        >
+          {s.running && s.url ? s.error.replace(/\.?$/, ".") : s.error}
+          {s.running && s.url && (
+            <>
+              {" "}
+              It will answer at <span className="font-mono">{s.url}</span>.
+            </>
+          )}
+        </Banner>
+      ) : (
+        <Banner title="Starting.">A server process starts cloudflared within a few seconds.</Banner>
+      )}
+      <F ctx={ctx} id="tunnel.mode" />
+      {(mode === "managed" || mode === "token") && <F ctx={ctx} id="tunnel.hostname" />}
+      {mode === "managed" && (
+        <>
+          <SecretSetting
+            key={`api-${t?.updated_at ?? "none"}`}
+            label="Cloudflare API token"
+            placeholder="Paste a Cloudflare API token"
+            isSet={secret("api_token")}
+            updatedBy={t?.updated_by}
+            updatedAt={t?.updated_at}
+            value={apiToken.value as string | undefined}
+            onChange={(x) => apiToken.onChange(x)}
+          />
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            Make one at Cloudflare › My Profile › API Tokens with Account › Cloudflare Tunnel › Edit, Zone › DNS › Edit
+            and Zone › Zone › Read, for the domain the hostname is on. Lens makes the tunnel, points it at the web app
+            and adds the hostname’s DNS record.
+          </p>
+        </>
+      )}
+      {mode === "token" && (
+        <>
+          <SecretSetting
+            key={`token-${t?.updated_at ?? "none"}`}
+            label="Tunnel token"
+            placeholder="Paste the tunnel’s token"
+            isSet={secret("token")}
+            updatedBy={t?.updated_by}
+            updatedAt={t?.updated_at}
+            value={token.value as string | undefined}
+            onChange={(x) => token.onChange(x)}
+          />
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            In the Cloudflare dashboard, add a public hostname to the tunnel that points at{" "}
+            <code className="font-mono">{s?.origin ?? "the web app"}</code>, and give that hostname above.
+          </p>
+        </>
+      )}
+      {mode !== "off" && (
+        <F
+          ctx={ctx}
+          id="tunnel.origin"
+          hint={`Where cloudflared reaches the web app from the server${s ? ` (now ${s.origin})` : ""}. Leave empty unless you moved it.`}
+        />
+      )}
+      {s && s.mode !== "off" && (s.log ?? []).length > 0 && (
+        <details className="text-[12.5px]">
+          <summary className="cursor-pointer font-semibold text-fg-secondary">
+            What cloudflared said{s.process ? ` (in ${s.process})` : ""}
+          </summary>
+          <pre className="mt-2 max-h-64 overflow-auto rounded-sm bg-surface-neutral p-2.5 font-mono text-[11.5px] leading-snug">
+            {(s.log ?? []).join("\n")}
+          </pre>
+        </details>
+      )}
+    </>
+  );
+}
+
+function BridgeBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const b = ctx.view.bridge;
+  const token = ctx.state("bridge.token");
+  const status = useQuery({
+    queryKey: ["bridge-status", b?.updated_at ?? null],
+    queryFn: () => data(Admin.bridgeStatus({ client })),
+    refetchInterval: 10_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testBridge({ client })) });
+  const s = status.data;
+  return (
+    <>
+      {s?.state === "running" ? (
+        <Banner tone="success" title="Listening in the bridged rooms.">
+          {s.answered ? `Answered ${s.answered} message${s.answered === 1 ? "" : "s"} so far. ` : ""}
+          Each person’s conversation is in Chat for the account it answers as.
+        </Banner>
+      ) : s?.state === "error" ? (
+        <Banner tone="error" title="The last look at the rooms failed.">
+          {s.error}
+        </Banner>
+      ) : s?.state === "incomplete" ? (
+        <Banner tone="error" title="On, but not ready.">
+          It needs {s.error}.
+        </Banner>
+      ) : s?.state === "starting" ? (
+        <Banner title="Starting.">A server process picks it up within a few seconds.</Banner>
+      ) : (
+        <Banner title="Off.">
+          Run Matterbridge with an API account in the same gateway as your rooms, then turn this on.
+        </Banner>
+      )}
+      <F ctx={ctx} id="bridge.enabled" />
+      <F ctx={ctx} id="bridge.url" />
+      <SecretSetting
+        key={b?.updated_at ?? "none"}
+        label="API token"
+        isSet={Boolean(((b?.values?.token ?? {}) as { set?: boolean }).set)}
+        updatedBy={b?.updated_by}
+        updatedAt={b?.updated_at}
+        value={token.value as string | undefined}
+        onChange={(x) => token.onChange(x)}
+      />
+      <F ctx={ctx} id="bridge.account" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="bridge.name" />
+        <F ctx={ctx} id="bridge.answer" />
+      </div>
+      <F ctx={ctx} id="bridge.gateway" />
+      <F ctx={ctx} id="bridge.users" />
+      <F ctx={ctx} id="bridge.poll_seconds" />
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check the connection"}
+        </Button>
+        {ctx.dirty && (
+          <span className="text-[12px] text-fg-muted">Uses the saved settings, not your unsaved changes</span>
+        )}
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Matterbridge answers.">
+            The address, token and account check out.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
 function AiBody({ ctx }: { ctx: BodyCtx }) {
+  const d = ctx.view.decisions;
+  const secret = (d?.values?.api_key ?? {}) as { set?: boolean };
+  const key = ctx.state("decisions.api_key");
+  const keyFromEnv = (d?.locked ?? []).includes("api_key");
   const tools = ctx.state("ai.disabled_tools");
   const off = (tools.value as string[]) ?? [];
   const enabled = Boolean(ctx.form["ai.tools"]);
@@ -454,6 +981,57 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="ai.max_steps" />
         <F ctx={ctx} id="ai.max_transcript_reads" />
       </div>
+      <div className="flex flex-col gap-3">
+        <span className="text-[13px] font-bold leading-tight text-fg-strong">Voice</span>
+        <p className="text-[13px] leading-normal text-fg-secondary">
+          The mic in chat and on the assistant home. This server turns speech into text with its own transcription
+          engine, so it doesn’t leave the server.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="voice.input" />
+          <F ctx={ctx} id="voice.tts_model" />
+          <F ctx={ctx} id="voice.tts_voice" />
+          <F ctx={ctx} id="voice.tts_base_url" />
+        </div>
+        <SecretSetting
+          key={ctx.view.voice?.updated_at ?? "none"}
+          label="Speech server API key"
+          isSet={Boolean(((ctx.view.voice?.values?.tts_api_key ?? {}) as { set?: boolean }).set)}
+          updatedBy={ctx.view.voice?.updated_by}
+          updatedAt={ctx.view.voice?.updated_at}
+          value={ctx.state("voice.tts_api_key").value as string | undefined}
+          onChange={(x) => ctx.state("voice.tts_api_key").onChange(x)}
+        />
+      </div>
+      <div className="flex flex-col gap-3">
+        <span className="text-[13px] font-bold leading-tight text-fg-strong">Routine choices</span>
+        <p className="text-[13px] leading-normal text-fg-secondary">
+          Choices like which namespace a file goes in are made for you. A decision model answers them faster and for far
+          less than the LLM; get a key at typesafe.ai.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="decisions.engine" />
+          <F ctx={ctx} id="decisions.act_above" />
+        </div>
+        {keyFromEnv ? (
+          <p className="text-[13px] text-fg-secondary">The decision model’s key is set by TYPESAFE_API_KEY in .env.</p>
+        ) : (
+          <SecretSetting
+            key={d?.updated_at ?? "none"}
+            label="Decision model API key"
+            isSet={Boolean(secret.set)}
+            updatedBy={d?.updated_by}
+            updatedAt={d?.updated_at}
+            value={key.value as string | undefined}
+            onChange={(x) => key.onChange(x)}
+          />
+        )}
+        <div className="grid gap-3 sm:grid-cols-3">
+          <F ctx={ctx} id="decisions.base_url" />
+          <F ctx={ctx} id="decisions.model" />
+          <F ctx={ctx} id="decisions.timeout" />
+        </div>
+      </div>
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold text-fg-strong">Limits per role</span>
         <div className="grid grid-cols-[80px_minmax(0,1fr)] gap-x-2.5 gap-y-1 text-[13px] leading-[1.4]">
@@ -465,6 +1043,121 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <span className="text-fg-secondary">The same as an editor, in the namespaces they own.</span>
         </div>
       </div>
+    </>
+  );
+}
+
+function SearchBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const e = ctx.view.embeddings?.values ?? {};
+  const secret = (e.api_key ?? {}) as { set?: boolean };
+  const key = ctx.state("embeddings.api_key");
+  const on = Boolean(ctx.form["embeddings.enabled"]);
+  const status = useQuery({
+    queryKey: ["semantic-status"],
+    queryFn: () => data(Admin.semanticStatus({ client })),
+    refetchInterval: (q) => (q.state.data && q.state.data.indexed < q.state.data.recordings ? 15_000 : false),
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testEmbeddings({ client })) });
+  const index = useMutation({
+    mutationFn: () => data(Admin.indexSemantic({ client })),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["semantic-status"] }),
+  });
+  const s = status.data;
+  return (
+    <>
+      <F ctx={ctx} id="search.stemming" />
+      <Reindex />
+      <h3 className="m-0 mt-3 text-[15px] font-bold text-fg">Search by meaning</h3>
+      <p className="m-0 text-[13px] leading-normal text-fg-secondary">
+        Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible server (Ollama, llama.cpp,
+        vLLM, LM Studio, OpenAI), so a search also finds moments about the same thing in other words. A local model
+        keeps everything on your machine.
+      </p>
+      <F ctx={ctx} id="embeddings.enabled" />
+      {on && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="embeddings.base_url" />
+            <F ctx={ctx} id="embeddings.model" />
+          </div>
+          <SecretSetting
+            key={ctx.view.embeddings?.updated_at ?? "none"}
+            label="API key"
+            isSet={Boolean(secret.set)}
+            updatedBy={ctx.view.embeddings?.updated_by}
+            updatedAt={ctx.view.embeddings?.updated_at}
+            value={key.value as string | undefined}
+            onChange={(x) => key.onChange(x)}
+          />
+          <F ctx={ctx} id="embeddings.api_key_env" hint="Used only when no key is stored above" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="embeddings.min_similarity" />
+            <F ctx={ctx} id="embeddings.neighbours" />
+            <F ctx={ctx} id="embeddings.passage_chars" />
+            <F ctx={ctx} id="embeddings.batch_size" />
+            <F ctx={ctx} id="embeddings.query_prefix" />
+            <F ctx={ctx} id="embeddings.document_prefix" />
+            <F ctx={ctx} id="embeddings.timeout" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+              {test.isPending ? "Testing…" : "Test"}
+            </Button>
+            <span className="text-[12px] text-fg-muted">
+              {ctx.dirty
+                ? "Tests the saved settings, not your unsaved changes"
+                : "Embeds one sentence and reports the vector size and latency"}
+            </span>
+          </div>
+          {test.data &&
+            (test.data.ok ? (
+              <Banner tone="success" title="The model answered.">
+                {test.data.model ?? "Model"} · {test.data.dimension} dimensions · {test.data.ms} ms
+              </Banner>
+            ) : (
+              <Banner tone="error" title="The test failed.">
+                {test.data.error}
+              </Banner>
+            ))}
+          {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+        </>
+      )}
+      {s && (
+        <div className="flex flex-col gap-2 rounded-md border border-blue-border bg-blue-surface px-3.5 py-3">
+          <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold">
+            <span className="flex-1">
+              {!s.configured
+                ? "Search by meaning is off"
+                : s.current
+                  ? `${s.indexed} of ${s.recordings} recordings indexed with ${s.model}`
+                  : s.indexed_model
+                    ? `Indexed with ${s.indexed_model}; nothing yet with ${s.model}`
+                    : `Nothing indexed with ${s.model} yet`}
+            </span>
+            {s.configured && s.indexed < s.recordings && (
+              <Button
+                size="xs"
+                icon={<RefreshCw />}
+                onClick={() => index.mutate()}
+                disabled={index.isPending || ctx.dirty}
+                disabledReason={ctx.dirty ? "Save your changes first" : undefined}
+              >
+                {index.isPending ? "Queuing…" : "Index now"}
+              </Button>
+            )}
+          </div>
+          <span className="text-[12px] leading-[1.4] text-fg-secondary">
+            {s.configured
+              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New recordings are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
+              : "Turn it on and name a model to start. Recordings are indexed by their pipelines and an hourly routine."}
+            {index.data &&
+              ` Queued ${index.data.recordings}${index.data.remaining ? "; more are waiting for the next run" : ""}.`}
+          </span>
+          {index.isError && <span className="text-[12px] text-red-dark">{index.error.message}</span>}
+        </div>
+      )}
     </>
   );
 }
