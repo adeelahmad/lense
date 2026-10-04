@@ -50,9 +50,10 @@ export function DeleteConnectionDialog({
         body: e.message,
       }),
   });
-  const ok = confirms(typed, source.name);
   const namespaces = [...new Set(watches.map((w) => w.namespace).filter(Boolean))];
   const n = watches.length;
+  // typing the name is asked only when watched folders go with it; otherwise nothing is lost
+  const ok = !n || confirms(typed, source.name);
   return (
     <Dialog
       open={open}
@@ -84,18 +85,24 @@ export function DeleteConnectionDialog({
         </>
       }
     >
-      <Field label="Type the connection name to confirm">
-        {({ id }) => (
-          <Input
-            id={id}
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder={source.name}
-            autoComplete="off"
-            onKeyDown={(e) => e.key === "Enter" && ok && del.mutate()}
-          />
-        )}
-      </Field>
+      {n > 0 && (
+        <Field label="Type the connection name to confirm">
+          {({ id }) => (
+            <Input
+              id={id}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={source.name}
+              autoComplete="off"
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                if (ok) del.mutate();
+              }}
+            />
+          )}
+        </Field>
+      )}
     </Dialog>
   );
 }

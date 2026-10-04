@@ -1,6 +1,20 @@
 # Get started
 
-## With Docker (recommended)
+## In one line
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
+```
+
+On Linux or a Mac, this installs Docker if it's missing (get.docker.com on Linux; OrbStack with Homebrew on a Mac),
+gets Lens into `~/lens`, writes the secrets once, builds and starts the stack, and opens the setup page with the setup
+code already filled in. On a server without a desktop, Lens is reachable from the network and the link uses the
+server's address. Run the same line again to update: the secrets, the database and the archive are kept. While the
+repository is private, put `GITHUB_TOKEN=<a token that can read it>` before `sh`. `LENS_DIR`, `LENS_PORT`,
+`LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET` (`lean` for the smaller image) and
+`LENS_REF` (a branch or tag) change the defaults the same way; the top of `install.sh` lists them.
+
+## With Docker and make
 
 You need Docker with Compose, and `make`.
 
@@ -33,13 +47,13 @@ first time they are visited, so the first visit to each takes a few seconds; bot
 is much faster run natively than through Docker's file sharing: keep the rest in Docker and run `cd nextjs-frontend &&
 pnpm install && pnpm dev` with `API_BASE_URL=http://localhost:8000` in `.env.local`.
 
-On first start the API log prints a setup code:
+On first start the API log prints a setup code, and a link that fills it in (`make setup-code` shows the line):
 
 ```
-No accounts yet. Create the first admin in the web app with setup code: …
+No accounts yet. Create the first admin in the web app with setup code: … (or open http://localhost:3000/setup?code=…, which fills it in)
 ```
 
-Open the web app, choose **Set up**, and create the admin account with it. A short wizard then asks for the first
+Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
 namespace, the model provider and storage; skip any of it and change it later in Settings
 ([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it instead).
 
@@ -82,12 +96,14 @@ The backend installs a `lens` command (run it with `uv run lens …`, or `docker
 
 ```bash
 lens init                                  # write a starter archive.yaml
-lens run                                   # scan, transcribe, diarize, analyze, summarize, report
+lens run                                   # scan, transcribe, diarize, analyze, embed, summarize, report
 lens import podcasts episode.docx --audio episode.mp3 --speakers "SPEAKER_00=Host A,SPEAKER_01=Host B"
 lens users add ana@example.com --name Ana --admin
 lens users role ana@example.com podcasts editor
 lens worker --steps transcribe,diarize     # a worker that only transcribes (e.g. mlx on a Mac)
 lens search "capsid" --ns podcasts
+lens search "money worries" --mode semantic   # by meaning (with an embedding model; see configuration.md)
+lens embed                                 # index what isn't yet searchable by meaning
 lens reindex                               # after changing search.stemming
 ```
 

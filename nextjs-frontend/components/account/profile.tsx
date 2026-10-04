@@ -7,6 +7,8 @@ import { signOut } from "next-auth/react";
 import { useState } from "react";
 
 import { Auth, Tokens } from "@/app/openapi-client";
+import { ConnectedAccountsPanel } from "@/components/account/connected-accounts";
+import { PasskeysPanel } from "@/components/account/passkeys";
 import { confirmMismatch, passwordBlocked } from "@/components/account/profile-model";
 import { Badge, RoleChip, type Role } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
@@ -19,10 +21,12 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { PASSWORD_MIN_LENGTH, passwordShortBy } from "@/lib/definitions";
 import { useArchive } from "@/lib/hooks/session";
 
-/** Profile and password: everyone changes their own name, and their password with their current one. */
+/** Profile and sign-in: everyone changes their own name, manages their passkeys, and, where passwords are on, their
+ * password with their current one. */
 export function ProfilePage() {
   const { me, admin } = useArchive();
   const client = useApiClient();
+  const status = useQuery({ queryKey: ["auth-status"], queryFn: () => data(Auth.status({ client })) });
   const tokens = useQuery({
     queryKey: ["tokens"],
     queryFn: () => data(Tokens.listTokens({ client })),
@@ -40,7 +44,7 @@ export function ProfilePage() {
   const roles = Object.entries(me.roles ?? {}) as [string, Role][];
   return (
     <div className="flex max-w-[760px] flex-col gap-4 px-4 py-5 sm:px-6">
-      <PageHeader title="Profile and password" meta={me.user.email} className="mb-1" />
+      <PageHeader title="Profile and sign-in" meta={me.user.email} className="mb-1" />
       <Panel title="Profile">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
@@ -77,12 +81,16 @@ export function ProfilePage() {
           </div>
         </div>
       </Panel>
-      <Panel title="Password">
-        <div className="flex flex-col gap-5">
-          <ChangePassword />
-          <ResetByEmail email={me.user.email} />
-        </div>
-      </Panel>
+      <PasskeysPanel />
+      <ConnectedAccountsPanel />
+      {status.data?.passwords && (
+        <Panel title="Password">
+          <div className="flex flex-col gap-5">
+            <ChangePassword />
+            <ResetByEmail email={me.user.email} />
+          </div>
+        </Panel>
+      )}
       <Panel
         title="API tokens"
         subtitle="For scripts and other apps that use the archive as you."

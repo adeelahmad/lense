@@ -30,6 +30,7 @@ from . import (
     files as filemod,
     hierarchy,
     ingest,
+    keyring,
     metadata as md,
     pipelines,
     render,
@@ -1040,6 +1041,7 @@ def import_manifest(db, cfg, url, ns, keep_transcripts=True, user=None, log=prin
             local = pathlib.Path(cfg["data_dir"]) / "iiif-import" / f"{fp}{ext}"
             local.parent.mkdir(parents=True, exist_ok=True)
             local.write_bytes(_get(c["audio"]["id"], MAX_MEDIA))
+            keyring.protect(db, cfg, sid, local)
         title = c["label"] or p["label"] or "Imported recording"
         if len(usable) > 1 and not c["label"]:
             title = f"{title} ({n})"

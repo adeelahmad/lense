@@ -12,6 +12,7 @@ import {
   FlaskConical,
   GripVertical,
   ScanFace,
+  ScanSearch,
   ScanText,
   Shapes,
   Sparkles,
@@ -64,6 +65,7 @@ const ICON: Record<string, LucideIcon> = {
   objects: Shapes,
   describe: Eye,
   analyze: TextSearch,
+  embed: ScanSearch,
   summarize: Sparkles,
   llm: Sparkles,
   report: FileText,
@@ -79,6 +81,7 @@ const LIB_ORDER = [
   "objects",
   "describe",
   "analyze",
+  "embed",
   "summarize",
   "llm",
   "report",
@@ -101,11 +104,17 @@ export function RunDialog({
   onOpenChange,
   onRun,
   pending,
+  title = "Run on a recording",
+  description = "This runs the published version for real: each step’s output is saved on the recording, as a Reprocess would.",
+  action = "Run",
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   onRun: (rid: number, title: string) => void;
   pending: boolean;
+  title?: string;
+  description?: string;
+  action?: string;
 }) {
   const client = useApiClient();
   const { can } = useArchive();
@@ -124,8 +133,8 @@ export function RunDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Run on a recording"
-      description="This runs the published version for real: each step’s output is saved on the recording, as a Reprocess would. The backend has no dry run yet."
+      title={title}
+      description={description}
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -139,7 +148,7 @@ export function RunDialog({
               if (r) onRun(r.id, r.title ?? `Recording ${r.id}`);
             }}
           >
-            {pending ? "Starting…" : "Run"}
+            {pending ? "Starting…" : action}
           </Button>
         </>
       }
@@ -220,7 +229,7 @@ export function PipelineEditor({ id }: { id?: number }) {
   // Load the version being viewed (or the standard steps for a new pipeline).
   useEffect(() => {
     if (creating && catalog.data && !steps.length)
-      setSteps(["transcribe", "diarize", "analyze", "summarize", "report"].map((t) => ({ type: t })));
+      setSteps(["transcribe", "diarize", "analyze", "embed", "summarize", "report"].map((t) => ({ type: t })));
   }, [creating, catalog.data]);
   useEffect(() => {
     if (base) {

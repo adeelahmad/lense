@@ -40,6 +40,7 @@ SPACED = (
     "resource_file",
     "file_line",
     "page",
+    "passage",
 )
 
 
@@ -200,7 +201,7 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None, colle
     revoked = auth.revoke_shares(db, rid, by) if revoke_shares else 0
     _files(db, cfg, rec, rid, names[src], names[dst])
     deletion.orphans(db, old_speakers, old_faces)  # unnamed ones nothing else has any more
-    job = jobs.enqueue(db, rid, (["diarize"] if rediarize else []) + ["analyze", "report"], by=by)
+    job = jobs.enqueue(db, rid, (["diarize"] if rediarize else []) + ["analyze", "embed", "report"], by=by)
     md.touched(db, cfg, rid)  # harvesters see an Update: the manifest's collection changed
     return {
         "title": rec.get("title"),

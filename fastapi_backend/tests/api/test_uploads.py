@@ -7,7 +7,7 @@ import pathlib
 
 import pytest
 
-from app.domain import deletion, ingest, jobs, pipelines, render, store, uploads
+from app.domain import deletion, ingest, jobs, keyring, pipelines, render, store, uploads
 from tests.helpers import drain, login, make_user, quiet, write_wav
 
 R = store.R
@@ -88,7 +88,7 @@ def test_uploading_audio_in_chunks(client, env, db, cfg):
     rec = db.one("SELECT * FROM $r", r=R("recording", rid))
     path = pathlib.Path(rec["path"])
     assert path == pathlib.Path(cfg["data_dir"]) / "uploads" / "pods" / uid / "2024-03-05 interview.wav"
-    assert path.read_bytes() == data and not part.exists()
+    assert keyring.is_encrypted(path) and keyring.open_plain(db, cfg, path).read() == data and not part.exists()  # a new archive encrypts
     assert (rec["title"], rec["source"], rec["status"], rec["recorded_at"]) == ("An interview", "audio", "new", "2024-03-05T00:00:00")
     assert 2400 <= rec["duration_ms"] <= 2600 and render.has_audio(db, cfg, rid)
     assert db.one("SELECT status, recording FROM $j", j=R("job", job)) == {"status": "queued", "recording": rid}
@@ -256,8 +256,8 @@ def test_attaching_audio_to_a_transcript(client, env, db, cfg):
     assert steps[-len(uploads.ATTACH_STEPS) :] == uploads.ATTACH_STEPS
     rec = db.one("SELECT * FROM $r", r=R("recording", rid))
     path = pathlib.Path(rec["path"])
-    assert path.read_bytes() == data and rec["source"] == "audio" and 2400 <= rec["duration_ms"] <= 2600
-    assert rec["fingerprint"] == ingest.fingerprint(path) and rec["fp_key"] == f"{rec['space']}:{rec['fingerprint']}"
+    assert keyring.open_plain(db, cfg, path).read() == data and rec["source"] == "audio" and 2400 <= rec["duration_ms"] <= 2600
+    assert rec["fingerprint"] == ingest.fingerprint(path, db=db, cfg=cfg) and rec["fp_key"] == f"{rec['space']}:{rec['fingerprint']}"
     assert db.values("SELECT VALUE detail.attached FROM audit_log WHERE action = 'upload'") == [True]
 
     # processing keeps the transcript and its speakers, and draws the waveform

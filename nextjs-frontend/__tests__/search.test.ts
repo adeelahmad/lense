@@ -72,6 +72,7 @@ describe("query helpers", () => {
     expect(qs).toBe("q=red+teaming&ns=podcasts&speaker=4&emotion=Surprise");
     expect(fromParams(new URLSearchParams(qs))).toEqual({
       q: "red teaming",
+      mode: "auto",
       filters: {
         namespace: "podcasts",
         speaker: 4,
@@ -79,6 +80,12 @@ describe("query helpers", () => {
         recording: undefined,
       },
     });
+    // how it matches: by words and meaning unless the URL says words or meaning only
+    expect(toParams("rent", {}, "semantic")).toBe("q=rent&by=meaning");
+    expect(toParams("rent", {}, "keyword")).toBe("q=rent&by=words");
+    expect(fromParams(new URLSearchParams("q=rent&by=meaning")).mode).toBe("semantic");
+    expect(fromParams(new URLSearchParams("q=rent&by=words")).mode).toBe("keyword");
+    expect(fromParams(new URLSearchParams("q=rent&by=nonsense")).mode).toBe("auto");
     expect(fromParams(new URLSearchParams("speaker=abc")).filters.speaker).toBeUndefined();
     expect(activeFilterCount({ namespace: "podcasts", recording: 3 })).toBe(2);
   });

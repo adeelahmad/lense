@@ -101,14 +101,17 @@ jobs:
         working-directory: ./fastapi_backend
     env:
       ACCESS_SECRET_KEY: ci-access-secret-key-0123456789abcdef
-      LENS_TEST_SURREAL_URL: ws://127.0.0.1:8000
+      # a self-hosted runner's Docker outlives the job: a name of its own and any free port, removed at the end
+      SURREAL_CONTAINER: lens-ci-surreal-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - name: Start SurrealDB
         run: |
           # surrealkv, not memory: the memory engine loses concurrent writes (SurrealDB 3.2.4)
-          docker run -d --name surreal -p 8000:8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/tmp/lens.db
-          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && break; sleep 1; done
+          docker run -d --name "$SURREAL_CONTAINER" -p 127.0.0.1::8000 surrealdb/surrealdb:v3.2.4 start --user root --pass root surrealkv:/tmp/lens.db
+          port=$(docker port "$SURREAL_CONTAINER" 8000/tcp | head -n1 | sed 's/.*://')
+          echo "LENS_TEST_SURREAL_URL=ws://127.0.0.1:$port" >> "$GITHUB_ENV"
+          for _ in $(seq 1 30); do curl -sf "http://127.0.0.1:$port/health" && break; sleep 1; done
       # the packages are kept between runs: the mirror can be slow (LibreOffice is 170 MB)
       # GitHub's cache only on GitHub's runners; a self-hosted one keeps ~/apt-archives on its disk
       - name: Restore system packages
@@ -151,10 +154,13 @@ jobs:
       - name: Tests against the server
         timeout-minutes: 30
         run: uv run pytest -n 4
+      - name: Remove SurrealDB
+        if: always()
+        run: docker rm -f "$SURREAL_CONTAINER" || true
 
   frontend:
     name: Next.js
-    runs-on: self-hosted # any of them
+    runs-on: [self-hosted, Linux, X64]
     defaults:
       run:
         working-directory: ./nextjs-frontend

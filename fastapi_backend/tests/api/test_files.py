@@ -10,7 +10,7 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 
-from app.domain import files, iiif, iiif_auth, ingest, metadata, settings, store
+from app.domain import files, iiif, iiif_auth, ingest, keyring, metadata, settings, store
 from tests.helpers import login, make_user, quiet, seed, write_wav
 
 R = store.R
@@ -66,7 +66,7 @@ def listed(client, h, rid):
     return r.json()
 
 
-def test_add_list_download_and_read_lines(client, env, cfg):
+def test_add_list_download_and_read_lines(client, env, cfg, db):
     he, hv, a = env["he"], env["hv"], env["a"]
     cap = add(client, he, a, "harbour.vtt", CAPTIONS, "captions", language="en", label="English captions")
     assert cap.status_code == 200, cap.text
@@ -123,7 +123,8 @@ def test_add_list_download_and_read_lines(client, env, cfg):
         (0, 4000, "Arrival", "Reaching the quay.", ["harbour", "dawn"]),
         (4000, cfg_duration(client, hv, a), "The boats", "Fishing boats return.", None),  # the last runs to the end
     ]
-    assert (files.folder(cfg, a) / str(cap["id"]) / "harbour.vtt").read_text() == CAPTIONS
+    kept = files.folder(cfg, a) / str(cap["id"]) / "harbour.vtt"  # kept encrypted, as a new archive does
+    assert keyring.is_encrypted(kept) and keyring.open_plain(db, cfg, kept).read().decode() == CAPTIONS
     # another recording's file isn't this one's
     assert client.get(f"/api/v1/resources/{env['b']}/files/{cap['id']}/download", headers=hv).status_code == 404
 

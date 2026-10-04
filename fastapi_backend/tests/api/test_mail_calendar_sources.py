@@ -7,6 +7,7 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import http.server
+import socket
 import threading
 from email.message import EmailMessage
 
@@ -289,7 +290,8 @@ def test_calendar_addresses(feed, client, db, cfg, admin, monkeypatch):
 
     # what isn't public is refused, unless an admin allowed its network
     cfg["documents"]["web_networks"] = []
-    assert not health(feed, user="lens")["ok"] and "public" in health(feed, user="lens")["error"]
+    refused = health(feed, user="lens")
+    assert not refused["ok"] and "127.0.0.1 is on a private network" in refused["error"] and "LENS_WEB_NETWORKS" in refused["error"]
     cfg["documents"]["web_networks"] = ["127.0.0.0/8"]
     assert health(feed, user="lens")["ok"]
     # its password isn't sent on to another server it redirects to
@@ -299,6 +301,12 @@ def test_calendar_addresses(feed, client, db, cfg, admin, monkeypatch):
     assert [h for h, _ in _Feed.sent_auth if h.startswith("localhost")] == []
     # without a password, a redirect is followed (and still only to addresses allowed)
     _Feed.auth = None
+    real = socket.getaddrinfo  # where localhost is ::1 too (Ubuntu), only its IPv4 address: the test server's
+    monkeypatch.setattr(
+        netguard.socket,
+        "getaddrinfo",
+        lambda host, *a, **k: real(host, *a, **({**k, "family": socket.AF_INET} if host == "localhost" else k)),
+    )
     try:
         assert health(feed.replace("/team.ics", "/elsewhere"), password=None)["ok"]
     finally:
@@ -442,3 +450,11 @@ def test_an_imap_message_is_an_email_document_with_its_attachments(client, db, c
     assert (rec["title"], rec["source"], rec["status"]) == ("Keeper's log", "document", "analyzed"), rec
     made = db.rows("SELECT source, attached_to, title FROM recording WHERE attached_to.resource = $r", r=rid)
     assert [(m["source"], m["title"]) for m in made] == [("document", "harbour")]
+
+
+def test_private_networks_from_the_environment(monkeypatch, tmp_path):
+    """Docker and the packages carry archive.yaml in the image: LENS_WEB_NETWORKS adds to its documents.web_networks."""
+    (tmp_path / "archive.yaml").write_text("documents:\n  web_networks: [10.0.0.0/8]\n")
+    monkeypatch.setenv("LENS_WEB_NETWORKS", "192.168.1.0/24, fd00::/8")
+    cfg = store.load_config(str(tmp_path / "archive.yaml"))
+    assert cfg["documents"]["web_networks"] == ["10.0.0.0/8", "192.168.1.0/24", "fd00::/8"]

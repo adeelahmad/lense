@@ -48,7 +48,6 @@ docs: ## Serve the documentation
 PROD_COMPOSE=$(DOCKER_COMPOSE) -f docker-compose.prod.yml
 .PHONY: run dev stop setup-code logs
 
-run: export LENS_TARGET ?= full
 run: .env ## Build once and run the whole stack, no hot reload (the fast way to use it): http://localhost:3000
 	$(PROD_COMPOSE) up -d --build
 	@echo "Lens is at http://localhost:3000. First start: 'make setup-code' for the admin setup code; 'make logs' to follow; 'make stop' to stop."

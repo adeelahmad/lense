@@ -2,6 +2,54 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-04 · The graph, end to end
+
+Goal (Adeel): make the graph the one focus and nail it: a human explorer canvas, agent queries with rights, questions
+in plain language, and a graph tool for the assistant. Scope is one namespace or every shared one. docs/graph.md.
+
+Decision: agents query in Cypher (openCypher, the basis of ISO GQL), run by Lens's own engine over a per-caller
+projection, read-only; changes are proposed graph changes. Not Gremlin (needs a JVM server, models write it worse),
+not raw SurrealQL (lock-in, reaches any table), SPARQL stays over the RDF view.
+
+Todo:
+
+- [x] Property graph: namespaces, collections, recordings, speakers, entities; hierarchy and association relationships
+- [x] Walk it: parents, children, ancestors, descendants, neighbours, every path / shortest paths
+- [x] Read-only Cypher engine with a step and time budget; API with read (any token) and change (write + editor) rights
+- [ ] Explorer canvas: drag nodes, pan and zoom, pinch and long-press on touch; one-click layouts (force, BFS tree,
+      DFS tree, radial) and reset; a custom route through picked nodes; right-click menu for parents, children,
+      ancestors, descendants, neighbours and paths
+- [ ] Questions in plain language: the question becomes Cypher (shown, editable), the answer lights up on the canvas
+- [ ] Assistant and MCP tools: graph schema, query, related, paths; proposing changes behind an approval
+- [ ] Topics as a controlled vocabulary (SKOS), apart from entities (authority records); asked Adeel when
+
+## 2026-10-03 · Assistant extensions: tools, skills, hooks, plugins
+
+Goal: the assistant can be extended to the same level by code, the canvas, voice or plain chat.
+
+Model (fastapi_backend/app/domain/extensions.py, /api/v1/extensions):
+
+- One registry, four kinds: tool (params, effect read/change, body prompt/http, later code and canvas graph), skill
+  (when + instructions, read with `use_skill`), hook (message, before_tool, after_tool, answer: add context, block a
+  tool, call a tool), plugin (a bundle of the three, shared and switched off as one).
+- Versioned and shared like custom nodes (private / namespace / everyone); a version records how it was made (code,
+  canvas, chat). Change tools wait for approval like the built-in ones; `ai.extensions` turns them all off.
+- Manifests as code: Markdown with frontmatter (body = skill instructions or a prompt tool's prompt) or YAML/JSON.
+
+Todo:
+
+- [x] Registry, versions, sharing, manifests in and out, check without saving, try a tool
+- [x] Prompt and web tools, skills, hooks in the chat tool loop; approvals for change tools
+- [x] Code tools: Python in a process of its own (admins write them; time, CPU, memory limits, no secrets, own folder, no network unless allowed; stops when its owner is no longer an admin). Refine later: a container or gVisor sandbox for non-admins, pip packages per tool
+- [x] Canvas: a `tool` workflow scope whose arg nodes are the tool's parameters (ask_model, call_tool nodes)
+- [x] Canvas editor for tool graphs in the web app (Extensions → Draw a tool)
+- [x] Authoring from chat and voice: the assistant drafts and saves extensions behind an approval card
+- [x] Extensions page in the web app: list, manifest editor, switch on/off, share, try, versions
+- [ ] `lens ext` CLI (push/pull manifests)
+
+Refine later: hook-called tools don't show as steps; web tools reach ports 80/443 only and have no secret
+references yet; extensions aren't offered over MCP yet; marketplace on top of plugins.
+
 ## 2026-10-02 · Routines
 
 Goal: run syncs, pipelines and workflows on a schedule, including a daily LLM pass that organises the entity graph per

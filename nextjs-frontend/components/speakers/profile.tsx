@@ -187,7 +187,7 @@ export function SpeakerProfile({ id }: { id: number }) {
           title="This speaker isn’t here"
           actions={
             <Button asChild variant="secondary">
-              <Link href="/speakers">All speakers</Link>
+              <Link href="/settings/speakers">All speakers</Link>
             </Button>
           }
         >
@@ -204,7 +204,7 @@ export function SpeakerProfile({ id }: { id: number }) {
   return (
     <div className="flex flex-col gap-4 px-4 py-6 md:px-6">
       <Link
-        href={`/speakers?ns=${encodeURIComponent(ns ?? "")}`}
+        href={`/settings/speakers?ns=${encodeURIComponent(ns ?? "")}`}
         className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-fg-secondary hover:text-fg"
       >
         <ChevronLeft className="size-4" aria-hidden /> Speakers in {ns}
