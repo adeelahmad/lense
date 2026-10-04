@@ -39,7 +39,7 @@ import threading
 import time
 import urllib.parse
 
-from . import netguard, settings, store
+from . import activity, netguard, settings, store
 
 R = store.R
 EVENTS = {
@@ -381,6 +381,16 @@ def send(db, cfg, t, event, msg_id):
         error = f"couldn't reach it: {type(e).__name__}: {e}"[:300]
     last = store.clean({"at": store.now(), "ok": error is None, "code": code, "error": error, "event": event["type"]})
     db.q("UPDATE $r SET last = $l", r=R("notify_target", int(t["id"])), l=last)
+    activity.record(
+        "out",
+        f"notify.{t.get('kind') or 'webhook'}",
+        [f"notify_target:{t['id']}", f"space:{t['space']}" if t.get("space") is not None else None],
+        cfg,
+        db,
+        ok=error is None,
+        error=None if error is None else (f"HTTP {code}" if code else "unreachable"),
+        detail=store.clean({"event": event["type"], "status": code}),
+    )
     return {"ok": error is None, "code": code, "error": error}
 
 

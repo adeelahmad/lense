@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Every resource has an activity history, with what it cost.** Lens now keeps a ledger of every request that
+  changes something, every call it makes out (models, embeddings, the decision model, text to speech, webhooks, web
+  tools) and every job and routine run, each counted for the resources it touched: a model call in a job a routine
+  queued counts for the job, its recording, namespace, pipeline, workflow and the routine. Tokens and estimated cost
+  come from the prices in Settings. `GET /api/v1/activity?resource=routine:3` gives a resource's history (with its
+  audit log entries), `/activity/totals` what it cost this day, week or month, `/activity/top` what cost most. On by
+  default; `activity.keep_days` (365) keeps it in bounds. See docs/activity.md.
+
 - **Query the graph in Cypher, and walk it.** The archive is now a property graph of namespaces, collections,
   recordings, speakers and entities. `POST /api/v1/graph/query` runs read-only Cypher (the language of Neo4j and ISO
   GQL) over the namespaces you can read; `/graph/related` gives a node's parents, children, ancestors, descendants or

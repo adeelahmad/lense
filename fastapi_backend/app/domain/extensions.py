@@ -32,7 +32,7 @@ import urllib.request
 
 import yaml
 
-from . import auth, store
+from . import activity, auth, store
 
 R = store.R
 KINDS = ("tool", "skill", "hook", "plugin")
@@ -748,7 +748,8 @@ def http_call(cfg, run, args):
             data = json.dumps(fill_json(body, args)).encode("utf-8")
             headers.setdefault("Content-Type", "application/json")
     req = urllib.request.Request(url, data=data, method=run.get("method") or "GET", headers=headers)
-    with netguard.Guard(forward=True, networks=webcapture.networks(cfg), max_bytes=MAX_REPLY + 65536) as guard:
+    host = urllib.parse.urlsplit(url).hostname
+    with activity.call("tool.http", cfg, detail={"host": host, "method": req.get_method()}), netguard.Guard(forward=True, networks=webcapture.networks(cfg), max_bytes=MAX_REPLY + 65536) as guard:
         try:
             with feeds._opener(guard).open(req, timeout=30) as r:
                 status, ctype, raw = r.status, r.headers.get("Content-Type", ""), r.read(MAX_REPLY)

@@ -42,6 +42,7 @@ EDITABLE = {
     "bridge": None,
     "notifications": None,
     "telemetry": None,
+    "activity": None,
     "encryption": None,
     "fedora": None,
     "tunnel": None,
@@ -354,6 +355,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "activity":
+        return _activity_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
     if section == "sensors":
@@ -513,7 +516,25 @@ def _decision_setting(key, value):
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 1 <= value <= 120):
             raise ValueError("decisions.timeout is a number of seconds from 1 to 120")
         return value
+    if key == "price_per_call":
+        if value is None or value == "":
+            return None
+        if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 100):
+            raise ValueError("decisions.price_per_call is what one decision costs, in USD, from 0 to 100")
+        return float(value)
     raise ValueError(f"unknown setting decisions.{key}")
+
+
+def _activity_setting(key, value):
+    if key in ("enabled", "reads"):
+        if not isinstance(value, bool):
+            raise ValueError(f"activity.{key} is true or false")
+        return value
+    if key == "keep_days":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 3650):
+            raise ValueError("activity.keep_days is a whole number of days from 1 to 3650")
+        return value
+    raise ValueError(f"unknown setting activity.{key}")
 
 
 EMBED_RANGES = {"passage_chars": (200, 4000), "batch_size": (1, 256), "neighbours": (5, 500), "timeout": (5, 600)}

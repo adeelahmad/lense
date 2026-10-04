@@ -14,7 +14,7 @@ import socket
 import threading
 import time
 
-from . import analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
+from . import activity, analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
 PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
@@ -116,7 +116,8 @@ def _export(db, cfg, rid, say, spec=None):
 def _workflow(db, cfg, rid, say, spec=None):
     from . import workflows
 
-    done = workflows.run(db, cfg, rid, int(spec["workflow"]), spec.get("version"), say)
+    with activity.scope(db, f"workflow:{int(spec['workflow'])}"):
+        done = workflows.run(db, cfg, rid, int(spec["workflow"]), spec.get("version"), say)
     ran = sum(1 for v in done.values() if v == "done") - 1  # not counting the input
     say(f"workflow ran {ran} of {len(done) - 1} nodes")
 
@@ -421,7 +422,39 @@ def eta(job, est, now=None):
     return round(left + sum(est[i + 1 :]), 1)
 
 
+FINAL = ("succeeded", "failed", "cancelled")
+
+
+def job_refs(job):
+    """The resources a job's calls count for: it, its recording, namespace and pipeline, and the routine that queued it."""
+    pipe = job.get("pipeline") if isinstance(job.get("pipeline"), dict) else {}
+    by = job.get("created_by")
+    return [
+        f"job:{job['id']}",
+        f"recording:{job['recording']}",
+        f"space:{job['space']}" if job.get("space") is not None else None,
+        f"pipeline:{pipe['id']}" if pipe.get("id") is not None else None,
+        by if isinstance(by, str) and by.startswith("routine:") else None,
+    ]
+
+
 def run_job(db, cfg_fn, job, worker, can, log=None):
+    """Run a job's steps from where it is, with its calls counted for it (activity.py); when it ends, a run row with
+    what it cost in all, kept on the job too (cost_usd, tokens)."""
+    refs = job_refs(job)
+    with activity.scope(db, *refs):
+        outcome = _run_job(db, cfg_fn, job, worker, can, log)
+    if outcome in FINAL:
+        usd, tokens = activity.run_total(db, refs[0])
+        try:
+            db.q("UPDATE $j SET cost_usd = $u, tokens = $n", j=R("job", job["id"]), u=usd, n=tokens)
+        except Exception:  # noqa: BLE001 - the ledger never breaks the work
+            pass
+        activity.record("run", f"job.{outcome}", refs, cfg_fn(), db, cost_usd=usd, tokens_in=tokens, ok=outcome != "failed")
+    return outcome
+
+
+def _run_job(db, cfg_fn, job, worker, can, log=None):
     jid, rid, jr, wr = job["id"], job["recording"], R("job", job["id"]), R("worker", worker)
     steps, i = job["steps"], job.get("step_index") or 0
     out = RunLog(db, jid, job.get("space"), job.get("log"), job.get("log_total"))

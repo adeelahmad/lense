@@ -103,6 +103,157 @@ export type AccountToken = {
 };
 
 /**
+ * ActivityEntry
+ */
+export type ActivityEntry = {
+  /**
+   * Id
+   *
+   * the ledger row's id; none for an audit log entry
+   */
+  id?: string | null;
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Kind
+   *
+   * in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry
+   */
+  kind: "in" | "out" | "run" | "change";
+  /**
+   * Action
+   *
+   * what it was: `POST /api/v1/routines/{rid}/run`, `model.chat`, `job.succeeded`, `routine.update`
+   */
+  action: string;
+  /**
+   * Resources
+   *
+   * every resource it counts for, as table:id
+   */
+  resources?: Array<string>;
+  /**
+   * Actor
+   *
+   * the account that made it, when a person did
+   */
+  actor?: number | null;
+  /**
+   * Email
+   */
+  email?: string | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  /**
+   * Tokens In
+   */
+  tokens_in?: number | null;
+  /**
+   * Tokens Out
+   */
+  tokens_out?: number | null;
+  /**
+   * Cost Usd
+   *
+   * estimated from the prices in Settings; none when the model has no price
+   */
+  cost_usd?: number | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Error
+   *
+   * the error's type or HTTP status; never its message
+   */
+  error?: string | null;
+  /**
+   * Detail
+   */
+  detail?: unknown;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityTop
+ */
+export type ActivityTop = {
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Resources
+   */
+  resources: Array<ResourceCost>;
+  [key: string]: unknown;
+};
+
+/**
+ * ActivityTotals
+ */
+export type ActivityTotals = {
+  /**
+   * Resource
+   */
+  resource?: string | null;
+  /**
+   * Period
+   */
+  period: string;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Failed
+   */
+  failed: number;
+  /**
+   * Tokens In
+   */
+  tokens_in: number;
+  /**
+   * Tokens Out
+   */
+  tokens_out: number;
+  /**
+   * Cost Usd
+   *
+   * what its calls cost (run rows repeat their calls' cost and aren't added again)
+   */
+  cost_usd: number;
+  /**
+   * Ms
+   */
+  ms: number;
+  /**
+   * By Kind
+   */
+  by_kind: {
+    [key: string]: KindTotals;
+  };
+  [key: string]: unknown;
+};
+
+/**
  * AnswerCheck
  */
 export type AnswerCheck = {
@@ -5541,6 +5692,37 @@ export type JobsQueued = {
 };
 
 /**
+ * KindTotals
+ */
+export type KindTotals = {
+  /**
+   * Calls
+   */
+  calls?: number;
+  /**
+   * Tokens In
+   */
+  tokens_in?: number;
+  /**
+   * Tokens Out
+   */
+  tokens_out?: number;
+  /**
+   * Cost Usd
+   */
+  cost_usd?: number;
+  /**
+   * Ms
+   */
+  ms?: number;
+  /**
+   * Failed
+   */
+  failed?: number;
+  [key: string]: unknown;
+};
+
+/**
  * LanguageCount
  */
 export type LanguageCount = {
@@ -9472,6 +9654,29 @@ export type ResetPasswordRequest = {
    * Password
    */
   password: string;
+};
+
+/**
+ * ResourceCost
+ */
+export type ResourceCost = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -15669,6 +15874,130 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type ResourceHistoryData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Resource
+     *
+     * table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1
+     */
+    resource: string;
+    /**
+     * Kind
+     */
+    kind?: "in" | "out" | "run" | "change" | null;
+    /**
+     * Before
+     *
+     * only entries before this time (the last `at` of the page before)
+     */
+    before?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/activity";
+};
+
+export type ResourceHistoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResourceHistoryError = ResourceHistoryErrors[keyof ResourceHistoryErrors];
+
+export type ResourceHistoryResponses = {
+  /**
+   * Response Activity-Resource History
+   *
+   * Successful Response
+   */
+  200: Array<ActivityEntry>;
+};
+
+export type ResourceHistoryResponse = ResourceHistoryResponses[keyof ResourceHistoryResponses];
+
+export type ResourceTotalsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Resource
+     *
+     * table:id; none for everything (admins)
+     */
+    resource?: string | null;
+    /**
+     * Period
+     */
+    period?: "day" | "week" | "month" | "all";
+  };
+  url: "/api/v1/activity/totals";
+};
+
+export type ResourceTotalsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ResourceTotalsError = ResourceTotalsErrors[keyof ResourceTotalsErrors];
+
+export type ResourceTotalsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityTotals;
+};
+
+export type ResourceTotalsResponse = ResourceTotalsResponses[keyof ResourceTotalsResponses];
+
+export type TopResourcesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Table
+     *
+     * only this kind of resource: routine, pipeline, workflow, space
+     */
+    table?: string | null;
+    /**
+     * Period
+     */
+    period?: "day" | "week" | "month" | "all";
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/activity/top";
+};
+
+export type TopResourcesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TopResourcesError = TopResourcesErrors[keyof TopResourcesErrors];
+
+export type TopResourcesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityTop;
+};
+
+export type TopResourcesResponse = TopResourcesResponses[keyof TopResourcesResponses];
 
 export type GetFedoraStatusData = {
   body?: never;

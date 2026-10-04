@@ -847,6 +847,12 @@ import type {
   ResetPasswordData,
   ResetPasswordErrors,
   ResetPasswordResponses,
+  ResourceHistoryData,
+  ResourceHistoryErrors,
+  ResourceHistoryResponses,
+  ResourceTotalsData,
+  ResourceTotalsErrors,
+  ResourceTotalsResponses,
   RetagRecordingsData,
   RetagRecordingsErrors,
   RetagRecordingsResponses,
@@ -1013,6 +1019,9 @@ import type {
   TokenLimitsData,
   TokenLimitsResponses,
   TokenResponses,
+  TopResourcesData,
+  TopResourcesErrors,
+  TopResourcesResponses,
   TranscribeClipData,
   TranscribeClipResponses,
   TryWorkflowData,
@@ -2318,6 +2327,51 @@ export class Admin {
   ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
       url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Activity {
+  /**
+   * Resource History
+   *
+   * A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
+   * decision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries.
+   */
+  public static resourceHistory<ThrowOnError extends boolean = false>(
+    options: Options<ResourceHistoryData, ThrowOnError>,
+  ): RequestResult<ResourceHistoryResponses, ResourceHistoryErrors, ThrowOnError> {
+    return (options.client ?? client).get<ResourceHistoryResponses, ResourceHistoryErrors, ThrowOnError>({
+      url: "/api/v1/activity",
+      ...options,
+    });
+  }
+
+  /**
+   * Resource Totals
+   *
+   * What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time.
+   */
+  public static resourceTotals<ThrowOnError extends boolean = false>(
+    options?: Options<ResourceTotalsData, ThrowOnError>,
+  ): RequestResult<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ResourceTotalsResponses, ResourceTotalsErrors, ThrowOnError>({
+      url: "/api/v1/activity/totals",
+      ...options,
+    });
+  }
+
+  /**
+   * Top Resources
+   *
+   * The resources that cost most this period (admins).
+   */
+  public static topResources<ThrowOnError extends boolean = false>(
+    options?: Options<TopResourcesData, ThrowOnError>,
+  ): RequestResult<TopResourcesResponses, TopResourcesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<TopResourcesResponses, TopResourcesErrors, ThrowOnError>({
+      url: "/api/v1/activity/top",
       ...options,
     });
   }

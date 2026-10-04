@@ -24,7 +24,7 @@ import urllib.error
 import urllib.request
 from collections import OrderedDict
 
-from . import store
+from . import activity, store
 
 R = store.R
 log = logging.getLogger("lens")
@@ -125,15 +125,18 @@ def embed(cfg, texts, timeout=None):
         headers["Authorization"] = f"Bearer {key}"
     body = json.dumps({"model": model, "input": [t[:EMBED_CHARS] for t in texts]}).encode()
     req = urllib.request.Request(base + "/embeddings", data=body, headers=headers, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=timeout or _section(cfg).get("timeout") or 60) as r:
-            j = json.load(r)
-    except urllib.error.HTTPError as e:
-        raise EmbedError(f"{e.code} from the embeddings server for {model}: {e.read().decode('utf-8', 'replace')[:300]}") from None
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
-        raise EmbedError(f"can't reach the embeddings server at {base}: {e}") from None
-    except ValueError:
-        raise EmbedError("the embeddings server's reply wasn't JSON") from None
+    with activity.call("embeddings", cfg, model, detail={"texts": len(texts)}, price=activity.token_cost(cfg)) as ledger:
+        try:
+            with urllib.request.urlopen(req, timeout=timeout or _section(cfg).get("timeout") or 60) as r:
+                j = json.load(r)
+        except urllib.error.HTTPError as e:
+            raise EmbedError(f"{e.code} from the embeddings server for {model}: {e.read().decode('utf-8', 'replace')[:300]}") from None
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            raise EmbedError(f"can't reach the embeddings server at {base}: {e}") from None
+        except ValueError:
+            raise EmbedError("the embeddings server's reply wasn't JSON") from None
+        u = j.get("usage") if isinstance(j, dict) and isinstance(j.get("usage"), dict) else {}
+        ledger.usage(u.get("prompt_tokens", u.get("total_tokens")))
     try:
         data = sorted(j["data"], key=lambda d: d.get("index", 0))
         vecs = [[float(x) for x in d["embedding"]] for d in data]

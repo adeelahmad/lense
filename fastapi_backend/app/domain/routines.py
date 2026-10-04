@@ -22,7 +22,7 @@ from __future__ import annotations
 import datetime as dt
 import threading
 
-from . import fedora, jobs, organize, schedule, semantic, sensor_digests, sensor_patterns, sensors, sources, store, telemetry, workflows
+from . import activity, fedora, jobs, organize, schedule, semantic, sensor_digests, sensor_patterns, sensors, sources, store, telemetry, workflows
 
 R = store.R
 ACTIONS = ("sync", "pipeline", "workflow", "sensors")
@@ -335,7 +335,8 @@ def _action(db, cfg, routine, run_id, a, seen, propose_only, say):
     w = workflows.get(db, int(a["workflow"]), a.get("version"))
     if w["scope"] == "graph":
         origin = {"routine": routine["id"], "run": run_id}
-        done, stats = organize.run(db, cfg, w["id"], spaces, w["version"], say, origin, propose_only or a.get("propose_only", False))
+        with activity.scope(db, f"workflow:{w['id']}"):
+            done, stats = organize.run(db, cfg, w["id"], spaces, w["version"], say, origin, propose_only or a.get("propose_only", False))
         return {"workflow": w["name"], "version": w["version"], "nodes": sum(v == "done" for v in done.values()), **stats}
     rids = _recordings(db, spaces, a.get("recordings", "new"), seen, limit, cfg)
     step = {"type": "workflow", "workflow": w["id"], "version": w["version"]}
@@ -363,10 +364,23 @@ def run(db, cfg, rid, trigger="manual", by=None, propose_only=False, log=None):
 
 
 def _run(db, cfg, rid, trigger, by, propose_only, log):
+    """A run, with its calls counted for the routine and the run (activity.py); its run row says what it cost."""
+    run_id = db.next_id("routine_run")
+    refs = [f"routine:{int(rid)}", f"routine_run:{run_id}"]
+    with activity.scope(db, *refs, cfg=cfg):
+        status = _run_actions(db, cfg, rid, run_id, trigger, by, propose_only, log)
+    usd, tokens = activity.run_total(db, refs[1])
+    db.q("UPDATE $r SET cost_usd = $u, tokens = $n", r=R("routine_run", run_id), u=usd, n=tokens)
+    activity.record("run", f"routine.{status}", refs, cfg, db, cost_usd=usd, tokens_in=tokens, ok=status != "error",
+                    detail={"trigger": trigger})
+    return run_id
+
+
+def _run_actions(db, cfg, rid, run_id, trigger, by, propose_only, log):
     routine = get(db, rid)
     since = routine.get("seen_recording") or 0
     seen = {"since": since, "marks": [], "failed": False}
-    run_id, lines = db.next_id("routine_run"), []
+    lines = []
     started = store.now()
 
     def say(msg):
@@ -416,7 +430,7 @@ def _run(db, cfg, rid, trigger, by, propose_only, log):
         s=status,
         i=run_id,
     )
-    return run_id
+    return status
 
 
 def _claim(db, r, now):
@@ -474,6 +488,7 @@ def run_due(db, cfg, log=print, now=None):
     now = now or dt.datetime.now(dt.timezone.utc)
     stamp = _iso(now)
     sweep(db, now)
+    activity.tidy(db, cfg)  # the activity ledger past activity.keep_days, once an hour
     due = db.rows(
         "SELECT record::id(id) AS id, schedule, timezone, next_run_at, run_now, namespaces, actions FROM routine "
         "WHERE run_now != NONE OR (enabled = true AND next_run_at != NONE AND next_run_at <= $n)",

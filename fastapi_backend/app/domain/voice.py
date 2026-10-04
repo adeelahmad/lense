@@ -16,7 +16,7 @@ import time
 import urllib.error
 import urllib.request
 
-from . import ingest
+from . import activity, ingest
 
 log = logging.getLogger(__name__)
 IDLE_SECONDS = 600
@@ -127,9 +127,13 @@ def speak(cfg, text):
         headers={"Content-Type": "application/json", **({"Authorization": f"Bearer {key}"} if key else {})},
         method="POST",
     )
+    ledger = activity.call("model.speech", cfg, v["tts_model"], detail={"chars": len(body["input"])})
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
-            return r.read(), r.headers.get_content_type() or "audio/mpeg"
+            out = r.read(), r.headers.get_content_type() or "audio/mpeg"
+        ledger.end()
+        return out
     except (urllib.error.URLError, TimeoutError, OSError) as e:
+        ledger.end(e)
         log.info("voice: text-to-speech failed, the browser reads it: %s", e)
         return None

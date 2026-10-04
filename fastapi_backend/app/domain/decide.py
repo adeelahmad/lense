@@ -14,7 +14,7 @@ import logging
 import urllib.error
 import urllib.request
 
-from . import llm
+from . import activity, llm
 
 log = logging.getLogger(__name__)
 # Jev reads up to about 32k tokens; a state is cut well below that
@@ -53,13 +53,17 @@ def _jev(cfg, questions, state):
         headers=headers,
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=d.get("timeout") or 10) as r:
-            return json.load(r)["answers"]
-    except urllib.error.HTTPError as e:
-        raise Undecided(f"{e.code} from the decision model: {e.read().decode('utf-8', 'replace')[:200]}") from None
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError) as e:
-        raise Undecided(f"can't reach the decision model: {e}") from None
+    with activity.call("decision", cfg, body["model"], detail={"questions": len(questions)}) as ledger:
+        try:
+            with urllib.request.urlopen(req, timeout=d.get("timeout") or 10) as r:
+                answers = json.load(r)["answers"]
+        except urllib.error.HTTPError as e:
+            raise Undecided(f"{e.code} from the decision model: {e.read().decode('utf-8', 'replace')[:200]}") from None
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError, KeyError) as e:
+            raise Undecided(f"can't reach the decision model: {e}") from None
+        if d.get("price_per_call") is not None:
+            ledger.usage(cost_usd=float(d["price_per_call"]))
+        return answers
 
 
 def _ranked(probs):

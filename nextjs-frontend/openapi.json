@@ -2626,6 +2626,256 @@
         }
       }
     },
+    "/api/v1/activity": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource History",
+        "description": "A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the\ndecision model, webhooks, web tools) with tokens and cost, runs that ended, and its audit log entries.",
+        "operationId": "resource_history",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1",
+              "title": "Resource"
+            },
+            "description": "table:id, like routine:3, pipeline:2, workflow:4, recording:12, account:1"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "in",
+                    "out",
+                    "run",
+                    "change"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only entries before this time (the last `at` of the page before)",
+              "title": "Before"
+            },
+            "description": "only entries before this time (the last `at` of the page before)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityEntry"
+                  },
+                  "title": "Response Activity-Resource History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activity/totals": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Resource Totals",
+        "description": "What a resource's calls cost this day, week (from Monday), month (UTC) or all time: calls, tokens, USD, time.",
+        "operationId": "resource_totals",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "table:id; none for everything (admins)",
+              "title": "Resource"
+            },
+            "description": "table:id; none for everything (admins)"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityTotals"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activity/top": {
+      "get": {
+        "tags": [
+          "activity"
+        ],
+        "summary": "Top Resources",
+        "description": "The resources that cost most this period (admins).",
+        "operationId": "top_resources",
+        "parameters": [
+          {
+            "name": "table",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[a-z_]{1,40}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only this kind of resource: routine, pipeline, workflow, space",
+              "title": "Table"
+            },
+            "description": "only this kind of resource: routine, pipeline, workflow, space"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "day",
+                "week",
+                "month",
+                "all"
+              ],
+              "type": "string",
+              "default": "month",
+              "title": "Period"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityTop"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/fedora": {
       "get": {
         "tags": [
@@ -19744,6 +19994,265 @@
         "title": "AccountToken",
         "description": "Anyone's key, for admins."
       },
+      "ActivityEntry": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "the ledger row's id; none for an audit log entry"
+          },
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "in",
+              "out",
+              "run",
+              "change"
+            ],
+            "title": "Kind",
+            "description": "in: an API request; out: a call Lens made (a model, embeddings, the decision model, a webhook, a web tool); run: a job or routine run ended; change: an audit log entry"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "what it was: `POST /api/v1/routines/{rid}/run`, `model.chat`, `job.succeeded`, `routine.update`"
+          },
+          "resources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Resources",
+            "description": "every resource it counts for, as table:id"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor",
+            "description": "the account that made it, when a person did"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "tokens_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokens Out"
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "estimated from the prices in Settings; none when the model has no price"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "the error's type or HTTP status; never its message"
+          },
+          "detail": {
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "at",
+          "kind",
+          "action"
+        ],
+        "title": "ActivityEntry"
+      },
+      "ActivityTop": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceCost"
+            },
+            "type": "array",
+            "title": "Resources"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "resources"
+        ],
+        "title": "ActivityTop"
+      },
+      "ActivityTotals": {
+        "properties": {
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "tokens_in": {
+            "type": "integer",
+            "title": "Tokens In"
+          },
+          "tokens_out": {
+            "type": "integer",
+            "title": "Tokens Out"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "description": "what its calls cost (run rows repeat their calls' cost and aren't added again)"
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/KindTotals"
+            },
+            "type": "object",
+            "title": "By Kind"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "calls",
+          "failed",
+          "tokens_in",
+          "tokens_out",
+          "cost_usd",
+          "ms",
+          "by_kind"
+        ],
+        "title": "ActivityTotals"
+      },
       "AnswerCheck": {
         "properties": {
           "claims": {
@@ -29171,6 +29680,43 @@
         ],
         "title": "JobsQueued"
       },
+      "KindTotals": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "default": 0
+          },
+          "tokens_in": {
+            "type": "integer",
+            "title": "Tokens In",
+            "default": 0
+          },
+          "tokens_out": {
+            "type": "integer",
+            "title": "Tokens Out",
+            "default": 0
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "default": 0
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms",
+            "default": 0
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "KindTotals"
+      },
       "LanguageCount": {
         "properties": {
           "language": {
@@ -35868,6 +36414,35 @@
           "password"
         ],
         "title": "ResetPasswordRequest"
+      },
+      "ResourceCost": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "ResourceCost"
       },
       "ResourceFile": {
         "properties": {

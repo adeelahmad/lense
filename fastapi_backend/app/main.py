@@ -26,7 +26,7 @@ from app.api.v1.routes.oauth import well_known as oauth_well_known
 from app.config import settings
 from app.core import middleware
 from app.core.runtime import Archive
-from app.domain import __version__, store, telemetry
+from app.domain import __version__, activity, store, telemetry
 from app.domain.render import WEB_DIR
 from app.utils import simple_generate_unique_route_id
 
@@ -73,6 +73,8 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
 
     # innermost, so the router has picked the route it names spans by; a no-op while telemetry is off
     app.add_middleware(telemetry.Middleware)
+    # a row in the activity ledger for each request that changes something, naming its resources (docs/activity.md)
+    app.add_middleware(activity.Middleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=sorted(settings.CORS_ORIGINS),
