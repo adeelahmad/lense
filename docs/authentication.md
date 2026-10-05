@@ -206,7 +206,8 @@ use, or apps will be sent to the wrong place to sign in.
 
 Other IIIF viewers sign in through the IIIF Authorization Flow 2.0: the access service at `/iiif/auth/access` is a
 small sign-in page served by the API, which sets a `SameSite=None; Secure` cookie scoped to IIIF; the token service
-posts a token only to the viewer's origin; the probe service answers with a short-lived signed link. See
+posts a token only to the viewer's origin, and only to viewers the person signed in for or confirmed with Continue on
+the access page; the probe service answers with a short-lived signed link. See
 [IIIF](iiif.md).
 
 ## Audit

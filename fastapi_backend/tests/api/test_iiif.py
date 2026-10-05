@@ -186,7 +186,7 @@ def test_authorization_flow(env):
     assert "postMessage" not in env.client().get("/iiif/auth/token", params={"messageId": "m2", "origin": "javascript:alert(1)"}).text
 
     vi = env.client()
-    sign_in(vi, "vi@x.io", "viewer password 1")
+    sign_in(vi, "vi@x.io", "viewer password 1", VIEWER)
     vtok = vi.get("/iiif/auth/token", params={"messageId": "v", "origin": VIEWER}).text
     vmsg = json.loads(re.search(r"postMessage\((\{.*?\}), ", vtok).group(1))
     vres = fresh.get(f"/iiif/auth/probe/{env.call}/transcript", headers={"Authorization": f"Bearer {vmsg['accessToken']}"}).json()
@@ -296,3 +296,24 @@ def test_import_from_iiif(env):
         assert c.get(f"/api/v1/recordings/{rid2}", headers=h).json()["collection"] == shelf
     finally:
         srv.shutdown()
+
+
+def test_tokens_go_only_to_viewers_the_person_signed_in_for(env):
+    """With iiif.allowed_origins at its default (*), signing in for one viewer doesn't hand tokens to every other site:
+    another origin gets "sign in" until the person confirms that viewer on the access page."""
+    anon = env.client()
+    sign_in(anon, "root@x.io", "root password 1", VIEWER)
+
+    def token(origin):
+        page = anon.get("/iiif/auth/token", params={"messageId": "m", "origin": origin}).text
+        return json.loads(re.search(r"postMessage\((\{.*?\}), ", page).group(1))
+
+    assert token(VIEWER)["type"] == "AuthAccessToken2"
+    evil = "https://evil.example"
+    assert (token(evil)["type"], token(evil)["profile"]) == ("AuthAccessTokenError2", "missingAspect")
+    page = anon.get("/iiif/auth/access", params={"origin": evil})
+    assert 'name="continue"' in page.text and "evil.example" in page.text  # the person sees which site is asking
+    done = anon.post("/iiif/auth/access", data={"continue": "1", "origin": evil, "csrf": csrf_of(page)})
+    assert "window.close()" in done.text
+    assert token(evil)["type"] == "AuthAccessToken2"
+    assert token(VIEWER)["type"] == "AuthAccessToken2"  # confirming a second viewer keeps the first

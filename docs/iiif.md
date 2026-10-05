@@ -54,7 +54,9 @@ namespace, and only owners change it:
 Set `iiif.base_url` to the stable public HTTPS address, since identifiers are built from it. Put the server behind
 HTTPS before publishing: the authorization flow requires it, and its cookie is `SameSite=None; Secure`. Other IIIF
 viewers also need the public host in `server.allowed_hosts`. `iiif.viewers` holds "Open in" links, using `{manifest}` and
-`{content_state}` placeholders; `iiif.allowed_origins` limits which viewer sites can get tokens.
+`{content_state}` placeholders; `iiif.allowed_origins` limits which viewer sites can get tokens. Even where every site
+is allowed (`*`, the default), a site gets a token only for people who signed in for it or confirmed it with Continue
+on the access page, so a page someone visits can't quietly use their sign-in.
 
 **Metadata.** Viewers show label, summary (in several languages), label/value pairs, rights (a Creative Commons or
 RightsStatements.org URI), attribution, provider, date, languages, creators, contributors, subjects (optionally linked

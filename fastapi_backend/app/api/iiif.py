@@ -315,8 +315,10 @@ async def iiif_access_submit(request: Request) -> HTMLResponse:
     expected = request.cookies.get(CSRF_COOKIE, "")
     if not expected or not secrets.compare_digest(form.get("csrf", ""), expected):
         return _access_form(request, cfg, origin, "Your sign-in form expired; please try again.")
+    held = None
     if form.get("continue"):
-        acct, _ = await run_in_threadpool(iiif_auth.cookie_account, db, request.cookies.get(iiif_auth.COOKIE))
+        held = request.cookies.get(iiif_auth.COOKIE)
+        acct, _ = await run_in_threadpool(iiif_auth.cookie_account, db, held)
         if not acct:
             return _access_form(request, cfg, origin, "Your session expired; sign in again.")
     else:
@@ -326,7 +328,7 @@ async def iiif_access_submit(request: Request) -> HTMLResponse:
         acct = await run_in_threadpool(auth.login, db, form.get("email"), form.get("password"), key)
         if not acct:
             return _access_form(request, cfg, origin, "Wrong email or password.")
-    raw = await run_in_threadpool(iiif_auth.grant_cookie, db, cfg, acct["id"])
+    raw = await run_in_threadpool(iiif_auth.grant_cookie, db, cfg, acct["id"], origin, held)
     nonce = secrets.token_urlsafe(12)
     resp = _auth_page(iiif_auth.access_page(iiif.site_label(cfg, base_url(request, cfg)), nonce, done=True), nonce)
     secure = _secure(request, cfg)
@@ -359,7 +361,7 @@ def iiif_token_service(request: Request, db: Db, cfg: Cfg, messageId: str = "", 
             "heading": iiif.lm("This viewer isn't allowed", "en"),
         }
     else:
-        acct, problem = iiif_auth.cookie_account(db, request.cookies.get(iiif_auth.COOKIE))
+        acct, problem = iiif_auth.cookie_account(db, request.cookies.get(iiif_auth.COOKIE), origin)
         if acct:
             raw, secs = iiif_auth.issue_token(db, cfg, acct["id"], origin)
             msg = {**base_msg, "type": "AuthAccessToken2", "accessToken": raw, "expiresIn": secs}
