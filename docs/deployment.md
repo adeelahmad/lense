@@ -49,7 +49,8 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 * **Documents.** Docker Compose builds the full image, which reads Word, PowerPoint and spreadsheet files, text,
   Markdown, saved web pages and emails as well as PDFs and images (`LENS_TARGET=lean` builds the smaller one that
   reads only PDFs and images; a bare `docker build` makes the lean one unless given `--target full -t lens:full`): it adds LibreOffice, Chromium and fonts for most
-  scripts, and ONNX Runtime with the YOLOX-s model for the objects step ([Configuration](configuration.md#objects));
+  scripts (ONNX Runtime and the YOLOX-s model for the objects step are fetched at run time, on first use:
+  [Components](components.md));
   add `EXTRAS="msg"` for Outlook `.msg` emails ([Configuration](configuration.md#documents-and-images)), and
   `EXTRAS="doctr"` for docTR as the OCR engine (PyTorch: several GB;
   [Configuration](configuration.md#text-on-screen-and-scans-ocr)).
