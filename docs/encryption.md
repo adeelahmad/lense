@@ -51,9 +51,12 @@ once it starts, the keys it needs stay open until it's done. A file another name
 IIIF import in both) keeps its key. A file a move couldn't re-encrypt (a crash half way, a disk error) is moved to
 its namespace's key by the next `lens encrypt`, which also never turns a vault's files back to plain with `--off`.
 
-What isn't encrypted by Lens: the SurrealDB database itself, including transcripts and the indexes that full-text
-and semantic search need, and your own folders that Lens scans (it only reads them). Put the data volume on an
-encrypted disk (LUKS, FileVault, BitLocker or an encrypted ZFS dataset) to cover these.
+What isn't encrypted by Lens: the SurrealDB database itself, including transcripts and the vectors that search by
+meaning needs; the word search index, which by default is a SQLite file in `<data_dir>/search/` (SurrealDB's own index
+with `search.engine: surrealdb`, or an OpenSearch cluster with `opensearch`); and your own folders that Lens scans (it
+only reads them). Put the data volume on an
+encrypted disk (LUKS, FileVault, BitLocker or an encrypted ZFS dataset) to cover these, and the OpenSearch cluster's
+disk when you use one.
 
 ## Vaults
 
