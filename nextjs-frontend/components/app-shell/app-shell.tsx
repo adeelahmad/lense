@@ -159,7 +159,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
             size="md"
             disabled={!canImport}
             disabledReason="Importing needs editor access to a namespace"
-            className="hidden lg:inline-flex"
+            className="hidden md:inline-flex"
             icon={canImport ? undefined : <Upload />}
           >
             {canImport ? (
