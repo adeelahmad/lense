@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Frames, page images and face crops are encrypted too.** With encryption at rest on (or in a vault), the stills
+  Lens draws from videos, documents and images are stored encrypted and still show as before; visitors still get faces
+  pixelated where the namespace asks. `lens encrypt` converts the ones already there.
 - **Renditions, reports and exports are encrypted too.** With encryption at rest on (or in a vault), the PDF made of a
   Word file or an email, the HTML reports and the exports Lens keeps are stored encrypted, and download and open as
   before. `lens encrypt` converts the ones already there. An export sent to a storage connection still arrives plain.

@@ -594,6 +594,19 @@ def keep(db, cfg, sid, path, data: bytes | str) -> pathlib.Path:
     return p
 
 
+def protect_folder(db, cfg, sid, folder, pattern="*.jpg") -> int:
+    """Encrypt the plain files a step has just made in `folder` (frames, page images, face crops), when wanted().
+    Returns how many."""
+    d = pathlib.Path(folder)
+    if not d.is_dir() or not wanted(db, cfg, sid, d):
+        return 0
+    n = 0
+    for p in sorted(d.glob(pattern)):
+        if p.is_file() and encrypt_file(db, cfg, sid, p):
+            n += 1
+    return n
+
+
 def read_plain(db, cfg, path) -> bytes:
     """A file's plain bytes, encrypted or not."""
     with open_plain(db, cfg, path) as f:
@@ -712,6 +725,11 @@ def working_copy(db, cfg, path):
     return str(out)
 
 
+def plain_file(db, cfg, path) -> pathlib.Path:
+    """working_copy() as a Path: what the steps reading frames and pages hand their engines."""
+    return pathlib.Path(working_copy(db, cfg, str(path)))
+
+
 def _make(db, cfg, path, folder, out):
     if out.exists():
         return
@@ -785,12 +803,17 @@ def stored_files(db, cfg):
 
 
 def made_files(db, cfg):
-    """(space, path) for the files Lens makes from them: documents' PDF renditions, reports and exports."""
+    """(space, path) for the files Lens makes from them: documents' PDF renditions, frames, page images and face
+    crops, reports and exports."""
     data = pathlib.Path(cfg["data_dir"])
-    for r in db.rows("SELECT record::id(id) AS id, space FROM recording WHERE source = 'document'"):
+    for r in db.rows("SELECT record::id(id) AS id, space, source FROM recording"):
         p = data / "renditions" / f"{int(r['id'])}.pdf"
-        if p.is_file():
+        if r.get("source") == "document" and p.is_file():
             yield r["space"], str(p)
+        d = data / "frames" / str(int(r["id"]))
+        if d.is_dir():
+            for f in sorted(d.glob("*.jpg")):
+                yield r["space"], str(f)
     for sid, name in store.space_names(db).items():
         for kind, pattern in (("reports", "*.html"), ("exports", "*")):
             d = data / kind / name

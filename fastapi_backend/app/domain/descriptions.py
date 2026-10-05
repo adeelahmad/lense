@@ -9,7 +9,7 @@ import base64
 import io
 import re
 
-from . import jobs, llm, store
+from . import jobs, keyring, llm, store
 
 R = store.R
 PROMPT = (
@@ -88,7 +88,7 @@ def step_describe(db, cfg, rid, say):
         else:
             about = f"The first frame of a shot in the video “{title}”, at {_clock(it['t0'])}."
         try:
-            text = describe(cfg, model, d / it["frame"], about)
+            text = describe(cfg, model, keyring.plain_file(db, cfg, d / it["frame"]), about)
         except (llm.LLMError, OSError) as e:
             failed.append(str(e))
             continue

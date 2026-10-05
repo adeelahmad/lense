@@ -444,6 +444,7 @@ def transcribe(db, cfg, rid, say):
     pages, blocks, notes, ocred = read(pdf, d, opts, engine, say, why)
     if learnt:  # the rendition, read: kept encrypted from here on, like the file it was made from
         keyring.protect(db, cfg, rec["space"], pdf)
+    keyring.protect_folder(db, cfg, rec["space"], d)  # and the pages drawn from it
     segs = segments_of(blocks)
     rows = [{**p, "id": R("page", f"{rid}-{p['idx']}"), "recording": rid, "space": rec["space"]} for p in pages]
     db.run(

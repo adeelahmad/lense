@@ -20,7 +20,7 @@ import threading
 
 import numpy as np
 
-from . import ingest, jobs, store
+from . import ingest, jobs, keyring, store
 
 R = store.R
 VIDEO_TYPES = {
@@ -485,6 +485,7 @@ def step_shots(db, cfg, rid, say):
     if not rec.get("duration_ms"):
         patch["duration_ms"] = media["duration_ms"]
     db.q("UPDATE $r MERGE $p", r=R("recording", rid), p=patch)
+    keyring.protect_folder(db, cfg, rec["space"], d)
     say(f"{len(shots)} shot(s), {len(samples)} sampled frame(s)")
 
 
@@ -505,7 +506,7 @@ def step_ocr(db, cfg, rid, say):
     open_, done = {}, []
     for t, name in rec.get("samples") or []:
         seen = set()
-        for line in engine.lines(d / name):
+        for line in engine.lines(keyring.plain_file(db, cfg, d / name)):
             text = re.sub(r"\s+", " ", line["text"]).strip()
             if line["conf"] < min_conf or len(text) < 3 or sum(ch.isalnum() for ch in text) < 0.5 * len(text):
                 continue
@@ -565,6 +566,6 @@ def step_faces(db, cfg, rid, say):
         frames, step = rec.get("samples") or [], rec.get("sample_ms") or 5000
     d, dets = frames_dir(cfg, rid), []
     for t, name in frames:
-        for f in engine.faces(d / name):
+        for f in engine.faces(keyring.plain_file(db, cfg, d / name)):
             dets.append({"t": t, "frame": name, **f})
     faces.store_tracks(db, cfg, rid, rec["space"], dets, mode, step, say, paged)

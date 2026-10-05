@@ -18,7 +18,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from . import speakers as spk, store, video
+from . import keyring, speakers as spk, store, video
 
 R = store.R
 MODES = ("off", "detect", "recognize")
@@ -108,7 +108,7 @@ def pixelate(img, boxes, cells=CELLS, margin=MARGIN):
     return img
 
 
-def pixelated(db, path, rid, name):
+def pixelated(db, cfg, path, rid, name):
     """The picture at `path` (frame `name` of recording `rid`) as a visitor gets it, a JPEG with the faces found on it
     pixelated; None when none were found on it (it's served as it is)."""
     boxes = boxes_on(db, rid, name)
@@ -116,7 +116,7 @@ def pixelated(db, path, rid, name):
         return None
     from PIL import Image
 
-    with Image.open(path) as img:
+    with Image.open(io.BytesIO(keyring.read_plain(db, cfg, path))) as img:
         out = io.BytesIO()
         pixelate(img.convert("RGB"), boxes).save(out, "JPEG", quality=85)
     return out.getvalue()
@@ -205,11 +205,11 @@ def _iou(a, b):
     return inter / (a[2] * a[3] + b[2] * b[3] - inter + 1e-9)
 
 
-def _crop(cfg, rid, det, name):
+def _crop(db, cfg, rid, det, name):
     try:
         from PIL import Image
 
-        img = Image.open(video.frames_dir(cfg, rid) / det["frame"])
+        img = Image.open(keyring.plain_file(db, cfg, video.frames_dir(cfg, rid) / det["frame"]))
         W, H = img.size
         x, y, w, h = det["box"]
         m = 0.25
@@ -269,12 +269,13 @@ def store_tracks(db, cfg, rid, sid, dets, mode_, step, say, paged=False):
                 "spans": sp,
                 "screen_ms": sum(b - a for a, b in sp),
                 "first_ms": sp[0][0],
-                "cover": _crop(cfg, rid, best, f"face-{n + 1}.jpg"),
+                "cover": _crop(db, cfg, rid, best, f"face-{n + 1}.jpg"),
                 "centroid": cen,
                 "boxes": [[d["t"]] + [round(x, 4) for x in d["box"]] for d in sorted(g, key=lambda d: d["t"])][:500],
                 "score": round(float(np.mean([d["score"] for d in g])), 3),
             }
         )
+    keyring.protect_folder(db, cfg, sid, video.frames_dir(cfg, rid), "face-*.jpg")
     weight = (lambda t: t["screen_ms"] * PAGE_SECONDS) if paged else (lambda t: t["screen_ms"] / 1000)
     ids = match(db, cfg, sid, {t["local"]: (t["centroid"], weight(t)) for t in tracks}) if mode_ == "recognize" else {}
     rows = [
