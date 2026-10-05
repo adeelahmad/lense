@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { Namespaces, Pipelines, Users } from "@/app/openapi-client";
 import { IpGroupsSection } from "@/components/access/ip-groups";
+import { NsAssistantSection } from "@/components/assistant/ns-assistant-section";
 import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
 import { roleLabel, type Role } from "@/components/admin/people-model";
 import { ActivityPanel, BudgetPanel, CostCell, useBudgets, useCosts } from "@/components/costs/costs";
@@ -472,6 +473,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
               </ul>
             )}
           </section>
+          <NsAssistantSection ns={ns} isOwner={isOwner} />
           <IpGroupsSection ns={ns} isOwner={isOwner} admin={admin} />
           <NotificationsSection ns={ns} isOwner={isOwner} admin={admin} />
           {known && <VaultSection ns={ns} isOwner={isOwner} />}

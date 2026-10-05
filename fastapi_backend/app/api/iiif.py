@@ -227,11 +227,14 @@ def _secure(request: Request, cfg: Config) -> bool:
     return request.url.scheme == "https" or bool(cfg["server"].get("secure_cookies"))
 
 
-def _access_form(request: Request, cfg: Config, origin: str, error: str = "", account: dict[str, Any] | None = None) -> HTMLResponse:
+def _access_form(
+    request: Request, cfg: Config, origin: str, error: str = "", account: dict[str, Any] | None = None, status: int = 200
+) -> HTMLResponse:
     """The sign-in (or continue) form with a fresh double-submit CSRF token."""
     nonce, csrf = secrets.token_urlsafe(12), secrets.token_urlsafe(24)
     site = iiif.site_label(cfg, base_url(request, cfg))
-    resp = _auth_page(iiif_auth.access_page(site, nonce, account, csrf, origin, error), nonce)
+    resp = _auth_page(iiif_auth.access_page(site, nonce, account, csrf, origin, error, passwords=auth.passwords_on(cfg)), nonce)
+    resp.status_code = status
     resp.set_cookie(CSRF_COOKIE, csrf, max_age=3600, httponly=True, path="/iiif/auth", secure=_secure(request, cfg), samesite="strict")
     return resp
 
@@ -322,6 +325,8 @@ async def iiif_access_submit(request: Request) -> HTMLResponse:
         acct, _ = await run_in_threadpool(iiif_auth.cookie_account, db, request.cookies.get(iiif_auth.COOKIE))
         if not acct:
             return _access_form(request, cfg, origin, "Your session expired; sign in again.")
+    elif not auth.passwords_on(cfg):  # auth.passwords off: password sign-in answers 403 here too
+        return _access_form(request, cfg, origin, "Password sign-in is turned off here.", status=403)
     else:
         key = f"{form.get('email', '').strip().lower()}|{client_ip(request)}"
         if auth.throttled(key):

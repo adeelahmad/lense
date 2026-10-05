@@ -41,12 +41,16 @@ That's all. Without an account given, it answers as the admin who turned it on.
 - **Conversations.** Each person in each room is a conversation of that account's, titled
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)).
+- **A namespace's own assistant.** **Rooms for a namespace's assistant** gives a room to a namespace
+  (`team = pods`, or one channel: `team/general = pods`). Conversations there are scoped to that namespace, so when its
+  assistant is on ([A namespace's own assistant](assistant.md#a-namespaces-own-assistant)) it answers with its
+  instructions and what it remembers, and a message starting with its name is for it too.
 - **One reader.** Matterbridge hands out each message once, so only one server process reads it: the API and the
   workers all run the bridge thread, and whichever holds the lease (renewed every look, given up when it stops or the
   bridge is turned off) does the reading. Settings → Chat rooms says whether it is listening and how many messages it answered.
 
 Settings (`bridge`): `enabled`, `url`, `token` (a secret), `account`, `name` (default Lens), `answer` (`mention` or
-`all`), `gateway`, `users`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to
+`all`), `gateway`, `users`, `rooms`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to
 Matterbridge at …").
 
 Refine later: approving in the room itself, voice notes and files posted in rooms, one Lens account per chat user.

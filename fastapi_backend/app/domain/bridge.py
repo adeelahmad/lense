@@ -7,6 +7,10 @@ and posts the answer back to the same gateway (POST /api/message). It answers as
 it reads what that account can read, and changes anything only after someone approves it in the web app, like any
 chat. Each person in each room is a conversation of that account's, listed with its other chats.
 
+A room can be given to a namespace's own assistant (bridge.rooms, "gateway = namespace" or "gateway/channel =
+namespace"): conversations there are scoped to that namespace, so its assistant answers with its instructions and
+memory (ns_assistant.py), and a message naming the assistant is for it too.
+
 Refine later: approving in the room itself, voice notes, files posted in the room, one Lens account per chat user.
 """
 
@@ -22,7 +26,7 @@ import threading
 import urllib.error
 import urllib.request
 
-from . import ai_tools, auth, chat, llm, store
+from . import ai_tools, auth, chat, llm, ns_assistant, store
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -101,14 +105,30 @@ def check(db, cfg):
 
 
 # ---------- who's talking to it ----------
-def addressed(cfg, m):
-    """The question in a message, when it's for Lens; None when it isn't (or is Lens's own)."""
+def room_namespace(cfg, m):
+    """The namespace whose assistant a room is given to (bridge.rooms), or None."""
+    gw, ch = m.get("gateway") or "", m.get("channel") or ""
+    rooms = {}
+    for line in cfg["bridge"].get("rooms") or []:
+        where, _, ns = line.partition("=")
+        rooms.setdefault(where.strip().lower(), ns.strip())
+    return rooms.get(f"{gw}/{ch}".lower()) or rooms.get(gw.lower())
+
+
+def addressed(cfg, m, aliases=()):
+    """The question in a message, when it's for Lens (or one of `aliases`: the room's namespace assistant's name); None
+    when it isn't (or is Lens's own)."""
     b = cfg["bridge"]
     name = (b.get("name") or "Lens").strip()
     text = (m.get("text") or "").strip()
     who = (m.get("username") or "").strip()
     if not text or (m.get("event") or "") not in ("", "user_action") or who.strip("<> ").lower() == name.lower():
         return None
+    for alias in aliases:
+        if alias.lower() != name.lower():
+            got = addressed({**cfg, "bridge": {**b, "name": alias, "answer": "mention"}}, m)
+            if got:
+                return got
     gw = b.get("gateway")
     if gw and m.get("gateway") != gw:
         return None
@@ -132,14 +152,17 @@ def _account(db, cfg):
     return {"id": u["id"], "email": u["email"], "admin": bool(u.get("admin"))}
 
 
-def conversation(db, account, m):
-    """The conversation for this person in this room, started on their first message."""
+def conversation(db, account, m, namespace=None):
+    """The conversation for this person in this room, started on their first message; scoped to `namespace` (the
+    room's namespace assistant), which follows bridge.rooms when it changes."""
     key = hashlib.sha1(json.dumps([m.get("gateway"), m.get("channel"), m.get("account"), m.get("username")]).encode()).hexdigest()
+    scope = {"namespaces": [namespace]} if namespace else {}
     cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE bridge = $k AND account = $a LIMIT 1", k=key, a=account["id"])
     if cid:
+        db.q("UPDATE $r SET scope = $s WHERE (scope ?? {}) != $s", r=R("chat", cid), s=scope)
         return cid
     where = " · ".join(x for x in [m.get("channel"), (m.get("username") or "").strip("<> ")] if x)
-    cid = chat.create(db, account["id"], title=f"Matterbridge · {where}" if where else "Matterbridge", kind="bridge")
+    cid = chat.create(db, account["id"], title=f"Matterbridge · {where}" if where else "Matterbridge", scope=scope, kind="bridge")
     db.q("UPDATE $r SET bridge = $k", r=R("chat", cid), k=key)
     return cid
 
@@ -153,13 +176,14 @@ def answer(db, cfg, base, account, cid, q):
     editable = {s for s in roles if auth.allows(roles, s, "editor")}
     past = chat.history(db, cid)
     summary = chat.memory(db, cfg, cid)
+    scope = (db.one("SELECT scope FROM $r", r=R("chat", cid)) or {}).get("scope") or None
     chat.add(db, cid, "user", q)
-    passages = chat.retrieve(db, q, readable, None, cfg=cfg)
+    passages = chat.retrieve(db, q, readable, scope, cfg=cfg)
     steps, approvals, notice = [], [], None
     wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
     if llm.configured(cfg) and cfg["ai"].get("tools"):
         box = ai_tools.Toolbox(
-            db, cfg, {"id": account["id"], "email": account["email"]}, readable, editable, None, cid, base, account["admin"], said=q
+            db, cfg, {"id": account["id"], "email": account["email"]}, readable, editable, scope, cid, base, account["admin"], said=q
         )
         try:
             text = None
@@ -201,11 +225,14 @@ def reply_text(cfg, text, approvals, cid):
 
 def handle(db, cfg, base, m):
     """One message from a room: answered when it's for Lens. True when it was."""
-    q = addressed(cfg, m)
+    ns = room_namespace(cfg, m)
+    sid = {v: k for k, v in store.space_names(db).items()}.get(ns) if ns else None
+    home = ns_assistant.profile(db, sid) if sid is not None else None
+    q = addressed(cfg, m, [home["name"]] if home and home["enabled"] else ())
     if not q:
         return False
     account = _account(db, cfg)
-    cid = conversation(db, account, m)
+    cid = conversation(db, account, m, ns if sid is not None else None)
     try:
         text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS])
     except Exception:  # noqa: BLE001 - still say something in the room

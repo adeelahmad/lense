@@ -407,6 +407,26 @@ def _attach(db, cfg, rid, sid, dest, st, fp, by, probed):
     return jobs.add_steps(db, rid, ATTACH_STEPS, by=by)
 
 
+def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=None):
+    """A whole file that arrived some other way (an import webhook), at `path` on the same disk as the uploads folder,
+    uploaded into namespace `ns` in one go: it's checked as start() checks a file, moved into place and finished as if
+    its last chunk had just arrived. The namespace must exist. Returns the finished upload."""
+    row = start(db, cfg, ns, filename, os.path.getsize(path), by, title=title, pipeline=pipeline, collection=collection)
+    os.replace(path, _part(cfg, row["id"]))
+    try:
+        return received(db, cfg, row["id"])
+    except BaseException:
+        cancel(db, cfg, get(db, row["id"]))
+        raise
+
+
+def incoming(cfg):
+    """A folder on the uploads disk for a file still arriving whole, before take() checks it."""
+    folder = _dir(cfg) / ".partial"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
 def cancel(db, cfg, row):
     """Stop an upload; its partial file goes. A finished one is only forgotten: it's a recording now."""
     if row.get("state") != "done":

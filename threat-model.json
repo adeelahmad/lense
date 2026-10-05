@@ -1,0 +1,1713 @@
+{
+  "spec_version": 1,
+  "repository": "https://github.com/adeelahmad/lense",
+  "commit": "5f799f2ff8bb8a762d8151d9b10b535a17878b55",
+  "date": "2026-10-05",
+  "scope_subpath": null,
+  "description": "Lens is a self-hosted archive for recordings, transcripts and documents: it transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
+  "confidence": {
+    "documented": 246,
+    "inferred": 99
+  },
+  "components": [
+    {
+      "name": "web",
+      "entry_points": [
+        "every request"
+      ],
+      "touches": [
+        "network"
+      ],
+      "in_scope": true,
+      "provenance": "inferred",
+      "source": "open question Q34"
+    },
+    {
+      "name": "identity",
+      "entry_points": [
+        "every /api/v1/* route",
+        "passkey origin, OAuth discovery, external-login redirect",
+        "POST /auth/login, /iiif/auth/access form",
+        "/auth/setup, /auth/passkey/setup*, /auth/setup/no-passkey",
+        "/auth/refresh, /auth/ticket, /auth/signin-link/*, /auth/password/*, WebAuthn flows",
+        "/oauth/register, /authorize, /token, /revoke",
+        "/auth/external/{key}/*",
+        "/mcp"
+      ],
+      "touches": [
+        "network"
+      ],
+      "in_scope": true,
+      "provenance": "documented",
+      "source": "docs/authentication.md \"one-time **setup code**\""
+    },
+    {
+      "name": "authz",
+      "entry_points": [
+        "IP groups, throttles",
+        "namespace, recording and child-object routes",
+        "routes not read one by one (about 370)",
+        "media, report, embed, IIIF content",
+        "/iiif/auth/token, /probe, /logout",
+        "workers and DB peers"
+      ],
+      "touches": [
+        "filesystem"
+      ],
+      "in_scope": true,
+      "provenance": "documented",
+      "source": "SECURITY.md \"What counts\""
+    },
+    {
+      "name": "outbound",
+      "entry_points": [
+        "watched folders, storage sources, IMAP, iCal",
+        "POST /imports/web, extension http tools, notification targets",
+        "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, iCal, MQTT bridge, OIDC issuer)",
+        "replies from remote servers",
+        ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
+      ],
+      "touches": [
+        "filesystem",
+        "network",
+        "env",
+        "child_processes"
+      ],
+      "in_scope": true,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "ingest",
+      "entry_points": [
+        "/uploads, /import, /recordings/{rid}/files"
+      ],
+      "touches": [
+        "filesystem",
+        "child_processes"
+      ],
+      "in_scope": true,
+      "provenance": "inferred",
+      "source": "open question Q34"
+    },
+    {
+      "name": "query",
+      "entry_points": [
+        "/recordings, /search, /public/search, chat retrieval",
+        "/graph/query, MCP graph_query",
+        "/namespaces/{name}/sparql",
+        "/namespaces/{name}/rdf/import"
+      ],
+      "touches": [
+        "global_state"
+      ],
+      "in_scope": true,
+      "provenance": "inferred",
+      "source": "open question Q34"
+    },
+    {
+      "name": "assistant",
+      "entry_points": [
+        "chat, /graph/ask, MCP tools",
+        "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
+        "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
+      ],
+      "touches": [
+        "network",
+        "child_processes"
+      ],
+      "in_scope": true,
+      "provenance": "inferred",
+      "source": "open question Q34"
+    },
+    {
+      "name": "optional",
+      "entry_points": [
+        "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}"
+      ],
+      "touches": [
+        "network",
+        "child_processes",
+        "global_state"
+      ],
+      "in_scope": true,
+      "provenance": "inferred",
+      "source": "open question Q34"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "item": "ci-tooling-and-samples",
+      "reason": "examples/ (source clone only), overrides/ (mkdocs theme), ci/, .github/, .pre-commit* (CI, in no image) and prod-frontend-deploy.yml (stale Vercel workflow) are unsupported paths built into no running service (§1.3)",
+      "provenance": "inferred",
+      "source": "open question Q34"
+    },
+    {
+      "item": "inert-backend-files",
+      "reason": "fastapi_backend/tests/, watcher.py and commands/ are copied into the backend image but never started by the production command; a report must show production code reaching them (§1.3)",
+      "provenance": "inferred",
+      "source": "open question Q34"
+    }
+  ],
+  "trust_boundaries": [
+    {
+      "component": "web",
+      "boundary": "B1, network to web app: everything a browser, app or agent sends is untrusted; the web app forwards /api, /mcp, /iiif, /embed and /s to the API, which authorizes every call.",
+      "provenance": "inferred",
+      "reachability_precondition": "reachable from a browser request and changes what the API decides or what another person's browser runs",
+      "source": "threat-model.md §1.4 (untagged boundary list)"
+    },
+    {
+      "component": "identity",
+      "boundary": "B2, request to role: the API turns a bearer token, signed link, share link, IIIF cookie or vouched-for address into a role per namespace.",
+      "provenance": "inferred",
+      "reachability_precondition": "reachable with no account, or with an account, and yields a session, token or admin the attacker was not given; setup-code findings apply only while no account exists",
+      "source": "threat-model.md §1.4 (untagged boundary list)"
+    },
+    {
+      "component": "authz",
+      "boundary": "B2, request to role: the main boundary; namespace isolation lives here, in application code. B5: workers, the API and the web app trust the database and each other.",
+      "provenance": "inferred",
+      "reachability_precondition": "lets a principal read or change more than its role and the recording's access level allow, or open media without a link the server signed for it",
+      "source": "threat-model.md §1.4 (untagged boundary list)"
+    },
+    {
+      "component": "outbound",
+      "boundary": "B4, Lens to the outside: fetches whose URL a non-admin sets, and iCal feeds, go through netguard; other admin-set URLs do not; the telemetry endpoint is only shape-checked (P-ADMIN-GUARD).",
+      "provenance": "inferred",
+      "reachability_precondition": "a URL a non-admin sets, or a guarded admin operand, reaches a non-public address; or a stored secret reaches anyone but the host the admin set",
+      "source": "threat-model.md §1.4 (untagged boundary list)"
+    },
+    {
+      "component": "ingest",
+      "boundary": "B3, content to parser: uploaded and fetched bytes cross into ffmpeg, LibreOffice, Chromium, poppler and Tesseract.",
+      "provenance": "inferred",
+      "reachability_precondition": "reachable from bytes an editor uploads or a watched source delivers, and the fault is in how Lens runs the tool (arguments, environment, timeouts, sandbox flags)",
+      "source": "threat-model.md §1.4 (untagged boundary list)"
+    },
+    {
+      "component": "query",
+      "boundary": "B2, request to role: query text from a non-admin is untrusted and runs only over the caller's readable namespaces.",
+      "provenance": "inferred",
+      "reachability_precondition": "query text from a non-admin reads outside the caller's namespaces, writes, fetches, or reaches SurrealQL",
+      "source": "threat-model.md §1.4 (untagged boundary list)"
+    },
+    {
+      "component": "assistant",
+      "boundary": "B3, content to parser: uploaded and fetched bytes cross into the LLM prompt; B2 bounds the tools to the person's role.",
+      "provenance": "inferred",
+      "reachability_precondition": "a non-admin (or content steering the model for one) exceeds the person's reads, changes data without approval outside notes and admin setup, or runs code on the host",
+      "source": "threat-model.md §1.4 (untagged boundary list)"
+    },
+    {
+      "component": "optional",
+      "boundary": "B6, devices: sensor listeners take traffic from the LAN (or wider, per sensors.bind) once an admin enables them.",
+      "provenance": "inferred",
+      "reachability_precondition": "the service is turned on by an admin, and the attacker lacks the login, network or token the feature requires",
+      "source": "threat-model.md §1.4 (untagged boundary list)"
+    }
+  ],
+  "entry_points": [
+    {
+      "entry_point": "every /api/v1/* route",
+      "parameter": "Authorization: Bearer (web JWT, la_ API token, lo_ app token)",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "holder keeps it secret; Lens checks signature or hash, expiry, account, session",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Every request checks that the account is still active\""
+    },
+    {
+      "entry_point": "every request",
+      "parameter": "Host header",
+      "attacker_controllable": "yes",
+      "component": "web",
+      "caller_must_enforce": "operator lists served hosts",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"checks the `Host` header\""
+    },
+    {
+      "entry_point": "IP groups, throttles",
+      "parameter": "X-Forwarded-For, peer address",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "a reverse proxy sets the header; trusted_proxies lists exactly the front hops",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"Without it, a visitor can claim any address\""
+    },
+    {
+      "entry_point": "passkey origin, OAuth discovery, external-login redirect",
+      "parameter": "X-Forwarded-Host, X-Forwarded-Proto",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "TRUST_PROXY_HEADERS only behind a real proxy",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"anyone could choose the address\""
+    },
+    {
+      "entry_point": "POST /auth/login, /iiif/auth/access form",
+      "parameter": "email, password",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "none — P-PASSWORDS-OFF (passwords work only where auth.passwords is on)",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"With passwords off, password sign-in\""
+    },
+    {
+      "entry_point": "/auth/setup, /auth/passkey/setup*, /auth/setup/no-passkey",
+      "parameter": "setup code, email, name",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "keep the log private until the first admin exists",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"so a stranger who finds a new\""
+    },
+    {
+      "entry_point": "/auth/refresh, /auth/ticket, /auth/signin-link/*, /auth/password/*, WebAuthn flows",
+      "parameter": "rotating and one-time secrets",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "holder keeps them secret",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"A link lasts three days\""
+    },
+    {
+      "entry_point": "/oauth/register, /authorize, /token, /revoke",
+      "parameter": "redirect URIs, client metadata, code, verifier, refresh token",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "the app keeps state and its verifier; the person consents",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Apps register themselves\""
+    },
+    {
+      "entry_point": "/auth/external/{key}/*",
+      "parameter": "next, state, code, provider profile",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "admin chooses providers",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"when the provider vouches for the email\""
+    },
+    {
+      "entry_point": "/mcp",
+      "parameter": "bearer, Origin, JSON-RPC body",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "none — P-OAUTH",
+      "provenance": "documented",
+      "source": "docs/mcp.md \"A token an app asked for another server\""
+    },
+    {
+      "entry_point": "namespace, recording and child-object routes",
+      "parameter": "namespace name, rid, child ids (sequential integers)",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "none — P-NS-ISOLATION (Lens checks the role in each handler)",
+      "provenance": "documented",
+      "source": "docs/api.md \"Namespaces you can't read answer 404\""
+    },
+    {
+      "entry_point": "routes not read one by one (about 370)",
+      "parameter": "per route",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "follow the gate pattern",
+      "provenance": "inferred",
+      "source": "open question Q8"
+    },
+    {
+      "entry_point": "media, report, embed, IIIF content",
+      "parameter": "exp, sig, full, ?s= share token, /s/<code> short code",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "holder keeps the link private",
+      "provenance": "documented",
+      "source": "SECURITY.md \"only the server's own signed links should work\""
+    },
+    {
+      "entry_point": "/iiif/auth/token, /probe, /logout",
+      "parameter": "origin, messageId, IIIF cookie, probe token",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "operator sets iiif.allowed_origins",
+      "provenance": "documented",
+      "source": "docs/iiif.md \"limits which viewer sites can get tokens\""
+    },
+    {
+      "entry_point": "/recordings, /search, /public/search, chat retrieval",
+      "parameter": "query text, filters, sort, limit, offset",
+      "attacker_controllable": "yes",
+      "component": "query",
+      "caller_must_enforce": "none — P-NO-INJECTION",
+      "provenance": "documented",
+      "source": "SECURITY.md \"injection into the database queries\""
+    },
+    {
+      "entry_point": "/graph/query, MCP graph_query",
+      "parameter": "Cypher text, params",
+      "attacker_controllable": "yes",
+      "component": "query",
+      "caller_must_enforce": "none — P-QUERY",
+      "provenance": "documented",
+      "source": "docs/graph.md \"3 million steps\""
+    },
+    {
+      "entry_point": "/namespaces/{name}/sparql",
+      "parameter": "SPARQL text",
+      "attacker_controllable": "yes",
+      "component": "query",
+      "caller_must_enforce": "none — P-NO-FETCH",
+      "provenance": "documented",
+      "source": "routes/rdf.py sparql docstring \"SERVICE and FROM aren't allowed\""
+    },
+    {
+      "entry_point": "/namespaces/{name}/rdf/import",
+      "parameter": "Turtle, N-Triples, JSON-LD",
+      "attacker_controllable": "yes",
+      "component": "query",
+      "caller_must_enforce": "none — P-NO-FETCH",
+      "provenance": "documented",
+      "source": "rdf_import.py docstring \"RDF/XML isn't read\""
+    },
+    {
+      "entry_point": "/uploads, /import, /recordings/{rid}/files",
+      "parameter": "file bytes, name, extension, size",
+      "attacker_controllable": "yes",
+      "component": "ingest",
+      "caller_must_enforce": "none — P-UPLOAD",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"Uploads accept only the types\""
+    },
+    {
+      "entry_point": "watched folders, storage sources, IMAP, iCal",
+      "parameter": "remote file names, bytes, mail, events",
+      "attacker_controllable": "yes",
+      "component": "outbound",
+      "caller_must_enforce": "admin creates sources",
+      "provenance": "inferred",
+      "source": "open question Q17"
+    },
+    {
+      "entry_point": "POST /imports/web, extension http tools, notification targets",
+      "parameter": "URL",
+      "attacker_controllable": "yes",
+      "component": "outbound",
+      "caller_must_enforce": "none — P-SSRF-GUARD",
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "entry_point": "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, iCal, MQTT bridge, OIDC issuer)",
+      "parameter": "URL, credentials, api_key_env",
+      "attacker_controllable": "no",
+      "component": "outbound",
+      "caller_must_enforce": "admin is trusted",
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "entry_point": "replies from remote servers",
+      "parameter": "web page HTML and scripts, IIIF manifests, model replies, OIDC discovery, calendars and their redirects",
+      "attacker_controllable": "yes",
+      "component": "outbound",
+      "caller_must_enforce": "treat as untrusted",
+      "provenance": "inferred",
+      "source": "open question Q17"
+    },
+    {
+      "entry_point": "chat, /graph/ask, MCP tools",
+      "parameter": "prompt text; model-chosen tool calls",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none — P-RETRIEVAL",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"limited to what the person can read\""
+    },
+    {
+      "entry_point": "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
+      "parameter": "tool spec, graph JSON, template text",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "person enables only extensions they trust",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"other people's run only when an admin shared them\""
+    },
+    {
+      "entry_point": "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
+      "parameter": "Python, Jinja source, regexes",
+      "attacker_controllable": "no",
+      "component": "assistant",
+      "caller_must_enforce": "admin is trusted",
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "entry_point": "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
+      "parameter": "payloads, hub logins, token in the path",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables; operator firewalls",
+      "provenance": "documented",
+      "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
+    },
+    {
+      "entry_point": ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY",
+      "parameter": "process configuration",
+      "attacker_controllable": "no",
+      "component": "outbound",
+      "caller_must_enforce": "keep unreadable to others",
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "entry_point": "workers and DB peers",
+      "parameter": "DB credential, shared database rows",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "run peers on trusted hosts",
+      "provenance": "inferred",
+      "source": "open question Q9"
+    }
+  ],
+  "environment": {
+    "assumes": [
+      "Host is Linux containers, an LXC on Proxmox, a NAS package, or a native install on Linux or macOS; the host and its root user are trusted.",
+      "One SurrealDB database holds every namespace, with optimistic, retried transactions; the embedded engine is for trying Lens and small archives.",
+      "Expiry uses wall-clock time with no skew handling.",
+      "Several API processes and workers may run at once; throttle counters and the setup code live in each process's memory.",
+      "Child processes (rclone, ffmpeg, LibreOffice, Chromium, Tesseract, poppler, cloudflared, llama-server, code tools, uv/pip) run as argument lists.",
+      "Listening sockets: API and web app; a loopback netguard proxy during captures; MQTT 1883 and syslog 5514 when sensors are on; llama-server when enabled.",
+      "Files live under data_dir, including secret.key when ARCHIVE_SECRET_KEY is unset; the server log carries the setup code and, without mail, sign-in links."
+    ],
+    "does_not": [
+      "make outbound connections except to configured sources, model servers, mail, notification and telemetry targets, components.auto installs and model downloads, and the llama.cpp/cloudflared/hf: downloads when those features are on",
+      "send telemetry by default",
+      "check for updates"
+    ],
+    "provenance": "inferred",
+    "source": "open question Q19"
+  },
+  "build_variants": [
+    {
+      "name": "docker-compose.yml, make dev",
+      "default": "dev secrets, web on 0.0.0.0:3000",
+      "effect": "voids P-AUTH-REQ; voids P-MEDIA-LINK; narrows P-HARDENED",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "docker-compose.prod.yml, install.sh, Cloudron, Synology, QNAP, Proxmox",
+      "default": "random secrets (Makefile .env writes SURREAL_PASS=root)",
+      "effect": "preserves P-HARDENED; preserves P-IPGROUP",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "Proxmox LXC service user",
+      "default": "systemd units have no User=, so Lens runs as root inside the unprivileged LXC; the SurrealDB container runs as root",
+      "effect": "narrows P-NO-CODE",
+      "discouraged": false,
+      "provenance": "inferred",
+      "source": "open question Q33"
+    },
+    {
+      "name": "install.sh on a headless host, NAS packages",
+      "default": "HTTP on all interfaces, ?code= setup URL printed",
+      "effect": "narrows P-SETUP-ONCE",
+      "discouraged": true,
+      "provenance": "inferred",
+      "source": "open question Q31"
+    },
+    {
+      "name": "Plain HTTP",
+      "default": "on",
+      "effect": "voids P-SETUP-ONCE; narrows P-AUTH-REQ",
+      "discouraged": true,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "SurrealDB root/root",
+      "default": "on in env defaults",
+      "effect": "voids P-NS-ISOLATION",
+      "discouraged": true,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "Image build context (.dockerignore per image)",
+      "default": ".dockerignore per image",
+      "effect": "narrows P-SECRETS",
+      "discouraged": false,
+      "provenance": "inferred",
+      "source": "open question Q44"
+    },
+    {
+      "name": "/docs and /openapi.json (OPENAPI_URL)",
+      "default": "on",
+      "effect": "no effect on claimed properties",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "tokens.oauth_enabled",
+      "default": "on",
+      "effect": "preserves P-OAUTH",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "iiif.allowed_origins",
+      "default": "[\"*\"]",
+      "effect": "narrows P-ACCESS-PARTS",
+      "discouraged": false,
+      "provenance": "inferred",
+      "source": "open question Q1"
+    },
+    {
+      "name": "server.trusted_proxies, LENS_TRUSTED_PROXY_HOSTS",
+      "default": "127.0.0.0/8, ::1; compose names its containers",
+      "effect": "narrows P-IPGROUP; narrows P-THROTTLE",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/configuration.md \"Trusted proxies\""
+    },
+    {
+      "name": "TRUST_PROXY_HEADERS (web app)",
+      "default": "off",
+      "effect": "narrows P-OAUTH",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/authentication.md \"anyone could choose the address\""
+    },
+    {
+      "name": "server.allowed_hosts, ARCHIVE_ALLOWED_HOSTS",
+      "default": "127.0.0.1, localhost",
+      "effect": "voids P-HOST",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/configuration.md \"stops DNS rebinding\""
+    },
+    {
+      "name": "server.secure_cookies",
+      "default": "false",
+      "effect": "narrows P-BEARER-ONLY",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/configuration.md \"Put everything behind HTTPS\""
+    },
+    {
+      "name": "auth.passwords",
+      "default": "off on fresh installs",
+      "effect": "voids P-PASSWORDS-OFF",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/authentication.md \"With passwords off\""
+    },
+    {
+      "name": "documents.web_networks, LENS_WEB_NETWORKS; notifications.networks",
+      "default": "empty",
+      "effect": "narrows P-SSRF-GUARD; narrows P-ADMIN-GUARD",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/configuration.md \"loopback and cloud metadata addresses stay out\""
+    },
+    {
+      "name": "Chromium sandbox",
+      "default": "off as root or without user namespaces",
+      "effect": "narrows P-CONVERT-OFFLINE",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/configuration.md \"runs with its sandbox where it can\""
+    },
+    {
+      "name": "sensors.enabled, sensors.mqtt_anonymous",
+      "default": "off (bind 0.0.0.0); off",
+      "effect": "narrows P-SENSORS",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
+    },
+    {
+      "name": "tunnel.mode, local_llm.enabled, telemetry",
+      "default": "off",
+      "effect": "preserves P-TELEMETRY; preserves P-CHILD-SECRETS",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/remote-access.md \"It's off until an admin turns it on\""
+    },
+    {
+      "name": "components.auto",
+      "default": "on",
+      "effect": "preserves P-MODEL-CHECKSUM",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "encryption.files",
+      "default": "on for new archives",
+      "effect": "voids P-ENCRYPTION",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/encryption.md \"A new archive turns this on at its first start\""
+    },
+    {
+      "name": "ai.extensions, ai.disabled_tools",
+      "default": "on, none",
+      "effect": "preserves P-EXT-SCOPE",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Extending the assistant\""
+    },
+    {
+      "name": "ALGORITHM, MEDIA_URL_EXPIRE_SECONDS, ACCESS_TOKEN_EXPIRE_SECONDS",
+      "default": "HS256, 21600, 900",
+      "effect": "narrows P-LIFETIMES; narrows P-MEDIA-LINK",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "name": "VALIDATE_CERTS (mail), IMAP security: none, http:// model URLs",
+      "default": "certs checked",
+      "effect": "narrows P-SECRETS",
+      "discouraged": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    }
+  ],
+  "adversaries": {
+    "in_scope": [
+      "anonymous-internet-visitor",
+      "link-holder",
+      "signed-in-person-no-role",
+      "namespace-viewer-editor-owner",
+      "api-token-oauth-app-mcp-agent",
+      "content-author",
+      "lan-host-or-device",
+      "network-attacker-on-path"
+    ],
+    "out_of_scope": [
+      "instance-admin",
+      "host-operator-log-readers-backup-recipients",
+      "worker-host-db-credential-holder",
+      "upstream-publishers-cloudflare-providers"
+    ],
+    "provenance": "inferred"
+  },
+  "properties_provided": [
+    {
+      "property": "P-NS-ISOLATION",
+      "violation_symptom": "info-leak, integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "a principal with no role in a namespace and no grant for a recording cannot read or change anything in it, except what the recording's access level opens to anyone (P-ACCESS-PARTS); the namespace and its recordings answer 404; grants for one recording open only that recording's visitor pages and IIIF",
+      "provenance": "documented",
+      "source": "SECURITY.md \"reading or changing anything in a namespace you have no role in\""
+    },
+    {
+      "property": "P-ACCESS-PARTS",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "a closed part of a public recording, and any restricted or private recording, opens only for a role, permission, IP group or link; a closed transcript's text stays out of search and downloads; only owners change access and open parts",
+      "provenance": "documented",
+      "source": "docs/access.md \"the parts of a public recording anyone may use\""
+    },
+    {
+      "property": "P-ROLE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and editor or owner; publishing and access changes need owner, through every API path",
+      "provenance": "documented",
+      "source": "SECURITY.md \"doing more than your role allows\""
+    },
+    {
+      "property": "P-NO-INJECTION",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "request text does not inject into database queries, a shell or the processing tools",
+      "provenance": "documented",
+      "source": "SECURITY.md \"injection into the database queries, the shell\""
+    },
+    {
+      "property": "P-MEDIA-LINK",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "media, frames, documents and reports open without a session only through a link the server signed for that path, or a live share link; text people or models write is never signed",
+      "provenance": "documented",
+      "source": "docs/architecture.md \"is never signed\""
+    },
+    {
+      "property": "P-SHARE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "a share link opens one recording, read-only; it expires and can be revoked; only hashes are stored; a dead link answers the same 410 whatever went wrong",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"give read-only access to one recording's player and embed\""
+    },
+    {
+      "property": "P-AUTH-REQ",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "a request is authenticated only if its bearer verifies and the account and session are live; sign-out and disabling take effect at once, for every token kind; revoking an app grant or API token ends its tokens at once",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Every request checks that the account is still active\""
+    },
+    {
+      "property": "P-BEARER-ONLY",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "/api/v1 takes bearer tokens only, never cookies; the IIIF authorization flow and the web app's NextAuth handlers are the cookie surfaces",
+      "provenance": "documented",
+      "source": "docs/architecture.md \"so there is no CSRF surface\""
+    },
+    {
+      "property": "P-SETUP-ONCE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "no public sign-up; only the one-time setup code makes the first admin, and it dies once an account exists",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"so a stranger who finds a new\""
+    },
+    {
+      "property": "P-ONCE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "sign-in links, WebAuthn flows, sign-in tickets, OAuth codes and external-login states work once; a refused or failed attempt consumes nothing",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"works once\""
+    },
+    {
+      "property": "P-REUSE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "a rotated web refresh token replayed after 60 s ends the whole session; a rotated OAuth refresh token replayed within 60 s is refused and changes nothing, after that it ends the grant; a spent OAuth code replayed ends the grant",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"A swapped one that comes back within 60 seconds is refused\""
+    },
+    {
+      "property": "P-LIFETIMES",
+      "violation_symptom": "bad-data-accepted",
+      "severity_tier": "correctness",
+      "conditions": "access JWT 900 s; sign-in link 72 h, emailed links 60 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"A link lasts three days\""
+    },
+    {
+      "property": "P-OAUTH",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "PKCE (S256) required; redirects must match a registered URI; addresses with a user name or backslash refused; the consent page cannot be framed; app tokens act as the person and never administer; /mcp refuses a token issued for another server, caps bodies at 1 MB and batches at 20",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"PKCE is required\""
+    },
+    {
+      "property": "P-PASSWORDS-OFF",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "with passwords off, password sign-in, changes and resets answer 403",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"With passwords off, password sign-in\""
+    },
+    {
+      "property": "P-THROTTLE",
+      "violation_symptom": "x-brute-force",
+      "severity_tier": "correctness",
+      "conditions": "failed password sign-ins are throttled per email and address (8 per 15 minutes); unknown emails take as long to reject as wrong passwords; in both compose files each visitor gets their own throttle",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"throttled per email and address\""
+    },
+    {
+      "property": "P-IPGROUP",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "an address opens an IP group only when the server can vouch for it, through server.trusted_proxies or LENS_TRUSTED_PROXY_HOSTS; both compose files trust the web app container so IP groups see real addresses; elsewhere a reverse proxy must set X-Forwarded-For (other variants: Q2)",
+      "provenance": "documented",
+      "source": "docs/access.md \"An address the server can't vouch for opens nothing\""
+    },
+    {
+      "property": "P-HOST",
+      "violation_symptom": "bad-data-accepted",
+      "severity_tier": "correctness",
+      "conditions": "the Host header must be a served host; this stops DNS rebinding",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"stops DNS rebinding\""
+    },
+    {
+      "property": "P-FRAME",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "the API sends a strict CSP; only the player (/embed/<id>, /s/<code>) can be framed, and only by server.embed_frame_ancestors",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"can be framed\""
+    },
+    {
+      "property": "P-HARDENED",
+      "violation_symptom": "x-missing-hardening",
+      "severity_tier": "correctness",
+      "conditions": "in the compose files the database, API and Fedora ports bind to 127.0.0.1, containers run non-root with no-new-privileges, and the web app sends nosniff, a referrer policy, a permissions policy and a frame policy (HSTS through Cloudflare); in docker-compose.prod.yml the DB password is random and the web app listens on this machine unless LENS_BIND is set",
+      "provenance": "documented",
+      "source": "docs/deployment.md \"What's hardened already\""
+    },
+    {
+      "property": "P-SECRETS",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "stored secrets (source credentials, notification secrets, model API keys, iCal addresses) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server",
+      "provenance": "documented",
+      "source": "SECURITY.md \"stored credentials for sources and model servers leaking\""
+    },
+    {
+      "property": "P-SSRF-GUARD",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address",
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "property": "P-ADMIN-GUARD",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "guards Lens documents on admin-set operands hold: iCal feeds are fetched like web captures (public addresses only and documents.web_networks, ports 80 and 443, the password never goes on to a server the calendar redirects to); the telemetry endpoint cannot carry a user name or password or be a link-local address",
+      "provenance": "documented",
+      "source": "docs/processing.md \"fetched the way web pages are captured\""
+    },
+    {
+      "property": "P-NO-FETCH",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "SPARQL refuses SERVICE and FROM and never loads a named graph; RDF import fetches nothing, refuses remote JSON-LD contexts and does not read RDF/XML",
+      "provenance": "documented",
+      "source": "rdf_import.py docstring \"Nothing is fetched while reading\""
+    },
+    {
+      "property": "P-QUERY",
+      "violation_symptom": "integrity-bypass, hang",
+      "severity_tier": "security",
+      "conditions": "Cypher is read-only and runs on the caller's readable namespaces; a query stops within 3 million steps or 8 seconds; paths run up to 8 hops",
+      "provenance": "documented",
+      "source": "docs/graph.md \"3 million steps\""
+    },
+    {
+      "property": "P-RETRIEVAL",
+      "violation_symptom": "info-leak, hang",
+      "severity_tier": "security",
+      "conditions": "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"limited to what the person can read\""
+    },
+    {
+      "property": "P-APPROVAL",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Approvals\""
+    },
+    {
+      "property": "P-EXT-SCOPE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "your own hooks run in your conversations; another person's hooks run only when an admin shared them",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"other people's run only when an admin shared them\""
+    },
+    {
+      "property": "P-NO-CODE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "no non-admin can run code on the host (owners, editors, viewers, API tokens, MCP agents, OAuth apps and model tool calls acting for one); Python tools are written by admins only and run only while an admin owns them",
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "property": "P-UPLOAD",
+      "violation_symptom": "bad-data-accepted",
+      "severity_tier": "security",
+      "conditions": "uploads accept only the types in uploads.extensions and are size-capped; nothing uploaded is executed; files are served as audio, video or a download, and names carry no folders",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"Uploads accept only the types\""
+    },
+    {
+      "property": "P-CONVERT-OFFLINE",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "Chromium and LibreOffice reach nothing while converting; HTML is cleaned of anything that could fetch or run",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"Neither may reach anything\""
+    },
+    {
+      "property": "P-TEMPLATE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "templates render in a sandboxed Jinja environment; they cannot reach Python internals, output is capped, and reports escape HTML",
+      "provenance": "documented",
+      "source": "docs/processing.md \"sandboxed Jinja environment\""
+    },
+    {
+      "property": "P-ENCRYPTION",
+      "violation_symptom": "info-leak, integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "with encryption.files on, files are encrypted per namespace; a file cut short, edited or reordered fails to open; a vault has no recovery code, password or admin override, and separate workers never get its key",
+      "provenance": "documented",
+      "source": "docs/encryption.md \"There is no recovery code, password or admin override\""
+    },
+    {
+      "property": "P-TELEMETRY",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "telemetry is off unless turned on, has no built-in destination, and never sends content, names, addresses or error messages",
+      "provenance": "documented",
+      "source": "docs/telemetry.md \"Never sent\""
+    },
+    {
+      "property": "P-MODEL-CHECKSUM",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "catalog GGUF models are pinned to a revision and checked against their SHA-256",
+      "provenance": "documented",
+      "source": "docs/local-models.md \"checked against their SHA-256\""
+    },
+    {
+      "property": "P-SENSORS",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "sensors are off until an admin enables them; MQTT needs a hub login unless mqtt_anonymous is on; syslog hears only listed networks",
+      "provenance": "documented",
+      "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
+    },
+    {
+      "property": "P-CHILD-SECRETS",
+      "violation_symptom": "info-leak",
+      "severity_tier": "correctness",
+      "conditions": "the tunnel token reaches cloudflared in its environment, not its command line; llama-server gets its own random API key",
+      "provenance": "documented",
+      "source": "docs/remote-access.md \"in its environment, not on its command line\""
+    },
+    {
+      "property": "P-REMOTE-NAMES",
+      "violation_symptom": "wrong-output",
+      "severity_tier": "correctness",
+      "conditions": "an IMAP message is named by mailbox validity and uid, so a rebuilt mailbox never serves another message under an old name",
+      "provenance": "documented",
+      "source": "docs/processing.md \"an old one never reads another message\""
+    },
+    {
+      "property": "P-NOTIFY",
+      "violation_symptom": "wrong-output",
+      "severity_tier": "correctness",
+      "conditions": "each notification event is claimed once across processes and retried with backoff",
+      "provenance": "documented",
+      "source": "docs/notifications.md \"claimed once\""
+    },
+    {
+      "property": "P-HIERARCHY",
+      "violation_symptom": "bad-data-accepted",
+      "severity_tier": "correctness",
+      "conditions": "collections nest at most 8 deep, without cycles, 5000 per namespace",
+      "provenance": "documented",
+      "source": "docs/api.md \"at most 8 deep\""
+    },
+    {
+      "property": "P-FLOW",
+      "violation_symptom": "hang",
+      "severity_tier": "correctness",
+      "conditions": "flow and tool graphs never loop back and run within a step budget",
+      "provenance": "documented",
+      "source": "domain/flow.py docstring \"Graphs never loop back\""
+    },
+    {
+      "property": "MX-AUTHZ-LIST-CAPS",
+      "violation_symptom": "x-cap-exceeded",
+      "severity_tier": "correctness",
+      "conditions": "/recordings returns at most 1000 rows; other lists capped per route; REST offset uncapped (N-VOLUME)",
+      "provenance": "documented",
+      "source": "docs/api.md \"at most 1000\""
+    },
+    {
+      "property": "MX-OUTBOUND-KEY-ROTATION",
+      "violation_symptom": "wrong-output",
+      "severity_tier": "correctness",
+      "conditions": "a new key makes stored credentials and encrypted files unreadable (keep keys stable; §1.13)",
+      "provenance": "documented",
+      "source": "docs/deployment.md \"Stable secrets\""
+    }
+  ],
+  "properties_not_provided": [
+    {
+      "property": "N-ADMIN",
+      "reason": "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "property": "N-EGRESS",
+      "reason": "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "property": "N-CODE-GUARD",
+      "reason": "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "domain/code_tools.py docstring \"they aren't a wall\""
+    },
+    {
+      "property": "N-DOWNLOADS",
+      "reason": "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10"
+    },
+    {
+      "property": "N-DB-PLAIN",
+      "reason": "encryption of the SurrealDB content (transcripts, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/encryption.md \"the SurrealDB database itself\""
+    },
+    {
+      "property": "N-KEY-WITH-DATA",
+      "reason": "key separation; unless ARCHIVE_SECRET_KEY comes from outside, secret.key lives in data_dir next to the sealed rows and the backups; a copy of data_dir opens sealed secrets and server-wrapped file keys",
+      "false_friend": true,
+      "provenance": "inferred",
+      "source": "open question Q14"
+    },
+    {
+      "property": "N-SIGNED-BEARER",
+      "reason": "identity binding or early revocation for signed links; a link opens its path for whoever holds it until it expires (6 h; IIIF 1 h); path, expiry and full are bound, extra query parameters are not; which fields get signed is P-MEDIA-LINK",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "core/security.py sign_path docstring \"grants read access to exactly this path until it expires\""
+    },
+    {
+      "property": "N-LINK-AFTER-ROLE",
+      "reason": "re-checks of share links and report links against the creator's current role; share links last until expiry or revocation",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q10"
+    },
+    {
+      "property": "N-IDS",
+      "reason": "secret identifiers; recording and entity ids are sequential and authorization never relies on them; short share codes are about 58 bits; a route that relied on id secrecy breaks P-NS-ISOLATION instead",
+      "false_friend": true,
+      "provenance": "inferred",
+      "source": "open question Q6"
+    },
+    {
+      "property": "N-APP-LAYER",
+      "reason": "database-enforced tenant isolation; every namespace is rows in one SurrealDB database under one credential; anyone with the DB credential or a worker host sees all namespaces",
+      "false_friend": true,
+      "provenance": "inferred",
+      "source": "open question Q9"
+    },
+    {
+      "property": "N-XFF",
+      "reason": "trust in visitor addresses without a correct proxy chain; covers proxy chains the operator builds; the compose files' own chain is claimed (P-IPGROUP, P-THROTTLE); other shipped variants are Q2",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/configuration.md \"Without it, a visitor can claim any address\""
+    },
+    {
+      "property": "N-WEBGATE",
+      "reason": "authorization in the web app; proxy.ts redirects pages, the API decides; /api, /mcp, /iiif, /embed, /s bypass the page gate",
+      "false_friend": true,
+      "provenance": "inferred",
+      "source": "open question Q8"
+    },
+    {
+      "property": "N-HOST",
+      "reason": "authentication from the Host allowlist; it stops DNS rebinding only; every request; * turns the check off",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/configuration.md \"stops DNS rebinding\""
+    },
+    {
+      "property": "N-CSRF",
+      "reason": "anti-CSRF tokens on the API; a cross-site request carries no credential because the API takes bearer tokens only (P-BEARER-ONLY); /api/v1 only; the IIIF cookie flow (Q1) and NextAuth handlers are not covered; stated mechanism, not silence",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/architecture.md \"so there is no CSRF surface\""
+    },
+    {
+      "property": "N-HEADERS",
+      "reason": "hardening headers as findings without an attack; headers no §1.11 property names (for example HSTS outside Cloudflare, a full CSP on web app pages); excludes P-FRAME, P-HARDENED, P-OAUTH's consent page and P-HOST; a missing header with a working attack is judged on that attack",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "SECURITY.md \"missing hardening headers with no\""
+    },
+    {
+      "property": "N-VOLUME",
+      "reason": "protection against denial of service by volume: rate limits on read APIs, connection counts on the MQTT and syslog listeners, an uncapped offset on the REST list routes; size caps and budgets §1.11 states (P-OAUTH, P-UPLOAD, P-QUERY, P-RETRIEVAL) are claimed, not covered here; does not cover /mcp tool arguments (unresolved, Q47)",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "SECURITY.md \"denial of service by sheer volume\""
+    },
+    {
+      "property": "N-BUDGET",
+      "reason": "hard cost caps; budgets are pre-run estimates and off by default; model and pipeline cost, not request volume",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/budgets.md \"Budgets are off unless an admin sets one\""
+    },
+    {
+      "property": "N-THROTTLE-SCOPE",
+      "reason": "throttles beyond the documented sign-in flows, or across processes and restarts: unauthenticated refresh, ticket, forgot, OAuth token routes and share-code guessing; setup routes are not covered (Q42)",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q5"
+    },
+    {
+      "property": "N-REVOKE-TOKENS",
+      "reason": "revocation of API tokens, app grants and IIIF cookies on password change, reset or passkey removal; disabling the account, or revoking the grant, still stops them",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q3"
+    },
+    {
+      "property": "N-OIDC",
+      "reason": "ID-token or nonce checks; Lens reads identity from the provider's token and userinfo endpoints over TLS; the external flow's state, PKCE and browser cookie still bind the callback (P-ONCE); stated mechanism, not silence",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/authentication.md \"token and userinfo endpoints\""
+    },
+    {
+      "property": "N-PROVIDER",
+      "reason": "protection from a provider that vouches falsely for an email; admin-chosen providers; Microsoft common tenant is not trusted for email",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/authentication.md \"when the provider vouches for the email\""
+    },
+    {
+      "property": "N-LOG-SETUP",
+      "reason": "secrecy of the setup code and logged sign-in links from log readers, until the first admin exists, and links when mail is not set; stored credentials are not covered (P-SECRETS, Q32)",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/authentication.md \"the API prints in its log\""
+    },
+    {
+      "property": "N-HTTP-SETUP",
+      "reason": "passkey protection on plain HTTP; there the code alone makes the admin and a link alone signs in; plain HTTP is supported on one machine only",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/authentication.md \"the code alone makes the admin\""
+    },
+    {
+      "property": "N-OAUTH-CLIENT",
+      "reason": "checking the app's state or guarding its redirect after the code arrives; registration is open, consent is the gate; the app's side only; Lens's redirect-URI, PKCE and consent checks are P-OAUTH",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Apps register themselves\""
+    },
+    {
+      "property": "N-CHROMIUM",
+      "reason": "Chromium's own sandbox in containers or as root; the netguard proxy is what stops a page; conversion and capture",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/deployment.md \"what stops a page is Lens's proxy\""
+    },
+    {
+      "property": "N-DECODERS",
+      "reason": "sandboxing or memory-safety for ffmpeg, poppler, antiword and similar decoders; memory bugs inside them route to §1.9; does not cover Lens's own process control (timeouts, killing children): that is the unresolved x-process-control row",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q20"
+    },
+    {
+      "property": "N-BOMBS",
+      "reason": "bounds on decompressed size, nested emails or media duration (docx XML, email attachments, long media); does not cover a conversion or capture outliving Lens's own timeout (x-process-control, Q20)",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q22"
+    },
+    {
+      "property": "N-PROMPT",
+      "reason": "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; exfiltration through rendered answers is Q26",
+      "false_friend": true,
+      "provenance": "inferred",
+      "source": "open question Q26"
+    },
+    {
+      "property": "N-MODEL-OUTPUT",
+      "reason": "correct or grounded model output; answers can be wrong; checking sources re-asks the same model",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Check sources\""
+    },
+    {
+      "property": "N-REMOTE",
+      "reason": "trust in remote content (storage listings, mail, calendars, IIIF manifests, model replies), treated as data; does not cover Lens's own cache keys or names for remote content (P-REMOTE-NAMES, Q43)",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q17"
+    },
+    {
+      "property": "N-ADMIN-IMPORT-BOUNDS",
+      "reason": "resource bounds on admin-started imports and syncs, and SPARQL time; IIIF media up to 4 GB in memory; rclone without byte cap",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q16"
+    },
+    {
+      "property": "N-ATOMIC",
+      "reason": "all-or-nothing moves, merges, graph undo, RDF import; exactly-once job steps; delete commits DB rows atomically, files after; partial state never widens access, and if it does, P-NS-ISOLATION applies",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q12"
+    },
+    {
+      "property": "N-CHAT-HISTORY",
+      "reason": "re-filtering saved assistant answers after access is lost (only cited passages are filtered); text the same person already saw in their own saved chats, nothing new",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q11"
+    },
+    {
+      "property": "N-ENUM",
+      "reason": "hiding account or object existence outside password sign-in and signed-in 404s: passkey 404, external messages, anonymous 401 vs 404",
+      "false_friend": false,
+      "provenance": "inferred",
+      "source": "open question Q6"
+    },
+    {
+      "property": "N-AUDIT",
+      "reason": "tamper evidence or completeness of the audit and activity logs; sign-in requests are not logged there; operations record only; admins read it",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/activity.md \"aren't logged here\""
+    },
+    {
+      "property": "N-MQTT-SUBSCRIBE",
+      "reason": "topic isolation on the MQTT hub: anything can subscribe to it, with + and #; signed-in or anonymous-when-enabled clients",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/sensors.md \"anything can subscribe to it\""
+    },
+    {
+      "property": "N-BRIDGE",
+      "reason": "per-person access in chat rooms; the bridge answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28)",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/chat-rooms.md \"answers as the admin who turned it on\""
+    },
+    {
+      "property": "N-PUBLIC",
+      "reason": "privacy of a public recording's open parts: anyone may use them; open parts only; closed parts and restricted or private recordings are P-ACCESS-PARTS",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/access.md \"the parts of a public recording anyone may use\""
+    },
+    {
+      "property": "N-DESCRIPTION",
+      "reason": "hiding a recording's description when its parts are closed; anyone who may see the page",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "docs/access.md \"never a closed part\""
+    },
+    {
+      "property": "N-RDF-XML",
+      "reason": "XML parsing in RDF import; RDF/XML is refused, so XXE and billion-laughs do not apply there; RDF import only, not docx",
+      "false_friend": false,
+      "provenance": "documented",
+      "source": "rdf_import.py docstring \"RDF/XML isn't read\""
+    }
+  ],
+  "attack_classes": [
+    "read-archives",
+    "claim-admin",
+    "obtain-links",
+    "widen-link",
+    "read-other-namespaces",
+    "cross-namespace-access",
+    "ssrf",
+    "code-execution",
+    "act-beyond-scope",
+    "parser-compromise",
+    "ssrf-through-redirects",
+    "prompt-injection",
+    "inject-readings",
+    "read-readings",
+    "steal-sessions"
+  ],
+  "downstream_responsibilities": [
+    "Put everything behind HTTPS before exposing it beyond one machine, and set server.secure_cookies: true there",
+    "Use docker-compose.prod.yml or an installer, never dev compose, and set unique secrets",
+    "Change the SurrealDB credential when SurrealDB runs as its own server",
+    "Outside the compose files, put a reverse proxy in front of the web app that sets X-Forwarded-For",
+    "List exactly the front hops in server.trusted_proxies or LENS_TRUSTED_PROXY_HOSTS",
+    "Enable TRUST_PROXY_HEADERS only behind a proxy that sets X-Forwarded-Host",
+    "List served hosts in server.allowed_hosts; never * on an exposed host",
+    "Set iiif.allowed_origins to trusted viewer sites",
+    "Keep ACCESS_SECRET_KEY and ARCHIVE_SECRET_KEY stable and backed up; rotate ACCESS_SECRET_KEY to cut every outstanding signed link",
+    "Back up the key separately from the data; prefer ARCHIVE_SECRET_KEY from outside the volume; protect backups like the data",
+    "Put the data volume on an encrypted disk",
+    "Treat the server log as secret until the first admin exists, and while mail is unset",
+    "Make only fully trusted people admins",
+    "Choose identity providers that verify emails",
+    "After a password change or suspected theft, revoke API tokens and app grants, or disable the account",
+    "List private networks in documents.web_networks or notifications.networks only on purpose",
+    "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address",
+    "Give the chat-room bridge its own low-role account",
+    "Run workers only on trusted hosts; they hold the DB credential",
+    "Pick model and speech servers you trust with transcripts and audio",
+    "Run conversion where Chromium can keep its sandbox (non-root, user namespaces)",
+    "Enable another person's extension only when you trust its author",
+    "Escape exported text, RDF, IIIF metadata and assistant output for your own sink",
+    "Treat transcript text and MCP results as untrusted prompt input in your agents",
+    "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS",
+    "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets",
+    "Keep logs that record request paths private when sensor push tokens are in use"
+  ],
+  "known_misuse": [
+    {
+      "pattern": "Running docker-compose.yml on a server",
+      "why_unsafe": "Known secrets forge media links and session cookies",
+      "instead": "Use docker-compose.prod.yml or an installer"
+    },
+    {
+      "pattern": "Copying .env.example without changing ACCESS_SECRET_KEY",
+      "why_unsafe": "The example passes the length check and is public",
+      "instead": "Generate a random key"
+    },
+    {
+      "pattern": "Broad server.trusted_proxies (for example a whole LAN)",
+      "why_unsafe": "Any host in it can claim any visitor address and open IP groups",
+      "instead": "List only the proxy hops"
+    },
+    {
+      "pattern": "An IP group for everything with no reverse proxy outside compose",
+      "why_unsafe": "Visitors choose their own address",
+      "instead": "Add a proxy that sets X-Forwarded-For"
+    },
+    {
+      "pattern": "Pasting signed media links into chats or tickets",
+      "why_unsafe": "Anyone with the link opens the media until it expires",
+      "instead": "Share a revocable share link instead"
+    },
+    {
+      "pattern": "Enabling a teammate's shared extension without reading it",
+      "why_unsafe": "Its http tool can send your readable data to its author's host",
+      "instead": "Enable only extensions you trust (Q27)"
+    },
+    {
+      "pattern": "Turning on the chat-room bridge without its own account",
+      "why_unsafe": "The room reads as the admin",
+      "instead": "Give the bridge a low-role account"
+    },
+    {
+      "pattern": "Making someone admin so they can write a Python tool",
+      "why_unsafe": "Admin equals host code execution",
+      "instead": "Use prompt, graph or http tools"
+    },
+    {
+      "pattern": "Wide LENS_WEB_NETWORKS",
+      "why_unsafe": "Editors, and iCal feed redirects, can then reach those networks",
+      "instead": "List single hosts"
+    },
+    {
+      "pattern": "Webhook push token in a URL that proxies log",
+      "why_unsafe": "The token is a credential in the path",
+      "instead": "Use the header form"
+    },
+    {
+      "pattern": "Pointing the assistant at a hosted model for sensitive archives",
+      "why_unsafe": "Transcripts leave the machine",
+      "instead": "Use a local model server"
+    }
+  ],
+  "known_non_findings": [
+    {
+      "reported_as": "A signed link works without a session, or after sign-out or role loss",
+      "why_safe": "Covers authz; symptom 'info-leak to a link holder'. Exact-match conditions (§1.15): The server issued the link through an allow-listed field (`media.LINK_KEYS`), to a principal who could read that path when it was issued, and it is within its expiry. A link minted from text people or models wrote is P-MEDIA-LINK, not this entry.",
+      "cites": "properties_not_provided[6]",
+      "suppression": "The server issued the link through an allow-listed field (media.LINK_KEYS), to a principal who could read that path when it was issued, and it is within its expiry. A link minted from text people or models wrote is P-MEDIA-LINK, not this entry"
+    },
+    {
+      "reported_as": "A recording's description shows while its parts are closed",
+      "why_safe": "Covers authz; symptom 'info-leak of description'. Exact-match conditions (§1.15): The field is the description, shown to someone who may see the page.",
+      "cites": "properties_not_provided[38]",
+      "suppression": "The field is the description, shown to someone who may see the page"
+    },
+    {
+      "reported_as": "A logged-in device subscribes to # and reads other streams",
+      "why_safe": "Covers optional; symptom 'info-leak between devices'. Exact-match conditions (§1.15): Sensors on; the client holds a hub login or anonymous mode is on.",
+      "cites": "properties_not_provided[35]",
+      "suppression": "Sensors on; the client holds a hub login or anonymous mode is on"
+    },
+    {
+      "reported_as": "Chromium starts with --no-sandbox",
+      "why_safe": "Covers ingest; symptom 'missing sandbox flag'. Exact-match conditions (§1.15): Running as root or without user namespaces; the `netguard` proxy is in the path.",
+      "cites": "properties_not_provided[24]",
+      "suppression": "Running as root or without user namespaces; the netguard proxy is in the path"
+    },
+    {
+      "reported_as": "A scanner flags rdflib's XML parser",
+      "why_safe": "Covers query; symptom 'XXE, billion laughs'. Exact-match conditions (§1.15): The input reaches RDF import, which refuses RDF/XML.",
+      "cites": "properties_not_provided[39]",
+      "suppression": "The input reaches RDF import, which refuses RDF/XML"
+    },
+    {
+      "reported_as": "The setup code or a sign-in link appears in the server log",
+      "why_safe": "Covers identity; symptom 'info-leak to log readers'. Exact-match conditions (§1.15): Read from the log by someone with log access.",
+      "cites": "properties_not_provided[21]",
+      "suppression": "Read from the log by someone with log access"
+    }
+  ],
+  "dispositions": [
+    "valid",
+    "valid_hardening",
+    "out_of_model_trusted_input",
+    "out_of_model_adversary",
+    "out_of_model_unsupported_component",
+    "out_of_model_non_default_build",
+    "by_design_disclaimed",
+    "known_non_finding",
+    "model_gap"
+  ],
+  "open_questions": [
+    {
+      "claim": "Q1: `iiif.allowed_origins` defaults to `[\"*\"]`, and the IIIF cookie is `SameSite=None`. Is that default supported on an exposed host?",
+      "field": "build_variants, downstream_responsibilities, properties_not_provided",
+      "proposed": "no; on an exposed host the operator lists trusted viewer origins, and a report that needs `*` routes `OUT-OF-MODEL: non-default-build`. Alternative: supported, and §1.12 disclaims that any site can get an IIIF token for a person signed in to IIIF."
+    },
+    {
+      "claim": "Q2: Outside the compose files (web app alone, `install.sh`, NAS packages, Proxmox), is IP-group and throttle trust promised as shipped, or only behind a reverse proxy that sets `X-Forwarded-For`?",
+      "field": "properties_provided, properties_not_provided, downstream_responsibilities",
+      "proposed": "each shipped variant promises a correct trusted-proxy chain by default, as the compose files do; a shipped variant that makes visitors share one address, or lets them claim one, is `VALID` under P-IPGROUP or P-THROTTLE. A chain the operator builds stays N-XFF."
+    },
+    {
+      "claim": "Q3: Do a password change, a reset or \"remove all passkeys\" end API tokens, app grants and IIIF cookies?",
+      "field": "properties_not_provided",
+      "proposed": "no; disclaim. Disabling the account ends them all."
+    },
+    {
+      "claim": "Q4: Is the 168-hour web session sliding (reset on each refresh) or absolute?",
+      "field": "properties_not_provided",
+      "proposed": "sliding; no absolute cap is promised."
+    },
+    {
+      "claim": "Q5: Anonymous `refresh`, `ticket`, `password/forgot`, `passkey/options`, `oauth/token` and short-share-code guesses are unthrottled; counters are per process and reset on restart; each API process has its own setup code unless `LENS_SETUP_CODE` is set; expiry uses wall-clock time. Disclaim all of these?",
+      "field": "properties_not_provided, environment",
+      "proposed": "yes. These are volume attacks on secrets of 58 bits or more."
+    },
+    {
+      "claim": "Q6: Existence leaks: the passkey 404, external-login messages that echo an email, anonymous 401 versus 404, and sequential ids. Disclaim?",
+      "field": "properties_not_provided",
+      "proposed": "yes, correctness-only. Only password sign-in and signed-in 404s promise non-disclosure."
+    },
+    {
+      "claim": "Q7: A share token (`?s=`) works on the audio, video, frames and page API routes, not only the player and embed. By design?",
+      "field": "properties_provided",
+      "proposed": "yes; it grants viewer on that one recording on any route that takes `s`."
+    },
+    {
+      "claim": "Q8: Each handler checks its own role, with no central policy. Is that the contract for the roughly 370 routes read by gate only? Is the public surface just the auth, OAuth, passkey, external-login, sensor-push, `/public`, IIIF, embed and share routes? Do role changes apply on the next request? Is `proxy.ts` only a page gate?",
+      "field": "entry_points, properties_not_provided",
+      "proposed": "yes to all. A route that skips its check breaks P-NS-ISOLATION."
+    },
+    {
+      "claim": "Q9: All namespaces share one database and credential. Are worker hosts and credential holders trusted peers, so a DB-level compromise voids isolation by design?",
+      "field": "adversaries, properties_not_provided",
+      "proposed": "yes; disclaim."
+    },
+    {
+      "claim": "Q10: Share links survive the creator losing their role. Report links sign media for every recording in the page. Signed links outlive role removal and moves. By design?",
+      "field": "properties_not_provided",
+      "proposed": "yes; disclaim. Revoke shares, or rotate `ACCESS_SECRET_KEY`."
+    },
+    {
+      "claim": "Q11: Saved assistant answers are not re-filtered after access is lost; only cited passages are. Accept, limited to text the same person already saw?",
+      "field": "properties_not_provided",
+      "proposed": "yes; correctness-only."
+    },
+    {
+      "claim": "Q12: Delete commits rows atomically and removes files after. Move, merge, graph undo and RDF import are stepwise. Job steps run at least once and are not rolled back. Disclaim, provided partial state never widens access?",
+      "field": "properties_not_provided",
+      "proposed": "yes; partial state is possible after a crash."
+    },
+    {
+      "claim": "Q13: `docs/mcp.md` opens \"Everything it can do only reads\", yet three write tools exist. Is the \"Every tool reads, except\" paragraph the contract? Are tokens naming no server accepted at `/mcp` by design?",
+      "field": "properties_provided",
+      "proposed": "yes to both; write tools need write scope and the editor role."
+    },
+    {
+      "claim": "Q14: `secret.key` sits in `data_dir` with the sealed rows and backups. Does \"encrypted at rest\" protect only against a database-only or export-only leak?",
+      "field": "properties_not_provided, adversaries",
+      "proposed": "yes; disclaim a stolen `data_dir` that holds the key."
+    },
+    {
+      "claim": "Q15: Notification targets may use any port; the guard checks addresses only. By design?",
+      "field": "properties_provided",
+      "proposed": "yes."
+    },
+    {
+      "claim": "Q16: IIIF import holds media up to 4 GB in memory, rclone copies have no byte cap, and SPARQL has no time bound. Guarantee or disclaim?",
+      "field": "properties_not_provided",
+      "proposed": "disclaim; admin-started. (Listener connection counts moved to N-VOLUME.)"
+    },
+    {
+      "claim": "Q17: Remote content (storage, mail, calendars, IIIF manifests, model replies) is untrusted data. Remote names become local paths only through hashes and `clean_name`. Symlinks inside `sources.local_roots` are followed. Confirm?",
+      "field": "entry_points, adversaries, properties_not_provided",
+      "proposed": "yes to all."
+    },
+    {
+      "claim": "Q18: Error text from admin-set servers (up to 300 characters of the reply, internal host names, a URL as typed) may reach the person whose action triggered the call. Accept?",
+      "field": "outputs (§1.8; YAML only, no JSON field)",
+      "proposed": "yes; credentials typed into a URL are the admin's choice."
+    },
+    {
+      "claim": "Q19: Side-effect holes: optional extras fetch weights; plain `urllib` callers honour `HTTP(S)_PROXY`; the loopback guard proxy is usable by local processes during a capture; SPARQL sets a process-global flag; temp files live outside `data_dir`; the web app was not scanned. Is this the full list?",
+      "field": "environment",
+      "proposed": "yes; same-host processes are trusted."
+    },
+    {
+      "claim": "Q20: Every subprocess takes an argument list with server-built paths, never a shell, and decoder memory bugs are upstream. Lens promises arguments, timeouts and process-group kills, not a sandbox. Is a conversion or capture that outlives its timeout, or leaves children alive after a kill (a print command that never finishes, a hung LibreOffice), a Lens defect?",
+      "field": "environment, properties_provided, properties_not_provided",
+      "proposed": "yes; claim P-CONVERT-TIMEOUT (every conversion and capture ends within its timeout, with its whole process group), correctness-only. Alternative: disclaim in N-DECODERS."
+    },
+    {
+      "claim": "Q21: Lens passes no `-protocol_whitelist` to ffmpeg. If an upload (`.m3u8` playlist or concat file) makes ffmpeg read another local file or fetch a URL, is that a breach?",
+      "field": "properties_provided, properties_not_provided",
+      "proposed": "yes, `VALID` under P-NO-INJECTION. Alternative: disclaim demuxer behaviour in §1.12."
+    },
+    {
+      "claim": "Q22: docx XML is read whole; emails nest without a depth cap; some decoders lack a timeout; media duration is unbounded. Guarantee or disclaim?",
+      "field": "properties_not_provided",
+      "proposed": "disclaim size, nesting and duration; a stuck job is requeued after `stale_minutes`. Timeouts themselves are Q20."
+    },
+    {
+      "claim": "Q23: Any writer can use a `template` node in a custom node. Is the Jinja sandbox a security guarantee for that reach?",
+      "field": "properties_provided",
+      "proposed": "yes; an escape there is `VALID` under P-NO-CODE."
+    },
+    {
+      "claim": "Q24: Is stored text from a lower role running as script in another person's browser (notes, transcripts, a `javascript:` link in the notes editor, the player) a promised boundary? Do consumers outside Lens own escaping for exports and RDF?",
+      "field": "properties_provided",
+      "proposed": "yes to both. Stored XSS inside the web app is `VALID`."
+    },
+    {
+      "claim": "Q25: Cypher refuses nested repeats heuristically; one regex match cannot be stopped mid-way. Admin workflow regexes are unguarded. Is the 8-second budget a guarantee?",
+      "field": "properties_provided, properties_not_provided",
+      "proposed": "a correctness-only guarantee; ReDoS past the heuristic is volume-class; admin regexes are trusted."
+    },
+    {
+      "claim": "Q26: Prompt injection from content is disclaimed when it only changes the model's words or writes a note in a namespace the person can edit, and `VALID` only when it crosses the person's reads, approvals or role. What about injected text that makes an answer carry readable text to an attacker URL (a rendered image or link)?",
+      "field": "properties_not_provided, adversaries, known_misuse",
+      "proposed": "confirm the first part, including that `write_note` needs no approval. For the egress channel: answers must not fetch on render, so such a report is `VALID-HARDENING`. Alternative: disclaim it in N-PROMPT."
+    },
+    {
+      "claim": "Q27: An extension's `effect: read` label is the author's word, and a shared `http` tool can send a user's readable data to the author's host. Does another person's tool run in my assistant only when an admin shared it or I enabled it, and can tool arguments change the `http` tool's host?",
+      "field": "properties_provided, properties_not_provided, known_misuse",
+      "proposed": "claim P-EXT-SCOPE for tools too (another person's tool runs only when an admin shared it or I enabled it; arguments never change the host), security-critical. Alternative: disclaim, and enabling another person's extension is an act of trust."
+    },
+    {
+      "claim": "Q28: The chat-room bridge answers as the admin when no account is set. Supported on an exposed instance?",
+      "field": "downstream_responsibilities",
+      "proposed": "supported; the admin owns the choice."
+    },
+    {
+      "claim": "Q29: Are the sensor limits (256 KB payload, 600 per minute, 64 KB syslog line) promises or tunables? Is an unauthenticated MQTT publish, with `mqtt_anonymous` off, a breach?",
+      "field": "entry_points, properties_provided",
+      "proposed": "tunables; the unauthenticated publish is `VALID` under P-SENSORS."
+    },
+    {
+      "claim": "Q30: Cloudflare terminates TLS for tunnel traffic. Is it a trusted dependency? Is the quick `trycloudflare.com` address for real use?",
+      "field": "build_variants",
+      "proposed": "trusted; the quick address is for trying Lens."
+    },
+    {
+      "claim": "Q31: `install.sh` on a headless host and the NAS packages listen on all interfaces over HTTP, and print a `?code=` setup URL. Supported only on a trusted LAN until HTTPS is set up?",
+      "field": "build_variants",
+      "proposed": "yes; the setup window relies on a code of about 72 bits and a private log. Until ratified such reports route `non-default-build (escalated)`."
+    },
+    {
+      "claim": "Q32: Is the server log an operator-trusted channel, so setup codes and sign-in links there are by design, while stored source and model credentials never appear?",
+      "field": "properties_not_provided, downstream_responsibilities",
+      "proposed": "yes."
+    },
+    {
+      "claim": "Q33: Proxmox services run as root inside the unprivileged LXC; the SurrealDB container runs as root. Supported?",
+      "field": "build_variants",
+      "proposed": "yes; the container is the boundary."
+    },
+    {
+      "claim": "Q34: Coverage and scope: not yet read per item are about 60 assistant read tools and 30 settings tools, per-role file parsers (SRT, VTT, JSON, OHMS XML), faces, voice and objects, pipeline and routine actions, and the frontend pages. `examples/`, `overrides/`, `ci/`, `prod-frontend-deploy.yml`, `tests/`, `watcher.py` and `commands/` are unsupported or inert. No vendored third-party source ships. The N/A matrix rows tagged with this question hold. Confirm, and complete the rest next revision?",
+      "field": "out_of_scope, entry_points",
+      "proposed": "yes; treat the unread surface as **inferred** until then."
+    },
+    {
+      "claim": "Q35: P-ADMIN-GUARD claims the documented guards on iCal feeds and the telemetry endpoint. Is it security-critical, and does moving the telemetry endpoint to another host also promise to drop the saved headers, so a collector's token never reaches a new host?",
+      "field": "properties_provided, entry_points",
+      "proposed": "security-critical for the iCal guard (a remote calendar's redirect is attacker-controlled); correctness-only for the telemetry checks; yes, the header drop is promised and joins P-ADMIN-GUARD."
+    },
+    {
+      "claim": "Q36: Is every default exposure of the dev stack unsupported, or only its known secrets, `SURREAL_PASS=root` and the web port on all interfaces?",
+      "field": "out_of_scope, build_variants",
+      "proposed": "only those; any other dev-stack port reachable beyond loopback (API, DB, Mailpit, MQTT, syslog) is a defect, fixed when found and claimed under P-HARDENED."
+    },
+    {
+      "claim": "Q37: Confirm the tiers of the documented properties promoted in this revision: P-ACCESS-PARTS, P-BEARER-ONLY, P-FRAME, P-EXT-SCOPE and P-ADMIN-GUARD (security-critical); P-LIFETIMES, P-HARDENED, P-CHILD-SECRETS and P-REMOTE-NAMES (correctness-only).",
+      "field": "properties_provided",
+      "proposed": "confirm as listed. This is an edge probe of documented claims."
+    },
+    {
+      "claim": "Q38: With `TRUST_PROXY_HEADERS` off and the default trusted proxies, can any request header choose the address that OAuth discovery, the passkey origin or the external-login redirect names?",
+      "field": "properties_provided, properties_not_provided, entry_points",
+      "proposed": "no; claim it, security-critical, from docs/authentication.md \"anyone could choose the address\". Alternative: disclaim."
+    },
+    {
+      "claim": "Q39: Can a token minted while its grant or API token is being revoked outlive the revocation?",
+      "field": "properties_provided",
+      "proposed": "no; claim it as part of P-AUTH-REQ (\"its tokens stop working at once\")."
+    },
+    {
+      "claim": "Q40: Is the post-sign-in `next` target (external login, sign-in links) limited to same-origin paths?",
+      "field": "properties_provided, properties_not_provided",
+      "proposed": "yes; claim it, correctness-only. Alternative: disclaim open redirects."
+    },
+    {
+      "claim": "Q41: Can a request by anyone but a pending sign-in link's owner or an admin (for example an anonymous \"lost your passkey\" email) cancel that link?",
+      "field": "properties_provided",
+      "proposed": "no; claim it, correctness-only."
+    },
+    {
+      "claim": "Q42: Setup-code guesses are unthrottled. Add the setup routes to N-THROTTLE-SCOPE (resting on the code's entropy), or throttle them?",
+      "field": "properties_not_provided, properties_provided",
+      "proposed": "disclaim; the code is about 72 bits and lives only until the first admin exists."
+    },
+    {
+      "claim": "Q43: Beyond IMAP (P-REMOTE-NAMES), is remote content from rclone sources, iCal feeds and IIIF imports served only under the identity it was fetched for?",
+      "field": "properties_provided, properties_not_provided",
+      "proposed": "yes; claim it, correctness-only."
+    },
+    {
+      "claim": "Q44: Are released images built only from clean CI checkouts, so host-local files such as `.env.local` cannot enter a layer?",
+      "field": "build_variants",
+      "proposed": "yes for released packages; a local build from a working tree is dev-only."
+    },
+    {
+      "claim": "Q45: §1.9: are SurrealDB, Next.js and NextAuth, PyJWT, `webauthn`, `cryptography`, rclone and the stdlib clients upstream-owned as listed, and is the build, lint and codegen toolchain out of every running service?",
+      "field": "dependencies (§1.9; YAML only, no JSON field)",
+      "proposed": "yes to both; a toolchain advisory is in model only when the affected code ships in an image."
+    },
+    {
+      "claim": "Q46: Meta: the backtest found candidate known non-findings for OIDC nonce or ID-token checks (N-OIDC), phishing through open app registration (N-OAUTH-CLIENT), and audit-log tamper evidence (N-AUDIT), but each rests on one synthesized report. Do you actually receive these reports often enough to list them in §1.15?",
+      "field": "known_non_findings",
+      "proposed": "only list the ones you have seen at least twice; until then they route `BY-DESIGN: property-disclaimed` through §1.12."
+    },
+    {
+      "claim": "Q47: Do MCP tool arguments (offsets, page sizes) promise the same maximums as the REST search API, for example a 10,000 cap on `get_entity`'s mentions offset?",
+      "field": "properties_provided, entry_points",
+      "proposed": "yes; MCP tools share the search maximums, and a tool argument past them is refused."
+    }
+  ]
+}

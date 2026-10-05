@@ -5378,6 +5378,56 @@ export type HighlightUpdate = {
 };
 
 /**
+ * HookItem
+ */
+export type HookItem = {
+  /**
+   * Kind
+   */
+  kind: "file" | "url" | "text";
+  /**
+   * Name
+   *
+   * the file's name, the address, or the text's title
+   */
+  name: string;
+  /**
+   * Recording
+   *
+   * the recording or resource it became
+   */
+  recording: number;
+  /**
+   * Job
+   *
+   * the job that runs its pipeline
+   */
+  job?: number | null;
+  /**
+   * Duplicate
+   *
+   * the namespace had this file already; it's that recording
+   */
+  duplicate?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * HookPushed
+ */
+export type HookPushed = {
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Items
+   */
+  items: Array<HookItem>;
+  [key: string]: unknown;
+};
+
+/**
  * HubLogin
  */
 export type HubLogin = {
@@ -5603,6 +5653,142 @@ export type IiifValidation = {
    */
   problems: Array<unknown>;
   [key: string]: unknown;
+};
+
+/**
+ * ImportHook
+ */
+export type ImportHook = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Collection
+   *
+   * where its imports go (default: the namespace's default collection)
+   */
+  collection?: number | null;
+  /**
+   * Pipeline
+   *
+   * the pipeline its imports run (default: the namespace's)
+   */
+  pipeline?: number | null;
+  /**
+   * Enabled
+   *
+   * false while paused: pushes are refused, and the token keeps
+   */
+  enabled: boolean;
+  /**
+   * Token Tail
+   *
+   * the token's last four characters, to tell tokens apart
+   */
+  token_tail?: string | null;
+  /**
+   * Used
+   *
+   * how many things it has imported
+   */
+  used?: number;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  /**
+   * Created By
+   */
+  created_by?: string | null;
+  /**
+   * Created At
+   */
+  created_at: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ImportHookCreate
+ */
+export type ImportHookCreate = {
+  /**
+   * Name
+   *
+   * what pushes to it, e.g. Scanner or Zapier
+   */
+  name: string;
+  /**
+   * Collection
+   */
+  collection?: number | null;
+  /**
+   * Pipeline
+   */
+  pipeline?: number | null;
+};
+
+/**
+ * ImportHookCreated
+ */
+export type ImportHookCreated = {
+  hook: ImportHook;
+  /**
+   * Token
+   *
+   * shown this once: send it as a bearer token, or put it in the address
+   */
+  token: string;
+  /**
+   * Path
+   *
+   * where to push, on this server's address (POST, with Authorization: Bearer <token>)
+   */
+  path: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ImportHookToken
+ */
+export type ImportHookToken = {
+  /**
+   * Token
+   *
+   * shown this once; the old token has stopped working
+   */
+  token: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ImportHookUpdate
+ */
+export type ImportHookUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Collection
+   */
+  collection?: number | null;
+  /**
+   * Pipeline
+   */
+  pipeline?: number | null;
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
 };
 
 /**
@@ -30074,6 +30260,293 @@ export type PushStreamResponses = {
 };
 
 export type PushStreamResponse = PushStreamResponses[keyof PushStreamResponses];
+
+export type ListImportHooksData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/import-hooks";
+};
+
+export type ListImportHooksErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListImportHooksError = ListImportHooksErrors[keyof ListImportHooksErrors];
+
+export type ListImportHooksResponses = {
+  /**
+   * Response Import Hooks-List Import Hooks
+   *
+   * Successful Response
+   */
+  200: Array<ImportHook>;
+};
+
+export type ListImportHooksResponse = ListImportHooksResponses[keyof ListImportHooksResponses];
+
+export type CreateImportHookData = {
+  body: ImportHookCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/import-hooks";
+};
+
+export type CreateImportHookErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateImportHookError = CreateImportHookErrors[keyof CreateImportHookErrors];
+
+export type CreateImportHookResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportHookCreated;
+};
+
+export type CreateImportHookResponse = CreateImportHookResponses[keyof CreateImportHookResponses];
+
+export type DeleteImportHookData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Hid
+     */
+    hid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/import-hooks/{hid}";
+};
+
+export type DeleteImportHookErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteImportHookError = DeleteImportHookErrors[keyof DeleteImportHookErrors];
+
+export type DeleteImportHookResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteImportHookResponse = DeleteImportHookResponses[keyof DeleteImportHookResponses];
+
+export type UpdateImportHookData = {
+  body: ImportHookUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Hid
+     */
+    hid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/import-hooks/{hid}";
+};
+
+export type UpdateImportHookErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateImportHookError = UpdateImportHookErrors[keyof UpdateImportHookErrors];
+
+export type UpdateImportHookResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportHook;
+};
+
+export type UpdateImportHookResponse = UpdateImportHookResponses[keyof UpdateImportHookResponses];
+
+export type NewImportHookTokenData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Hid
+     */
+    hid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/import-hooks/{hid}/token";
+};
+
+export type NewImportHookTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NewImportHookTokenError = NewImportHookTokenErrors[keyof NewImportHookTokenErrors];
+
+export type NewImportHookTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportHookToken;
+};
+
+export type NewImportHookTokenResponse = NewImportHookTokenResponses[keyof NewImportHookTokenResponses];
+
+export type PushToImportHookData = {
+  /**
+   * HookPush
+   *
+   * What a JSON push carries: a web address or text (send a file as the raw body, or as multipart form files).
+   */
+  body?: {
+    /**
+     * Url
+     *
+     * a web page or PDF to keep as a document
+     */
+    url?: string | null;
+    /**
+     * Text
+     *
+     * text to import as a transcript, as pasted text is
+     */
+    text?: string | null;
+    /**
+     * Title
+     */
+    title?: string | null;
+  };
+  path?: never;
+  query?: {
+    /**
+     * Filename
+     *
+     * the file's name, for a raw body
+     */
+    filename?: string | null;
+    /**
+     * Title
+     *
+     * its title (default: the file's name, or the page's)
+     */
+    title?: string | null;
+  };
+  url: "/api/v1/hooks/import";
+};
+
+export type PushToImportHookErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PushToImportHookError = PushToImportHookErrors[keyof PushToImportHookErrors];
+
+export type PushToImportHookResponses = {
+  /**
+   * Successful Response
+   */
+  202: HookPushed;
+};
+
+export type PushToImportHookResponse = PushToImportHookResponses[keyof PushToImportHookResponses];
+
+export type PushToImportHookTokenData = {
+  /**
+   * HookPush
+   *
+   * What a JSON push carries: a web address or text (send a file as the raw body, or as multipart form files).
+   */
+  body?: {
+    /**
+     * Url
+     *
+     * a web page or PDF to keep as a document
+     */
+    url?: string | null;
+    /**
+     * Text
+     *
+     * text to import as a transcript, as pasted text is
+     */
+    text?: string | null;
+    /**
+     * Title
+     */
+    title?: string | null;
+  };
+  path: {
+    /**
+     * Token
+     */
+    token: string;
+  };
+  query?: {
+    /**
+     * Filename
+     *
+     * the file's name, for a raw body
+     */
+    filename?: string | null;
+    /**
+     * Title
+     */
+    title?: string | null;
+  };
+  url: "/api/v1/hooks/import/{token}";
+};
+
+export type PushToImportHookTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PushToImportHookTokenError = PushToImportHookTokenErrors[keyof PushToImportHookTokenErrors];
+
+export type PushToImportHookTokenResponses = {
+  /**
+   * Successful Response
+   */
+  202: HookPushed;
+};
+
+export type PushToImportHookTokenResponse = PushToImportHookTokenResponses[keyof PushToImportHookTokenResponses];
 
 export type VoiceInfoData = {
   body?: never;

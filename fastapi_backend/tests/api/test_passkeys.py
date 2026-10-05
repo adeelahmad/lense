@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import threading
+from unittest import mock
+
 import pytest
+from fastapi.testclient import TestClient
 
 from app.domain import auth, passkeys, settings, store
 from tests.fake_authenticator import Authenticator
@@ -303,3 +307,30 @@ def test_the_last_passkey_for_this_site_stays(app, client, db):
     r = client.delete(f"/api/v1/auth/passkeys/{keys['Laptop']}", headers={**h, **WEB})
     assert r.status_code == 400 and "last passkey for localhost" in r.json()["detail"]
     assert client.delete(f"/api/v1/auth/passkeys/{keys['Other']}", headers={**h, **WEB}).status_code == 200
+
+
+def test_two_setup_requests_at_once_make_one_admin(app, db):
+    """Setup checks "no accounts yet" and makes the account as one step: two requests racing with the code make one admin."""
+    code, real, inside = app.state.archive.setup_code, auth.create_account, threading.Barrier(2, timeout=2)
+
+    def slow_create(*a, **k):  # hold the first request between its check and its account until the second gets there
+        try:
+            inside.wait()
+        except threading.BrokenBarrierError:
+            pass  # the second request is held off before its check: what setup should do
+        return real(*a, **k)
+
+    results: list[int] = []
+
+    def attempt(email):
+        c = TestClient(app)
+        results.append(c.post("/api/v1/auth/setup/no-passkey", json={"code": code, "email": email}).status_code)
+
+    with mock.patch.object(auth, "create_account", slow_create):
+        threads = [threading.Thread(target=attempt, args=(e,)) for e in ("ada@x.io", "eve@x.io")]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    assert sorted(results) == [200, 403]
+    assert db.values("SELECT VALUE email FROM account WHERE admin = true") in (["ada@x.io"], ["eve@x.io"])

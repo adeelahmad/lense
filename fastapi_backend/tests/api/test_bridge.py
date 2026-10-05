@@ -192,3 +192,31 @@ def test_a_room_conversation_is_summarised_as_it_goes_on(db, cfg, room, llm):
     assert chat.memory(db, cfg, cid)["text"] == "OK"  # the fake model's summary
     last = [b for b in llm.seen if b["messages"][0]["content"].startswith(chat.SYSTEM)][-1]["messages"]
     assert "Earlier in this conversation" in last[0]["content"] and "question 0?" not in str(last[1:])
+
+
+def test_a_room_given_to_a_namespace_assistant(client, db, cfg, room, llm):
+    from app.domain import ns_assistant, store
+
+    pods = store.ns_id(db, "pods")
+    ns_assistant.save_profile(db, pods, enabled=True, name="Podpal", instructions="Be brief.")
+    ns_assistant.remember(db, pods, "Episodes ship on Fridays.", 1, author="person")
+    a = login(client, "root@x.io", "root password 1")
+    bad = client.put("/api/v1/settings/bridge", headers=a, json={"rooms": ["team"]})
+    assert bad.status_code == 400
+    got = client.put("/api/v1/settings/bridge", headers=a, json={"rooms": ["Team/General=Pods", " ", "other = calls"]})
+    assert got.status_code == 200
+    cfg["bridge"]["rooms"] = settings.Settings(db, cfg).current()["bridge"]["rooms"]
+    assert cfg["bridge"]["rooms"] == ["Team/General = pods", "other = calls"]
+    room.waiting = [said("Podpal, when do episodes ship?"), said("Podpal, hi", gateway="elsewhere")]
+    assert run(db, cfg) == 1  # the assistant's name works only in its room
+    asked = [m for m in llm.seen if m.get("tools")][-1]
+    system = next(m["content"] for m in asked["messages"] if m["role"] == "system")
+    assert "You are Podpal, the assistant of the pods namespace" in system and "Episodes ship on Fridays." in system
+    rows = db.rows("SELECT scope FROM chat WHERE kind = 'bridge'")
+    assert [r["scope"] for r in rows] == [{"namespaces": ["pods"]}]
+    # Lens's own name still works there, and the room follows the setting when it changes
+    cfg["bridge"]["rooms"] = []
+    room.waiting = [said("Lens, and Mondays?")]
+    assert run(db, cfg) == 1
+    assert [r["scope"] for r in db.rows("SELECT scope FROM chat WHERE kind = 'bridge'")] == [{}]
+    assert bridge.room_namespace({"bridge": {"rooms": ["team = pods", "team/x = calls"]}}, {"gateway": "team", "channel": "x"}) == "calls"
