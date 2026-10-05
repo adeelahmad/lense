@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Chat rooms route each question to its namespace.** In a room no namespace is given to, Lens picks the namespace
+  each question is about (or the one whose assistant it names), says where it looked, and names the likeliest when
+  it isn't sure. "use pods" keeps the conversation in one namespace until "use everything".
 - **Long conversations are summarised.** The assistant reads the latest messages word for word and a running summary
   of the older ones, so long chats and chat-room conversations keep what was said instead of forgetting all but the
   last six messages. Settings › AI assistant › Summarise long conversations turns it off.

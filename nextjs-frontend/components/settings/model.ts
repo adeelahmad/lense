@@ -890,7 +890,7 @@ export const FIELDS: FieldSpec[] = [
     label: "Rooms for a namespace’s assistant",
     kind: "lines",
     mono: true,
-    hint: "One per line, like team = pods or team/general = pods: conversations there talk to that namespace’s own assistant, which also answers to its name.",
+    hint: "One per line, like team = pods or team/general = pods: conversations there talk to that namespace’s own assistant, which also answers to its name. In other rooms Lens picks the namespace for each question.",
   },
   {
     section: "bridge",
