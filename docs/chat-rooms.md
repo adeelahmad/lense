@@ -39,7 +39,8 @@ That's all. Without an account given, it answers as the admin who turned it on.
   proposes (running work, changing settings) wait for approval in the web app, as in Chat; its answer says so and
   links to the conversation.
 - **Conversations.** Each person in each room is a conversation of that account's, titled
-  "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context.
+  "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
+  and older messages are folded into a running summary ([Long conversations](assistant.md)).
 - **One reader.** Matterbridge hands out each message once, so only one server process reads it: the API and the
   workers all run the bridge thread, and whichever holds the lease (renewed every look, given up when it stops or the
   bridge is turned off) does the reading. Settings → Chat rooms says whether it is listening and how many messages it answered.
