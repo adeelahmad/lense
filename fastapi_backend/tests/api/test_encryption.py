@@ -7,6 +7,8 @@ import os
 import pathlib
 import time
 
+import pytest
+
 from app.domain import ingest, keyring, settings, setup, store
 from tests.helpers import login, make_user, text_pdf, write_wav
 
@@ -182,9 +184,23 @@ def test_files_cached_from_a_storage_source_are_kept_encrypted(client, db, cfg, 
     )
     rec = db.one("SELECT * FROM recording:77")
     work = ingest.audio_path(db, eff, rec)
-    cached = sources.cache_file(eff, 5, "calls/remote.wav")
+    cached = sources.cache_file(eff, 5, "calls/remote.wav", sid)
     assert keyring.is_encrypted(cached) and pathlib.Path(work).read_bytes() == wav.read_bytes()
     assert (sid, str(cached)) in list(keyring.made_files(db, eff))
     he = _editor(client, db)
     r = client.get("/api/v1/recordings/77/audio", headers={**he, "Range": "bytes=0-9"})
     assert r.status_code == 206 and r.content == wav.read_bytes()[:10]
+
+    # each namespace keeps its own copy, under its own key
+    other = store.ns_id(db, "other")
+    assert sources.cache_file(eff, 5, "calls/remote.wav", other) != cached
+
+    # a locked vault fetches nothing, and leaves nothing plain behind
+    def locked(*a, **k):
+        raise keyring.Locked("locked")
+
+    monkeypatch.setattr(keyring, "data_key", locked)
+    with pytest.raises(keyring.Locked):
+        sources.cached_copy(db, eff, 5, "calls/other.wav", sid)
+    assert not sources.cache_file(eff, 5, "calls/other.wav", sid).exists()
+    assert not list(cached.parent.glob("*.part"))

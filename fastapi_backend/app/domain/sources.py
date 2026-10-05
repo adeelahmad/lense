@@ -158,14 +158,14 @@ def run(db, cfg, src, argv, timeout=300):
         shutil.rmtree(d, ignore_errors=True)
 
 
-def stream(db, cfg, sid, path, offset=0, count=None):
+def stream(db, cfg, sid, path, offset=0, count=None, space=None):
     """Bytes of a remote file, for playback with Range requests."""
     src = get(db, sid)
     p = check_path(cfg, src, path)
     if feeds.handles(src):
         from . import keyring
 
-        data = keyring.read_plain(db, cfg, cached_copy(db, cfg, sid, p))
+        data = keyring.read_plain(db, cfg, cached_copy(db, cfg, sid, p, space))
         return iter([data[offset : None if count is None else offset + count]])
     name, d, conf = _private_conf(cfg, src)
     cmd = [_bin(cfg), "--config", conf, "cat", f"{name}:{p}", "--offset", str(offset)] + (
@@ -257,9 +257,12 @@ def test(db, cfg, sid):
     return health
 
 
-def cache_file(cfg, sid, path):
+def cache_file(cfg, sid, path, space=None):
+    """Where the cached copy of a source's file goes: one per namespace it's kept for (`space`), since each is
+    encrypted with its own namespace's key."""
     base = pathlib.Path(cfg["sources"].get("cache_dir") or pathlib.Path(cfg["data_dir"]) / "cache" / "remote")
-    return base / (hashlib.sha1(f"{sid}:{path}".encode()).hexdigest() + pathlib.PurePosixPath(path).suffix.lower())
+    key = f"{sid}:{path}" + ("" if space is None else f":{int(space)}")
+    return base / (hashlib.sha1(key.encode()).hexdigest() + pathlib.PurePosixPath(path).suffix.lower())
 
 
 def cached_copy(db, cfg, sid, path, space=None):
@@ -272,17 +275,26 @@ def cached_copy(db, cfg, sid, path, space=None):
     p = check_path(cfg, src, path)
     if src["type"] == "local":
         return pathlib.Path(p)
-    dest = cache_file(cfg, sid, p)
+    dest = cache_file(cfg, sid, p, space)
     if not dest.exists() or (feeds.handles(src) and not feeds.immutable(src)):  # a calendar's event may have changed
+        encrypt = space is not None and keyring.wanted(db, cfg, space, dest)
+        if encrypt:
+            keyring.data_key(db, cfg, space)  # a locked vault: Locked now, before anything is fetched
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_name(dest.name + ".part")
-        if feeds.handles(src):
-            tmp.write_bytes(feeds.fetch(cfg, src, p))
-        else:
-            run(db, cfg, src, lambda n: ["copyto", f"{n}:{p}", str(tmp)], timeout=6 * 3600)
-        if space is not None and keyring.wanted(db, cfg, space, dest):
-            keyring.encrypt_file(db, cfg, space, tmp, force=True)
-        tmp.replace(dest)
+        try:
+            if feeds.handles(src):
+                tmp.write_bytes(feeds.fetch(cfg, src, p))
+            else:
+                run(db, cfg, src, lambda n: ["copyto", f"{n}:{p}", str(tmp)], timeout=6 * 3600)
+            if encrypt:
+                st = os.stat(tmp)
+                keyring.encrypt_file(db, cfg, space, tmp, force=True)
+                os.utime(tmp, (st.st_atime, st.st_mtime))  # the remote file's time, which imports go by
+            tmp.replace(dest)
+        except BaseException:
+            tmp.unlink(missing_ok=True)  # never a plain copy left behind
+            raise
     return dest
 
 

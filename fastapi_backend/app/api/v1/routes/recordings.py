@@ -522,13 +522,15 @@ def serve_audio(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, requ
         p = sources.check_path(cfg, src, rm["path"])
     if src["type"] == "local":
         return file_response(p, request, _media_type(rec, p))
-    cached = sources.cache_file(cfg, rm["source"], p)
-    if cached.exists():
-        return file_response(str(cached), request, _media_type(rec, p), db, cfg)
+    for cached in (sources.cache_file(cfg, rm["source"], p, rec.get("space")), sources.cache_file(cfg, rm["source"], p)):
+        if cached.exists():
+            return file_response(str(cached), request, _media_type(rec, p), db, cfg)
     if not rec.get("size"):
         raise HTTPException(404, "audio size unknown; it will play once the recording has been processed")
     ctype = _media_type(rec, p) or render.AUDIO_TYPES.get(pathlib.PurePosixPath(p).suffix.lower(), "application/octet-stream")
-    return range_response(rec["size"], request, ctype, lambda a, b: sources.stream(db, cfg, rm["source"], rm["path"], a, b - a + 1))
+    return range_response(
+        rec["size"], request, ctype, lambda a, b: sources.stream(db, cfg, rm["source"], rm["path"], a, b - a + 1, rec.get("space"))
+    )
 
 
 @router.get("/{rid}/audio", response_class=Response, responses={200: {"content": {"audio/*": {}}}, 206: {"description": "a byte range"}})
