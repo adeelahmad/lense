@@ -11352,6 +11352,128 @@ export type RollbackAsk = {
 };
 
 /**
+ * Route
+ */
+export type Route = {
+  /**
+   * Match
+   *
+   * conditions, all of which must match; each holds patterns, any of which may
+   */
+  match: {
+    [key: string]: string | Array<string>;
+  };
+  /**
+   * Namespace
+   *
+   * where matching messages go (a namespace that exists)
+   */
+  namespace?: string | null;
+  /**
+   * Skip
+   *
+   * matching messages aren't imported at all
+   */
+  skip?: boolean;
+  /**
+   * Name
+   */
+  name?: string | null;
+};
+
+/**
+ * RoutePreviewRequest
+ */
+export type RoutePreviewRequest = {
+  /**
+   * Source
+   */
+  source: number;
+  /**
+   * Path
+   */
+  path?: string;
+  /**
+   * Namespace
+   *
+   * the watch's own namespace, for messages no rule matches
+   */
+  namespace: string;
+  /**
+   * Routes
+   */
+  routes?: Array<Route>;
+};
+
+/**
+ * RouteView
+ */
+export type RouteView = {
+  /**
+   * Match
+   */
+  match: {
+    [key: string]: Array<string>;
+  };
+  /**
+   * Namespace
+   *
+   * None when skipped, or the namespace was deleted
+   */
+  namespace?: string | null;
+  /**
+   * Skip
+   */
+  skip?: boolean;
+  /**
+   * Name
+   */
+  name?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RoutedMessage
+ */
+export type RoutedMessage = {
+  /**
+   * Path
+   */
+  path: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * When
+   */
+  when?: string | null;
+  /**
+   * From
+   */
+  from?: Array<string>;
+  /**
+   * To
+   */
+  to?: Array<string>;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Skipped
+   */
+  skipped?: boolean;
+  /**
+   * Rule
+   *
+   * the rule that decided, counted from 1; None: no rule matched
+   */
+  rule?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Routine
  */
 export type Routine = {
@@ -15504,6 +15626,10 @@ export type Watch = {
    */
   enabled?: boolean | null;
   /**
+   * Routes
+   */
+  routes?: Array<RouteView>;
+  /**
    * Last Scan At
    */
   last_scan_at?: string | null;
@@ -15568,6 +15694,12 @@ export type WatchCreate = {
    * Enabled
    */
   enabled?: boolean | null;
+  /**
+   * Routes
+   *
+   * an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at.
+   */
+  routes?: Array<Route> | null;
   /**
    * Source
    */
@@ -15683,6 +15815,12 @@ export type WatchUpdate = {
    * Enabled
    */
   enabled?: boolean | null;
+  /**
+   * Routes
+   *
+   * an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at.
+   */
+  routes?: Array<Route> | null;
 };
 
 /**
@@ -26562,6 +26700,33 @@ export type PreviewWatchResponses = {
 };
 
 export type PreviewWatchResponse = PreviewWatchResponses[keyof PreviewWatchResponses];
+
+export type PreviewRoutesData = {
+  body: RoutePreviewRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/watches/routes/preview";
+};
+
+export type PreviewRoutesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewRoutesError = PreviewRoutesErrors[keyof PreviewRoutesErrors];
+
+export type PreviewRoutesResponses = {
+  /**
+   * Response Sources-Preview Routes
+   *
+   * Successful Response
+   */
+  200: Array<RoutedMessage>;
+};
+
+export type PreviewRoutesResponse = PreviewRoutesResponses[keyof PreviewRoutesResponses];
 
 export type DeleteWatchData = {
   body?: never;
