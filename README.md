@@ -9,6 +9,20 @@
 
 **Usable context for you and your agents.** Lens remembers what actually happened, and shows you the exact moment.
 
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
+```
+
+That one line is all: it installs Docker if needed, starts Lens and opens the setup page, where a short wizard asks
+for a namespace, a model provider and storage ([details](docs/get-started.md#in-one-line)). Run it again to update.
+[Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
+[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
+
+To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
+first-admin setup code, and `make dev` runs it with hot reload; see [Get started](docs/get-started.md).
+
 Lens is one private AI hub for your whole life. Every source is a sensor: recordings, documents, email, calendars,
 chat rooms, devices and webhooks all flow in, and everything becomes memory you can trust, because every answer cites
 where it came from, down to the second of a recording or the line of a document. It runs on your own hardware, from a
@@ -52,27 +66,6 @@ Lens runs on a small machine. Heavy parts (local speech models, a local LLM, doc
 download only when you turn them on, and any of them can be swapped for a cloud provider instead. Every setting lives
 in the web app. ([Components](docs/components.md), [speech providers](docs/speech-providers.md),
 [local models](docs/local-models.md))
-
-## Install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
-```
-
-That's all: it installs Docker if needed, starts Lens and opens the setup page, where a short wizard asks for a
-namespace, a model provider and storage ([details](docs/get-started.md#in-one-line)). Run it again to update.
-[Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
-[Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
-
-From a checkout:
-
-```bash
-make run          # builds once and runs everything (Docker)
-make setup-code   # the first-admin setup code, and a link that fills it in
-```
-
-Open <http://localhost:3000> and create the first admin with the setup code. For hot reload while working on the
-code, `make dev` (the API docs are then at <http://localhost:8000/docs>); see [Get started](docs/get-started.md).
 
 ## In progress
 
