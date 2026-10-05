@@ -276,8 +276,9 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                                 yield _ev("approval", appr)
                             yield from stopped("", [])
                             return
-                    # a model that skips the tools hasn't seen the archive (but may answer from the page it was asked on)
-                    elif kind == "direct" and passages and not setup and not (page and page.get("text")):
+                    # a model that skips the tools hasn't seen the archive (but may answer from the page it was asked on,
+                    # or from what the namespace's assistant remembers, citing it)
+                    elif kind == "direct" and passages and not setup and not (page and page.get("text")) and not box.cited(data):
                         break
                     else:
                         answer = data

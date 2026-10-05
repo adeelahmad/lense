@@ -2,6 +2,9 @@
 const nextConfig = {
   // Separate build folders let several dev servers run side by side (NEXT_DIST_DIR=.next-a next dev -p 3021).
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // Dockerfile.prod builds a self-contained server (.next/standalone) with only the packages it uses: a much smaller
+  // image for small machines. Other builds (Cloudron, `pnpm build`) keep `next start`.
+  ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" } : {}),
   // The dev server would otherwise write an AGENTS.md and a CLAUDE.md into this folder (since Next 16.3).
   agentRules: false,
   async headers() {

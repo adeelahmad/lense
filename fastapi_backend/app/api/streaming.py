@@ -14,6 +14,8 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from app.domain import keyring, render
 
+LOCKED = "this namespace is a locked vault: its owners unlock it with a passkey, on its page in Admin, Namespaces"
+
 CHUNK = 1 << 16
 
 
@@ -54,9 +56,7 @@ def _plain_size(db: Any, cfg: dict[str, Any] | None, path: str | os.PathLike[str
     try:
         return keyring.plain_size(db, cfg, path)
     except keyring.Locked:
-        raise HTTPException(
-            423, "this namespace is a locked vault: its owners unlock it with a passkey, on its page in Admin, Namespaces"
-        ) from None
+        raise HTTPException(423, LOCKED) from None
     except keyring.Damaged:
         raise HTTPException(500, "this file is damaged on the server and can't be opened") from None
 
@@ -117,3 +117,20 @@ def stored_file(
             f"attachment; filename*=utf-8''{quoted}" if quoted != filename else f'attachment; filename="{filename}"'
         )
     return range_response(_plain_size(db, cfg, path), request, ctype, _encrypted_body(db, cfg, path), out)
+
+
+def picture_response(db: Any, cfg: dict[str, Any], path: str | os.PathLike[str], headers: dict[str, str] | None = None) -> Response:
+    """A frame or a page image to show (JPEG): an encrypted one decrypted whole (they're small), a locked vault's 423."""
+    if not keyring.is_encrypted(path):
+        return FileResponse(path, media_type="image/jpeg", headers=headers)
+    return Response(plain_bytes(db, cfg, path), media_type="image/jpeg", headers=headers)
+
+
+def plain_bytes(db: Any, cfg: dict[str, Any] | None, path: str | os.PathLike[str]) -> bytes:
+    """A small file's plain bytes; a locked vault (423) or a damaged file (500) says so."""
+    try:
+        return keyring.read_plain(db, cfg, path)
+    except keyring.Locked:
+        raise HTTPException(423, LOCKED) from None
+    except keyring.Damaged:
+        raise HTTPException(500, "this file is damaged on the server and can't be opened") from None

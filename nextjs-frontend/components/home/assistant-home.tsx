@@ -14,9 +14,10 @@ import { useArchive } from "@/lib/hooks/session";
 import { canListen } from "@/lib/voice";
 
 /** A new conversation over everything you can read (no namespace), optionally typed or spoken. */
-export function assistantChatHref({ q, voice }: { q?: string; voice?: boolean } = {}): string {
+export function assistantChatHref({ q, voice, send }: { q?: string; voice?: boolean; send?: boolean } = {}): string {
   const p = new URLSearchParams({ global: "1" });
   if (q) p.set("q", q);
+  if (q && send) p.set("send", "1");
   if (voice) p.set("voice", "1");
   return `/chat?${p.toString()}`;
 }
@@ -48,7 +49,9 @@ export function AssistantHome({ switcher }: { switcher?: ReactNode }) {
   const first = (me?.user.name || me?.user.email || "").split(/[\s@]/)[0];
   const recent = (chats.data ?? []).filter((c) => c.kind !== "setup").slice(0, 4);
 
-  const chat = (q?: string) => router.push(assistantChatHref({ q }));
+  const [question, setQuestion] = useState("");
+  // Enter sends the question: the chat opens with it asked (an empty field opens an empty chat)
+  const ask = () => router.push(assistantChatHref({ q: question.trim() || undefined, send: true }));
   const talk = async () => {
     if (!canListen()) {
       toast({
@@ -56,7 +59,7 @@ export function AssistantHome({ switcher }: { switcher?: ReactNode }) {
         body: "Type your question instead; voice works in Chrome, Edge and Safari.",
         tone: "gate",
       });
-      return chat();
+      return router.push(assistantChatHref());
     }
     if (!(await allowMic())) {
       toast({
@@ -88,13 +91,10 @@ export function AssistantHome({ switcher }: { switcher?: ReactNode }) {
             aria-label="Ask anything"
             placeholder="Ask anything about your archive"
             autoComplete="off"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              chat();
-            }}
-            onChange={(e) => chat(e.target.value)}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") chat();
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) ask();
             }}
             className="min-w-0 flex-1 bg-transparent text-[16px] text-fg outline-none placeholder:text-fg-muted"
           />

@@ -57,10 +57,10 @@ Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-Lens is a private project for now, and its license isn't decided. `LICENSE.txt` is still the MIT notice of the
+Lens's license isn't decided yet. `LICENSE.txt` is still the MIT notice of the
 template Lens started from (Vinta's Next.js FastAPI template); it isn't a decision about Lens. Until a license is
 chosen, contribute only if you're fine with the maintainer deciding later how Lens is licensed, including your
 contributions.
 
-<!-- TODO(license): when Lens goes public, pick a license, replace LICENSE.txt, and say here what contributors agree to
-(for example "contributions are licensed under the project's license"). Update SECURITY.md's reporting section too. -->
+<!-- TODO(license): pick a license, replace LICENSE.txt, and say here what contributors agree to
+(for example "contributions are licensed under the project's license"). -->

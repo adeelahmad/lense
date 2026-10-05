@@ -20,6 +20,7 @@ from . import (
     entity_setup,
     graph_history,
     notebook,
+    ns_assistant,
     ops_tools,
     recsets,
     render,
@@ -275,9 +276,37 @@ AUTHOR_TOOLS = [
 ]
 
 
+# a namespace's own assistant (ns_assistant.py), in conversations scoped to that namespace while it's on: remembering
+# is routine and made at once (by people who edit the namespace), forgetting waits for the person's yes
+MEMORY_TOOLS = [
+    (
+        "remember",
+        "Keep a short fact about this namespace for later conversations: a decision, a preference, a plan or a fact "
+        "people will ask about again. source_ref: the [n] of the excerpt it came from, so it stays cited to that moment.",
+        {"fact": _S, "source_ref": _I},
+        ["fact"],
+        True,
+    ),
+    (
+        "recall",
+        "Find what you remember about this namespace beyond the memories you were given, by words.",
+        {"query": _S, "limit": _I},
+        ["query"],
+        False,
+    ),
+    (
+        "forget",
+        "Forget something you remember (by its memory id from recall), when it's wrong or no longer true. Needs the person's approval.",
+        {"memory_id": _I},
+        ["memory_id"],
+        True,
+    ),
+]
+
+
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
-    return {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS} | {"use_skill"}
+    return {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS} | {"use_skill"}
 
 
 class Toolbox(ops_tools.OpsTools):
@@ -299,16 +328,48 @@ class Toolbox(ops_tools.OpsTools):
         self.me = extensions.who(user["id"], user.get("email"), admin, roles)
         self.ext = extensions.Active(db, self.me) if cfg["ai"].get("extensions", True) else None
         self.hooking = False
+        # the namespace's own assistant, when the conversation is about that namespace alone and its assistant is on
+        home = ns_assistant.for_scope(db, self.scope)
+        self.home = home if home and home[0] in self.readable else None
 
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
         for this question."""
+        out = self._home_note()
         if not self.ext:
-            return ""
-        out = self.ext.system_note()
+            return out
+        out += self.ext.system_note()
         for h in self.ext.matching("message", text=self.said):
             out += self._hook(h, {"said": self.said})
         return out
+
+    def _home_note(self):
+        """Who the assistant is in this namespace and what it remembers; memories from a moment are numbered like
+        excerpts. One from a recording the asker can't read is left out."""
+        if not self.home:
+            return ""
+        sid, name, p = self.home
+        rows = ns_assistant.labelled(self.db, ns_assistant.memories(self.db, sid, ns_assistant.PROMPT_MAX))
+        spaces = {
+            r["id"]: r["space"]
+            for r in self.db.rows(
+                "SELECT record::id(id) AS id, space FROM recording WHERE id IN $ids",
+                ids=[R("recording", m["recording"]) for m in rows if m.get("recording") is not None],
+            )
+        }
+        lines = []
+        for m in rows:
+            day = (m.get("created_at") or "")[:10]
+            rid = m.get("recording")
+            if rid is not None and rid in spaces:
+                if spaces[rid] not in self.readable:
+                    continue
+                n = self.ref(rid, m.get("t0") or 0, m["text"], title=m.get("title"), source="memory")
+                lines.append(f"[{n}] {m['text']} (memory {m['id']}, kept {day}, from {m.get('title') or 'a recording'} at {m.get('time')})")
+            else:
+                told = "told in a conversation" if m.get("author") == "assistant" else "written by a person"
+                lines.append(f"- {m['text']} (memory {m['id']}, {told}, {day})")
+        return ns_assistant.prompt(name, p, lines)
 
     def after_answer(self, text):
         """Run the hooks for an answer that was written."""
@@ -338,6 +399,8 @@ class Toolbox(ops_tools.OpsTools):
             tools += ops_tools.FILE_TOOLS
         if self.cfg["ai"].get("extensions", True):
             tools += [t for t in AUTHOR_TOOLS if can_act or self.admin or not t[4]]
+        if self.home:
+            tools += [t for t in MEMORY_TOOLS if self.home[0] in self.editable or not t[4]]
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
         return [
@@ -468,6 +531,39 @@ class Toolbox(ops_tools.OpsTools):
             raise ValueError(f"{name} is someone else's; only its owner or an admin switches it")
         what = f"Switch {g['kind']} {name} {'on' if enabled else 'off'}"
         return self._approval("switch_extension", {"extension": g["id"], "name": name, "enabled": bool(enabled)}, what)
+
+    # ---- the namespace's memory (ns_assistant.py) ----
+    def t_remember(self, fact, source_ref=None):
+        sid, name, _ = self.home
+        rid = t0 = None
+        if source_ref is not None:
+            n = int(source_ref)
+            if not 1 <= n <= len(self.refs):
+                raise ValueError(f"there's no excerpt [{n}] in this conversation")
+            r = self.refs[n - 1]
+            rid, t0 = r["recording_id"], r.get("t0")
+        mid = ns_assistant.remember(self.db, sid, fact, self.user["id"], rid, t0, self.chat)
+        return {"memory_id": mid, "remembered": fact}, f"Remembered: {fact[:80]}"
+
+    def t_recall(self, query, limit=10):
+        sid, name, _ = self.home
+        rows = ns_assistant.labelled(self.db, ns_assistant.recall(self.db, sid, query, min(int(limit or 10), 30)))
+        out = []
+        for m in rows:
+            item = {"memory_id": m["id"], "fact": m["text"], "kept": (m.get("created_at") or "")[:10]}
+            if m.get("recording") is not None:
+                try:
+                    self._ok(m["recording"])
+                except ValueError:
+                    continue
+                item["ref"] = self.ref(m["recording"], m.get("t0") or 0, m["text"], title=m.get("title"), source="memory")
+            out.append(item)
+        return {"memories": out}, f'Recalled "{query}": {len(out)} memor{"y" if len(out) == 1 else "ies"}'
+
+    def t_forget(self, memory_id):
+        sid, name, _ = self.home
+        m = ns_assistant.get(self.db, sid, int(memory_id))
+        return self._approval("forget_memory", {"namespace": name, "memory_id": m["id"]}, f"Forget “{m['text'][:120]}”")
 
     def _run(self, name, fn, args):
         try:
@@ -994,6 +1090,12 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
     elif a["tool"] in ("change_settings", "create_namespace", "import_files"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
+    elif a["tool"] == "forget_memory":
+        sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
+        if sid not in editable:
+            raise PermissionError("you can't change what that namespace's assistant remembers")
+        ns_assistant.forget(db, sid, args["memory_id"])
+        result = {"forgot": args["memory_id"]}
     elif a["tool"] == "run_template":
         steps, label = batches.steps_for(db, {"template": args["template_id"]})
         ids = [i for i in args["recordings"] if (db.one("SELECT space FROM $r", r=R("recording", i)) or {}).get("space") in editable]

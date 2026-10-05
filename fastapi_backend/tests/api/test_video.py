@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pathlib
 import shutil
 
 import pytest
@@ -152,7 +153,7 @@ def test_faces_are_pixelated_for_visitors(env, new_client):
     # the public page's poster (a shot's keyframe): in blocks for a visitor, as it is for a member
     d = video.frames_dir(cfg, rid)
     original = (d / "shot0000.jpg").read_bytes()
-    blocks = faces.pixelated(db, d / "shot0000.jpg", rid, "shot0000.jpg")
+    blocks = faces.pixelated(db, cfg, d / "shot0000.jpg", rid, "shot0000.jpg")
     assert blocks and blocks != original  # FakeFaces finds a face on every frame
     poster = anon.get(f"/api/v1/public/recordings/{rid}").json()["media"]["poster"]
     assert "full=" not in poster
@@ -169,7 +170,7 @@ def test_faces_are_pixelated_for_visitors(env, new_client):
     # IIIF: the same, by the requester's role; a sampled frame too
     assert anon.get(f"/iiif/{rid}/frames/shot0000.jpg").content == blocks
     assert c.get(f"/iiif/{rid}/frames/shot0000.jpg", headers=he).content == original
-    sampled = faces.pixelated(db, d / "s000003000.jpg", rid, "s000003000.jpg")
+    sampled = faces.pixelated(db, cfg, d / "s000003000.jpg", rid, "s000003000.jpg")
     assert sampled and anon.get(f"/iiif/{rid}/frames/s000003000.jpg").content == sampled
     assert anon.get(f"/iiif/{rid}/frames/face-1.jpg").status_code == 404  # crops aren't published anyway
     assert c.get(f"/iiif/{rid}/frames/face-1.jpg", headers=h).content == (d / "face-1.jpg").read_bytes()
@@ -189,10 +190,10 @@ def test_faces_are_pixelated_for_visitors(env, new_client):
     metadata.save(db, cfg, rid2, {"access": "public"})
     d2 = video.frames_dir(cfg, rid2)
     plain, page = (d2 / "page-0001.jpg").read_bytes(), anon.get(f"/api/v1/public/recordings/{rid2}").json()["media"]["pages"][0]
-    blocked = faces.pixelated(db, d2 / "page-0001.jpg", rid2, "page-0001.jpg")
+    blocked = faces.pixelated(db, cfg, d2 / "page-0001.jpg", rid2, "page-0001.jpg")
     assert blocked and blocked != plain
     assert anon.get(page["image"]).content == blocked and c.get(page["image"], headers=he).content == plain
-    assert anon.get(page["thumb"]).content == faces.pixelated(db, d2 / "thumb-0001.jpg", rid2, "thumb-0001.jpg")
+    assert anon.get(page["thumb"]).content == faces.pixelated(db, cfg, d2 / "thumb-0001.jpg", rid2, "thumb-0001.jpg")
     assert anon.get(f"/iiif/{rid2}/pages/1.jpg").content == blocked
     assert c.get(f"/iiif/{rid2}/pages/1.jpg", headers=he).content == plain
 
@@ -204,3 +205,44 @@ def test_faces_are_pixelated_for_visitors(env, new_client):
     assert c.get("/api/v1/namespaces/pods/faces", headers=h).json()["pixelate"] is False
     audited = [a for a in c.get("/api/v1/audit", headers=h).json() if a["action"] == "faces.mode"]
     assert any((a.get("detail") or {}).get("pixelate") is True for a in audited), audited[:2]
+
+
+def test_frames_and_face_crops_are_kept_encrypted(env):
+    """With encryption at rest on, frames and face crops are stored encrypted; the steps that read them and the pages
+    that show them see the pictures as they are."""
+    from app.domain import keyring, settings
+
+    c, h, rid, db, cfg = env.c, env.h, env.rid, env.db, env.cfg
+    settings.save(db, cfg, "encryption", {"files": True})
+    eff = settings.effective(db, cfg)
+    c.put("/api/v1/namespaces/pods/faces/mode", headers=h, json={"mode": "detect"})
+    jobs.enqueue(db, rid, ["shots", "faces"], by="test")
+    drain(db, eff)
+    d = video.frames_dir(cfg, rid)
+    pics = sorted(d.glob("*.jpg"))
+    assert pics and all(keyring.is_encrypted(p) for p in pics)
+    assert any(p.name.startswith("face-") for p in pics)  # the face step read the encrypted frames
+    p = c.get(f"/api/v1/recordings/{rid}/player", headers=h).json()
+    r = c.get(p["shots"][0]["frame"])
+    assert r.status_code == 200 and r.content[:3] == b"\xff\xd8\xff"  # a JPEG again
+    keyring.release()
+    keyring.sweep(eff, minutes=0)  # the plain copies the steps read go once unused
+    work = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
+    assert not work.exists() or not any(work.iterdir())
+
+
+def test_frames_drawn_by_a_step_that_fails_are_not_left_plain(env, monkeypatch):
+    from app.domain import keyring, settings
+
+    db, cfg, rid = env.db, env.cfg, env.rid
+    settings.save(db, cfg, "encryption", {"files": True})
+    eff = settings.effective(db, cfg)
+
+    def broken(path, every, dest_dir, width):
+        raise TimeoutError("ffmpeg took too long")
+
+    monkeypatch.setattr(video, "sample_frames", broken)
+    with pytest.raises(TimeoutError):
+        video.step_shots(db, eff, rid, lambda *_: None)
+    pics = list(video.frames_dir(cfg, rid).glob("*.jpg"))
+    assert pics and all(keyring.is_encrypted(p) for p in pics)  # the shots it drew before failing
