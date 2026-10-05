@@ -26,24 +26,40 @@ def _later(minutes):
     return (dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=minutes)).isoformat(timespec="seconds")
 
 
-def grant_cookie(db, cfg, account):
+def grant_cookie(db, cfg, account, origin="", raw=None):
+    """A new access cookie for the viewer at `origin`, or, given a valid cookie (`raw`), that viewer added to it. The
+    token service answers only the viewers a person signed in or pressed Continue for (cookie_account's `origin`)."""
+    origins = [origin] if ORIGIN_RX.match(origin or "") else []
+    if raw:
+        r = R("iiif_cookie", auth.sha(raw))
+        had = (db.one("SELECT origins FROM $r", r=r) or {}).get("origins") or []
+        db.q("UPDATE $r SET origins = $o", r=r, o=list(dict.fromkeys([*had, *origins])))
+        return raw
     raw = secrets.token_urlsafe(32)
     db.q(
         "CREATE $r CONTENT $d",
         r=R("iiif_cookie", auth.sha(raw)),
-        d={"account": account, "expires_at": _later(cfg["server"]["session_hours"] * 60), "created_at": store.now()},
+        d={
+            "account": account,
+            "origins": origins,
+            "expires_at": _later(cfg["server"]["session_hours"] * 60),
+            "created_at": store.now(),
+        },
     )
     return raw
 
 
-def cookie_account(db, raw):
+def cookie_account(db, raw, origin=None):
+    """The cookie's account, or None and the IIIF error profile. With `origin`, only for a viewer the person confirmed."""
     if not raw:
         return None, "missingAspect"
-    row = db.one("SELECT account, expires_at FROM $r", r=R("iiif_cookie", auth.sha(raw)))
+    row = db.one("SELECT account, expires_at, origins FROM $r", r=R("iiif_cookie", auth.sha(raw)))
     if not row:
         return None, "invalidAspect"
     if row["expires_at"] < store.now():
         return None, "expiredAspect"
+    if origin is not None and origin not in (row.get("origins") or []):
+        return None, "missingAspect"  # the viewer opens the access page, which asks the person to confirm this site
     u = auth.get_account(db, row["account"])
     return (auth.public(u), None) if u and not u.get("disabled") else (None, "invalidAspect")
 
