@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Pipelines, Sources } from "@/app/openapi-client";
 import type { Watch } from "@/app/openapi-client/types.gen";
+import { type RuleForm, ruleProblem, rulesFromWatch, rulesToApi } from "@/components/sources/route-model";
+import { RoutingRules } from "@/components/sources/routing-rules";
 import { pickupText, splitPatterns, WATCH_KINDS, type WatchKinds } from "@/components/sources/source-model";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -43,6 +45,7 @@ type Form = {
   steps: string[];
   backfill: boolean;
   enabled: boolean;
+  rules: RuleForm[];
 };
 
 function initial(watch: Watch | null | undefined, ns: string): Form {
@@ -59,6 +62,7 @@ function initial(watch: Watch | null | undefined, ns: string): Form {
     steps: w?.steps?.length ? w.steps : ["transcribe", "diarize", "analyze", "summarize"],
     backfill: Boolean(w?.backfill),
     enabled: w?.enabled ?? true,
+    rules: rulesFromWatch(w?.routes),
   };
 }
 
@@ -81,10 +85,11 @@ export function WatchEditor({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  source: { id: number; name: string };
+  source: { id: number; name: string; type?: string };
   path: string;
   watch?: Watch | null;
 }) {
+  const email = source.type === "imap";
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
@@ -144,6 +149,7 @@ export function WatchEditor({
         steps: f.run === "steps" ? f.steps : null,
         pipeline: f.run === "pipeline" ? Number(f.pipeline) : null,
         enabled: f.enabled,
+        ...(email ? { routes: rulesToApi(f.rules) } : {}),
       };
       if (watch) return data(Sources.updateWatch({ client, path: { wid: watch.id }, body: opts }));
       return data(
@@ -192,6 +198,7 @@ export function WatchEditor({
     if (!/^\d+$/.test(f.stable.trim())) e.stable = "Whole seconds, 0 or more.";
     if (f.run === "pipeline" && !f.pipeline) e.pipeline = "Choose a pipeline.";
     if (f.run === "steps" && !f.steps.length) e.steps = "Pick at least one step.";
+    if (email && f.rules.some(ruleProblem)) e.rules = "Finish or remove the routing rules marked below.";
     setErrors(e);
     if (!Object.keys(e).length) save.mutate();
   };
@@ -372,6 +379,18 @@ export function WatchEditor({
         )}
       </div>
 
+      {email && (
+        <RoutingRules
+          rules={f.rules}
+          onChange={(rules) => set("rules", rules)}
+          namespaces={namespaces.map((n) => n.name)}
+          home={f.namespace}
+          source={source.id}
+          path={path}
+          showProblems={Boolean(errors.rules)}
+        />
+      )}
+
       {!editing && (
         <div className="flex flex-wrap items-center gap-2.5 rounded-md border border-blue-border bg-blue-surface p-3">
           <Checkbox
@@ -394,12 +413,12 @@ export function WatchEditor({
 
       <Switch label="Enabled" checked={f.enabled} onCheckedChange={(v) => set("enabled", v)} />
 
-      {errors._ && (
+      {(errors._ || errors.rules) && (
         <p
           role="alert"
           className="rounded-sm border border-red-border bg-red-surface px-3 py-2 text-[13px] text-red-dark"
         >
-          {errors._}
+          {errors._ || errors.rules}
         </p>
       )}
       {confirmStop && (
