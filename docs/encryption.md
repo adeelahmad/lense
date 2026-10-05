@@ -26,8 +26,10 @@ What is encrypted:
   back). The command can be stopped and run again. Changing the setting in the app (Settings) only affects files that
   arrive from then on.
 * With `encryption.files` on, what Lens makes from those files under its data folder too: documents' PDF renditions,
-  reports and exports. An export sent to a storage connection you chose arrives there plain, as you'd open it; its
-  copy in the data folder is encrypted. Reports written elsewhere (`lens report` with a folder of your own) stay plain.
+  reports and exports, and the frames, page images and face crops it draws. The steps that read those (text on screen,
+  faces, objects, descriptions) get plain working copies like the tools above. An export sent to a storage connection
+  you chose arrives there plain, as you'd open it; its copy in the data folder is encrypted. Reports written elsewhere
+  (`lens report` with a folder of your own) stay plain.
 
 How encrypted files are used:
 
@@ -38,9 +40,8 @@ How encrypted files are used:
   (30 by default).
 * Fingerprints and sizes are those of the plain file, so the same file uploaded or scanned again is still recognised.
 
-Not encrypted yet, and planned: page images, video frames and face crops, the cache of files from storage sources,
-and moving a recording's files to its new namespace's key (until then a moved file still opens with the key of the
-namespace it came from).
+Not encrypted yet, and planned: the cache of files from storage sources, and moving a recording's files to its new
+namespace's key (until then a moved file still opens with the key of the namespace it came from).
 
 What isn't encrypted by Lens: the SurrealDB database itself, including transcripts and the indexes that full-text
 and semantic search need, and your own folders that Lens scans (it only reads them). Put the data volume on an

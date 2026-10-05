@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Frames, page images and face crops are encrypted too.** With encryption at rest on (or in a vault), the stills
+  Lens draws from videos, documents and images are stored encrypted and still show as before; visitors still get faces
+  pixelated where the namespace asks. `lens encrypt` converts the ones already there.
 - **Word search no longer weighs down the database.** Searching words in transcripts, text on screen, files, objects
   and descriptions now uses a small SQLite index next to the database instead of SurrealDB's own full-text index. On
   10,000 transcript lines the database used 64 MB of memory instead of 380 MB, and writing them took half the time.

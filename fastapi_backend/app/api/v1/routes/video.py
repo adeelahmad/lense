@@ -17,9 +17,9 @@ from fastapi.responses import FileResponse, Response
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_urls
-from app.api.streaming import stored_file
+from app.api.streaming import LOCKED, picture_response, stored_file
 from app.api.v1.routes.recordings import serve_audio
-from app.domain import auth, convert, documents, files, ingest, jobs, store, video
+from app.domain import auth, convert, documents, files, ingest, jobs, keyring, store, video
 from app.domain import faces as facemod
 from app.domain.store import API, DB, R
 from app.schemas.common import Ok
@@ -90,16 +90,19 @@ def get_frame(rid: int, name: str, acl: Acl, cfg: Cfg, db: Db, s: str = "") -> R
     p = video.frames_dir(cfg, rid) / name
     if not FRAME_RX.fullmatch(name) or not p.is_file():
         raise HTTPException(404, "not found")
-    return _picture(db, rec, rid, name, p, acl.member(rec))
+    return _picture(db, cfg, rec, rid, name, p, acl.member(rec))
 
 
-def _picture(db: DB, rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
+def _picture(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
     headers = {"Cache-Control": "private, max-age=3600"}
     if not member and facemod.pixelates(db, rec["space"]):
-        data = facemod.pixelated(db, path, rid, name)
+        try:
+            data = facemod.pixelated(db, cfg, path, rid, name)
+        except keyring.Locked:
+            raise HTTPException(423, LOCKED) from None
         if data is not None:
             return Response(data, media_type="image/jpeg", headers={**headers, "Vary": "Authorization"})
-    return FileResponse(path, media_type="image/jpeg", headers=headers)
+    return picture_response(db, cfg, path, headers)
 
 
 # ---------- corrections on one recording ----------
