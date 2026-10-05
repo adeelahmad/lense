@@ -6550,6 +6550,12 @@ export type Me = {
    * Scope
    */
   scope: "read" | "write";
+  /**
+   * Toured At
+   *
+   * when you finished or skipped the welcome tour; until then the web app opens it once you sign in
+   */
+  toured_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -16103,6 +16109,22 @@ export type UpdateMeResponses = {
 };
 
 export type UpdateMeResponse = UpdateMeResponses[keyof UpdateMeResponses];
+
+export type FinishTourData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/me/tour";
+};
+
+export type FinishTourResponses = {
+  /**
+   * Successful Response
+   */
+  200: Me;
+};
+
+export type FinishTourResponse = FinishTourResponses[keyof FinishTourResponses];
 
 export type ChangePasswordData = {
   body: PasswordChange;
