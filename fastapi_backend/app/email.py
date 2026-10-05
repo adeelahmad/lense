@@ -19,12 +19,13 @@ def mail_enabled(cfg: dict[str, Any]) -> bool:
     return bool(m.get("server") and m.get("from_address"))
 
 
-def app_url(cfg: dict[str, Any]) -> str:
+def app_url(cfg: dict[str, Any], db: Any = None) -> str:
     """Where people open the web app, for links in emails: notifications.app_url when set, else the Cloudflare tunnel's
-    fixed hostname (Settings › Remote access), else FRONTEND_URL."""
+    fixed hostname (Settings › Remote access), else FRONTEND_URL. With `db`, for a link that's read right away (a chat
+    room's answer), a quick tunnel's address counts too while it's up; emails don't use it, since it changes."""
     from app.domain import tunnel
 
-    host = tunnel.hostname(cfg)
+    host = tunnel.hostname(cfg) or (tunnel.public_host(db) if db is not None else "")
     return str((cfg.get("notifications") or {}).get("app_url") or (f"https://{host}" if host else settings.FRONTEND_URL)).rstrip("/")
 
 

@@ -11,6 +11,11 @@ A room can be given to a namespace's own assistant (bridge.rooms, "gateway = nam
 namespace"): conversations there are scoped to that namespace, so its assistant answers with its instructions and
 memory (ns_assistant.py), and a message naming the assistant is for it too.
 
+In any other room Lens is the way in to every namespace, and routes each question itself: a question naming a
+namespace's assistant goes to that namespace; otherwise the decision model picks the namespace it's about
+(auto_scope.place), and when it isn't sure the answer looks everywhere and says which namespaces it might be. Saying
+"use <namespace>" keeps the conversation in one namespace until "use everything".
+
 Refine later: approving in the room itself, voice notes, files posted in the room, one Lens account per chat user.
 """
 
@@ -26,7 +31,7 @@ import threading
 import urllib.error
 import urllib.request
 
-from . import ai_tools, auth, chat, llm, ns_assistant, store
+from . import ai_tools, auth, auto_scope, chat, llm, ns_assistant, store
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -154,17 +159,99 @@ def _account(db, cfg):
 
 def conversation(db, account, m, namespace=None):
     """The conversation for this person in this room, started on their first message; scoped to `namespace` (the
-    room's namespace assistant), which follows bridge.rooms when it changes."""
+    room's namespace assistant), which follows bridge.rooms when it changes. In a room no namespace is given to, the
+    scope is routing's (route)."""
     key = hashlib.sha1(json.dumps([m.get("gateway"), m.get("channel"), m.get("account"), m.get("username")]).encode()).hexdigest()
     scope = {"namespaces": [namespace]} if namespace else {}
     cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE bridge = $k AND account = $a LIMIT 1", k=key, a=account["id"])
     if cid:
-        db.q("UPDATE $r SET scope = $s WHERE (scope ?? {}) != $s", r=R("chat", cid), s=scope)
+        if namespace:
+            db.q("UPDATE $r SET scope = $s, room = 'given' WHERE (scope ?? {}) != $s", r=R("chat", cid), s=scope)
+        else:  # the room was given to a namespace and no longer is: routing starts again
+            db.q("UPDATE $r SET scope = {}, room = NONE, pinned = NONE WHERE room = 'given'", r=R("chat", cid))
         return cid
     where = " · ".join(x for x in [m.get("channel"), (m.get("username") or "").strip("<> ")] if x)
     cid = chat.create(db, account["id"], title=f"Matterbridge · {where}" if where else "Matterbridge", scope=scope, kind="bridge")
-    db.q("UPDATE $r SET bridge = $k", r=R("chat", cid), k=key)
+    db.q("UPDATE $r SET bridge = $k, room = $g", r=R("chat", cid), k=key, g="given" if namespace else None)
     return cid
+
+
+# ---------- routing: which namespace a question in an open room is for ----------
+USE_RX = re.compile(r"^use\s+(?:the\s+)?(everything|all|[a-z0-9][a-z0-9_-]{0,40})(?:\s+namespace)?\s*[.!]?$", re.I)
+
+
+def _set_scope(db, cid, scope, pinned=None):
+    db.q("UPDATE $r SET scope = $s" + (", pinned = $p" if pinned is not None else ""), r=R("chat", cid), s=scope, p=pinned)
+
+
+def assistants(db, cfg, readable):
+    """{assistant name (lower case): namespace} for the namespaces with their own assistant on that the account can read;
+    a name two of them share, or Lens's own, addresses neither."""
+    lens = (cfg["bridge"].get("name") or "Lens").strip().lower()
+    names, shared = {}, set()
+    for sid, ns in store.space_names(db).items():
+        p = ns_assistant.profile(db, sid) if sid in readable else {"enabled": False}
+        n = p["name"].strip().lower() if p["enabled"] else ""
+        if not n or n == lens:
+            continue
+        if n in names:
+            shared.add(n)
+        names[n] = ns
+    return {n: ns for n, ns in names.items() if n not in shared}
+
+
+def named(db, cfg, m):
+    """In a room no namespace is given to: (the question, the namespace) when a message is for a namespace's assistant
+    by name, else None."""
+    try:
+        readable = set(auth.roles(db, _account(db, cfg)))
+    except BridgeError:
+        return None
+    for alias, ns in assistants(db, cfg, readable).items():
+        got = addressed({**cfg, "bridge": {**cfg["bridge"], "name": alias, "answer": "mention"}}, m)
+        if got:
+            return got, ns
+    return None
+
+
+def route(db, cfg, account, cid, q, ns=None):
+    """Scope a question in a room no namespace is given to (`ns`: the namespace whose assistant it named). Returns
+    (reply to send instead of an answer or None, a note to add to the answer or None)."""
+    readable = set(auth.roles(db, account))
+    names = store.space_names(db)
+    mine = {n for sid, n in names.items() if sid in readable}
+    c = db.one("SELECT scope, pinned, hinted FROM $r", r=R("chat", cid)) or {}
+    use = USE_RX.match(q.strip())
+    if use:
+        pick = use.group(1).lower()
+        if pick in ("everything", "all"):
+            _set_scope(db, cid, {}, pinned=False)
+            return "OK, this conversation looks in everything you can read again.", None
+        if pick in mine:
+            _set_scope(db, cid, {"namespaces": [pick]}, pinned=True)
+            return f"OK, this conversation stays in {pick} until you say “use everything”.", None
+        if pick in names.values():  # one it can't read; anything else isn't a namespace, so it's a question
+            return f"I can't read {pick}. I can look in: {', '.join(sorted(mine)) or 'nothing yet'}.", None
+    if ns:  # asked a namespace's assistant by name
+        _set_scope(db, cid, {"namespaces": [ns]})
+        return None, None
+    if c.get("pinned"):
+        return None, None
+    before = (c.get("scope") or {}).get("namespaces") or []
+    passages = chat.retrieve(db, q, readable, None, cfg=cfg)
+    placed = auto_scope.place(db, cfg, q, readable, passages, admin=account["admin"])
+    if placed and placed[0] == "scoped":
+        ns = placed[1]["choice"]
+        _set_scope(db, cid, {"namespaces": [ns]})
+        changed = before != [ns]  # said once, not under every answer
+        return None, f"(Looked in {ns}. Say “use everything” to look everywhere.)" if changed else None
+    _set_scope(db, cid, {})
+    likely = [s["name"] for s in (placed[1] if placed else []) if not s.get("new")]
+    if likely and likely != c.get("hinted"):  # the same hint isn't repeated under every answer
+        db.q("UPDATE $r SET hinted = $h", r=R("chat", cid), h=likely)
+        options = " or ".join(likely)
+        return None, f"(Looked everywhere. If this is about {options}, say “use {likely[0]}” to keep this conversation there.)"
+    return None, None
 
 
 # ---------- answering ----------
@@ -212,14 +299,14 @@ def answer(db, cfg, base, account, cid, q):
     return text, approvals
 
 
-def reply_text(cfg, text, approvals, cid):
+def reply_text(cfg, text, approvals, cid, db=None):
     """The answer as a chat message: what it proposed waits for approval in the web app, linked."""
     from app.email import app_url
 
     out = (text or "").strip() or "(no answer)"
     if approvals:
         out += "\n\nWaiting for approval in Lens: " + "; ".join(a["summary"] for a in approvals)
-        out += f"\n{app_url(cfg)}/chat/{cid}"
+        out += f"\n{app_url(cfg, db)}/chat/{cid}"  # through the tunnel, when there is one: the room is often far from home
     return out
 
 
@@ -228,17 +315,27 @@ def handle(db, cfg, base, m):
     ns = room_namespace(cfg, m)
     sid = {v: k for k, v in store.space_names(db).items()}.get(ns) if ns else None
     home = ns_assistant.profile(db, sid) if sid is not None else None
-    q = addressed(cfg, m, [home["name"]] if home and home["enabled"] else ())
+    by_name = named(db, cfg, m) if sid is None else None
+    q = by_name[0] if by_name else addressed(cfg, m, [home["name"]] if home and home["enabled"] else ())
     if not q:
         return False
     account = _account(db, cfg)
     cid = conversation(db, account, m, ns if sid is not None else None)
+    note = None
     try:
+        if sid is None:
+            said, note = route(db, cfg, account, cid, q, by_name[1] if by_name else None)
+            if said:
+                chat.add(db, cid, "user", q)
+                chat.add(db, cid, "assistant", said)
+                post(cfg, m.get("gateway"), said, m.get("channel"))
+                return True
         text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS])
     except Exception:  # noqa: BLE001 - still say something in the room
         log.exception("bridge: answering failed")
-        text, approvals = "Something went wrong while answering. Try again.", []
-    post(cfg, m.get("gateway"), reply_text(cfg, text, approvals, cid), m.get("channel"))
+        text, approvals, note = "Something went wrong while answering. Try again.", [], None
+    out = reply_text(cfg, text, approvals, cid, db)
+    post(cfg, m.get("gateway"), out + (f"\n\n{note}" if note else ""), m.get("channel"))
     try:  # a room conversation goes on for good: older messages are folded into its summary
         chat.compact(db, cfg, cid)
     except Exception:  # noqa: BLE001 - tried again after the next answer

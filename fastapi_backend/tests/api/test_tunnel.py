@@ -243,6 +243,10 @@ def test_passkeys_and_email_links_use_the_tunnels_https_address(app, client, db,
             "/api/v1/auth/passkey/options", headers={"x-forwarded-host": "other.trycloudflare.com", "x-forwarded-proto": "https"}
         )
         assert o.json()["options"]["rpId"] == "localhost"
+        # links read right away (a chat room's answer) go through it too; emails, which outlive it, don't
+        cfg["notifications"] = {**cfg["notifications"], "app_url": None}
+        assert email.app_url(cfg, db) == "https://tiny-blue-fox.trycloudflare.com"
+        assert "trycloudflare" not in email.app_url(cfg)
     finally:
         tunnel._SEEN.clear()
 
