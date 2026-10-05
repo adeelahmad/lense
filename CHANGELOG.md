@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A much smaller web app image.** The production image runs Next.js's standalone server with only the packages it
+  uses: 465 MB instead of 2.56 GB. Cloudron and `pnpm build` keep `next start`.
+
 - **Fewer steps to an answer.** Asking on Home sends the question when you press Enter, instead of opening an empty
   chat on the first keystroke and waiting for a second Enter. With only one namespace, it is picked for you, so pages
   that need a namespace stop asking. Once a model is set, the setup wizard offers **Finish with defaults** for the
