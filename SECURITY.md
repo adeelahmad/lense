@@ -31,7 +31,9 @@ Lens keeps people's recordings, transcripts and documents, so these matter most:
   links should work;
 - authentication and sessions: login, the first-admin setup code, tokens and API keys;
 - stored credentials for sources and model servers leaking through the API, logs or exports;
-- making the server fetch internal addresses through a URL it is given, such as an import or a model server (SSRF);
+- making the server fetch internal addresses through a URL someone other than the admin can set, such as a web import,
+  an extension's web tool or a notification target (SSRF). URLs only an admin sets, such as a model server or a
+  source, are trusted, except for the guards Lens documents on them (iCal feeds, the telemetry endpoint);
 - injection into the database queries, the shell or the processing tools.
 
 Out of scope: findings that need an admin to configure Lens insecurely on purpose, missing hardening headers with no
@@ -39,3 +41,9 @@ attack, denial of service by sheer volume, and vulnerabilities in dependencies t
 anyway if you're unsure).
 
 When you test, use your own instance and data, and don't touch other people's.
+
+## Threat model
+
+[threat-model.md](threat-model.md) is the detailed contract behind this page: what Lens assumes, what it guarantees,
+what it leaves to whoever runs it, and how a report is routed. Its machine-readable companions are
+[threat-model.yaml](threat-model.yaml) and [threat-model.json](threat-model.json).

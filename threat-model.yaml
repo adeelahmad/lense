@@ -1,0 +1,1602 @@
+# threat-model.yaml — derived index; the prose threat model (threat-model.md) is canonical.
+# Authority order: prose > yaml > json. Regenerate whenever the prose changes.
+schema: threat-model-sidecar/v2
+project: lens
+prose_version: "threat-model.md@sha256:3073a41d102f5cc5b2e43478c6657b1cfcbb00848e875ad3d667a0e1815c7668"
+model_status: under-review
+triage_policy: strict
+confidence: {documented: 200, maintainer: 46, inferred: 91, assumption: 8}
+
+generation:
+  model: "Claude Opus 5.5 (claude-opus-5-5)"
+  effort: default
+  plugins:
+    - threat-model
+    - threat-model-recon
+    - threat-model-surface
+    - threat-model-interview
+    - threat-model-authoring
+    - threat-model-backtest
+    - threat-model-sidecar
+  x-roles:
+    orchestrator: "Claude Opus 5.5 (claude-opus-5-5)"
+    authoring: "Claude Opus 5.5 (claude-opus-5-5)"
+    revision: "Claude Opus 5.5 (claude-opus-5-5)"
+    backtest: "Claude Sonnet 5.5 (claude-sonnet-5-5)"
+    recon: "Claude Sonnet 5.5 (claude-sonnet-5-5)"
+    surface: "Claude Sonnet 5.5 (claude-sonnet-5-5)"
+    sidecar: "Claude Opus 5.5 (claude-opus-5-5)"
+  x-plugin-version: "threat-model 1.2.1"
+
+x-modeled-commit: 5f799f2ff8bb8a762d8151d9b10b535a17878b55
+x-model-date: "2026-10-05"
+x-repository: "https://github.com/adeelahmad/lense"
+
+# ---------------------------------------------------------------- §1.2 / §1.3 / §1.4
+components:
+  - name: web
+    scope: in
+    x-family: "Web app & API gateway (Web)"
+    reachability_precondition: "reachable from a browser request and changes what the API decides or what another person's browser runs"
+    provenance: {kind: inferred, question_id: Q34}
+  - name: identity
+    scope: in
+    x-family: "Identity & sessions (Identity)"
+    reachability_precondition: "reachable with no account, or with an account, and yields a session, token or admin the attacker was not given; setup-code findings apply only while no account exists"
+    provenance: {kind: documented, source: 'docs/authentication.md "one-time **setup code**"'}
+  - name: authz
+    scope: in
+    x-family: "Authorization & data API (AuthZ)"
+    reachability_precondition: "lets a principal read or change more than its role and the recording's access level allow, or open media without a link the server signed for it"
+    provenance: {kind: documented, source: 'SECURITY.md "What counts"'}
+  - name: outbound
+    scope: in
+    x-family: "Outbound fetchers & stored secrets (Outbound)"
+    reachability_precondition: "a URL a non-admin sets, or a guarded admin operand, reaches a non-public address; or a stored secret reaches anyone but the host the admin set"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: ingest
+    scope: in
+    x-family: "Ingest & processing (Ingest)"
+    reachability_precondition: "reachable from bytes an editor uploads or a watched source delivers, and the fault is in how Lens runs the tool (arguments, environment, timeouts, sandbox flags)"
+    provenance: {kind: inferred, question_id: Q34}
+  - name: query
+    scope: in
+    x-family: "Query engines (Query)"
+    reachability_precondition: "query text from a non-admin reads outside the caller's namespaces, writes, fetches, or reaches SurrealQL"
+    provenance: {kind: inferred, question_id: Q34}
+  - name: assistant
+    scope: in
+    x-family: "Assistant & extensions (Assistant)"
+    reachability_precondition: "a non-admin (or content steering the model for one) exceeds the person's reads, changes data without approval outside notes and admin setup, or runs code on the host"
+    provenance: {kind: inferred, question_id: Q34}
+  - name: optional
+    scope: in
+    x-family: "Optional services, off by default (Optional)"
+    reachability_precondition: "the service is turned on by an admin, and the attacker lacks the login, network or token the feature requires"
+    provenance: {kind: inferred, question_id: Q34}
+  - name: ci-tooling-and-samples
+    scope: out
+    reason: "examples/ (source clone only), overrides/ (mkdocs theme), ci/, .github/, .pre-commit* (CI, in no image) and prod-frontend-deploy.yml (stale Vercel workflow) are unsupported paths built into no running service (§1.3)"
+    provenance: {kind: assumption, question_id: Q34}
+  - name: inert-backend-files
+    scope: out
+    reason: "fastapi_backend/tests/, watcher.py and commands/ are copied into the backend image but never started by the production command; a report must show production code reaching them (§1.3)"
+    provenance: {kind: assumption, question_id: Q34}
+
+# ---------------------------------------------------------------- §1.5
+host_side_effects:
+  - effect: network
+    stance: conditional
+    components: [identity, outbound, assistant, optional]
+    conditions: "outbound connections only to configured sources, model servers, mail, notification and telemetry targets; telemetry off by default; no update check; components.auto (on by default) runs pip installs and fetches hashed model files; llama.cpp and cloudflared from GitHub 'latest' when those features are on; hf: models from Hugging Face"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - effect: x-other-outbound-calls
+    stance: absent
+    components: [web, identity, authz, outbound, ingest, query, assistant, optional]
+    conditions: "none found in Lens code outside the configured destinations"
+    provenance: {kind: assumption, question_id: Q19}
+  - effect: x-ml-extra-weight-downloads
+    stance: conditional
+    components: [ingest]
+    conditions: "some optional ML extras download weights on first use on their own (Hugging Face, ModelScope)"
+    provenance: {kind: inferred, question_id: Q19}
+  - effect: environment-reads
+    stance: conditional
+    components: [outbound]
+    conditions: "plain urllib callers honour HTTP(S)_PROXY; the guarded openers ignore it"
+    provenance: {kind: assumption, question_id: Q19}
+  - effect: child-processes
+    stance: present
+    components: [ingest, outbound, assistant, optional]
+    conditions: "rclone, ffmpeg/ffprobe, LibreOffice, Chromium, Tesseract, poppler tools, antiword/catdoc, cloudflared, llama-server, unshare + Python for code tools, uv/pip; all as argument lists"
+    provenance: {kind: assumption, question_id: Q20}
+  - effect: network-sockets
+    stance: conditional
+    components: [web, outbound, optional]
+    conditions: "API and web app listen; a netguard proxy on loopback during captures; MQTT 1883 and syslog 5514 on sensors.bind (default 0.0.0.0) when sensors are on; llama-server on its port (0.0.0.0 in containers, with its own API key)"
+    provenance: {kind: assumption, question_id: Q19}
+  - effect: x-log-credentials
+    stance: present
+    components: [identity]
+    conditions: "the setup code and a /setup?code= link at WARNING; sign-in and reset links when mail is not set"
+    provenance: {kind: documented, source: 'docs/authentication.md "the API prints in its log"'}
+  - effect: filesystem
+    stance: present
+    components: [authz, outbound, ingest]
+    conditions: "everything under data_dir, including secret.key (mode 600) when ARCHIVE_SECRET_KEY is unset; temp dirs for imports, rclone config, LibreOffice and Chromium profiles"
+    provenance: {kind: inferred, question_id: Q19}
+  - effect: global-state
+    stance: present
+    components: [query, optional]
+    conditions: "rdflib SPARQL_LOAD_GRAPHS = False set on each SPARQL call; sys.path gains data_dir/python (components); a signal handler in the CLI"
+    provenance: {kind: assumption, question_id: Q19}
+  - effect: x-secrets-to-children
+    stance: conditional
+    components: [optional]
+    conditions: "tunnel token passed to cloudflared in its environment, not its command line (promoted to P-CHILD-SECRETS)"
+    provenance: {kind: documented, source: 'docs/remote-access.md "in its environment, not on its command line"'}
+
+# ---------------------------------------------------------------- §1.7 trust table
+entry_points:
+  - id: "every /api/v1/* route"
+    component: identity
+    parameters:
+      - name: "Authorization: Bearer (web JWT, la_ API token, lo_ app token)"
+        attacker_controllable: true
+        control_kinds: [data, serialized-state]
+        obligation_id: keep-bearer-secret
+        caller_must_enforce: "holder keeps it secret; Lens checks signature or hash, expiry, account, session"
+        provenance: {kind: documented, source: 'docs/authentication.md "Every request checks that the account is still active"'}
+  - id: "every request"
+    component: web
+    parameters:
+      - name: "Host header"
+        attacker_controllable: true
+        control_kinds: [resource-name]
+        obligation_id: list-served-hosts
+        caller_must_enforce: "operator lists served hosts"
+        provenance: {kind: documented, source: 'docs/configuration.md "checks the `Host` header"'}
+  - id: "IP groups, throttles"
+    component: authz
+    parameters:
+      - name: "X-Forwarded-For, peer address"
+        attacker_controllable: true
+        x-condition: "honoured only from trusted proxies"
+        control_kinds: [x-trusted-header]
+        obligation_id: trusted-proxy-chain
+        caller_must_enforce: "a reverse proxy sets the header; trusted_proxies lists exactly the front hops"
+        provenance: {kind: documented, source: 'docs/configuration.md "Without it, a visitor can claim any address"'}
+  - id: "passkey origin, OAuth discovery, external-login redirect"
+    component: identity
+    parameters:
+      - name: "X-Forwarded-Host, X-Forwarded-Proto"
+        attacker_controllable: true
+        x-condition: "honoured for served hosts or from trusted proxies"
+        control_kinds: [resource-name]
+        obligation_id: trust-proxy-headers-behind-proxy
+        caller_must_enforce: "TRUST_PROXY_HEADERS only behind a real proxy"
+        provenance: {kind: documented, source: 'docs/authentication.md "anyone could choose the address"'}
+  - id: "POST /auth/login, /iiif/auth/access form"
+    component: identity
+    parameters:
+      - name: "email, password"
+        attacker_controllable: true
+        control_kinds: [data, size, rate]
+        caller_must_enforce: "none — P-PASSWORDS-OFF (passwords work only where auth.passwords is on)"
+        provenance: {kind: documented, source: 'docs/authentication.md "With passwords off, password sign-in"'}
+  - id: "/auth/setup, /auth/passkey/setup*, /auth/setup/no-passkey"
+    component: identity
+    parameters:
+      - name: "setup code, email, name"
+        attacker_controllable: true
+        control_kinds: [data]
+        obligation_id: private-log-until-first-admin
+        caller_must_enforce: "keep the log private until the first admin exists"
+        provenance: {kind: documented, source: 'docs/configuration.md "so a stranger who finds a new"'}
+  - id: "/auth/refresh, /auth/ticket, /auth/signin-link/*, /auth/password/*, WebAuthn flows"
+    component: identity
+    parameters:
+      - name: "rotating and one-time secrets"
+        attacker_controllable: true
+        control_kinds: [data]
+        obligation_id: keep-one-time-secrets
+        caller_must_enforce: "holder keeps them secret"
+        provenance: {kind: documented, source: 'docs/authentication.md "A link lasts three days"'}
+  - id: "/oauth/register, /authorize, /token, /revoke"
+    component: identity
+    parameters:
+      - name: "redirect URIs, client metadata, code, verifier, refresh token"
+        attacker_controllable: true
+        x-condition: "registration is anonymous; authorize runs in the victim's browser"
+        control_kinds: [data, resource-name]
+        obligation_id: oauth-client-state-and-consent
+        caller_must_enforce: "the app keeps state and its verifier; the person consents"
+        provenance: {kind: documented, source: 'docs/authentication.md "Apps register themselves"'}
+  - id: "/auth/external/{key}/*"
+    component: identity
+    parameters:
+      - name: "next, state, code, provider profile"
+        attacker_controllable: true
+        x-condition: "profile only as far as the provider allows"
+        control_kinds: [data, x-collaborator-data]
+        obligation_id: admin-chooses-providers
+        caller_must_enforce: "admin chooses providers"
+        provenance: {kind: documented, source: 'docs/authentication.md "when the provider vouches for the email"'}
+  - id: "/mcp"
+    component: identity
+    parameters:
+      - name: "bearer, Origin, JSON-RPC body"
+        attacker_controllable: true
+        control_kinds: [data, size, rate]
+        caller_must_enforce: "none — P-OAUTH"
+        provenance: {kind: documented, source: 'docs/mcp.md "A token an app asked for another server"'}
+  - id: "namespace, recording and child-object routes"
+    component: authz
+    parameters:
+      - name: "namespace name, rid, child ids (sequential integers)"
+        attacker_controllable: true
+        control_kinds: [resource-name]
+        caller_must_enforce: "none — P-NS-ISOLATION (Lens checks the role in each handler)"
+        provenance: {kind: documented, source: 'docs/api.md "Namespaces you can''t read answer 404"'}
+  - id: "routes not read one by one (about 370)"
+    component: authz
+    parameters:
+      - name: "per route"
+        attacker_controllable: true
+        x-condition: "per gate"
+        control_kinds: [x-per-route]
+        obligation_id: follow-gate-pattern
+        caller_must_enforce: "follow the gate pattern"
+        provenance: {kind: inferred, question_id: Q8}
+  - id: "media, report, embed, IIIF content"
+    component: authz
+    parameters:
+      - name: "exp, sig, full, ?s= share token, /s/<code> short code"
+        attacker_controllable: true
+        control_kinds: [serialized-state]
+        obligation_id: keep-link-private
+        caller_must_enforce: "holder keeps the link private"
+        provenance: {kind: documented, source: 'SECURITY.md "only the server''s own signed links should work"'}
+  - id: "/iiif/auth/token, /probe, /logout"
+    component: authz
+    parameters:
+      - name: "origin, messageId, IIIF cookie, probe token"
+        attacker_controllable: true
+        x-condition: "any site can frame the token page"
+        control_kinds: [resource-name]
+        obligation_id: set-iiif-allowed-origins
+        caller_must_enforce: "operator sets iiif.allowed_origins"
+        provenance: {kind: documented, source: 'docs/iiif.md "limits which viewer sites can get tokens"'}
+  - id: "/recordings, /search, /public/search, chat retrieval"
+    component: query
+    parameters:
+      - name: "query text, filters, sort, limit, offset"
+        attacker_controllable: true
+        x-condition: "/public/search is anonymous"
+        control_kinds: [data, size]
+        caller_must_enforce: "none — P-NO-INJECTION"
+        provenance: {kind: documented, source: 'SECURITY.md "injection into the database queries"'}
+  - id: "/graph/query, MCP graph_query"
+    component: query
+    parameters:
+      - name: "Cypher text, params"
+        attacker_controllable: true
+        x-condition: "any signed-in person"
+        control_kinds: [callback-code]
+        caller_must_enforce: "none — P-QUERY"
+        provenance: {kind: documented, source: 'docs/graph.md "3 million steps"'}
+  - id: "/namespaces/{name}/sparql"
+    component: query
+    parameters:
+      - name: "SPARQL text"
+        attacker_controllable: true
+        x-condition: "namespace readers"
+        control_kinds: [callback-code]
+        caller_must_enforce: "none — P-NO-FETCH"
+        provenance: {kind: documented, source: 'routes/rdf.py sparql docstring "SERVICE and FROM aren''t allowed"'}
+  - id: "/namespaces/{name}/rdf/import"
+    component: query
+    parameters:
+      - name: "Turtle, N-Triples, JSON-LD"
+        attacker_controllable: true
+        x-condition: "editors"
+        control_kinds: [serialized-state, size]
+        caller_must_enforce: "none — P-NO-FETCH"
+        provenance: {kind: documented, source: 'rdf_import.py docstring "RDF/XML isn''t read"'}
+  - id: "/uploads, /import, /recordings/{rid}/files"
+    component: ingest
+    parameters:
+      - name: "file bytes, name, extension, size"
+        attacker_controllable: true
+        x-condition: "editors"
+        control_kinds: [data, type-class, size]
+        caller_must_enforce: "none — P-UPLOAD"
+        provenance: {kind: documented, source: 'docs/configuration.md "Uploads accept only the types"'}
+  - id: "watched folders, storage sources, IMAP, iCal"
+    component: outbound
+    parameters:
+      - name: "remote file names, bytes, mail, events"
+        attacker_controllable: true
+        x-condition: "whoever writes to the remote, mails the box or serves the feed"
+        control_kinds: [data, resource-name, size]
+        obligation_id: admin-creates-sources
+        caller_must_enforce: "admin creates sources"
+        provenance: {kind: inferred, question_id: Q17}
+  - id: "POST /imports/web, extension http tools, notification targets"
+    component: outbound
+    parameters:
+      - name: "URL"
+        attacker_controllable: true
+        x-condition: "editors (web, tools), owners (targets)"
+        control_kinds: [resource-name, x-network-destination]
+        caller_must_enforce: "none — P-SSRF-GUARD"
+        provenance: {kind: maintainer, date: "2026-10"}
+  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, iCal, MQTT bridge, OIDC issuer)"
+    component: outbound
+    parameters:
+      - name: "URL, credentials, api_key_env"
+        attacker_controllable: false
+        x-condition: "admin only; documented guards still apply (P-ADMIN-GUARD)"
+        control_kinds: [resource-name, x-credential]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted"
+        provenance: {kind: maintainer, date: "2026-10"}
+  - id: "replies from remote servers"
+    component: outbound
+    parameters:
+      - name: "web page HTML and scripts, IIIF manifests, model replies, OIDC discovery, calendars and their redirects"
+        attacker_controllable: true
+        control_kinds: [data, object-topology]
+        obligation_id: treat-remote-replies-untrusted
+        caller_must_enforce: "treat as untrusted"
+        provenance: {kind: inferred, question_id: Q17}
+  - id: "chat, /graph/ask, MCP tools"
+    component: assistant
+    parameters:
+      - name: "prompt text; model-chosen tool calls"
+        attacker_controllable: true
+        x-condition: "also indirectly through content"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none — P-RETRIEVAL"
+        provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
+  - id: "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes"
+    component: assistant
+    parameters:
+      - name: "tool spec, graph JSON, template text"
+        attacker_controllable: true
+        x-condition: "any writer, for their own; sharing is gated; template-node reach is Q23"
+        control_kinds: [callback-code]
+        obligation_id: enable-only-trusted-extensions
+        caller_must_enforce: "person enables only extensions they trust"
+        provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
+  - id: "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
+    component: assistant
+    parameters:
+      - name: "Python, Jinja source, regexes"
+        attacker_controllable: false
+        x-condition: "admin only"
+        control_kinds: [callback-code]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted"
+        provenance: {kind: maintainer, date: "2026-10"}
+  - id: "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}"
+    component: optional
+    parameters:
+      - name: "payloads, hub logins, token in the path"
+        attacker_controllable: true
+        x-condition: "once enabled"
+        control_kinds: [data, size, rate, x-credential]
+        obligation_id: enable-and-firewall-sensors
+        caller_must_enforce: "admin enables; operator firewalls"
+        provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
+    component: outbound
+    parameters:
+      - name: "process configuration"
+        attacker_controllable: false
+        x-condition: "operator"
+        control_kinds: [x-env-config]
+        obligation_id: protect-process-config
+        caller_must_enforce: "keep unreadable to others"
+        provenance: {kind: maintainer, date: "2026-10"}
+  - id: "workers and DB peers"
+    component: authz
+    parameters:
+      - name: "DB credential, shared database rows"
+        attacker_controllable: false
+        x-condition: "trusted peer"
+        control_kinds: [x-peer]
+        obligation_id: trusted-peer-hosts
+        caller_must_enforce: "run peers on trusted hosts"
+        provenance: {kind: inferred, question_id: Q9}
+
+# ---------------------------------------------------------------- §1.7 contract-dimension matrix
+# Every in-scope component × the eight required dimensions appears exactly once.
+# Prose sub-rows that refine a standard dimension (for example "Numeric domain:
+# absolute session cap") are carried as x- dimensions so each standard cell
+# stays unique. `x-routes-to` keeps the prose "Routes to" cell when it names
+# more than the single property_id.
+contract_dimensions:
+  # --- Web
+  - {component: web, dimension: numeric-domain, status: not-applicable, conditions: "bodies pass through; size caps are the API's", x-routes-to: "§1.7 rows", provenance: {kind: documented, source: 'backend-proxy.ts docstring "Serves the FastAPI backend''s paths on this origin"'}}
+  - {component: web, dimension: failure-atomicity, status: not-applicable, conditions: "no server state; only the encrypted session cookie", x-routes-to: "P-AUTH-REQ", provenance: {kind: documented, source: 'docs/configuration.md "encrypts the NextAuth session cookie"'}}
+  - {component: web, dimension: recursive-cyclic-topology, status: not-applicable, conditions: "stateless proxy, no recursive input; forwards bytes", provenance: {kind: inferred, question_id: Q34}}
+  - {component: web, dimension: concurrency-reentrancy, status: not-applicable, conditions: "stateless proxy; no shared mutable state", provenance: {kind: inferred, question_id: Q34}}
+  - {component: web, dimension: callback-execution, status: unresolved, conditions: "the API authorizes every call; proxy.ts only redirects pages", x-routes-to: "N-WEBGATE", question_id: Q8, provenance: {kind: inferred, question_id: Q8}}
+  - {component: web, dimension: serialization-reconstruction, status: claimed, property_id: P-AUTH-REQ, conditions: "session cookie encrypted with AUTH_SECRET (dev secret voids it)", provenance: {kind: documented, source: 'docs/authentication.md "takes effect immediately"'}}
+  - {component: web, dimension: reference-lifecycle, status: claimed, property_id: P-AUTH-REQ, conditions: "sign-out ends the session at once", provenance: {kind: documented, source: 'docs/authentication.md "takes effect immediately"'}}
+  - {component: web, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "no rate limit beyond sign-in throttles", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
+  - {component: web, dimension: x-browser-rendering, status: unresolved, conditions: "lower-role text rendered in another person's browser", question_id: Q24, provenance: {kind: inferred, question_id: Q24}}
+  - {component: web, dimension: x-headers, status: claimed, property_id: P-HARDENED, conditions: "web app page headers and API framing as documented", x-routes-to: "P-HARDENED, P-FRAME; others N-HEADERS", provenance: {kind: documented, source: 'docs/deployment.md "What''s hardened already"'}}
+  - {component: web, dimension: x-forwarded-host, status: unresolved, conditions: "which header chooses the address OAuth discovery, the passkey origin and external-login redirects name", question_id: Q38, provenance: {kind: inferred, question_id: Q38}}
+  # --- Identity
+  - {component: identity, dimension: numeric-domain, status: claimed, property_id: P-LIFETIMES, conditions: "token and link lifetimes and tokens.max_days", provenance: {kind: documented, source: 'docs/authentication.md "A link lasts three days"'}}
+  - {component: identity, dimension: x-numeric-domain-absolute-session-cap, status: unresolved, conditions: "the 168 h window resets on every refresh", question_id: Q4, provenance: {kind: inferred, question_id: Q4}}
+  - {component: identity, dimension: failure-atomicity, status: claimed, property_id: P-ONCE, conditions: "one-time secrets spent before use; a refused attempt spends nothing; one code makes one first admin", x-routes-to: "P-ONCE, P-SETUP-ONCE", provenance: {kind: documented, source: 'docs/authentication.md "works once"'}}
+  - {component: identity, dimension: recursive-cyclic-topology, status: not-applicable, conditions: "flat credentials; no nested identity input", provenance: {kind: inferred, question_id: Q34}}
+  - {component: identity, dimension: callback-execution, status: disclaimed, property_id: N-OIDC, conditions: "identity from the provider's token and userinfo endpoints", x-routes-to: "N-OIDC, N-PROVIDER", provenance: {kind: documented, source: 'docs/authentication.md "token and userinfo endpoints"'}}
+  - {component: identity, dimension: serialization-reconstruction, status: claimed, property_id: P-AUTH-REQ, conditions: "one key signs access tokens and media links", x-routes-to: "P-AUTH-REQ, P-MEDIA-LINK", provenance: {kind: documented, source: 'docs/configuration.md "signs access tokens and media links"'}}
+  - {component: identity, dimension: reference-lifecycle, status: claimed, property_id: P-AUTH-REQ, conditions: "sign-out, disable, revoke: immediate for every token kind; revoking a grant or token ends its tokens", provenance: {kind: documented, source: 'docs/authentication.md "stop working at once"'}}
+  - {component: identity, dimension: x-reference-lifecycle-credential-change, status: unresolved, conditions: "password change, passkey removal: API tokens, app grants, IIIF cookies survive", question_id: Q3, provenance: {kind: inferred, question_id: Q3}}
+  - {component: identity, dimension: x-revoke-race, status: unresolved, conditions: "a token minted while its grant is being revoked", question_id: Q39, provenance: {kind: inferred, question_id: Q39}}
+  - {component: identity, dimension: x-link-supersession, status: unresolved, conditions: "whether anyone but the owner or an admin can cancel a pending sign-in link", question_id: Q41, provenance: {kind: inferred, question_id: Q41}}
+  - {component: identity, dimension: x-redirect-target, status: unresolved, conditions: "post-sign-in next target", question_id: Q40, provenance: {kind: inferred, question_id: Q40}}
+  - {component: identity, dimension: concurrency-reentrancy, status: claimed, property_id: P-REUSE, conditions: "web refresh: replay within 60 s accepted; after that it ends the whole session", provenance: {kind: documented, source: 'docs/authentication.md "it ends the whole session"'}}
+  - {component: identity, dimension: x-concurrency-oauth-refresh, status: claimed, property_id: P-REUSE, conditions: "OAuth refresh: replay within 60 s refused, changes nothing; after that it ends the access", provenance: {kind: documented, source: 'docs/authentication.md "A swapped one that comes back within 60 seconds is refused"'}}
+  - {component: identity, dimension: resource-complexity, status: claimed, property_id: P-THROTTLE, conditions: "failed password sign-ins: 8 per 15 minutes; other anonymous routes are Q5", provenance: {kind: documented, source: 'docs/authentication.md "throttled per email and address"'}}
+  - {component: identity, dimension: x-resource-complexity-setup-routes, status: unresolved, conditions: "setup-code guesses", question_id: Q42, provenance: {kind: inferred, question_id: Q42}}
+  - {component: identity, dimension: x-enumeration, status: unresolved, conditions: "passkey 404, external-login messages, anonymous 401 vs 404", question_id: Q6, provenance: {kind: inferred, question_id: Q6}}
+  - {component: identity, dimension: x-mcp-audience, status: unresolved, conditions: "/mcp accepts tokens that name no server; the docs intro says MCP only reads", question_id: Q13, provenance: {kind: inferred, question_id: Q13}}
+  - {component: identity, dimension: x-csrf, status: claimed, property_id: P-BEARER-ONLY, conditions: "bearer-only API; IIIF cookie flow and NextAuth handlers excepted", provenance: {kind: documented, source: 'docs/architecture.md "so there is no CSRF surface"'}}
+  - {component: identity, dimension: x-forwarded-host, status: unresolved, conditions: "which header chooses the address OAuth discovery, the passkey origin and external-login redirects name", question_id: Q38, provenance: {kind: inferred, question_id: Q38}}
+  # --- AuthZ
+  - {component: authz, dimension: numeric-domain, status: claimed, property_id: MX-AUTHZ-LIST-CAPS, conditions: "/recordings at most 1000 rows; other lists capped per route; REST offset uncapped (N-VOLUME)", x-routes-to: "§1.7", provenance: {kind: documented, source: 'docs/api.md "at most 1000"'}}
+  - {component: authz, dimension: x-numeric-domain-mcp-tool-arguments, status: unresolved, conditions: "MCP tool offsets and page sizes (for example get_entity's mentions offset) have no documented maximum", question_id: Q47, provenance: {kind: inferred, question_id: Q47}}
+  - {component: authz, dimension: failure-atomicity, status: unresolved, conditions: "delete commits rows then removes files; move, merge, undo are stepwise", question_id: Q12, provenance: {kind: inferred, question_id: Q12}}
+  - {component: authz, dimension: recursive-cyclic-topology, status: claimed, property_id: P-HIERARCHY, conditions: "collections at most 8 deep, no cycles, 5000 per namespace", provenance: {kind: documented, source: 'docs/api.md "at most 8 deep"'}}
+  - {component: authz, dimension: callback-execution, status: not-applicable, conditions: "no caller code runs; authorization reads DB rows only", provenance: {kind: inferred, question_id: Q8}}
+  - {component: authz, dimension: serialization-reconstruction, status: claimed, property_id: P-MEDIA-LINK, conditions: "signature binds path, expiry and full; other query parameters unsigned", provenance: {kind: documented, source: 'core/security.py sign_path docstring "Extra query parameters are kept but not signed"'}}
+  - {component: authz, dimension: reference-lifecycle, status: disclaimed, property_id: N-SIGNED-BEARER, conditions: "signed links valid to expiry; not revocable; not bound to a person", provenance: {kind: documented, source: 'core/security.py sign_path docstring "grants read access to exactly this path until it expires"'}}
+  - {component: authz, dimension: x-reference-lifecycle-share-report-links, status: unresolved, conditions: "share and report links after the creator loses a role; after a move", question_id: Q10, provenance: {kind: inferred, question_id: Q10}}
+  - {component: authz, dimension: concurrency-reentrancy, status: unresolved, conditions: "roles load per request; caches key on the readable set", question_id: Q8, provenance: {kind: inferred, question_id: Q8}}
+  - {component: authz, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "no rate limit on read APIs", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
+  - {component: authz, dimension: x-access-parts, status: claimed, property_id: P-ACCESS-PARTS, conditions: "access levels, open parts, description", x-routes-to: "P-ACCESS-PARTS, N-PUBLIC", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
+  - {component: authz, dimension: x-client-address-compose, status: claimed, property_id: P-IPGROUP, conditions: "both compose files trust the web app container, so each visitor gets their own address", x-routes-to: "P-IPGROUP, P-THROTTLE", provenance: {kind: documented, source: 'docs/deployment.md "so each visitor gets their own"'}}
+  - {component: authz, dimension: x-client-address-other-variants, status: unresolved, conditions: "web app alone, installers, NAS, Proxmox without a reverse proxy setting X-Forwarded-For", question_id: Q2, provenance: {kind: inferred, question_id: Q2}}
+  - {component: authz, dimension: x-share-scope, status: unresolved, conditions: "?s= share tokens open the audio, video, frames and page API routes", question_id: Q7, provenance: {kind: inferred, question_id: Q7}}
+  # --- Outbound
+  - {component: outbound, dimension: numeric-domain, status: claimed, property_id: P-SSRF-GUARD, conditions: "web paths and iCal: ports 80 and 443", x-routes-to: "P-SSRF-GUARD, P-ADMIN-GUARD", provenance: {kind: documented, source: 'docs/api.md "Only public addresses are reached, on ports 80 and 443"'}}
+  - {component: outbound, dimension: x-numeric-domain-notification-ports, status: unresolved, conditions: "notification targets may use any port; the guard checks addresses only", question_id: Q15, provenance: {kind: inferred, question_id: Q15}}
+  - {component: outbound, dimension: failure-atomicity, status: claimed, property_id: P-NOTIFY, conditions: "each notification event claimed once across processes, then retried", provenance: {kind: documented, source: 'docs/notifications.md "claimed once"'}}
+  - {component: outbound, dimension: recursive-cyclic-topology, status: claimed, property_id: P-SSRF-GUARD, conditions: "redirects: http and https only, each hop re-checked; credentials never follow a redirect to another server; notifications follow none", x-routes-to: "P-SSRF-GUARD, P-SECRETS", provenance: {kind: documented, source: 'docs/processing.md "never sent on to another server"'}}
+  - {component: outbound, dimension: callback-execution, status: disclaimed, property_id: N-CHROMIUM, conditions: "Chromium may lack its sandbox; the proxy is the barrier", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
+  - {component: outbound, dimension: serialization-reconstruction, status: claimed, property_id: P-SECRETS, conditions: "sealed secrets are write-only through the API", provenance: {kind: documented, source: 'docs/configuration.md "the API reports whether one is set, never its value"'}}
+  - {component: outbound, dimension: x-admin-operand-guards, status: claimed, property_id: P-ADMIN-GUARD, conditions: "iCal public-address guard; telemetry endpoint without user:password or link-local address", provenance: {kind: documented, source: 'docs/processing.md "fetched the way web pages are captured"'}}
+  - {component: outbound, dimension: x-admin-operand-guards-telemetry-headers, status: unresolved, conditions: "saved headers dropped when the endpoint moves to another host", question_id: Q35, provenance: {kind: inferred, question_id: Q35}}
+  - {component: outbound, dimension: x-remote-identity-imap, status: claimed, property_id: P-REMOTE-NAMES, conditions: "a rebuilt mailbox gets new names, so an old name never reads another message", provenance: {kind: documented, source: 'docs/processing.md "an old one never reads another message"'}}
+  - {component: outbound, dimension: x-remote-identity-other-sources, status: unresolved, conditions: "rclone, iCal and IIIF cache keys and names", question_id: Q43, provenance: {kind: inferred, question_id: Q43}}
+  - {component: outbound, dimension: reference-lifecycle, status: unresolved, conditions: "key placement: secret.key in data_dir with data and backups", question_id: Q14, provenance: {kind: inferred, question_id: Q14}}
+  - {component: outbound, dimension: x-reference-lifecycle-key-rotation, status: claimed, property_id: MX-OUTBOUND-KEY-ROTATION, conditions: "a new key makes stored credentials and encrypted files unreadable", x-routes-to: "§1.13", provenance: {kind: documented, source: 'docs/deployment.md "Stable secrets"'}}
+  - {component: outbound, dimension: concurrency-reentrancy, status: unresolved, conditions: "loopback guard proxy open to local processes during a capture", question_id: Q19, provenance: {kind: inferred, question_id: Q19}}
+  - {component: outbound, dimension: resource-complexity, status: unresolved, conditions: "IIIF media up to 4 GB in memory; rclone copies uncapped", question_id: Q16, provenance: {kind: inferred, question_id: Q16}}
+  # --- Ingest
+  - {component: ingest, dimension: numeric-domain, status: claimed, property_id: P-UPLOAD, conditions: "uploads.max_mb, 512 MB disk floor, documents.max_pages", provenance: {kind: documented, source: 'docs/configuration.md "512 MB free"'}}
+  - {component: ingest, dimension: x-numeric-domain-duration-decompressed-size, status: unresolved, conditions: "no duration cap; docx XML read whole", question_id: Q22, provenance: {kind: inferred, question_id: Q22}}
+  - {component: ingest, dimension: recursive-cyclic-topology, status: unresolved, conditions: "emails inside emails, no stated depth cap", question_id: Q22, provenance: {kind: inferred, question_id: Q22}}
+  - {component: ingest, dimension: failure-atomicity, status: claimed, property_id: P-UPLOAD, conditions: "an upload file holds whole chunks only", provenance: {kind: documented, source: 'domain/uploads.py docstring "whole chunks"'}}
+  - {component: ingest, dimension: callback-execution, status: unresolved, conditions: "decoders run in the worker's process tree, unsandboxed", question_id: Q20, provenance: {kind: inferred, question_id: Q20}}
+  - {component: ingest, dimension: x-process-control, status: unresolved, conditions: "a conversion or capture outliving its timeout, or children left alive after a kill", question_id: Q20, provenance: {kind: inferred, question_id: Q20}}
+  - {component: ingest, dimension: serialization-reconstruction, status: claimed, property_id: P-UPLOAD, conditions: "nothing uploaded is executed; served as audio, video or download", provenance: {kind: documented, source: 'docs/configuration.md "uploaded is executed"'}}
+  - {component: ingest, dimension: reference-lifecycle, status: unresolved, conditions: "temp dirs and process groups cleaned after conversion, best effort", question_id: Q34, provenance: {kind: inferred, question_id: Q34}}
+  - {component: ingest, dimension: concurrency-reentrancy, status: unresolved, conditions: "jobs run at least once; a retried step may repeat side effects", question_id: Q12, provenance: {kind: inferred, question_id: Q12}}
+  - {component: ingest, dimension: resource-complexity, status: unresolved, conditions: "some decoders have no timeout; LibreOffice and Chromium get 300 s", question_id: Q22, provenance: {kind: inferred, question_id: Q22}}
+  - {component: ingest, dimension: x-demuxer-reads, status: unresolved, conditions: "ffmpeg runs without -protocol_whitelist; an upload that makes it read another local file", question_id: Q21, provenance: {kind: inferred, question_id: Q21}}
+  # --- Query
+  - {component: query, dimension: numeric-domain, status: claimed, property_id: P-QUERY, conditions: "Cypher: 3 million steps, 8 seconds", provenance: {kind: documented, source: 'docs/graph.md "3 million steps"'}}
+  - {component: query, dimension: recursive-cyclic-topology, status: claimed, property_id: P-QUERY, conditions: "variable-length paths up to 8 hops", provenance: {kind: documented, source: 'docs/graph.md "3 million steps"'}}
+  - {component: query, dimension: failure-atomicity, status: not-applicable, conditions: "read-only; engines never change data", x-routes-to: "P-QUERY", provenance: {kind: documented, source: 'domain/cypher.py docstring "it never changes data"'}}
+  - {component: query, dimension: callback-execution, status: claimed, property_id: P-NO-FETCH, conditions: "SPARQL SERVICE, FROM, graph loading refused", provenance: {kind: documented, source: 'routes/rdf.py sparql docstring "SERVICE and FROM aren''t allowed"'}}
+  - {component: query, dimension: serialization-reconstruction, status: claimed, property_id: P-NO-FETCH, conditions: "remote JSON-LD contexts refused; RDF/XML not read", provenance: {kind: documented, source: 'routes/rdf.py sparql docstring "SERVICE and FROM aren''t allowed"'}}
+  - {component: query, dimension: reference-lifecycle, status: not-applicable, conditions: "no saved query state; caches key on the readable set", provenance: {kind: inferred, question_id: Q8}}
+  # The prose tags this row (assumption, Q19). The v2 schema requires an
+  # `unresolved` row to carry inferred provenance, so it is recorded one step
+  # weaker (inferred never closes; assumption could close under relaxed).
+  - {component: query, dimension: concurrency-reentrancy, status: unresolved, conditions: "SPARQL sets a process-global rdflib flag per call", question_id: Q19, x-prose-provenance-kind: assumption, provenance: {kind: inferred, question_id: Q19}}
+  - {component: query, dimension: resource-complexity, status: unresolved, conditions: "SPARQL has a row cap only; the Cypher regex guard is heuristic", question_id: Q25, x-also-questions: [Q16], provenance: {kind: inferred, question_id: Q25}}
+  # --- Assistant
+  - {component: assistant, dimension: numeric-domain, status: claimed, property_id: P-RETRIEVAL, conditions: "tool loop capped by ai.max_steps and ai.max_transcript_reads", provenance: {kind: documented, source: 'docs/assistant.md "capped by"'}}
+  - {component: assistant, dimension: failure-atomicity, status: claimed, property_id: P-APPROVAL, conditions: "change tools become approval cards; approval re-checks the role; notes and setup excepted", provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}}
+  - {component: assistant, dimension: recursive-cyclic-topology, status: claimed, property_id: P-FLOW, conditions: "flow graphs never loop back; step budget", provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}}
+  - {component: assistant, dimension: callback-execution, status: claimed, property_id: P-RETRIEVAL, conditions: "tools see only the person's reads; Python tools from admins only", x-routes-to: "P-RETRIEVAL, P-NO-CODE", provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}}
+  - {component: assistant, dimension: serialization-reconstruction, status: claimed, property_id: P-NO-CODE, conditions: "manifests checked; Python refused for non-admins", provenance: {kind: documented, source: 'domain/extensions.py docstring "Only admins write Python"'}}
+  - {component: assistant, dimension: x-extension-scope-hooks, status: claimed, property_id: P-EXT-SCOPE, conditions: "another person's hook runs only when an admin shared it", provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}}
+  - {component: assistant, dimension: x-extension-scope-tools, status: unresolved, conditions: "another person's tools in my assistant; whether http tool arguments can change its host", question_id: Q27, provenance: {kind: inferred, question_id: Q27}}
+  - {component: assistant, dimension: reference-lifecycle, status: unresolved, conditions: "saved answers keep text the person can no longer read", question_id: Q11, provenance: {kind: inferred, question_id: Q11}}
+  - {component: assistant, dimension: concurrency-reentrancy, status: not-applicable, conditions: "one loop per conversation; tool calls run in order", provenance: {kind: inferred, question_id: Q34}}
+  - {component: assistant, dimension: resource-complexity, status: disclaimed, property_id: N-BUDGET, conditions: "budgets are pre-run estimates, off by default", provenance: {kind: documented, source: 'docs/budgets.md "Budgets are off unless an admin sets one"'}}
+  - {component: assistant, dimension: x-prompt-injection, status: unresolved, conditions: "content steers the model within the person's tools, or into answers that carry text out", question_id: Q26, provenance: {kind: inferred, question_id: Q26}}
+  - {component: assistant, dimension: x-template-reach, status: unresolved, conditions: "any writer can use a template node in a custom node", question_id: Q23, provenance: {kind: inferred, question_id: Q23}}
+  # --- Optional
+  - {component: optional, dimension: numeric-domain, status: unresolved, conditions: "payload 256 KB, 600 per minute per stream, syslog line 64 KB", question_id: Q29, provenance: {kind: inferred, question_id: Q29}}
+  - {component: optional, dimension: failure-atomicity, status: not-applicable, conditions: "flat, append-only readings stored as data; no multi-step state", provenance: {kind: inferred, question_id: Q34}}
+  - {component: optional, dimension: recursive-cyclic-topology, status: not-applicable, conditions: "flat readings; no nesting", provenance: {kind: inferred, question_id: Q34}}
+  - {component: optional, dimension: serialization-reconstruction, status: not-applicable, conditions: "readings stored as data; no object reconstruction", provenance: {kind: inferred, question_id: Q34}}
+  - {component: optional, dimension: callback-execution, status: claimed, property_id: P-CHILD-SECRETS, conditions: "tunnel token and llama-server key stay off command lines", provenance: {kind: documented, source: 'docs/remote-access.md "in its environment, not on its command line"'}}
+  - {component: optional, dimension: reference-lifecycle, status: claimed, property_id: P-SENSORS, conditions: "each service off until an admin turns it on", provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}}
+  - {component: optional, dimension: concurrency-reentrancy, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
+  - {component: optional, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
+
+# ---------------------------------------------------------------- §1.8
+outputs:
+  - component: authz
+    channel: "JSON API responses (titles, transcripts, notes, metadata)"
+    taint: same-as-input
+    x-taint-note: "as typed by people or produced by ASR/OCR; search snippet is HTML-escaped with <mark>"
+    taint_provenance: {kind: documented, source: 'docs/api.md "an HTML-escaped `snippet`"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-api-text-safe-for-sinks, statement: "that any text field is safe for HTML, Markdown, SQL or a shell", provenance: {kind: documented, source: 'docs/api.md "an HTML-escaped `snippet`"'}}
+  - component: authz
+    channel: "Signed links in responses (api/media.py)"
+    taint: constrained
+    taint_provenance: {kind: documented, source: 'docs/architecture.md "is never signed"'}
+    invariants:
+      - {id: inv-signed-links-allow-listed, statement: "server-written for allow-listed fields only; text that looks like a link is never signed", property_id: P-MEDIA-LINK, provenance: {kind: documented, source: 'docs/architecture.md "is never signed"'}}
+    downstream_must_not_assume:
+      - {id: dmna-signed-link-private, statement: "that a link is private: it is a bearer credential until expiry", provenance: {kind: documented, source: 'docs/architecture.md "is never signed"'}}
+  - component: authz
+    channel: "Exports, RDF, JSON-LD, IIIF manifests, WebVTT, Dublin Core"
+    taint: same-as-input
+    x-taint-note: "values as typed; RDF responses send Access-Control-Allow-Origin: *"
+    taint_provenance: {kind: inferred, question_id: Q24}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-export-escaping, statement: "escaping for the consumer's format", provenance: {kind: inferred, question_id: Q24}}
+  - component: authz
+    channel: "Recording description (IIIF, public pages)"
+    taint: same-as-input
+    x-taint-note: "never a closed part; anyone who may see the page sees it"
+    taint_provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-closed-parts-hide-description, statement: "that closing parts hides the description", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
+  - component: authz
+    channel: "Embed player and /s/<code> pages (api/pages.py)"
+    taint: same-as-input
+    x-taint-note: "HTML built from DB values under a strict CSP; framable only per server.embed_frame_ancestors"
+    taint_provenance: {kind: documented, source: 'docs/configuration.md "Content-Security-Policy"'}
+    invariants:
+      - {id: inv-embed-frame-policy, statement: "framable only per server.embed_frame_ancestors, under a strict CSP", property_id: P-FRAME, provenance: {kind: documented, source: 'docs/configuration.md "Content-Security-Policy"'}}
+    downstream_must_not_assume:
+      - {id: dmna-titles-inert, statement: "that titles are inert outside this page", provenance: {kind: documented, source: 'docs/configuration.md "Content-Security-Policy"'}}
+  - component: authz
+    channel: "Report pages (api/pages.py)"
+    taint: same-as-input
+    x-taint-note: "links re-signed on read for every recording of the namespace in the page"
+    taint_provenance: {kind: inferred, question_id: Q10}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-report-link-scope, statement: "that a report link opens only the report", provenance: {kind: inferred, question_id: Q10}}
+  - component: assistant
+    channel: "Assistant answers, summaries, LLM-written notes"
+    taint: same-as-input
+    x-taint-note: "model output over untrusted content"
+    taint_provenance: {kind: inferred, question_id: Q26}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-assistant-grounded, statement: "that it is grounded or free of injected instructions", provenance: {kind: inferred, question_id: Q26}}
+  - component: authz
+    channel: "MCP tool results (api/mcp_tools.py)"
+    taint: same-as-input
+    x-taint-note: "the person's readable data, as text"
+    taint_provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}
+    invariants:
+      - {id: inv-mcp-person-reads, statement: "results contain only what the person can read", property_id: P-RETRIEVAL, provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
+    downstream_must_not_assume:
+      - {id: dmna-mcp-text-as-instructions, statement: "that transcript text is safe to follow as instructions", provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
+  - component: outbound
+    channel: "Error text from remote servers (LLM, speech, rclone, IMAP callers)"
+    taint: same-as-input
+    x-taint-note: "up to 300 characters of the remote reply and the URL as typed"
+    taint_provenance: {kind: inferred, question_id: Q18}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-internal-hosts-hidden, statement: "that internal host names stay hidden", provenance: {kind: inferred, question_id: Q18}}
+  - component: outbound
+    channel: "Webhook bodies (notify.py)"
+    taint: same-as-input
+    x-taint-note: "event data, HMAC-signed for the webhook kind only"
+    taint_provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-chat-webhooks-signed, statement: "that Slack or Discord messages are signed", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
+  - component: outbound
+    channel: "Fedora export (fedora.py)"
+    taint: same-as-input
+    x-taint-note: "every namespace's metadata and files"
+    taint_provenance: {kind: documented, source: 'domain/fedora.py docstring "every namespace, collection, recording"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-fedora-one-namespace, statement: "that the Fedora account is limited to one namespace", provenance: {kind: documented, source: 'domain/fedora.py docstring "every namespace, collection, recording"'}}
+  - component: outbound
+    channel: "Telemetry (telemetry.py)"
+    taint: constrained
+    x-taint-note: "route templates, ids, counts; never content"
+    taint_provenance: {kind: documented, source: 'docs/telemetry.md "Never sent"'}
+    invariants:
+      - {id: inv-telemetry-no-content, statement: "never sends content, names, addresses or error messages", property_id: P-TELEMETRY, provenance: {kind: documented, source: 'docs/telemetry.md "Never sent"'}}
+    downstream_must_not_assume:
+      - {id: dmna-collector-private, statement: "that the operator's collector is private", provenance: {kind: documented, source: 'docs/telemetry.md "Never sent"'}}
+  - component: identity
+    channel: "Server log (API)"
+    taint: same-as-input
+    x-taint-note: "setup code and link; sign-in and reset links without mail"
+    taint_provenance: {kind: documented, source: 'docs/authentication.md "the API prints in its log"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-log-credential-free, statement: "that the log is free of live credentials", provenance: {kind: documented, source: 'docs/authentication.md "the API prints in its log"'}}
+  - component: identity
+    channel: "Audit and activity log (auth.audit, activity.py)"
+    taint: constrained
+    x-taint-note: "actor, action, target; never prompt or file content"
+    taint_provenance: {kind: documented, source: 'docs/activity.md "aren''t logged here"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-audit-complete, statement: "completeness or tamper evidence", provenance: {kind: documented, source: 'docs/activity.md "aren''t logged here"'}}
+  - component: identity
+    channel: "GET /auth/status"
+    taint: constrained
+    x-taint-note: "whether setup is pending and passwords are on, to anyone"
+    taint_provenance: {kind: documented, source: 'docs/authentication.md endpoint table "`GET /api/v1/auth/status`"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-unset-instance-hidden, statement: "that an unset-up instance is hidden", provenance: {kind: documented, source: 'docs/authentication.md endpoint table "`GET /api/v1/auth/status`"'}}
+  - component: authz
+    channel: "Share link failure page (/embed, /s)"
+    taint: constrained
+    x-taint-note: "the same 410 for expired, revoked or missing"
+    taint_provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}
+    invariants:
+      - {id: inv-share-uniform-410, statement: "a dead link answers the same 410 whatever went wrong", property_id: P-SHARE, provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
+    downstream_must_not_assume:
+      - {id: dmna-410-meaningful, statement: "that a 410 says anything about the recording", provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
+
+# ---------------------------------------------------------------- §1.10
+adversaries:
+  - name: anonymous-internet-visitor
+    scope: in
+    capabilities: [send-http-requests, guess-secrets, send-volume]
+    excluded_capabilities: [hold-valid-session-link-or-token, database-access, host-access, volume-dos]
+    goals: [read-archives, claim-admin, obtain-links]
+    x-note: "volume DoS counts as out (§1.3)"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: link-holder
+    scope: in
+    capabilities: [open-one-path-until-expiry]
+    excluded_capabilities: [open-other-recordings, write]
+    goals: [widen-link]
+    x-note: "share, signed, IIIF probe links"
+    provenance: {kind: documented, source: 'SECURITY.md "only the server''s own signed links should work"'}
+  - name: signed-in-person-no-role
+    scope: in
+    capabilities: [hold-account, call-api]
+    excluded_capabilities: [roles-not-given]
+    goals: [read-other-namespaces]
+    provenance: {kind: documented, source: 'SECURITY.md "reading or changing anything in a namespace you have no role in"'}
+  - name: namespace-viewer-editor-owner
+    scope: in
+    capabilities: [use-own-role, upload-files, write-extensions, set-notification-targets, write-custom-nodes]
+    excluded_capabilities: [admin-actions, other-namespaces, host-code]
+    goals: [cross-namespace-access, ssrf, code-execution]
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: api-token-oauth-app-mcp-agent
+    scope: in
+    capabilities: [act-as-person-within-scope]
+    excluded_capabilities: [administration-via-app-token, write-with-read-token]
+    goals: [act-beyond-scope]
+    provenance: {kind: documented, source: 'docs/authentication.md "Tokens act as the person"'}
+  - name: content-author
+    scope: in
+    capabilities: [supply-parsed-bytes, supply-model-input, send-redirects]
+    excluded_capabilities: [namespace-role, choose-person-tools]
+    goals: [parser-compromise, ssrf-through-redirects, prompt-injection]
+    x-note: "uploaded file, transcript, web page, email, calendar, storage remote, IIIF server"
+    provenance: {kind: inferred, question_id: Q26}
+  - name: lan-host-or-device
+    scope: in
+    capabilities: [send-mqtt-syslog-traffic]
+    excluded_capabilities: [hub-login-unless-mqtt-anonymous, listed-syslog-network]
+    goals: [inject-readings, read-readings]
+    x-note: "only when sensors are on"
+    provenance: {kind: documented, source: 'docs/sensors.md "Only senders on"'}
+  - name: network-attacker-on-path
+    scope: in
+    capabilities: [observe-alter-traffic-outside-tls]
+    excluded_capabilities: [break-tls, plain-http-exposed-host]
+    goals: [steal-sessions]
+    x-note: "in scope on exposed HTTPS deployments; plain-HTTP exposed hosts count as out (§1.6)"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: instance-admin
+    scope: out
+    capabilities: [everything-including-host-code]
+    excluded_capabilities: []
+    goals: []
+    x-note: "trusted; out of model"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: host-operator-log-readers-backup-recipients
+    scope: out
+    capabilities: [read-env-and-archive-yaml, read-data-dir, read-logs]
+    excluded_capabilities: []
+    goals: []
+    x-note: "trusted. A thief or third party holding a copy of a backup or data_dir is not this actor; such a report escalates under N-KEY-WITH-DATA"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: worker-host-db-credential-holder
+    scope: out
+    capabilities: [full-database]
+    excluded_capabilities: []
+    goals: []
+    x-note: "trusted peer"
+    provenance: {kind: inferred, question_id: Q9}
+  - name: upstream-publishers-cloudflare-providers
+    scope: out
+    capabilities: [ship-or-relay-bits]
+    excluded_capabilities: []
+    goals: []
+    x-note: "dependency; §1.9"
+    provenance: {kind: maintainer, date: "2026-10"}
+
+# ---------------------------------------------------------------- §1.9
+dependency_policy:
+  zero_runtime_dependencies: false
+  x-note: "no vendored third-party source; dependencies come from uv.lock, the pnpm lockfile and container images"
+  provenance: {kind: inferred, question_id: Q34}
+
+dependencies:
+  - name: "SurrealDB 3.2.4"
+    relied_on_for: "parameter binding, transactions, credentials; Lens building queries from client text is in model (P-NO-INJECTION)"
+    relied_on_properties: [surrealdb-parameter-binding, surrealdb-transactions, surrealdb-credentials]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: inferred, question_id: Q45}
+  - name: "FastAPI, Starlette"
+    relied_on_for: "HTTP parsing, routing; patched for advisories"
+    relied_on_properties: [http-parsing, request-routing]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [send-http-requests]
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: 'CHANGELOG.md "Security: backend dependencies patched"'}
+  - name: "Next.js, NextAuth"
+    relied_on_for: "routing, session cookie encryption"
+    relied_on_properties: [request-routing, session-cookie-encryption]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [send-http-requests]
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: inferred, question_id: Q45}
+  - name: "PyJWT, webauthn, cryptography"
+    relied_on_for: "JWT verification, WebAuthn checks, AES-GCM and HKDF"
+    relied_on_properties: [jwt-verification, webauthn-verification, aes-gcm-hkdf-correctness]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [send-http-requests]
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: inferred, question_id: Q45}
+  - name: rdflib
+    relied_on_for: "safe Turtle, N-Triples, JSON-LD parsing; upstream for parser bugs; in model if Lens lets it fetch"
+    relied_on_properties: [rdf-parsing-safety]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [upload-files]
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: 'rdf_import.py docstring "Nothing is fetched while reading"'}
+  - name: "Jinja2 SandboxedEnvironment"
+    relied_on_for: "blocks access to Python internals; upstream for escapes reached from an admin template; Q23 for non-admin reach"
+    relied_on_properties: [jinja-sandbox-isolation]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: 'docs/processing.md "sandboxed Jinja environment"'}
+  - name: "ffmpeg, LibreOffice, Chromium, poppler, Tesseract, Pillow, pypdf, antiword"
+    relied_on_for: "parsing hostile media and documents; upstream for parser memory bugs; Lens's arguments, environment and timeouts in model"
+    relied_on_properties: [hostile-media-parsing]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [upload-files, supply-parsed-bytes]
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: inferred, question_id: Q20}
+  - name: "rclone, stdlib urllib, imaplib, ssl"
+    relied_on_for: "protocol clients and TLS checks"
+    relied_on_properties: [protocol-client-correctness, tls-certificate-verification]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [supply-parsed-bytes, send-redirects]
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: inferred, question_id: Q45}
+  - name: "cloudflared, llama.cpp, hf: models, pip packages"
+    relied_on_for: "integrity only as far as HTTPS and the publisher; tampered downloads are disclaimed (N-DOWNLOADS)"
+    relied_on_properties: [https-publisher-integrity]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "Catalog GGUF models"
+    relied_on_for: "pinned revision and SHA-256; in model (P-MODEL-CHECKSUM)"
+    relied_on_properties: [P-MODEL-CHECKSUM]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: true
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: documented, source: 'docs/local-models.md "checked against their SHA-256"'}
+  - name: "Optional ML extras (whisper, pyannote, speechbrain, insightface, doctr)"
+    relied_on_for: "model inference; some fetch weights on their own"
+    relied_on_properties: [model-inference]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: [supply-parsed-bytes]
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: inferred, question_id: Q19}
+  - name: "Build, lint and codegen toolchain (frontend dev dependencies, openapi-ts, linters)"
+    relied_on_for: "building the images; in no running service; a report must show the code ships"
+    relied_on_properties: [build-toolchain-integrity]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: inferred, question_id: Q45}
+  - name: "OIDC providers, SMTP, model and speech providers"
+    relied_on_for: "honest responses over TLS; the admin chose them; trusted input"
+    relied_on_properties: [honest-provider-responses]
+    caller_obligations_acknowledged: []
+    adversary_capabilities_forwarded: []
+    outputs_consumed: []
+    covered_here: false
+    violation_disposition: "OUT-OF-MODEL: dependency-contract"
+    provenance: {kind: maintainer, date: "2026-10"}
+
+# ---------------------------------------------------------------- §1.6
+build_policy:
+  security_relevant_flags_present: true
+  x-note: "support posture, not defaultness, decides routing; shipped defaults are supported on one machine; exposure beyond one machine requires HTTPS and a changed DB credential when SurrealDB runs as its own server"
+  provenance: {kind: maintainer, date: "2026-10"}
+
+build_flags:
+  - name: "docker-compose.yml, make dev"
+    default: "dev secrets, web on 0.0.0.0:3000"
+    security_relevant: true
+    maintainer_stance: dev-only
+    x-scope: "licenses non-default-build only for the known secrets, SURREAL_PASS=root and the web port (§1.3); other dev-stack exposure routes VALID under P-HARDENED until Q36 is answered"
+    affects_properties:
+      - {property_id: P-AUTH-REQ, effect: voids}
+      - {property_id: P-MEDIA-LINK, effect: voids}
+      - {property_id: P-HARDENED, effect: narrows}
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "docker-compose.prod.yml, install.sh, Cloudron, Synology, QNAP, Proxmox"
+    default: "random secrets (Makefile .env writes SURREAL_PASS=root)"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "supported behind HTTPS; both compose files trust the web app container by name (LENS_TRUSTED_PROXY_HOSTS)"
+    affects_properties:
+      - {property_id: P-HARDENED, effect: preserves}
+      - {property_id: P-IPGROUP, effect: preserves}
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "Proxmox LXC service user"
+    default: "systemd units have no User=, so Lens runs as root inside the unprivileged LXC; the SurrealDB container runs as root"
+    security_relevant: true
+    maintainer_stance: supported
+    x-stance-status: "unresolved: a report that depends on the service user routes MODEL-GAP, owned by Q33; 'supported' is recorded only so no non-default-build close can fire"
+    affects_properties:
+      - {property_id: P-NO-CODE, effect: narrows}
+    provenance: {kind: inferred, question_id: Q33}
+  - name: "install.sh on a headless host, NAS packages"
+    default: "HTTP on all interfaces, ?code= setup URL printed"
+    security_relevant: true
+    maintainer_stance: unsupported
+    x-scope: "supported on a trusted LAN only until HTTPS is set up; unsupported for exposure"
+    affects_properties:
+      - {property_id: P-SETUP-ONCE, effect: narrows}
+    provenance: {kind: inferred, question_id: Q31}
+  - name: "Plain HTTP"
+    default: "on"
+    security_relevant: true
+    maintainer_stance: unsupported
+    x-scope: "supported on one machine only; unsupported for exposure; the setup code alone makes the admin and a sign-in link alone signs in"
+    affects_properties:
+      - {property_id: P-SETUP-ONCE, effect: voids}
+      - {property_id: P-AUTH-REQ, effect: narrows}
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "SurrealDB root/root"
+    default: "on in env defaults"
+    security_relevant: true
+    maintainer_stance: unsupported
+    x-scope: "unsupported when the DB is reachable; full DB access for anyone reaching the DB port"
+    affects_properties:
+      - {property_id: P-NS-ISOLATION, effect: voids}
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "Image build context (.dockerignore per image)"
+    default: ".dockerignore per image"
+    security_relevant: true
+    maintainer_stance: supported
+    x-stance-status: "unresolved (Q44): whether host-local files (.env.local) can enter a released image layer; 'supported' is recorded only so no non-default-build close can fire"
+    affects_properties:
+      - {property_id: P-SECRETS, effect: narrows}
+    provenance: {kind: inferred, question_id: Q44}
+  - name: "/docs and /openapi.json (OPENAPI_URL)"
+    default: "on"
+    security_relevant: false
+    maintainer_stance: supported
+    affects_properties: []
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "tokens.oauth_enabled"
+    default: "on"
+    security_relevant: true
+    maintainer_stance: supported
+    affects_properties:
+      - {property_id: P-OAUTH, effect: preserves}
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "iiif.allowed_origins"
+    default: '["*"]'
+    security_relevant: true
+    maintainer_stance: supported
+    x-stance-status: "open (Q1): any site may obtain an IIIF token for a person signed in to IIIF; 'supported' is recorded only so no non-default-build close can fire"
+    affects_properties:
+      - {property_id: P-ACCESS-PARTS, effect: narrows}
+    provenance: {kind: inferred, question_id: Q1}
+  - name: "server.trusted_proxies, LENS_TRUSTED_PROXY_HOSTS"
+    default: "127.0.0.0/8, ::1; compose names its containers"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "must list the real front hops"
+    affects_properties:
+      - {property_id: P-IPGROUP, effect: narrows}
+      - {property_id: P-THROTTLE, effect: narrows}
+    provenance: {kind: documented, source: 'docs/configuration.md "Trusted proxies"'}
+  - name: "TRUST_PROXY_HEADERS (web app)"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "only behind a proxy that sets X-Forwarded-Host; when on, the browser's X-Forwarded-Host reaches OAuth discovery"
+    affects_properties:
+      - {property_id: P-OAUTH, effect: narrows}
+    provenance: {kind: documented, source: 'docs/authentication.md "anyone could choose the address"'}
+  - name: "server.allowed_hosts, ARCHIVE_ALLOWED_HOSTS"
+    default: "127.0.0.1, localhost"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "* disables the rebinding check; * is admin trusted input"
+    affects_properties:
+      - {property_id: P-HOST, effect: voids}
+    provenance: {kind: documented, source: 'docs/configuration.md "stops DNS rebinding"'}
+  - name: "server.secure_cookies"
+    default: "false"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "IIIF cookie lacks Secure on HTTP; set true behind HTTPS"
+    affects_properties:
+      - {property_id: P-BEARER-ONLY, effect: narrows}
+    provenance: {kind: documented, source: 'docs/configuration.md "Put everything behind HTTPS"'}
+  - name: "auth.passwords"
+    default: "off on fresh installs"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "supported either way; when off, password sign-in answers 403"
+    affects_properties:
+      - {property_id: P-PASSWORDS-OFF, effect: voids}
+    provenance: {kind: documented, source: 'docs/authentication.md "With passwords off"'}
+  - name: "documents.web_networks, LENS_WEB_NETWORKS; notifications.networks"
+    default: "empty"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "widen the outbound guard to listed private networks (operator and admin input)"
+    affects_properties:
+      - {property_id: P-SSRF-GUARD, effect: narrows}
+      - {property_id: P-ADMIN-GUARD, effect: narrows}
+    provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}
+  - name: "Chromium sandbox"
+    default: "off as root or without user namespaces"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "the netguard proxy is the only barrier"
+    affects_properties:
+      - {property_id: P-CONVERT-OFFLINE, effect: narrows}
+    provenance: {kind: documented, source: 'docs/configuration.md "runs with its sandbox where it can"'}
+  - name: "sensors.enabled, sensors.mqtt_anonymous"
+    default: "off (bind 0.0.0.0); off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "opens MQTT and syslog listeners; anonymous MQTT publish is the admin's choice"
+    affects_properties:
+      - {property_id: P-SENSORS, effect: narrows}
+    provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - name: "tunnel.mode, local_llm.enabled, telemetry"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "outbound tunnel (Cloudflare terminates TLS, Q30); local model server; OTLP export"
+    affects_properties:
+      - {property_id: P-TELEMETRY, effect: preserves}
+      - {property_id: P-CHILD-SECRETS, effect: preserves}
+    provenance: {kind: documented, source: 'docs/remote-access.md "It''s off until an admin turns it on"'}
+  - name: "components.auto"
+    default: "on"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "unpinned-hash pip installs at runtime"
+    affects_properties:
+      - {property_id: P-MODEL-CHECKSUM, effect: preserves}
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "encryption.files"
+    default: "on for new archives"
+    security_relevant: true
+    maintainer_stance: supported
+    affects_properties:
+      - {property_id: P-ENCRYPTION, effect: voids}
+    x-scope: "voids P-ENCRYPTION only when turned off"
+    provenance: {kind: documented, source: 'docs/encryption.md "A new archive turns this on at its first start"'}
+  - name: "ai.extensions, ai.disabled_tools"
+    default: "on, none"
+    security_relevant: true
+    maintainer_stance: supported
+    affects_properties:
+      - {property_id: P-EXT-SCOPE, effect: preserves}
+    provenance: {kind: documented, source: 'docs/assistant.md "Extending the assistant"'}
+  - name: "ALGORITHM, MEDIA_URL_EXPIRE_SECONDS, ACCESS_TOKEN_EXPIRE_SECONDS"
+    default: "HS256, 21600, 900"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "operator input"
+    affects_properties:
+      - {property_id: P-LIFETIMES, effect: narrows}
+      - {property_id: P-MEDIA-LINK, effect: narrows}
+    provenance: {kind: maintainer, date: "2026-10"}
+  - name: "VALIDATE_CERTS (mail), IMAP security: none, http:// model URLs"
+    default: "certs checked"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "plaintext to admin-chosen servers; admin input"
+    affects_properties:
+      - {property_id: P-SECRETS, effect: narrows}
+    provenance: {kind: maintainer, date: "2026-10"}
+
+# ---------------------------------------------------------------- §1.11
+# Two records with an MX- prefix are matrix-derived: the §1.7 matrix marks those
+# rows `claimed` (documented) but names no §1.11 ID, and the v2 schema needs a
+# property_id on every claimed row. They add no claim beyond the matrix row.
+properties_claimed:
+  - id: P-NS-ISOLATION
+    kind: confidentiality
+    components: [authz]
+    tier: security-critical
+    conditions: "a principal with no role in a namespace and no grant for a recording cannot read or change anything in it, except what the recording's access level opens to anyone (P-ACCESS-PARTS); the namespace and its recordings answer 404; grants for one recording open only that recording's visitor pages and IIIF"
+    violation_symptoms: [info-leak, integrity-bypass]
+    x-voided-by: "admins own every namespace (domain/auth.py:356-357, api/deps.py:160); share or signed link grants viewer on one recording (api/deps.py:252); collection role adds to namespace role (api/deps.py:183); visitor-address trust (api/deps.py:339-346); checks are per handler, no central policy (Q8)"
+    provenance: {kind: documented, source: 'SECURITY.md "reading or changing anything in a namespace you have no role in"'}
+  - id: P-ACCESS-PARTS
+    kind: confidentiality
+    components: [authz]
+    tier: security-critical
+    x-tier-question: Q37
+    conditions: "a closed part of a public recording, and any restricted or private recording, opens only for a role, permission, IP group or link; a closed transcript's text stays out of search and downloads; only owners change access and open parts"
+    violation_symptoms: [info-leak]
+    x-voided-by: "an owner opening parts or making a recording public; a moved recording keeps its old access"
+    provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}
+  - id: P-ROLE
+    kind: integrity
+    components: [authz]
+    tier: security-critical
+    conditions: "a principal does no more than its role allows; writes need a write-capable principal and editor or owner; publishing and access changes need owner, through every API path"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "session tokens can write; API and app tokens need write scope (api/deps.py:59-60); admins own everything (domain/auth.py:357); collection admin is owner of its recordings (api/deps.py:183); admin's app token keeps namespace roles (api/deps.py:96) but not admin routes (api/deps.py:124-125)"
+    provenance: {kind: documented, source: 'SECURITY.md "doing more than your role allows"'}
+  - id: P-NO-INJECTION
+    kind: integrity
+    components: [authz, ingest, query]
+    tier: security-critical
+    conditions: "request text does not inject into database queries, a shell or the processing tools"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "nothing (searches recorded in §1.11; database binding is per call site, Q8; protocol_whitelist absent, Q21)"
+    provenance: {kind: documented, source: 'SECURITY.md "injection into the database queries, the shell"'}
+  - id: P-MEDIA-LINK
+    kind: confidentiality
+    components: [authz]
+    tier: security-critical
+    conditions: "media, frames, documents and reports open without a session only through a link the server signed for that path, or a live share link; text people or models write is never signed"
+    violation_symptoms: [info-leak]
+    x-voided-by: "knowing ACCESS_SECRET_KEY signs any path (core/security.py:43); dev compose key (docker-compose.yml:24); lifetime MEDIA_URL_EXPIRE_SECONDS (config.py:30); report pages sign every recording of the namespace (api/pages.py:140-141); signing limited to allow-listed fields (api/media.py:25-30)"
+    provenance: {kind: documented, source: 'docs/architecture.md "is never signed"'}
+  - id: P-SHARE
+    kind: integrity
+    components: [authz]
+    tier: security-critical
+    conditions: "a share link opens one recording, read-only; it expires and can be revoked; only hashes are stored; a dead link answers the same 410 whatever went wrong"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "liveness plus recording match only (domain/auth.py:441-444); ?s= routes (api/deps.py:252, Q7)"
+    provenance: {kind: documented, source: 'docs/authentication.md "give read-only access to one recording''s player and embed"'}
+  - id: P-AUTH-REQ
+    kind: authentication
+    components: [web, identity]
+    tier: security-critical
+    conditions: "a request is authenticated only if its bearer verifies and the account and session are live; sign-out and disabling take effect at once, for every token kind; revoking an app grant or API token ends its tokens at once"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "liveness checked per request (api/deps.py:92); JWT algorithm from ALGORITHM (config.py:27); dev secrets (docker-compose.yml:24); no bypass flag found"
+    provenance: {kind: documented, source: 'docs/authentication.md "Every request checks that the account is still active"'}
+  - id: P-BEARER-ONLY
+    kind: authentication
+    components: [identity]
+    tier: security-critical
+    x-tier-question: Q37
+    conditions: "/api/v1 takes bearer tokens only, never cookies; the IIIF authorization flow and the web app's NextAuth handlers are the cookie surfaces"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "IIIF auth cookies (api/iiif.py:232, api/iiif.py:333); external-login state cookie (api/v1/routes/external.py:34)"
+    provenance: {kind: documented, source: 'docs/architecture.md "so there is no CSRF surface"'}
+  - id: P-SETUP-ONCE
+    kind: authentication
+    components: [identity]
+    tier: security-critical
+    conditions: "no public sign-up; only the one-time setup code makes the first admin, and it dies once an account exists"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "LENS_ADMIN_EMAIL makes an admin with no code (domain/setup.py:75-77); LENS_SETUP_CODE fixes the code (core/runtime.py:62); the code is logged (core/runtime.py:64-68); plain HTTP (§1.6)"
+    provenance: {kind: documented, source: 'docs/configuration.md "so a stranger who finds a new"'}
+  - id: P-ONCE
+    kind: authentication
+    components: [identity]
+    tier: security-critical
+    conditions: "sign-in links, WebAuthn flows, sign-in tickets, OAuth codes and external-login states work once; a refused or failed attempt consumes nothing"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "nothing; a new admin-issued sign-in link replaces older ones by design"
+    provenance: {kind: documented, source: 'docs/authentication.md "works once"'}
+  - id: P-REUSE
+    kind: authentication
+    components: [identity]
+    tier: security-critical
+    conditions: "a rotated web refresh token replayed after 60 s ends the whole session; a rotated OAuth refresh token replayed within 60 s is refused and changes nothing, after that it ends the grant; a spent OAuth code replayed ends the grant"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the 60 s grace window (domain/auth.py:25, domain/oauth.py:318)"
+    provenance: {kind: documented, source: 'docs/authentication.md "A swapped one that comes back within 60 seconds is refused"'}
+  - id: P-LIFETIMES
+    kind: correctness
+    components: [identity]
+    tier: correctness-only
+    x-tier-question: Q37
+    conditions: "access JWT 900 s; sign-in link 72 h, emailed links 60 min; OAuth code 5 min; app tokens 60 min / 30 days; API tokens default 90 days, never past tokens.max_days"
+    violation_symptoms: [bad-data-accepted]
+    x-voided-by: "admin token settings; the API-key cap check (domain/auth.py:282)"
+    provenance: {kind: documented, source: 'docs/authentication.md "A link lasts three days"'}
+  - id: P-OAUTH
+    kind: authentication
+    components: [identity]
+    tier: security-critical
+    conditions: "PKCE (S256) required; redirects must match a registered URI; addresses with a user name or backslash refused; the consent page cannot be framed; app tokens act as the person and never administer; /mcp refuses a token issued for another server, caps bodies at 1 MB and batches at 20"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "tokens.oauth_enabled off (domain/oauth.py:54); loopback redirects may change the port (domain/oauth.py:114); tokens naming no server pass /mcp (api/mcp.py:228-229, Q13)"
+    provenance: {kind: documented, source: 'docs/authentication.md "PKCE is required"'}
+  - id: P-PASSWORDS-OFF
+    kind: authentication
+    components: [identity]
+    tier: security-critical
+    conditions: "with passwords off, password sign-in, changes and resets answer 403"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "auth.passwords on; gate auth.passwords_on (domain/auth.py:85)"
+    provenance: {kind: documented, source: 'docs/authentication.md "With passwords off, password sign-in"'}
+  - id: P-THROTTLE
+    kind: authentication
+    components: [identity, authz]
+    tier: correctness-only
+    conditions: "failed password sign-ins are throttled per email and address (8 per 15 minutes); unknown emails take as long to reject as wrong passwords; in both compose files each visitor gets their own throttle"
+    violation_symptoms: [x-brute-force]
+    x-voided-by: "per-process counters (domain/auth.py:24); visitor address from trusted proxies (api/deps.py:339-346)"
+    provenance: {kind: documented, source: 'docs/authentication.md "throttled per email and address"'}
+  - id: P-IPGROUP
+    kind: authentication
+    components: [authz]
+    tier: security-critical
+    conditions: "an address opens an IP group only when the server can vouch for it, through server.trusted_proxies or LENS_TRUSTED_PROXY_HOSTS; both compose files trust the web app container so IP groups see real addresses; elsewhere a reverse proxy must set X-Forwarded-For (other variants: Q2)"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "default trusted proxies (domain/store.py:190); DNS-named hosts (api/deps.py:320-331); /8 and /16 ranges (domain/ipgroups.py:24); no X-Forwarded-For proxy outside compose (§1.13)"
+    provenance: {kind: documented, source: 'docs/access.md "An address the server can''t vouch for opens nothing"'}
+  - id: P-HOST
+    kind: integrity
+    components: [web]
+    tier: correctness-only
+    conditions: "the Host header must be a served host; this stops DNS rebinding"
+    violation_symptoms: [bad-data-accepted]
+    x-voided-by: "* in server.allowed_hosts (core/middleware.py:70); ARCHIVE_ALLOWED_HOSTS (domain/settings.py:129)"
+    provenance: {kind: documented, source: 'docs/configuration.md "stops DNS rebinding"'}
+  - id: P-FRAME
+    kind: integrity
+    components: [web, authz]
+    tier: security-critical
+    x-tier-question: Q37
+    conditions: "the API sends a strict CSP; only the player (/embed/<id>, /s/<code>) can be framed, and only by server.embed_frame_ancestors"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "server.embed_frame_ancestors (core/middleware.py:72; default 'self', domain/store.py:185)"
+    provenance: {kind: documented, source: 'docs/configuration.md "can be framed"'}
+  - id: P-HARDENED
+    kind: x-deployment-hardening
+    components: [web]
+    tier: correctness-only
+    x-tier-question: Q37
+    conditions: "in the compose files the database, API and Fedora ports bind to 127.0.0.1, containers run non-root with no-new-privileges, and the web app sends nosniff, a referrer policy, a permissions policy and a frame policy (HSTS through Cloudflare); in docker-compose.prod.yml the DB password is random and the web app listens on this machine unless LENS_BIND is set"
+    violation_symptoms: [x-missing-hardening]
+    x-voided-by: "LENS_BIND=0.0.0.0 (docker-compose.prod.yml:111); dev web port (docker-compose.yml:95, §1.3)"
+    provenance: {kind: documented, source: 'docs/deployment.md "What''s hardened already"'}
+  - id: P-SECRETS
+    kind: confidentiality
+    components: [outbound]
+    tier: security-critical
+    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
+    violation_symptoms: [info-leak]
+    x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18)"
+    provenance: {kind: documented, source: 'SECURITY.md "stored credentials for sources and model servers leaking"'}
+  - id: P-SSRF-GUARD
+    kind: confidentiality
+    components: [outbound, assistant]
+    tier: security-critical
+    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address"
+    violation_symptoms: [info-leak]
+    x-voided-by: "operator networks (domain/store.py:475-476, domain/netguard.py:40-41); admin notification networks (domain/notify.py:286-288); Chromium without sandbox (domain/convert.py:273)"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - id: P-ADMIN-GUARD
+    kind: confidentiality
+    components: [outbound]
+    tier: security-critical
+    x-tier-question: Q37
+    conditions: "guards Lens documents on admin-set operands hold: iCal feeds are fetched like web captures (public addresses only and documents.web_networks, ports 80 and 443, the password never goes on to a server the calendar redirects to); the telemetry endpoint cannot carry a user name or password or be a link-local address"
+    violation_symptoms: [info-leak]
+    x-voided-by: "documents.web_networks widens the iCal guard (domain/feeds.py:377); telemetry checks (domain/settings.py:751, :757)"
+    provenance: {kind: documented, source: 'docs/processing.md "fetched the way web pages are captured"'}
+  - id: P-NO-FETCH
+    kind: confidentiality
+    components: [query]
+    tier: security-critical
+    conditions: "SPARQL refuses SERVICE and FROM and never loads a named graph; RDF import fetches nothing, refuses remote JSON-LD contexts and does not read RDF/XML"
+    violation_symptoms: [info-leak]
+    x-voided-by: "process-global rdflib flag set per call (domain/rdf.py:576); SERVICE refused (domain/rdf.py:551); remote contexts (domain/rdf_import.py:54-56)"
+    provenance: {kind: documented, source: 'rdf_import.py docstring "Nothing is fetched while reading"'}
+  - id: P-QUERY
+    kind: integrity
+    components: [query]
+    tier: security-critical
+    x-tier-detail: "security-critical (scope, writes); correctness-only (budget). Running past the budget is a bug; slow within it is not."
+    conditions: "Cypher is read-only and runs on the caller's readable namespaces; a query stops within 3 million steps or 8 seconds; paths run up to 8 hops"
+    violation_symptoms: [integrity-bypass, hang]
+    x-voided-by: "admins see every namespace; write refusals (domain/cypher.py:39); budgets (domain/cypher.py:35-38)"
+    provenance: {kind: documented, source: 'docs/graph.md "3 million steps"'}
+  - id: P-RETRIEVAL
+    kind: confidentiality
+    components: [assistant, authz]
+    tier: security-critical
+    x-tier-detail: "security-critical (scope); correctness-only (caps)"
+    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads"
+    violation_symptoms: [info-leak, hang]
+    x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
+    provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
+  - id: P-APPROVAL
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "assistant tools that change data wait for the person's approval, except notes and an admin's setup conversation"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
+    provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}
+  - id: P-EXT-SCOPE
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    x-tier-question: Q37
+    conditions: "your own hooks run in your conversations; another person's hooks run only when an admin shared them"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "an admin sharing the extension (domain/extensions.py:595-598)"
+    provenance: {kind: documented, source: 'docs/assistant.md "other people''s run only when an admin shared them"'}
+  - id: P-NO-CODE
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "no non-admin can run code on the host (owners, editors, viewers, API tokens, MCP agents, OAuth apps and model tool calls acting for one); Python tools are written by admins only and run only while an admin owns them"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "making someone admin; authoring gate (domain/extensions.py:129-130); run gate (domain/extensions.py:600-601)"
+    provenance: {kind: maintainer, date: "2026-10"}
+  - id: P-UPLOAD
+    kind: integrity
+    components: [ingest]
+    tier: security-critical
+    conditions: "uploads accept only the types in uploads.extensions and are size-capped; nothing uploaded is executed; files are served as audio, video or a download, and names carry no folders"
+    violation_symptoms: [bad-data-accepted]
+    x-voided-by: "admin-added types; check (domain/uploads.py:157-158); the attachments role takes any type (never executed); bytes are not checked against the extension"
+    provenance: {kind: documented, source: 'docs/configuration.md "Uploads accept only the types"'}
+  - id: P-CONVERT-OFFLINE
+    kind: confidentiality
+    components: [ingest]
+    tier: security-critical
+    conditions: "Chromium and LibreOffice reach nothing while converting; HTML is cleaned of anything that could fetch or run"
+    violation_symptoms: [info-leak]
+    x-voided-by: "Chromium without sandbox (domain/convert.py:273); operator-set documents.chromium or soffice binaries"
+    provenance: {kind: documented, source: 'docs/configuration.md "Neither may reach anything"'}
+  - id: P-TEMPLATE
+    kind: integrity
+    components: [ingest, assistant]
+    tier: security-critical
+    conditions: "templates render in a sandboxed Jinja environment; they cannot reach Python internals, output is capped, and reports escape HTML"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "shipped report templates use an unsandboxed environment over server-built values (domain/render.py:22)"
+    provenance: {kind: documented, source: 'docs/processing.md "sandboxed Jinja environment"'}
+  - id: P-ENCRYPTION
+    kind: confidentiality
+    components: [outbound]
+    tier: security-critical
+    conditions: "with encryption.files on, files are encrypted per namespace; a file cut short, edited or reordered fails to open; a vault has no recovery code, password or admin override, and separate workers never get its key"
+    violation_symptoms: [info-leak, integrity-bypass]
+    x-voided-by: "encryption.files off (domain/keyring.py:545); shipped default off (domain/store.py:402) until a new archive's first start or lens encrypt; unlocked vault keys stay in the API for encryption.vault_minutes; secret.key placement (Q14)"
+    provenance: {kind: documented, source: 'docs/encryption.md "There is no recovery code, password or admin override"'}
+  - id: P-TELEMETRY
+    kind: confidentiality
+    components: [outbound, optional]
+    tier: security-critical
+    conditions: "telemetry is off unless turned on, has no built-in destination, and never sends content, names, addresses or error messages"
+    violation_symptoms: [info-leak]
+    x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
+    provenance: {kind: documented, source: 'docs/telemetry.md "Never sent"'}
+  - id: P-MODEL-CHECKSUM
+    kind: integrity
+    components: [optional]
+    tier: security-critical
+    conditions: "catalog GGUF models are pinned to a revision and checked against their SHA-256"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "hf: references have no pin or hash (domain/local_llm.py:138-139)"
+    provenance: {kind: documented, source: 'docs/local-models.md "checked against their SHA-256"'}
+  - id: P-SENSORS
+    kind: authentication
+    components: [optional]
+    tier: security-critical
+    conditions: "sensors are off until an admin enables them; MQTT needs a hub login unless mqtt_anonymous is on; syslog hears only listed networks"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "sensors.mqtt_anonymous (domain/sensors.py:984); sensors.syslog_networks, sensors.bind"
+    provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: P-CHILD-SECRETS
+    kind: confidentiality
+    components: [optional]
+    tier: correctness-only
+    x-tier-question: Q37
+    conditions: "the tunnel token reaches cloudflared in its environment, not its command line; llama-server gets its own random API key"
+    violation_symptoms: [info-leak]
+    x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
+    provenance: {kind: documented, source: 'docs/remote-access.md "in its environment, not on its command line"'}
+  - id: P-REMOTE-NAMES
+    kind: correctness
+    components: [outbound]
+    tier: correctness-only
+    x-tier-question: Q37
+    conditions: "an IMAP message is named by mailbox validity and uid, so a rebuilt mailbox never serves another message under an old name"
+    violation_symptoms: [wrong-output]
+    x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
+    provenance: {kind: documented, source: 'docs/processing.md "an old one never reads another message"'}
+  - id: P-NOTIFY
+    kind: correctness
+    components: [outbound]
+    tier: correctness-only
+    conditions: "each notification event is claimed once across processes and retried with backoff"
+    violation_symptoms: [wrong-output]
+    x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
+    provenance: {kind: documented, source: 'docs/notifications.md "claimed once"'}
+  - id: P-HIERARCHY
+    kind: correctness
+    components: [authz]
+    tier: correctness-only
+    conditions: "collections nest at most 8 deep, without cycles, 5000 per namespace"
+    violation_symptoms: [bad-data-accepted]
+    x-voided-by: "checks only in _check_parent (domain/hierarchy.py:132, :142-143); only domain/hierarchy.py writes parent (Q34 covers unread movers)"
+    provenance: {kind: documented, source: 'docs/api.md "at most 8 deep"'}
+  - id: P-FLOW
+    kind: correctness
+    components: [assistant]
+    tier: correctness-only
+    conditions: "flow and tool graphs never loop back and run within a step budget"
+    violation_symptoms: [hang]
+    x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
+    provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}
+  - id: MX-AUTHZ-LIST-CAPS
+    kind: resource-bound
+    components: [authz]
+    tier: correctness-only
+    x-derived-from: "§1.7 matrix row 'AuthZ | Numeric domain | claimed'; no §1.11 ID; tier not stated in prose (recorded correctness-only, matching N-VOLUME's treatment of list volume)"
+    conditions: "/recordings returns at most 1000 rows; other lists capped per route; REST offset uncapped (N-VOLUME)"
+    violation_symptoms: [x-cap-exceeded]
+    provenance: {kind: documented, source: 'docs/api.md "at most 1000"'}
+  - id: MX-OUTBOUND-KEY-ROTATION
+    kind: correctness
+    components: [outbound]
+    tier: correctness-only
+    x-derived-from: "§1.7 matrix row 'Outbound | Reference lifecycle: key rotation | claimed | §1.13'; no §1.11 ID; tier not stated in prose"
+    conditions: "a new key makes stored credentials and encrypted files unreadable (keep keys stable; §1.13)"
+    violation_symptoms: [wrong-output]
+    provenance: {kind: documented, source: 'docs/deployment.md "Stable secrets"'}
+
+# ---------------------------------------------------------------- §1.12
+properties_disclaimed:
+  - {id: N-ADMIN, components: [outbound, ingest, assistant, optional], tier: security-critical, false_friend: false, conditions: "protection from the instance admin or host operator (admin-set URLs reaching internal hosts, admin code, templates, regexes, component installs, api_key_env). Covers only operands an admin or operator alone can set. Excludes the guards Lens documents on them (P-ADMIN-GUARD): an escape of one is VALID. Excludes saved telemetry headers when the endpoint moves host (unresolved, Q35 -> MODEL-GAP). A non-admin reaching any admin operand is in model.", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
+  - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (transcripts, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
+  - {id: N-KEY-WITH-DATA, components: [outbound], tier: security-critical, false_friend: true, conditions: "key separation; unless ARCHIVE_SECRET_KEY comes from outside, secret.key lives in data_dir next to the sealed rows and the backups; a copy of data_dir opens sealed secrets and server-wrapped file keys", x-false-friend-note: "'stored encrypted' reads as safe in a stolen backup", provenance: {kind: inferred, question_id: Q14}}
+  - {id: N-SIGNED-BEARER, components: [authz], tier: security-critical, false_friend: true, conditions: "identity binding or early revocation for signed links; a link opens its path for whoever holds it until it expires (6 h; IIIF 1 h); path, expiry and full are bound, extra query parameters are not; which fields get signed is P-MEDIA-LINK", x-false-friend-note: "a signed link is a capability, not a login", provenance: {kind: documented, source: 'core/security.py sign_path docstring "grants read access to exactly this path until it expires"'}}
+  - {id: N-LINK-AFTER-ROLE, components: [authz], tier: security-critical, false_friend: false, conditions: "re-checks of share links and report links against the creator's current role; share links last until expiry or revocation", provenance: {kind: inferred, question_id: Q10}}
+  - {id: N-IDS, components: [authz], tier: correctness-only, false_friend: true, conditions: "secret identifiers; recording and entity ids are sequential and authorization never relies on them; short share codes are about 58 bits; a route that relied on id secrecy breaks P-NS-ISOLATION instead", x-false-friend-note: "unguessable-looking ids are not authorization", provenance: {kind: inferred, question_id: Q6}}
+  - {id: N-APP-LAYER, components: [authz], tier: security-critical, false_friend: true, conditions: "database-enforced tenant isolation; every namespace is rows in one SurrealDB database under one credential; anyone with the DB credential or a worker host sees all namespaces", x-false-friend-note: "namespaces are not DB namespaces", provenance: {kind: inferred, question_id: Q9}}
+  - {id: N-XFF, components: [authz], tier: security-critical, false_friend: true, conditions: "trust in visitor addresses without a correct proxy chain; covers proxy chains the operator builds; the compose files' own chain is claimed (P-IPGROUP, P-THROTTLE); other shipped variants are Q2", x-false-friend-note: "IP groups are not authentication", provenance: {kind: documented, source: 'docs/configuration.md "Without it, a visitor can claim any address"'}}
+  - {id: N-WEBGATE, components: [web], tier: correctness-only, false_friend: true, conditions: "authorization in the web app; proxy.ts redirects pages, the API decides; /api, /mcp, /iiif, /embed, /s bypass the page gate", provenance: {kind: inferred, question_id: Q8}}
+  - {id: N-HOST, components: [web], tier: correctness-only, false_friend: true, conditions: "authentication from the Host allowlist; it stops DNS rebinding only; every request; * turns the check off", provenance: {kind: documented, source: 'docs/configuration.md "stops DNS rebinding"'}}
+  - {id: N-CSRF, components: [identity], tier: security-critical, false_friend: false, conditions: "anti-CSRF tokens on the API; a cross-site request carries no credential because the API takes bearer tokens only (P-BEARER-ONLY); /api/v1 only; the IIIF cookie flow (Q1) and NextAuth handlers are not covered; stated mechanism, not silence", provenance: {kind: documented, source: 'docs/architecture.md "so there is no CSRF surface"'}}
+  - {id: N-HEADERS, components: [web], tier: correctness-only, false_friend: false, conditions: "hardening headers as findings without an attack; headers no §1.11 property names (for example HSTS outside Cloudflare, a full CSP on web app pages); excludes P-FRAME, P-HARDENED, P-OAUTH's consent page and P-HOST; a missing header with a working attack is judged on that attack", provenance: {kind: documented, source: 'SECURITY.md "missing hardening headers with no"'}}
+  - {id: N-VOLUME, components: [web, authz, optional], tier: correctness-only, false_friend: false, conditions: "protection against denial of service by volume: rate limits on read APIs, connection counts on the MQTT and syslog listeners, an uncapped offset on the REST list routes; size caps and budgets §1.11 states (P-OAUTH, P-UPLOAD, P-QUERY, P-RETRIEVAL) are claimed, not covered here; does not cover /mcp tool arguments (unresolved, Q47)", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
+  - {id: N-BUDGET, components: [assistant], tier: correctness-only, false_friend: true, conditions: "hard cost caps; budgets are pre-run estimates and off by default; model and pipeline cost, not request volume", x-false-friend-note: "budgets are not DoS protection", provenance: {kind: documented, source: 'docs/budgets.md "Budgets are off unless an admin sets one"'}}
+  - {id: N-THROTTLE-SCOPE, components: [identity], tier: correctness-only, false_friend: false, conditions: "throttles beyond the documented sign-in flows, or across processes and restarts: unauthenticated refresh, ticket, forgot, OAuth token routes and share-code guessing; setup routes are not covered (Q42)", provenance: {kind: inferred, question_id: Q5}}
+  - {id: N-REVOKE-TOKENS, components: [identity], tier: security-critical, false_friend: false, conditions: "revocation of API tokens, app grants and IIIF cookies on password change, reset or passkey removal; disabling the account, or revoking the grant, still stops them", provenance: {kind: inferred, question_id: Q3}}
+  - {id: N-OIDC, components: [identity], tier: security-critical, false_friend: false, conditions: "ID-token or nonce checks; Lens reads identity from the provider's token and userinfo endpoints over TLS; the external flow's state, PKCE and browser cookie still bind the callback (P-ONCE); stated mechanism, not silence", provenance: {kind: documented, source: 'docs/authentication.md "token and userinfo endpoints"'}}
+  - {id: N-PROVIDER, components: [identity], tier: security-critical, false_friend: false, conditions: "protection from a provider that vouches falsely for an email; admin-chosen providers; Microsoft common tenant is not trusted for email", provenance: {kind: documented, source: 'docs/authentication.md "when the provider vouches for the email"'}}
+  - {id: N-LOG-SETUP, components: [identity], tier: security-critical, false_friend: false, conditions: "secrecy of the setup code and logged sign-in links from log readers, until the first admin exists, and links when mail is not set; stored credentials are not covered (P-SECRETS, Q32)", provenance: {kind: documented, source: 'docs/authentication.md "the API prints in its log"'}}
+  - {id: N-HTTP-SETUP, components: [identity], tier: security-critical, false_friend: false, conditions: "passkey protection on plain HTTP; there the code alone makes the admin and a link alone signs in; plain HTTP is supported on one machine only", provenance: {kind: documented, source: 'docs/authentication.md "the code alone makes the admin"'}}
+  - {id: N-OAUTH-CLIENT, components: [identity], tier: correctness-only, false_friend: false, conditions: "checking the app's state or guarding its redirect after the code arrives; registration is open, consent is the gate; the app's side only; Lens's redirect-URI, PKCE and consent checks are P-OAUTH", provenance: {kind: documented, source: 'docs/authentication.md "Apps register themselves"'}}
+  - {id: N-CHROMIUM, components: [outbound, ingest], tier: security-critical, false_friend: true, conditions: "Chromium's own sandbox in containers or as root; the netguard proxy is what stops a page; conversion and capture", x-false-friend-note: "'headless browser' is not isolation", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
+  - {id: N-DECODERS, components: [ingest], tier: security-critical, false_friend: false, conditions: "sandboxing or memory-safety for ffmpeg, poppler, antiword and similar decoders; memory bugs inside them route to §1.9; does not cover Lens's own process control (timeouts, killing children): that is the unresolved x-process-control row", provenance: {kind: inferred, question_id: Q20}}
+  - {id: N-BOMBS, components: [ingest], tier: security-critical, false_friend: false, conditions: "bounds on decompressed size, nested emails or media duration (docx XML, email attachments, long media); does not cover a conversion or capture outliving Lens's own timeout (x-process-control, Q20)", provenance: {kind: inferred, question_id: Q22}}
+  - {id: N-PROMPT, components: [assistant], tier: correctness-only, false_friend: true, conditions: "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; exfiltration through rendered answers is Q26", x-false-friend-note: "a system prompt is not a filter", provenance: {kind: inferred, question_id: Q26}}
+  - {id: N-MODEL-OUTPUT, components: [assistant], tier: correctness-only, false_friend: false, conditions: "correct or grounded model output; answers can be wrong; checking sources re-asks the same model", provenance: {kind: documented, source: 'docs/assistant.md "Check sources"'}}
+  - {id: N-REMOTE, components: [outbound], tier: security-critical, false_friend: false, conditions: "trust in remote content (storage listings, mail, calendars, IIIF manifests, model replies), treated as data; does not cover Lens's own cache keys or names for remote content (P-REMOTE-NAMES, Q43)", provenance: {kind: inferred, question_id: Q17}}
+  - {id: N-ADMIN-IMPORT-BOUNDS, components: [outbound, query], tier: security-critical, false_friend: false, conditions: "resource bounds on admin-started imports and syncs, and SPARQL time; IIIF media up to 4 GB in memory; rclone without byte cap", provenance: {kind: inferred, question_id: Q16}}
+  - {id: N-ATOMIC, components: [authz, ingest], tier: correctness-only, false_friend: false, conditions: "all-or-nothing moves, merges, graph undo, RDF import; exactly-once job steps; delete commits DB rows atomically, files after; partial state never widens access, and if it does, P-NS-ISOLATION applies", provenance: {kind: inferred, question_id: Q12}}
+  - {id: N-CHAT-HISTORY, components: [assistant], tier: correctness-only, false_friend: false, conditions: "re-filtering saved assistant answers after access is lost (only cited passages are filtered); text the same person already saw in their own saved chats, nothing new", provenance: {kind: inferred, question_id: Q11}}
+  - {id: N-ENUM, components: [identity], tier: correctness-only, false_friend: false, conditions: "hiding account or object existence outside password sign-in and signed-in 404s: passkey 404, external messages, anonymous 401 vs 404", provenance: {kind: inferred, question_id: Q6}}
+  - {id: N-AUDIT, components: [identity, authz], tier: correctness-only, false_friend: false, conditions: "tamper evidence or completeness of the audit and activity logs; sign-in requests are not logged there; operations record only; admins read it", provenance: {kind: documented, source: 'docs/activity.md "aren''t logged here"'}}
+  - {id: N-MQTT-SUBSCRIBE, components: [optional], tier: security-critical, false_friend: true, conditions: "topic isolation on the MQTT hub: anything can subscribe to it, with + and #; signed-in or anonymous-when-enabled clients", x-false-friend-note: "a hub login is not per-stream access", provenance: {kind: documented, source: 'docs/sensors.md "anything can subscribe to it"'}}
+  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28)", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
+  - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public recording's open parts: anyone may use them; open parts only; closed parts and restricted or private recordings are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
+  - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding a recording's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
+  - {id: N-RDF-XML, components: [query], tier: security-critical, false_friend: false, conditions: "XML parsing in RDF import; RDF/XML is refused, so XXE and billion-laughs do not apply there; RDF import only, not docx", provenance: {kind: documented, source: 'rdf_import.py docstring "RDF/XML isn''t read"'}}
+
+x-false-friends-without-row:
+  - "a read-scope token still reads everything its person can read; 'read' does not mean 'public'"
+
+# ---------------------------------------------------------------- §1.13
+downstream_responsibilities:
+  - {id: dr-https-secure-cookies, component: web, statement: "Put everything behind HTTPS before exposing it beyond one machine, and set server.secure_cookies: true there", enforces: [P-AUTH-REQ, P-SETUP-ONCE], x-protects: "sessions, setup, IIIF cookie (§1.6 plain HTTP)", provenance: {kind: documented, source: 'docs/configuration.md "Put everything behind HTTPS"'}}
+  - {id: dr-prod-compose-unique-secrets, component: web, statement: "Use docker-compose.prod.yml or an installer, never dev compose, and set unique secrets", enforces: [P-AUTH-REQ, P-MEDIA-LINK], provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: dr-change-db-credential, component: authz, statement: "Change the SurrealDB credential when SurrealDB runs as its own server", enforces: [N-APP-LAYER], provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: dr-reverse-proxy-xff, component: authz, statement: "Outside the compose files, put a reverse proxy in front of the web app that sets X-Forwarded-For", enforces: [P-IPGROUP, P-THROTTLE, trusted-proxy-chain], provenance: {kind: documented, source: 'docs/configuration.md "Put a reverse proxy in front of the web app"'}}
+  - {id: dr-list-front-hops, component: authz, statement: "List exactly the front hops in server.trusted_proxies or LENS_TRUSTED_PROXY_HOSTS", enforces: [P-IPGROUP, trusted-proxy-chain], provenance: {kind: documented, source: 'docs/configuration.md "Trusted proxies"'}}
+  - {id: dr-trust-proxy-headers, component: identity, statement: "Enable TRUST_PROXY_HEADERS only behind a proxy that sets X-Forwarded-Host", enforces: [trust-proxy-headers-behind-proxy], x-protects: "OAuth discovery, passkey origin", provenance: {kind: documented, source: 'docs/authentication.md "anyone could choose the address"'}}
+  - {id: dr-allowed-hosts, component: web, statement: "List served hosts in server.allowed_hosts; never * on an exposed host", enforces: [P-HOST, list-served-hosts], provenance: {kind: documented, source: 'docs/configuration.md "stops DNS rebinding"'}}
+  - {id: dr-iiif-allowed-origins, component: authz, statement: "Set iiif.allowed_origins to trusted viewer sites", enforces: [set-iiif-allowed-origins], x-protects: "IIIF tokens (Q1)", provenance: {kind: inferred, question_id: Q1}}
+  - {id: dr-stable-secrets, component: outbound, statement: "Keep ACCESS_SECRET_KEY and ARCHIVE_SECRET_KEY stable and backed up; rotate ACCESS_SECRET_KEY to cut every outstanding signed link", enforces: [P-SECRETS, P-ENCRYPTION, N-SIGNED-BEARER, MX-OUTBOUND-KEY-ROTATION], x-protects: "sign-in, stored credentials, encrypted files, N-SIGNED-BEARER", provenance: {kind: documented, source: 'docs/deployment.md "Stable secrets"'}}
+  - {id: dr-key-backup-separate, component: outbound, statement: "Back up the key separately from the data; prefer ARCHIVE_SECRET_KEY from outside the volume; protect backups like the data", enforces: [N-KEY-WITH-DATA], provenance: {kind: documented, source: 'docs/encryption.md "backed up separately"'}}
+  - {id: dr-encrypted-disk, component: outbound, statement: "Put the data volume on an encrypted disk", enforces: [N-DB-PLAIN], provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
+  - {id: dr-log-secret-until-admin, component: identity, statement: "Treat the server log as secret until the first admin exists, and while mail is unset", enforces: [N-LOG-SETUP, private-log-until-first-admin], provenance: {kind: documented, source: 'docs/authentication.md "the API prints in its log"'}}
+  - {id: dr-trusted-admins-only, component: assistant, statement: "Make only fully trusted people admins", enforces: [N-ADMIN, P-NO-CODE], provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: dr-verified-email-providers, component: identity, statement: "Choose identity providers that verify emails", enforces: [N-PROVIDER, admin-chooses-providers], provenance: {kind: documented, source: 'docs/authentication.md "when the provider vouches for the email"'}}
+  - {id: dr-revoke-after-password-change, component: identity, statement: "After a password change or suspected theft, revoke API tokens and app grants, or disable the account", enforces: [N-REVOKE-TOKENS], provenance: {kind: inferred, question_id: Q3}}
+  - {id: dr-private-networks-on-purpose, component: outbound, statement: "List private networks in documents.web_networks or notifications.networks only on purpose", enforces: [P-SSRF-GUARD, P-ADMIN-GUARD], provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
+  - {id: dr-firewall-sensor-ports, component: optional, statement: "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address", enforces: [P-SENSORS, N-MQTT-SUBSCRIBE, enable-and-firewall-sensors], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
+  - {id: dr-bridge-own-account, component: outbound, statement: "Give the chat-room bridge its own low-role account", enforces: [N-BRIDGE], provenance: {kind: documented, source: 'docs/chat-rooms.md "it reads only what that account can read"'}}
+  - {id: dr-trusted-worker-hosts, component: authz, statement: "Run workers only on trusted hosts; they hold the DB credential", enforces: [N-APP-LAYER, trusted-peer-hosts], provenance: {kind: inferred, question_id: Q9}}
+  - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with transcripts and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: dr-chromium-sandbox, component: ingest, statement: "Run conversion where Chromium can keep its sandbox (non-root, user namespaces)", enforces: [N-CHROMIUM], provenance: {kind: documented, source: 'docs/configuration.md "runs with its sandbox where it can"'}}
+  - {id: dr-trusted-extensions-only, component: assistant, statement: "Enable another person's extension only when you trust its author", enforces: [N-PROMPT, enable-only-trusted-extensions], x-protects: "N-PROMPT, §1.14", provenance: {kind: inferred, question_id: Q27}}
+  - {id: dr-escape-exports, component: authz, statement: "Escape exported text, RDF, IIIF metadata and assistant output for your own sink", enforces: [dmna-export-escaping, dmna-api-text-safe-for-sinks, dmna-assistant-grounded], x-protects: "§1.8", provenance: {kind: inferred, question_id: Q24}}
+  - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat transcript text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
+  - {id: dr-iiif-over-https, component: authz, statement: "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS", enforces: [], x-protects: "IIIF cookie", provenance: {kind: documented, source: 'docs/iiif.md "its cookie is `SameSite=None; Secure`"'}}
+  - {id: dr-verify-webhook-signature, component: outbound, statement: "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets", enforces: [dmna-chat-webhooks-signed], x-protects: "§1.8 webhook bodies", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
+  - {id: dr-private-logs-push-tokens, component: optional, statement: "Keep logs that record request paths private when sensor push tokens are in use", enforces: [P-SENSORS], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
+
+# ---------------------------------------------------------------- §1.14
+# §1.14 rows carry no inline tag. Each record's provenance is taken from the
+# tagged prose statement elsewhere in the model that grounds the same misuse
+# (named in x-provenance-basis); none is stronger than that statement.
+known_misuses:
+  - {id: km-dev-compose-on-server, components: [web], pattern: "Running docker-compose.yml on a server", x-why-unsafe: "Known secrets forge media links and session cookies", safer_alternative: "Use docker-compose.prod.yml or an installer", x-provenance-basis: "§1.13 row 'Use docker-compose.prod.yml or an installer'; §1.6 dev compose row", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-env-example-secret, components: [identity, authz], pattern: "Copying .env.example without changing ACCESS_SECRET_KEY", x-why-unsafe: "The example passes the length check and is public", safer_alternative: "Generate a random key", x-provenance-basis: "§1.13 row 'set unique secrets'", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-broad-trusted-proxies, components: [authz], pattern: "Broad server.trusted_proxies (for example a whole LAN)", x-why-unsafe: "Any host in it can claim any visitor address and open IP groups", safer_alternative: "List only the proxy hops", x-provenance-basis: "§1.13 row 'List exactly the front hops'", provenance: {kind: documented, source: 'docs/configuration.md "Trusted proxies"'}}
+  - {id: km-ip-group-without-proxy, components: [authz], pattern: "An IP group for everything with no reverse proxy outside compose", x-why-unsafe: "Visitors choose their own address", safer_alternative: "Add a proxy that sets X-Forwarded-For", x-provenance-basis: "§1.12 N-XFF", provenance: {kind: documented, source: 'docs/configuration.md "Without it, a visitor can claim any address"'}}
+  - {id: km-pasting-signed-links, components: [authz], pattern: "Pasting signed media links into chats or tickets", x-why-unsafe: "Anyone with the link opens the media until it expires", safer_alternative: "Share a revocable share link instead", x-provenance-basis: "§1.12 N-SIGNED-BEARER", provenance: {kind: documented, source: 'core/security.py sign_path docstring "grants read access to exactly this path until it expires"'}}
+  - {id: km-enable-unread-extension, components: [assistant], pattern: "Enabling a teammate's shared extension without reading it", x-why-unsafe: "Its http tool can send your readable data to its author's host", safer_alternative: "Enable only extensions you trust (Q27)", x-provenance-basis: "§1.13 row 'Enable another person's extension only when you trust its author' (Q27)", provenance: {kind: inferred, question_id: Q27}}
+  - {id: km-bridge-without-account, components: [outbound], pattern: "Turning on the chat-room bridge without its own account", x-why-unsafe: "The room reads as the admin", safer_alternative: "Give the bridge a low-role account", x-provenance-basis: "§1.12 N-BRIDGE", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
+  - {id: km-admin-for-python-tool, components: [assistant], pattern: "Making someone admin so they can write a Python tool", x-why-unsafe: "Admin equals host code execution", safer_alternative: "Use prompt, graph or http tools", x-provenance-basis: "§1.2 roles and trust; §1.13 'Make only fully trusted people admins'", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
+  - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
+  - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Transcripts leave the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
+
+# ---------------------------------------------------------------- §1.15
+known_non_findings:
+  - id: KNF-SIGNED-LINK
+    components: [authz]
+    x-sink: "media, report, IIIF links"
+    symptom: "info-leak to a link holder"
+    tool_pattern: "A signed link works without a session, or after sign-out or role loss"
+    conditions: "The server issued the link through an allow-listed field (media.LINK_KEYS), to a principal who could read that path when it was issued, and it is within its expiry. A link minted from text people or models wrote is P-MEDIA-LINK, not this entry"
+    discharged_by: [N-SIGNED-BEARER]
+    provenance: {kind: documented, source: 'core/security.py sign_path docstring "grants read access to exactly this path until it expires"'}
+  - id: KNF-DESCRIPTION
+    components: [authz]
+    x-sink: "IIIF manifests, public pages"
+    symptom: "info-leak of description"
+    tool_pattern: "A recording's description shows while its parts are closed"
+    conditions: "The field is the description, shown to someone who may see the page"
+    discharged_by: [N-DESCRIPTION]
+    provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}
+  - id: KNF-MQTT-WILDCARD
+    components: [optional]
+    x-sink: "MQTT hub"
+    symptom: "info-leak between devices"
+    tool_pattern: "A logged-in device subscribes to # and reads other streams"
+    conditions: "Sensors on; the client holds a hub login or anonymous mode is on"
+    discharged_by: [N-MQTT-SUBSCRIBE]
+    provenance: {kind: documented, source: 'docs/sensors.md "anything can subscribe to it"'}
+  - id: KNF-NO-SANDBOX
+    components: [ingest]
+    x-sink: "Chromium conversion and capture"
+    symptom: "missing sandbox flag"
+    tool_pattern: "Chromium starts with --no-sandbox"
+    conditions: "Running as root or without user namespaces; the netguard proxy is in the path"
+    discharged_by: [N-CHROMIUM]
+    provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}
+  - id: KNF-RDF-XXE
+    components: [query]
+    x-sink: "RDF import"
+    symptom: "XXE, billion laughs"
+    tool_pattern: "A scanner flags rdflib's XML parser"
+    conditions: "The input reaches RDF import, which refuses RDF/XML"
+    discharged_by: [N-RDF-XML]
+    provenance: {kind: documented, source: 'rdf_import.py docstring "RDF/XML isn''t read"'}
+  - id: KNF-SETUP-LOG
+    components: [identity]
+    x-sink: "first-run setup"
+    symptom: "info-leak to log readers"
+    tool_pattern: "The setup code or a sign-in link appears in the server log"
+    conditions: "Read from the log by someone with log access"
+    discharged_by: [N-LOG-SETUP]
+    provenance: {kind: documented, source: 'docs/authentication.md "the API prints in its log"'}
+
+# ---------------------------------------------------------------- §1.17
+dispositions:
+  - VALID
+  - VALID-HARDENING
+  - "OUT-OF-MODEL: trusted-input"
+  - "OUT-OF-MODEL: adversary-not-in-scope"
+  - "OUT-OF-MODEL: unsupported-component"
+  - "OUT-OF-MODEL: non-default-build"
+  - "OUT-OF-MODEL: dependency-contract"
+  - "BY-DESIGN: property-disclaimed"
+  - KNOWN-NON-FINDING
+  - MODEL-GAP
+
+disposition_precedence:
+  - KNOWN-NON-FINDING
+  - "OUT-OF-MODEL: unsupported-component"
+  - "OUT-OF-MODEL: non-default-build"
+  - "OUT-OF-MODEL: dependency-contract"
+  - "OUT-OF-MODEL: trusted-input"
+  - "OUT-OF-MODEL: adversary-not-in-scope"
+  - "BY-DESIGN: property-disclaimed"
+  - VALID
+  - VALID-HARDENING
+  - MODEL-GAP
+
+disposition_statuses:
+  - closed
+  - provisional
+  - escalated
