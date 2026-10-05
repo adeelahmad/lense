@@ -156,7 +156,7 @@ def _cache(db, cfg, rec, rid, src, dst):
     with contextlib.suppress(KeyError, ValueError, TypeError):
         path = sources.check_path(cfg, sources.get(db, rm["source"]), rm["path"])
         here, there = sources.cache_file(cfg, rm["source"], path, src), sources.cache_file(cfg, rm["source"], path, dst)
-        if not here.is_file() or there.exists():
+        if not here.is_file():
             return
         shared = db.values(
             "SELECT VALUE id FROM recording WHERE space = $s AND remote.source = $a AND remote.path = $b AND id != $r LIMIT 1",
@@ -165,15 +165,31 @@ def _cache(db, cfg, rec, rid, src, dst):
             b=rm["path"],
             r=R("recording", rid),
         )
+        if there.exists():  # the new namespace has its own copy already
+            if not shared:
+                here.unlink(missing_ok=True)
+            return
         (shutil.copy2 if shared else os.replace)(here, there)
 
 
+def _own_files(db, cfg, rid):
+    """The recording's files (keyring.recording_files), less its own file when another recording has the same one (an
+    IIIF import into two namespaces): that stays under the key it has."""
+    rec = db.one("SELECT path, remote FROM $r", r=R("recording", rid)) or {}
+    shared = None
+    if rec.get("path") and not rec.get("remote"):
+        if db.values("SELECT VALUE id FROM recording WHERE path = $p AND id != $r LIMIT 1", p=rec["path"], r=R("recording", rid)):
+            shared = store.resolve_path(cfg, rec["path"])
+    return [p for p in keyring.recording_files(db, cfg, rid) if not shared or p != str(shared)]
+
+
 def _rekey(db, cfg, rid, dst):
-    """Its files are kept under the new namespace's key, so they open wherever the old one is locked or gone."""
-    for p in keyring.recording_files(db, cfg, rid):
+    """Its files are kept under the new namespace's key, so they open wherever the old one is locked or gone. One that
+    can't be (damaged, gone, a disk error) stays as it is, and `lens encrypt` moves it later."""
+    for p in _own_files(db, cfg, rid):
         try:
             keyring.rekey(db, cfg, dst, p)
-        except (keyring.Locked, keyring.Damaged, OSError) as e:  # checked before the move; a damaged file stays as it is
+        except Exception as e:  # noqa: BLE001 - the move is done; the rest of its files still go
             log.warning("moving recording %s: kept %s as it was: %s", rid, p, e)
 
 
@@ -196,7 +212,12 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None, colle
     fp = rec.get("fingerprint")
     if fp and db.values("SELECT VALUE id FROM recording WHERE fp_key = $k", k=f"{dst}:{fp}"):
         raise Conflict(f"{names[dst]} already has the same file.")
-    keyring.keys_needed(db, cfg, dst, list(keyring.recording_files(db, cfg, rid)))
+    with keyring.holding(db, cfg, keyring.keys_needed(db, cfg, dst, _own_files(db, cfg, rid))):  # Locked: nothing changed
+        return _move(db, cfg, rid, dst, rec, names, home, rediarize, revoke_shares, by)
+
+
+def _move(db, cfg, rid, dst, rec, names, home, rediarize, revoke_shares, by):
+    src, fp = rec["space"], rec.get("fingerprint")
     deletion.stop_jobs(db, rid, "move")
     pins = _pins(db, cfg, rid, src, dst)
     if pins:

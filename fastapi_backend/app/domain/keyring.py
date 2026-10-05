@@ -141,9 +141,32 @@ def status(db, sid):
     }
 
 
+_HELD = threading.local()
+
+
+@contextlib.contextmanager
+def holding(db, cfg, sids):
+    """Keep the data keys of namespaces `sids` open for this thread until the block ends, so a vault whose unlock runs
+    out (or is locked) meanwhile doesn't stop a change half way. Raises Locked on entry, before anything is done."""
+    held = {}
+    for sid in sorted({int(s) for s in sids}):
+        version, key = data_key(db, cfg, sid)
+        held[(sid, None)] = held[(sid, version)] = (version, key)
+        held.update({k: (k[1], v) for k, v in _cache(db).items() if k[0] == sid})
+    before = getattr(_HELD, "keys", None)
+    _HELD.keys = {**(before or {}), **held}
+    try:
+        yield
+    finally:
+        _HELD.keys = before
+
+
 def data_key(db, cfg, sid, version=None, create=True):
     """The namespace's data key (the current version unless one is named), as (version, key)."""
     sid = int(sid)
+    held = getattr(_HELD, "keys", None)
+    if held and (sid, None if version is None else int(version)) in held:
+        return held[(sid, None if version is None else int(version))]
     _expire(db, sid)
     cache = _cache(db)
     if version is not None and (sid, int(version)) in cache:
@@ -923,15 +946,13 @@ def recording_files(db, cfg, rid):
             yield str(data / "exports" / name / f)
 
 
-def keys_needed(db, cfg, sid, paths):
-    """Check that the files at `paths` can be moved to namespace `sid` (see rekey): each encrypted one's own key opens
-    and, when any of them is to be encrypted there, the new namespace's does. Raises Locked for a vault nobody has
-    unlocked here, before anything is changed."""
+def keys_needed(db, cfg, sid, paths) -> set[int]:
+    """The namespaces whose keys moving the files at `paths` to namespace `sid` needs (see rekey): each encrypted
+    one's own and, when any of them is to be encrypted there, the new namespace's. Hold them with holding()."""
     need = {_space_of(p) for p in paths if is_encrypted(p)}
     if need or any(wanted(db, cfg, sid, p) for p in paths):
         need.add(int(sid))
-    for s in sorted(need):
-        data_key(db, cfg, s)
+    return need
 
 
 def rekey(db, cfg, sid, path) -> bool:
@@ -952,19 +973,33 @@ def rekey(db, cfg, sid, path) -> bool:
 
 def encrypt_all(db, cfg, decrypt=False, log=print, space=None):
     """Encrypt (or, with decrypt, turn back) every file Lens keeps, or one namespace's (`space`); files already that
-    way are skipped, so it can run again after stopping half way. Returns how many changed."""
-    changed = 0
-    for sid, p in stored_files(db, cfg):
+    way are skipped, so it can run again after stopping half way. An encrypted file under another namespace's key is
+    moved to its own namespace's; a vault's files stay encrypted. Returns how many changed."""
+    changed, files = 0, list(stored_files(db, cfg))
+    spaces: dict[str, set[int]] = {}
+    for sid, p in files:
+        spaces.setdefault(str(p), set()).add(int(sid))
+    vaults = {sid for sid in {int(s) for s, _ in files} if status(db, sid)["vault"]} if decrypt else set()
+    for sid, p in files:
         if space is not None and sid != int(space):
             continue
+        if decrypt and int(sid) in vaults:  # a vault's files are never turned back to plain
+            continue
         try:
-            st = os.stat(p)
-            done = decrypt_file(db, cfg, p) if decrypt else encrypt_file(db, cfg, sid, p)
+            st, keeps_time = os.stat(p), False
+            if decrypt:
+                done = decrypt_file(db, cfg, p)
+            elif is_encrypted(p):
+                # under another namespace's key (a move that stopped half way): its own, unless two namespaces share it
+                done = keeps_time = len(spaces[str(p)]) == 1 and rekey(db, cfg, sid, p)
+            else:
+                done = encrypt_file(db, cfg, sid, p)
         except (Locked, Damaged, OSError) as e:  # a vault, a damaged file, one gone or not writable: the rest go on
             log(f"skipped {p}: {e}")
             continue
         if done:
-            os.utime(p, (st.st_atime, st.st_mtime))
+            if not keeps_time:
+                os.utime(p, (st.st_atime, st.st_mtime))
             changed += 1
     log(f"{'decrypted' if decrypt else 'encrypted'} {changed} file(s)")
     return changed

@@ -206,7 +206,7 @@ def test_files_cached_from_a_storage_source_are_kept_encrypted(client, db, cfg, 
     assert not list(cached.parent.glob("*.part"))
 
 
-def test_a_moved_recording_keeps_its_files_under_the_new_namespace_key(client, db, cfg, folder):
+def test_a_moved_recording_keeps_its_files_under_the_new_namespace_key(client, db, cfg, folder, monkeypatch):
     eff = settings.effective(db, cfg)
     make_user(db, "own@x.io", "owner password 1", roles={"pods": "owner", "calls": "editor"})
     ho = login(client, "own@x.io", "owner password 1")
@@ -232,9 +232,20 @@ def test_a_moved_recording_keeps_its_files_under_the_new_namespace_key(client, d
     assert db.one("SELECT space FROM $r", r=R("recording", rid))["space"] == pods
     assert keyring.Reader(db, eff, kept).space == pods
 
+    # unlocked when the move starts: its key is held until the move is done, even if the vault locks meanwhile
+    from app.domain import moving
+
+    files_of = moving._files
+
+    def locks_meanwhile(*a, **k):
+        keyring.lock(db, calls)
+        return files_of(*a, **k)
+
+    monkeypatch.setattr(moving, "_files", locks_meanwhile)
     keyring.unlock(db, calls, "passkey:phone", kek)
     r = client.post(f"/api/v1/recordings/{rid}/move", headers=ho, json={"namespace": "calls"})
     assert r.status_code == 200, r.text
+    keyring.unlock(db, calls, "passkey:phone", kek)
     for p in keyring.recording_files(db, eff, rid):
         with keyring.Reader(db, eff, p) as f:
             assert f.space == calls
@@ -244,3 +255,32 @@ def test_a_moved_recording_keeps_its_files_under_the_new_namespace_key(client, d
     # and they open only while the vault they're in is unlocked
     keyring.lock(db, calls)
     assert client.get(f"/api/v1/recordings/{rid}/audio", headers=ho).status_code == 423
+
+    keyring.unlock(db, calls, "passkey:phone", kek)
+
+    # a file left under another namespace's key (a move that stopped half way) is moved by lens encrypt
+    keyring.rekey(db, eff, pods, kept)
+    assert keyring.Reader(db, eff, kept).space == pods
+    keyring.encrypt_all(db, eff, log=lambda *_: None)
+    assert keyring.Reader(db, eff, kept).space == calls and keyring.read_plain(db, eff, kept) == b"a frame"
+
+    # and lens encrypt --off leaves a vault's files encrypted
+    keyring.encrypt_all(db, eff, decrypt=True, log=lambda *_: None)
+    assert keyring.is_encrypted(kept)
+
+
+def test_a_file_two_namespaces_share_keeps_its_key_when_one_moves(client, db, cfg, folder):
+    eff = settings.effective(db, cfg)
+    make_user(db, "own@x.io", "owner password 1", roles={"pods": "owner", "calls": "editor"})
+    ho = login(client, "own@x.io", "owner password 1")
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    rid = _upload(client, ho, wav.read_bytes(), "talk.wav")
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    rec = db.one("SELECT * FROM $r", r=R("recording", rid))
+    other = store.ns_id(db, "other")
+    db.q("CREATE recording:9001 CONTENT $d", d={"space": other, "source": "audio", "path": rec["path"]})  # an IIIF import twice
+    r = client.post(f"/api/v1/recordings/{rid}/move", headers=ho, json={"namespace": "calls"})
+    assert r.status_code == 200, r.text
+    assert keyring.Reader(db, eff, store.resolve_path(eff, rec["path"])).space == pods
+    assert calls != pods
