@@ -8,7 +8,10 @@ fetched wait for it instead of failing. Programs the image provides (ffmpeg, Chr
 a container can't install them, and the full image has them all.
 
 `components.auto` (on by default) lets it fetch on its own; `components.also` names optional ones (Outlook .msg
-support, which is GPL-3.0) to fetch too. Settings → Components shows each worker's machine and where everything is.
+support, which is GPL-3.0) to fetch too. What a job step needs is fetched on first use: when a job is waiting for that
+step, so an archive nobody has put recordings into fetches nothing (a Raspberry Pi with cloud models stays small).
+`components.ahead` fetches everything the settings could need straight away instead. Settings → Components shows each
+worker's machine and where everything is.
 """
 
 from __future__ import annotations
@@ -253,6 +256,10 @@ class Component:
     def present(self, cfg):
         return False
 
+    def serves(self, cfg, m):
+        """The job steps that wait for it: what makes it fetched on first use."""
+        return self.steps
+
     fetch = None
 
 
@@ -297,6 +304,9 @@ class Pytorch(Component):
 
     def present(self, cfg):
         return importable("torch", "torchaudio")
+
+    def serves(self, cfg, m):
+        return set().union(*(c.steps for c in (SENSEVOICE, VOICES) if c.needed(cfg, m)))
 
     def fetch(self, cfg, m, say):
         pip_install(cfg, "voices", say)  # torch and torchaudio; SenseVoice and voice IDs both need them
@@ -552,6 +562,7 @@ class Keeper:
         self.lock = threading.Lock()
         self.failed_at = {}
         self.seen = None
+        self.later = {}  # id -> the steps that wait for it: fetched on first use, once a job needs one of them
 
     def _say(self, cid):
         def say(msg):
@@ -576,10 +587,26 @@ class Keeper:
         return out
 
     def blocked(self):
-        """Steps waiting for something being fetched."""
+        """Steps waiting for something being fetched, or to be fetched on first use."""
         with self.lock:
             busy = [cid for cid, s in self.state.items() if s.get("state") in ("waiting", "fetching")]
-        return set().union(*(BY_ID[c].steps for c in busy)) if busy else set()
+            later = set().union(*self.later.values())
+        return set().union(later, *(BY_ID[c].steps for c in busy))
+
+    def demand(self):
+        """The steps queued jobs are waiting to run next."""
+        try:
+            return {r["next_step"] for r in self.db.rows("SELECT next_step FROM job WHERE status = 'queued' GROUP BY next_step")}
+        except Exception:  # noqa: BLE001 - asked again on the next pass
+            return set()
+
+    def _first_use(self, cfg, c, m, demand):
+        """Whether it waits for first use: not fetched ahead, not asked for by name, and no queued job needs it yet."""
+        opts = cfg.get("components") or {}
+        if opts.get("ahead", False) or c.id in set(opts.get("also") or []):
+            return set()
+        steps = c.serves(cfg, m)
+        return set() if not steps or steps & demand else steps
 
     def report(self):
         with self.lock:
@@ -598,8 +625,10 @@ class Keeper:
         m = machine.probe(cfg["data_dir"])
         auto = (cfg.get("components") or {}).get("auto", True)
         also = set((cfg.get("components") or {}).get("also") or [])
+        demand = self.demand()
         todo = []
         state = {}
+        later = {}
         for c in self.wanted(cfg, m):
             try:
                 here = c.present(cfg)
@@ -607,6 +636,9 @@ class Keeper:
                 here = False
             if here:
                 state[c.id] = {"state": "ready"}
+            elif (auto or c.id in also) and (wait := self._first_use(cfg, c, m, demand)):
+                state[c.id] = {"state": "later"}
+                later[c.id] = wait
             elif (auto or c.id in also) and time.time() - self.failed_at.get(c.id, 0) > RETRY_SECONDS:
                 state[c.id] = {"state": "waiting"}
                 todo.append(c)
@@ -617,7 +649,7 @@ class Keeper:
                     **({"error": prev["error"]} if prev.get("error") else {}),
                 }
         with self.lock:
-            self.state = state
+            self.state, self.later = state, later
         self.report()
         for c in todo:
             say = self._say(c.id)
@@ -646,7 +678,10 @@ class Keeper:
         while not stop.is_set():
             ver = self.settings_version()
             poked = _poked(self.db, last)
-            if ver != self.seen or poked or time.time() - last > CHECK_SECONDS:
+            with self.lock:
+                later = set().union(*self.later.values())
+            wanted = bool(later and later & self.demand())  # a job is waiting for something fetched on first use
+            if ver != self.seen or poked or wanted or time.time() - last > CHECK_SECONDS:
                 if ver != self.seen or poked:
                     self.failed_at.clear()  # new settings, or asked to: try again at once
                 self.seen, last = ver, time.time()
@@ -662,11 +697,15 @@ class Keeper:
         cfg = self.cfg_fn()
         activate(cfg)
         m = machine.probe(cfg["data_dir"])
+        demand = self.demand()
         with self.lock:
             for c in self.wanted(cfg, m):
                 try:
                     if not c.present(cfg) and (cfg.get("components") or {}).get("auto", True):
-                        self.state[c.id] = {"state": "waiting"}
+                        if wait := self._first_use(cfg, c, m, demand):
+                            self.state[c.id], self.later[c.id] = {"state": "later"}, wait
+                        else:
+                            self.state[c.id] = {"state": "waiting"}
                 except Exception:  # noqa: BLE001
                     pass
         th = threading.Thread(target=self.loop, args=(stop,), daemon=True, name=f"components-{self.name}")

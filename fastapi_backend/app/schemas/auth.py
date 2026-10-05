@@ -57,6 +57,9 @@ class Me(ResponseModel):
     )
     via: Literal["access", "token", "oauth"]
     scope: Literal["read", "write"]
+    toured_at: str | None = Field(
+        None, description="when you finished or skipped the welcome tour; until then the web app opens it once you sign in"
+    )
 
 
 class ForgotPasswordRequest(RequestModel):

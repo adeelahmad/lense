@@ -14,7 +14,7 @@ from app.domain.store import R
 
 # Every step that has shipped, in order. A database remembers steps by name, so these may never be renamed, reordered
 # or removed: add new steps to the end of migrations.steps() and here.
-SHIPPED = ["access-levels", "collection-homes"]
+SHIPPED = ["access-levels", "collection-homes", "tour-seen"]
 
 
 def test_steps_are_append_only():
@@ -62,8 +62,8 @@ def test_steps_an_older_lens_counted_are_not_run_again(db):
     db.q("DELETE migration")
     db.q("UPSERT $r SET n = 1", r=R("seq", "migrations"))
     rid = _old_shape(db)
-    assert migrations.pending(db) == ["collection-homes"]
-    assert store.migrate(db) == ["collection-homes"]
+    assert migrations.pending(db) == ["collection-homes", "tour-seen"]
+    assert store.migrate(db) == ["collection-homes", "tour-seen"]
     row = db.one("SELECT meta_json, collection FROM $r", r=R("recording", rid))
     assert json.loads(row["meta_json"]) == {"access": "signed-in"}  # access-levels was counted as done, so not rerun
     assert row["collection"] == store.default_collection(db, store.ns_id(db, "pods"))
@@ -139,7 +139,7 @@ def test_lens_migrations_lists_and_runs(tmp_path, monkeypatch, capsys):
     assert "pending  access-levels" in out and "pending  collection-homes" in out
     cli.main(["--config", str(cfg_path), "migrations", "--run"])
     out = capsys.readouterr().out
-    assert "ran 2 upgrade(s): access-levels, collection-homes" in out
+    assert "ran 3 upgrade(s): access-levels, collection-homes, tour-seen" in out
     assert "done     access-levels" in out
 
 
@@ -230,3 +230,13 @@ def test_lens_backup(tmp_path, monkeypatch, capsys):
     cli.main(["--config", str(cfg_path), "backup"])
     assert "backed up to " in capsys.readouterr().out
     assert len(list((tmp_path / "data" / "backups").glob("manual-*.surrealkv"))) == 1
+
+
+def test_people_who_signed_in_before_the_tour_skip_it(db):
+    from app.domain import auth
+
+    old = auth.create_account(db, "old@x.io", "old password 12", "Old")
+    new = auth.create_account(db, "new@x.io", "new password 12", "New")
+    db.q("UPDATE $r SET last_login_at = $t", r=R("account", old), t=store.now())
+    dict(migrations.steps())["tour-seen"](db)
+    assert auth.toured_at(db, old) and auth.toured_at(db, new) is None

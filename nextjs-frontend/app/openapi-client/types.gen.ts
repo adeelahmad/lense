@@ -2291,9 +2291,9 @@ export type ComponentState = {
   /**
    * State
    *
-   * waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off
+   * waiting/fetching: being fetched, and the steps that need it wait; later: fetched on first use, when a job needs it; missing: needed but fetching is off
    */
-  state: "ready" | "waiting" | "fetching" | "failed" | "missing";
+  state: "ready" | "waiting" | "fetching" | "later" | "failed" | "missing";
   /**
    * Detail
    *
@@ -2317,6 +2317,12 @@ export type Components = {
    * components.auto: fetch what's needed without asking
    */
   auto: boolean;
+  /**
+   * Ahead
+   *
+   * components.ahead: fetch it all now, not on first use
+   */
+  ahead?: boolean;
   /**
    * the API's machine
    */
@@ -6550,6 +6556,12 @@ export type Me = {
    * Scope
    */
   scope: "read" | "write";
+  /**
+   * Toured At
+   *
+   * when you finished or skipped the welcome tour; until then the web app opens it once you sign in
+   */
+  toured_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -16103,6 +16115,22 @@ export type UpdateMeResponses = {
 };
 
 export type UpdateMeResponse = UpdateMeResponses[keyof UpdateMeResponses];
+
+export type FinishTourData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/me/tour";
+};
+
+export type FinishTourResponses = {
+  /**
+   * Successful Response
+   */
+  200: Me;
+};
+
+export type FinishTourResponse = FinishTourResponses[keyof FinishTourResponses];
 
 export type ChangePasswordData = {
   body: PasswordChange;

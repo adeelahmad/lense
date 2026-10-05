@@ -563,9 +563,9 @@ def _bridge_setting(key, value):
 def _component_setting(key, value):
     from . import components
 
-    if key == "auto":
+    if key in ("auto", "ahead"):
         if not isinstance(value, bool):
-            raise ValueError("components.auto is true or false")
+            raise ValueError(f"components.{key} is true or false")
         return value
     if key == "also":
         known = {c.id for c in components.COMPONENTS if c.kind != "program"}

@@ -48,13 +48,15 @@ LEGACY = ("access-levels", "collection-homes")
 
 def steps():
     """[(name, fn(db))] in the order they run. Append only."""
-    from . import access, hierarchy
+    from . import access, auth, hierarchy
 
     return [
         # IIIF-only access levels (public, transcript, signed-in, private) become the access setting
         ("access-levels", access.migrate_legacy),
         # every namespace gets its default collection and every recording a home
         ("collection-homes", hierarchy.migrate_homes),
+        # people who signed in before the first-sign-in welcome tour existed don't get it
+        ("tour-seen", auth.migrate_tours),
     ]
 
 

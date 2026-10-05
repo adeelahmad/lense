@@ -61,7 +61,7 @@ def fresh(folder):
 def test_fresh_database_without_namespaces_starts(folder):
     db = store.connect(bare_cfg(folder))
     try:
-        assert migrations.pending(db) == [] and [m["state"] for m in migrations.status(db)] == ["done", "done"]
+        assert migrations.pending(db) == [] and [m["state"] for m in migrations.status(db)] == ["done", "done", "done"]
         assert store.space_names(db) == {}
     finally:
         db.close()

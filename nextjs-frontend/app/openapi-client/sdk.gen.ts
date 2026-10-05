@@ -358,6 +358,8 @@ import type {
   FinishData,
   FinishErrors,
   FinishResponses,
+  FinishTourData,
+  FinishTourResponses,
   FixScreenTextData,
   FixScreenTextErrors,
   FixScreenTextResponses,
@@ -1444,6 +1446,20 @@ export class Auth {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Finish Tour
+   *
+   * You finished or skipped the welcome tour, so it doesn't open again. Repeating it keeps the first time.
+   */
+  public static finishTour<ThrowOnError extends boolean = false>(
+    options?: Options<FinishTourData, ThrowOnError>,
+  ): RequestResult<FinishTourResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<FinishTourResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/me/tour",
+      ...options,
     });
   }
 
