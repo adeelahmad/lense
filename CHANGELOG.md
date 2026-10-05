@@ -7,7 +7,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Fewer steps to an answer.** Asking on Home sends the question when you press Enter, instead of opening an empty
   chat on the first keystroke and waiting for a second Enter. With only one namespace, it is picked for you, so pages
   that need a namespace stop asking. Once a model is set, the setup wizard offers **Finish with defaults** for the
-  remaining steps.
+  remaining steps. The Import button shows on tablet-sized screens too, and an empty graph offers Import instead of a
+  list of jobs when nothing is waiting.
 
 - **Engines and models are fetched on first use.** A fresh install no longer downloads PyTorch, SenseVoice, voice IDs
   and the face and object models before anything is imported (2.7 GB, and 2.6 GB of memory held by an idle worker).
