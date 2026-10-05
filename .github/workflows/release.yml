@@ -32,7 +32,7 @@ jobs:
   cut:
     name: Cut the version
     if: github.event_name == 'workflow_dispatch'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     permissions:
       contents: write
     outputs:
@@ -93,7 +93,7 @@ jobs:
     needs: cut
     # after the cut, or for a pushed tag
     if: always() && (needs.cut.result == 'success' || github.event_name == 'push')
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     permissions:
       contents: write
       actions: write # to start the package workflows

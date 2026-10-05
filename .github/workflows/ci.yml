@@ -13,11 +13,12 @@ concurrency:
 permissions:
   contents: read
 
+# Every workflow runs on GitHub's ubuntu-latest. To use a self-hosted runner instead, set the repository variable
+# CI_RUNNER (Settings → Secrets and variables → Actions → Variables) to its labels as JSON: ["self-hosted","Linux","X64"]
 jobs:
   backend:
     name: FastAPI (embedded SurrealDB)
-    # the Linux runner: apt packages (LibreOffice included), as on GitHub's runners
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     defaults:
       run:
         working-directory: ./fastapi_backend
@@ -95,8 +96,7 @@ jobs:
 
   backend-surrealdb-server:
     name: FastAPI (SurrealDB server)
-    # the Linux runner: Docker for SurrealDB, apt packages
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     defaults:
       run:
         working-directory: ./fastapi_backend
@@ -163,7 +163,7 @@ jobs:
 
   frontend:
     name: Next.js
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     defaults:
       run:
         working-directory: ./nextjs-frontend
