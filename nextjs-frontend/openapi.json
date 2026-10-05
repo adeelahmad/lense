@@ -255,6 +255,28 @@
         }
       }
     },
+    "/api/v1/auth/me/tour": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Finish Tour",
+        "description": "You finished or skipped the welcome tour, so it doesn't open again. Repeating it keeps the first time.",
+        "operationId": "finish_tour",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/password": {
       "post": {
         "tags": [
@@ -33853,6 +33875,18 @@
               "write"
             ],
             "title": "Scope"
+          },
+          "toured_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toured At",
+            "description": "when you finished or skipped the welcome tour; until then the web app opens it once you sign in"
           }
         },
         "additionalProperties": true,
