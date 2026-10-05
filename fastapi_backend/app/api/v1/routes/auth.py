@@ -117,7 +117,14 @@ def me(user: CurrentUser, db: Db) -> Me:
     names = store.space_names(db)
     roles: dict[str, Any] = {names.get(k, str(k)): v for k, v in user.roles.items()}
     partial = sorted(names.get(k, str(k)) for k in user.collections if k not in user.roles)
-    return Me(user=UserPublic(**(auth.active_account(db, user.id) or {})), roles=roles, partial=partial, via=user.via, scope=user.scope)
+    return Me(
+        user=UserPublic(**(auth.active_account(db, user.id) or {})),
+        roles=roles,
+        partial=partial,
+        via=user.via,
+        scope=user.scope,
+        toured_at=auth.toured_at(db, user.id),
+    )
 
 
 @router.patch("/me")
@@ -125,6 +132,13 @@ def update_me(body: MeUpdate, user: Writer, db: Db) -> Me:
     """Change your own name."""
     with domain_errors():
         auth.rename_account(db, user.id, body.name)
+    return me(user, db)
+
+
+@router.post("/me/tour")
+def finish_tour(user: Writer, db: Db) -> Me:
+    """You finished or skipped the welcome tour, so it doesn't open again. Repeating it keeps the first time."""
+    auth.finish_tour(db, user.id)
     return me(user, db)
 
 

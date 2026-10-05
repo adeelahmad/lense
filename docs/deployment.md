@@ -1,7 +1,10 @@
 # Deployment
 
 Lens runs as containers: SurrealDB, the API, one or more workers, and the Next.js app. `docker-compose.prod.yml`
-is a production-shaped starting point.
+is a production-shaped starting point. Two more services are opt-in profiles: `--profile fedora` adds a Fedora 6
+repository to keep a copy of the archive in ([Fedora](fedora.md)), and `--profile opensearch` adds OpenSearch for word
+search on a big archive (then choose it in Settings → Search and reindex; the default is a SQLite index in
+`data_dir/search`).
 
 ```bash
 export ACCESS_SECRET_KEY=$(openssl rand -hex 32) ARCHIVE_SECRET_KEY=$(openssl rand -hex 32) \
@@ -15,8 +18,8 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 
 * **HTTPS in front of the web app**: [Remote access](remote-access.md) (a Cloudflare Tunnel Lens runs itself, set up in
   the app), or your own reverse proxy (Caddy, nginx, a cloud load balancer). The web app proxies `/api/v1`, `/iiif`,
-  `/embed`, `/s`, `/reports` and `/static` to the API, so only the frontend needs to be public. IIIF authorization
-  requires HTTPS.
+  `/embed`, `/s`, `/reports`, `/static`, `/mcp`, `/id/...`, `/ns` and `/.well-known/` to the API, so only the frontend
+  needs to be public. IIIF authorization requires HTTPS.
 * **Allowed hosts.** Add your public host name to `server.allowed_hosts` (in the app) or `ARCHIVE_ALLOWED_HOSTS`, next
   to `backend`, the name the frontend uses inside the network.
 * **Uploads through the reverse proxy.** Audio and video go up in pieces of `uploads.chunk_mb` (8 MB); let the reverse
@@ -34,8 +37,9 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
   stored source credentials, LLM keys and everything [encrypted at rest](encryption.md) unreadable), `AUTH_SECRET`.
 * **SurrealDB storage engine**: `surrealkv` (as in the compose file), RocksDB or TiKV. Not `memory`; see
   [Database](database.md).
-* **Backups** of SurrealDB (`surreal export`) and of the `archive-data` volume.
-* **Mail** for password resets and access requests: **Settings → Email** in the app (or `MAIL_*` in `.env`).
+* **Backups.** `docker compose -f docker-compose.prod.yml exec backend lens backup` writes one of the database into
+  `data_dir/backups` ([Database](database.md#backups)); back up the `archive-data` volume as well.
+* **Mail** for sign-in links and access requests: **Settings → Email** in the app (or `MAIL_*` in `.env`).
 * **Workers.** Scale with `docker compose up -d --scale worker=3`. The images transcribe with faster-whisper on the
   CPU (SenseVoice, the default engine, is used where it is installed; elsewhere the job log notes the fallback). To
   use SenseVoice in Docker, set `EXTRAS=sensevoice` in `.env` and rebuild (`make dev`); it adds PyTorch. For GPU transcription, build with
@@ -64,7 +68,8 @@ and publishing it as a community app.
 
 ## Frontend on Vercel
 
-The Next.js app can be deployed to Vercel (`prod-frontend-deploy.yml`) with `API_BASE_URL` pointing at the API's
-public URL; the API then needs its own HTTPS endpoint and `CORS_ORIGINS` set to the Vercel domain. The API itself does
-not fit serverless functions (long-running workers, ffmpeg, large uploads, persistent connections to SurrealDB), so the
-template's backend Vercel deployment was removed.
+The Next.js app can be deployed to Vercel with `API_BASE_URL` pointing at the API's public URL
+(`prod-frontend-deploy.yml` at the repository root is a GitHub Actions workflow left from the template that does it;
+copy it into `.github/workflows/` and set the `VERCEL_*` secrets to use it); the API then needs its own HTTPS endpoint
+and `CORS_ORIGINS` set to the Vercel domain. The API itself does not fit serverless functions (long-running workers,
+ffmpeg, large uploads, persistent connections to SurrealDB), so the template's backend Vercel deployment was removed.

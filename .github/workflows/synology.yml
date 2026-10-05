@@ -23,7 +23,7 @@ on:
 jobs:
   spk:
     name: SPK (${{ matrix.arch }})
-    runs-on: [self-hosted, Linux, X64] # Docker builds: the Linux runner
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     permissions:
       contents: write # to attach the packages to the release
     strategy:

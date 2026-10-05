@@ -11,7 +11,7 @@ help: ## List the commands
 	@awk '/^[a-zA-Z_-]+:.*##/{split($$1, target, ":"); print "  " target[1] "\t" substr($$0, index($$0,"##")+3)}' $(MAKEFILE_LIST)
 
 # Local development
-.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs hooks
+.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs docs-build hooks
 
 hooks: ## Install the git hooks: lint on commit, Conventional Commit messages
 	cd $(BACKEND_DIR) && uv run pre-commit install -c ../.pre-commit-config.yaml
@@ -41,8 +41,11 @@ openapi: ## Regenerate the OpenAPI schema and the frontend client
 	cd $(BACKEND_DIR) && uv run python -m commands.generate_openapi_schema
 	cd $(FRONTEND_DIR) && pnpm run generate-client
 
-docs: ## Serve the documentation
+docs: ## Serve the documentation (docs-build checks it the way CI does)
 	cd $(BACKEND_DIR) && uv run mkdocs serve -f ../mkdocs.yml
+
+docs-build: ## Build the documentation site, failing on broken links
+	cd $(BACKEND_DIR) && uv run mkdocs build --strict -f ../mkdocs.yml --site-dir ../site
 
 # Run it (Docker)
 PROD_COMPOSE=$(DOCKER_COMPOSE) -f docker-compose.prod.yml
