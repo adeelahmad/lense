@@ -1064,6 +1064,7 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <F ctx={ctx} id="bridge.gateway" />
       <F ctx={ctx} id="bridge.users" />
+      <F ctx={ctx} id="bridge.rooms" />
       <F ctx={ctx} id="bridge.poll_seconds" />
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>

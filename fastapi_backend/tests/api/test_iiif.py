@@ -13,7 +13,7 @@ from unittest import mock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.domain import analyze, iiif, iiif_auth, ingest, metadata
+from app.domain import analyze, auth, iiif, iiif_auth, ingest, metadata
 from tests.helpers import drain, login, make_user, manifests, quiet, seed, write_wav
 
 BASE = "https://127.0.0.1"
@@ -296,6 +296,18 @@ def test_import_from_iiif(env):
         assert c.get(f"/api/v1/recordings/{rid2}", headers=h).json()["collection"] == shelf
     finally:
         srv.shutdown()
+
+
+def test_access_form_refuses_passwords_when_they_are_off(env):
+    """With auth.passwords off, the IIIF sign-in page offers no password form and a submitted one answers 403."""
+    anon = env.client()
+    csrf = csrf_of(anon.get("/iiif/auth/access", params={"origin": VIEWER}))  # a form opened while passwords were on
+    with mock.patch.object(auth, "passwords_on", return_value=False):  # as on an install that turned them off
+        r = anon.post("/iiif/auth/access", data={"email": "root@x.io", "password": "root password 1", "origin": VIEWER, "csrf": csrf})
+        page = anon.get("/iiif/auth/access", params={"origin": VIEWER})
+    assert r.status_code == 403 and "window.close()" not in r.text
+    assert not [x for x in r.headers.get_list("set-cookie") if x.startswith(f"{iiif_auth.COOKIE}=")]
+    assert 'name="password"' not in page.text and "passkey" in page.text
 
 
 def test_tokens_go_only_to_viewers_the_person_signed_in_for(env):
