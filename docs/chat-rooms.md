@@ -37,7 +37,8 @@ That's all. Without an account given, it answers as the admin who turned it on.
   message**), in every gateway or only one, from everyone in the bridged rooms or only the chat usernames listed.
 - **As whom.** It answers as one Lens account (**Answers as**): it reads only what that account can read. Changes it
   proposes (running work, changing settings) wait for approval in the web app, as in Chat; its answer says so and
-  links to the conversation.
+  links to the conversation, through the Cloudflare tunnel while one is up (Settings › Remote access), so the link
+  opens away from home too.
 - **Conversations.** Each person in each room is a conversation of that account's, titled
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)).

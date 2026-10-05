@@ -299,14 +299,14 @@ def answer(db, cfg, base, account, cid, q):
     return text, approvals
 
 
-def reply_text(cfg, text, approvals, cid):
+def reply_text(cfg, text, approvals, cid, db=None):
     """The answer as a chat message: what it proposed waits for approval in the web app, linked."""
     from app.email import app_url
 
     out = (text or "").strip() or "(no answer)"
     if approvals:
         out += "\n\nWaiting for approval in Lens: " + "; ".join(a["summary"] for a in approvals)
-        out += f"\n{app_url(cfg)}/chat/{cid}"
+        out += f"\n{app_url(cfg, db)}/chat/{cid}"  # through the tunnel, when there is one: the room is often far from home
     return out
 
 
@@ -334,7 +334,7 @@ def handle(db, cfg, base, m):
     except Exception:  # noqa: BLE001 - still say something in the room
         log.exception("bridge: answering failed")
         text, approvals, note = "Something went wrong while answering. Try again.", [], None
-    out = reply_text(cfg, text, approvals, cid)
+    out = reply_text(cfg, text, approvals, cid, db)
     post(cfg, m.get("gateway"), out + (f"\n\n{note}" if note else ""), m.get("channel"))
     try:  # a room conversation goes on for good: older messages are folded into its summary
         chat.compact(db, cfg, cid)
