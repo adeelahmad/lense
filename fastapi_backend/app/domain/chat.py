@@ -13,7 +13,7 @@ import re
 import time
 from collections import Counter, defaultdict
 
-from . import llm, recsets, render, semantic, store
+from . import llm, recsets, render, semantic, store, textindex
 
 R = store.R
 STOP = set(
@@ -74,8 +74,10 @@ def retrieve(db, question, spaces, scope=None, k=8, cfg=None):
     where, p = scope_filter(db, spaces, scope)
     hits = {}
     for w in words:
-        rows = None
-        if db.ready_fulltext():
+        rows = textindex.rows(db, "segment", textindex.words_expr(w), "record::id(id) AS id, recording, idx", f" AND {where}", p, 50)
+        for r in rows or []:
+            r["s"] = r.pop("s1")
+        if rows is None and db.ready_fulltext():
             try:
                 rows = db.rows(
                     f"SELECT record::id(id) AS id, recording, idx, search::score(1) AS s FROM segment WHERE text @1@ $w AND {where} LIMIT 50",
@@ -175,11 +177,15 @@ def retrieve(db, question, spaces, scope=None, k=8, cfg=None):
         where_o = where.replace("speaker IN $spk", "true")
         for w in words:
             try:
-                rows = db.rows(
-                    f"SELECT record::id(id) AS id, recording, t0, text, space FROM ocr_span WHERE text @1@ $w AND {where_o} LIMIT 20",
-                    w=w,
-                    **p,
+                rows = textindex.rows(
+                    db, "ocr_span", textindex.words_expr(w), "record::id(id) AS id, recording, t0, text, space", f" AND {where_o}", p, 20
                 )
+                if rows is None:
+                    rows = db.rows(
+                        f"SELECT record::id(id) AS id, recording, t0, text, space FROM ocr_span WHERE text @1@ $w AND {where_o} LIMIT 20",
+                        w=w,
+                        **p,
+                    )
             except Exception:  # noqa: BLE001
                 rows = [
                     r

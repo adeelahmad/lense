@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Word search no longer weighs down the database.** Searching words in transcripts, text on screen, files, objects
+  and descriptions now uses a small SQLite index next to the database instead of SurrealDB's own full-text index. On
+  10,000 transcript lines the database used 64 MB of memory instead of 380 MB, and writing them took half the time.
+  Nothing changes in how search, the assistant or IIIF search behave. Existing installs build the new index on their
+  first start and give back the old one's memory. Settings › Search › **Word search** switches back to SurrealDB's
+  index (then Reindex now).
+
 - **A much smaller web app image.** The production image runs Next.js's standalone server with only the packages it
   uses: 465 MB instead of 2.56 GB. Cloudron and `pnpm build` keep `next start`.
 

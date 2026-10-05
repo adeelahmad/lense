@@ -1265,6 +1265,7 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
   const s = status.data;
   return (
     <>
+      <F ctx={ctx} id="search.engine" />
       <F ctx={ctx} id="search.stemming" />
       <Reindex />
       <h3 className="m-0 mt-3 text-[15px] font-bold text-fg">Search by meaning</h3>
@@ -1377,7 +1378,7 @@ function Reindex() {
         Search keeps using the old index until this finishes.{" "}
         {run.isSuccess
           ? "Progress isn’t reported yet; searches pick up the new index when it’s done."
-          : "Run it after changing stemming."}
+          : "Run it after changing word search or stemming."}
       </span>
       {run.isError && <span className="text-[12px] text-red-dark">{run.error.message}</span>}
     </div>

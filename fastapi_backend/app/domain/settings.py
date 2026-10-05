@@ -111,6 +111,7 @@ ENUMS = {
     ("speakers", "cross_namespace"): {"suggest", "off"},
     ("analysis", "entities"): {"rules", "spacy"},
     ("search", "stemming"): {"english", "none"},
+    ("search", "engine"): set(store.SEARCH_ENGINES),
     ("reports", "audio"): {"link", "embed", "none"},
     ("video", "ocr_engine"): {"auto", "tesseract", "apple-vision", "rapidocr", "doctr", "none"},
     ("video", "face_engine"): {"opencv", "insightface", "none"},
