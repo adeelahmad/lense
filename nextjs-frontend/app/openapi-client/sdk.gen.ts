@@ -14,6 +14,9 @@ import type {
   AcceptGraphChangeData,
   AcceptGraphChangeErrors,
   AcceptGraphChangeResponses,
+  AddAssistantMemoryData,
+  AddAssistantMemoryErrors,
+  AddAssistantMemoryResponses,
   AddFileData,
   AddFileErrors,
   AddFileResponses,
@@ -361,6 +364,12 @@ import type {
   FixScreenTextData,
   FixScreenTextErrors,
   FixScreenTextResponses,
+  ForgetAllAssistantMemoriesData,
+  ForgetAllAssistantMemoriesErrors,
+  ForgetAllAssistantMemoriesResponses,
+  ForgetAssistantMemoryData,
+  ForgetAssistantMemoryErrors,
+  ForgetAssistantMemoryResponses,
   ForgotPasswordData,
   ForgotPasswordErrors,
   ForgotPasswordResponses,
@@ -434,6 +443,9 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetNamespaceAssistantData,
+  GetNamespaceAssistantErrors,
+  GetNamespaceAssistantResponses,
   GetNamespaceCollectionData,
   GetNamespaceCollectionErrors,
   GetNamespaceCollectionResponses,
@@ -617,6 +629,9 @@ import type {
   ListApprovalsData,
   ListApprovalsErrors,
   ListApprovalsResponses,
+  ListAssistantMemoriesData,
+  ListAssistantMemoriesErrors,
+  ListAssistantMemoriesResponses,
   ListAuditData,
   ListAuditErrors,
   ListAuditResponses,
@@ -1206,6 +1221,9 @@ import type {
   UnsealVaultData,
   UnsealVaultErrors,
   UnsealVaultResponses,
+  UpdateAssistantMemoryData,
+  UpdateAssistantMemoryErrors,
+  UpdateAssistantMemoryResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -1245,6 +1263,9 @@ import type {
   UpdateMeData,
   UpdateMeErrors,
   UpdateMeResponses,
+  UpdateNamespaceAssistantData,
+  UpdateNamespaceAssistantErrors,
+  UpdateNamespaceAssistantResponses,
   UpdateNamespaceCollectionData,
   UpdateNamespaceCollectionErrors,
   UpdateNamespaceCollectionResponses,
@@ -3006,6 +3027,120 @@ export class Namespaces {
   ): RequestResult<UpdateIpGroupResponses, UpdateIpGroupErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateIpGroupResponses, UpdateIpGroupErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/ip-groups/{gid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Namespace Assistant
+   *
+   * The namespace's assistant: whether it's on, its name and instructions, and how much it remembers.
+   */
+  public static getNamespaceAssistant<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceAssistantData, ThrowOnError>,
+  ): RequestResult<GetNamespaceAssistantResponses, GetNamespaceAssistantErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceAssistantResponses, GetNamespaceAssistantErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/assistant",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Namespace Assistant
+   *
+   * Owners: turn the assistant on or off, name it, or change its instructions.
+   */
+  public static updateNamespaceAssistant<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNamespaceAssistantData, ThrowOnError>,
+  ): RequestResult<UpdateNamespaceAssistantResponses, UpdateNamespaceAssistantErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateNamespaceAssistantResponses,
+      UpdateNamespaceAssistantErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/assistant",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Forget All Assistant Memories
+   *
+   * Owners: forget everything the assistant remembers.
+   */
+  public static forgetAllAssistantMemories<ThrowOnError extends boolean = false>(
+    options: Options<ForgetAllAssistantMemoriesData, ThrowOnError>,
+  ): RequestResult<ForgetAllAssistantMemoriesResponses, ForgetAllAssistantMemoriesErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      ForgetAllAssistantMemoriesResponses,
+      ForgetAllAssistantMemoriesErrors,
+      ThrowOnError
+    >({ url: "/api/v1/namespaces/{name}/assistant/memories", ...options });
+  }
+
+  /**
+   * List Assistant Memories
+   *
+   * What the namespace's assistant remembers: pinned first, then newest first (or by `q`).
+   */
+  public static listAssistantMemories<ThrowOnError extends boolean = false>(
+    options: Options<ListAssistantMemoriesData, ThrowOnError>,
+  ): RequestResult<ListAssistantMemoriesResponses, ListAssistantMemoriesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListAssistantMemoriesResponses, ListAssistantMemoriesErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/assistant/memories",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Assistant Memory
+   *
+   * Editors: tell the assistant something to remember.
+   */
+  public static addAssistantMemory<ThrowOnError extends boolean = false>(
+    options: Options<AddAssistantMemoryData, ThrowOnError>,
+  ): RequestResult<AddAssistantMemoryResponses, AddAssistantMemoryErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddAssistantMemoryResponses, AddAssistantMemoryErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/assistant/memories",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Forget Assistant Memory
+   *
+   * Editors: forget one memory.
+   */
+  public static forgetAssistantMemory<ThrowOnError extends boolean = false>(
+    options: Options<ForgetAssistantMemoryData, ThrowOnError>,
+  ): RequestResult<ForgetAssistantMemoryResponses, ForgetAssistantMemoryErrors, ThrowOnError> {
+    return (options.client ?? client).delete<ForgetAssistantMemoryResponses, ForgetAssistantMemoryErrors, ThrowOnError>(
+      { url: "/api/v1/namespaces/{name}/assistant/memories/{mid}", ...options },
+    );
+  }
+
+  /**
+   * Update Assistant Memory
+   *
+   * Editors: correct a memory, or pin it so it's read with every question.
+   */
+  public static updateAssistantMemory<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAssistantMemoryData, ThrowOnError>,
+  ): RequestResult<UpdateAssistantMemoryResponses, UpdateAssistantMemoryErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateAssistantMemoryResponses, UpdateAssistantMemoryErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/assistant/memories/{mid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

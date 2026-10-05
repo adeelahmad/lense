@@ -1008,6 +1008,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS chat_account ON chat FIELDS account",
     "DEFINE TABLE IF NOT EXISTS chat_message SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS chat_message_chat ON chat_message FIELDS chat",
+    # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
+    "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
