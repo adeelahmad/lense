@@ -115,10 +115,14 @@ It is the same assistant with the same tools, extensions and approvals; what it 
   `PATCH .../memories/<id>` to correct or pin one, `DELETE .../memories/<id>` to forget it, and owners `DELETE
   .../memories` to forget everything.
 
+Owners find it on the namespace's page (Admin → Namespaces → the namespace → Assistant): the switch, its name and
+instructions, and what it remembers, with where each memory came from, to add to, pin or forget.
+
 It makes no model calls of its own and keeps no index, so it costs nothing extra on a Raspberry Pi.
 
-Refine later: a decision model choosing what's worth remembering, chat rooms answered by a namespace's assistant,
-its settings and memories in the web app, similar memories merged.
+A chat room can be given to a namespace's assistant too ([chat rooms](chat-rooms.md)).
+
+Refine later: a decision model choosing what's worth remembering, similar memories merged.
 
 ## Extending the assistant: tools, skills, hooks and plugins
 
