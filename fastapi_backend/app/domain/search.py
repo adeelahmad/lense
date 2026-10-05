@@ -134,7 +134,7 @@ def search(
     base_params = dict(params)
     cap = min(1000, (offset + limit) * 3 + 50)
     fields = "record::id(id) AS id, recording, idx, t0, t1, emotion, speaker, space, text, page, box"
-    rows = [] if used == "semantic" else textindex.rows(db, "segment", textindex.match_expr(groups), fields, where_f, params, cap, (M0, M1))
+    rows = [] if used == "semantic" else textindex.rows(db, "segment", groups, fields, where_f, params, cap, (M0, M1))
     if rows is None and db.ready_fulltext():
         conds, sel = [], []
         for k, g in enumerate(groups, 1):
@@ -434,7 +434,7 @@ def _matches(db, groups, table, fields, where_f, base):
     params = dict(base)
     phrased = any(g["phrases"] for g in groups)
     cols = fields + (", text" if phrased else "")
-    rows = textindex.rows(db, table, textindex.match_expr(groups), cols, where_f, params, FACET_CAP + 1)
+    rows = textindex.rows(db, table, groups, cols, where_f, params, FACET_CAP + 1)
     if rows is None and db.ready_fulltext():
         conds = []
         for k, g in enumerate(groups, 1):
@@ -573,7 +573,7 @@ def _layer(db, groups, where_f, cap, base, table, extra, source):
     """Hits in another table of text with times (`extra` names the fields it adds), marked as from `source`."""
     params = {k: v for k, v in base.items() if k in ("m0", "m1", "sp", "allowed", "also", "rec") or k.startswith("q")}
     fields = f"record::id(id) AS id, recording, t0, t1, space, text, {extra}"
-    rows = textindex.rows(db, table, textindex.match_expr(groups), fields, where_f, params, cap, (M0, M1))
+    rows = textindex.rows(db, table, groups, fields, where_f, params, cap, (M0, M1))
     if rows is None and db.ready_fulltext():
         conds = [f"text @{k}@ $q{k}" for k in range(1, len(groups) + 1)]
         sel = [f"search::highlight($m0, $m1, {k}) AS h{k}, search::score({k}) AS s{k}" for k in range(1, len(groups) + 1)]

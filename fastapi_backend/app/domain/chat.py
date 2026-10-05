@@ -74,7 +74,7 @@ def retrieve(db, question, spaces, scope=None, k=8, cfg=None):
     where, p = scope_filter(db, spaces, scope)
     hits = {}
     for w in words:
-        rows = textindex.rows(db, "segment", textindex.words_expr(w), "record::id(id) AS id, recording, idx", f" AND {where}", p, 50)
+        rows = textindex.rows(db, "segment", textindex.words(w), "record::id(id) AS id, recording, idx", f" AND {where}", p, 50)
         for r in rows or []:
             r["s"] = r.pop("s1")
         if rows is None and db.ready_fulltext():
@@ -178,7 +178,7 @@ def retrieve(db, question, spaces, scope=None, k=8, cfg=None):
         for w in words:
             try:
                 rows = textindex.rows(
-                    db, "ocr_span", textindex.words_expr(w), "record::id(id) AS id, recording, t0, text, space", f" AND {where_o}", p, 20
+                    db, "ocr_span", textindex.words(w), "record::id(id) AS id, recording, t0, text, space", f" AND {where_o}", p, 20
                 )
                 if rows is None:
                     rows = db.rows(

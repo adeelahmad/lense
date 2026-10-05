@@ -92,6 +92,7 @@ EDITABLE = {
     "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
 }
 SECRETS = {
+    "search": ("opensearch_password",),
     "llm": ("api_key",),
     "embeddings": ("api_key",),
     "decisions": ("api_key",),
@@ -898,6 +899,10 @@ def save(db, base, section, changes, user=None):
         if not data.get("connection"):
             raise ValueError("choose the storage connection files are kept on")
         blobs.check_connection(db, data["connection"])
+    if section == "search" and data.get("engine") == "opensearch":
+        url = data.get("opensearch_url", (base.get("search") or {}).get("opensearch_url"))
+        if not (isinstance(url, str) and re.match(r"https?://[^/\s]+", url)):
+            raise ValueError("search.engine opensearch needs search.opensearch_url (http:// or https://)")
     if section == "tunnel":
         from . import tunnel
 

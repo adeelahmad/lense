@@ -1116,8 +1116,27 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "sqlite", label: "Built in (SQLite)" },
       { value: "surrealdb", label: "SurrealDB index" },
+      { value: "opensearch", label: "OpenSearch" },
     ],
-    hint: "Built in is fast and small enough for a Raspberry Pi; SurrealDB's index needs several times the memory",
+    hint: "Built in is fast and small enough for a Raspberry Pi; SurrealDB's index needs several times the memory; OpenSearch runs on another machine",
+  },
+  {
+    section: "search",
+    key: "opensearch_url",
+    label: "OpenSearch address",
+    kind: "text",
+    mono: true,
+    placeholder: "http://search.lan:9200",
+    hint: "An OpenSearch or Elasticsearch-compatible cluster. Lens keeps its own indexes there, named lens-…",
+  },
+  { section: "search", key: "opensearch_user", label: "User", kind: "text", mono: true },
+  { section: "search", key: "opensearch_password", label: "Password", kind: "secret" },
+  {
+    section: "search",
+    key: "opensearch_verify",
+    label: "Check its certificate",
+    kind: "switch",
+    hint: "Turn off only for a cluster with a self-signed certificate on your own network",
   },
   {
     section: "search",

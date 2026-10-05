@@ -1252,6 +1252,8 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
   const secret = (e.api_key ?? {}) as { set?: boolean };
   const key = ctx.state("embeddings.api_key");
   const on = Boolean(ctx.form["embeddings.enabled"]);
+  const search = ctx.view.search;
+  const osPassword = ctx.state("search.opensearch_password");
   const status = useQuery({
     queryKey: ["semantic-status"],
     queryFn: () => data(Admin.semanticStatus({ client })),
@@ -1266,6 +1268,24 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
   return (
     <>
       <F ctx={ctx} id="search.engine" />
+      {ctx.form["search.engine"] === "opensearch" && (
+        <>
+          <F ctx={ctx} id="search.opensearch_url" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="search.opensearch_user" />
+            <SecretSetting
+              key={search?.updated_at ?? "none"}
+              label="Password"
+              isSet={Boolean(((search?.values?.opensearch_password ?? {}) as { set?: boolean }).set)}
+              updatedBy={search?.updated_by}
+              updatedAt={search?.updated_at}
+              value={osPassword.value as string | undefined}
+              onChange={(x) => osPassword.onChange(x)}
+            />
+          </div>
+          <F ctx={ctx} id="search.opensearch_verify" />
+        </>
+      )}
       <F ctx={ctx} id="search.stemming" />
       <Reindex />
       <h3 className="m-0 mt-3 text-[15px] font-bold text-fg">Search by meaning</h3>

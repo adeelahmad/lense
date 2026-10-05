@@ -10,7 +10,6 @@ from __future__ import annotations
 import contextlib
 import copy
 import datetime as dt
-import json
 import os
 import pathlib
 import logging
@@ -163,7 +162,14 @@ DEFAULTS = {
         "describe_max": 50,  # pages or shots of a resource described at most
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
-    "search": {"stemming": "english", "engine": "sqlite"},
+    "search": {
+        "stemming": "english",
+        "engine": "sqlite",
+        "opensearch_url": "",
+        "opensearch_user": "",
+        "opensearch_password": None,
+        "opensearch_verify": True,
+    },
     # search by meaning (app/domain/semantic.py): an OpenAI-compatible embeddings server (null: the LLM provider's),
     # the model, how long passages are, and how alike a passage must be to a query (null: what suits the model)
     "embeddings": {
@@ -1134,7 +1140,7 @@ TEXT_INDEXES = (
 )
 
 
-SEARCH_ENGINES = ("sqlite", "surrealdb")
+SEARCH_ENGINES = ("sqlite", "surrealdb", "opensearch")
 
 
 def _text_index(db):
@@ -1151,26 +1157,25 @@ def _text_index(db):
 
 
 def search_settings(db, cfg):
-    """search.*, with what was saved in the app (settings.py) over archive.yaml: the engine has to be known before the
-    settings are."""
-    row = db.one("SELECT data FROM $r", r=R("app_setting", "search")) or {}
-    saved = row.get("data")
-    saved = json.loads(saved) if isinstance(saved, str) else dict(saved or {})
-    return {**cfg["search"], **{k: v for k, v in saved.items() if k in DEFAULTS["search"]}}
+    """search.*, with what was saved in the app over archive.yaml: the engine has to be known before the settings are."""
+    from . import settings
+
+    return settings.effective(db, cfg)["search"]
 
 
 def _search_engine(db, cfg, rebuild=False):
-    """Set up full-text search for search.engine: the words in a SQLite file kept in step by events (textindex.py),
-    or SurrealDB's own index. The other one is taken down, so its memory and disk are given back."""
+    """Set up word search for search.engine: the words in a SQLite file or an OpenSearch cluster, kept in step by
+    events (textindex.py), or SurrealDB's own index. SurrealDB's is taken down when it isn't used, so its memory and
+    disk are given back."""
     from . import textindex
 
     search = search_settings(db, cfg)
-    engine = search["engine"] if search["engine"] in SEARCH_ENGINES else "sqlite"
     old = getattr(db, "textindex", None)
     if old is not None:
         old.close()
         db.textindex = None
-    if engine == "surrealdb":
+    index = textindex.open_index(db, {**cfg, "search": search})
+    if index is None:
         db.run(
             [f"REMOVE EVENT IF EXISTS {table}_textindex ON {table}" for _, table in TEXT_INDEXES] + ["DELETE text_change"],
             transaction=False,
@@ -1178,13 +1183,13 @@ def _search_engine(db, cfg, rebuild=False):
         db.fulltext = _text_index(db)
         return
     db.run(
-        [f"REMOVE INDEX IF EXISTS {index} ON {table}" for index, table in TEXT_INDEXES]
+        [f"REMOVE INDEX IF EXISTS {name} ON {table}" for name, table in TEXT_INDEXES]
         + ["DEFINE TABLE IF NOT EXISTS text_change SCHEMALESS"]
         + [textindex.event(table) for _, table in TEXT_INDEXES],
         transaction=False,
     )
     db.fulltext = None
-    db.textindex = textindex.Index(db, {**cfg, "search": search})
+    db.textindex = index
     if rebuild:
         db.textindex.rebuild()
 

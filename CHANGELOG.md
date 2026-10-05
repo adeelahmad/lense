@@ -9,7 +9,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   10,000 transcript lines the database used 64 MB of memory instead of 380 MB, and writing them took half the time.
   Nothing changes in how search, the assistant or IIIF search behave. Existing installs build the new index on their
   first start and give back the old one's memory. Settings › Search › **Word search** switches back to SurrealDB's
-  index (then Reindex now).
+  index, or to an **OpenSearch** cluster on another machine for a big archive (then Reindex now); the `opensearch`
+  compose profile runs one next to Lens.
 
 - **A much smaller web app image.** The production image runs Next.js's standalone server with only the packages it
   uses: 465 MB instead of 2.56 GB. Cloudron and `pnpm build` keep `next start`.

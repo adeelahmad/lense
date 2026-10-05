@@ -685,7 +685,7 @@ def search(db, base, q, rids, page_url, page=0):
         rows = textindex.rows(
             db,
             "segment",
-            textindex.words_expr(" ".join(words)),
+            textindex.words(" ".join(words)),
             "recording, idx, t0, t1, text, page, box",
             " AND recording IN $r",
             {"r": list(rids)},
