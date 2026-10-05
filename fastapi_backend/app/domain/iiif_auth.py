@@ -91,7 +91,7 @@ def token_page(message, origin, nonce):
     )
 
 
-def access_page(site, nonce, account=None, csrf="", origin="", error="", done=False):
+def access_page(site, nonce, account=None, csrf="", origin="", error="", done=False, passwords=True):
     style = (
         "body{font:15px/1.5 system-ui,sans-serif;max-width:24rem;margin:3rem auto;padding:0 1rem;color:#1d2733}"
         "label{display:block;margin:.6rem 0}input{width:100%;padding:.45rem;border:1px solid #bbb;border-radius:6px}"
@@ -109,6 +109,13 @@ def access_page(site, nonce, account=None, csrf="", origin="", error="", done=Fa
             f"Continue to let the viewer at {esc(origin or 'another site')} play recordings you have access to.</p>"
             f'<form method="post"><input type="hidden" name="continue" value="1"><input type="hidden" name="csrf" value="{esc(csrf)}">'
             f'<input type="hidden" name="origin" value="{esc(origin)}"><button type="submit">Continue</button></form>'
+        )
+    elif not passwords:  # auth.passwords off: this page has no passkey sign-in yet, so there is nothing to submit
+        body = (
+            f"<h1>Sign in to {esc(site)}</h1><p>The viewer at {esc(origin or 'another site')} wants to play recordings that need an account.</p>"
+            + (f'<p class="err">{esc(error)}</p>' if error else "")
+            + f"<p>{esc(site)} signs people in with a passkey only, and this page can't use passkeys yet, so this viewer "
+            "can only play what is open to everyone.</p>"
         )
     else:
         body = (
