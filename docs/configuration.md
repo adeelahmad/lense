@@ -50,8 +50,9 @@ A fresh install (no accounts when the API first starts) walks its first admin th
    `LENS_NAMESPACE` names namespaces, or an install script made one.
 3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,
    with a test.
-4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), the largest upload, and optionally a
-   folder inside `sources.local_roots` to watch.
+4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), where Lens keeps its own files (this
+   machine or a storage connection, [Storage](storage.md)), the largest upload, and optionally a folder inside
+   `sources.local_roots` to watch.
 5. **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
    with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
    the MCP server's address to add to an assistant.
@@ -59,7 +60,8 @@ A fresh install (no accounts when the API first starts) walks its first admin th
 
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
-`POST /api/v1/setup/namespace`, `PUT /api/v1/setup/llm`, `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
+`POST /api/v1/setup/namespace`, `PUT /api/v1/setup/llm`, `GET /api/v1/setup/llm/detect` (model servers running on
+this machine or the Docker host, with their models), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
 `PUT /api/v1/setup/telemetry` and `POST /api/v1/setup/finish`
 (admins); `GET /api/v1/auth/status` says whether it is still pending (`wizard_pending`).
 
@@ -86,11 +88,27 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 
 ## Settings in the app
 
-Admins can change transcription, diarisation, voice-ID thresholds, analysis, LLM provider and key, graph, search
-(and search by meaning),
-reports, workers, IIIF, the assistant, video, uploads, documents and images, and server options (embed frame ancestors, transcript upload
-limit, allowed hosts, trusted proxies, session length). The API refuses an allowed-host list that leaves out the address
-you are using.
+Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
+provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
+video, OCR, faces and objects, workers, sign-in, components, access and embedding (embed frame ancestors, transcript
+upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
+telemetry, the Fedora repository, sensors, uploads, storage, documents, API keys, and IIIF and metadata. The API
+refuses an allowed-host list that leaves out the address you are using.
+
+## Word search
+
+Searching by the words goes through the index of `search.engine` (Settings → Search → Word search; how each works is
+in [Database](database.md#schema)):
+
+| Setting | Default | |
+|---|---|---|
+| `search.engine` | `sqlite` | `sqlite`: a SQLite FTS5 file per database in `data_dir/search/`. `surrealdb`: SurrealDB's own full-text index, which needs several times the memory. `opensearch`: an OpenSearch (or Elasticsearch-compatible) cluster |
+| `search.opensearch_url` | empty | the cluster's address, such as `http://search.lan:9200`; with `opensearch` and no address, the built-in index is used |
+| `search.opensearch_user` / `opensearch_password` | empty / none | for a cluster that asks for them; the password is stored encrypted |
+| `search.opensearch_verify` | true | whether its certificate is checked; turn it off only for a self-signed one on your own network |
+| `search.stemming` | `english` | `none` for archives that aren't in English |
+
+After changing the engine or stemming, run `lens reindex` (or Settings → Search → Reindex now).
 
 ## Search by meaning
 
@@ -146,13 +164,14 @@ shot is a request, so a long document costs as many: `llm.describe_max` caps how
 
 ## Uploads
 
-Audio, video, documents (PDF) and images uploaded in the web app (Import → Upload) go up in pieces
+Audio, video, documents (PDF, Office and OpenDocument files, text, Markdown, saved web pages and emails) and images
+uploaded in the web app (Import → Upload) go up in pieces
 ([API](api.md#uploads)). Settings → Uploads:
 
 | Setting | Default | |
 |---|---|---|
 | `uploads.max_mb` | 4096 | the largest file, in MB |
-| `uploads.extensions` | the types folder scans import, PDFs and images | which types can be uploaded: any of `.m4a .mp3 .wav .flac .ogg .opus .aac .amr .aif .aiff .wma .mp4 .m4v .mov .mkv .webm .avi .mpg .mpeg .3gp .pdf .jpg .jpeg .png .tif .tiff .webp .gif .bmp`. A list saved before documents and images came leaves them out until they're added |
+| `uploads.extensions` | the types folder scans import, documents and images | which types can be uploaded: any of `.m4a .mp3 .wav .flac .ogg .opus .aac .amr .aif .aiff .wma .mp4 .m4v .mov .mkv .webm .avi .mpg .mpeg .3gp .pdf .doc .docx .odt .rtf .ppt .pptx .odp .xls .xlsx .ods .txt .text .md .markdown .mdx .html .htm .eml .msg .jpg .jpeg .png .tif .tiff .webp .gif .bmp`. A list saved before documents and images came leaves them out until they're added |
 | `uploads.chunk_mb` | 8 | how much the web app sends per request, 1–64. Keep it below the request-body limit of any proxy in front of the web app (nginx's `client_max_body_size` is 1 MB unless set) |
 | `uploads.expire_hours` | 24 | how long an unfinished upload waits for its next piece before what arrived is deleted, 1–720 |
 
@@ -238,7 +257,7 @@ video's sampled frames and on a document's or an image's pages ([API](api.md#obj
   offer them its source, so it's in no image and no extra.
 * `off`.
 
-Without one the step is skipped, and its job says why. Settings → Video:
+Without one the step is skipped, and its job says why. Settings → Video, OCR, faces and objects:
 
 | Setting | Default | |
 |---|---|---|

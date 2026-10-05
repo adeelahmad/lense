@@ -154,9 +154,11 @@ about them come back as not found.
 ## Search
 
 All words must appear, matched after English stemming ("exploit" also finds exploits and exploiting); "quoted phrases"
-must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. For archives that
-aren't in English set `search.stemming: none` and run `lens reindex`. Prefix search (`expl*`) from the SQLite
-version is gone; stemming covers most of what it was used for.
+must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. The words are
+looked up in the index of `search.engine`: a SQLite FTS5 file by default, SurrealDB's own index, or OpenSearch
+([configuration](configuration.md#word-search)). For archives that aren't in English set `search.stemming: none` and
+run `lens reindex`. There is no prefix search: a trailing `*` (`expl*`) is ignored and the word is searched as it is;
+stemming covers most of what prefixes were used for.
 
 ### Search by meaning
 
