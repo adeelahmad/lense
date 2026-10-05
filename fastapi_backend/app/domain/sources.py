@@ -4,7 +4,8 @@ A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive
 this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP) or a calendar feed (iCal),
 whose messages and events are shown as files (feeds.py). A watch maps a folder on a source to a namespace: new audio, video,
 documents (PDFs) and images become resources queued for the whole pipeline, their files staying on the source; new
-transcripts are imported and queued for analysis. Credentials are stored encrypted and handed to rclone in a private
+transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
+messages to other namespaces, or skip them (mail_routes.py). Credentials are stored encrypted and handed to rclone in a private
 temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
 
@@ -21,7 +22,7 @@ import shutil
 import subprocess
 import tempfile
 
-from . import convert, deletion, feeds, ingest, jobs, settings, store
+from . import convert, deletion, feeds, ingest, jobs, mail_routes, settings, store
 
 R = store.R
 BACKENDS = {
@@ -70,6 +71,7 @@ WATCH = {
     "steps": None,
     "pipeline": None,
     "enabled": True,
+    "routes": [],  # an email watch's routing rules (mail_routes.py); none: everything goes to its namespace
 }
 
 
@@ -367,7 +369,7 @@ def list_sources(db):
 
 # ---------- watched folders ----------
 def _check_watch(opts):
-    out = {k: opts[k] for k in WATCH if k in opts}
+    out = {k: opts[k] for k in WATCH if k in opts and k != "routes"}
     if out.get("kinds", WATCH["kinds"]) not in TAKES:
         raise ValueError(f"kinds is one of: {', '.join(TAKES)}")
     if not isinstance(out.get("poll_minutes", 5), int) or out.get("poll_minutes", 5) < 1:
@@ -384,9 +386,20 @@ def _check_watch(opts):
     return out
 
 
+def _routes(db, src, opts):
+    """The routing rules in `opts`, checked, as the watch keeps them ({} when they aren't being set)."""
+    if "routes" not in opts:
+        return {}
+    routes = mail_routes.check(db, opts["routes"])
+    if routes and src["type"] != "imap":
+        raise ValueError("routing rules are for watches on an email account")
+    return {"routes": routes}
+
+
 def create_watch(db, cfg, sid, path, space, user=None, **opts):
     src = get(db, sid)
     p = check_path(cfg, src, path)
+    routes = _routes(db, src, opts)
     wid = db.next_id("watch_path")
     db.q(
         "CREATE $r CONTENT $d",
@@ -395,6 +408,7 @@ def create_watch(db, cfg, sid, path, space, user=None, **opts):
             {
                 **WATCH,
                 **_check_watch(opts),
+                **routes,
                 "source": sid,
                 "path": p,
                 "space": space,
@@ -408,7 +422,9 @@ def create_watch(db, cfg, sid, path, space, user=None, **opts):
 
 
 def update_watch(db, wid, **opts):
-    db.q("UPDATE $r MERGE $d", r=R("watch_path", wid), d=_check_watch(opts))
+    w = db.one("SELECT source FROM $r", r=R("watch_path", wid))
+    routes = _routes(db, get(db, w["source"]), opts) if w else {}
+    db.q("UPDATE $r MERGE $d", r=R("watch_path", wid), d={**_check_watch(opts), **routes})
     if {"kinds", "include", "exclude"} & set(opts):  # what it takes changed: look through the mailboxes again
         db.q("UPDATE $r SET cursor = NONE", r=R("watch_path", wid))
 
@@ -419,12 +435,44 @@ def remove_watch(db, wid):
 
 def list_watches(db, spaces=None):
     q = (
-        "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, enabled, "
+        "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, enabled, routes, "
         "last_scan_at, next_scan_at, last_stats, last_error FROM watch_path"
     )
     rows = db.rows(q + (" WHERE space IN $sp" if spaces is not None else ""), sp=sorted(spaces or []))
     names, srcs = store.space_names(db), {s["id"]: s["name"] for s in db.rows("SELECT record::id(id) AS id, name FROM storage_source")}
-    return [{**r, "namespace": names.get(r["space"]), "source_name": srcs.get(r["source"])} for r in rows]
+    return [
+        {**r, "namespace": names.get(r["space"]), "source_name": srcs.get(r["source"]), "routes": mail_routes.view(r.get("routes"), names)}
+        for r in rows
+    ]
+
+
+def preview_routes(db, cfg, sid, path, routes, home, limit=50):
+    """Where the latest messages of an email watch would go under these rules (as the API takes them), before
+    they're saved: one row per message, newest first, with the namespace (None: skipped) and the rule that decided.
+    `home` is the name of the watch's namespace, which may not exist yet."""
+    src = get(db, sid)
+    if src["type"] != "imap":
+        raise ValueError("routing rules are for watches on an email account")
+    rules = _routes(db, src, {"routes": routes})["routes"]
+    names = store.space_names(db)
+    files = sorted(list_files(db, cfg, src, path), key=lambda f: f.get("modified") or "", reverse=True)[:limit]
+    out = []
+    for f in files:
+        to, rule = mail_routes.route(rules, f.get("mail"), "", set(names))  # "": the watch's own namespace, `home`
+        mail = f.get("mail") or {}
+        out.append(
+            {
+                "path": f["path"],
+                "title": f.get("title"),
+                "when": f.get("when"),
+                "from": mail.get("from", []),
+                "to": mail.get("to", []),
+                "namespace": home if to == "" else names.get(to),
+                "skipped": to is None,
+                "rule": rule,
+            }
+        )
+    return out
 
 
 def _when(s):
@@ -533,14 +581,18 @@ def kind_of(cfg, w, f):
 def poll_watch(db, cfg, wid, log=print):
     w = db.one(
         "SELECT record::id(id) AS id, source, path, space, kinds, poll_minutes, stable_seconds, backfill, include, exclude, steps, pipeline, last_scan_at, "
-        "cursor FROM $r",
+        "cursor, routes FROM $r",
         r=R("watch_path", wid),
     )
     src = get(db, w["source"])
     first, now = not w.get("last_scan_at"), dt.datetime.now(dt.timezone.utc)
     known = {r["path"]: r for r in db.rows("SELECT path, size, modified, status FROM remote_file WHERE watch = $w", w=wid)}
-    gone = deletion.gone_remote(db, w["space"])  # recordings someone deleted stay deleted
+    gone = {w["space"]: deletion.gone_remote(db, w["space"])}  # recordings someone deleted stay deleted
     stats = {"seen": 0, "new": 0, "waiting": 0, "skipped": 0, "errors": 0}
+    routes = w.get("routes") or []
+    spaces = set(store.space_names(db)) if routes else set()
+    if routes:
+        stats["routed"] = 0
     files, held = list_files(db, cfg, src, w["path"], w.get("cursor")), set()
     for f in files:
         kind = kind_of(cfg, w, f)
@@ -552,7 +604,12 @@ def poll_watch(db, cfg, wid, log=print):
             continue
         key = R("remote_file", f"{wid}-{hashlib.sha1(f['path'].encode()).hexdigest()[:20]}")
         row = {"watch": wid, "path": f["path"], "size": f["size"], "modified": f["modified"], "seen_at": store.now()}
-        if (first and not w.get("backfill")) or (src["id"], f["path"]) in gone:
+        space, rule = mail_routes.route(routes, f.get("mail"), w["space"], spaces) if routes else (w["space"], None)
+        if rule:
+            row.update(rule=rule, space=space)
+        if space is not None and space not in gone:
+            gone[space] = deletion.gone_remote(db, space)
+        if space is None or (first and not w.get("backfill")) or (src["id"], f["path"]) in gone[space]:
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "skipped"})
             stats["skipped"] += 1
         elif (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
@@ -561,9 +618,11 @@ def poll_watch(db, cfg, wid, log=print):
             held.add(f["path"])
         else:
             try:
-                rid, _job = _ingest(db, cfg, src, f, kind, w["space"], f"watch:{wid}", w.get("steps"), w.get("pipeline"))
+                rid, _job = _ingest(db, cfg, src, f, kind, space, f"watch:{wid}", w.get("steps"), w.get("pipeline"))
                 db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "queued", "recording": rid})
                 stats["new"] += 1
+                if space != w["space"]:
+                    stats["routed"] += 1
             except Exception as e:  # noqa: BLE001 - one bad file must not stop the scan
                 db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "error", "error": f"{type(e).__name__}: {e}"[:300]})
                 stats["errors"] += 1

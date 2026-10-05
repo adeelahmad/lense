@@ -16681,6 +16681,52 @@
         }
       }
     },
+    "/api/v1/watches/routes/preview": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Preview Routes",
+        "description": "Where the latest messages of an email account would go under these routing rules, before saving them.",
+        "operationId": "preview_routes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoutedMessage"
+                  },
+                  "type": "array",
+                  "title": "Response Sources-Preview Routes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/watches/{wid}": {
       "patch": {
         "tags": [
@@ -41785,6 +41831,234 @@
         ],
         "title": "RollbackAsk"
       },
+      "Route": {
+        "properties": {
+          "match": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "from",
+                "to",
+                "subject",
+                "list",
+                "mailbox"
+              ]
+            },
+            "type": "object",
+            "title": "Match",
+            "description": "conditions, all of which must match; each holds patterns, any of which may"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "where matching messages go (a namespace that exists)"
+          },
+          "skip": {
+            "type": "boolean",
+            "title": "Skip",
+            "description": "matching messages aren't imported at all",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "match"
+        ],
+        "title": "Route"
+      },
+      "RoutePreviewRequest": {
+        "properties": {
+          "source": {
+            "type": "integer",
+            "title": "Source"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "default": ""
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "the watch's own namespace, for messages no rule matches"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/Route"
+            },
+            "type": "array",
+            "title": "Routes",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "namespace"
+        ],
+        "title": "RoutePreviewRequest"
+      },
+      "RouteView": {
+        "properties": {
+          "match": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Match"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "None when skipped, or the namespace was deleted"
+          },
+          "skip": {
+            "type": "boolean",
+            "title": "Skip",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "match"
+        ],
+        "title": "RouteView"
+      },
+      "RoutedMessage": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "When"
+          },
+          "from": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "From",
+            "default": []
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "To",
+            "default": []
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "skipped": {
+            "type": "boolean",
+            "title": "Skipped",
+            "default": false
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule",
+            "description": "the rule that decided, counted from 1; None: no rule matched"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "RoutedMessage"
+      },
       "Routine": {
         "properties": {
           "id": {
@@ -49044,6 +49318,14 @@
             ],
             "title": "Enabled"
           },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteView"
+            },
+            "type": "array",
+            "title": "Routes",
+            "default": []
+          },
           "last_scan_at": {
             "anyOf": [
               {
@@ -49220,6 +49502,21 @@
               }
             ],
             "title": "Enabled"
+          },
+          "routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Route"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routes",
+            "description": "an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at."
           },
           "source": {
             "type": "integer",
@@ -49464,6 +49761,21 @@
               }
             ],
             "title": "Enabled"
+          },
+          "routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Route"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routes",
+            "description": "an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at."
           }
         },
         "additionalProperties": false,
