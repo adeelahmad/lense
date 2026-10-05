@@ -857,6 +857,15 @@ def made_files(db, cfg):
         if d.is_dir():
             for f in sorted(d.glob("*.jpg")):
                 yield r["space"], str(f)
+    from . import sources
+
+    for r in db.rows("SELECT space, remote FROM recording WHERE remote != NONE"):
+        with contextlib.suppress(KeyError, ValueError, TypeError):
+            p = sources.cache_file(
+                cfg, r["remote"]["source"], sources.check_path(cfg, sources.get(db, r["remote"]["source"]), r["remote"]["path"])
+            )
+            if p.is_file() and owned(cfg, p):
+                yield r["space"], str(p)
     for sid, name in store.space_names(db).items():
         for kind, pattern in (("reports", "*.html"), ("exports", "*")):
             d = data / kind / name

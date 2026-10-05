@@ -163,7 +163,9 @@ def stream(db, cfg, sid, path, offset=0, count=None):
     src = get(db, sid)
     p = check_path(cfg, src, path)
     if feeds.handles(src):
-        data = cached_copy(db, cfg, sid, p).read_bytes()
+        from . import keyring
+
+        data = keyring.read_plain(db, cfg, cached_copy(db, cfg, sid, p))
         return iter([data[offset : None if count is None else offset + count]])
     name, d, conf = _private_conf(cfg, src)
     cmd = [_bin(cfg), "--config", conf, "cat", f"{name}:{p}", "--offset", str(offset)] + (
@@ -260,7 +262,12 @@ def cache_file(cfg, sid, path):
     return base / (hashlib.sha1(f"{sid}:{path}".encode()).hexdigest() + pathlib.PurePosixPath(path).suffix.lower())
 
 
-def cached_copy(db, cfg, sid, path):
+def cached_copy(db, cfg, sid, path, space=None):
+    """A local copy of a source's file: the file itself for a folder on this machine, else one kept in the cache. Kept
+    for namespace `space`, it's encrypted with that namespace's key when encryption at rest is on (or it's a vault)
+    and the cache is under the data folder: read it with keyring.open_plain or keyring.working_copy."""
+    from . import keyring
+
     src = get(db, sid)
     p = check_path(cfg, src, path)
     if src["type"] == "local":
@@ -273,6 +280,8 @@ def cached_copy(db, cfg, sid, path):
             tmp.write_bytes(feeds.fetch(cfg, src, p))
         else:
             run(db, cfg, src, lambda n: ["copyto", f"{n}:{p}", str(tmp)], timeout=6 * 3600)
+        if space is not None and keyring.wanted(db, cfg, space, dest):
+            keyring.encrypt_file(db, cfg, space, tmp, force=True)
         tmp.replace(dest)
     return dest
 
@@ -443,10 +452,12 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     title, shown = f.get("title") or pathlib.PurePosixPath(f["path"]).stem, f"{src['name']}:{f['path']}"
     if kind == "transcript":
         ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
-        local = cached_copy(db, cfg, src["id"], f["path"])
-        if feeds.handles(src) and not feeds.immutable(src):
-            _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
-        rid = ingest.import_transcript(db, cfg, ns, local, title=title, log=lambda *a: None, collection=collection)
+        from . import keyring
+
+        with keyring.plain_path(db, cfg, cached_copy(db, cfg, src["id"], f["path"], space)) as local:
+            if feeds.handles(src) and not feeds.immutable(src):
+                _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
+            rid = ingest.import_transcript(db, cfg, ns, local, title=title, log=lambda *a: None, collection=collection)
         db.q(
             "UPDATE $r MERGE $d",
             r=R("recording", rid),

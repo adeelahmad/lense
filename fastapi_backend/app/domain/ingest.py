@@ -446,13 +446,14 @@ def write_transcript(db, rid, nid, segs, patch):
 def audio_path(db, cfg, rec, plain=True):
     """A local file for a recording's audio: the file itself, or a cached copy of one on a storage source. An
     encrypted file comes as a plain working copy for the tools to read, unless `plain` is False."""
+    from . import keyring
+
     if rec.get("remote"):
         from . import sources
 
-        return str(sources.cached_copy(db, cfg, rec["remote"]["source"], rec["remote"]["path"]))
-    from . import keyring
-
-    path = store.resolve_path(cfg, rec.get("path"))
+        path = str(sources.cached_copy(db, cfg, rec["remote"]["source"], rec["remote"]["path"], rec.get("space")))
+    else:
+        path = store.resolve_path(cfg, rec.get("path"))
     return keyring.working_copy(db, cfg, path) if plain else path
 
 

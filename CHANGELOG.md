@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The copies Lens keeps of files on storage sources are encrypted too.** With encryption at rest on (or in a
+  vault), the cached copy of a recording that lives on S3, Drive, a mailbox or another connection is stored with its
+  namespace's key, and still plays, seeks and is processed as before. `lens encrypt` converts the ones already there.
 - **Frames, page images and face crops are encrypted too.** With encryption at rest on (or in a vault), the stills
   Lens draws from videos, documents and images are stored encrypted and still show as before; visitors still get faces
   pixelated where the namespace asks. `lens encrypt` converts the ones already there.
