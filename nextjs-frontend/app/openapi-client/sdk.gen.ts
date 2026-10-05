@@ -133,6 +133,9 @@ import type {
   CreateHighlightData,
   CreateHighlightErrors,
   CreateHighlightResponses,
+  CreateImportHookData,
+  CreateImportHookErrors,
+  CreateImportHookResponses,
   CreateIpGroupData,
   CreateIpGroupErrors,
   CreateIpGroupResponses,
@@ -258,6 +261,9 @@ import type {
   DeleteHighlightData,
   DeleteHighlightErrors,
   DeleteHighlightResponses,
+  DeleteImportHookData,
+  DeleteImportHookErrors,
+  DeleteImportHookResponses,
   DeleteIpGroupData,
   DeleteIpGroupErrors,
   DeleteIpGroupResponses,
@@ -679,6 +685,9 @@ import type {
   ListHighlightsResponses,
   ListIdentitiesData,
   ListIdentitiesResponses,
+  ListImportHooksData,
+  ListImportHooksErrors,
+  ListImportHooksResponses,
   ListIpGroupsData,
   ListIpGroupsErrors,
   ListIpGroupsResponses,
@@ -839,6 +848,9 @@ import type {
   MoveRecordingData,
   MoveRecordingErrors,
   MoveRecordingResponses,
+  NewImportHookTokenData,
+  NewImportHookTokenErrors,
+  NewImportHookTokenResponses,
   NewTokenData,
   NewTokenErrors,
   NewTokenResponses,
@@ -900,6 +912,12 @@ import type {
   PushStreamData,
   PushStreamErrors,
   PushStreamResponses,
+  PushToImportHookData,
+  PushToImportHookErrors,
+  PushToImportHookResponses,
+  PushToImportHookTokenData,
+  PushToImportHookTokenErrors,
+  PushToImportHookTokenResponses,
   PushTokenData,
   PushTokenErrors,
   PushTokenResponses,
@@ -1239,6 +1257,9 @@ import type {
   UpdateHighlightData,
   UpdateHighlightErrors,
   UpdateHighlightResponses,
+  UpdateImportHookData,
+  UpdateImportHookErrors,
+  UpdateImportHookResponses,
   UpdateIpGroupData,
   UpdateIpGroupErrors,
   UpdateIpGroupResponses,
@@ -8454,6 +8475,135 @@ export class Sensors {
     return (options.client ?? client).post<PushStreamResponses, PushStreamErrors, ThrowOnError>({
       url: "/api/v1/sensors/push/{token}/{stream}",
       ...options,
+    });
+  }
+}
+
+export class ImportHooks {
+  /**
+   * List Import Hooks
+   *
+   * The namespace's import webhooks (owners). Their tokens aren't shown again, only their last four characters.
+   */
+  public static listImportHooks<ThrowOnError extends boolean = false>(
+    options: Options<ListImportHooksData, ThrowOnError>,
+  ): RequestResult<ListImportHooksResponses, ListImportHooksErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListImportHooksResponses, ListImportHooksErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/import-hooks",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Import Hook
+   *
+   * Make an import webhook for the namespace (owners). Its token is in the answer and never shown again. Audited as
+   * `import_hook.create`.
+   */
+  public static createImportHook<ThrowOnError extends boolean = false>(
+    options: Options<CreateImportHookData, ThrowOnError>,
+  ): RequestResult<CreateImportHookResponses, CreateImportHookErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateImportHookResponses, CreateImportHookErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/import-hooks",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Import Hook
+   *
+   * Delete a hook (owners): its token stops working. What it imported stays.
+   */
+  public static deleteImportHook<ThrowOnError extends boolean = false>(
+    options: Options<DeleteImportHookData, ThrowOnError>,
+  ): RequestResult<DeleteImportHookResponses, DeleteImportHookErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteImportHookResponses, DeleteImportHookErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/import-hooks/{hid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Import Hook
+   *
+   * Rename a hook, pause or resume it (`enabled`), or change its collection or pipeline (null for the namespace's
+   * own) (owners).
+   */
+  public static updateImportHook<ThrowOnError extends boolean = false>(
+    options: Options<UpdateImportHookData, ThrowOnError>,
+  ): RequestResult<UpdateImportHookResponses, UpdateImportHookErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateImportHookResponses, UpdateImportHookErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/import-hooks/{hid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * New Import Hook Token
+   *
+   * A new token for the hook (owners); the old one stops working at once.
+   */
+  public static newImportHookToken<ThrowOnError extends boolean = false>(
+    options: Options<NewImportHookTokenData, ThrowOnError>,
+  ): RequestResult<NewImportHookTokenResponses, NewImportHookTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<NewImportHookTokenResponses, NewImportHookTokenErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/import-hooks/{hid}/token",
+      ...options,
+    });
+  }
+
+  /**
+   * Push To Import Hook
+   *
+   * Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
+   *
+   * - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
+   * images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
+   * transcripts;
+   * - multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;
+   * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional
+   * `title`.
+   *
+   * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over
+   * uploads.max_mb. Audited as `import.hook`.
+   */
+  public static pushToImportHook<ThrowOnError extends boolean = false>(
+    options?: Options<PushToImportHookData, ThrowOnError>,
+  ): RequestResult<PushToImportHookResponses, PushToImportHookErrors, ThrowOnError> {
+    return (options?.client ?? client).post<PushToImportHookResponses, PushToImportHookErrors, ThrowOnError>({
+      url: "/api/v1/hooks/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+  }
+
+  /**
+   * Push To Import Hook Token
+   *
+   * The same, with the token in the address, for services that can only be given a URL. Prefer the bearer token:
+   * addresses end up in logs.
+   */
+  public static pushToImportHookToken<ThrowOnError extends boolean = false>(
+    options: Options<PushToImportHookTokenData, ThrowOnError>,
+  ): RequestResult<PushToImportHookTokenResponses, PushToImportHookTokenErrors, ThrowOnError> {
+    return (options.client ?? client).post<PushToImportHookTokenResponses, PushToImportHookTokenErrors, ThrowOnError>({
+      url: "/api/v1/hooks/import/{token}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
