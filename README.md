@@ -26,6 +26,12 @@ for a namespace, a model provider and storage ([details](docs/get-started.md#in-
 To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
 first-admin setup code, and `make dev` runs it with hot reload; see [Get started](docs/get-started.md).
 
+## Why Lens
+
+**AI doesn't lack intelligence. It lacks structure. Lens gives your agent eyes.** Without structure, every prompt is a
+guess about who you are and what happened. Lens supplies the people and things involved, how they relate, what happened
+when, and the source of each fact, so your agent stops guessing.
+
 Lens is one private AI hub for your whole life. Every source is a sensor: recordings, documents, email, calendars,
 chat rooms, devices and webhooks all flow in, and everything becomes memory you can trust, because every answer cites
 where it came from, down to the second of a recording or the line of a document. It runs on your own hardware, from a
