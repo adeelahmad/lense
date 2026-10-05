@@ -209,7 +209,9 @@ def _crop(db, cfg, rid, det, name):
     try:
         from PIL import Image
 
-        img = Image.open(keyring.plain_file(db, cfg, video.frames_dir(cfg, rid) / det["frame"]))
+        with keyring.plain_picture(db, cfg, video.frames_dir(cfg, rid) / det["frame"]) as pic:
+            img = Image.open(pic)
+            img.load()
         W, H = img.size
         x, y, w, h = det["box"]
         m = 0.25

@@ -123,8 +123,14 @@ def picture_response(db: Any, cfg: dict[str, Any], path: str | os.PathLike[str],
     """A frame or a page image to show (JPEG): an encrypted one decrypted whole (they're small), a locked vault's 423."""
     if not keyring.is_encrypted(path):
         return FileResponse(path, media_type="image/jpeg", headers=headers)
+    return Response(plain_bytes(db, cfg, path), media_type="image/jpeg", headers=headers)
+
+
+def plain_bytes(db: Any, cfg: dict[str, Any] | None, path: str | os.PathLike[str]) -> bytes:
+    """A small file's plain bytes; a locked vault (423) or a damaged file (500) says so."""
     try:
-        data = keyring.read_plain(db, cfg, path)
+        return keyring.read_plain(db, cfg, path)
     except keyring.Locked:
         raise HTTPException(423, LOCKED) from None
-    return Response(data, media_type="image/jpeg", headers=headers)
+    except keyring.Damaged:
+        raise HTTPException(500, "this file is damaged on the server and can't be opened") from None

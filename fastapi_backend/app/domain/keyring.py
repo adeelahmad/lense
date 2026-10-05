@@ -27,6 +27,7 @@ import io
 import os
 import pathlib
 import secrets
+import shutil
 import struct
 import tempfile
 import threading
@@ -607,6 +608,25 @@ def protect_folder(db, cfg, sid, folder, pattern="*.jpg") -> int:
     return n
 
 
+@contextlib.contextmanager
+def sealing(db, cfg, sid, folder, pattern="*.jpg"):
+    """Around a step that draws pictures into `folder`: they're encrypted when it ends, also when it fails part way.
+    If they can't be (a vault locked meanwhile), the plain ones are removed rather than left behind."""
+    d = pathlib.Path(folder)
+    try:
+        yield
+    finally:
+        try:
+            if wanted(db, cfg, sid, d):
+                shutil.rmtree(d / "tmp", ignore_errors=True)  # what a tool left half done
+            protect_folder(db, cfg, sid, d, pattern)
+        except Exception:  # never leave them plain; the step's own error, if any, still raises
+            for p in d.glob(pattern):
+                if p.is_file() and not is_encrypted(p):
+                    p.unlink(missing_ok=True)
+            raise
+
+
 def read_plain(db, cfg, path) -> bytes:
     """A file's plain bytes, encrypted or not."""
     with open_plain(db, cfg, path) as f:
@@ -725,9 +745,25 @@ def working_copy(db, cfg, path):
     return str(out)
 
 
-def plain_file(db, cfg, path) -> pathlib.Path:
-    """working_copy() as a Path: what the steps reading frames and pages hand their engines."""
-    return pathlib.Path(working_copy(db, cfg, str(path)))
+@contextlib.contextmanager
+def plain_picture(db, cfg, path):
+    """A Path to a frame's or a page's plain bytes for as long as the block runs: the file itself when it isn't
+    encrypted, else a private copy under the same name that is removed straight after (a long video has thousands,
+    so they aren't kept as working copies)."""
+    p = pathlib.Path(path)
+    if not is_encrypted(p):
+        yield p
+        return
+    r = Reader(db, cfg, p)  # before the folder, so a locked or damaged file leaves nothing behind
+    d = pathlib.Path(tempfile.mkdtemp(dir=_work_dir(cfg).parent, prefix="pic-"))
+    try:
+        out = d / p.name
+        with r, open(out, "wb") as f:
+            while part := r.read(1024 * 1024):
+                f.write(part)
+        yield out
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def _make(db, cfg, path, folder, out):
@@ -750,7 +786,14 @@ def _make(db, cfg, path, folder, out):
 def sweep(cfg, minutes=None):
     """Remove plain working copies nobody holds that have gone unused for encryption.work_minutes. Returns how many
     went."""
-    d = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
+    import shutil
+
+    tmp = pathlib.Path(cfg["data_dir"]) / "tmp"
+    for p in tmp.glob("pic-*") if tmp.is_dir() else []:  # a picture copy a crash left behind
+        with contextlib.suppress(OSError):
+            if p.stat().st_mtime < time.time() - 3600:
+                shutil.rmtree(p, ignore_errors=True)
+    d = tmp / "work"
     if not d.is_dir():
         return 0
     return _sweep(d, minutes if minutes is not None else (cfg.get("encryption") or {}).get("work_minutes") or 30)

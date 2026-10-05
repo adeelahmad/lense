@@ -237,8 +237,8 @@ def step_objects(db, cfg, rid, say):
         raise jobs.Skip(why)
     d, dets = video.frames_dir(cfg, rid), []
     for t, name in frames:
-        for o in found.detect(keyring.plain_file(db, cfg, d / name)):
-            dets.append({"t": t, "frame": name, **o})
+        with keyring.plain_picture(db, cfg, d / name) as pic:
+            dets += [{"t": t, "frame": name, **o} for o in found.detect(pic)]
     kept = tracks(dets, step, paged)
     rows = [store.clean({"recording": rid, "space": rec["space"], **k, "paged": paged or None, "engine": found.name}) for k in kept]
     db.run(

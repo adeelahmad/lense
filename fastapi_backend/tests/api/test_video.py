@@ -229,3 +229,20 @@ def test_frames_and_face_crops_are_kept_encrypted(env):
     keyring.sweep(eff, minutes=0)  # the plain copies the steps read go once unused
     work = pathlib.Path(cfg["data_dir"]) / "tmp" / "work"
     assert not work.exists() or not any(work.iterdir())
+
+
+def test_frames_drawn_by_a_step_that_fails_are_not_left_plain(env, monkeypatch):
+    from app.domain import keyring, settings
+
+    db, cfg, rid = env.db, env.cfg, env.rid
+    settings.save(db, cfg, "encryption", {"files": True})
+    eff = settings.effective(db, cfg)
+
+    def broken(path, every, dest_dir, width):
+        raise TimeoutError("ffmpeg took too long")
+
+    monkeypatch.setattr(video, "sample_frames", broken)
+    with pytest.raises(TimeoutError):
+        video.step_shots(db, eff, rid, lambda *_: None)
+    pics = list(video.frames_dir(cfg, rid).glob("*.jpg"))
+    assert pics and all(keyring.is_encrypted(p) for p in pics)  # the shots it drew before failing

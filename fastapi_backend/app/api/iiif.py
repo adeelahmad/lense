@@ -29,11 +29,11 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, get_db, network
-from app.api.streaming import picture_response, stored_file
+from app.api.streaming import LOCKED, picture_response, stored_file
 from app.api.v1.routes.recordings import serve_audio
 from app.api.v1.routes.video import serve_document
 from app.domain import access as acc
-from app.domain import auth, convert, documents, faces, iiif, iiif_auth, render, store, video
+from app.domain import auth, convert, documents, faces, iiif, iiif_auth, keyring, render, store, video
 from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import DB, R
@@ -85,7 +85,10 @@ def _member(request: Request, db: DB, user: Principal | None, space: int) -> boo
 def _picture(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
     """A frame or a page: where the namespace pixelates faces, visitors get the faces found on it pixelated."""
     if not member and faces.pixelates(db, rec["space"]):
-        data = faces.pixelated(db, cfg, path, rid, name)
+        try:
+            data = faces.pixelated(db, cfg, path, rid, name)
+        except keyring.Locked:
+            raise HTTPException(423, LOCKED) from None
         if data is not None:
             return Response(data, media_type="image/jpeg", headers={"Vary": "Authorization, Cookie"})
     return picture_response(db, cfg, path)
