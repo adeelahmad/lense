@@ -23,6 +23,9 @@ import { cn } from "@/lib/utils";
 
 type View = { k: number; x: number; y: number };
 const FIT: View = { k: 1, x: 0, y: 0 };
+// Zoom limits relative to the fitted view. Nodes keep their size on screen, so a high cap lets a dense cluster spread out.
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 100;
 const LONG_PRESS_MS = 520;
 const MOVE_SLOP = 5;
 
@@ -171,7 +174,7 @@ export function GraphCanvas({
 
   const zoom = (f: number, cx = size.w / 2, cy = size.h / 2) =>
     setView((v) => {
-      const k = Math.min(8, Math.max(0.25, v.k * f));
+      const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v.k * f));
       const s = k / v.k;
       // Keep the point under (cx, cy) where it is.
       return {
@@ -291,7 +294,7 @@ export function GraphCanvas({
       const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
       const cx = (a.x + b.x) / 2;
       const cy = (a.y + b.y) / 2;
-      const k = Math.min(8, Math.max(0.25, g.view.k * (dist / g.dist)));
+      const k = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, g.view.k * (dist / g.dist)));
       const s = k / g.view.k;
       setView({
         k,
