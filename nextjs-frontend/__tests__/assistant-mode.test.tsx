@@ -72,13 +72,20 @@ describe("which home a visit opens", () => {
 });
 
 describe("assistant mode", () => {
-  it("turns into a chat as soon as the field is touched or typed in", () => {
+  it("asks the typed question in a chat on Enter", () => {
     render(<AssistantHome />);
     const field = screen.getByLabelText("Ask anything");
     fireEvent.pointerDown(field);
+    fireEvent.change(field, { target: { value: "who called on Monday?" } });
+    expect(push).not.toHaveBeenCalled(); // typing stays here, so no keystroke is lost on the way
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(push).toHaveBeenLastCalledWith("/chat?global=1&q=who+called+on+Monday%3F&send=1");
+  });
+
+  it("opens an empty chat on Enter in an empty field", () => {
+    render(<AssistantHome />);
+    fireEvent.keyDown(screen.getByLabelText("Ask anything"), { key: "Enter" });
     expect(push).toHaveBeenLastCalledWith("/chat?global=1");
-    fireEvent.change(field, { target: { value: "w" } });
-    expect(push).toHaveBeenLastCalledWith("/chat?global=1&q=w");
   });
 
   it("lists earlier conversations to switch to, but not setup chats", () => {

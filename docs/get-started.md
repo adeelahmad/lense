@@ -9,10 +9,10 @@ curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | 
 On Linux or a Mac, this installs Docker if it's missing (get.docker.com on Linux; OrbStack with Homebrew on a Mac),
 gets Lens into `~/lens`, writes the secrets once, builds and starts the stack, and opens the setup page with the setup
 code already filled in. On a server without a desktop, Lens is reachable from the network and the link uses the
-server's address. Run the same line again to update: the secrets, the database and the archive are kept. While the
-repository is private, put `GITHUB_TOKEN=<a token that can read it>` before `sh`. `LENS_DIR`, `LENS_PORT`,
-`LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET` (`lean` for the smaller image) and
-`LENS_REF` (a branch or tag) change the defaults the same way; the top of `install.sh` lists them.
+server's address. Run the same line again to update: the secrets, the database and the archive are kept. Settings go
+before `sh`: `LENS_DIR`, `LENS_PORT`, `LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET`
+(`lean` for the smaller image) and `LENS_REF` (a branch or tag) change the defaults; the top of `install.sh` lists
+them.
 
 ## With Docker and make
 
@@ -41,21 +41,28 @@ make dev          # docker compose up --build --renew-anon-volumes
 there without rebuilding.
 
 This starts SurrealDB, the API with hot reload (<http://localhost:8000/docs>), a job worker, the web app
-(<http://localhost:3000>) and Mailpit for password-reset emails (<http://localhost:8025>). Pages are compiled the
-first time they are visited, so the first visit to each takes a few seconds; both stacks share the same volumes, so
-`make run` and `make dev` see the same archive (stop one before starting the other). On a Mac the web app's dev server
-is much faster run natively than through Docker's file sharing: keep the rest in Docker and run `cd nextjs-frontend &&
-pnpm install && pnpm dev` with `API_BASE_URL=http://localhost:8000` in `.env.local`.
+(<http://localhost:3000>) and Mailpit, which catches the emails Lens sends, mostly sign-in links
+(<http://localhost:8025>). Pages are compiled the first time they are visited, so the first visit to each takes a few
+seconds; both stacks share the same volumes, so `make run` and `make dev` see the same archive (stop one before
+starting the other). On a Mac the web app's dev server is much faster run natively than through Docker's file sharing:
+keep the rest in Docker and run `cd nextjs-frontend && pnpm install && pnpm dev` with
+`API_BASE_URL=http://localhost:8000` in `.env.local`.
 
 On first start the API log prints a setup code, and a link that fills it in (`make setup-code` shows the line):
 
 ```
 No accounts yet. Create the first admin in the web app with setup code: … (or open http://localhost:3000/setup?code=…, which fills it in)
 ```
+ Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
+namespace, the model provider, storage, apps and AI, and telemetry. Once a model is set, **Finish with defaults** skips
+the rest; change any of it later in Settings ([Configuration](configuration.md#first-run-setup) lists the `.env` values
+that answer it instead).
 
-Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
-namespace, the model provider and storage; skip any of it and change it later in Settings
-([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it instead).
+After the first sign-in, a short welcome card points to the two places most people come back for: the assistant, which
+you can ask straight from the card, and **Reports**, with the charts of what is in the archive. Asking, opening
+Reports, skipping or closing the card all count as seen; **Welcome tour** in the account menu opens it again. On Home,
+type a question and press Enter to send it to the assistant ([Chat](assistant.md)). With only one namespace, it is
+picked for you everywhere.
 
 Put audio under `./local-audio/podcasts` and `./local-audio/interviews` (or set `AUDIO_DIR`), or import transcripts
 from the web app. Namespaces and folders are configured in `fastapi_backend/docker/archive.yaml`.
@@ -104,7 +111,7 @@ lens worker --steps transcribe,diarize     # a worker that only transcribes (e.g
 lens search "capsid" --ns podcasts
 lens search "money worries" --mode semantic   # by meaning (with an embedding model; see configuration.md)
 lens embed                                 # index what isn't yet searchable by meaning
-lens reindex                               # after changing search.stemming
+lens reindex                               # after changing search.engine or search.stemming
 lens migrations                            # database upgrades: run, pending or failed
 lens backup                                # back the database up into <data_dir>/backups
 ```

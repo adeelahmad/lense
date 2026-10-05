@@ -26,6 +26,7 @@ const STATE: Record<ComponentState["state"], { label: string; tone: Tone }> = {
   ready: { label: "Ready", tone: "green" },
   waiting: { label: "Waiting", tone: "intent" },
   fetching: { label: "Fetching", tone: "intent" },
+  later: { label: "On first use", tone: "gate" },
   failed: { label: "Failed", tone: "red" },
   missing: { label: "Missing", tone: "gate" },
 };

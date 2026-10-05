@@ -18,6 +18,7 @@ def list_components(user: AdminReader, db: Db, cfg: Cfg) -> Components:
     it is with each: ready, being fetched, failed or missing. Steps that need one being fetched wait for it."""
     return Components(
         auto=bool((cfg.get("components") or {}).get("auto", True)),
+        ahead=bool((cfg.get("components") or {}).get("ahead", False)),
         machine=machine.probe(cfg["data_dir"]),
         recommended=components.recommendation(cfg),
         components=components.catalog(cfg),

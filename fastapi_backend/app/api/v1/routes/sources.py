@@ -15,6 +15,8 @@ from app.schemas.common import Created, Ok
 from app.schemas.sources import (
     Backend,
     BrowseEntry,
+    RoutedMessage,
+    RoutePreviewRequest,
     Source,
     SourceCreate,
     SourceCreated,
@@ -145,6 +147,18 @@ def preview_watch(body: WatchPreviewRequest, user: AdminWriter, db: Db, cfg: Cfg
         documents=kinds["document"],
         images=kinds["image"],
     )
+
+
+@router.post("/watches/routes/preview")
+def preview_routes(body: RoutePreviewRequest, user: AdminWriter, db: Db, cfg: Cfg) -> list[RoutedMessage]:
+    """Where the latest messages of an email account would go under these routing rules, before saving them."""
+    try:
+        rows = sources.preview_routes(db, cfg, body.source, body.path, [r.model_dump() for r in body.routes], body.namespace)
+    except KeyError:
+        raise HTTPException(400, "no such source") from None
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e)) from None
+    return [RoutedMessage(**r) for r in rows]
 
 
 @router.patch("/watches/{wid}")

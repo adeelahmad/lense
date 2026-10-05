@@ -133,7 +133,7 @@ def test_audio_from_storage_sources(client, db, cfg, folder, monkeypatch):
 
     calls = []
 
-    def stream(db_, cfg_, sid, path, offset=0, count=None):
+    def stream(db_, cfg_, sid, path, offset=0, count=None, space=None):
         calls.append((sid, path, offset, count))
         yield data[offset : offset + count]
 

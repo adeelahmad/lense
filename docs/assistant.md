@@ -6,8 +6,11 @@ Conversations belong to one person and can be scoped to namespaces, recordings, 
 collection in the scope is read each time the assistant answers, so it draws on the collection's recordings as they are
 then.
 
-- **Retrieval:** the question's keywords go through the full-text index (English stemming), limited to namespaces the
-  person can read. Hits are widened to their neighbouring lines and numbered.
+- **Retrieval:** the question's keywords go through the word index (English stemming) and, when search by meaning is
+  set up, passages about the question in other words are found too
+  ([Search by meaning](processing.md#search-by-meaning)); the two are ranked together by reciprocal rank, limited to
+  namespaces the person can read and to the conversation's scope. Hits are widened to their neighbouring lines and
+  numbered.
 - **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the recording
   and timestamp.
 - **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `done`.
@@ -32,8 +35,6 @@ then.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
   is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
 
-Retrieval is keyword-based for now; vector search is not built yet.
-
 ### Picking the namespace for a conversation over everything
 
 When a conversation has no scope (the assistant home starts it over everything), its first question goes to the
@@ -48,12 +49,12 @@ never narrowed this way.
 
 ### Assistant mode and voice
 
-Home opens in **assistant mode** (one field and a big mic, like a search page) when the archive has any content, and
-on the overview when it's empty; the switch at the top right remembers the person's pick in the browser. The field
-opens a new conversation over everything the person can read (`/chat?global=1`, plus `q=` with what was typed); the
-mic opens one in voice mode (`/chat?global=1&voice=1`). Voice mode listens, sends what was heard, reads the answer
-aloud (without citation marks) and listens again, until the mic is tapped off or nothing is said twice in a row. The
-chat composer's mic turns it on in any conversation.
+Home opens in **assistant mode** (one field and a big mic, like a search page) when the archive has any content, and on
+the overview when it's empty; the switch at the top right remembers the person's pick in the browser. Enter in the field
+opens a new conversation over everything the person can read and sends what was typed as its first question
+(`/chat?global=1&q=…&send=1`); the mic opens one in voice mode (`/chat?global=1&voice=1`). Voice mode listens, sends
+what was heard, reads the answer aloud (without citation marks) and listens again, until the mic is tapped off or
+nothing is said twice in a row. The chat composer's mic turns it on in any conversation.
 
 Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`listen`, `speak`, `stop`).
 
@@ -93,6 +94,31 @@ When the configured model supports function calling, chat becomes an agent.
   type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
   with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
+
+## A namespace's own assistant
+
+Each namespace can have its own assistant that remembers from one conversation to the next. It is off until an owner
+of the namespace turns it on (`PATCH /api/v1/namespaces/<name>/assistant` with `enabled`, `name` and `instructions`).
+Then every conversation scoped to that namespace alone, picked by hand or chosen from the first question, talks to it.
+It is the same assistant with the same tools, extensions and approvals; what it adds:
+
+- **A name and instructions** from the namespace's owners, read with every question.
+- **A memory:** short facts it keeps with `remember` when it learns something lasting (a decision, a preference, a
+  plan), each with where it came from: the exact moment of the excerpt it was shown, or the conversation it was told
+  in. Remembering is routine, so it happens at once and shows as a step; people who can edit the namespace can also
+  write memories themselves. Viewers' conversations read the memory but don't add to it.
+- **Cited:** the newest 30 memories (pinned ones first) are read with every question. A memory from a moment is
+  numbered like an excerpt, so an answer from memory cites [n] and opens the recording at that moment; older ones are
+  found with `recall`. A memory from a recording the asker can't read is left out.
+- **Asks first:** forgetting from chat waits for the person's approval, like every tool that changes data.
+- **Yours to edit:** `GET /api/v1/namespaces/<name>/assistant/memories` (`q` searches them), `POST` to add one,
+  `PATCH .../memories/<id>` to correct or pin one, `DELETE .../memories/<id>` to forget it, and owners `DELETE
+  .../memories` to forget everything.
+
+It makes no model calls of its own and keeps no index, so it costs nothing extra on a Raspberry Pi.
+
+Refine later: a decision model choosing what's worth remembering, chat rooms answered by a namespace's assistant,
+its settings and memories in the web app, similar memories merged.
 
 ## Extending the assistant: tools, skills, hooks and plugins
 
