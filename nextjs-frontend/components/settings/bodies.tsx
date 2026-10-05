@@ -5,7 +5,7 @@ import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { Admin, Fedora, Metadata, Sensors } from "@/app/openapi-client";
+import { Admin, Fedora, Metadata, Sensors, Sources } from "@/app/openapi-client";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -13,6 +13,8 @@ import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
+import { AddConnection } from "@/components/storage/add-connection";
+import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import {
   AI_TOOLS,
   SPEECH_PROVIDERS,
@@ -369,6 +371,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "storage":
+      return <StorageBody ctx={ctx} />;
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
     case "fedora":
@@ -558,6 +562,77 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ) : (
           <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function StorageBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const conns = useQuery({ queryKey: ["sources"], queryFn: () => data(Sources.listSources({ client })) });
+  const storage = (conns.data ?? []).filter((c) => !NOT_STORAGE.has(c.type));
+  const store = ctx.state("files.store").value;
+  const body = fileStoreTry(
+    store,
+    ctx.state("files.connection").value,
+    ctx.state("files.folder").value,
+    ctx.state("files.crypt").value,
+  );
+  const test = useMutation({ mutationFn: () => data(Admin.testFileStore({ client, body })) });
+  const saved = ctx.view.files?.values ?? {};
+  const savedConn = storage.find((c) => c.id === saved.connection);
+  return (
+    <>
+      <Banner
+        title={
+          saved.store === "connection"
+            ? `Files go to ${savedConn?.name ?? "a connection"}${saved.folder ? `, under ${saved.folder}` : ""}${saved.crypt ? ", through rclone crypt" : ""}.`
+            : "Files are kept on this machine."
+        }
+      >
+        Each file is encrypted with its namespace’s key before it leaves the machine, so a connection only ever holds
+        ciphertext. Files already kept stay where they were put when this changes.
+      </Banner>
+      <F ctx={ctx} id="files.store" />
+      {store === "connection" && (
+        <>
+          {conns.isSuccess && !storage.length ? (
+            <Banner tone="error" title="No storage connection yet.">
+              Add one (S3, Google Drive, Dropbox, OneDrive, SFTP, SMB or WebDAV); it’s picked here once it works.
+            </Banner>
+          ) : (
+            <F
+              ctx={ctx}
+              id="files.connection"
+              options={[
+                { value: "", label: "Choose a connection" },
+                ...storage.map((c) => ({ value: String(c.id), label: `${c.name} (${c.type})` })),
+              ]}
+            />
+          )}
+          <div>
+            <AddConnection onAdded={(id) => ctx.state("files.connection").onChange(String(id))} />
+          </div>
+          <F ctx={ctx} id="files.folder" />
+          <F ctx={ctx} id="files.crypt" />
+        </>
+      )}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check it"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">Writes a small file there, reads it back and removes it</span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="It works.">
+            Written, read back and removed in {test.data.seconds} s.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="That didn’t work.">
             {test.data.error}
           </Banner>
         ))}

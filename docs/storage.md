@@ -1,12 +1,13 @@
 # Where Lens keeps its files
 
 Status: **built**: the file store (this machine, or any storage connection through rclone, optionally wrapped in rclone
-crypt), its settings, a check, and the assistant's `file_storage` tool. **In progress**: Settings → Storage and the
-setup wizard step, notes' attachments. **Planned**: moving uploads and recordings' media there too, and a downloadable
+crypt), its settings, a check, the assistant's `file_storage` tool, Settings → Storage and the setup wizard's choice.
+**In progress**: notes' attachments. **Planned**: moving uploads and recordings' media there too, and a downloadable
 storage key.
 
 The files Lens makes its own, starting with notes' attachments, go where **Settings → Storage** (the `files` section)
-says:
+says. The setup wizard's Storage step asks the same: on this machine, or on a storage connection, which can be added
+right there (the same dialog as Sources) and is checked before it's saved.
 
 | Setting | |
 |---|---|

@@ -216,7 +216,7 @@ Todo:
 - [x] The file store (blobs.py, docs/storage.md): this machine or any storage connection through rclone (S3, Drive,
       Dropbox, OneDrive, SFTP, SMB, WebDAV, a folder), keyring-encrypted before it leaves, optional rclone crypt; the
       `files` settings, a check, the assistant's file_storage tool. Adeel said go 2026-10-05, with rclone and crypt
-- [ ] Settings → Storage and the setup wizard step (pick a connection, folder, crypt, check); new installs choose
+- [x] Settings → Storage and the setup wizard step (pick or add a connection, folder, crypt, check); new installs choose
 - [ ] Attachments on notes in the file store; BlockSuite images and files
 - [ ] Moving uploads and recordings' media to the file store (pipelines need local copies: a cache)
 - [ ] A downloadable storage key (the server secret; opens every namespace that isn't a passkey vault)
