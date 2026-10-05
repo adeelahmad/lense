@@ -54,8 +54,15 @@ No accounts yet. Create the first admin in the web app with setup code: … (or 
 ```
 
 Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
-namespace, the model provider and storage; skip any of it and change it later in Settings
-([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it instead).
+namespace, the model provider and storage. Once a model is set, **Finish with defaults** skips the rest; change any of
+it later in Settings ([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it
+instead).
+
+After the first sign-in, a short welcome card points to the two places most people come back for: the assistant, which
+you can ask straight from the card, and **Reports**, with the charts of what is in the archive. Asking, opening
+Reports, skipping or closing the card all count as seen; **Welcome tour** in the account menu opens it again. On Home,
+type a question and press Enter to send it to the assistant ([Chat](assistant.md)). With only one namespace, it is
+picked for you everywhere.
 
 Put audio under `./local-audio/podcasts` and `./local-audio/interviews` (or set `AUDIO_DIR`), or import transcripts
 from the web app. Namespaces and folders are configured in `fastapi_backend/docker/archive.yaml`.
