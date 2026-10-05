@@ -24,6 +24,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import io
+import logging
 import os
 import pathlib
 import secrets
@@ -34,6 +35,8 @@ import threading
 import time
 
 from . import settings, store
+
+log_ = logging.getLogger(__name__)
 
 R = store.R
 MAGIC = b"LENSE1"
@@ -971,21 +974,29 @@ def rekey(db, cfg, sid, path) -> bool:
     return True
 
 
-def encrypt_all(db, cfg, decrypt=False, log=print, space=None):
+def _in_a_vault(db, path, spaces) -> bool:
+    """Whether a file belongs to a vault: one of the namespaces that keep it, or the one whose key it has. Asked for
+    each file as it comes, so a namespace made a vault meanwhile counts."""
+    return any(status(db, s)["vault"] for s in {*spaces, *([_space_of(path)] if is_encrypted(path) else [])})
+
+
+def encrypt_all(db, cfg, decrypt=False, log=print, space=None, stop=None, progress=None):
     """Encrypt (or, with decrypt, turn back) every file Lens keeps, or one namespace's (`space`); files already that
     way are skipped, so it can run again after stopping half way. An encrypted file under another namespace's key is
-    moved to its own namespace's; a vault's files stay encrypted. Returns how many changed."""
+    moved to its own namespace's; a vault's files stay encrypted. `stop()` true ends it early; `progress(n)` hears how
+    many have changed so far. Returns how many changed."""
     changed, files = 0, list(stored_files(db, cfg))
     spaces: dict[str, set[int]] = {}
     for sid, p in files:
         spaces.setdefault(str(p), set()).add(int(sid))
-    vaults = {sid for sid in {int(s) for s, _ in files} if status(db, sid)["vault"]} if decrypt else set()
     for sid, p in files:
+        if stop is not None and stop():
+            break
         if space is not None and sid != int(space):
             continue
-        if decrypt and int(sid) in vaults:  # a vault's files are never turned back to plain
-            continue
         try:
+            if decrypt and _in_a_vault(db, p, spaces[str(p)]):  # a vault's files are never turned back to plain
+                continue
             st, keeps_time = os.stat(p), False
             if decrypt:
                 done = decrypt_file(db, cfg, p)
@@ -1001,5 +1012,72 @@ def encrypt_all(db, cfg, decrypt=False, log=print, space=None):
             if not keeps_time:
                 os.utime(p, (st.st_atime, st.st_mtime))
             changed += 1
+            if progress is not None:
+                progress(changed)
     log(f"{'decrypted' if decrypt else 'encrypted'} {changed} file(s)")
     return changed
+
+
+# ---------- converting the files already kept, when encryption.files changes ----------
+conversion: dict = {"running": False, "to": None, "changed": 0, "skipped": 0, "error": None, "finished_at": None}
+_CONVERT = threading.Lock()
+_converter: dict = {"gen": 0, "thread": None}
+
+
+def convert(db, cfg, on: bool) -> threading.Thread:
+    """Encrypt (on) or turn back to plain (off, vaults aside) the files already kept, in the background, after
+    encryption.files was changed in the app; `conversion` says how far it got. Changing it again stops this run and
+    starts the other way."""
+    with _CONVERT:
+        _converter["gen"] += 1
+        gen, before = _converter["gen"], _converter["thread"]
+
+        def run():
+            if before is not None:
+                before.join()
+            if gen != _converter["gen"]:
+                return  # changed again before this one started
+            skipped = 0
+
+            def note(line):
+                nonlocal skipped
+                if line.startswith("skipped"):
+                    skipped += 1
+                    conversion["skipped"] = skipped
+                log_.info("encryption: %s", line)
+
+            conversion.update(running=True, to="encrypted" if on else "plain", changed=0, skipped=0, error=None, finished_at=None)
+            try:
+                encrypt_all(
+                    db,
+                    cfg,
+                    decrypt=not on,
+                    log=note,
+                    stop=lambda: gen != _converter["gen"],
+                    progress=lambda n: conversion.update(changed=n),
+                )
+            except Exception as e:  # noqa: BLE001 - a run that fails leaves the rest as it was; it's tried again on the next change
+                log_.exception("encryption: converting the files already kept failed")
+                conversion["error"] = str(e) or type(e).__name__
+            finally:
+                if gen == _converter["gen"]:  # else the next run carries on from here
+                    conversion.update(running=False, finished_at=time.time())
+
+        th = threading.Thread(target=run, daemon=True, name="encryption-convert")
+        _converter["thread"] = th
+        th.start()
+        return th
+
+
+def stop_converting():
+    """Stop a conversion that's running and wait for it (before a namespace becomes a vault, so a run turning files
+    back to plain can't reach its files once it is one)."""
+    with _CONVERT:
+        _converter["gen"] += 1
+        th = _converter["thread"]
+    if th is not None:
+        th.join()
+    if conversion["running"]:
+        conversion.update(
+            running=False, error="stopped when a namespace was made a vault; change the setting again to finish", finished_at=time.time()
+        )

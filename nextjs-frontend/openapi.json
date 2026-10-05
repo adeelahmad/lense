@@ -2241,6 +2241,28 @@
         }
       }
     },
+    "/api/v1/settings/encryption/progress": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Encryption",
+        "description": "How far converting the files already kept has got, since encryption.files was last changed in the app (on this\nserver process).",
+        "operationId": "get_encryption",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncryptionProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/llm/test": {
       "post": {
         "tags": [
@@ -28485,6 +28507,68 @@
           "ok"
         ],
         "title": "EmbedTestResult"
+      },
+      "EncryptionProgress": {
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "title": "Running"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "encrypted",
+                  "plain"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed",
+            "default": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "default": 0
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "running"
+        ],
+        "title": "EncryptionProgress",
+        "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped\nearly."
       },
       "EntityDefine": {
         "properties": {
