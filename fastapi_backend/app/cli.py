@@ -42,7 +42,7 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
 
 
 def _main_base(argv=None):
-    ap = argparse.ArgumentParser(prog="lens", description="Lens: intelligence for your agent.")
+    ap = argparse.ArgumentParser(prog="lens", description="Lens: intelligence for your agent. Safe, secure and cost-effective.")
     ap.add_argument("--config", help="YAML config (default: $ARCHIVE_CONFIG or ./archive.yaml)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("init", help="write a starter archive.yaml")

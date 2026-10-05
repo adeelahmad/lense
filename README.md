@@ -7,6 +7,8 @@
 
 # Lens: intelligence for your agent
 
+**Safe, secure and cost-effective.**
+
 Connect your live data streams; Lens turns them into a cited knowledge graph your agent can reason over. Runs on your
 hardware with local models or any cloud model, private by default and cost-aware.
 
