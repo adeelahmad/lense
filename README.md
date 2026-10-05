@@ -35,6 +35,11 @@ Lens is built first for agents and AI assistants. After setup, most people do tw
 finds and fetches what they need, and look at the charts and reports that show what is in their archive and what it
 cost.
 
+Lens is also infrastructure to build on. An app built on Lens, such as an email responder or a customer manager,
+starts with real, structured context (who is involved, what was said, what was decided, with sources) instead of a
+blank prompt. Apps reach it the same way agents do: through the MCP server, the REST API and OAuth sign-in, limited to
+what their person may read.
+
 ## What you can do with it
 
 - **Ask, and get cited answers.** A chat assistant on every page (and by voice) searches, reads and cites your
