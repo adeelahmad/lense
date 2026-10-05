@@ -26,7 +26,7 @@ from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
-from app.domain import analyze, graph_history, library, notebook, rdf, render, store
+from app.domain import analyze, auth, blobs, feeds, graph_history, library, notebook, rdf, render, settings, sources, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
@@ -1262,3 +1262,72 @@ def write_note(
     sid = ctx.acl.namespace(namespace, "editor")
     pid = notebook.create(ctx.db, sid, ctx.user.id, title, body, summary, None, place, parent_id, about, author="assistant")
     return {"note_id": pid, "url": _note_url(ctx, pid)}
+
+
+# ---------- where files are kept (admins) ----------
+def _admin(ctx: Context) -> None:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change where Lens keeps its files")
+
+
+@tool(
+    "file_storage",
+    "Where files are kept",
+    "Where Lens keeps the files it makes its own (notes' images and attachments): this machine, or a storage "
+    "connection (S3, Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV) under a folder, optionally through rclone "
+    "crypt; and the connections it could use. check writes, reads back and removes a small file there. Admins only.",
+    Arg("check", "boolean", "also check that it works", default=False),
+)
+def file_storage(ctx: Context, check: bool = False) -> dict[str, Any]:
+    _admin(ctx)
+    f = ctx.cfg.get("files") or {}
+    out: dict[str, Any] = {
+        "store": f.get("store", "local"),
+        "connection": f.get("connection"),
+        "folder": f.get("folder"),
+        "crypt": bool(f.get("crypt")),
+        "connections": [
+            {"id": c["id"], "name": c["name"], "type": c["type"]} for c in sources.list_sources(ctx.db) if not feeds.handles(c)
+        ],
+        "settings": f"{ctx.web}/settings/storage",
+    }
+    if check:
+        out["check"] = blobs.test(ctx.db, ctx.cfg)
+    return out
+
+
+@tool(
+    "set_file_storage",
+    "Change where files are kept",
+    "Keep new files on this machine (store local) or on a storage connection (store connection, with connection, "
+    "folder and crypt). It's checked first and saved only if a small file can be written, read back and removed "
+    "there. Files already kept stay where they are. New connections are added in the web app (Settings → Sources). "
+    "Admins only, with a token that has the write scope.",
+    Arg("store", "string", "local or connection", required=True, enum=("local", "connection")),
+    Arg("connection", "integer", "the storage connection's id (from file_storage)"),
+    Arg("folder", "string", "where on it: for S3 the bucket and a path, for a folder here its full path", max_length=200),
+    Arg("crypt", "boolean", "also wrap it in rclone crypt", default=False),
+    writes=True,
+)
+def set_file_storage(
+    ctx: Context, store: str, connection: int | None = None, folder: str | None = None, crypt: bool = False
+) -> dict[str, Any]:
+    _admin(ctx)
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change where files are kept")
+    if store == "connection":
+        if not connection:
+            raise ToolError("give the connection's id (file_storage lists them)")
+        blobs.check_connection(ctx.db, connection)
+        where = {"store": "connection", "connection": int(connection), "folder": blobs._folder(folder or "lens"), "crypt": bool(crypt)}
+    else:
+        where = {"store": "local"}
+    checked = blobs.test(ctx.db, ctx.cfg, where)
+    if not checked["ok"]:
+        raise ToolError(f"that didn't work, so nothing changed: {checked['error']}")
+    changes = {"store": store} | (
+        {"connection": where["connection"], "folder": where["folder"], "crypt": where["crypt"]} if store == "connection" else {}
+    )
+    settings.save(ctx.db, ctx.request.app.state.archive.base, "files", changes, ctx.user.email)
+    auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "files", sorted(changes) + ["mcp"])
+    return {"saved": changes, "check": checked}
