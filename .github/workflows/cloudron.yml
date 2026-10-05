@@ -22,7 +22,7 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, Linux, X64] # Docker builds: the Linux runner
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     permissions:
       contents: read
       packages: write

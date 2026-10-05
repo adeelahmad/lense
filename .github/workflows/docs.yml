@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     outputs:
       publish: ${{ steps.pages.outputs.publish }}
     steps:
@@ -56,7 +56,7 @@ jobs:
   publish:
     needs: build
     if: needs.build.outputs.publish == 'true'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     permissions:
       pages: write
       id-token: write
