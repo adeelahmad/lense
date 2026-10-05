@@ -873,6 +873,11 @@ SCHEMA = [
     # address ranges whose visitors see all of a namespace's recordings, or chosen ones (docs/access.md): ip_group:<n>
     "DEFINE TABLE IF NOT EXISTS ip_group SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS ip_group_space ON ip_group FIELDS space",
+    # addresses other services push files, web addresses or text to, into one namespace (domain/import_hooks.py):
+    # import_hook:<n>, found by the hash of its token
+    "DEFINE TABLE IF NOT EXISTS import_hook SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS import_hook_space ON import_hook FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS import_hook_token ON import_hook FIELDS token_hash UNIQUE",
     # audio and video arriving in pieces (docs/api.md, Uploads): upload:<random id>
     "DEFINE TABLE IF NOT EXISTS upload SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS upload_account ON upload FIELDS account",

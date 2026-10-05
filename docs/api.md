@@ -701,6 +701,48 @@ intranet. Without Chromium on the server it answers 400 (`GET /uploads/limits` â
 `import.web`. The PDF is the resource's file (`GET /resources/{rid}/media`), named after the link
 (`annual-report.pdf`) or the page's title (`harbour-news.pdf`).
 
+### Import webhooks
+
+An import webhook is an address other services push files, web addresses or text to (a scanner, a phone shortcut,
+an automation tool, a conversion node). What arrives lands in one namespace as if someone had uploaded or imported it
+there, and runs the hook's pipeline, else the namespace's.
+
+```
+GET    /api/v1/namespaces/{name}/import-hooks
+POST   /api/v1/namespaces/{name}/import-hooks
+PATCH  /api/v1/namespaces/{name}/import-hooks/{hid}
+POST   /api/v1/namespaces/{name}/import-hooks/{hid}/token
+DELETE /api/v1/namespaces/{name}/import-hooks/{hid}
+POST   /api/v1/hooks/import
+POST   /api/v1/hooks/import/{token}
+```
+
+A namespace's owners manage its hooks. `POST {name, collection?, pipeline?}` makes one and answers with its token
+(`lih_...`), shown this once; only a hash is kept, and lists show its last four characters. `PATCH` renames it, pauses
+or resumes it (`enabled`), or changes its collection or pipeline (null for the namespace's own). `POST .../token` gives
+it a new token and the old one stops at once; `DELETE` stops it altogether. What a hook imported stays either way.
+Audited as `import_hook.create`, `.update`, `.token` and `.delete`.
+
+Pushing needs only the token, as `Authorization: Bearer <token>` (or in the address, for services that can only be given
+a URL; the address form ends up in proxy logs, so prefer the header). Three ways to send:
+
+- **A file as the raw body**, named by `?filename=`, `Content-Disposition` or `X-Filename`. Audio, video, documents
+  and images become recordings and resources exactly as [uploads](#uploads) do, duplicates included; `.srt`, `.vtt`,
+  `.json`, `.jsonl` and `.ics` are imported as transcripts.
+- **Multipart form files** (field `file`, up to 20), with optional `title`, `url` and `text` fields.
+- **JSON** `{url?, text?, title?}`: a web page or PDF kept as a document, as [web pages](#web-pages) are (a page needs
+  Chromium on the server; a link to a PDF doesn't), and text imported as a transcript, as pasted text is.
+
+The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token that isn't a hook's,
+403 while the hook is paused, 413 over `uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as
+`import.hook`, by `import_hook:<id>` rather than a person.
+
+```
+curl -H "Authorization: Bearer $TOKEN" --data-binary @minutes.pdf "https://lens.example/api/v1/hooks/import?filename=minutes.pdf"
+curl -H "Authorization: Bearer $TOKEN" -F file=@call.m4a -F title="Call with Sam" https://lens.example/api/v1/hooks/import
+curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"url": "https://example.org/report.pdf"}' https://lens.example/api/v1/hooks/import
+```
+
 ### Uploads
 
 Audio, video, documents (PDF) and images go up in pieces, so a dropped connection costs one piece, not the file. A PDF
