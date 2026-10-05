@@ -5,11 +5,21 @@ import { Check, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Admin, Setup, type LlmTestResult, type SetupView, type TelemetryTestResult } from "@/app/openapi-client";
+import {
+  Admin,
+  Setup,
+  Sources,
+  type FileStoreTestResult,
+  type LlmTestResult,
+  type SetupView,
+  type TelemetryTestResult,
+} from "@/app/openapi-client";
 import { AuthAlert, AuthBrand } from "@/components/auth/auth-card";
 import { SegmentedChoice } from "@/components/settings/controls";
+import { AddConnection } from "@/components/storage/add-connection";
+import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
+import { Field, Input, Select, Switch } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
@@ -508,9 +518,27 @@ function StorageStep({ view, onNext }: { view: SetupView; onNext: (saved: boolea
   const [maxMb, setMaxMb] = useState(String(s.max_upload_mb));
   const [folder, setFolder] = useState("");
   const [namespace, setNamespace] = useState(view.namespace.existing[0] ?? "");
+  // where Lens keeps its own files (notes' attachments): this machine, or a storage connection (docs/storage.md)
+  const [where, setWhere] = useState<"local" | "connection">("local");
+  const [conn, setConn] = useState("");
+  const [bucket, setBucket] = useState("lens");
+  const [crypt, setCrypt] = useState(false);
+  const conns = useQuery({
+    queryKey: ["sources"],
+    queryFn: () => data(Sources.listSources({ client })),
+    enabled: where === "connection",
+  });
+  const storage = (conns.data ?? []).filter((c) => !NOT_STORAGE.has(c.type));
+  const files = fileStoreTry(where, conn, bucket, crypt);
+  const [checked, setChecked] = useState<FileStoreTestResult | null>(null);
+  const check = useMutation({
+    mutationFn: () => data(Admin.testFileStore({ client, body: files })),
+    onSuccess: setChecked,
+  });
+  useEffect(() => setChecked(null), [where, conn, bucket, crypt]);
   const save = useMutation({
-    mutationFn: () =>
-      data(
+    mutationFn: async () => {
+      await data(
         Setup.saveStorage({
           client,
           body: {
@@ -519,7 +547,13 @@ function StorageStep({ view, onNext }: { view: SetupView; onNext: (saved: boolea
             namespace: folder.trim() ? namespace : null,
           },
         }),
-      ),
+      );
+      if (files.store === "connection") {
+        const ok = checked?.ok ? checked : await data(Admin.testFileStore({ client, body: files }));
+        if (!ok.ok) throw new Error(`That connection didn’t work: ${ok.error ?? "it couldn’t be written to"}`);
+        await data(Admin.updateSettings({ client, path: { section: "files" }, body: files }));
+      }
+    },
     onSuccess: () => onNext(true),
   });
   const mb = Number(maxMb);
@@ -528,8 +562,8 @@ function StorageStep({ view, onNext }: { view: SetupView; onNext: (saved: boolea
   return (
     <>
       <StepHead title="Storage">
-        Where this server keeps its data, how large an upload may be, and optionally a folder on this machine to import
-        from as files arrive.
+        Where this server keeps its data and its own files, how large an upload may be, and optionally a folder on this
+        machine to import from as files arrive.
       </StepHead>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-md bg-surface px-4 py-3 text-[13px]">
         <dt className="font-semibold text-fg-strong">Data folder</dt>
@@ -609,12 +643,90 @@ function StorageStep({ view, onNext }: { view: SetupView; onNext: (saved: boolea
           archive.yaml. Cloud storage (S3, Drive, Dropbox, SFTP…) can be added later under Sources.
         </p>
       )}
+      <Field
+        label="Keep Lens’s own files"
+        hint="Notes’ attachments and other files Lens makes. Each is encrypted before it leaves this machine."
+      >
+        {() => (
+          <SegmentedChoice
+            label="Keep Lens’s own files"
+            value={where}
+            onChange={(v) => setWhere(v as "local" | "connection")}
+            options={[
+              { value: "local", label: "On this machine" },
+              { value: "connection", label: "On a storage connection" },
+            ]}
+          />
+        )}
+      </Field>
+      {where === "connection" && (
+        <>
+          <div className="flex flex-wrap items-end gap-2.5">
+            {storage.length > 0 && (
+              <Field label="Connection" className="min-w-[220px] flex-1">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={conn}
+                    onChange={(e) => setConn(e.target.value)}
+                    options={[
+                      { value: "", label: "Choose a connection" },
+                      ...storage.map((c) => ({ value: String(c.id), label: `${c.name} (${c.type})` })),
+                    ]}
+                  />
+                )}
+              </Field>
+            )}
+            <AddConnection
+              label={storage.length ? "Add another" : "Add a connection"}
+              onAdded={(id) => {
+                void conns.refetch();
+                setConn(String(id));
+              }}
+            />
+          </div>
+          <Field label="Folder" hint="For S3, the bucket and a path (my-bucket/lens); for a folder here, its full path">
+            {({ id, describedBy }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                mono
+                value={bucket}
+                onChange={(e) => setBucket(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            )}
+          </Field>
+          <Switch
+            checked={crypt}
+            onCheckedChange={setCrypt}
+            label="Also encrypt with rclone crypt, which hides file names and sizes there too"
+          />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              size="sm"
+              onClick={() => check.mutate()}
+              disabled={check.isPending || files.store !== "connection" || !files.connection}
+            >
+              {check.isPending ? "Checking…" : "Check it"}
+            </Button>
+            {checked && (
+              <span className={cn("text-[12.5px]", checked.ok ? "text-green-dark" : "text-red-dark")}>
+                {checked.ok ? `It works (${checked.seconds} s)` : checked.error}
+              </span>
+            )}
+          </div>
+        </>
+      )}
       {save.error && <AuthAlert tone="error">{errorText(save.error)}</AuthAlert>}
       <Actions
         onSkip={() => onNext(false)}
         onSave={() => save.mutate()}
         pending={save.isPending}
-        disabled={!validMb || (Boolean(folder.trim()) && !namespace)}
+        disabled={
+          !validMb || (Boolean(folder.trim()) && !namespace) || (files.store === "connection" && !files.connection)
+        }
       />
     </>
   );

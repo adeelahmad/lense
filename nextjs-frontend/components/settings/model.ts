@@ -74,6 +74,7 @@ export type SectionId =
   | "fedora"
   | "sensors"
   | "uploads"
+  | "storage"
   | "documents"
   | "tokens"
   | "iiif"
@@ -248,6 +249,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["uploads"],
     description:
       "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
+    id: "storage",
+    label: "Storage",
+    backend: ["files"],
+    description:
+      "Where Lens keeps the files it makes its own, such as notes’ attachments: this machine, or a storage connection (S3, Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV). Files are encrypted before they leave the machine.",
   },
   {
     id: "documents",
@@ -1811,6 +1819,46 @@ export const FIELDS: FieldSpec[] = [
     kind: "checks",
     options: UPLOAD_TYPES.map((e) => ({ value: e, label: e.slice(1) })),
   },
+  // Storage (Lens's own files: blobs.py)
+  {
+    section: "files",
+    key: "store",
+    label: "Keep files",
+    kind: "cards",
+    options: [
+      { value: "local", label: "On this machine", hint: "In the server’s data folder, under objects" },
+      {
+        value: "connection",
+        label: "On a storage connection",
+        hint: "S3, Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV",
+      },
+    ],
+  },
+  {
+    section: "files",
+    key: "connection",
+    label: "Connection",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "Connections are added under Sources",
+  },
+  {
+    section: "files",
+    key: "folder",
+    label: "Folder",
+    kind: "text",
+    mono: true,
+    placeholder: "lens",
+    hint: "Where on it: for S3, the bucket and a path (my-bucket/lens); for a folder on this machine, its full path",
+  },
+  {
+    section: "files",
+    key: "crypt",
+    label: "Also encrypt with rclone crypt",
+    kind: "switch",
+    hint: "Hides the names and sizes of the files there too. Lens makes and keeps its password; there is nothing to remember",
+  },
   // Documents
   {
     section: "documents",
@@ -2045,6 +2093,8 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     }
     case "select":
       if (f.key === "frame_width") return { value: Number(ui) };
+      if (f.section === "files" && f.key === "connection")
+        return { value: ui === "" || ui == null ? null : Number(ui) };
       return { value: ui === "" && f.nullable ? null : ui };
     default: {
       const s = String(ui ?? "").trim();
@@ -2115,6 +2165,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["server.embed_frame_ancestors"] = `“${badOrigin}” isn’t an origin like https://blog.example.org or 'self'`;
   const types = values["uploads.extensions"] as string[] | undefined;
   if (types && !types.length) e["uploads.extensions"] = "Pick at least one type";
+  if (values["files.store"] === "connection" && values["files.connection"] == null)
+    e["files.connection"] = "Choose the connection files go to";
+  const folder = values["files.folder"];
+  if (typeof folder === "string" && folder.split("/").includes("..")) e["files.folder"] = "A folder can’t contain ..";
   const gaz = values["analysis.gazetteer"] as string[] | undefined;
   const g = gaz ? gazetteerErrors(gaz) : null;
   if (g) e["analysis.gazetteer"] = g;
