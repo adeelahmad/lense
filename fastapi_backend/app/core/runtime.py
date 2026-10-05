@@ -48,8 +48,11 @@ class Archive:
         return self.settings.current()
 
     def _index_text(self) -> None:
+        index = self.db.textindex
+        if index is None:
+            return
         try:
-            self.db.textindex.sync()
+            index.sync()
         except Exception:  # noqa: BLE001 - the first search tries again
             log.warning("couldn't bring the full-text index up to date", exc_info=True)
 
