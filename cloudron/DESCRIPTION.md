@@ -1,6 +1,8 @@
-Lens is an archive for recorded speech and video. It transcribes recordings, tells speakers apart, makes everything
-searchable (full text and by meaning), builds a knowledge graph of the people, places and topics mentioned, and
-publishes recordings as IIIF. Its assistant answers questions with citations to the exact moment in a recording.
+Lens is usable context for you and your agents: one private AI hub where every source becomes cited memory.
+Recordings, documents, email, calendars and other sources flow in; Lens transcribes, tells speakers apart, makes
+everything searchable (by words and by meaning) and builds a knowledge graph of the people, places and topics
+mentioned. Its assistant, and any agent signed in over MCP, answers with citations to the exact moment in a recording
+or the line of a document.
 
 ### Features
 

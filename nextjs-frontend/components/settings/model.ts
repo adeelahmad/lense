@@ -67,6 +67,7 @@ export type SectionId =
   | "access"
   | "remote-access"
   | "sign-in"
+  | "encryption"
   | "notifications"
   | "mail"
   | "bridge"
@@ -180,6 +181,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["auth"],
     description:
       "How people sign in: passkeys (fingerprint, face or device PIN) always; passwords only if you allow them.",
+  },
+  {
+    id: "encryption",
+    label: "Encryption",
+    backend: ["encryption"],
+    description:
+      "Whether the files Lens keeps (uploads, renditions, frames, reports, exports) are encrypted on disk with their namespace’s key. Vaults stay encrypted either way.",
   },
   {
     id: "components",
@@ -1118,6 +1126,36 @@ export const FIELDS: FieldSpec[] = [
   // Search
   {
     section: "search",
+    key: "engine",
+    label: "Word search",
+    kind: "select",
+    options: [
+      { value: "sqlite", label: "Built in (SQLite)" },
+      { value: "surrealdb", label: "SurrealDB index" },
+      { value: "opensearch", label: "OpenSearch" },
+    ],
+    hint: "Built in is fast and small enough for a Raspberry Pi; SurrealDB's index needs several times the memory; OpenSearch runs on another machine",
+  },
+  {
+    section: "search",
+    key: "opensearch_url",
+    label: "OpenSearch address",
+    kind: "text",
+    mono: true,
+    placeholder: "http://search.lan:9200",
+    hint: "An OpenSearch or Elasticsearch-compatible cluster. Lens keeps its own indexes there, named lens-…",
+  },
+  { section: "search", key: "opensearch_user", label: "User", kind: "text", mono: true },
+  { section: "search", key: "opensearch_password", label: "Password", kind: "secret" },
+  {
+    section: "search",
+    key: "opensearch_verify",
+    label: "Check its certificate",
+    kind: "switch",
+    hint: "Turn off only for a cluster with a self-signed certificate on your own network",
+  },
+  {
+    section: "search",
     key: "stemming",
     label: "Stemming",
     kind: "select",
@@ -1487,6 +1525,33 @@ export const FIELDS: FieldSpec[] = [
     hint: "Off: everyone signs in with a passkey, and password sign-in, changes and resets stop working. Turning it off needs a passkey on an admin's account first.",
   },
   // API keys
+  // Encryption at rest (docs/encryption.md)
+  {
+    section: "encryption",
+    key: "files",
+    label: "Encrypt files on disk",
+    kind: "switch",
+    hint: "Changing it converts the files already kept, in the background. Off leaves vaults’ files encrypted",
+  },
+  {
+    section: "encryption",
+    key: "work_minutes",
+    label: "Keep working copies for",
+    kind: "int",
+    min: 5,
+    max: 1440,
+    unit: "minutes",
+    hint: "Plain copies that tools like ffmpeg read, removed once unused this long",
+  },
+  {
+    section: "encryption",
+    key: "vault_minutes",
+    label: "Keep vaults unlocked for",
+    kind: "int",
+    min: 1,
+    max: 1440,
+    unit: "minutes",
+  },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -2284,7 +2349,8 @@ export function why(c: Change): string | null {
         .join(" ") || null
     );
   }
-  if (id === "search.stemming") return "Search keeps the old index until you rebuild it (Reindex).";
+  if (id === "search.stemming" || id === "search.engine")
+    return "Search keeps the old index until you rebuild it (Reindex).";
   if (id === "embeddings.model" || id === "embeddings.document_prefix")
     return "Vectors from another model can’t be compared: search by meaning stops until recordings are indexed again (the hourly routine, or Index now).";
   if (id === "iiif.base_url") return "Every IIIF identifier changes.";

@@ -1,5 +1,6 @@
 site_name: Lens
-site_description: An archive for recorded speech and video, on FastAPI, Next.js and SurrealDB.
+site_url: https://adeelahmad.github.io/lense/
+site_description: Usable context for you and your agents. One private AI hub where every source becomes cited memory.
 
 repo_name: adeelahmad/lense
 repo_url: https://github.com/adeelahmad/lense/
@@ -84,6 +85,7 @@ nav:
   - Graph history: graph-history.md
   - Topics: topics.md
   - Notes: notes.md
+  - Storage: storage.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md
   - API: api.md
@@ -98,6 +100,12 @@ nav:
 
 plugins:
   - search
+
+hooks:
+  - overrides/hooks.py
+
+exclude_docs: |
+  brand/README.md
 
 extra_css:
   - stylesheets/extra.css

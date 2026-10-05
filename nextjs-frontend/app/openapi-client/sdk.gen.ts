@@ -405,6 +405,8 @@ import type {
   GetEmbedLinkData,
   GetEmbedLinkErrors,
   GetEmbedLinkResponses,
+  GetEncryptionData,
+  GetEncryptionResponses,
   GetEntityConnectionsData,
   GetEntityConnectionsErrors,
   GetEntityConnectionsResponses,
@@ -900,6 +902,9 @@ import type {
   PreviewImportData,
   PreviewImportErrors,
   PreviewImportResponses,
+  PreviewRoutesData,
+  PreviewRoutesErrors,
+  PreviewRoutesResponses,
   PreviewScheduleData,
   PreviewScheduleErrors,
   PreviewScheduleResponses,
@@ -2285,6 +2290,21 @@ export class Admin {
   }
 
   /**
+   * Get Encryption
+   *
+   * How far converting the files already kept has got, since encryption.files was last changed in the app (on this
+   * server process).
+   */
+  public static getEncryption<ThrowOnError extends boolean = false>(
+    options?: Options<GetEncryptionData, ThrowOnError>,
+  ): RequestResult<GetEncryptionResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetEncryptionResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/encryption/progress",
+      ...options,
+    });
+  }
+
+  /**
    * Test Llm
    *
    * Ask the configured model for one word, to check the address, key and model name.
@@ -3465,8 +3485,9 @@ export class Resources {
    * It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
    * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
    * faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
-   * analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409
-   * when the new namespace has the same file or a job is running on it. Audited as `recording.move`.
+   * analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
+   * files are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on
+   * it; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.
    */
   public static moveRecording<ThrowOnError extends boolean = false>(
     options: Options<MoveRecordingData, ThrowOnError>,
@@ -6804,6 +6825,24 @@ export class Sources {
   ): RequestResult<PreviewWatchResponses, PreviewWatchErrors, ThrowOnError> {
     return (options.client ?? client).post<PreviewWatchResponses, PreviewWatchErrors, ThrowOnError>({
       url: "/api/v1/watches/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview Routes
+   *
+   * Where the latest messages of an email account would go under these routing rules, before saving them.
+   */
+  public static previewRoutes<ThrowOnError extends boolean = false>(
+    options: Options<PreviewRoutesData, ThrowOnError>,
+  ): RequestResult<PreviewRoutesResponses, PreviewRoutesErrors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewRoutesResponses, PreviewRoutesErrors, ThrowOnError>({
+      url: "/api/v1/watches/routes/preview",
       ...options,
       headers: {
         "Content-Type": "application/json",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { KeyRound, Keyboard, LogOut, SunMoon, UserRound, Users } from "lucide-react";
+import { KeyRound, Keyboard, LogOut, Signpost, SunMoon, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
@@ -31,7 +31,7 @@ export function rolesSummary(admin: boolean, roles: Record<string, string>, part
   return list.slice(0, 3).join(" · ") + (list.length > 3 ? ` · +${list.length - 3} more` : "");
 }
 
-/** Name, roles, profile and password, API tokens, appearance, shortcuts, sign out (Access AC4). */
+/** Name, roles, profile and password, API tokens, appearance, shortcuts, the welcome tour, sign out (Access AC4). */
 export function AccountMenu({ name, email }: { name?: string | null; email: string }) {
   const { me, admin } = useArchive();
   const client = useApiClient();
@@ -94,6 +94,13 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
           onSelect={() => window.dispatchEvent(new CustomEvent("lens:shortcuts"))}
         >
           Keyboard shortcuts
+        </MenuItem>
+        <MenuItem
+          className={ITEM}
+          icon={<Signpost />}
+          onSelect={() => window.dispatchEvent(new CustomEvent("lens:tour"))}
+        >
+          Welcome tour
         </MenuItem>
         <MenuItem className={ITEM} icon={<LogOut />} onSelect={() => void signOut({ redirectTo: "/login" })}>
           Sign out

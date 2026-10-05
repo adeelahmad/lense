@@ -242,6 +242,27 @@ describe("SetupWizard", () => {
     expect(Setup.finish).toHaveBeenCalledWith(expect.objectContaining({ body: { skipped: false } }));
   });
 
+  it("finishes with the defaults once a model is set", async () => {
+    m(Setup.getSetup).mockImplementation(() =>
+      ok(
+        VIEW({
+          llm: {
+            values: { base_url: "http://x/v1", model: "qwen3:8b", api_key: { secret: true, set: false } },
+            locked: [],
+          },
+        }),
+      ),
+    );
+    m(Setup.finish).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    fireEvent.click(await screen.findByRole("button", { name: /Storage/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Finish with defaults" }));
+    await waitFor(() =>
+      expect(Setup.finish).toHaveBeenCalledWith(expect.objectContaining({ body: { skipped: false } })),
+    );
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+  });
+
   it("can skip the whole wizard", async () => {
     m(Setup.getSetup).mockImplementation(() => ok(VIEW()));
     m(Setup.finish).mockImplementation(() => ok({ ok: true }));

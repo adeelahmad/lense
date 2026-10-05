@@ -1,6 +1,6 @@
 # What the design needs from the API next
 
-The web app implements the Lens Archive design against the current API. Where the design shows something the API
+The web app is built against the current API. Where the design shows something the API
 can't provide yet, the control is visible but disabled with a reason ("Not available yet"), or the web app works
 around it (noted below). No screen shows sample data. This is the list of API work that would light those up,
 grouped by area; each item names the smallest endpoint or field that would do.
@@ -58,7 +58,7 @@ grouped by area; each item names the smallest endpoint or field that would do.
 |---|---|
 | Test a source in stages (reach, sign-in, list); OAuth token expiry | staged test results; `expires_at` on sources |
 | Per-file scan errors | `/watches/{id}/files?status=error` |
-| Which local folders may be watched | list `sources.local_roots` for admins |
+| Which local folders may be watched | done: `storage.local_roots` in `GET /api/v1/setup` (admins) |
 
 ## Pipelines, templates and reports
 

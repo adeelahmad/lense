@@ -128,10 +128,26 @@ services:
       - fedora-data:/fcrepo-home
     networks: [lens]
 
+  # OpenSearch (docs/database.md), for word search on a big archive when this machine can spare the memory, or as a
+  # pattern for a cluster on another machine. Opt-in: `docker compose --profile opensearch up`, then Settings → Search
+  # → Word search: OpenSearch at http://opensearch:9200, and Reindex now. Reachable only inside Lens's network.
+  opensearch:
+    image: opensearchproject/opensearch:${OPENSEARCH_VERSION:-2.19.1}
+    profiles: [opensearch]
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms${OPENSEARCH_HEAP:-512m} -Xmx${OPENSEARCH_HEAP:-512m}
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    networks: [lens]
+
 volumes:
   surreal-data:
   archive-data:
   fedora-data:
+  opensearch-data:
 
 networks:
   lens:

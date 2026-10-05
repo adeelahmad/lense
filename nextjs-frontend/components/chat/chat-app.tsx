@@ -425,6 +425,16 @@ export function ChatApp() {
     void dispatch("Help me set up Lens.", undefined, [], "setup");
   }, [admin, search, dispatch]);
 
+  // /chat?q=...&send=1 (asked from Home): the question is sent as it arrives, not left in the composer.
+  const linkAsked = useRef(false);
+  useEffect(() => {
+    const q = search.get("q")?.trim();
+    if (linkAsked.current || search.get("send") !== "1" || !q) return;
+    linkAsked.current = true;
+    setDraft("");
+    void dispatch(q);
+  }, [search, dispatch]);
+
   const stopAnswer = useStopAnswer();
   const [stopping, setStopping] = useState<number | null>(null); // the conversation whose answer is stopping
   const stop = () => {

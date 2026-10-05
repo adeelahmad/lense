@@ -85,6 +85,30 @@ class BrowseEntry(ResponseModel):
     imported: list[ImportedAs] = Field(default_factory=list, description="the recordings this file already is, and where")
 
 
+RouteField = Literal["from", "to", "subject", "list", "mailbox"]
+ROUTES_HELP = (
+    "an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its "
+    "namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without "
+    "* or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at."
+)
+
+
+class Route(RequestModel):
+    match: dict[RouteField, str | list[str]] = Field(
+        description="conditions, all of which must match; each holds patterns, any of which may"
+    )
+    namespace: str | None = Field(default=None, description="where matching messages go (a namespace that exists)")
+    skip: bool = Field(default=False, description="matching messages aren't imported at all")
+    name: str | None = Field(default=None, max_length=100)
+
+
+class RouteView(ResponseModel):
+    match: dict[str, list[str]]
+    namespace: str | None = Field(default=None, description="None when skipped, or the namespace was deleted")
+    skip: bool = False
+    name: str | None = None
+
+
 class WatchOptions(RequestModel):
     kinds: WatchKinds | None = Field(default=None, description=KINDS_HELP)
     poll_minutes: int | None = Field(default=None, ge=1)
@@ -95,6 +119,7 @@ class WatchOptions(RequestModel):
     steps: list[str] | None = None
     pipeline: int | None = None
     enabled: bool | None = None
+    routes: list[Route] | None = Field(default=None, description=ROUTES_HELP)
 
 
 class WatchCreate(WatchOptions):
@@ -138,7 +163,26 @@ class Watch(ResponseModel):
     exclude: list[str] | None = None
     steps: list[str] | None = None
     enabled: bool | None = None
+    routes: list[RouteView] = []
     last_scan_at: str | None = None
     next_scan_at: str | None = None
     last_stats: dict[str, Any] | None = None
     last_error: str | None = None
+
+
+class RoutePreviewRequest(RequestModel):
+    source: int
+    path: str = ""
+    namespace: str = Field(description="the watch's own namespace, for messages no rule matches")
+    routes: list[Route] = []
+
+
+class RoutedMessage(ResponseModel):
+    path: str
+    title: str | None = None
+    when: str | None = None
+    from_: list[str] = Field(default=[], alias="from")
+    to: list[str] = []
+    namespace: str | None = None
+    skipped: bool = False
+    rule: int | None = Field(default=None, description="the rule that decided, counted from 1; None: no rule matched")
