@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   pre-commit:
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
 
     env:
       # Only for importing the app to generate the OpenAPI schema; not a real secret.

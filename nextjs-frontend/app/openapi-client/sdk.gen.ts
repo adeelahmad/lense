@@ -902,6 +902,9 @@ import type {
   PreviewImportData,
   PreviewImportErrors,
   PreviewImportResponses,
+  PreviewRoutesData,
+  PreviewRoutesErrors,
+  PreviewRoutesResponses,
   PreviewScheduleData,
   PreviewScheduleErrors,
   PreviewScheduleResponses,
@@ -6822,6 +6825,24 @@ export class Sources {
   ): RequestResult<PreviewWatchResponses, PreviewWatchErrors, ThrowOnError> {
     return (options.client ?? client).post<PreviewWatchResponses, PreviewWatchErrors, ThrowOnError>({
       url: "/api/v1/watches/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview Routes
+   *
+   * Where the latest messages of an email account would go under these routing rules, before saving them.
+   */
+  public static previewRoutes<ThrowOnError extends boolean = false>(
+    options: Options<PreviewRoutesData, ThrowOnError>,
+  ): RequestResult<PreviewRoutesResponses, PreviewRoutesErrors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewRoutesResponses, PreviewRoutesErrors, ThrowOnError>({
+      url: "/api/v1/watches/routes/preview",
       ...options,
       headers: {
         "Content-Type": "application/json",
