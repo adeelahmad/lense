@@ -101,10 +101,11 @@ class Handler(socketserver.StreamRequestHandler):
                 self.send(f"* {seq} FETCH (UID {uid} BODY[] {{{len(raw)}}}\r\n".encode() + raw + b")\r\n")
                 continue
             msg = email.message_from_bytes(raw, policy=policy.default)
-            head = "".join(f"{k}: {msg[k]}\r\n" for k in ("Subject", "Date", "Message-ID") if msg[k] is not None).encode() + b"\r\n"
+            fields = re.search(r"HEADER\.FIELDS \(([^)]*)\)", items).group(1)
+            head = "".join(f"{k}: {v}\r\n" for k in fields.split() for v in msg.get_all(k) or []).encode() + b"\r\n"
             self.send(
                 f'* {seq} FETCH (UID {uid} RFC822.SIZE {len(raw)} INTERNALDATE "{arrived}" '
-                f"BODY[HEADER.FIELDS (SUBJECT DATE MESSAGE-ID)] {{{len(head)}}}\r\n".encode()
+                f"BODY[HEADER.FIELDS ({fields})] {{{len(head)}}}\r\n".encode()
                 + head
                 + b")\r\n"
             )

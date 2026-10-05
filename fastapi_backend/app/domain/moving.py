@@ -14,13 +14,29 @@ folders don't import it again.
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import os
 import pathlib
 import shutil
 
-from . import access as acc, auth, deletion, faces as facemod, jobs, metadata as md, notebook, render, speakers as spk, store
+from . import (
+    access as acc,
+    auth,
+    deletion,
+    faces as facemod,
+    jobs,
+    keyring,
+    metadata as md,
+    notebook,
+    render,
+    sources,
+    speakers as spk,
+    store,
+)
 
 R = store.R
+log = logging.getLogger(__name__)
 # rows that belong to the recording and say which namespace they are in
 SPACED = (
     "segment",
@@ -131,11 +147,58 @@ def _files(db, cfg, rec, rid, src_name, dst_name):
             (shutil.copy2 if shared else os.replace)(here, there)
 
 
+def _cache(db, cfg, rec, rid, src, dst):
+    """Its copy cached from a storage source is kept for the new namespace (copied when another recording in the old
+    one still uses it)."""
+    rm = rec.get("remote")
+    if not rm:
+        return
+    with contextlib.suppress(KeyError, ValueError, TypeError):
+        path = sources.check_path(cfg, sources.get(db, rm["source"]), rm["path"])
+        here, there = sources.cache_file(cfg, rm["source"], path, src), sources.cache_file(cfg, rm["source"], path, dst)
+        if not here.is_file():
+            return
+        shared = db.values(
+            "SELECT VALUE id FROM recording WHERE space = $s AND remote.source = $a AND remote.path = $b AND id != $r LIMIT 1",
+            s=src,
+            a=rm["source"],
+            b=rm["path"],
+            r=R("recording", rid),
+        )
+        if there.exists():  # the new namespace has its own copy already
+            if not shared:
+                here.unlink(missing_ok=True)
+            return
+        (shutil.copy2 if shared else os.replace)(here, there)
+
+
+def _own_files(db, cfg, rid):
+    """The recording's files (keyring.recording_files), less its own file when another recording has the same one (an
+    IIIF import into two namespaces): that stays under the key it has."""
+    rec = db.one("SELECT path, remote FROM $r", r=R("recording", rid)) or {}
+    shared = None
+    if rec.get("path") and not rec.get("remote"):
+        if db.values("SELECT VALUE id FROM recording WHERE path = $p AND id != $r LIMIT 1", p=rec["path"], r=R("recording", rid)):
+            shared = store.resolve_path(cfg, rec["path"])
+    return [p for p in keyring.recording_files(db, cfg, rid) if not shared or p != str(shared)]
+
+
+def _rekey(db, cfg, rid, dst):
+    """Its files are kept under the new namespace's key, so they open wherever the old one is locked or gone. One that
+    can't be (damaged, gone, a disk error) stays as it is, and `lens encrypt` moves it later."""
+    for p in _own_files(db, cfg, rid):
+        try:
+            keyring.rekey(db, cfg, dst, p)
+        except Exception as e:  # noqa: BLE001 - the move is done; the rest of its files still go
+            log.warning("moving recording %s: kept %s as it was: %s", rid, p, e)
+
+
 def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None, collection=None):
     """Move a recording to the namespace `dst` (see the module docstring). Returns what the audit log keeps.
 
     Raises KeyError (no such recording or namespace), ValueError (it's already there; identifying speakers again needs
-    audio), Conflict (the new namespace has the same file) and deletion.Running (a job is working on it)."""
+    audio), Conflict (the new namespace has the same file), deletion.Running (a job is working on it) and
+    keyring.Locked (its files are in a vault, or going to one, that nobody has unlocked here)."""
     rec = db.one("SELECT title, space, path, fingerprint, remote, source FROM $r", r=R("recording", rid))
     names = store.space_names(db)
     if not rec or dst not in names:
@@ -149,6 +212,12 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None, colle
     fp = rec.get("fingerprint")
     if fp and db.values("SELECT VALUE id FROM recording WHERE fp_key = $k", k=f"{dst}:{fp}"):
         raise Conflict(f"{names[dst]} already has the same file.")
+    with keyring.holding(db, cfg, keyring.keys_needed(db, cfg, dst, _own_files(db, cfg, rid))):  # Locked: nothing changed
+        return _move(db, cfg, rid, dst, rec, names, home, rediarize, revoke_shares, by)
+
+
+def _move(db, cfg, rid, dst, rec, names, home, rediarize, revoke_shares, by):
+    src, fp = rec["space"], rec.get("fingerprint")
     deletion.stop_jobs(db, rid, "move")
     pins = _pins(db, cfg, rid, src, dst)
     if pins:
@@ -203,6 +272,8 @@ def move(db, cfg, rid, dst, rediarize=False, revoke_shares=False, by=None, colle
     notebook.follow(db, f"recording:{rid}", dst)
     revoked = auth.revoke_shares(db, rid, by) if revoke_shares else 0
     _files(db, cfg, rec, rid, names[src], names[dst])
+    _cache(db, cfg, rec, rid, src, dst)
+    _rekey(db, cfg, rid, dst)
     deletion.orphans(db, old_speakers, old_faces)  # unnamed ones nothing else has any more
     job = jobs.enqueue(db, rid, (["diarize"] if rediarize else []) + ["analyze", "embed", "report"], by=by)
     md.touched(db, cfg, rid)  # harvesters see an Update: the manifest's collection changed

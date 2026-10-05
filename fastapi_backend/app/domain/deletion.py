@@ -100,15 +100,17 @@ def _files(db, cfg, rec, rid, ns):
             out.append(exports / pathlib.PurePosixPath(f).name)
     remote = rec.get("remote") or {}
     if remote.get("source") is not None and remote.get("path"):
-        others = db.values(
-            "SELECT VALUE id FROM recording WHERE remote.source = $s AND remote.path = $p AND id != $r LIMIT 1",
+        from . import sources
+
+        others = db.rows(
+            "SELECT space FROM recording WHERE remote.source = $s AND remote.path = $p AND id != $r",
             s=remote["source"],
             p=remote["path"],
             r=R("recording", rid),
         )
-        if not others:
-            from . import sources
-
+        if not any(o.get("space") == rec.get("space") for o in others):  # the copy kept for its namespace
+            out.append(sources.cache_file(cfg, remote["source"], remote["path"], rec.get("space")))
+        if not others:  # and one from before copies were kept per namespace
             out.append(sources.cache_file(cfg, remote["source"], remote["path"]))
     return out
 

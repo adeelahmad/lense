@@ -7,7 +7,7 @@ import pathlib
 
 import pytest
 
-from app.domain import analyze, deletion, ingest, jobs, metadata, render, sources, speakers, store, video
+from app.domain import analyze, deletion, ingest, jobs, keyring, metadata, render, sources, speakers, store, video
 from tests.api.test_iiif import CLIP
 from tests.helpers import login, make_user, quiet, seed, write_wav
 
@@ -87,7 +87,7 @@ def test_owners_delete_a_recording(client, env, db, cfg):
     assert db.one("SELECT recordings FROM $c", c=R("saved_collection", cid))["recordings"] == [env["a"]]
     assert db.one("SELECT scope FROM $c", c=R("chat", chat))["scope"]["recordings"] == [env["a"]]
     assert not frames.exists() and not (reports / f"{render.slug(title)}-{clip}.html").exists()
-    assert title not in (reports / "index.html").read_text()  # the overview was rewritten
+    assert title.encode() not in keyring.read_plain(db, cfg, reports / "index.html")  # the overview was rewritten
     # its waiting job is cancelled and can't come back
     assert jobs.get(db, queued)["status"] == "cancelled"
     assert client.post(f"/api/v1/jobs/{queued}/retry", headers=ho).status_code == 400

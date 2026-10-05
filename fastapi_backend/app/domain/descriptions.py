@@ -9,7 +9,7 @@ import base64
 import io
 import re
 
-from . import jobs, llm, store
+from . import jobs, keyring, llm, store
 
 R = store.R
 PROMPT = (
@@ -88,7 +88,8 @@ def step_describe(db, cfg, rid, say):
         else:
             about = f"The first frame of a shot in the video “{title}”, at {_clock(it['t0'])}."
         try:
-            text = describe(cfg, model, d / it["frame"], about)
+            with keyring.plain_picture(db, cfg, d / it["frame"]) as pic:
+                text = describe(cfg, model, pic, about)
         except (llm.LLMError, OSError) as e:
             failed.append(str(e))
             continue

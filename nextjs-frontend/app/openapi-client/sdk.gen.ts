@@ -14,6 +14,9 @@ import type {
   AcceptGraphChangeData,
   AcceptGraphChangeErrors,
   AcceptGraphChangeResponses,
+  AddAssistantMemoryData,
+  AddAssistantMemoryErrors,
+  AddAssistantMemoryResponses,
   AddFileData,
   AddFileErrors,
   AddFileResponses,
@@ -364,9 +367,17 @@ import type {
   FinishData,
   FinishErrors,
   FinishResponses,
+  FinishTourData,
+  FinishTourResponses,
   FixScreenTextData,
   FixScreenTextErrors,
   FixScreenTextResponses,
+  ForgetAllAssistantMemoriesData,
+  ForgetAllAssistantMemoriesErrors,
+  ForgetAllAssistantMemoriesResponses,
+  ForgetAssistantMemoryData,
+  ForgetAssistantMemoryErrors,
+  ForgetAssistantMemoryResponses,
   ForgotPasswordData,
   ForgotPasswordErrors,
   ForgotPasswordResponses,
@@ -400,6 +411,8 @@ import type {
   GetEmbedLinkData,
   GetEmbedLinkErrors,
   GetEmbedLinkResponses,
+  GetEncryptionData,
+  GetEncryptionResponses,
   GetEntityConnectionsData,
   GetEntityConnectionsErrors,
   GetEntityConnectionsResponses,
@@ -440,6 +453,9 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetNamespaceAssistantData,
+  GetNamespaceAssistantErrors,
+  GetNamespaceAssistantResponses,
   GetNamespaceCollectionData,
   GetNamespaceCollectionErrors,
   GetNamespaceCollectionResponses,
@@ -623,6 +639,9 @@ import type {
   ListApprovalsData,
   ListApprovalsErrors,
   ListApprovalsResponses,
+  ListAssistantMemoriesData,
+  ListAssistantMemoriesErrors,
+  ListAssistantMemoriesResponses,
   ListAuditData,
   ListAuditErrors,
   ListAuditResponses,
@@ -895,6 +914,9 @@ import type {
   PreviewImportData,
   PreviewImportErrors,
   PreviewImportResponses,
+  PreviewRoutesData,
+  PreviewRoutesErrors,
+  PreviewRoutesResponses,
   PreviewScheduleData,
   PreviewScheduleErrors,
   PreviewScheduleResponses,
@@ -1224,6 +1246,9 @@ import type {
   UnsealVaultData,
   UnsealVaultErrors,
   UnsealVaultResponses,
+  UpdateAssistantMemoryData,
+  UpdateAssistantMemoryErrors,
+  UpdateAssistantMemoryResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -1266,6 +1291,9 @@ import type {
   UpdateMeData,
   UpdateMeErrors,
   UpdateMeResponses,
+  UpdateNamespaceAssistantData,
+  UpdateNamespaceAssistantErrors,
+  UpdateNamespaceAssistantResponses,
   UpdateNamespaceCollectionData,
   UpdateNamespaceCollectionErrors,
   UpdateNamespaceCollectionResponses,
@@ -1465,6 +1493,20 @@ export class Auth {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Finish Tour
+   *
+   * You finished or skipped the welcome tour, so it doesn't open again. Repeating it keeps the first time.
+   */
+  public static finishTour<ThrowOnError extends boolean = false>(
+    options?: Options<FinishTourData, ThrowOnError>,
+  ): RequestResult<FinishTourResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<FinishTourResponses, unknown, ThrowOnError>({
+      url: "/api/v1/auth/me/tour",
+      ...options,
     });
   }
 
@@ -2269,6 +2311,21 @@ export class Admin {
   }
 
   /**
+   * Get Encryption
+   *
+   * How far converting the files already kept has got, since encryption.files was last changed in the app (on this
+   * server process).
+   */
+  public static getEncryption<ThrowOnError extends boolean = false>(
+    options?: Options<GetEncryptionData, ThrowOnError>,
+  ): RequestResult<GetEncryptionResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetEncryptionResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/encryption/progress",
+      ...options,
+    });
+  }
+
+  /**
    * Test Llm
    *
    * Ask the configured model for one word, to check the address, key and model name.
@@ -3036,6 +3093,120 @@ export class Namespaces {
   }
 
   /**
+   * Get Namespace Assistant
+   *
+   * The namespace's assistant: whether it's on, its name and instructions, and how much it remembers.
+   */
+  public static getNamespaceAssistant<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceAssistantData, ThrowOnError>,
+  ): RequestResult<GetNamespaceAssistantResponses, GetNamespaceAssistantErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetNamespaceAssistantResponses, GetNamespaceAssistantErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/assistant",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Namespace Assistant
+   *
+   * Owners: turn the assistant on or off, name it, or change its instructions.
+   */
+  public static updateNamespaceAssistant<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNamespaceAssistantData, ThrowOnError>,
+  ): RequestResult<UpdateNamespaceAssistantResponses, UpdateNamespaceAssistantErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateNamespaceAssistantResponses,
+      UpdateNamespaceAssistantErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/assistant",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Forget All Assistant Memories
+   *
+   * Owners: forget everything the assistant remembers.
+   */
+  public static forgetAllAssistantMemories<ThrowOnError extends boolean = false>(
+    options: Options<ForgetAllAssistantMemoriesData, ThrowOnError>,
+  ): RequestResult<ForgetAllAssistantMemoriesResponses, ForgetAllAssistantMemoriesErrors, ThrowOnError> {
+    return (options.client ?? client).delete<
+      ForgetAllAssistantMemoriesResponses,
+      ForgetAllAssistantMemoriesErrors,
+      ThrowOnError
+    >({ url: "/api/v1/namespaces/{name}/assistant/memories", ...options });
+  }
+
+  /**
+   * List Assistant Memories
+   *
+   * What the namespace's assistant remembers: pinned first, then newest first (or by `q`).
+   */
+  public static listAssistantMemories<ThrowOnError extends boolean = false>(
+    options: Options<ListAssistantMemoriesData, ThrowOnError>,
+  ): RequestResult<ListAssistantMemoriesResponses, ListAssistantMemoriesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListAssistantMemoriesResponses, ListAssistantMemoriesErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/assistant/memories",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Assistant Memory
+   *
+   * Editors: tell the assistant something to remember.
+   */
+  public static addAssistantMemory<ThrowOnError extends boolean = false>(
+    options: Options<AddAssistantMemoryData, ThrowOnError>,
+  ): RequestResult<AddAssistantMemoryResponses, AddAssistantMemoryErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddAssistantMemoryResponses, AddAssistantMemoryErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/assistant/memories",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Forget Assistant Memory
+   *
+   * Editors: forget one memory.
+   */
+  public static forgetAssistantMemory<ThrowOnError extends boolean = false>(
+    options: Options<ForgetAssistantMemoryData, ThrowOnError>,
+  ): RequestResult<ForgetAssistantMemoryResponses, ForgetAssistantMemoryErrors, ThrowOnError> {
+    return (options.client ?? client).delete<ForgetAssistantMemoryResponses, ForgetAssistantMemoryErrors, ThrowOnError>(
+      { url: "/api/v1/namespaces/{name}/assistant/memories/{mid}", ...options },
+    );
+  }
+
+  /**
+   * Update Assistant Memory
+   *
+   * Editors: correct a memory, or pin it so it's read with every question.
+   */
+  public static updateAssistantMemory<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAssistantMemoryData, ThrowOnError>,
+  ): RequestResult<UpdateAssistantMemoryResponses, UpdateAssistantMemoryErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateAssistantMemoryResponses, UpdateAssistantMemoryErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/assistant/memories/{mid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * List Namespace Collections
    *
    * The namespace's collections, depth first and by name, each with its place in the tree, how many recordings it
@@ -3335,8 +3506,9 @@ export class Resources {
    * It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
    * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
    * faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
-   * analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409
-   * when the new namespace has the same file or a job is running on it. Audited as `recording.move`.
+   * analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
+   * files are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on
+   * it; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.
    */
   public static moveRecording<ThrowOnError extends boolean = false>(
     options: Options<MoveRecordingData, ThrowOnError>,
@@ -6674,6 +6846,24 @@ export class Sources {
   ): RequestResult<PreviewWatchResponses, PreviewWatchErrors, ThrowOnError> {
     return (options.client ?? client).post<PreviewWatchResponses, PreviewWatchErrors, ThrowOnError>({
       url: "/api/v1/watches/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Preview Routes
+   *
+   * Where the latest messages of an email account would go under these routing rules, before saving them.
+   */
+  public static previewRoutes<ThrowOnError extends boolean = false>(
+    options: Options<PreviewRoutesData, ThrowOnError>,
+  ): RequestResult<PreviewRoutesResponses, PreviewRoutesErrors, ThrowOnError> {
+    return (options.client ?? client).post<PreviewRoutesResponses, PreviewRoutesErrors, ThrowOnError>({
+      url: "/api/v1/watches/routes/preview",
       ...options,
       headers: {
         "Content-Type": "application/json",

@@ -95,3 +95,18 @@ def test_password_reset(client, db, caplog):
     assert client.post("/api/v1/auth/password/reset", json={"token": raw, "password": "a new password 1"}).status_code == 200
     assert client.post("/api/v1/auth/password/reset", json={"token": raw, "password": "a new password 2"}).status_code == 400  # once
     login(client, "ada@x.io", "a new password 1")
+
+
+def test_welcome_tour_opens_until_finished(client, db):
+    make_user(db, "ada@x.io", "admin password 1", admin=True)
+    h = login(client, "ada@x.io", "admin password 1")
+    assert client.get("/api/v1/auth/me", headers=h).json()["toured_at"] is None
+    done = client.post("/api/v1/auth/me/tour", headers=h)
+    assert done.status_code == 200, done.text
+    first = done.json()["toured_at"]
+    assert first and client.get("/api/v1/auth/me", headers=h).json()["toured_at"] == first
+    db.q("UPDATE account SET toured_at = '2000-01-01T00:00:00+00:00'")
+    assert client.post("/api/v1/auth/me/tour", headers=h).json()["toured_at"] == "2000-01-01T00:00:00+00:00"  # first time kept
+
+    tok = client.post("/api/v1/tokens", json={"name": "ci", "scope": "read"}, headers=h).json()
+    assert client.post("/api/v1/auth/me/tour", headers={"Authorization": f"Bearer {tok['token']}"}).status_code == 403

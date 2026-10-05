@@ -1,3 +1,3 @@
-"""lens-archive: a local-first archive for recorded speech."""
+"""Lens: usable context for you and your agents, kept on your own hardware."""
 
 __version__ = "0.3.0"

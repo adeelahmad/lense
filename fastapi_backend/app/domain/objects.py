@@ -20,7 +20,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from . import faces, jobs, store
+from . import faces, jobs, keyring, store
 
 R = store.R
 MODELS = pathlib.Path("/opt/lens/models")  # where the lens:full image keeps its models
@@ -237,8 +237,8 @@ def step_objects(db, cfg, rid, say):
         raise jobs.Skip(why)
     d, dets = video.frames_dir(cfg, rid), []
     for t, name in frames:
-        for o in found.detect(d / name):
-            dets.append({"t": t, "frame": name, **o})
+        with keyring.plain_picture(db, cfg, d / name) as pic:
+            dets += [{"t": t, "frame": name, **o} for o in found.detect(pic)]
     kept = tracks(dets, step, paged)
     rows = [store.clean({"recording": rid, "space": rec["space"], **k, "paged": paged or None, "engine": found.name}) for k in kept]
     db.run(

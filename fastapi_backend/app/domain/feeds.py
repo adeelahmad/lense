@@ -24,6 +24,7 @@ import base64
 import contextlib
 import datetime as dt
 import email
+import email.utils
 import imaplib
 import re
 import ssl
@@ -51,6 +52,8 @@ SECURITY = ("ssl", "starttls", "none")
 # not taken when a whole account is watched: what can't be opened, the bin, junk and drafts, and the mailboxes that
 # only show messages kept elsewhere (Gmail's All Mail, Starred and Important)
 SKIP_MAILBOXES = {"\\noselect", "\\nonexistent", "\\trash", "\\junk", "\\drafts", "\\all", "\\flagged", "\\important"}
+# read with each message's listing (headers only): enough to name it, place it, and route it
+HEADERS = ("SUBJECT", "DATE", "MESSAGE-ID", "FROM", "TO", "CC", "DELIVERED-TO", "X-ORIGINAL-TO", "LIST-ID")
 MAX_CALENDAR = 50 * 1024 * 1024
 FEED_SECONDS = 60  # a calendar fetched for a listing is reused this long (a scan reads each of its events)
 _FEEDS: dict = {}
@@ -191,7 +194,7 @@ def _messages(conn, mailbox, base, after=None):
     if not count:
         return []
     last = int(after["uid"]) if after and int(after.get("validity") or -1) == validity else 0
-    typ, data = conn.uid("FETCH", f"{last + 1}:*", "(UID RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (SUBJECT DATE MESSAGE-ID)])")
+    typ, data = conn.uid("FETCH", f"{last + 1}:*", f"(UID RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS ({' '.join(HEADERS)})])")
     data = _ok(typ, data, f"reading {mailbox}")
     out, i = [], 0
     while i < len(data):
@@ -231,9 +234,38 @@ def _messages(conn, mailbox, base, after=None):
                 sent or arrived,
                 key=f"message-id:{msgid}" if msgid else None,
                 cursor={"mailbox": mailbox, "validity": validity, "uid": int(uid.group(1))},
+                mail=_addressing(h, subject, mailbox),
             )
         )
     return sorted(out, key=lambda e: e["modified"] or "", reverse=True)
+
+
+def _addresses(h, *names):
+    """The addresses in these headers, lowercased, each once (Delivered-To and the like are read as plain text)."""
+    out = []
+    for n in names:
+        try:
+            values = [str(v) for v in h.get_all(n) or []]
+        except (TypeError, ValueError):  # a header too broken to read gives no addresses
+            continue
+        out += [a.strip().lower() for _, a in email.utils.getaddresses(values) if "@" in a]
+    return list(dict.fromkeys(out))
+
+
+def _addressing(h, subject, mailbox):
+    """What routing rules (mail_routes.py) look at: who sent it, who it was for (To, Cc, and the address a shared
+    inbox received it at), its subject, mailing list and mailbox."""
+    try:
+        listed = str(h.get("list-id") or "").strip()
+    except (ValueError, TypeError):
+        listed = ""
+    return {
+        "from": _addresses(h, "from"),
+        "to": _addresses(h, "to", "cc", "delivered-to", "x-original-to"),
+        "subject": subject,
+        "list": listed,
+        "mailbox": mailbox,
+    }
 
 
 MESSAGE_RX = re.compile(r"^(?P<mailbox>.+)/(?P<validity>\d+)-(?P<uid>\d+)\.eml$")

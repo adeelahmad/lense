@@ -371,6 +371,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "encryption":
+      return <EncryptionBody ctx={ctx} />;
     case "storage":
       return <StorageBody ctx={ctx} />;
     case "telemetry":
@@ -566,6 +568,53 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ))}
       {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const progress = useQuery({
+    queryKey: ["encryption-progress", ctx.view.encryption?.updated_at ?? null],
+    queryFn: () => data(Admin.getEncryption({ client })),
+    refetchInterval: (q) => (q.state.data?.running ? 2000 : false),
+  });
+  const p = progress.data;
+  const on = Boolean(ctx.view.encryption?.values.files);
+  return (
+    <>
+      {p?.running ? (
+        <Banner title={p.to === "plain" ? "Turning files back to plain…" : "Encrypting the files already kept…"}>
+          {p.changed} done so far. Lens keeps working meanwhile, and files that arrive now are already stored the new
+          way.
+        </Banner>
+      ) : p?.error ? (
+        <Banner tone="error" title={`Converting stopped after ${p.changed} file(s).`}>
+          {p.error}. The rest are as they were; change the setting again, or run lens encrypt, to finish.
+        </Banner>
+      ) : p?.to ? (
+        <Banner
+          tone={p.skipped ? "warning" : "success"}
+          title={`${p.changed} file(s) ${p.to === "plain" ? "turned back to plain" : "encrypted"}.`}
+        >
+          {p.skipped
+            ? `${p.skipped} skipped: a vault nobody has unlocked, or a damaged file. They’re converted the next time this changes, or with lens encrypt.`
+            : "Every file Lens keeps is stored the new way."}
+        </Banner>
+      ) : (
+        <Banner title={on ? "Files are encrypted on disk." : "Files are kept as they are."}>
+          Encrypted files still play, seek, download and are processed as before. Transcripts, search and the rest of
+          the database aren’t covered; put the data volume on an encrypted disk for those.
+        </Banner>
+      )}
+      <F ctx={ctx} id="encryption.files" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="encryption.work_minutes" />
+        <F ctx={ctx} id="encryption.vault_minutes" />
+      </div>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Vaults are set on each namespace’s page: only their owners’ passkeys open them.
+      </p>
     </>
   );
 }
@@ -1252,6 +1301,8 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
   const secret = (e.api_key ?? {}) as { set?: boolean };
   const key = ctx.state("embeddings.api_key");
   const on = Boolean(ctx.form["embeddings.enabled"]);
+  const search = ctx.view.search;
+  const osPassword = ctx.state("search.opensearch_password");
   const status = useQuery({
     queryKey: ["semantic-status"],
     queryFn: () => data(Admin.semanticStatus({ client })),
@@ -1265,6 +1316,25 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
   const s = status.data;
   return (
     <>
+      <F ctx={ctx} id="search.engine" />
+      {ctx.form["search.engine"] === "opensearch" && (
+        <>
+          <F ctx={ctx} id="search.opensearch_url" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="search.opensearch_user" />
+            <SecretSetting
+              key={search?.updated_at ?? "none"}
+              label="Password"
+              isSet={Boolean(((search?.values?.opensearch_password ?? {}) as { set?: boolean }).set)}
+              updatedBy={search?.updated_by}
+              updatedAt={search?.updated_at}
+              value={osPassword.value as string | undefined}
+              onChange={(x) => osPassword.onChange(x)}
+            />
+          </div>
+          <F ctx={ctx} id="search.opensearch_verify" />
+        </>
+      )}
       <F ctx={ctx} id="search.stemming" />
       <Reindex />
       <h3 className="m-0 mt-3 text-[15px] font-bold text-fg">Search by meaning</h3>
@@ -1377,7 +1447,7 @@ function Reindex() {
         Search keeps using the old index until this finishes.{" "}
         {run.isSuccess
           ? "Progress isn’t reported yet; searches pick up the new index when it’s done."
-          : "Run it after changing stemming."}
+          : "Run it after changing word search or stemming."}
       </span>
       {run.isError && <span className="text-[12px] text-red-dark">{run.error.message}</span>}
     </div>

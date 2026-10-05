@@ -47,12 +47,24 @@ class Archive:
     def current(self) -> dict[str, Any]:
         return self.settings.current()
 
+    def _index_text(self) -> None:
+        index = self.db.textindex
+        if index is None:
+            return
+        try:
+            index.sync()
+        except Exception:  # noqa: BLE001 - the first search tries again
+            log.warning("couldn't bring the full-text index up to date", exc_info=True)
+
     def prepare(self) -> None:
         templates.seed(self.db)
         content_types.seed(self.db)
         routines.seed(self.db)
-        # Pay for the embedded engine's full-text repair at startup rather than in someone's first search.
+        # Pay for the embedded engine's full-text repair, or for building the SQLite index, at startup rather than
+        # in someone's first search.
         self.db.ready_fulltext()
+        if getattr(self.db, "textindex", None) is not None:
+            threading.Thread(target=self._index_text, name="textindex", daemon=True).start()
         if auth.account_count(self.db) == 0:
             setup.mark_fresh(self.db, self.base)  # a fresh install: the web app walks the first admin through setup
         setup.apply_env(self.db)

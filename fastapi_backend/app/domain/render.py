@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from . import analyze, graph as graphmod, speakers as spk, store, transcript
+from . import analyze, graph as graphmod, keyring, speakers as spk, store, transcript
 
 HERE = pathlib.Path(__file__).parent
 WEB_DIR = HERE / "web"
@@ -343,8 +343,6 @@ def report_recording(db, cfg, rid, out_dir, audio_mode="link"):
     path = has_audio(db, cfg, rid)
     if path:
         d["audio_api"] = f"{store.API}/recordings/{rid}/audio"
-        from . import keyring
-
         encrypted = keyring.is_encrypted(path)
         if audio_mode == "link" and not encrypted:  # an encrypted file plays only through the API
             d["audio_local"] = urllib.parse.quote(os.path.relpath(path, out.parent).replace(os.sep, "/"))
@@ -356,8 +354,8 @@ def report_recording(db, cfg, rid, out_dir, audio_mode="link"):
     page = ENV.get_template("report_recording.html").render(
         d=d, data=json_script(d), stats=recording_stats(db, rid), cloud=cloud, generated=store.now(), **_assets()
     )
-    out.write_text(page, encoding="utf-8")
-    return out
+    space = (db.one("SELECT space FROM $r", r=store.R("recording", rid)) or {}).get("space")
+    return keyring.keep(db, cfg, space, out, page)
 
 
 def report_namespace(db, cfg, nid, out_dir, links):
@@ -402,9 +400,7 @@ def report_namespace(db, cfg, nid, out_dir, links):
         graph_n=len(g["nodes"]),
         generated=store.now(),
     )
-    out = pathlib.Path(out_dir) / "index.html"
-    out.write_text(page, encoding="utf-8")
-    return out
+    return keyring.keep(db, cfg, nid, pathlib.Path(out_dir) / "index.html", page)
 
 
 def _links(out_dir, links=None):

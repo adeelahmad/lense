@@ -162,7 +162,14 @@ DEFAULTS = {
         "describe_max": 50,  # pages or shots of a resource described at most
     },
     "graph": {"max_nodes": 150, "min_edge_weight": 2},
-    "search": {"stemming": "english"},
+    "search": {
+        "stemming": "english",
+        "engine": "sqlite",
+        "opensearch_url": "",
+        "opensearch_user": "",
+        "opensearch_password": None,
+        "opensearch_verify": True,
+    },
     # search by meaning (app/domain/semantic.py): an OpenAI-compatible embeddings server (null: the LLM provider's),
     # the model, how long passages are, and how alike a passage must be to a query (null: what suits the model)
     "embeddings": {
@@ -317,8 +324,9 @@ DEFAULTS = {
         "users": [],
         "poll_seconds": 2,
     },
-    # what Lens fetches for itself (components.py): auto fetches what the settings need; also names optional ones
-    "components": {"auto": True, "also": []},
+    # what Lens fetches for itself (components.py): auto fetches what the settings need, on first use unless ahead;
+    # also names optional ones (fetched straight away)
+    "components": {"auto": True, "ahead": False, "also": []},
     # routine decisions the assistant takes instead of asking (decide.py): engine auto uses the decision model when it
     # has a key, else the language model. act_above: the confidence it acts on; below it, it asks. Engine laya runs a
     # Laya model (laya_model) on this Mac, or asks a Laya server (laya_url, `lens decide-server`).
@@ -479,6 +487,8 @@ def load_config(path=None, overrides=None):
         cfg["documents"]["web_networks"] = [*(cfg["documents"].get("web_networks") or []), *extra.replace(",", " ").split()]
     if cfg["search"]["stemming"] not in ("english", "none"):
         raise SystemExit("search.stemming must be english or none")
+    if cfg["search"]["engine"] not in SEARCH_ENGINES:
+        raise SystemExit(f"search.engine must be one of {', '.join(SEARCH_ENGINES)}")
     cfg["_path"] = str(p)
     return cfg
 
@@ -565,6 +575,7 @@ class DB:
         self._target = (os.environ.get("SURREAL_NS") or d["namespace"], os.environ.get("SURREAL_DB") or d["database"])
         size = 1 if self.embedded else max(1, int(pool_size or os.environ.get("SURREAL_POOL_SIZE") or d.get("pool_size") or 8))
         self.fulltext = None  # FULLTEXT (3.x), SEARCH (2.x) or None; set by connect()
+        self.textindex = None  # the SQLite full-text index (textindex.py) when search.engine is sqlite
         self._text_ready, self._text_lock = not self.embedded, threading.Lock()
         self._pool: queue.LifoQueue = queue.LifoQueue()
         self._all = []
@@ -751,6 +762,8 @@ class DB:
         return True
 
     def close(self):
+        if self.textindex is not None:
+            self.textindex.close()
         for c in self._all:
             try:
                 c.close()
@@ -1013,6 +1026,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS chat_account ON chat FIELDS account",
     "DEFINE TABLE IF NOT EXISTS chat_message SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS chat_message_chat ON chat_message FIELDS chat",
+    # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
+    "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
@@ -1129,6 +1145,9 @@ TEXT_INDEXES = (
 )
 
 
+SEARCH_ENGINES = ("sqlite", "surrealdb", "opensearch")
+
+
 def _text_index(db):
     # SurrealDB 3 spells full-text indexes FULLTEXT; 2.x (and the embedded engine) spell them SEARCH.
     found = None
@@ -1142,13 +1161,51 @@ def _text_index(db):
     return found
 
 
+def search_settings(db, cfg):
+    """search.*, with what was saved in the app over archive.yaml: the engine has to be known before the settings are."""
+    from . import settings
+
+    return settings.effective(db, cfg)["search"]
+
+
+def _search_engine(db, cfg, rebuild=False):
+    """Set up word search for search.engine: the words in a SQLite file or an OpenSearch cluster, kept in step by
+    events (textindex.py), or SurrealDB's own index. SurrealDB's is taken down when it isn't used, so its memory and
+    disk are given back."""
+    from . import textindex
+
+    search = search_settings(db, cfg)
+    old = getattr(db, "textindex", None)
+    if old is not None:
+        old.close()
+        db.textindex = None
+    index = textindex.open_index(db, {**cfg, "search": search})
+    if index is None:
+        db.run(
+            [f"REMOVE EVENT IF EXISTS {table}_textindex ON {table}" for _, table in TEXT_INDEXES] + ["DELETE text_change"],
+            transaction=False,
+        )
+        db.fulltext = _text_index(db)
+        return
+    db.run(
+        [f"REMOVE INDEX IF EXISTS {name} ON {table}" for name, table in TEXT_INDEXES]
+        + ["DEFINE TABLE IF NOT EXISTS text_change SCHEMALESS"]
+        + [textindex.event(table) for _, table in TEXT_INDEXES],
+        transaction=False,
+    )
+    db.fulltext = None
+    db.textindex = index
+    if rebuild:
+        db.textindex.rebuild()
+
+
 def connect(cfg, upgrade=True):
     """Open the database, apply the schema and, unless upgrade=False (for `lens migrations`), bring its data up to
     date (domain/migrations.py)."""
     db = DB(cfg)
     # one round trip, not one per statement: against a server that was over a second for every test's database
     db.run([_analyzer(cfg), *SCHEMA], transaction=False)
-    db.fulltext = _text_index(db)
+    _search_engine(db, cfg)
     for name, spec in cfg["namespaces"].items():
         sid = ns_id(db, name)
         db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
@@ -1165,15 +1222,20 @@ def migrate(db):
 
 
 def reindex(db, cfg):
-    """Rebuild the full-text index, e.g. after changing search.stemming."""
-    for s in [f"REMOVE INDEX IF EXISTS {index} ON {table}" for index, table in TEXT_INDEXES] + ["REMOVE ANALYZER IF EXISTS archive_text"]:
-        try:
-            db.q(s)
-        except Exception:  # noqa: BLE001
-            pass
-    db.q(_analyzer(cfg))
-    db.fulltext = _text_index(db)
-    db._text_ready = True  # just built from the current data
+    """Rebuild the full-text index for the search settings saved now (search.engine and search.stemming)."""
+    if search_settings(db, cfg)["engine"] == "surrealdb":
+        for s in [f"REMOVE INDEX IF EXISTS {index} ON {table}" for index, table in TEXT_INDEXES] + [
+            "REMOVE ANALYZER IF EXISTS archive_text"
+        ]:
+            try:
+                db.q(s)
+            except Exception:  # noqa: BLE001
+                pass
+        db.q(_analyzer({**cfg, "search": search_settings(db, cfg)}))
+        _search_engine(db, cfg)
+        db._text_ready = True  # just built from the current data
+    else:
+        _search_engine(db, cfg, rebuild=True)
 
 
 def ns_id(db, name, create=True):

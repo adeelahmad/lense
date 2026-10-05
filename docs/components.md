@@ -4,7 +4,9 @@ Lens fetches the engines and models it needs. After the install line and a model
 nothing to install by hand.
 
 Each worker looks after its own machine. It compares what the settings ask for with what's installed, and fetches
-what's missing in the background, one thing at a time:
+what's missing in the background, one thing at a time. Engines and models for job steps are fetched **on first use**:
+the first time a recording is waiting for the step that needs them. Until then they show as *On first use*, and an
+archive that only uses cloud models never downloads them, which keeps a small machine (a Raspberry Pi) small.
 
 | Component | Fetched when | What |
 |---|---|---|
@@ -33,6 +35,7 @@ LibreOffice (web pages, text, emails, Office files) are in the full image, which
 | Setting | Default | |
 |---|---|---|
 | `components.auto` | `true` | fetch what's needed without asking; off, the workers only report what's missing |
+| `components.ahead` | `false` | fetch everything the settings could need straight away, instead of on first use |
 | `components.also` | `[]` | optional components to fetch too, e.g. `["msg"]` |
 
 **Settings → Components** shows each worker's machine (processors, memory, GPU, free disk), each component and where

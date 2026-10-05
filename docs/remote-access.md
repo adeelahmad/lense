@@ -52,4 +52,4 @@ cloudflared reaches the web app at, in order: the **web app address** in Setting
 ## Other ways to reach Lens
 
 A reverse proxy you already run (Caddy, Traefik, nginx), Tailscale or WireGuard all work as well: add the address to
-Settings › Access › Allowed hosts, and its network to Trusted proxies if it sets `X-Forwarded-For`.
+Settings › Access & embedding › Allowed hosts, and its network to Trusted proxies if it sets `X-Forwarded-For`.

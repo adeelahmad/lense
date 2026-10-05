@@ -2,7 +2,7 @@
 
 The API lives under `/api/v1`. Interactive docs with every request and response schema are at `/docs` (Swagger UI) and `/redoc` on the backend; the schema at `/openapi.json` generates the frontend's typed client (one class per tag, e.g. `Recordings.getRecording`).
 
-Authenticate with `Authorization: Bearer <token>`: an access token from `POST /api/v1/auth/login`, an API token (`la_…`), or the access token of an app someone gave access to through OAuth (`lo_…`). See [Authentication](authentication.md). Errors are JSON `{"detail": …}`; validation errors answer 422. Namespaces you can't read answer 404.
+Authenticate with `Authorization: Bearer <token>`: an API token (`la_…`, made in the app or with `POST /tokens`), the access token of an app someone gave access to through OAuth (`lo_…`), or a session's access token. People sign in with a passkey (`POST /auth/passkey` answers a one-time ticket, which `POST /auth/ticket` swaps for a token pair); password sign-in (`POST /auth/login`) is off unless an admin turns on `auth.passwords`. See [Authentication](authentication.md). Errors are JSON `{"detail": …}`; validation errors answer 422. Namespaces you can't read answer 404.
 
 Outside `/api/v1`: IIIF resources under `/iiif/…` ([IIIF](iiif.md)), the embeddable player at `/embed/<id>` (and at a share link's short address, `/s/<code>`) and stored reports at `/reports/<namespace>/…`.
 
@@ -16,13 +16,45 @@ POST   /api/v1/auth/refresh
 POST   /api/v1/auth/logout
 GET    /api/v1/auth/me
 PATCH  /api/v1/auth/me
+POST   /api/v1/auth/me/tour
 POST   /api/v1/auth/password
 POST   /api/v1/auth/password/forgot
 POST   /api/v1/auth/password/reset
+POST   /api/v1/auth/passkey/setup/options
+POST   /api/v1/auth/passkey/setup
+POST   /api/v1/auth/setup/no-passkey
+POST   /api/v1/auth/passkey/options
+POST   /api/v1/auth/passkey
+POST   /api/v1/auth/ticket
+GET    /api/v1/auth/passkeys
+POST   /api/v1/auth/passkeys/options
+POST   /api/v1/auth/passkeys
+PATCH  /api/v1/auth/passkeys/{pid}
+DELETE /api/v1/auth/passkeys/{pid}
+POST   /api/v1/auth/signin-link/info
+POST   /api/v1/auth/signin-link/options
+POST   /api/v1/auth/signin-link
+POST   /api/v1/auth/signin-link/use
+POST   /api/v1/auth/signin-link/lost
+GET    /api/v1/auth/external
+POST   /api/v1/auth/external/{key}/start
+POST   /api/v1/auth/external/{key}/connect
+GET    /api/v1/auth/identities
+DELETE /api/v1/auth/identities/{iid}
+GET    /api/v1/auth/providers
+POST   /api/v1/auth/providers
+PATCH  /api/v1/auth/providers/{key}
+DELETE /api/v1/auth/providers/{key}
 ```
 
 `GET /auth/me` gives your account, your `roles` (namespace → role) and `partial`: the namespaces you have no role in
-but see some collections of ([Access](access.md#collection-roles)).
+but see some collections of ([Access](access.md#collection-roles)), and `toured_at`, when you finished or skipped the
+welcome tour (`POST /auth/me/tour` sets it; repeating it keeps the first time).
+
+Passkey sign-in, sign-in links (emailed by an admin, or by `signin-link/lost` for a lost passkey) and outside accounts
+(`/auth/external`, configured by admins under `/auth/providers`) all answer a one-time ticket; `POST /auth/ticket`
+swaps it for a token pair. `/auth/passkeys` manages your own passkeys and `/auth/identities` your linked outside
+accounts. See [Authentication](authentication.md#signing-in-passkeys).
 
 ## tokens
 
@@ -97,6 +129,18 @@ GET    /api/v1/settings
 PUT    /api/v1/settings/{section}
 POST   /api/v1/settings/llm/test
 POST   /api/v1/settings/embeddings/test
+POST   /api/v1/settings/mail/test
+POST   /api/v1/settings/files/test
+POST   /api/v1/settings/speech/test
+GET    /api/v1/settings/decisions/status
+POST   /api/v1/settings/decisions/test
+GET    /api/v1/settings/telemetry/status
+POST   /api/v1/settings/telemetry/test
+GET    /api/v1/settings/bridge
+POST   /api/v1/settings/bridge/test
+GET    /api/v1/settings/tunnel/status
+GET    /api/v1/settings/local-llm/status
+DELETE /api/v1/settings/local-llm/models
 GET    /api/v1/audit
 GET    /api/v1/admin/health
 POST   /api/v1/admin/reindex
@@ -107,7 +151,88 @@ POST   /api/v1/admin/semantic/index
 `POST /settings/embeddings/test` embeds one sentence with the configured embedding model (`dimension`, `ms`, or the
 `error`). `GET /admin/semantic` says whether search by meaning is set up, with which model, and how many recordings
 and passages are indexed with it; `POST /admin/semantic/index?limit=500` queues the embed step for recordings not yet
-indexed with it (`remaining` when more are waiting).
+indexed with it (`remaining` when more are waiting). The other `test` endpoints try the saved settings of their
+section (mail, file store, speech provider, decision model, telemetry, bridge) and answer what happened or the
+`error`; the `status` endpoints say how that part is doing. All are for admins.
+
+## activity
+
+```
+GET    /api/v1/activity
+GET    /api/v1/activity/totals
+GET    /api/v1/activity/costs
+GET    /api/v1/activity/top
+```
+
+`GET /activity?resource=<table>:<id>` is a resource's history, newest first ([Activity and costs](activity.md)).
+`/activity/totals` is what one resource (or, for admins, everything) cost this `period` (`day`, `week`, `month`,
+`all`). `GET /activity/costs?resource=…&resource=…` (up to 500) answers each resource's cost at once for lists,
+leaving out the ones you can't see; `estimate` marks a figure as a floor. `/activity/top` lists the costliest
+resources (admins).
+
+## vaults
+
+```
+GET    /api/v1/namespaces/{name}/vault
+POST   /api/v1/namespaces/{name}/vault/options
+POST   /api/v1/namespaces/{name}/vault
+POST   /api/v1/namespaces/{name}/vault/unlock
+POST   /api/v1/namespaces/{name}/vault/lock
+POST   /api/v1/namespaces/{name}/vault/passkeys
+DELETE /api/v1/namespaces/{name}/vault/passkeys/{pid}
+DELETE /api/v1/namespaces/{name}/vault
+```
+
+A vault is a namespace whose files only its owners' passkeys open. `options` starts the passkey prompt for sealing,
+unlocking or adding a passkey; `POST …/vault` seals the namespace, `unlock` opens it for `encryption.vault_minutes`,
+`lock` closes it now, and `DELETE …/vault` (while open) makes it an ordinary namespace again. Each is audited as
+`vault.<action>`. See [Encryption at rest](encryption.md#vaults).
+
+## content types and custom nodes
+
+```
+GET    /api/v1/content-types
+POST   /api/v1/content-types
+PATCH  /api/v1/content-types/{key}
+DELETE /api/v1/content-types/{key}
+GET    /api/v1/recordings/{rid}/content-type
+PUT    /api/v1/recordings/{rid}/content-type
+GET    /api/v1/custom-nodes
+POST   /api/v1/custom-nodes
+GET    /api/v1/custom-nodes/{nid}
+POST   /api/v1/custom-nodes/{nid}/versions
+PATCH  /api/v1/custom-nodes/{nid}
+DELETE /api/v1/custom-nodes/{nid}
+```
+
+Content types (admins change them; everyone reads them) say what kind of thing a recording is, and a recording's
+`content-type` sets it. Custom nodes are versioned steps people write for workflows (`?scope=` filters the list,
+`?version=` reads an older one).
+
+## routines
+
+```
+GET    /api/v1/routines
+GET    /api/v1/routines/schedule
+POST   /api/v1/routines
+GET    /api/v1/routines/{rid}
+PATCH  /api/v1/routines/{rid}
+DELETE /api/v1/routines/{rid}
+POST   /api/v1/routines/{rid}/run
+GET    /api/v1/routines/{rid}/runs
+POST   /api/v1/routines/runs/{run_id}/decide
+GET    /api/v1/routine-runs/{run_id}
+POST   /api/v1/routine-runs/{run_id}/undo
+GET    /api/v1/graph-changes
+POST   /api/v1/graph-changes/{cid}/accept
+POST   /api/v1/graph-changes/{cid}/dismiss
+POST   /api/v1/graph-changes/{cid}/undo
+```
+
+Routines are for admins. `GET /routines/schedule?schedule=&timezone=` previews when a schedule would next run; `run`
+starts one now and `runs` lists its last runs. A run held over a budget is run or skipped with `decide`, and `undo`
+takes back every graph change a run made. `GET /graph-changes` lists the changes to the entities of namespaces you can
+read, newest first; editors `accept`, `dismiss` or `undo` one ([Graph history](graph-history.md)).
 
 ## namespaces
 
@@ -427,6 +552,30 @@ recording first, then by moment, each with its writer (`created_by`, `created_by
 or an owner of the namespace for a shared one, deletes it. Sharing, unsharing and deleting a shared note are audited
 (`note.share`, `note.unshare`, `note.delete`, on the recording). Notes move with their recording and go when it's
 deleted.
+
+## notebook
+
+```
+GET    /api/v1/notes
+POST   /api/v1/notes
+GET    /api/v1/notes/{pid}
+PATCH  /api/v1/notes/{pid}
+DELETE /api/v1/notes/{pid}
+POST   /api/v1/notes/{pid}/move
+GET    /api/v1/notes/{pid}/history
+GET    /api/v1/notes/{pid}/history/{vid}
+POST   /api/v1/notes/{pid}/history/{vid}/restore
+GET    /api/v1/notes/{pid}/files
+PUT    /api/v1/notes/{pid}/blobs
+GET    /api/v1/notes/{pid}/blobs
+DELETE /api/v1/notes/{pid}/files
+```
+
+Note pages ([Notes](notes.md)), apart from the notes on a recording above. `GET /notes?ns=` is a namespace's page tree
+(`all=true` adds the pages of things). `move` puts a free note inside `parent` before `before`, `history` lists what the
+page was before each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
+lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
+removes one.
 
 ## comments
 
