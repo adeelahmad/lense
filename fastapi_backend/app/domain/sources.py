@@ -158,12 +158,14 @@ def run(db, cfg, src, argv, timeout=300):
         shutil.rmtree(d, ignore_errors=True)
 
 
-def stream(db, cfg, sid, path, offset=0, count=None):
+def stream(db, cfg, sid, path, offset=0, count=None, space=None):
     """Bytes of a remote file, for playback with Range requests."""
     src = get(db, sid)
     p = check_path(cfg, src, path)
     if feeds.handles(src):
-        data = cached_copy(db, cfg, sid, p).read_bytes()
+        from . import keyring
+
+        data = keyring.read_plain(db, cfg, cached_copy(db, cfg, sid, p, space))
         return iter([data[offset : None if count is None else offset + count]])
     name, d, conf = _private_conf(cfg, src)
     cmd = [_bin(cfg), "--config", conf, "cat", f"{name}:{p}", "--offset", str(offset)] + (
@@ -255,25 +257,44 @@ def test(db, cfg, sid):
     return health
 
 
-def cache_file(cfg, sid, path):
+def cache_file(cfg, sid, path, space=None):
+    """Where the cached copy of a source's file goes: one per namespace it's kept for (`space`), since each is
+    encrypted with its own namespace's key."""
     base = pathlib.Path(cfg["sources"].get("cache_dir") or pathlib.Path(cfg["data_dir"]) / "cache" / "remote")
-    return base / (hashlib.sha1(f"{sid}:{path}".encode()).hexdigest() + pathlib.PurePosixPath(path).suffix.lower())
+    key = f"{sid}:{path}" + ("" if space is None else f":{int(space)}")
+    return base / (hashlib.sha1(key.encode()).hexdigest() + pathlib.PurePosixPath(path).suffix.lower())
 
 
-def cached_copy(db, cfg, sid, path):
+def cached_copy(db, cfg, sid, path, space=None):
+    """A local copy of a source's file: the file itself for a folder on this machine, else one kept in the cache. Kept
+    for namespace `space`, it's encrypted with that namespace's key when encryption at rest is on (or it's a vault)
+    and the cache is under the data folder: read it with keyring.open_plain or keyring.working_copy."""
+    from . import keyring
+
     src = get(db, sid)
     p = check_path(cfg, src, path)
     if src["type"] == "local":
         return pathlib.Path(p)
-    dest = cache_file(cfg, sid, p)
+    dest = cache_file(cfg, sid, p, space)
     if not dest.exists() or (feeds.handles(src) and not feeds.immutable(src)):  # a calendar's event may have changed
+        encrypt = space is not None and keyring.wanted(db, cfg, space, dest)
+        if encrypt:
+            keyring.data_key(db, cfg, space)  # a locked vault: Locked now, before anything is fetched
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_name(dest.name + ".part")
-        if feeds.handles(src):
-            tmp.write_bytes(feeds.fetch(cfg, src, p))
-        else:
-            run(db, cfg, src, lambda n: ["copyto", f"{n}:{p}", str(tmp)], timeout=6 * 3600)
-        tmp.replace(dest)
+        try:
+            if feeds.handles(src):
+                tmp.write_bytes(feeds.fetch(cfg, src, p))
+            else:
+                run(db, cfg, src, lambda n: ["copyto", f"{n}:{p}", str(tmp)], timeout=6 * 3600)
+            if encrypt:
+                st = os.stat(tmp)
+                keyring.encrypt_file(db, cfg, space, tmp, force=True)
+                os.utime(tmp, (st.st_atime, st.st_mtime))  # the remote file's time, which imports go by
+            tmp.replace(dest)
+        except BaseException:
+            tmp.unlink(missing_ok=True)  # never a plain copy left behind
+            raise
     return dest
 
 
@@ -443,10 +464,12 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     title, shown = f.get("title") or pathlib.PurePosixPath(f["path"]).stem, f"{src['name']}:{f['path']}"
     if kind == "transcript":
         ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
-        local = cached_copy(db, cfg, src["id"], f["path"])
-        if feeds.handles(src) and not feeds.immutable(src):
-            _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
-        rid = ingest.import_transcript(db, cfg, ns, local, title=title, log=lambda *a: None, collection=collection)
+        from . import keyring
+
+        with keyring.plain_path(db, cfg, cached_copy(db, cfg, src["id"], f["path"], space)) as local:
+            if feeds.handles(src) and not feeds.immutable(src):
+                _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
+            rid = ingest.import_transcript(db, cfg, ns, local, title=title, log=lambda *a: None, collection=collection)
         db.q(
             "UPDATE $r MERGE $d",
             r=R("recording", rid),

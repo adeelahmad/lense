@@ -7,6 +7,8 @@ import os
 import pathlib
 import time
 
+import pytest
+
 from app.domain import ingest, keyring, settings, setup, store
 from tests.helpers import login, make_user, text_pdf, write_wav
 
@@ -160,3 +162,45 @@ def test_reports_exports_and_renditions_are_kept_encrypted(client, db, cfg, fold
     assert not any(keyring.is_encrypted(p) for _, p in keyring.made_files(db, eff))
     assert keyring.encrypt_all(db, eff, log=lambda *_: None) >= len(written) + 1
     assert all(keyring.is_encrypted(p) for _, p in keyring.made_files(db, eff))
+
+
+def test_files_cached_from_a_storage_source_are_kept_encrypted(client, db, cfg, folder, monkeypatch):
+    from app.domain import sources
+
+    eff = settings.effective(db, cfg)
+    wav = folder / "remote.wav"
+    write_wav(wav, seconds=1.0)
+    monkeypatch.setattr(sources, "get", lambda db, sid: {"id": sid, "type": "s3", "name": "bucket"})
+
+    def fetch(db, cfg, src, args, timeout=None):
+        dest = args("remote")[-1]
+        pathlib.Path(dest).write_bytes(wav.read_bytes())
+
+    monkeypatch.setattr(sources, "run", fetch)
+    sid = store.ns_id(db, "pods")
+    db.q(
+        "CREATE recording:77 CONTENT $d",
+        d={"space": sid, "source": "audio", "remote": {"source": 5, "path": "calls/remote.wav"}, "path": "bucket:calls/remote.wav"},
+    )
+    rec = db.one("SELECT * FROM recording:77")
+    work = ingest.audio_path(db, eff, rec)
+    cached = sources.cache_file(eff, 5, "calls/remote.wav", sid)
+    assert keyring.is_encrypted(cached) and pathlib.Path(work).read_bytes() == wav.read_bytes()
+    assert (sid, str(cached)) in list(keyring.made_files(db, eff))
+    he = _editor(client, db)
+    r = client.get("/api/v1/recordings/77/audio", headers={**he, "Range": "bytes=0-9"})
+    assert r.status_code == 206 and r.content == wav.read_bytes()[:10]
+
+    # each namespace keeps its own copy, under its own key
+    other = store.ns_id(db, "other")
+    assert sources.cache_file(eff, 5, "calls/remote.wav", other) != cached
+
+    # a locked vault fetches nothing, and leaves nothing plain behind
+    def locked(*a, **k):
+        raise keyring.Locked("locked")
+
+    monkeypatch.setattr(keyring, "data_key", locked)
+    with pytest.raises(keyring.Locked):
+        sources.cached_copy(db, eff, 5, "calls/other.wav", sid)
+    assert not sources.cache_file(eff, 5, "calls/other.wav", sid).exists()
+    assert not list(cached.parent.glob("*.part"))

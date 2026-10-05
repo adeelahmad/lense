@@ -30,6 +30,9 @@ What is encrypted:
   faces, objects, descriptions) get plain working copies like the tools above. An export sent to a storage connection
   you chose arrives there plain, as you'd open it; its copy in the data folder is encrypted. Reports written elsewhere
   (`lens report` with a folder of your own) stay plain.
+* With `encryption.files` on, the copies Lens keeps of files on storage sources (S3, Drive, a mailbox, ...) to play
+  and read them, too, when the cache is under the data folder (`sources.cache_dir` unset), with the key of the
+  recording's namespace.
 
 How encrypted files are used:
 
@@ -40,8 +43,8 @@ How encrypted files are used:
   (30 by default).
 * Fingerprints and sizes are those of the plain file, so the same file uploaded or scanned again is still recognised.
 
-Not encrypted yet, and planned: the cache of files from storage sources, and moving a recording's files to its new
-namespace's key (until then a moved file still opens with the key of the namespace it came from).
+Not encrypted yet, and planned: moving a recording's files to its new namespace's key (until then a moved file still
+opens with the key of the namespace it came from).
 
 What isn't encrypted by Lens: the SurrealDB database itself, including transcripts and the indexes that full-text
 and semantic search need, and your own folders that Lens scans (it only reads them). Put the data volume on an
