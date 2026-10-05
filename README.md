@@ -5,9 +5,10 @@
   </picture>
 </p>
 
-# Lens
+# Lens: intelligence for your agent
 
-**Usable context for you and your agents.** Lens remembers what actually happened, and shows you the exact moment.
+Connect your live data streams; Lens turns them into a cited knowledge graph your agent can reason over. Runs on your
+hardware with local models or any cloud model, private by default and cost-aware.
 
 ## Install
 

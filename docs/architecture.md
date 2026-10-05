@@ -1,7 +1,7 @@
 # Architecture
 
-Lens is usable context for you and your agents: one private AI hub where every source becomes cited memory. It is
-three processes around one database, with word search in a small index beside it:
+Lens is intelligence for your agent: it turns your live data streams into a cited knowledge graph. It is three
+processes around one database, with word search in a small index beside it:
 
 ```
  browser ──► Next.js (nextjs-frontend) ──server-side, Bearer token──► FastAPI (fastapi_backend) ──► SurrealDB
