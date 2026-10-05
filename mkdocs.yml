@@ -1,6 +1,6 @@
 site_name: Lens
 site_url: https://adeelahmad.github.io/lense/
-site_description: Usable context for you and your agents. One private AI hub where every source becomes cited memory.
+site_description: "Lens: intelligence for your agent. Turns your live data streams into a cited knowledge graph your agent can reason over."
 
 repo_name: adeelahmad/lense
 repo_url: https://github.com/adeelahmad/lense/
