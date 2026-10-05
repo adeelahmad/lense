@@ -539,6 +539,20 @@ def _bridge_setting(key, value):
         if not (isinstance(value, list) and all(isinstance(v, str) and len(v) <= 200 for v in value) and len(value) <= 500):
             raise ValueError("bridge.users is a list of chat usernames")
         return list(dict.fromkeys(v.strip() for v in value if v.strip()))
+    if key == "rooms":
+        bad = "bridge.rooms is a list of rooms and namespaces, like team = pods or team/general = pods"
+        if not (isinstance(value, list) and len(value) <= 200 and all(isinstance(v, str) and len(v) <= 300 for v in value)):
+            raise ValueError(bad)
+        out = []
+        for v in value:
+            if not v.strip():
+                continue
+            where, eq, ns = v.partition("=")
+            where, ns = where.strip(), ns.strip().lower()
+            if not eq or not where or not store.NS_RX.match(ns):
+                raise ValueError(bad)
+            out.append(f"{where} = {ns}")
+        return list(dict.fromkeys(out))
     if key not in ("url", "token", "gateway", "account", "name"):
         raise ValueError(f"unknown setting bridge.{key}")
     if value in (None, ""):

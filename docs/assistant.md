@@ -119,8 +119,9 @@ instructions, and what it remembers, with where each memory came from, to add to
 
 It makes no model calls of its own and keeps no index, so it costs nothing extra on a Raspberry Pi.
 
-Refine later: a decision model choosing what's worth remembering, chat rooms answered by a namespace's assistant,
-similar memories merged.
+A chat room can be given to a namespace's assistant too ([chat rooms](chat-rooms.md)).
+
+Refine later: a decision model choosing what's worth remembering, similar memories merged.
 
 ## Extending the assistant: tools, skills, hooks and plugins
 

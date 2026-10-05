@@ -871,6 +871,14 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "bridge",
+    key: "rooms",
+    label: "Rooms for a namespace’s assistant",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like team = pods or team/general = pods: conversations there talk to that namespace’s own assistant, which also answers to its name.",
+  },
+  {
+    section: "bridge",
     key: "poll_seconds",
     label: "Look for messages every",
     kind: "int",

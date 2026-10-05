@@ -305,7 +305,8 @@ DEFAULTS = {
     },
     # the assistant in chat rooms through Matterbridge (bridge.py): url is its API (http://matterbridge:4242), token its
     # API token; it answers as `account` (an email), when a message names it (answer "mention") or to every message
-    # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`
+    # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`; `rooms` gives a
+    # gateway (or gateway/channel) to a namespace's own assistant, as "gateway = namespace" (ns_assistant.py)
     "bridge": {
         "enabled": False,
         "url": None,
@@ -315,6 +316,7 @@ DEFAULTS = {
         "name": "Lens",
         "answer": "mention",
         "users": [],
+        "rooms": [],
         "poll_seconds": 2,
     },
     # what Lens fetches for itself (components.py): auto fetches what the settings need, on first use unless ahead;
