@@ -1,7 +1,7 @@
 name: docs
 
-# Builds the documentation site on every change to docs, and publishes it to GitHub Pages only when the repository
-# variable DOCS_PAGES is "true" (Settings → Pages must use "GitHub Actions" as its source first).
+# Builds the documentation site on every change to docs, and publishes it to GitHub Pages once Pages is turned on
+# (Settings → Pages → Source: GitHub Actions). Until then it only builds.
 on:
   push:
     branches: [main]
@@ -16,11 +16,25 @@ concurrency:
 
 permissions:
   contents: read
+  pages: read
 
 jobs:
   build:
     runs-on: [self-hosted, Linux, X64]
+    outputs:
+      publish: ${{ steps.pages.outputs.publish }}
     steps:
+      - name: Is Pages turned on, publishing from Actions?
+        id: pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pages" 2>/dev/null | grep -q '"build_type": *"workflow"'; then
+            echo publish=true >>"$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -34,14 +48,14 @@ jobs:
         run: uvx --with "mkdocs-material>=9.6.9" mkdocs build --strict --site-dir site
 
       - name: Keep the site for publishing
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DOCS_PAGES == 'true'
+        if: steps.pages.outputs.publish == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   publish:
     needs: build
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DOCS_PAGES == 'true'
+    if: needs.build.outputs.publish == 'true'
     runs-on: [self-hosted, Linux, X64]
     permissions:
       pages: write
