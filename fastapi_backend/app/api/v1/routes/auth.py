@@ -67,12 +67,13 @@ def setup(body: SetupRequest, request: Request, db: Db, cfg: Cfg) -> TokenPair:
     passwords on (auth.passwords). The web app makes the first admin with a passkey (POST /auth/passkey/setup/options),
     or with the code alone where browsers won't make passkeys (POST /auth/setup/no-passkey)."""
     archive = request.app.state.archive
-    code = archive.setup_code
-    if not code or auth.account_count(db) or not secrets.compare_digest(body.code, code):
-        raise HTTPException(403, "setup is closed or the code is wrong")
-    with domain_errors():
-        uid = auth.create_account(db, body.email, body.password, body.name, admin=True)
-    archive.setup_code = None
+    with auth.SETUP_LOCK:
+        code = archive.setup_code
+        if not code or auth.account_count(db) or not secrets.compare_digest(body.code, code):
+            raise HTTPException(403, "setup is closed or the code is wrong")
+        with domain_errors():
+            uid = auth.create_account(db, body.email, body.password, body.name, admin=True)
+        archive.setup_code = None
     if not auth.passwords_on(cfg):
         from app.domain import settings as app_settings
 
