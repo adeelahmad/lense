@@ -24,7 +24,14 @@ type Props = {
   search: (sign: "@" | "#", query: string) => Promise<LinkTarget[]>;
   /** A click on a link to something in Lens ("entity:5", "page:3"). */
   onOpenLink: (target: string) => void;
+  /** Where the page's images and attachments are kept: the editor names each by a hash of its bytes. */
+  blobs?: EditorBlobs;
   className?: string;
+};
+
+export type EditorBlobs = {
+  get: (key: string) => Promise<Blob | null>;
+  set: (key: string, blob: Blob) => Promise<void>;
 };
 
 const LENS_LINK = /^(recording|entity|collection|speaker|page):\d+$/;
@@ -55,11 +62,12 @@ export default function BlockEditor({
   onChange,
   search,
   onOpenLink,
+  blobs,
   className,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
-  const latest = useRef({ onChange, search, onOpenLink });
-  latest.current = { onChange, search, onOpenLink };
+  const latest = useRef({ onChange, search, onOpenLink, blobs });
+  latest.current = { onChange, search, onOpenLink, blobs };
   // The page is read once per mount: the parent remounts the editor (key) for another page.
   const initial = useRef({ markdown, doc, readOnly, view, stale });
   const editorRef = useRef<{ mode: string } | null>(null);
@@ -87,7 +95,21 @@ export default function BlockEditor({
       if (disposed || !host.current) return;
       const { markdown, doc: state, readOnly, view, stale } = initial.current;
       const schema = new store.Schema().register(blocks.AffineSchemas);
-      const collection = new store.DocCollection({ schema });
+      // Images and attachments: held here while the page is open, kept on the server (and read from it) through `blobs`
+      const held = new Map<string, Blob>();
+      const lens = {
+        name: "lens",
+        readonly: Boolean(readOnly),
+        get: async (key: string) => held.get(key) ?? (await latest.current.blobs?.get(key).catch(() => null)) ?? null,
+        set: async (key: string, value: Blob) => {
+          held.set(key, value);
+          if (!readOnly) await latest.current.blobs?.set(key, value);
+          return key;
+        },
+        delete: async (key: string) => void held.delete(key), // the server keeps it: undo may bring it back
+        list: async () => [...held.keys()],
+      };
+      const collection = new store.DocCollection({ schema, blobSources: { main: lens } });
       collection.meta.initialize();
 
       let id = "page";

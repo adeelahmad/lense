@@ -6,15 +6,23 @@ first time someone writes on it; until then it reads as a draft.
 
 from __future__ import annotations
 
+import contextlib
 from typing import Any
+from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import Access, Acl, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import auth, notebook, store
+from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
+from app.api.v1.routes.files import _receive
+from app.api.v1.routes.uploads import CHUNK
+from app.domain import auth, keyring, notebook, store
+from app.domain import files as resource_files
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.notebook import (
+    NoteFile,
     NoteHistory,
     NoteHomeSuggestion,
     NoteLinkSuggestion,
@@ -214,8 +222,94 @@ def move_page(pid: int, body: NotePageMove, user: Writer, acl: Acl, db: Db) -> N
 
 
 @router.delete("/{pid}")
-def delete_page(pid: int, user: Writer, acl: Acl, db: Db) -> Ok:
+def delete_page(pid: int, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
     """Delete a page; the pages inside it move up a level. Needs editor access."""
     _page(acl, db, pid, "editor")
-    notebook.delete(db, pid)
+    with _vault():
+        notebook.delete(db, pid, cfg)
+    return Ok()
+
+
+# ---------- files on a page ----------
+@contextlib.contextmanager
+def _vault():
+    try:
+        yield
+    except keyring.Locked:
+        raise HTTPException(
+            423, "this namespace is a locked vault: its owners unlock it with a passkey, on its page in Admin, Namespaces"
+        ) from None
+    except RuntimeError as e:  # where files are kept didn't answer (Settings → Storage)
+        raise HTTPException(502, f"where files are kept didn't answer: {e}") from None
+
+
+SAFE_INLINE = {"image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "application/pdf"}
+
+
+@router.get("/{pid}/files")
+def page_files(pid: int, user: CurrentUser, acl: Acl, db: Db) -> list[NoteFile]:
+    """The page's files (images and attachments in its editor), oldest first."""
+    _page(acl, db, pid)
+    return [NoteFile(**f) for f in notebook.files(db, pid)]
+
+
+@router.put("/{pid}/blobs", openapi_extra=CHUNK)
+async def put_blob(
+    pid: int,
+    request: Request,
+    user: Writer,
+    acl: Acl,
+    db: Db,
+    cfg: Cfg,
+    key: str = Query(min_length=8, max_length=128, description="the editor's key for it"),
+    name: str | None = Query(None, max_length=255, description="its file name, when it has one"),
+) -> NoteFile:
+    """Keep a file the page's editor holds (an image, an attachment) as the raw request body, up to
+    server.max_upload_mb, where Settings → Storage says. Encrypted before it leaves the machine. Editors."""
+    p = await run_in_threadpool(_page, acl, db, pid, "editor")
+    path = await _receive(request, cfg)
+    try:
+        with domain_errors(), _vault():
+            f = await run_in_threadpool(notebook.add_file, db, cfg, p, key, path, name, request.headers.get("content-type"), user.id)
+    finally:
+        path.unlink(missing_ok=True)
+    await run_in_threadpool(auth.audit, db, user.as_audit(), "note.file", f"note_page:{pid}", {"key": key, "size": f["size"]})
+    return NoteFile(**f)
+
+
+@router.get("/{pid}/blobs", response_class=StreamingResponse, responses={200: {"content": {"application/octet-stream": {}}}})
+def get_blob(pid: int, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg, key: str = Query(min_length=8, max_length=128)) -> StreamingResponse:
+    """A file of the page, as it was kept. Images and PDFs show in place; anything a browser could run comes as bytes."""
+    _page(acl, db, pid)
+    with domain_errors(), _vault():
+        row, opened = notebook.open_file(db, cfg, pid, key)
+        f = opened.__enter__()
+    ctype = resource_files.served_type({"content_type": row.get("type")})
+    inline = ctype in SAFE_INLINE
+    name = row.get("name") or "file"
+    ascii_name = name.encode("ascii", "replace").decode().replace('"', "").replace("?", "_")
+
+    def body():
+        try:
+            while part := f.read(256 * 1024):
+                yield part
+        finally:
+            opened.__exit__(None, None, None)
+
+    disposition = "inline" if inline else "attachment"
+    headers = {
+        **resource_files.HEADERS,
+        "Content-Disposition": f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}",
+        "Cache-Control": "private, max-age=86400",
+    }
+    return StreamingResponse(body(), media_type=ctype, headers=headers)
+
+
+@router.delete("/{pid}/files")
+def delete_page_file(pid: int, user: Writer, acl: Acl, db: Db, cfg: Cfg, key: str = Query(min_length=8, max_length=128)) -> Ok:
+    """Remove a file from the page and from where it's kept. Editors."""
+    _page(acl, db, pid, "editor")
+    with domain_errors(), _vault():
+        notebook.delete_file(db, cfg, pid, key)
+    auth.audit(db, user.as_audit(), "note.file.delete", f"note_page:{pid}", {"key": key})
     return Ok()

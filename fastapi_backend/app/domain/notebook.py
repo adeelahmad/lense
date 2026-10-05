@@ -24,7 +24,10 @@ Refine later: pages for partial collection members, attachments, real-time co-ed
 
 from __future__ import annotations
 
+import base64
 import datetime as dt
+import hashlib
+import os
 import re
 
 from . import activity, store
@@ -410,9 +413,13 @@ def move(db, pid, parent=None, before=None):
     db.q("UPDATE $r SET parent = $p, position = $pos, updated_at = $t", r=R("note_page", int(pid)), p=parent, pos=position, t=store.now())
 
 
-def delete(db, pid):
-    """Delete a page; the pages inside it move up to its parent. Links to it stay as text."""
+def delete(db, pid, cfg=None):
+    """Delete a page, with its files (given `cfg`, to reach where they are kept); the pages inside it move up to its
+    parent. Links to it stay as text."""
     p = get(db, pid)
+    if cfg is not None:
+        for f in files(db, int(pid)):
+            delete_file(db, cfg, int(pid), f["key"])
     for child in db.values("SELECT VALUE record::id(id) FROM note_page WHERE parent = $p", p=int(pid)):
         db.q("UPDATE $r SET parent = $up", r=R("note_page", child), up=p.get("parent"))
     db.q("DELETE note_link WHERE page = $p", p=int(pid))
@@ -424,6 +431,94 @@ def links(db, pid):
     """The page's links, in the order its body has them."""
     p = get(db, pid)
     return [{"sign": s, "target": f"{k}:{i}", "label": label} for s, k, i, label in mentions(p.get("body"))]
+
+
+# ---------- files on a page: images, attachments and other blobs the editor keeps (blobs.py stores them) ----------
+FILE_KEY_RX = re.compile(r"^[A-Za-z0-9+/=_-]{8,128}$")  # the editor's own key for a blob: a hash of its bytes
+FILES_MAX = 500  # per page
+FILE_FIELDS = "record::id(id) AS id, key, name, type, size, author, created_at"
+
+
+def file_key(path):
+    """What the editor names a file by: its bytes' SHA-256 in base64url, as BlockSuite's blob sync does."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while part := f.read(1 << 20):
+            h.update(part)
+    return base64.urlsafe_b64encode(h.digest()).decode()
+
+
+def files(db, pid):
+    """A page's files, oldest first."""
+    rows = db.rows(f"SELECT {FILE_FIELDS} FROM note_file WHERE page = $p", p=int(pid))
+    return sorted(rows, key=lambda f: f["id"])
+
+
+def file_row(db, pid, key):
+    row = db.one(f"SELECT {FILE_FIELDS}, where FROM note_file WHERE page = $p AND key = $k LIMIT 1", p=int(pid), k=key)
+    if not row:
+        raise KeyError(key)
+    return row
+
+
+def add_file(db, cfg, p, key, path, name=None, ctype=None, account=None, author="person"):
+    """Keep a file on page p under the editor's `key`, where Settings → Storage says. The same key again is the same
+    bytes, so it's kept once. Returns its row."""
+    from . import blobs
+
+    if not FILE_KEY_RX.match(key or "") or key != file_key(path):
+        raise ValueError("the key isn't the file's: SHA-256 of its bytes, in base64url")
+    pid = int(p["id"])
+    try:
+        return file_row(db, pid, key)
+    except KeyError:
+        pass
+    if len(db.values("SELECT VALUE id FROM note_file WHERE page = $p", p=pid)) >= FILES_MAX:
+        raise ValueError(f"A page keeps up to {FILES_MAX} files.")
+    fid = db.next_id("note_file")
+    where = blobs.put(db, cfg, p["space"], f"notes/{p['space']}/{pid}/{fid}", path)
+    name = re.sub(r"[\x00-\x1f/\\]", "_", str(name or "").strip())[:200] or None
+    ctype = ctype if ctype and re.match(r"^[\w.+-]+/[\w.+-]+$", ctype) else "application/octet-stream"
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("note_file", fid),
+        d=store.clean(
+            {
+                "page": pid,
+                "space": p["space"],
+                "key": key,
+                "name": name,
+                "type": ctype,
+                "size": os.path.getsize(path),
+                "where": where,
+                "author": author,
+                "created_by": account,
+                "created_at": store.now(),
+            }
+        ),
+    )
+    return file_row(db, pid, key)
+
+
+def open_file(db, cfg, pid, key):
+    """(row, a context manager giving the file's plain bytes to read). KeyError when there's no such file."""
+    from . import blobs
+
+    row = file_row(db, pid, key)
+    return row, blobs.open_file(db, cfg, row.get("where"), f"notes/{_space_of(db, pid)}/{int(pid)}/{row['id']}")
+
+
+def _space_of(db, pid):
+    return get(db, pid)["space"]
+
+
+def delete_file(db, cfg, pid, key):
+    """Remove a file from a page and from where it's kept."""
+    from . import blobs
+
+    row = file_row(db, pid, key)
+    blobs.delete(db, cfg, row.get("where"), f"notes/{_space_of(db, pid)}/{int(pid)}/{row['id']}")
+    db.q("DELETE $r", r=R("note_file", row["id"]))
 
 
 SUGGEST_CHARS = 20_000  # of a page's text looked through for things to link

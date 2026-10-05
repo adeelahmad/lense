@@ -1075,6 +1075,9 @@ SCHEMA = [
     # what a page was before each change (notebook.snapshot): its history, to look back at and restore
     "DEFINE TABLE IF NOT EXISTS note_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_version_page ON note_version FIELDS page",
+    # the files on a note page (images, attachments), kept where Settings → Storage says (notebook.py, blobs.py)
+    "DEFINE TABLE IF NOT EXISTS note_file SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_file_page ON note_file FIELDS page, key",
     # comments on resources, threaded, by everyone who can read them (app/domain/comments.py)
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",

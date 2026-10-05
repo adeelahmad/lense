@@ -278,6 +278,9 @@ import type {
   DeleteNotifyTargetResponses,
   DeletePageData,
   DeletePageErrors,
+  DeletePageFileData,
+  DeletePageFileErrors,
+  DeletePageFileResponses,
   DeletePageResponses,
   DeleteRecordingData,
   DeleteRecordingErrors,
@@ -370,6 +373,9 @@ import type {
   GetBatchResultsData,
   GetBatchResultsErrors,
   GetBatchResultsResponses,
+  GetBlobData,
+  GetBlobErrors,
+  GetBlobResponses,
   GetChatData,
   GetChatErrors,
   GetChatResponses,
@@ -845,6 +851,9 @@ import type {
   PageAboutData,
   PageAboutErrors,
   PageAboutResponses,
+  PageFilesData,
+  PageFilesErrors,
+  PageFilesResponses,
   PageHistoryData,
   PageHistoryErrors,
   PageHistoryResponses,
@@ -894,6 +903,9 @@ import type {
   PushTokenData,
   PushTokenErrors,
   PushTokenResponses,
+  PutBlobData,
+  PutBlobErrors,
+  PutBlobResponses,
   QueryNamespaceSparqlData,
   QueryNamespaceSparqlErrors,
   QueryNamespaceSparqlResponses,
@@ -3983,6 +3995,68 @@ export class Notes {
       ...options,
       headers: {
         "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Page File
+   *
+   * Remove a file from the page and from where it's kept. Editors.
+   */
+  public static deletePageFile<ThrowOnError extends boolean = false>(
+    options: Options<DeletePageFileData, ThrowOnError>,
+  ): RequestResult<DeletePageFileResponses, DeletePageFileErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeletePageFileResponses, DeletePageFileErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/files",
+      ...options,
+    });
+  }
+
+  /**
+   * Page Files
+   *
+   * The page's files (images and attachments in its editor), oldest first.
+   */
+  public static pageFiles<ThrowOnError extends boolean = false>(
+    options: Options<PageFilesData, ThrowOnError>,
+  ): RequestResult<PageFilesResponses, PageFilesErrors, ThrowOnError> {
+    return (options.client ?? client).get<PageFilesResponses, PageFilesErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/files",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Blob
+   *
+   * A file of the page, as it was kept. Images and PDFs show in place; anything a browser could run comes as bytes.
+   */
+  public static getBlob<ThrowOnError extends boolean = false>(
+    options: Options<GetBlobData, ThrowOnError>,
+  ): RequestResult<GetBlobResponses, GetBlobErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetBlobResponses, GetBlobErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/blobs",
+      ...options,
+    });
+  }
+
+  /**
+   * Put Blob
+   *
+   * Keep a file the page's editor holds (an image, an attachment) as the raw request body, up to
+   * server.max_upload_mb, where Settings → Storage says. Encrypted before it leaves the machine. Editors.
+   */
+  public static putBlob<ThrowOnError extends boolean = false>(
+    options: Options<PutBlobData, ThrowOnError>,
+  ): RequestResult<PutBlobResponses, PutBlobErrors, ThrowOnError> {
+    return (options.client ?? client).put<PutBlobResponses, PutBlobErrors, ThrowOnError>({
+      bodySerializer: null,
+      url: "/api/v1/notes/{pid}/blobs",
+      ...options,
+      headers: {
+        "Content-Type": "application/octet-stream",
         ...options.headers,
       },
     });

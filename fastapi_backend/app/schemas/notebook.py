@@ -142,3 +142,12 @@ class NoteHomeSuggestion(ResponseModel):
     place: Literal["project", "area"]
     score: int
     why: list[str] = Field(description="what ties them: links between them, links they share, words of its title")
+
+
+class NoteFile(ResponseModel):
+    key: str = Field(description="the editor's key for it (a hash of its bytes)")
+    name: str | None = None
+    type: str = "application/octet-stream"
+    size: int = 0
+    author: Literal["person", "assistant"] = "person"
+    created_at: str | None = None

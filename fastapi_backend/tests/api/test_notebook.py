@@ -3,6 +3,9 @@ what they were about."""
 
 from __future__ import annotations
 
+import base64
+import hashlib
+
 import pytest
 
 from app.domain import deletion, entities, moving, notebook, store, topics
@@ -387,3 +390,46 @@ def test_home_suggestions(client, env, db, cfg):
 
     out = json.loads(box.call("read_note", {"note_id": q["id"]})[0])
     assert out["could_go_in"] == [{"parent_id": health["id"], "title": "Health", "place": "area", "why": ["it links to this page"]}]
+
+
+def test_page_files(client, env, db, cfg, folder):
+    he, hv, hx = env["he"], env["hv"], env["hx"]
+    p = _new(client, he, title="Diagrams")
+    png = b"\x89PNG\r\n\x1a\n" + b"pixels" * 100
+    svg = b"<svg onload='alert(1)'/>"
+    k = lambda b: base64.urlsafe_b64encode(hashlib.sha256(b).digest()).decode()  # noqa: E731
+    url = f"/api/v1/notes/{p['id']}/blobs"
+    put = lambda key, body, h=he, ctype="image/png", name="flow.png": client.put(  # noqa: E731
+        url, params={"key": key, "name": name}, content=body, headers={**h, "Content-Type": ctype}
+    )
+    KP, KS = k(png), k(svg)
+    r = put(KP, png)
+    assert r.status_code == 200, r.text
+    assert (r.json()["key"], r.json()["name"], r.json()["type"], r.json()["size"]) == (KP, "flow.png", "image/png", len(png))
+    assert put(KP, png).status_code == 200  # the same key is the same bytes: kept once
+    assert [f["key"] for f in client.get(f"/api/v1/notes/{p['id']}/files", headers=hv).json()] == [KP]
+    # anyone who reads the page reads its files; images show in place
+    r = client.get(url, params={"key": KP}, headers=hv)
+    assert r.status_code == 200 and r.content == png
+    assert r.headers["content-type"] == "image/png" and r.headers["content-disposition"].startswith("inline")
+    assert r.headers["x-content-type-options"] == "nosniff"
+    # what a browser would run comes as bytes, to save
+    assert put(KS, svg, ctype="image/svg+xml", name="x.svg").status_code == 200
+    r = client.get(url, params={"key": KS}, headers=hv)
+    assert r.headers["content-type"] == "application/octet-stream" and r.headers["content-disposition"].startswith("attachment")
+    # only editors add; outsiders see nothing; keys are the editor's hashes
+    assert put(k(b"x"), b"x", h=hv).status_code == 403
+    assert client.get(url, params={"key": KP}, headers=hx).status_code in (403, 404)
+    assert put("bad key!", b"x").status_code == 400
+    assert put(k(b"other"), b"not the same bytes").status_code == 400  # the key is the bytes' hash
+    assert put(k(b""), b"").status_code == 400
+    assert client.get(url, params={"key": "hashOfNothing"}, headers=hv).status_code == 404
+    # kept where Settings → Storage says: here, data_dir/objects
+    kept = list((folder / "data" / "objects" / "notes").rglob("*"))
+    assert len([k for k in kept if k.is_file()]) == 2
+    # removing one, then the page, removes what was kept
+    assert client.delete(f"/api/v1/notes/{p['id']}/files", params={"key": KS}, headers=he).status_code == 200
+    assert client.get(url, params={"key": KS}, headers=hv).status_code == 404
+    assert client.delete(f"/api/v1/notes/{p['id']}", headers=he).status_code == 200
+    assert not [k for k in (folder / "data" / "objects" / "notes").rglob("*") if k.is_file()]
+    assert not db.rows("SELECT id FROM note_file")
