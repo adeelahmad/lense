@@ -19,7 +19,7 @@ from __future__ import annotations
 import pathlib
 import re
 
-from . import llm, render, sources, store, templates
+from . import keyring, llm, render, sources, store, templates
 
 R = store.R
 STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
@@ -297,13 +297,16 @@ def _space_name(db, rid):
     return (db.one("SELECT name FROM $s", s=R("space", rec["space"])) or {}).get("name"), rec.get("title")
 
 
+def _space_of(db, rid):
+    return (db.one("SELECT space FROM $r", r=R("recording", rid)) or {}).get("space")
+
+
 def run_report(db, cfg, rid, spec, say):
     t = templates.get(db, int(spec["template"]), spec.get("version"))
     html = templates.render_body(t["body"], templates.context(db, cfg, rid), "report")
     ns, title = _space_name(db, rid)
     out = pathlib.Path(cfg["data_dir"]) / "reports" / ns / f"{render.slug(title)}-{rid}--{render.slug(t['name'])}.html"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(html, encoding="utf-8")
+    keyring.keep(db, cfg, _space_of(db, rid), out, html)
     save_output(
         db,
         rid,
@@ -321,14 +324,14 @@ def run_export(db, cfg, rid, spec, say):
     name = re.sub(r"[^\w .()-]+", "_", name)[:120].strip() or f"recording-{rid}.txt"
     ns, _ = _space_name(db, rid)
     out = pathlib.Path(cfg["data_dir"]) / "exports" / ns / name
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(templates.render_body(t["body"], ctx, "export", name), encoding="utf-8")
+    keyring.keep(db, cfg, _space_of(db, rid), out, templates.render_body(t["body"], ctx, "export", name))
     uploaded = None
     dest = spec.get("destination")
-    if dest:
+    if dest:  # the place you chose gets the export itself, plain
         src = sources.get(db, dest["source"])
         target = sources.check_path(cfg, src, str(pathlib.PurePosixPath(dest.get("path") or "") / name))
-        sources.run(db, cfg, src, lambda n: ["copyto", str(out), f"{n}:{target}"], timeout=600)
+        with keyring.plain_path(db, cfg, out) as plain:
+            sources.run(db, cfg, src, lambda n: ["copyto", plain, f"{n}:{target}"], timeout=600)
         uploaded = f"{src['name']}:{target}"
     save_output(
         db,
