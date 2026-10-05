@@ -108,7 +108,7 @@ msg_ok "Configured Lens"
 
 msg_info "Building Lens API (patience)"
 cd /opt/lens/fastapi_backend
-export UV_PYTHON="3.12"
+export UV_PYTHON="3.12" UV_HTTP_TIMEOUT=300 UV_HTTP_RETRIES=5  # slow links finish the big wheels
 $STD uv sync --frozen --no-dev --extra whisper  # faster-whisper: transcription on the CPU
 msg_ok "Built Lens API"
 
