@@ -13,6 +13,7 @@ import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NamespaceSwitcher } from "@/components/app-shell/namespace-switcher";
 import { Nav } from "@/components/app-shell/nav";
 import { Shortcuts } from "@/components/app-shell/shortcuts";
+import { WelcomeTour } from "@/components/home/welcome-tour";
 import { PageChat } from "@/components/page-chat/page-chat";
 import { Button, IconButton } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -192,6 +193,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         <PageChat />
       </Suspense>
       <Shortcuts />
+      <WelcomeTour />
     </div>
   );
 }
