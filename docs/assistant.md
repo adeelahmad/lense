@@ -94,6 +94,31 @@ When the configured model supports function calling, chat becomes an agent.
   with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 
+## A namespace's own assistant
+
+Each namespace can have its own assistant that remembers from one conversation to the next. It is off until an owner
+of the namespace turns it on (`PATCH /api/v1/namespaces/<name>/assistant` with `enabled`, `name` and `instructions`).
+Then every conversation scoped to that namespace alone, picked by hand or chosen from the first question, talks to it.
+It is the same assistant with the same tools, extensions and approvals; what it adds:
+
+- **A name and instructions** from the namespace's owners, read with every question.
+- **A memory:** short facts it keeps with `remember` when it learns something lasting (a decision, a preference, a
+  plan), each with where it came from: the exact moment of the excerpt it was shown, or the conversation it was told
+  in. Remembering is routine, so it happens at once and shows as a step; people who can edit the namespace can also
+  write memories themselves. Viewers' conversations read the memory but don't add to it.
+- **Cited:** the newest 30 memories (pinned ones first) are read with every question. A memory from a moment is
+  numbered like an excerpt, so an answer from memory cites [n] and opens the recording at that moment; older ones are
+  found with `recall`. A memory from a recording the asker can't read is left out.
+- **Asks first:** forgetting from chat waits for the person's approval, like every tool that changes data.
+- **Yours to edit:** `GET /api/v1/namespaces/<name>/assistant/memories` (`q` searches them), `POST` to add one,
+  `PATCH .../memories/<id>` to correct or pin one, `DELETE .../memories/<id>` to forget it, and owners `DELETE
+  .../memories` to forget everything.
+
+It makes no model calls of its own and keeps no index, so it costs nothing extra on a Raspberry Pi.
+
+Refine later: a decision model choosing what's worth remembering, chat rooms answered by a namespace's assistant,
+its settings and memories in the web app, similar memories merged.
+
 ## Extending the assistant: tools, skills, hooks and plugins
 
 Anyone who can edit can add to what the assistant does. Each addition is an *extension*: versioned, kept private or

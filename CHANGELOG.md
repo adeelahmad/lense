@@ -7,6 +7,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Renditions, reports and exports are encrypted too.** With encryption at rest on (or in a vault), the PDF made of a
   Word file or an email, the HTML reports and the exports Lens keeps are stored encrypted, and download and open as
   before. `lens encrypt` converts the ones already there. An export sent to a storage connection still arrives plain.
+- **Fewer steps to an answer.** Asking on Home sends the question when you press Enter, instead of opening an empty
+  chat on the first keystroke and waiting for a second Enter. With only one namespace, it is picked for you, so pages
+  that need a namespace stop asking. Once a model is set, the setup wizard offers **Finish with defaults** for the
+  remaining steps. The Import button shows on tablet-sized screens too, and an empty graph offers Import instead of a
+  list of jobs when nothing is waiting.
+
 - **Engines and models are fetched on first use.** A fresh install no longer downloads PyTorch, SenseVoice, voice IDs
   and the face and object models before anything is imported (2.7 GB, and 2.6 GB of memory held by an idle worker).
   Each one is fetched the first time a recording needs it; Settings › Components shows it as *On first use* until then.
