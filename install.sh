@@ -14,7 +14,7 @@
 #   LENS_PUBLIC    1: reachable from other machines on the network, 0: this machine only (default: 1 on a server
 #                  without a desktop, else 0)
 #   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: full)
-#   GITHUB_TOKEN   a token that can read the repository, while it is private
+#   GITHUB_TOKEN   a GitHub token to use when downloading (not needed; avoids GitHub's rate limits)
 #   LENS_NO_OPEN   1: don't open a browser
 set -eu
 
@@ -92,7 +92,7 @@ if [ -d "$DIR/.git" ]; then
 elif have git; then
   say "Getting Lens into $DIR..."
   git clone -q --depth 1 --branch "$REF" "$auth_url" "$DIR" ||
-    fail "Couldn't get the code. While the repository is private, set GITHUB_TOKEN to a token that can read it."
+    fail "Couldn't get the code from GitHub ($REF). Check the network and LENS_REF, and try again."
   git -C "$DIR" remote set-url origin "https://github.com/$REPO.git" # the token isn't kept on disk
 else
   say "Getting Lens into $DIR..."
@@ -100,7 +100,7 @@ else
   set -- -fsSL
   [ -n "${GITHUB_TOKEN:-}" ] && set -- "$@" -H "Authorization: Bearer $GITHUB_TOKEN"
   curl "$@" "https://api.github.com/repos/$REPO/tarball/$REF" | tar -xz -C "$DIR" --strip-components 1 ||
-    fail "Couldn't get the code. While the repository is private, set GITHUB_TOKEN to a token that can read it."
+    fail "Couldn't get the code from GitHub ($REF). Check the network and LENS_REF, and try again."
 fi
 cd "$DIR"
 

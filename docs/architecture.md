@@ -1,11 +1,13 @@
 # Architecture
 
-Lens is three processes around one database:
+Lens is usable context for you and your agents: one private AI hub where every source becomes cited memory. It is
+three processes around one database, with word search in a small index beside it:
 
 ```
  browser ──► Next.js (nextjs-frontend) ──server-side, Bearer token──► FastAPI (fastapi_backend) ──► SurrealDB
     │            │  NextAuth session (encrypted cookie)                    ▲
-    │            └─ proxies /api/v1, /iiif, /embed, /s, /reports, /static ─┘
+    │            └─ proxies /api/v1, /iiif, /embed, /s, /reports, /static, ┘
+    │               /mcp, /id/..., /ns and /.well-known/
     └── <audio>/<img> load signed media links through the same proxy
                                                    lens worker ×N ─────────► SurrealDB (job queue)
 ```
@@ -15,7 +17,8 @@ Lens is three processes around one database:
 | **Next.js** (`nextjs-frontend/`) | The web app. Auth.js (NextAuth v5) keeps the session; server components and server actions call the API with the session's access token through the generated, typed client. |
 | **FastAPI** (`fastapi_backend/app/`) | The HTTP API under `/api/v1`, IIIF endpoints under `/iiif`, the embeddable player at `/embed/<id>` (and `/s/<code>`, a share link's short address) and stored reports at `/reports/...`. |
 | **Workers** (`lens worker`) | Run queued jobs: transcription, diarisation, video analysis, entity extraction, LLM steps and reports. Any number, on any machine that reaches the database; each can be limited to the steps it can run (for example mlx transcription on a Mac). |
-| **SurrealDB** | Everything: recordings, transcripts, speakers, the knowledge graph (as graph edges), full-text indexes, jobs, accounts and settings. |
+| **SurrealDB** | Everything but the word index: recordings, transcripts, speakers, the knowledge graph (as graph edges), jobs, accounts and settings. |
+| **Word index** | Full-text search. By default a SQLite FTS5 file in `<data_dir>/search/` (BM25 ranking, stemming, highlights); `search.engine: opensearch` moves it to an OpenSearch cluster. It is kept in step with SurrealDB from a change table before each search (`app/domain/textindex.py`). |
 
 ## Backend layout
 
@@ -35,11 +38,15 @@ fastapi_backend/
       streaming.py       byte-range responses for audio and video
       v1/router.py       every /api/v1 router, one module per area in v1/routes/
       iiif.py, pages.py  IIIF protocol endpoints; embed player and reports (HTML)
+      mcp.py             the MCP server at /mcp (Streamable HTTP, JSON answers)
+      mcp_tools.py       the MCP server's tools: search, read, cite, graph and SPARQL queries
+      linked_data.py     /id/<kind>/<id> (RDF or a redirect to the page) and the /ns vocabulary
     schemas/             Pydantic request and response models, one module per area
-    domain/              the processing engine: store (SurrealDB), ingest, speakers, analyze,
-                         entities, graph, search, video, faces, documents, iiif, metadata,
-                         pipelines, templates, llm, chat, batches, jobs, sources, settings, auth,
-                         render
+    domain/              the processing engine, one module per concern; among them:
+                         store (SurrealDB), textindex (word index), search, semantic, ingest,
+                         speakers, analyze, entities, graph, topics, notes, notebook, sensors,
+                         routines, workflows, rdf, vaults, iiif, documents, video, pipelines,
+                         llm, chat, jobs, sources, settings, auth, passkeys, render
   tests/                 api/ (HTTP) and domain/ (engine) tests, pytest
 ```
 
@@ -91,13 +98,17 @@ transcript line, metadata, a chat answer) is never signed, however much it looks
 
 ## Design decisions
 
-* **SurrealDB, not Postgres.** The engine leans on SurrealDB's graph edges (`mentions`, `same_as`), BM25 full-text
-  indexes with highlights, schemaless records for evolving pipeline output, and an embedded mode for single-machine
-  installs. Moving to Postgres would have meant rewriting every query for little gain. The template's
-  SQLAlchemy/Alembic/fastapi-users stack was removed; the schema is defined idempotently in `store.SCHEMA` on start.
-* **The API owns identity; NextAuth owns the browser session.** Accounts, passwords (scrypt), roles, API tokens,
-  share links and IIIF tokens are all in the API, because IIIF viewers, API clients and workers need them without the
-  web app. NextAuth only holds the API's tokens in its encrypted session cookie.
+* **SurrealDB, not Postgres.** The engine leans on SurrealDB's graph edges (`mentions`, `same_as`), schemaless
+  records for evolving pipeline output, and an embedded mode for single-machine installs. Moving to Postgres would have
+  meant rewriting every query for little gain. The template's SQLAlchemy/Alembic/fastapi-users stack was removed; the
+  schema is defined idempotently in `store.SCHEMA` on start.
+* **Word search beside the database.** SurrealDB's own full-text index cost about six times the records' memory, so
+  words are indexed in SQLite FTS5 (in the Python standard library, a few MB) or, for large archives, OpenSearch.
+  SurrealDB still decides who may see each hit. `search.engine: surrealdb` keeps SurrealDB's own index.
+* **The API owns identity; NextAuth owns the browser session.** Accounts, passkeys, roles, API tokens, share links
+  and IIIF tokens are all in the API, because IIIF viewers, API clients and workers need them without the web app.
+  Passkeys are the default sign-in; passwords (hashed with scrypt) are off on fresh installs (`auth.passwords`).
+  NextAuth only holds the API's tokens in its encrypted session cookie.
 * **No cookies on the API.** Bearer tokens only, so there is no CSRF surface on `/api/v1`. The IIIF authorization
   flow is the one exception, because the spec requires a cookie.
 * **Workers out of the web process.** The prototype ran workers as threads inside the server. They now run as their

@@ -46,8 +46,9 @@ def fakes(monkeypatch):
     return engine, model
 
 
-def keeper(db, cfg, can=("transcribe", "faces")):
+def keeper(db, cfg, can=("transcribe", "faces"), ahead=True):
     cfg["components"]["auto"] = True
+    cfg["components"]["ahead"] = ahead
     db.q("UPSERT worker:w1 SET steps = []")
     return components.Keeper(db, lambda: cfg, "w1", can)
 
@@ -92,6 +93,25 @@ def test_steps_wait_while_their_engine_is_fetched(db, cfg, folder, fakes):
     engine.gate.set()
     th.join()
     assert w.keeper.blocked() == set()
+
+
+def test_engines_are_fetched_on_first_use(db, cfg, folder, fakes):
+    engine, model = fakes
+    k = keeper(db, cfg, ahead=False)
+    # nothing has asked for them: nothing is fetched, and their steps wait for a job to need them
+    assert k.check() == {"engine": {"state": "later"}, "model": {"state": "later"}}
+    assert engine.fetched == model.fetched == 0 and k.blocked() == {"transcribe", "faces"}
+    assert db.one("SELECT components FROM worker:w1")["components"]["engine"] == {"state": "later"}
+    # a recording to transcribe: the transcription engine is fetched, the face model still waits
+    a, _, _ = seed(db, cfg, folder)
+    jobs.enqueue(db, a, ["transcribe"])
+    assert k.demand() == {"transcribe"}
+    state = k.check()
+    assert state["engine"] == {"state": "ready"} and state["model"] == {"state": "later"}
+    assert engine.fetched == 1 and model.fetched == 0 and k.blocked() == {"faces"}
+    # asked for by name, it's fetched without waiting for a job
+    cfg["components"]["also"] = ["model"]
+    assert k.check()["model"]["state"] == "failed" and model.fetched == 1
 
 
 def test_with_fetching_off_it_only_reports(db, cfg, fakes):

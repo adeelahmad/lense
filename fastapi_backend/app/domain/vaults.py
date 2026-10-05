@@ -139,6 +139,8 @@ def seal(db, cfg, uid, sid, flow, credential, prf):
     if keyring.status(db, sid)["vault"]:
         raise VaultError("this namespace is a vault already")
     pk, kek = _answer(db, uid, sid, "seal", flow, credential, prf)
+    if (keyring.conversion["to"] == "plain") and keyring.conversion["running"]:
+        keyring.stop_converting()  # it would turn this namespace's files back to plain
     keyring.add_wrapper(db, cfg, sid, wrapper_of(pk), kek)
     keyring.encrypt_all(db, cfg, space=sid, log=log.info)
     keyring.remove_wrapper(db, sid, keyring.SERVER)

@@ -29,11 +29,11 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Cfg, Db, OptionalUser, Principal, client_ip, get_cfg, get_db, network
-from app.api.streaming import stored_file
+from app.api.streaming import LOCKED, picture_response, stored_file
 from app.api.v1.routes.recordings import serve_audio
 from app.api.v1.routes.video import serve_document
 from app.domain import access as acc
-from app.domain import auth, convert, documents, faces, iiif, iiif_auth, render, store, video
+from app.domain import auth, convert, documents, faces, iiif, iiif_auth, keyring, render, store, video
 from app.domain import files as filemod
 from app.domain import metadata as md
 from app.domain.store import DB, R
@@ -82,13 +82,16 @@ def _member(request: Request, db: DB, user: Principal | None, space: int) -> boo
     return bool(acct and auth.allows(auth.roles(db, acct), space))
 
 
-def _picture(db: DB, rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
+def _picture(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, name: str, path: pathlib.Path, member: bool) -> Response:
     """A frame or a page: where the namespace pixelates faces, visitors get the faces found on it pixelated."""
     if not member and faces.pixelates(db, rec["space"]):
-        data = faces.pixelated(db, path, rid, name)
+        try:
+            data = faces.pixelated(db, cfg, path, rid, name)
+        except keyring.Locked:
+            raise HTTPException(423, LOCKED) from None
         if data is not None:
             return Response(data, media_type="image/jpeg", headers={"Vary": "Authorization, Cookie"})
-    return FileResponse(path, media_type="image/jpeg")
+    return picture_response(db, cfg, path)
 
 
 def _readable(request: Request, db: DB, user: Principal | None) -> set[int]:
@@ -447,7 +450,7 @@ def iiif_audio(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
 
 
 @router.get("/iiif/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
-def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> FileResponse:
+def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
     """The PDF made of a document that isn't one (a Word file, an email, …), to save. It opens with the media part,
     like the document itself, and with the link the document's probe service signed."""
     rec, a = _rec(request, db, cfg, user, rid, "audio")
@@ -457,7 +460,7 @@ def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -
     if rec.get("source") != "document" or not path.is_file():
         raise HTTPException(404, "not found")
     stem = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
-    return FileResponse(path, media_type="application/pdf", filename=f"{stem}.pdf", headers=filemod.HEADERS)
+    return stored_file(db, cfg, path, request, "application/pdf", f"{stem}.pdf", filemod.HEADERS)
 
 
 @router.get("/iiif/{rid}/pages/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})
@@ -474,7 +477,7 @@ def iiif_page(rid: int, name: str, request: Request, user: OptionalUser, db: Db,
         raise HTTPException(404, "not found")
     if not _content_ok(request, db, cfg, user, rec, rid, a, what):
         raise HTTPException(401, "sign in through the viewer to see this")
-    return _picture(db, rec, rid, path.name, path, _member(request, db, user, rec["space"]))
+    return _picture(db, cfg, rec, rid, path.name, path, _member(request, db, user, rec["space"]))
 
 
 @router.get("/iiif/{rid}/media")
@@ -491,7 +494,7 @@ def iiif_frame(rid: int, name: str, request: Request, user: OptionalUser, db: Db
     member = _member(request, db, user, rec["space"])
     if name.startswith("face-") and not cfg["video"].get("publish_faces") and not member:
         raise HTTPException(404, "not found")
-    return _picture(db, rec, rid, name, p, member)
+    return _picture(db, cfg, rec, rid, name, p, member)
 
 
 @router.get("/iiif/{rid}/transcript.{fmt}")

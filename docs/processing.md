@@ -154,9 +154,11 @@ about them come back as not found.
 ## Search
 
 All words must appear, matched after English stemming ("exploit" also finds exploits and exploiting); "quoted phrases"
-must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. For archives that
-aren't in English set `search.stemming: none` and run `lens reindex`. Prefix search (`expl*`) from the SQLite
-version is gone; stemming covers most of what it was used for.
+must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. The words are
+looked up in the index of `search.engine`: a SQLite FTS5 file by default, SurrealDB's own index, or OpenSearch
+([configuration](configuration.md#word-search)). For archives that aren't in English set `search.stemming: none` and
+run `lens reindex`. There is no prefix search: a trailing `*` (`expl*`) is ignored and the word is searched as it is;
+stemming covers most of what prefixes were used for.
 
 ### Search by meaning
 
@@ -254,6 +256,16 @@ importing chosen ones and watching work as above.
   Important), and a message several mailboxes show (one Message-ID) becomes one resource. A watch remembers the last
   message it saw in each mailbox and asks only for newer ones. Lens only reads: mailboxes are opened read-only and
   messages fetched without marking them read.
+- **Routing rules** (email watches only): a shared inbox can feed several namespaces. Each rule has conditions on who
+  sent a message (`from`), who it was for (`to`: To, Cc, and the address the inbox received it at, so mail to an alias
+  like support@ is told apart), its `subject`, its mailing list (`list`, the List-Id) or its `mailbox`, and sends
+  matching messages to a namespace, or skips them. Rules are tried in order and the first whose conditions all match
+  decides; a message no rule matches goes to the watch's own namespace, as it does with no rules. Patterns ignore case;
+  one without `*` or `?` matches anywhere in the text (`acme.com`), one with them must match all of it
+  (`*@acme.com`), and a condition can list several patterns, any of which may match. A rule names a namespace that
+  exists (rules never create one); mail for a namespace deleted since goes to the watch's. Rules apply to messages that
+  arrive after they're saved. `POST /api/v1/watches/routes/preview` shows where the latest messages would go before
+  saving, and a scan's stats count the messages `routed` elsewhere.
 - **Calendar feed (iCal)**: the calendar's iCal address (`https://` or `webcal://`; a user and password if it asks for
   one). The address is kept encrypted like a password and never shown again, since a private calendar's address is
   all it takes to read it. It is fetched the way web pages are captured: public addresses only (and the networks in

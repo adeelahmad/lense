@@ -4,6 +4,50 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Encryption at rest has its own page in Settings.** Settings › Encryption turns encrypting files on disk on or
+  off, and the files already kept follow in the background, with how far it has got on the page. Turning it off
+  leaves vaults' files encrypted (also for `lens encrypt --off`). It also sets how long working copies and unlocked
+  vaults last.
+- **A moved recording's files move to the new namespace's key.** Moving a recording re-encrypts its files with the
+  key of the namespace it goes to, so they open only with that namespace's key, and a vault it leaves no longer holds
+  them. Moving out of or into a locked vault waits until it's unlocked (423).
+- **The copies Lens keeps of files on storage sources are encrypted too.** With encryption at rest on (or in a
+  vault), the cached copy of a recording that lives on S3, Drive, a mailbox or another connection is stored with its
+  namespace's key, and still plays, seeks and is processed as before. `lens encrypt` converts the ones already there.
+- **Frames, page images and face crops are encrypted too.** With encryption at rest on (or in a vault), the stills
+  Lens draws from videos, documents and images are stored encrypted and still show as before; visitors still get faces
+  pixelated where the namespace asks. `lens encrypt` converts the ones already there.
+- **Word search no longer weighs down the database.** Searching words in transcripts, text on screen, files, objects
+  and descriptions now uses a small SQLite index next to the database instead of SurrealDB's own full-text index. On
+  10,000 transcript lines the database used 64 MB of memory instead of 380 MB, and writing them took half the time.
+  Nothing changes in how search, the assistant or IIIF search behave. Existing installs build the new index on their
+  first start and give back the old one's memory. Settings › Search › **Word search** switches back to SurrealDB's
+  index, or to an **OpenSearch** cluster on another machine for a big archive (then Reindex now); the `opensearch`
+  compose profile runs one next to Lens.
+
+- **A much smaller web app image.** The production image runs Next.js's standalone server with only the packages it
+  uses: 465 MB instead of 2.56 GB. Cloudron and `pnpm build` keep `next start`.
+
+- **Renditions, reports and exports are encrypted too.** With encryption at rest on (or in a vault), the PDF made of a
+  Word file or an email, the HTML reports and the exports Lens keeps are stored encrypted, and download and open as
+  before. `lens encrypt` converts the ones already there. An export sent to a storage connection still arrives plain.
+
+- **Fewer steps to an answer.** Asking on Home sends the question when you press Enter, instead of opening an empty
+  chat on the first keystroke and waiting for a second Enter. With only one namespace, it is picked for you, so pages
+  that need a namespace stop asking. Once a model is set, the setup wizard offers **Finish with defaults** for the
+  remaining steps. The Import button shows on tablet-sized screens too, and an empty graph offers Import instead of a
+  list of jobs when nothing is waiting.
+
+- **Engines and models are fetched on first use.** A fresh install no longer downloads PyTorch, SenseVoice, voice IDs
+  and the face and object models before anything is imported (2.7 GB, and 2.6 GB of memory held by an idle worker).
+  Each one is fetched the first time a recording needs it; Settings › Components shows it as *On first use* until then.
+  An empty stack now idles at about 270 MB of memory, small enough for a Raspberry Pi with cloud models. **Fetch
+  everything now** (`components.ahead`) brings back fetching ahead.
+
+- **Smaller images.** The API and worker image no longer carries uv's package cache, and the web app's image no
+  longer carries Next.js's build cache: about 0.9 GB and 1.2 GB less on disk, and less to pull and build on small
+  machines.
+
 - **No dead ends after setup.** Finishing or skipping the setup wizard without a namespace now creates "archive", so
   import, watched folders, topics and the graph have somewhere to go. The chat's "set up a model" links open the model
   settings (they opened Speakers), and the bell opens the overview of what needs you in assistant mode too.

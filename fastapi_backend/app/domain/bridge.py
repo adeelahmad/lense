@@ -165,7 +165,7 @@ def answer(db, cfg, base, account, cid, q):
             for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6):
                 if kind == "step":
                     steps.append(data)
-                elif kind == "direct" and passages:
+                elif kind == "direct" and passages and not box.cited(data):  # unless it cites what it remembers
                     break
                 else:
                     text = data

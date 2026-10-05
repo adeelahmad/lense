@@ -255,6 +255,28 @@
         }
       }
     },
+    "/api/v1/auth/me/tour": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Finish Tour",
+        "description": "You finished or skipped the welcome tour, so it doesn't open again. Repeating it keeps the first time.",
+        "operationId": "finish_tour",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/auth/password": {
       "post": {
         "tags": [
@@ -2219,6 +2241,28 @@
         }
       }
     },
+    "/api/v1/settings/encryption/progress": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Encryption",
+        "description": "How far converting the files already kept has got, since encryption.files was last changed in the app (on this\nserver process).",
+        "operationId": "get_encryption",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncryptionProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/llm/test": {
       "post": {
         "tags": [
@@ -4109,6 +4153,369 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/assistant": {
+      "get": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Get Namespace Assistant",
+        "description": "The namespace's assistant: whether it's on, its name and instructions, and how much it remembers.",
+        "operationId": "get_namespace_assistant",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamespaceAssistant"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Update Namespace Assistant",
+        "description": "Owners: turn the assistant on or off, name it, or change its instructions.",
+        "operationId": "update_namespace_assistant",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NamespaceAssistantUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamespaceAssistant"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/assistant/memories": {
+      "get": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "List Assistant Memories",
+        "description": "What the namespace's assistant remembers: pinned first, then newest first (or by `q`).",
+        "operationId": "list_assistant_memories",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only memories with these words, best first",
+              "title": "Q"
+            },
+            "description": "only memories with these words, best first"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantMemory"
+                  },
+                  "title": "Response Namespaces-List Assistant Memories"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Add Assistant Memory",
+        "description": "Editors: tell the assistant something to remember.",
+        "operationId": "add_assistant_memory",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantMemoryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Forget All Assistant Memories",
+        "description": "Owners: forget everything the assistant remembers.",
+        "operationId": "forget_all_assistant_memories",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/assistant/memories/{mid}": {
+      "patch": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Update Assistant Memory",
+        "description": "Editors: correct a memory, or pin it so it's read with every question.",
+        "operationId": "update_assistant_memory",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantMemoryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantMemory"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Forget Assistant Memory",
+        "description": "Editors: forget one memory.",
+        "operationId": "forget_assistant_memory",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/collections": {
       "get": {
         "tags": [
@@ -5444,7 +5851,7 @@
           "resources"
         ],
         "summary": "Move Recording",
-        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409\nwhen the new namespace has the same file or a job is running on it. Audited as `recording.move`.",
+        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its\nfiles are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on\nit; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.",
         "operationId": "move_recording",
         "parameters": [
           {
@@ -16681,6 +17088,52 @@
         }
       }
     },
+    "/api/v1/watches/routes/preview": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Preview Routes",
+        "description": "Where the latest messages of an email account would go under these routing rules, before saving them.",
+        "operationId": "preview_routes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoutedMessage"
+                  },
+                  "type": "array",
+                  "title": "Response Sources-Preview Routes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/watches/{wid}": {
       "patch": {
         "tags": [
@@ -23287,6 +23740,172 @@
         ],
         "title": "ApprovalOutcome"
       },
+      "AssistantMemory": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording",
+            "description": "the recording it came from"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "the moment in that recording (ms)"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "that recording's title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time",
+            "description": "that moment as \"12:34\""
+          },
+          "chat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat",
+            "description": "the conversation it was told in"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author",
+            "description": "assistant (kept from a conversation) or person (written here)"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned",
+            "description": "always read with every question",
+            "default": false
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "author"
+        ],
+        "title": "AssistantMemory"
+      },
+      "AssistantMemoryCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Text"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "AssistantMemoryCreate"
+      },
+      "AssistantMemoryUpdate": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "pinned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pinned"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AssistantMemoryUpdate"
+      },
       "AttachedTo": {
         "properties": {
           "resource": {
@@ -26600,11 +27219,12 @@
               "ready",
               "waiting",
               "fetching",
+              "later",
               "failed",
               "missing"
             ],
             "title": "State",
-            "description": "waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off"
+            "description": "waiting/fetching: being fetched, and the steps that need it wait; later: fetched on first use, when a job needs it; missing: needed but fetching is off"
           },
           "detail": {
             "anyOf": [
@@ -26643,6 +27263,12 @@
             "type": "boolean",
             "title": "Auto",
             "description": "components.auto: fetch what's needed without asking"
+          },
+          "ahead": {
+            "type": "boolean",
+            "title": "Ahead",
+            "description": "components.ahead: fetch it all now, not on first use",
+            "default": false
           },
           "machine": {
             "$ref": "#/components/schemas/Machine",
@@ -27927,6 +28553,68 @@
           "ok"
         ],
         "title": "EmbedTestResult"
+      },
+      "EncryptionProgress": {
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "title": "Running"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "encrypted",
+                  "plain"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed",
+            "default": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "default": 0
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "running"
+        ],
+        "title": "EncryptionProgress",
+        "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped\nearly."
       },
       "EntityDefine": {
         "properties": {
@@ -33846,6 +34534,18 @@
               "write"
             ],
             "title": "Scope"
+          },
+          "toured_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Toured At",
+            "description": "when you finished or skipped the welcome tour; until then the web app opens it once you sign in"
           }
         },
         "additionalProperties": true,
@@ -34479,6 +35179,103 @@
           "open"
         ],
         "title": "NamespaceAccess"
+      },
+      "NamespaceAssistant": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "conversations scoped to this namespace alone talk to its assistant"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "what its owners tell it, read with every question",
+            "default": ""
+          },
+          "memories": {
+            "type": "integer",
+            "title": "Memories",
+            "description": "how many things it remembers",
+            "default": 0
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "name"
+        ],
+        "title": "NamespaceAssistant"
+      },
+      "NamespaceAssistantUpdate": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instructions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NamespaceAssistantUpdate",
+        "description": "Only the fields you send change."
       },
       "NamespaceCreate": {
         "properties": {
@@ -41785,6 +42582,234 @@
         ],
         "title": "RollbackAsk"
       },
+      "Route": {
+        "properties": {
+          "match": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "from",
+                "to",
+                "subject",
+                "list",
+                "mailbox"
+              ]
+            },
+            "type": "object",
+            "title": "Match",
+            "description": "conditions, all of which must match; each holds patterns, any of which may"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "where matching messages go (a namespace that exists)"
+          },
+          "skip": {
+            "type": "boolean",
+            "title": "Skip",
+            "description": "matching messages aren't imported at all",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "match"
+        ],
+        "title": "Route"
+      },
+      "RoutePreviewRequest": {
+        "properties": {
+          "source": {
+            "type": "integer",
+            "title": "Source"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "default": ""
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "the watch's own namespace, for messages no rule matches"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/Route"
+            },
+            "type": "array",
+            "title": "Routes",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "namespace"
+        ],
+        "title": "RoutePreviewRequest"
+      },
+      "RouteView": {
+        "properties": {
+          "match": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Match"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "None when skipped, or the namespace was deleted"
+          },
+          "skip": {
+            "type": "boolean",
+            "title": "Skip",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "match"
+        ],
+        "title": "RouteView"
+      },
+      "RoutedMessage": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "When"
+          },
+          "from": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "From",
+            "default": []
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "To",
+            "default": []
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "skipped": {
+            "type": "boolean",
+            "title": "Skipped",
+            "default": false
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule",
+            "description": "the rule that decided, counted from 1; None: no rule matched"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "RoutedMessage"
+      },
       "Routine": {
         "properties": {
           "id": {
@@ -49044,6 +50069,14 @@
             ],
             "title": "Enabled"
           },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteView"
+            },
+            "type": "array",
+            "title": "Routes",
+            "default": []
+          },
           "last_scan_at": {
             "anyOf": [
               {
@@ -49220,6 +50253,21 @@
               }
             ],
             "title": "Enabled"
+          },
+          "routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Route"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routes",
+            "description": "an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at."
           },
           "source": {
             "type": "integer",
@@ -49464,6 +50512,21 @@
               }
             ],
             "title": "Enabled"
+          },
+          "routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Route"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routes",
+            "description": "an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at."
           }
         },
         "additionalProperties": false,

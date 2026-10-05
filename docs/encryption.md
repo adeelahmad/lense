@@ -22,9 +22,18 @@ What is encrypted:
 * With `encryption.files` on, the files Lens keeps under its data folder, each with its namespace's key: uploads,
   email attachments (as files and as resources of their own), captured web pages, IIIF imports and resources'
   supplementary files. A new archive turns this on at its first start. An archive that already has files keeps its
-  setting until you run `lens encrypt`, which turns it on and encrypts what is there (`lens encrypt --off` turns it
-  back). The command can be stopped and run again. Changing the setting in the app (Settings) only affects files that
-  arrive from then on.
+  setting until you turn it on in Settings › Encryption, or run `lens encrypt`. Either way the files already there are
+  encrypted too: the app does it in the background and shows how far it has got, the command as it runs. Turning it
+  off (or `lens encrypt --off`) turns them back to plain, except a vault's, which stay encrypted. Both can be stopped
+  and run again; changing the setting again stops the app's run and starts the other way.
+* With `encryption.files` on, what Lens makes from those files under its data folder too: documents' PDF renditions,
+  reports and exports, and the frames, page images and face crops it draws. The steps that read those (text on screen,
+  faces, objects, descriptions) get plain working copies like the tools above. An export sent to a storage connection
+  you chose arrives there plain, as you'd open it; its copy in the data folder is encrypted. Reports written elsewhere
+  (`lens report` with a folder of your own) stay plain.
+* With `encryption.files` on, the copies Lens keeps of files on storage sources (S3, Drive, a mailbox, ...) to play
+  and read them, too, when the cache is under the data folder (`sources.cache_dir` unset), with the key of the
+  recording's namespace.
 
 How encrypted files are used:
 
@@ -35,13 +44,20 @@ How encrypted files are used:
   (30 by default).
 * Fingerprints and sizes are those of the plain file, so the same file uploaded or scanned again is still recognised.
 
-Not encrypted yet, and planned: what Lens makes from the files (page images and frames, PDF renditions, reports,
-exports), the cache of files from storage sources, and moving a recording's files to its new namespace's key (until
-then a moved file still opens with the key of the namespace it came from).
+Moving a recording to another namespace moves its files to that namespace's key: its own file, supplementary
+files, rendition, frames, cached copy, report pages and exports are re-encrypted with it (and plain ones encrypted,
+when the new namespace wants them encrypted), keeping their modification times. A file is never turned back to plain
+by a move. When either namespace is a vault nobody has unlocked here, the move is refused (423) and nothing changes;
+once it starts, the keys it needs stay open until it's done. A file another namespace's recording shares (the same
+IIIF import in both) keeps its key. A file a move couldn't re-encrypt (a crash half way, a disk error) is moved to
+its namespace's key by the next `lens encrypt`, which also never turns a vault's files back to plain with `--off`.
 
-What isn't encrypted by Lens: the SurrealDB database itself, including transcripts and the indexes that full-text
-and semantic search need, and your own folders that Lens scans (it only reads them). Put the data volume on an
-encrypted disk (LUKS, FileVault, BitLocker or an encrypted ZFS dataset) to cover these.
+What isn't encrypted by Lens: the SurrealDB database itself, including transcripts and the vectors that search by
+meaning needs; the word search index, which by default is a SQLite file in `<data_dir>/search/` (SurrealDB's own index
+with `search.engine: surrealdb`, or an OpenSearch cluster with `opensearch`); and your own folders that Lens scans (it
+only reads them). Put the data volume on an
+encrypted disk (LUKS, FileVault, BitLocker or an encrypted ZFS dataset) to cover these, and the OpenSearch cluster's
+disk when you use one.
 
 ## Vaults
 

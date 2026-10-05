@@ -35,6 +35,7 @@ class WorkerComponents(ResponseModel):
 
 class Components(ResponseModel):
     auto: bool = Field(description="components.auto: fetch what's needed without asking")
+    ahead: bool = Field(False, description="components.ahead: fetch it all now, not on first use")
     machine: Machine = Field(description="the API's machine")
     recommended: dict[str, Any] = Field(description="the transcription settings that suit the API's machine")
     components: list[Component]
