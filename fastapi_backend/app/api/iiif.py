@@ -445,7 +445,7 @@ def iiif_audio(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg)
 
 
 @router.get("/iiif/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
-def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> FileResponse:
+def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> Response:
     """The PDF made of a document that isn't one (a Word file, an email, …), to save. It opens with the media part,
     like the document itself, and with the link the document's probe service signed."""
     rec, a = _rec(request, db, cfg, user, rid, "audio")
@@ -455,7 +455,7 @@ def iiif_pdf(rid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -
     if rec.get("source") != "document" or not path.is_file():
         raise HTTPException(404, "not found")
     stem = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
-    return FileResponse(path, media_type="application/pdf", filename=f"{stem}.pdf", headers=filemod.HEADERS)
+    return stored_file(db, cfg, path, request, "application/pdf", f"{stem}.pdf", filemod.HEADERS)
 
 
 @router.get("/iiif/{rid}/pages/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})

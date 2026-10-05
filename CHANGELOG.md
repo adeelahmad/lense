@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Renditions, reports and exports are encrypted too.** With encryption at rest on (or in a vault), the PDF made of a
+  Word file or an email, the HTML reports and the exports Lens keeps are stored encrypted, and download and open as
+  before. `lens encrypt` converts the ones already there. An export sent to a storage connection still arrives plain.
 - **No dead ends after setup.** Finishing or skipping the setup wizard without a namespace now creates "archive", so
   import, watched folders, topics and the graph have somewhere to go. The chat's "set up a model" links open the model
   settings (they opened Speakers), and the bell opens the overview of what needs you in assistant mode too.

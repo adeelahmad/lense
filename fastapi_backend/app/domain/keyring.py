@@ -554,16 +554,50 @@ def owned(cfg, path) -> bool:
         return False
 
 
+def wanted(db, cfg, sid, path) -> bool:
+    """Whether a file Lens keeps at `path` for namespace `sid` is to be encrypted: it's under data_dir (Lens's own,
+    not a folder it scans or one it was told to write to) and encryption.files is on, or the namespace is a vault."""
+    return sid is not None and owned(cfg, path) and (enabled(cfg) or status(db, sid)["vault"])
+
+
 def protect(db, cfg, sid, path) -> bool:
-    """Encrypt a file Lens has just stored (so it is plain, whatever its first bytes), when encryption.files is on or
-    the namespace is a vault; its modification time is kept. Returns whether it was encrypted. A vault nobody has
-    unlocked here raises Locked: its files are never stored plain."""
-    if not owned(cfg, path) or not (enabled(cfg) or status(db, sid)["vault"]):
+    """Encrypt a file Lens has just stored (so it is plain, whatever its first bytes), when wanted(); its modification
+    time is kept. Returns whether it was encrypted. A vault nobody has unlocked here raises Locked: its files are never
+    stored plain."""
+    if not wanted(db, cfg, sid, path):
         return False
     st = os.stat(path)
     encrypt_file(db, cfg, sid, path, force=True)
     os.utime(path, (st.st_atime, st.st_mtime))
     return True
+
+
+def keep(db, cfg, sid, path, data: bytes | str) -> pathlib.Path:
+    """Write a file Lens makes (a rendition, a report, an export) in one go: encrypted when wanted(), never plain on
+    disk on the way; else as it is. Either way it replaces `path` atomically."""
+    p = pathlib.Path(path)
+    raw = data.encode("utf-8") if isinstance(data, str) else data
+    p.parent.mkdir(parents=True, exist_ok=True)
+    if wanted(db, cfg, sid, p):
+        with Writer(db, cfg, sid, p) as w:
+            w.write(raw)
+        return p
+    fd, tmp = tempfile.mkstemp(dir=p.parent, prefix=".keep-")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(raw)
+        os.replace(tmp, p)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+    return p
+
+
+def read_plain(db, cfg, path) -> bytes:
+    """A file's plain bytes, encrypted or not."""
+    with open_plain(db, cfg, path) as f:
+        return f.read()
 
 
 def plain_size(db, cfg, path) -> int:
@@ -747,6 +781,23 @@ def stored_files(db, cfg):
         p = filemod.path_of(cfg, f)
         if p.is_file():
             yield f["space"], str(p)
+    yield from made_files(db, cfg)
+
+
+def made_files(db, cfg):
+    """(space, path) for the files Lens makes from them: documents' PDF renditions, reports and exports."""
+    data = pathlib.Path(cfg["data_dir"])
+    for r in db.rows("SELECT record::id(id) AS id, space FROM recording WHERE source = 'document'"):
+        p = data / "renditions" / f"{int(r['id'])}.pdf"
+        if p.is_file():
+            yield r["space"], str(p)
+    for sid, name in store.space_names(db).items():
+        for kind, pattern in (("reports", "*.html"), ("exports", "*")):
+            d = data / kind / name
+            if d.is_dir():
+                for p in sorted(d.glob(pattern)):
+                    if p.is_file() and not p.name.startswith("."):
+                        yield sid, str(p)
 
 
 def encrypt_all(db, cfg, decrypt=False, log=print, space=None):
