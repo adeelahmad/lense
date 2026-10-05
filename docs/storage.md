@@ -12,7 +12,7 @@ right there (the same dialog as Sources) and is checked before it's saved.
 | Setting | |
 |---|---|
 | `store` | `local`: `data_dir/objects` on this machine (the default). `connection`: a storage connection |
-| `connection` | the id of a storage connection (Settings → Sources): S3 or S3-compatible (AWS, MinIO, Backblaze, R2 ...), Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV, or a folder on this machine inside `sources.local_roots` |
+| `connection` | the id of a storage connection (on the Sources page, `/sources`): S3 or S3-compatible (AWS, MinIO, Backblaze, R2 ...), Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV, or a folder on this machine inside `sources.local_roots` |
 | `folder` | where on it: a path; for S3, the bucket and a path (`my-bucket/lens`); for a folder on this machine, its full path |
 | `crypt` | also wrap it in an [rclone crypt](https://rclone.org/crypt/) remote, which hides the names and sizes of what is kept there |
 

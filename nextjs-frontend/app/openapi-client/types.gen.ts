@@ -458,6 +458,99 @@ export type ApprovalOutcome = {
 };
 
 /**
+ * AssistantMemory
+ */
+export type AssistantMemory = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Recording
+   *
+   * the recording it came from
+   */
+  recording?: number | null;
+  /**
+   * T0
+   *
+   * the moment in that recording (ms)
+   */
+  t0?: number | number | null;
+  /**
+   * Title
+   *
+   * that recording's title
+   */
+  title?: string | null;
+  /**
+   * Time
+   *
+   * that moment as "12:34"
+   */
+  time?: string | null;
+  /**
+   * Chat
+   *
+   * the conversation it was told in
+   */
+  chat?: number | null;
+  /**
+   * Author
+   *
+   * assistant (kept from a conversation) or person (written here)
+   */
+  author: string;
+  /**
+   * Pinned
+   *
+   * always read with every question
+   */
+  pinned?: boolean;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AssistantMemoryCreate
+ */
+export type AssistantMemoryCreate = {
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Pinned
+   */
+  pinned?: boolean;
+};
+
+/**
+ * AssistantMemoryUpdate
+ */
+export type AssistantMemoryUpdate = {
+  /**
+   * Text
+   */
+  text?: string | null;
+  /**
+   * Pinned
+   */
+  pinned?: boolean | null;
+};
+
+/**
  * AttachedTo
  *
  * The email a resource was attached to (it's one of that email's files too).
@@ -2291,9 +2384,9 @@ export type ComponentState = {
   /**
    * State
    *
-   * waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off
+   * waiting/fetching: being fetched, and the steps that need it wait; later: fetched on first use, when a job needs it; missing: needed but fetching is off
    */
-  state: "ready" | "waiting" | "fetching" | "failed" | "missing";
+  state: "ready" | "waiting" | "fetching" | "later" | "failed" | "missing";
   /**
    * Detail
    *
@@ -2317,6 +2410,12 @@ export type Components = {
    * components.auto: fetch what's needed without asking
    */
   auto: boolean;
+  /**
+   * Ahead
+   *
+   * components.ahead: fetch it all now, not on first use
+   */
+  ahead?: boolean;
   /**
    * the API's machine
    */
@@ -3044,6 +3143,41 @@ export type EmbedTestResult = {
    * Model
    */
   model?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * EncryptionProgress
+ *
+ * Converting the files already kept after encryption.files changed: `to` "encrypted" or "plain" (vaults stay
+ * encrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped
+ * early.
+ */
+export type EncryptionProgress = {
+  /**
+   * Running
+   */
+  running: boolean;
+  /**
+   * To
+   */
+  to?: "encrypted" | "plain" | null;
+  /**
+   * Changed
+   */
+  changed?: number;
+  /**
+   * Skipped
+   */
+  skipped?: number;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: number | null;
   [key: string]: unknown;
 };
 
@@ -6550,6 +6684,12 @@ export type Me = {
    * Scope
    */
   scope: "read" | "write";
+  /**
+   * Toured At
+   *
+   * when you finished or skipped the welcome tour; until then the web app opens it once you sign in
+   */
+  toured_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -6922,6 +7062,63 @@ export type NamespaceAccess = {
    */
   open: Array<"media" | "transcript" | "index">;
   [key: string]: unknown;
+};
+
+/**
+ * NamespaceAssistant
+ */
+export type NamespaceAssistant = {
+  /**
+   * Enabled
+   *
+   * conversations scoped to this namespace alone talk to its assistant
+   */
+  enabled: boolean;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Instructions
+   *
+   * what its owners tell it, read with every question
+   */
+  instructions?: string;
+  /**
+   * Memories
+   *
+   * how many things it remembers
+   */
+  memories?: number;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NamespaceAssistantUpdate
+ *
+ * Only the fields you send change.
+ */
+export type NamespaceAssistantUpdate = {
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Instructions
+   */
+  instructions?: string | null;
 };
 
 /**
@@ -11155,6 +11352,128 @@ export type RollbackAsk = {
 };
 
 /**
+ * Route
+ */
+export type Route = {
+  /**
+   * Match
+   *
+   * conditions, all of which must match; each holds patterns, any of which may
+   */
+  match: {
+    [key: string]: string | Array<string>;
+  };
+  /**
+   * Namespace
+   *
+   * where matching messages go (a namespace that exists)
+   */
+  namespace?: string | null;
+  /**
+   * Skip
+   *
+   * matching messages aren't imported at all
+   */
+  skip?: boolean;
+  /**
+   * Name
+   */
+  name?: string | null;
+};
+
+/**
+ * RoutePreviewRequest
+ */
+export type RoutePreviewRequest = {
+  /**
+   * Source
+   */
+  source: number;
+  /**
+   * Path
+   */
+  path?: string;
+  /**
+   * Namespace
+   *
+   * the watch's own namespace, for messages no rule matches
+   */
+  namespace: string;
+  /**
+   * Routes
+   */
+  routes?: Array<Route>;
+};
+
+/**
+ * RouteView
+ */
+export type RouteView = {
+  /**
+   * Match
+   */
+  match: {
+    [key: string]: Array<string>;
+  };
+  /**
+   * Namespace
+   *
+   * None when skipped, or the namespace was deleted
+   */
+  namespace?: string | null;
+  /**
+   * Skip
+   */
+  skip?: boolean;
+  /**
+   * Name
+   */
+  name?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * RoutedMessage
+ */
+export type RoutedMessage = {
+  /**
+   * Path
+   */
+  path: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * When
+   */
+  when?: string | null;
+  /**
+   * From
+   */
+  from?: Array<string>;
+  /**
+   * To
+   */
+  to?: Array<string>;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Skipped
+   */
+  skipped?: boolean;
+  /**
+   * Rule
+   *
+   * the rule that decided, counted from 1; None: no rule matched
+   */
+  rule?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Routine
  */
 export type Routine = {
@@ -15307,6 +15626,10 @@ export type Watch = {
    */
   enabled?: boolean | null;
   /**
+   * Routes
+   */
+  routes?: Array<RouteView>;
+  /**
    * Last Scan At
    */
   last_scan_at?: string | null;
@@ -15371,6 +15694,12 @@ export type WatchCreate = {
    * Enabled
    */
   enabled?: boolean | null;
+  /**
+   * Routes
+   *
+   * an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at.
+   */
+  routes?: Array<Route> | null;
   /**
    * Source
    */
@@ -15486,6 +15815,12 @@ export type WatchUpdate = {
    * Enabled
    */
   enabled?: boolean | null;
+  /**
+   * Routes
+   *
+   * an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at.
+   */
+  routes?: Array<Route> | null;
 };
 
 /**
@@ -16103,6 +16438,22 @@ export type UpdateMeResponses = {
 };
 
 export type UpdateMeResponse = UpdateMeResponses[keyof UpdateMeResponses];
+
+export type FinishTourData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/auth/me/tour";
+};
+
+export type FinishTourResponses = {
+  /**
+   * Successful Response
+   */
+  200: Me;
+};
+
+export type FinishTourResponse = FinishTourResponses[keyof FinishTourResponses];
 
 export type ChangePasswordData = {
   body: PasswordChange;
@@ -17351,6 +17702,22 @@ export type UpdateSettingsResponses = {
 
 export type UpdateSettingsResponse = UpdateSettingsResponses[keyof UpdateSettingsResponses];
 
+export type GetEncryptionData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/encryption/progress";
+};
+
+export type GetEncryptionResponses = {
+  /**
+   * Successful Response
+   */
+  200: EncryptionProgress;
+};
+
+export type GetEncryptionResponse = GetEncryptionResponses[keyof GetEncryptionResponses];
+
 export type TestLlmData = {
   body?: never;
   path?: never;
@@ -18542,6 +18909,235 @@ export type UpdateIpGroupResponses = {
 };
 
 export type UpdateIpGroupResponse = UpdateIpGroupResponses[keyof UpdateIpGroupResponses];
+
+export type GetNamespaceAssistantData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/assistant";
+};
+
+export type GetNamespaceAssistantErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceAssistantError = GetNamespaceAssistantErrors[keyof GetNamespaceAssistantErrors];
+
+export type GetNamespaceAssistantResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceAssistant;
+};
+
+export type GetNamespaceAssistantResponse = GetNamespaceAssistantResponses[keyof GetNamespaceAssistantResponses];
+
+export type UpdateNamespaceAssistantData = {
+  body: NamespaceAssistantUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/assistant";
+};
+
+export type UpdateNamespaceAssistantErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNamespaceAssistantError = UpdateNamespaceAssistantErrors[keyof UpdateNamespaceAssistantErrors];
+
+export type UpdateNamespaceAssistantResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceAssistant;
+};
+
+export type UpdateNamespaceAssistantResponse =
+  UpdateNamespaceAssistantResponses[keyof UpdateNamespaceAssistantResponses];
+
+export type ForgetAllAssistantMemoriesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/assistant/memories";
+};
+
+export type ForgetAllAssistantMemoriesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ForgetAllAssistantMemoriesError = ForgetAllAssistantMemoriesErrors[keyof ForgetAllAssistantMemoriesErrors];
+
+export type ForgetAllAssistantMemoriesResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ForgetAllAssistantMemoriesResponse =
+  ForgetAllAssistantMemoriesResponses[keyof ForgetAllAssistantMemoriesResponses];
+
+export type ListAssistantMemoriesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Q
+     *
+     * only memories with these words, best first
+     */
+    q?: string | null;
+  };
+  url: "/api/v1/namespaces/{name}/assistant/memories";
+};
+
+export type ListAssistantMemoriesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListAssistantMemoriesError = ListAssistantMemoriesErrors[keyof ListAssistantMemoriesErrors];
+
+export type ListAssistantMemoriesResponses = {
+  /**
+   * Response Namespaces-List Assistant Memories
+   *
+   * Successful Response
+   */
+  200: Array<AssistantMemory>;
+};
+
+export type ListAssistantMemoriesResponse = ListAssistantMemoriesResponses[keyof ListAssistantMemoriesResponses];
+
+export type AddAssistantMemoryData = {
+  body: AssistantMemoryCreate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/assistant/memories";
+};
+
+export type AddAssistantMemoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddAssistantMemoryError = AddAssistantMemoryErrors[keyof AddAssistantMemoryErrors];
+
+export type AddAssistantMemoryResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type AddAssistantMemoryResponse = AddAssistantMemoryResponses[keyof AddAssistantMemoryResponses];
+
+export type ForgetAssistantMemoryData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/assistant/memories/{mid}";
+};
+
+export type ForgetAssistantMemoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ForgetAssistantMemoryError = ForgetAssistantMemoryErrors[keyof ForgetAssistantMemoryErrors];
+
+export type ForgetAssistantMemoryResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type ForgetAssistantMemoryResponse = ForgetAssistantMemoryResponses[keyof ForgetAssistantMemoryResponses];
+
+export type UpdateAssistantMemoryData = {
+  body: AssistantMemoryUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/assistant/memories/{mid}";
+};
+
+export type UpdateAssistantMemoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateAssistantMemoryError = UpdateAssistantMemoryErrors[keyof UpdateAssistantMemoryErrors];
+
+export type UpdateAssistantMemoryResponses = {
+  /**
+   * Successful Response
+   */
+  200: AssistantMemory;
+};
+
+export type UpdateAssistantMemoryResponse = UpdateAssistantMemoryResponses[keyof UpdateAssistantMemoryResponses];
 
 export type ListNamespaceCollectionsData = {
   body?: never;
@@ -26104,6 +26700,33 @@ export type PreviewWatchResponses = {
 };
 
 export type PreviewWatchResponse = PreviewWatchResponses[keyof PreviewWatchResponses];
+
+export type PreviewRoutesData = {
+  body: RoutePreviewRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/watches/routes/preview";
+};
+
+export type PreviewRoutesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewRoutesError = PreviewRoutesErrors[keyof PreviewRoutesErrors];
+
+export type PreviewRoutesResponses = {
+  /**
+   * Response Sources-Preview Routes
+   *
+   * Successful Response
+   */
+  200: Array<RoutedMessage>;
+};
+
+export type PreviewRoutesResponse = PreviewRoutesResponses[keyof PreviewRoutesResponses];
 
 export type DeleteWatchData = {
   body?: never;

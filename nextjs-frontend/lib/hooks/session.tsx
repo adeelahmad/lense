@@ -35,6 +35,12 @@ type Ctx = {
 const ArchiveCtx = createContext<Ctx | null>(null);
 const KEY = "lens.namespace";
 
+/** The one namespace there is, if there is just one: it's the current namespace until another is picked, so pages
+ * that need one don't ask first. */
+export function onlyNamespace(all: { name: string; partial?: boolean | null }[]): string | null {
+  return all.length === 1 && !all[0].partial ? all[0].name : null;
+}
+
 /** Who is signed in, their roles, and the current namespace. Every screen reads this for the role rule. */
 export function ArchiveProvider({ children }: { children: ReactNode }) {
   const client = useApiClient();
@@ -86,7 +92,7 @@ export function ArchiveProvider({ children }: { children: ReactNode }) {
       partialNamespaces,
       isPartial: (n: string | null | undefined) => Boolean(n && partialNamespaces.some((p) => p.name === n)),
       loaded: me.isSuccess && ns.isSuccess,
-      namespace,
+      namespace: namespace ?? onlyNamespace(all),
       setNamespace,
       roleIn,
       can,

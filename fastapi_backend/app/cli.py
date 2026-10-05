@@ -42,7 +42,7 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
 
 
 def _main_base(argv=None):
-    ap = argparse.ArgumentParser(prog="lens", description="Lens: an archive for recorded speech and video.")
+    ap = argparse.ArgumentParser(prog="lens", description="Lens: usable context for you and your agents.")
     ap.add_argument("--config", help="YAML config (default: $ARCHIVE_CONFIG or ./archive.yaml)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("init", help="write a starter archive.yaml")
@@ -106,7 +106,7 @@ def _main_base(argv=None):
     p = sub.add_parser("migrations", help="list the database upgrades: run, pending or failed (docs/database.md)")
     p.add_argument("--run", action="store_true", help="run the pending ones now (Lens also runs them when it starts)")
     sub.add_parser("backup", help="back the database up into <data_dir>/backups (docs/database.md, Backups)")
-    sub.add_parser("reindex", help="rebuild the search index (after changing search.tokenizer)")
+    sub.add_parser("reindex", help="rebuild the search index (after changing search.engine or search.stemming)")
     p = sub.add_parser("encrypt", help="encrypt the files Lens keeps, and keep encrypting new ones (docs/encryption.md)")
     p.add_argument("--off", action="store_true", help="decrypt them again and stop encrypting new ones")
     a = ap.parse_args(argv)

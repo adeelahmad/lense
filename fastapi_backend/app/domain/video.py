@@ -20,7 +20,7 @@ import threading
 
 import numpy as np
 
-from . import ingest, jobs, store
+from . import ingest, jobs, keyring, store
 
 R = store.R
 VIDEO_TYPES = {
@@ -463,23 +463,24 @@ def step_shots(db, cfg, rid, say):
     d.mkdir(parents=True, exist_ok=True)
     dur = media["duration_ms"] / 1000
     shots = shots_of(dur, scene_changes(path, v["scene_threshold"]), v["min_shot_seconds"])
-    rows = []
-    for k, (a, b) in enumerate(shots):
-        f = d / f"shot{k:04d}.jpg"
-        ok = extract_frame(path, a + min(1.0, (b - a) / 4), f, v["frame_width"])
-        rows.append(
-            store.clean(
-                {
-                    "recording": rid,
-                    "space": rec["space"],
-                    "idx": k,
-                    "t0": int(a * 1000),
-                    "t1": int(b * 1000),
-                    "frame": f.name if ok else None,
-                }
+    with keyring.sealing(db, cfg, rec["space"], d):  # its frames: encrypted, even if this fails part way
+        rows = []
+        for k, (a, b) in enumerate(shots):
+            f = d / f"shot{k:04d}.jpg"
+            ok = extract_frame(path, a + min(1.0, (b - a) / 4), f, v["frame_width"])
+            rows.append(
+                store.clean(
+                    {
+                        "recording": rid,
+                        "space": rec["space"],
+                        "idx": k,
+                        "t0": int(a * 1000),
+                        "t1": int(b * 1000),
+                        "frame": f.name if ok else None,
+                    }
+                )
             )
-        )
-    samples = sample_frames(path, v["sample_seconds"], d, v["frame_width"])
+        samples = sample_frames(path, v["sample_seconds"], d, v["frame_width"])
     db.run(["DELETE shot WHERE recording = $r"] + (["INSERT INTO shot $rows"] if rows else []), r=rid, rows=rows)
     patch = {"media": media, "samples": samples, "sample_ms": int(v["sample_seconds"] * 1000)}
     if not rec.get("duration_ms"):
@@ -505,7 +506,9 @@ def step_ocr(db, cfg, rid, say):
     open_, done = {}, []
     for t, name in rec.get("samples") or []:
         seen = set()
-        for line in engine.lines(d / name):
+        with keyring.plain_picture(db, cfg, d / name) as pic:
+            lines = engine.lines(pic)
+        for line in lines:
             text = re.sub(r"\s+", " ", line["text"]).strip()
             if line["conf"] < min_conf or len(text) < 3 or sum(ch.isalnum() for ch in text) < 0.5 * len(text):
                 continue
@@ -565,6 +568,6 @@ def step_faces(db, cfg, rid, say):
         frames, step = rec.get("samples") or [], rec.get("sample_ms") or 5000
     d, dets = frames_dir(cfg, rid), []
     for t, name in frames:
-        for f in engine.faces(d / name):
-            dets.append({"t": t, "frame": name, **f})
+        with keyring.plain_picture(db, cfg, d / name) as pic:
+            dets += [{"t": t, "frame": name, **f} for f in engine.faces(pic)]
     faces.store_tracks(db, cfg, rid, rec["space"], dets, mode, step, say, paged)

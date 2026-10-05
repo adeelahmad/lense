@@ -27,10 +27,10 @@ jobs:
       matrix:
         include:
           - arch: x86_64
-            runner: [self-hosted, Linux, X64]
-          # On the Linux x64 runner under QEMU, unless the repository variable QNAP_ARM_RUNNER names another runner label
+            runner: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+          # On the x64 runner under QEMU, unless the repository variable QNAP_ARM_RUNNER names another runner label
           - arch: arm_64
-            runner: ${{ vars.QNAP_ARM_RUNNER || fromJSON('["self-hosted","Linux","X64"]') }}
+            runner: ${{ vars.QNAP_ARM_RUNNER || fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 300
     env:

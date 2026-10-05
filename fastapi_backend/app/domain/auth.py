@@ -178,6 +178,21 @@ def rename_account(db, uid, name):
     return n
 
 
+def toured_at(db, uid):
+    """When someone finished or skipped the welcome tour the web app shows after their first sign-in, else None."""
+    return (db.one("SELECT toured_at FROM $r", r=R("account", uid)) or {}).get("toured_at")
+
+
+def finish_tour(db, uid):
+    """Someone finished or skipped the welcome tour, so it doesn't open again (the first time counts)."""
+    db.q("UPDATE $r SET toured_at = $t WHERE toured_at = NONE", r=R("account", uid), t=store.now())
+
+
+def migrate_tours(db):
+    """People who had signed in before the welcome tour existed already know their way around: it doesn't open for them."""
+    db.q("UPDATE account SET toured_at = $t WHERE toured_at = NONE AND last_login_at != NONE", t=store.now())
+
+
 # ---------- sessions (refresh tokens) and API tokens ----------
 # The web app signs in through NextAuth: the API hands out a short-lived JWT access token (see app.core.security) and a
 # long-lived refresh token. Only the refresh token's hash is stored, one row per signed-in device; every refresh

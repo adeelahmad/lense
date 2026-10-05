@@ -166,12 +166,28 @@ export function SetupWizard() {
       {llmSet && step !== "llm" && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-border bg-blue-surface px-4 py-3">
           <p className="text-[13.5px] text-fg">
-            <span className="font-semibold">Rather talk it through?</span> The assistant can set up the rest with you,
-            and you can drop files in as you go.
+            <span className="font-semibold">The model is set, so Lens is ready.</span> Keep the defaults for the rest,
+            or talk it through with the assistant and drop files in as you go.
           </p>
-          <Button variant="primary" size="sm" onClick={() => withAssistant.mutate()} disabled={withAssistant.isPending}>
-            Finish with the assistant
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => finish.mutate(false)}
+              disabled={finish.isPending}
+              title="Storage, apps and telemetry stay as they are; all changeable in Settings"
+            >
+              Finish with defaults
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => withAssistant.mutate()}
+              disabled={withAssistant.isPending}
+            >
+              Finish with the assistant
+            </Button>
+          </div>
         </div>
       )}
 

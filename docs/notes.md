@@ -51,8 +51,8 @@ written with a capital). One click adds the link on a line of its own. The assis
 
 ## Titles and summaries
 
-With **Settings → Assistant → Keep note titles and summaries up to date** (`ai.refine_notes`, on by default), a note
-whose title or text changed is sent to the model once nobody has touched it for two minutes. The model rewrites the
+With **Settings → AI assistant → Keep note titles and summaries up to date** (`ai.refine_notes`, on by default), a
+note whose title or text changed is sent to the model once nobody has touched it for two minutes. The model rewrites the
 one-line summary to fit the whole note, and the title only when it is empty, "Untitled" or no longer fits. A note being
 typed is never sent on each keystroke, empty notes are never sent, and nothing is sent without a model configured. The
 API and `lens worker` processes run this pass with the routines. Each model call, and each filing decision, counts in
@@ -71,11 +71,11 @@ The assistant sees a page's files (names, types, sizes) when it reads it.
 
 ## Filing (PARA)
 
-With **Settings → Assistant → File notes in projects, areas, resources and archives** (`ai.organise_notes`, on by
+With **Settings → AI assistant → File notes in projects, areas, resources and archives** (`ai.organise_notes`, on by
 default), free notes nobody filed are filed once their summary is written. It's a routine decision, so a decision model
-takes it when one is set up (Settings → Assistant), else the language model. When it's sure (`decisions.act_above`) the
-note is filed (`place_by: assistant`); otherwise its best guess waits on the note as a suggestion to accept with one
-click. What a person files is never refiled.
+takes it when one is set up (Settings → AI assistant), else the language model. When it's sure
+(`decisions.act_above`) the note is filed (`place_by: assistant`); otherwise its best guess waits on the note as a
+suggestion to accept with one click. What a person files is never refiled.
 
 A note at the top of the tree that isn't a project, an area or archived also shows the project or area page it fits
 under, with one click to put it inside: the one it links to, that links to it, that links the same topics and things,
@@ -84,9 +84,9 @@ moves on its own; the assistant sees the same as `could_go_in` when it reads the
 
 ## The assistant
 
-The chat assistant keeps notes as its notebook: `find_notes`, `read_note`, `write_note` and `update_note` (Settings →
-Assistant lists them). It looks there first, and writes or updates a note when it learns something worth keeping,
-filed in PARA and linked with @ and #. Writing needs editor access to the namespace and takes effect at once, with no
+The chat assistant keeps notes as its notebook: `find_notes`, `read_note`, `write_note` and `update_note` (Settings → AI
+assistant lists them). It looks there first, and writes or updates a note when it learns something worth keeping, filed
+in PARA and linked with @ and #. Writing needs editor access to the namespace and takes effect at once, with no
 approval: notes it writes say so. It never deletes a note.
 
 ## History
@@ -113,5 +113,5 @@ co-editing rather than inside Lens.
 
 ## Refine later
 
-Pages for people who see only some collections of a namespace; differences between versions; attachments; live co-editing
-through OctoBase; pages and their links as nodes and relationships in the graph.
+Pages for people who see only some collections of a namespace; differences between versions; live co-editing through
+OctoBase; pages and their links as nodes and relationships in the graph.
