@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **No dead ends after setup.** Finishing or skipping the setup wizard without a namespace now creates "archive", so
+  import, watched folders, topics and the graph have somewhere to go. The chat's "set up a model" links open the model
+  settings (they opened Speakers), and the bell opens the overview of what needs you in assistant mode too.
+
 - **The graph canvas as of a version.** A clock menu on the canvas toolbar shows the entity graph as of a named
   version or as it was before one of the latest changes. Exploring, paths and questions use that version too.
 

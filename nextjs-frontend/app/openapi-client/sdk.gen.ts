@@ -2817,7 +2817,8 @@ export class Setup {
   /**
    * Finish
    *
-   * Finish (or skip) the wizard; the web app stops showing it. Everything stays changeable in Settings.
+   * Finish (or skip) the wizard; the web app stops showing it. Everything stays changeable in Settings. With no
+   * namespace yet, the default one is made (saved: ["namespace"]).
    */
   public static finish<ThrowOnError extends boolean = false>(
     options: Options<FinishData, ThrowOnError>,

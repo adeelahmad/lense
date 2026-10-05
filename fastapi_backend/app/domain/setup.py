@@ -29,6 +29,7 @@ from . import auth, settings, sources, store
 
 R = store.R
 WIZARD = ("setup", "wizard")
+DEFAULT_NAMESPACE = "archive"  # what the wizard suggests too
 log = logging.getLogger("lens")
 
 
@@ -56,7 +57,13 @@ def mark_fresh(db, cfg=None):
 
 
 def finish(db, user=None, skipped=False):
+    """Finish (or skip) the wizard. An archive still without a namespace gets the default one, so importing, watching
+    folders and the graph have somewhere to go without asking first. Returns its name when it made one."""
     db.q("UPDATE $r SET done_at = $t, done_by = $u, skipped = $s", r=R(*WIZARD), t=store.now(), u=user, s=skipped)
+    if store.space_names(db):
+        return None
+    store.ns_id(db, DEFAULT_NAMESPACE)
+    return DEFAULT_NAMESPACE
 
 
 def env_admin():

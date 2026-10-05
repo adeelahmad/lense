@@ -3,7 +3,7 @@ import "@testing-library/jest-dom";
 
 import { Composer } from "@/components/chat/composer";
 import { AssistantHome, assistantChatHref } from "@/components/home/assistant-home";
-import { homeMode } from "@/components/home/home-page";
+import { homeMode, linkedMode } from "@/components/home/home-page";
 import { speakable, useVoice, voiceError, VoiceError } from "@/lib/voice";
 
 const push = jest.fn();
@@ -57,6 +57,11 @@ describe("which home a visit opens", () => {
     expect(homeMode(null, false)).toBe("overview");
     expect(homeMode("overview", true)).toBe("overview");
     expect(homeMode("assistant", false)).toBe("assistant");
+  });
+
+  it("opens the overview from the bell, whatever mode was picked", () => {
+    expect(linkedMode("#attention")).toBe("overview");
+    expect(linkedMode("")).toBeNull();
   });
 
   it("starts assistant chats over everything, typed or spoken", () => {

@@ -731,7 +731,7 @@ export function ChatApp() {
               <Banner tone="info">
                 No LLM provider is set up, so answers list the best passages.{" "}
                 {admin && (
-                  <Link href="/settings#llm" className="font-bold text-fg-accent hover:underline">
+                  <Link href="/settings/llm" className="font-bold text-fg-accent hover:underline">
                     Open LLM settings
                   </Link>
                 )}

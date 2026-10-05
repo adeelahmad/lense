@@ -120,9 +120,19 @@ def test_wizard_after_first_admin(fresh, folder):
     assert client.put("/api/v1/setup/oauth", json={"enabled": True}, headers=h).json()["saved"] == ["oauth_enabled"]
     assert client.get("/.well-known/oauth-authorization-server").status_code == 200
 
-    assert client.post("/api/v1/setup/finish", json={}, headers=h).status_code == 200
+    assert client.post("/api/v1/setup/finish", json={}, headers=h).json()["saved"] == []  # "family" exists already
     assert client.get("/api/v1/auth/status").json()["wizard_pending"] is False
     assert "setup.finish" in [e["action"] for e in client.get("/api/v1/audit", headers=h).json()]
+    assert [n["name"] for n in client.get("/api/v1/namespaces", headers=h).json()] == ["family"]
+
+
+def test_skipping_the_wizard_leaves_a_namespace(fresh):
+    app, client = fresh()
+    code = app.state.archive.setup_code
+    r = client.post("/api/v1/auth/setup", json={"code": code, "email": "ada@x.io", "password": "admin password 1"})
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    assert client.post("/api/v1/setup/finish", json={"skipped": True}, headers=h).json()["saved"] == ["namespace"]
+    assert [(n["name"], n["graph"]) for n in client.get("/api/v1/namespaces", headers=h).json()] == [("archive", "shared")]
 
 
 def test_only_admins_use_the_wizard(fresh):
