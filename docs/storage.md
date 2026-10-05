@@ -27,4 +27,5 @@ from wherever they were written, and new ones go to the new place.
 `POST /api/v1/settings/files/test` writes a small file there, reads it back and removes it: what is saved, or a
 `{store, connection, folder, crypt}` given in the body, to check before saving. The assistant (for admins) has
 `file_storage`, which says where files go and which connections could take them, and checks it with `check`; it
-changes it with `change_settings files`, which always waits for approval.
+changes it with `change_settings files`, which always waits for approval. Agents connected over [MCP](mcp.md) have
+the same as `file_storage` and `set_file_storage` (admins only; the change is checked before it's saved).

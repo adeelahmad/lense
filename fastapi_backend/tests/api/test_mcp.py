@@ -71,7 +71,12 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     assert [t["name"] for t in tools] == list(mcp_tools.TOOLS)
     assert all(t["inputSchema"]["type"] == "object" for t in tools)
     # every tool only reads, except suggesting a topic and asking for a graph change (which need the write scope)
-    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == ["suggest_topic", "propose_graph_change", "write_note"]
+    assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == [
+        "suggest_topic",
+        "propose_graph_change",
+        "write_note",
+        "set_file_storage",
+    ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
     assert rpc(client, env["hv"], "ping")["result"] == {}
@@ -424,3 +429,18 @@ def test_note_tools(client, db, env):
     p = notebook.get(db, made["note_id"])
     assert (p["author"], p["place"], p["parent"]) == ("assistant", "resource", plan)
     assert tool_error(client, he, "write_note", namespace="calls", title="x", body="y")
+
+
+def test_file_storage_tools(client, db, env, folder):
+    assert "only admins" in tool_error(client, env["h"], "file_storage")
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    ha = login(client, "root@x.io", "root password 1")
+    got = tool(client, ha, "file_storage", check=True)
+    assert (got["store"], got["connection"], got["connections"], got["check"]["ok"]) == ("local", None, [], True)
+    assert got["settings"].endswith("/settings/storage")
+    assert "connection's id" in tool_error(client, ha, "set_file_storage", store="connection")
+    assert tool_error(client, ha, "set_file_storage", store="connection", connection=99)
+    out = tool(client, ha, "set_file_storage", store="local")
+    assert out["saved"] == {"store": "local"} and out["check"]["ok"]
+    assert client.app.state.archive.current()["files"]["store"] == "local"
+    assert "only admins" in tool_error(client, env["h"], "set_file_storage", store="local")

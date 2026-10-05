@@ -220,7 +220,7 @@ Todo:
 - [x] Attachments on notes in the file store: BlockSuite's blob source keeps images and files there (note_file)
 - [ ] Moving uploads and recordings' media to the file store (pipelines need local copies: a cache)
 - [ ] A downloadable storage key (the server secret; opens every namespace that isn't a passkey vault)
-- [ ] File storage over MCP (admins)
+- [x] File storage over MCP (admins): file_storage, set_file_storage (checked before saving)
 
 ## 2026-10-04 · The graph, end to end
 
