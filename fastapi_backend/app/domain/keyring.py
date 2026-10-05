@@ -880,6 +880,76 @@ def made_files(db, cfg):
                         yield sid, str(p)
 
 
+def recording_files(db, cfg, rid):
+    """The files Lens keeps of one recording, where they are for its namespace now: its own file under data_dir, its
+    supplementary files, its rendition, frames, page images and face crops, its cached copy from a storage source,
+    and its report pages and exports."""
+    from . import files as filemod, render, sources
+
+    rec = db.one("SELECT title, space, path, remote, source FROM $r", r=store.R("recording", rid))
+    if not rec:
+        return
+    data = pathlib.Path(cfg["data_dir"])
+    if rec.get("path") and not rec.get("remote"):
+        p = store.resolve_path(cfg, rec["path"])
+        if p and owned(cfg, p) and os.path.isfile(p):
+            yield str(p)
+    for f in db.rows("SELECT record::id(id) AS id, recording, name FROM resource_file WHERE recording = $r", r=rid):
+        p = filemod.path_of(cfg, f)
+        if p.is_file():
+            yield str(p)
+    p = data / "renditions" / f"{int(rid)}.pdf"
+    if p.is_file():
+        yield str(p)
+    d = data / "frames" / str(int(rid))
+    if d.is_dir():
+        yield from (str(f) for f in sorted(d.glob("*.jpg")))
+    if rec.get("remote"):
+        with contextlib.suppress(KeyError, ValueError, TypeError):
+            rm = rec["remote"]
+            p = sources.cache_file(cfg, rm["source"], sources.check_path(cfg, sources.get(db, rm["source"]), rm["path"]), rec["space"])
+            if p.is_file() and owned(cfg, p):
+                yield str(p)
+    name = store.space_names(db).get(rec["space"])
+    if not name:
+        return
+    reports, page = data / "reports" / name, f"{render.slug(rec.get('title'))}-{int(rid)}"
+    for p in [reports / f"{page}.html", *sorted(reports.glob(f"{page}--*.html"))]:
+        if p.is_file():
+            yield str(p)
+    for o in db.rows("SELECT key, value FROM output WHERE recording = $r AND string::starts_with(key, 'export_')", r=rid):
+        f = pathlib.PurePosixPath((o.get("value") or {}).get("file") or "").name
+        if f and (data / "exports" / name / f).is_file():
+            yield str(data / "exports" / name / f)
+
+
+def keys_needed(db, cfg, sid, paths):
+    """Check that the files at `paths` can be moved to namespace `sid` (see rekey): each encrypted one's own key opens
+    and, when any of them is to be encrypted there, the new namespace's does. Raises Locked for a vault nobody has
+    unlocked here, before anything is changed."""
+    need = {_space_of(p) for p in paths if is_encrypted(p)}
+    if need or any(wanted(db, cfg, sid, p) for p in paths):
+        need.add(int(sid))
+    for s in sorted(need):
+        data_key(db, cfg, s)
+
+
+def rekey(db, cfg, sid, path) -> bool:
+    """Keep a file of a recording that moved to namespace `sid` under that namespace's key: an encrypted one is
+    re-encrypted with it (also when encryption.files is off there, so a file is never turned back to plain), a plain
+    one is encrypted when wanted() there. Atomic, and its modification time is kept. Returns whether it changed."""
+    if not is_encrypted(path):
+        return protect(db, cfg, sid, path)
+    if _space_of(path) == int(sid):
+        return False
+    st = os.stat(path)
+    with Reader(db, cfg, path) as r, Writer(db, cfg, sid, path) as w:
+        while part := r.read(1024 * 1024):
+            w.write(part)
+    os.utime(path, (st.st_atime, st.st_mtime))
+    return True
+
+
 def encrypt_all(db, cfg, decrypt=False, log=print, space=None):
     """Encrypt (or, with decrypt, turn back) every file Lens keeps, or one namespace's (`space`); files already that
     way are skipped, so it can run again after stopping half way. Returns how many changed."""

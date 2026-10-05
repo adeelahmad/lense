@@ -5829,7 +5829,7 @@
           "resources"
         ],
         "summary": "Move Recording",
-        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409\nwhen the new namespace has the same file or a job is running on it. Audited as `recording.move`.",
+        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its\nfiles are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on\nit; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.",
         "operationId": "move_recording",
         "parameters": [
           {

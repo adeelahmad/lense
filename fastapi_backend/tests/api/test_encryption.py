@@ -204,3 +204,43 @@ def test_files_cached_from_a_storage_source_are_kept_encrypted(client, db, cfg, 
         sources.cached_copy(db, eff, 5, "calls/other.wav", sid)
     assert not sources.cache_file(eff, 5, "calls/other.wav", sid).exists()
     assert not list(cached.parent.glob("*.part"))
+
+
+def test_a_moved_recording_keeps_its_files_under_the_new_namespace_key(client, db, cfg, folder):
+    eff = settings.effective(db, cfg)
+    make_user(db, "own@x.io", "owner password 1", roles={"pods": "owner", "calls": "editor"})
+    ho = login(client, "own@x.io", "owner password 1")
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    data = wav.read_bytes()
+    rid = _upload(client, ho, data, "talk.wav")
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    frames = pathlib.Path(eff["data_dir"]) / "frames" / str(rid)
+    kept = keyring.keep(db, eff, pods, frames / "shot-1.jpg", b"a frame")
+    plain = frames / "shot-2.jpg"
+    plain.write_bytes(b"one left plain")
+    files = list(keyring.recording_files(db, eff, rid))
+    assert str(kept) in files and str(plain) in files and len(files) == 3
+
+    # the new namespace is a vault nobody has unlocked: nothing moves
+    kek = keyring.derive(b"prf output", "lens/passkey")
+    keyring.add_wrapper(db, eff, calls, "passkey:phone", kek)
+    keyring.remove_wrapper(db, calls, "server")
+    keyring.lock(db, calls)
+    r = client.post(f"/api/v1/recordings/{rid}/move", headers=ho, json={"namespace": "calls"})
+    assert r.status_code == 423, r.text
+    assert db.one("SELECT space FROM $r", r=R("recording", rid))["space"] == pods
+    assert keyring.Reader(db, eff, kept).space == pods
+
+    keyring.unlock(db, calls, "passkey:phone", kek)
+    r = client.post(f"/api/v1/recordings/{rid}/move", headers=ho, json={"namespace": "calls"})
+    assert r.status_code == 200, r.text
+    for p in keyring.recording_files(db, eff, rid):
+        with keyring.Reader(db, eff, p) as f:
+            assert f.space == calls
+    assert keyring.read_plain(db, eff, kept) == b"a frame" and keyring.read_plain(db, eff, plain) == b"one left plain"
+    assert client.get(f"/api/v1/recordings/{rid}/audio", headers=ho).content == data
+
+    # and they open only while the vault they're in is unlocked
+    keyring.lock(db, calls)
+    assert client.get(f"/api/v1/recordings/{rid}/audio", headers=ho).status_code == 423

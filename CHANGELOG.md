@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A moved recording's files move to the new namespace's key.** Moving a recording re-encrypts its files with the
+  key of the namespace it goes to, so they open only with that namespace's key, and a vault it leaves no longer holds
+  them. Moving out of or into a locked vault waits until it's unlocked (423).
 - **The copies Lens keeps of files on storage sources are encrypted too.** With encryption at rest on (or in a
   vault), the cached copy of a recording that lives on S3, Drive, a mailbox or another connection is stored with its
   namespace's key, and still plays, seeks and is processed as before. `lens encrypt` converts the ones already there.
