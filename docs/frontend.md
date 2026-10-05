@@ -1,23 +1,26 @@
 # The web app
 
-`nextjs-frontend/` is a Next.js App Router app that implements the Lens Archive design (built on the Aladdin design
-system). NextAuth holds the session; every screen talks to the API through the generated, typed client.
+`nextjs-frontend/` is a Next.js App Router app, the Lens web app (built on the Aladdin design system). NextAuth holds
+the session; every screen talks to the API through the generated, typed client.
 
 ## Layout
 
 ```
 nextjs-frontend/
   app/
-    (auth)/                 sign in, first-run setup, password reset
+    (auth)/                 sign in, first-run setup, password reset, signin-link/ (emailed sign-in links),
+                            external-signin/ (sign in with another provider)
+    (setup)/welcome/        the setup wizard after the first admin signs in (components/setup/)
     (public)/explore/       pages for visitors, no sign-in needed (docs/access.md): the home page,
                             collections/[ns], search, recordings/[id]
     (app)/                  every signed-in screen, inside the app shell
-      page.tsx              Home
-      library/ import/ reports/ recordings/[id]/
-      search/ chat/ speakers/ graph/ batches/ collections/
-      activity/ sources/ pipelines/ templates/
+      page.tsx              Home, with the welcome tour for new people (components/home/welcome-tour.tsx)
+      library/ import/ reports/ recordings/[id]/ notes/
+      search/ chat/ speakers/ graph/ topics/ entities/ batches/ collections/
+      activity/ sources/ sensors/ pipelines/ templates/ routines/ workflows/
+      extensions/ content-types/ resources/
       settings/ admin/ account/ iiif/
-    api/v1/, embed/, iiif/, reports/, static/
+    api/v1/, embed/, s/, iiif/, reports/, static/, mcp/, id/, ns/, .well-known/
                             route handlers that proxy those paths to the API (lib/api/backend-proxy.ts)
     styles/tokens.css       design tokens: Aladdin + Lens additions, light and dark
   components/
@@ -61,9 +64,10 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
 
 ## The proxy
 
-`/api/v1`, `/embed`, `/s` (short share links), `/iiif`, `/reports` and `/static` are forwarded to `API_BASE_URL` by route handlers at request
-time (bodies, byte ranges and event streams pass straight through). Because it runs per request, one build works
-against any API; `next.config` rewrites would have fixed the API address at build time.
+`/api/v1`, `/embed`, `/s` (short share links), `/iiif`, `/reports`, `/static`, `/mcp` (the MCP server), `/id/...` and
+`/ns` (linked-data URIs and vocabulary) and `/.well-known/` (OAuth discovery) are forwarded to `API_BASE_URL` by route
+handlers at request time (bodies, byte ranges and event streams pass straight through). Because it runs per request,
+one build works against any API; `next.config` rewrites would have fixed the API address at build time.
 
 ## Developing
 

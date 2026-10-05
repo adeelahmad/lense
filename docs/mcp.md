@@ -48,6 +48,7 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `get_entity` | one entity: its names, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
 | `explore_graph` | the knowledge graph around an entity (`e12`) or a speaker (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
+| `sparql` | a read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data ([RDF](rdf.md)): JSON results, or Turtle |
 | `graph_schema` | what the property graph holds (labels, relationships, properties, counts) and example Cypher ([The graph](graph.md)) |
 | `graph_query` | read-only Cypher over the graph of one namespace or every shared one: columns, rows, and the nodes and relationships found |
 | `graph_related` | a node's parents, children, ancestors, descendants or neighbours |
