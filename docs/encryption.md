@@ -22,9 +22,10 @@ What is encrypted:
 * With `encryption.files` on, the files Lens keeps under its data folder, each with its namespace's key: uploads,
   email attachments (as files and as resources of their own), captured web pages, IIIF imports and resources'
   supplementary files. A new archive turns this on at its first start. An archive that already has files keeps its
-  setting until you run `lens encrypt`, which turns it on and encrypts what is there (`lens encrypt --off` turns it
-  back). The command can be stopped and run again. Changing the setting in the app (Settings) only affects files that
-  arrive from then on.
+  setting until you turn it on in Settings › Encryption, or run `lens encrypt`. Either way the files already there are
+  encrypted too: the app does it in the background and shows how far it has got, the command as it runs. Turning it
+  off (or `lens encrypt --off`) turns them back to plain, except a vault's, which stay encrypted. Both can be stopped
+  and run again; changing the setting again stops the app's run and starts the other way.
 * With `encryption.files` on, what Lens makes from those files under its data folder too: documents' PDF renditions,
   reports and exports, and the frames, page images and face crops it draws. The steps that read those (text on screen,
   faces, objects, descriptions) get plain working copies like the tools above. An export sent to a storage connection

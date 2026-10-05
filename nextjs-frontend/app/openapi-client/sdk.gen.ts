@@ -405,6 +405,8 @@ import type {
   GetEmbedLinkData,
   GetEmbedLinkErrors,
   GetEmbedLinkResponses,
+  GetEncryptionData,
+  GetEncryptionResponses,
   GetEntityConnectionsData,
   GetEntityConnectionsErrors,
   GetEntityConnectionsResponses,
@@ -2281,6 +2283,21 @@ export class Admin {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Get Encryption
+   *
+   * How far converting the files already kept has got, since encryption.files was last changed in the app (on this
+   * server process).
+   */
+  public static getEncryption<ThrowOnError extends boolean = false>(
+    options?: Options<GetEncryptionData, ThrowOnError>,
+  ): RequestResult<GetEncryptionResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetEncryptionResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/encryption/progress",
+      ...options,
     });
   }
 

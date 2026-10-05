@@ -284,3 +284,34 @@ def test_a_file_two_namespaces_share_keeps_its_key_when_one_moves(client, db, cf
     assert r.status_code == 200, r.text
     assert keyring.Reader(db, eff, store.resolve_path(eff, rec["path"])).space == pods
     assert calls != pods
+
+
+def test_changing_the_setting_in_the_app_converts_the_files_already_kept(client, db, cfg, folder):
+    he = _editor(client, db)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    hr = login(client, "root@x.io", "root password 1")
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    rid = _upload(client, he, wav.read_bytes(), "talk.wav")
+    path = db.one("SELECT path FROM $r", r=R("recording", rid))["path"]
+    assert keyring.is_encrypted(path)
+
+    def converted():
+        th = keyring._converter["thread"]
+        th.join(timeout=30)
+        return client.get("/api/v1/settings/encryption/progress", headers=hr).json()
+
+    assert client.put("/api/v1/settings/encryption", headers=hr, json={"files": False}).status_code == 200
+    got = converted()
+    assert not keyring.is_encrypted(path) and pathlib.Path(path).read_bytes() == wav.read_bytes()
+    assert (got["running"], got["to"], got["changed"], got["skipped"]) == (False, "plain", 1, 0)
+
+    assert client.put("/api/v1/settings/encryption", headers=hr, json={"files": True}).status_code == 200
+    got = converted()
+    assert keyring.is_encrypted(path) and (got["to"], got["changed"]) == ("encrypted", 1)
+
+    # saving it unchanged, or another key, converts nothing
+    th = keyring._converter["thread"]
+    assert client.put("/api/v1/settings/encryption", headers=hr, json={"files": True, "work_minutes": 20}).status_code == 200
+    assert keyring._converter["thread"] is th
+    assert client.get("/api/v1/settings/encryption/progress", headers=he).status_code == 403

@@ -92,6 +92,17 @@ class BridgeTestResult(ResponseModel):
     error: str | None = None
 
 
+class EncryptionProgress(ResponseModel):
+    """Converting the files already kept after encryption.files changed: `to` "encrypted" or "plain" (vaults stay
+    encrypted), how many changed and how many were skipped (a locked vault, a damaged file)."""
+
+    running: bool
+    to: Literal["encrypted", "plain"] | None = None
+    changed: int = 0
+    skipped: int = 0
+    finished_at: float | None = None
+
+
 class LlmTestResult(ResponseModel):
     ok: bool
     error: str | None = None

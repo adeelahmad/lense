@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Encryption at rest has its own page in Settings.** Settings › Encryption turns encrypting files on disk on or
+  off, and the files already kept follow in the background, with how far it has got on the page. Turning it off
+  leaves vaults' files encrypted (also for `lens encrypt --off`). It also sets how long working copies and unlocked
+  vaults last.
 - **A moved recording's files move to the new namespace's key.** Moving a recording re-encrypts its files with the
   key of the namespace it goes to, so they open only with that namespace's key, and a vault it leaves no longer holds
   them. Moving out of or into a locked vault waits until it's unlocked (423).

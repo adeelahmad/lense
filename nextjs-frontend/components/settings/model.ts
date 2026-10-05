@@ -67,6 +67,7 @@ export type SectionId =
   | "access"
   | "remote-access"
   | "sign-in"
+  | "encryption"
   | "notifications"
   | "mail"
   | "bridge"
@@ -180,6 +181,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["auth"],
     description:
       "How people sign in: passkeys (fingerprint, face or device PIN) always; passwords only if you allow them.",
+  },
+  {
+    id: "encryption",
+    label: "Encryption",
+    backend: ["encryption"],
+    description:
+      "Whether the files Lens keeps (uploads, renditions, frames, reports, exports) are encrypted on disk with their namespace’s key. Vaults stay encrypted either way.",
   },
   {
     id: "components",
@@ -1509,6 +1517,33 @@ export const FIELDS: FieldSpec[] = [
     hint: "Off: everyone signs in with a passkey, and password sign-in, changes and resets stop working. Turning it off needs a passkey on an admin's account first.",
   },
   // API keys
+  // Encryption at rest (docs/encryption.md)
+  {
+    section: "encryption",
+    key: "files",
+    label: "Encrypt files on disk",
+    kind: "switch",
+    hint: "Changing it converts the files already kept, in the background. Off leaves vaults’ files encrypted",
+  },
+  {
+    section: "encryption",
+    key: "work_minutes",
+    label: "Keep working copies for",
+    kind: "int",
+    min: 5,
+    max: 1440,
+    unit: "minutes",
+    hint: "Plain copies that tools like ffmpeg read, removed once unused this long",
+  },
+  {
+    section: "encryption",
+    key: "vault_minutes",
+    label: "Keep vaults unlocked for",
+    kind: "int",
+    min: 1,
+    max: 1440,
+    unit: "minutes",
+  },
   // Sensors (opt-in)
   {
     section: "sensors",

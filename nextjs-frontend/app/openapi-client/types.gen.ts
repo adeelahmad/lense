@@ -3147,6 +3147,36 @@ export type EmbedTestResult = {
 };
 
 /**
+ * EncryptionProgress
+ *
+ * Converting the files already kept after encryption.files changed: `to` "encrypted" or "plain" (vaults stay
+ * encrypted), how many changed and how many were skipped (a locked vault, a damaged file).
+ */
+export type EncryptionProgress = {
+  /**
+   * Running
+   */
+  running: boolean;
+  /**
+   * To
+   */
+  to?: "encrypted" | "plain" | null;
+  /**
+   * Changed
+   */
+  changed?: number;
+  /**
+   * Skipped
+   */
+  skipped?: number;
+  /**
+   * Finished At
+   */
+  finished_at?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * EntityDefine
  */
 export type EntityDefine = {
@@ -17528,6 +17558,22 @@ export type UpdateSettingsResponses = {
 };
 
 export type UpdateSettingsResponse = UpdateSettingsResponses[keyof UpdateSettingsResponses];
+
+export type GetEncryptionData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/encryption/progress";
+};
+
+export type GetEncryptionResponses = {
+  /**
+   * Successful Response
+   */
+  200: EncryptionProgress;
+};
+
+export type GetEncryptionResponse = GetEncryptionResponses[keyof GetEncryptionResponses];
 
 export type TestLlmData = {
   body?: never;

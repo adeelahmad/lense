@@ -13,7 +13,23 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, blobs, bridge, decide, jobs, llm, local_llm, semantic, settings, sources, speech, store, telemetry, tunnel
+from app.domain import (
+    auth,
+    blobs,
+    bridge,
+    decide,
+    jobs,
+    keyring,
+    llm,
+    local_llm,
+    semantic,
+    settings,
+    sources,
+    speech,
+    store,
+    telemetry,
+    tunnel,
+)
 from app.schemas.admin import (
     AuditEntry,
     BridgeStatus,
@@ -21,6 +37,7 @@ from app.schemas.admin import (
     DecisionStatus,
     DecisionTestResult,
     EmbedTestResult,
+    EncryptionProgress,
     FileStoreTestResult,
     FileStoreTry,
     Health,
@@ -64,10 +81,22 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
         and not request.app.state.archive.current()["bridge"].get("account")
     ):
         body = {**body, "account": user.email}  # turned on without saying who it answers as: the admin who turned it on
+    files_were = request.app.state.settings.current()["encryption"].get("files") if section == "encryption" else None
     with domain_errors():
         settings.save(db, request.app.state.archive.base, section, body, user.email)
     auth.audit(db, user.as_audit(), "settings.save", section, sorted(body))
+    if section == "encryption" and "files" in body and bool(body["files"]) != bool(files_were):
+        cfg = request.app.state.settings.current()
+        keyring.convert(db, cfg, bool(cfg["encryption"].get("files")))  # the files already kept follow, in the background
     return Ok()
+
+
+@router.get("/settings/encryption/progress")
+def get_encryption(user: AdminReader) -> EncryptionProgress:
+    """How far converting the files already kept has got, since encryption.files was last changed in the app (on this
+    server process)."""
+    c = keyring.conversion
+    return EncryptionProgress(running=c["running"], to=c["to"], changed=c["changed"], skipped=c["skipped"], finished_at=c["finished_at"])
 
 
 @router.post("/settings/llm/test")
