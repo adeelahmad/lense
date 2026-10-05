@@ -2263,6 +2263,55 @@
         }
       }
     },
+    "/api/v1/settings/files/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test File Store",
+        "description": "Write a small file where Lens would keep files, read it back and remove it: what is saved, or what is given\n(to check a connection and folder before saving them).",
+        "operationId": "test_file_store",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/FileStoreTry"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileStoreTestResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/bridge": {
       "get": {
         "tags": [
@@ -30210,6 +30259,111 @@
           "lines"
         ],
         "title": "FileLines"
+      },
+      "FileStoreTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "store": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "connection"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "FileStoreTestResult"
+      },
+      "FileStoreTry": {
+        "properties": {
+          "store": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "local",
+                  "connection"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Store"
+          },
+          "connection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection",
+            "description": "a storage connection's id"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder",
+            "description": "the folder on it (for S3, the bucket and a path)"
+          },
+          "crypt": {
+            "type": "boolean",
+            "title": "Crypt",
+            "description": "wrap it in rclone crypt too",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FileStoreTry",
+        "description": "Where to try keeping files, before saving it (Settings \u2192 Storage); nothing given tries what is saved."
       },
       "FileUpdate": {
         "properties": {

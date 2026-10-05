@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from app.schemas.common import Ok, ResponseModel
+from app.schemas.common import Ok, RequestModel, ResponseModel
 
 
 class Started(Ok):
@@ -188,6 +188,22 @@ class TelemetryTestResult(ResponseModel):
     ok: bool
     error: str | None = None
     ms: int | None = None
+
+
+class FileStoreTry(RequestModel):
+    """Where to try keeping files, before saving it (Settings → Storage); nothing given tries what is saved."""
+
+    store: Literal["local", "connection"] | None = None
+    connection: int | None = Field(None, description="a storage connection's id")
+    folder: str | None = Field(None, max_length=200, description="the folder on it (for S3, the bucket and a path)")
+    crypt: bool = Field(False, description="wrap it in rclone crypt too")
+
+
+class FileStoreTestResult(ResponseModel):
+    ok: bool
+    store: Literal["local", "connection"] | None = None
+    seconds: float | None = None
+    error: str | None = None
 
 
 class AuditEntry(ResponseModel):

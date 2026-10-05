@@ -13,7 +13,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
-from app.domain import auth, bridge, decide, jobs, llm, local_llm, semantic, settings, sources, speech, store, telemetry, tunnel
+from app.domain import auth, blobs, bridge, decide, jobs, llm, local_llm, semantic, settings, sources, speech, store, telemetry, tunnel
 from app.schemas.admin import (
     AuditEntry,
     BridgeStatus,
@@ -21,6 +21,8 @@ from app.schemas.admin import (
     DecisionStatus,
     DecisionTestResult,
     EmbedTestResult,
+    FileStoreTestResult,
+    FileStoreTry,
     Health,
     IndexQueued,
     LlmTestResult,
@@ -91,6 +93,23 @@ async def test_mail(user: AdminWriter, cfg: Cfg) -> MailTestResult:
     except Exception as e:  # noqa: BLE001 - the server's answer is what's useful here
         return MailTestResult(ok=False, to=user.email, error=f"{type(e).__name__}: {e}"[:400])
     return MailTestResult(ok=True, to=user.email)
+
+
+@router.post("/settings/files/test")
+def test_file_store(user: AdminWriter, cfg: Cfg, db: Db, body: FileStoreTry | None = None) -> FileStoreTestResult:
+    """Write a small file where Lens would keep files, read it back and remove it: what is saved, or what is given
+    (to check a connection and folder before saving them)."""
+    where = None
+    if body and body.store == "connection":
+        if not body.connection:
+            return FileStoreTestResult(ok=False, store="connection", error="choose a storage connection")
+        try:
+            where = {"store": "connection", "connection": body.connection, "folder": blobs._folder(body.folder), "crypt": body.crypt}
+        except ValueError as e:
+            return FileStoreTestResult(ok=False, store="connection", error=str(e))
+    elif body and body.store == "local":
+        where = {"store": "local"}
+    return FileStoreTestResult(**blobs.test(db, cfg, where))
 
 
 @router.get("/settings/bridge")

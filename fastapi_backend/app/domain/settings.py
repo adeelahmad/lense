@@ -85,6 +85,7 @@ EDITABLE = {
     ),
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
+    "files": None,
     "tokens": None,
     "auth": ("passwords",),
     # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
@@ -121,6 +122,7 @@ ENUMS = {
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
+    ("files", "store"): {"local", "connection"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -400,6 +402,16 @@ def _check(section, key, value, default):
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
             raise ValueError(f"documents.{key} is a whole number from {lo} to {hi}")
         return value
+    if section == "files" and key == "connection":
+        if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+            raise ValueError("files.connection is a storage connection's id")
+        return value
+    if (section, key) == ("files", "folder"):
+        from . import blobs
+
+        if not isinstance(value, str) or len(value) > 200:
+            raise ValueError("files.folder is a folder (a bucket and path for S3), up to 200 characters")
+        return blobs._folder(value)
     if (section, key) == ("video", "object_min_score"):
         if not (isinstance(value, (int, float)) and not isinstance(value, bool) and 0.05 <= value <= 0.95):
             raise ValueError("video.object_min_score is a number from 0.05 to 0.95")
@@ -879,6 +891,12 @@ def save(db, base, section, changes, user=None):
             "SELECT VALUE id FROM passkey WHERE account IN (SELECT VALUE record::id(id) FROM account WHERE admin = true AND disabled != true) LIMIT 1"
         ):
             raise ValueError("add a passkey for an admin before turning passwords off, or nobody could administer Lens")
+    if section == "files" and data.get("store") == "connection":
+        from . import blobs
+
+        if not data.get("connection"):
+            raise ValueError("choose the storage connection files are kept on")
+        blobs.check_connection(db, data["connection"])
     if section == "tunnel":
         from . import tunnel
 

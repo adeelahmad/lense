@@ -4587,6 +4587,59 @@ export type FileLines = {
 };
 
 /**
+ * FileStoreTestResult
+ */
+export type FileStoreTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Store
+   */
+  store?: "local" | "connection" | null;
+  /**
+   * Seconds
+   */
+  seconds?: number | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * FileStoreTry
+ *
+ * Where to try keeping files, before saving it (Settings → Storage); nothing given tries what is saved.
+ */
+export type FileStoreTry = {
+  /**
+   * Store
+   */
+  store?: "local" | "connection" | null;
+  /**
+   * Connection
+   *
+   * a storage connection's id
+   */
+  connection?: number | null;
+  /**
+   * Folder
+   *
+   * the folder on it (for S3, the bucket and a path)
+   */
+  folder?: string | null;
+  /**
+   * Crypt
+   *
+   * wrap it in rclone crypt too
+   */
+  crypt?: boolean;
+};
+
+/**
  * FileUpdate
  */
 export type FileUpdate = {
@@ -17296,6 +17349,34 @@ export type TestMailResponses = {
 };
 
 export type TestMailResponse = TestMailResponses[keyof TestMailResponses];
+
+export type TestFileStoreData = {
+  /**
+   * Body
+   */
+  body?: FileStoreTry | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/files/test";
+};
+
+export type TestFileStoreErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TestFileStoreError = TestFileStoreErrors[keyof TestFileStoreErrors];
+
+export type TestFileStoreResponses = {
+  /**
+   * Successful Response
+   */
+  200: FileStoreTestResult;
+};
+
+export type TestFileStoreResponse = TestFileStoreResponses[keyof TestFileStoreResponses];
 
 export type BridgeStatusData = {
   body?: never;
