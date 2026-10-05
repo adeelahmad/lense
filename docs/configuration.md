@@ -295,7 +295,9 @@ addresses or CIDR ranges. The default trusts this machine (`127.0.0.0/8` and `::
 API on one machine.
 
 * **List the web app.** The browser reaches the API through the web app, which passes on the `X-Forwarded-For` it
-  received and adds the address it was reached from. The Docker Compose files do this for you:
+  received, unchanged. When a request arrives without one, Next.js fills in the address it was reached from, so the
+  API sees the visitor's real address unless the visitor sent the header themselves. The Docker Compose files list it
+  for you:
   `LENS_TRUSTED_PROXY_HOSTS=frontend,backend,worker` trusts those containers by name (their addresses, looked up
   every 30 seconds, follow them when they're recreated; `backend` and `worker` run the Cloudflare tunnel). Elsewhere,
   list the web app's address here, or name its host in `LENS_TRUSTED_PROXY_HOSTS`. Sign-in throttles follow the same
@@ -303,7 +305,7 @@ API on one machine.
 * **Put a reverse proxy in front of the web app that sets `X-Forwarded-For`**: nginx with
   `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, or Caddy, which does by default. The web app can't
   tell a header a visitor made up from one a proxy set; the reverse proxy adds the real address last, and the server
-  reads that one. Without it, a visitor can claim any address.
+  reads that one. Without it, a visitor can claim any address by sending their own `X-Forwarded-For`.
 * A request from an address that isn't trusted but carries `X-Forwarded-For` counts for no IP group, and neither does
   one from a trusted proxy that forwards nothing (the web app asking on its own behalf). A namespace's IP groups show
   your address as the server sees it, or say it can't tell.
