@@ -88,4 +88,9 @@ Start with [Get started](docs/get-started.md), then [Architecture](docs/architec
 in the [docs](docs/) folder. [Contributing](CONTRIBUTING.md), [Security](SECURITY.md),
 [Changelog](CHANGELOG.md).
 
+## License
+
+Lens is open source under the [MIT License](LICENSE.txt). Optional extras that you install yourself may carry their own
+licenses (for example `extract-msg`, GPL-3.0, for Outlook `.msg` files); none is part of the default install.
+
 Built on the [Next.js FastAPI Template](https://github.com/vintasoftware/nextjs-fastapi-template) (MIT).
