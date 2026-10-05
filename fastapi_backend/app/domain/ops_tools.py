@@ -9,7 +9,7 @@ elsewhere, always waits for approval.
 
 from __future__ import annotations
 
-from . import auth, decide, jobs, llm, metadata, settings, setup, store, uploads
+from . import auth, blobs, decide, feeds, jobs, llm, metadata, settings, setup, sources, store, uploads
 
 R = store.R
 _S = {"type": "string"}
@@ -26,6 +26,7 @@ SECTIONS = (
     "graph",
     "video",
     "uploads",
+    "files",
     "ai",
     "reports",
     "notifications",
@@ -38,7 +39,7 @@ SECTIONS = (
     "telemetry",
     "sensors",
 )
-ALWAYS_ASK = {"telemetry", "sensors"}  # sensors open ports on the network
+ALWAYS_ASK = {"telemetry", "sensors", "files"}  # sensors open ports on the network; files moves where new files go
 
 ADMIN_TOOLS = [
     (
@@ -70,6 +71,16 @@ ADMIN_TOOLS = [
         {"section": {"type": "string", "enum": list(SECTIONS)}, "changes": {"type": "object"}},
         ["section", "changes"],
         True,
+    ),
+    (
+        "file_storage",
+        "Where Lens keeps the files it makes its own (notes' attachments): this machine, or a storage connection (S3, "
+        "Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV) under a folder, optionally wrapped in rclone crypt; and the "
+        "connections it could use. check: write, read back and remove a small file there. Change it with change_settings "
+        "files {store: local|connection, connection, folder, crypt}; a new connection is added in Settings → Sources.",
+        {"check": {"type": "boolean"}},
+        [],
+        False,
     ),
     (
         "create_namespace",
@@ -209,6 +220,21 @@ class OpsTools:
         shown = {k: ("(a secret)" if k in settings.SECRETS.get(section, ()) else v) for k, v in changes.items()}
         what = ", ".join(f"{k} = {v}" for k, v in shown.items())
         return self._change("change_settings", {"section": section, "changes": changes}, f"Set {section}: {what}")
+
+    def t_file_storage(self, check=False):
+        f = self.cfg.get("files") or {}
+        out = {
+            "store": f.get("store", "local"),
+            "connection": f.get("connection"),
+            "folder": f.get("folder"),
+            "crypt": bool(f.get("crypt")),
+            "connections": [
+                {"id": s["id"], "name": s["name"], "type": s["type"]} for s in sources.list_sources(self.db) if not feeds.handles(s)
+            ],
+        }
+        if check:
+            out["check"] = blobs.test(self.db, self.cfg)
+        return out, "Checked where files are kept" + (": " + ("it works" if out["check"]["ok"] else "it failed") if check else "")
 
     def t_create_namespace(self, name, graph="shared"):
         name = name.strip().lower()

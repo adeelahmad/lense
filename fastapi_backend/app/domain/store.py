@@ -205,6 +205,9 @@ DEFAULTS = {
     },
     # audio, video, documents and images uploaded in the web app, in pieces (docs/configuration.md); transcript files use
     # server.max_upload_mb
+    # where Lens keeps the files it makes its own, such as notes' attachments (blobs.py, docs/storage.md): "local"
+    # (data_dir/objects) or "connection" (a storage source, under its folder); crypt wraps it in rclone crypt too
+    "files": {"store": "local", "connection": None, "folder": "lens", "crypt": False},
     "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
     # documents and images (docs/configuration.md): how large their pages are drawn, when a page is read by OCR, and
     # how many pages are read at most

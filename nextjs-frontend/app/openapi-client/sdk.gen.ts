@@ -1131,6 +1131,9 @@ import type {
   TestExtensionData,
   TestExtensionErrors,
   TestExtensionResponses,
+  TestFileStoreData,
+  TestFileStoreErrors,
+  TestFileStoreResponses,
   TestLlmData,
   TestLlmResponses,
   TestMailData,
@@ -2257,6 +2260,25 @@ export class Admin {
     return (options?.client ?? client).post<TestMailResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/mail/test",
       ...options,
+    });
+  }
+
+  /**
+   * Test File Store
+   *
+   * Write a small file where Lens would keep files, read it back and remove it: what is saved, or what is given
+   * (to check a connection and folder before saving them).
+   */
+  public static testFileStore<ThrowOnError extends boolean = false>(
+    options?: Options<TestFileStoreData, ThrowOnError>,
+  ): RequestResult<TestFileStoreResponses, TestFileStoreErrors, ThrowOnError> {
+    return (options?.client ?? client).post<TestFileStoreResponses, TestFileStoreErrors, ThrowOnError>({
+      url: "/api/v1/settings/files/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
     });
   }
 
