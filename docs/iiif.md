@@ -34,7 +34,8 @@ can open them, and harvesters can follow them.
   recordings.
 - **Authorization Flow 2.0:** protected audio and transcripts carry a probe service.
   - Other viewers open `/iiif/auth/access` to sign in and get a token from `/iiif/auth/token`, which posts it only to
-    the viewer's origin.
+    the viewer's origin. The page signs in with a password, so where passwords are off (`auth.passwords`) it offers
+    no form and a submitted one answers 403; such viewers play only what is open to everyone.
   - A successful probe returns a short-lived signed link, so playback doesn't depend on third-party cookies.
   - `/iiif/auth/logout` revokes the tokens.
 - **Import:** `POST /api/v1/import/iiif` (admins) takes a Presentation 3 Manifest or Collection from another server.
