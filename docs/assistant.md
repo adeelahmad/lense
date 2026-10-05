@@ -6,8 +6,11 @@ Conversations belong to one person and can be scoped to namespaces, recordings, 
 collection in the scope is read each time the assistant answers, so it draws on the collection's recordings as they are
 then.
 
-- **Retrieval:** the question's keywords go through the full-text index (English stemming), limited to namespaces the
-  person can read. Hits are widened to their neighbouring lines and numbered.
+- **Retrieval:** the question's keywords go through the word index (English stemming) and, when search by meaning is
+  set up, passages about the question in other words are found too
+  ([Search by meaning](processing.md#search-by-meaning)); the two are ranked together by reciprocal rank, limited to
+  namespaces the person can read and to the conversation's scope. Hits are widened to their neighbouring lines and
+  numbered.
 - **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the recording
   and timestamp.
 - **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `done`.
@@ -32,8 +35,6 @@ then.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
   is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
 
-Retrieval is keyword-based for now; vector search is not built yet.
-
 ### Picking the namespace for a conversation over everything
 
 When a conversation has no scope (the assistant home starts it over everything), its first question goes to the
@@ -48,12 +49,12 @@ never narrowed this way.
 
 ### Assistant mode and voice
 
-Home opens in **assistant mode** (one field and a big mic, like a search page) when the archive has any content, and
-on the overview when it's empty; the switch at the top right remembers the person's pick in the browser. The field
-opens a new conversation over everything the person can read (`/chat?global=1`, plus `q=` with what was typed); the
-mic opens one in voice mode (`/chat?global=1&voice=1`). Voice mode listens, sends what was heard, reads the answer
-aloud (without citation marks) and listens again, until the mic is tapped off or nothing is said twice in a row. The
-chat composer's mic turns it on in any conversation.
+Home opens in **assistant mode** (one field and a big mic, like a search page) when the archive has any content, and on
+the overview when it's empty; the switch at the top right remembers the person's pick in the browser. Enter in the field
+opens a new conversation over everything the person can read and sends what was typed as its first question
+(`/chat?global=1&q=…&send=1`); the mic opens one in voice mode (`/chat?global=1&voice=1`). Voice mode listens, sends
+what was heard, reads the answer aloud (without citation marks) and listens again, until the mic is tapped off or
+nothing is said twice in a row. The chat composer's mic turns it on in any conversation.
 
 Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`listen`, `speak`, `stop`).
 
