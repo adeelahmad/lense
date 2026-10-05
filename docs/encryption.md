@@ -43,8 +43,13 @@ How encrypted files are used:
   (30 by default).
 * Fingerprints and sizes are those of the plain file, so the same file uploaded or scanned again is still recognised.
 
-Not encrypted yet, and planned: moving a recording's files to its new namespace's key (until then a moved file still
-opens with the key of the namespace it came from).
+Moving a recording to another namespace moves its files to that namespace's key: its own file, supplementary
+files, rendition, frames, cached copy, report pages and exports are re-encrypted with it (and plain ones encrypted,
+when the new namespace wants them encrypted), keeping their modification times. A file is never turned back to plain
+by a move. When either namespace is a vault nobody has unlocked here, the move is refused (423) and nothing changes;
+once it starts, the keys it needs stay open until it's done. A file another namespace's recording shares (the same
+IIIF import in both) keeps its key. A file a move couldn't re-encrypt (a crash half way, a disk error) is moved to
+its namespace's key by the next `lens encrypt`, which also never turns a vault's files back to plain with `--off`.
 
 What isn't encrypted by Lens: the SurrealDB database itself, including transcripts and the vectors that search by
 meaning needs; the word search index, which by default is a SQLite file in `<data_dir>/search/` (SurrealDB's own index

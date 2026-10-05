@@ -15,9 +15,24 @@ from fastapi.responses import Response
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
-from app.api.streaming import file_response, range_response
+from app.api.streaming import LOCKED, file_response, range_response
 from app.domain import access as acc
-from app.domain import analyze, auth, deletion, hierarchy, ipgroups, jobs, library, moving, render, sources, store, transcript, video
+from app.domain import (
+    analyze,
+    auth,
+    deletion,
+    hierarchy,
+    ipgroups,
+    jobs,
+    keyring,
+    library,
+    moving,
+    render,
+    sources,
+    store,
+    transcript,
+    video,
+)
 from app.domain import fields as fieldmod
 from app.domain import metadata as md
 from app.domain.store import API, DB
@@ -335,8 +350,9 @@ def move_recording(
     It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
     its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
     faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
-    analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409
-    when the new namespace has the same file or a job is running on it. Audited as `recording.move`."""
+    analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
+    files are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on
+    it; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`."""
     acl.recording(rid, "owner")
     dst = acl.namespace(body.namespace.strip(), "editor")
     try:
@@ -344,6 +360,8 @@ def move_recording(
             done = moving.move(db, cfg, rid, dst, body.rediarize, body.revoke_shares, user.email, body.collection)
     except (deletion.Running, moving.Conflict) as e:
         raise HTTPException(409, str(e)) from None
+    except keyring.Locked:
+        raise HTTPException(423, LOCKED) from None
     auth.audit(db, user.as_audit(), "recording.move", f"recording:{rid}", {k: v for k, v in done.items() if k != "job"})
     request.app.state.graph_cache.clear()
     tasks.add_task(render.refresh_overview, db, cfg, done["from"])
