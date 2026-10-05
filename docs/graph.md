@@ -6,7 +6,7 @@ live from the database (`app/domain/graph_model.py`), so it is never out of step
 Status: **built**: the graph model, walking it (parents, children, ancestors, descendants, neighbours, paths),
 read-only Cypher and asking for changes over the API; the explorer canvas (drag, one-click layouts, a node menu,
 touch); questions in plain language; graph tools for the assistant and MCP; topics as each namespace's controlled
-vocabulary (SKOS), apart from entities. **Planned**: topics on the explorer canvas as their own kind of node.
+vocabulary (SKOS), apart from entities, shown on the explorer canvas as their own kind of node.
 
 ## The explorer
 
