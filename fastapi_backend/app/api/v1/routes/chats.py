@@ -207,9 +207,12 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     # what the model reads: the question with the page it was asked from, and the files it can import
     asked = chat.with_context(q, page) + chat.attached_note(files)
     readable = set(acl.roles)
+    summary: dict[str, Any] | None = None  # what compaction keeps of the earlier messages (chat.compact)
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
+        nonlocal summary
         past = chat.history(db, cid)
+        summary = chat.memory(db, cfg, cid)
         chat.add(db, cid, "user", q, attachments=files, context=kept)
         if not past and title == "New conversation":
             db.q("UPDATE $r SET title = $t", r=R("chat", cid), t=q[:80])
@@ -267,7 +270,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
             try:
                 answer = ""
                 steps_max = max(cfg["ai"].get("max_steps") or 6, 12 if setup else 0)
-                for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, model, setup=setup):
+                for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, model, setup=setup, summary=summary):
                     if kind == "step":
                         steps.append(data)
                         yield _ev("step", data)
@@ -302,7 +305,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         text, error = "", None
         try:
             if llm.configured(cfg):
-                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past), model=model):
+                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past, summary), model=model):
                     text += piece
                     yield _ev("token", {"text": piece})
                     if on.stop_requested():
@@ -336,6 +339,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 yield _ev("done", {"message": save("(no answer)", [], error=message)})
         finally:
             on.end()
+            try:  # once enough has built up, older messages are folded into the summary (after the answer, so it waits on nothing)
+                chat.compact(db, cfg, cid)
+            except Exception:  # noqa: BLE001 - tried again after the next answer
+                log.warning("chat %s: couldn't update the summary", cid, exc_info=True)
 
     # A sync generator: Starlette iterates it in the threadpool, so the domain calls inside don't block the loop.
     return StreamingResponse(gen(), media_type="text/event-stream", headers=SSE_HEADERS)

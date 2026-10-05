@@ -20,6 +20,12 @@ then.
   couldn't use tools), the error when there was no answer, and their latest source check.
 - **Editing a question:** Edit on a question you asked asks it again as edited; the answer and everything after it
   are replaced (`POST /api/v1/chats/<id>/messages` with `edit`).
+- **Long conversations:** the model reads the latest six messages word for word. Once eight more have built up
+  behind them, they're folded into a running summary kept on the conversation (one model call, after an answer), and
+  every answer gets that summary plus the messages it doesn't cover yet. Room conversations (chat-rooms.md) go on for
+  good, so they rely on it most. Editing a question the summary covers drops the summary; it's made again from what's
+  left. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with no model,
+  only the last six messages are read.
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
 - **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
   server lists); Try another model asks a question again with a different one. Each answer records the model that

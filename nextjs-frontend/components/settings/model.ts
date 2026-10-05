@@ -696,6 +696,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "compact",
+    label: "Summarise long conversations",
+    kind: "switch",
+    hint: "The model always reads the latest messages word for word; older ones are folded into a running summary, so long chats and chat rooms remember what was said.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
