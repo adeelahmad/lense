@@ -315,3 +315,28 @@ def test_changing_the_setting_in_the_app_converts_the_files_already_kept(client,
     assert client.put("/api/v1/settings/encryption", headers=hr, json={"files": True, "work_minutes": 20}).status_code == 200
     assert keyring._converter["thread"] is th
     assert client.get("/api/v1/settings/encryption/progress", headers=he).status_code == 403
+
+
+def test_turning_files_back_to_plain_leaves_vaults_and_their_shared_files_encrypted(client, db, cfg, folder, monkeypatch):
+    eff = settings.effective(db, cfg)
+    he = _editor(client, db)
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    rid = _upload(client, he, wav.read_bytes(), "talk.wav")
+    path = db.one("SELECT path FROM $r", r=R("recording", rid))["path"]
+    calls = store.ns_id(db, "calls")
+    db.q("CREATE recording:9002 CONTENT $d", d={"space": calls, "source": "audio", "path": path})  # the same file there
+    kek = keyring.derive(b"prf output", "lens/passkey")
+    keyring.add_wrapper(db, eff, calls, "passkey:phone", kek)
+    keyring.remove_wrapper(db, calls, "server")  # unlocked here: its key opens, but its files stay encrypted
+    seen = []
+    keyring.encrypt_all(db, eff, decrypt=True, log=lambda *_: None, progress=seen.append)
+    assert keyring.is_encrypted(path) and seen == []
+
+    # a run that fails says so
+    def broken(*a, **k):
+        raise RuntimeError("the database went away")
+
+    monkeypatch.setattr(keyring, "stored_files", broken)
+    keyring.convert(db, eff, True).join(timeout=30)
+    assert keyring.conversion["error"] == "the database went away" and not keyring.conversion["running"]

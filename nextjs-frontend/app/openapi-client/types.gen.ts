@@ -3150,7 +3150,8 @@ export type EmbedTestResult = {
  * EncryptionProgress
  *
  * Converting the files already kept after encryption.files changed: `to` "encrypted" or "plain" (vaults stay
- * encrypted), how many changed and how many were skipped (a locked vault, a damaged file).
+ * encrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped
+ * early.
  */
 export type EncryptionProgress = {
   /**
@@ -3169,6 +3170,10 @@ export type EncryptionProgress = {
    * Skipped
    */
   skipped?: number;
+  /**
+   * Error
+   */
+  error?: string | null;
   /**
    * Finished At
    */

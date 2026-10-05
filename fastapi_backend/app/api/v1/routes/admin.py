@@ -96,7 +96,9 @@ def get_encryption(user: AdminReader) -> EncryptionProgress:
     """How far converting the files already kept has got, since encryption.files was last changed in the app (on this
     server process)."""
     c = keyring.conversion
-    return EncryptionProgress(running=c["running"], to=c["to"], changed=c["changed"], skipped=c["skipped"], finished_at=c["finished_at"])
+    return EncryptionProgress(
+        running=c["running"], to=c["to"], changed=c["changed"], skipped=c["skipped"], error=c["error"], finished_at=c["finished_at"]
+    )
 
 
 @router.post("/settings/llm/test")

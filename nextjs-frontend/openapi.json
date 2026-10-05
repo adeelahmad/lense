@@ -28539,6 +28539,17 @@
             "title": "Skipped",
             "default": 0
           },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
           "finished_at": {
             "anyOf": [
               {
@@ -28557,7 +28568,7 @@
           "running"
         ],
         "title": "EncryptionProgress",
-        "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file)."
+        "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped\nearly."
       },
       "EntityDefine": {
         "properties": {

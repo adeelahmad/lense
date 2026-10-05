@@ -588,6 +588,10 @@ function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
           {p.changed} done so far. Lens keeps working meanwhile, and files that arrive now are already stored the new
           way.
         </Banner>
+      ) : p?.error ? (
+        <Banner tone="error" title={`Converting stopped after ${p.changed} file(s).`}>
+          {p.error}. The rest are as they were; change the setting again, or run lens encrypt, to finish.
+        </Banner>
       ) : p?.to ? (
         <Banner
           tone={p.skipped ? "warning" : "success"}

@@ -59,4 +59,13 @@ describe("encryption settings", () => {
     expect(await screen.findByText("3 file(s) turned back to plain.")).toBeInTheDocument();
     expect(screen.getByText(/2 skipped/)).toBeInTheDocument();
   });
+
+  it("says when a run stopped early", async () => {
+    (Admin.getEncryption as jest.Mock).mockImplementation(() =>
+      ok({ running: false, to: "encrypted", changed: 4, skipped: 0, error: "the database went away", finished_at: 1 }),
+    );
+    show();
+    expect(await screen.findByText("Converting stopped after 4 file(s).")).toBeInTheDocument();
+    expect(screen.getByText(/the database went away/)).toBeInTheDocument();
+  });
 });
