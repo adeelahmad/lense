@@ -37,15 +37,15 @@ ARG DEV=false
 RUN case " $EXTRAS " in *" doctr "*) apt-get update \
       && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*;; esac
 
-# faster-whisper (the whisper extra) is always in: transcription works out of the box, on the CPU (SenseVoice, which
-# needs PyTorch, is an extra)
+# No speech-to-text engine is baked in (light by default: cloud speech users never need one). The worker fetches the
+# configured one on first use (components.py); EXTRAS="whisper" bakes faster-whisper in, EXTRAS="sensevoice" SenseVoice.
 COPY pyproject.toml uv.lock README.md ./
-RUN --mount=type=cache,target=/root/.cache/uv env -u UV_NO_CACHE uv sync --frozen --no-install-project --extra whisper \
+RUN --mount=type=cache,target=/root/.cache/uv env -u UV_NO_CACHE uv sync --frozen --no-install-project \
       $( [ "$DEV" = "true" ] || echo --no-dev ) \
       $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done)
 
 COPY . .
-RUN --mount=type=cache,target=/root/.cache/uv env -u UV_NO_CACHE uv sync --frozen --extra whisper $( [ "$DEV" = "true" ] || echo --no-dev ) $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
+RUN --mount=type=cache,target=/root/.cache/uv env -u UV_NO_CACHE uv sync --frozen $( [ "$DEV" = "true" ] || echo --no-dev ) $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
     && useradd --create-home --uid 1000 lens && mkdir -p /data && chown lens:lens /data
 
 ENV ARCHIVE_CONFIG=/app/docker/archive.yaml
@@ -66,7 +66,7 @@ ARG EXTRAS=""
 ARG DEV=false
 ARG YOLOX_URL=https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx
 ARG YOLOX_SHA256=c5c2d13e59ae883e6af3b45daea64af4833a4951c92d116ec270d9ddbe998063
-RUN --mount=type=cache,target=/root/.cache/uv env -u UV_NO_CACHE uv sync --frozen --extra whisper --extra objects $( [ "$DEV" = "true" ] || echo --no-dev ) $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
+RUN --mount=type=cache,target=/root/.cache/uv env -u UV_NO_CACHE uv sync --frozen --extra objects $( [ "$DEV" = "true" ] || echo --no-dev ) $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
     && mkdir -p /opt/lens/models \
     && python -c "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])" "$YOLOX_URL" /opt/lens/models/yolox_s.onnx \
     && echo "$YOLOX_SHA256  /opt/lens/models/yolox_s.onnx" | sha256sum -c -

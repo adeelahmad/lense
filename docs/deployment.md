@@ -40,9 +40,10 @@ docker compose -f docker-compose.prod.yml logs backend | grep "setup code"
 * **Backups.** `docker compose -f docker-compose.prod.yml exec backend lens backup` writes one of the database into
   `data_dir/backups` ([Database](database.md#backups)); back up the `archive-data` volume as well.
 * **Mail** for sign-in links and access requests: **Settings → Email** in the app (or `MAIL_*` in `.env`).
-* **Workers.** Scale with `docker compose up -d --scale worker=3`. The images transcribe with faster-whisper on the
-  CPU (SenseVoice, the default engine, is used where it is installed; elsewhere the job log notes the fallback). To
-  use SenseVoice in Docker, set `EXTRAS=sensevoice` in `.env` and rebuild (`make dev`); it adds PyTorch. For GPU transcription, build with
+* **Workers.** Scale with `docker compose up -d --scale worker=3`. The images carry no speech-to-text engine: a worker
+  fetches the configured one (SenseVoice by default) the first time a recording needs it ([Components](components.md)),
+  and cloud speech needs none. To bake one in instead, set `EXTRAS=whisper` (faster-whisper) or `EXTRAS=sensevoice`
+  (adds PyTorch) in `.env` and rebuild (`make run`). For GPU transcription, build with
   `EXTRAS="sensevoice voices"` and give the worker the GPU; or run workers on other machines with `SURREAL_URL`
   pointing at the database and `--steps` limited to what they can do.
 * **Documents.** Docker Compose builds the full image, which reads Word, PowerPoint and spreadsheet files, text,
