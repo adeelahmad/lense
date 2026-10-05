@@ -179,3 +179,16 @@ def test_the_thread_answers_on_its_own(db, cfg, room):
         stop.set()
         th.join(5)
     assert bridge.status(db, cfg)["state"] == "starting"  # it let go when it stopped
+
+
+def test_a_room_conversation_is_summarised_as_it_goes_on(db, cfg, room, llm):
+    from app.domain import chat
+
+    cfg["ai"]["tools"] = False
+    for i in range((chat.RECENT + chat.COMPACT_AFTER) // 2 + 1):
+        room.waiting = [said(f"Lens, question {i}?")]
+        run(db, cfg)
+    cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE kind = 'bridge' LIMIT 1")
+    assert chat.memory(db, cfg, cid)["text"] == "OK"  # the fake model's summary
+    last = [b for b in llm.seen if b["messages"][0]["content"].startswith(chat.SYSTEM)][-1]["messages"]
+    assert "Earlier in this conversation" in last[0]["content"] and "question 0?" not in str(last[1:])

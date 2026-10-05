@@ -152,6 +152,7 @@ def answer(db, cfg, base, account, cid, q):
     readable = set(roles)
     editable = {s for s in roles if auth.allows(roles, s, "editor")}
     past = chat.history(db, cid)
+    summary = chat.memory(db, cfg, cid)
     chat.add(db, cid, "user", q)
     passages = chat.retrieve(db, q, readable, None, cfg=cfg)
     steps, approvals, notice = [], [], None
@@ -162,7 +163,7 @@ def answer(db, cfg, base, account, cid, q):
         )
         try:
             text = None
-            for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6):
+            for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6, summary=summary):
                 if kind == "step":
                     steps.append(data)
                 elif kind == "direct" and passages and not box.cited(data):  # unless it cites what it remembers
@@ -180,7 +181,7 @@ def answer(db, cfg, base, account, cid, q):
             return "I couldn't answer that: " + str(e), box.approvals
     error = None
     try:
-        text = llm.chat(cfg, chat.messages_for(q, passages, past)) if llm.configured(cfg) else chat.fallback(passages)
+        text = llm.chat(cfg, chat.messages_for(q, passages, past, summary)) if llm.configured(cfg) else chat.fallback(passages)
     except llm.LLMError as e:
         text, error = "I couldn't answer that: " + str(e), str(e)
     chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages), steps=steps, notice=notice, error=error, model=wrote)
@@ -211,6 +212,10 @@ def handle(db, cfg, base, m):
         log.exception("bridge: answering failed")
         text, approvals = "Something went wrong while answering. Try again.", []
     post(cfg, m.get("gateway"), reply_text(cfg, text, approvals, cid), m.get("channel"))
+    try:  # a room conversation goes on for good: older messages are folded into its summary
+        chat.compact(db, cfg, cid)
+    except Exception:  # noqa: BLE001 - tried again after the next answer
+        log.warning("bridge: couldn't update the summary of chat %s", cid, exc_info=True)
     return True
 
 

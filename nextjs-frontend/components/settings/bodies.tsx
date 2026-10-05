@@ -1099,6 +1099,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         The assistant uses the model set in LLM provider; it needs one that supports tool calls.
       </p>
       <F ctx={ctx} id="ai.tools" />
+      <F ctx={ctx} id="ai.compact" />
       <F ctx={ctx} id="ai.refine_notes" />
       <F ctx={ctx} id="ai.organise_notes" />
       <div className="flex flex-col gap-2">
