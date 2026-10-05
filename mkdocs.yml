@@ -84,6 +84,7 @@ nav:
   - Graph history: graph-history.md
   - Topics: topics.md
   - Notes: notes.md
+  - Storage: storage.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md
   - API: api.md
@@ -98,6 +99,12 @@ nav:
 
 plugins:
   - search
+
+hooks:
+  - overrides/hooks.py
+
+exclude_docs: |
+  brand/README.md
 
 extra_css:
   - stylesheets/extra.css

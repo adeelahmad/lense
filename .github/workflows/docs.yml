@@ -1,0 +1,55 @@
+name: docs
+
+# Builds the documentation site on every change to docs, and publishes it to GitHub Pages only when the repository
+# variable DOCS_PAGES is "true" (Settings → Pages must use "GitHub Actions" as its source first).
+on:
+  push:
+    branches: [main]
+    paths: [docs/**, mkdocs.yml, overrides/**, README.md, CHANGELOG.md, .github/workflows/docs.yml]
+  pull_request:
+    paths: [docs/**, mkdocs.yml, overrides/**, README.md, CHANGELOG.md, .github/workflows/docs.yml]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
+          python-version: "3.12"
+
+      - name: Build the site (warnings fail it)
+        run: uvx --with "mkdocs-material>=9.6.9" mkdocs build --strict --site-dir site
+
+      - name: Keep the site for publishing
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DOCS_PAGES == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  publish:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DOCS_PAGES == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Publish to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
