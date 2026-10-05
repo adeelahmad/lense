@@ -848,6 +848,7 @@ class Toolbox(ops_tools.OpsTools):
                 "links": notebook.links(self.db, p["id"]),
                 "linked_from": [b for b in notebook.backlinks(self.db, p["space"], targets) if b["page"] != p["id"]],
                 "could_link": [f"{x['sign']}[{x['label']}]({x['target']})" for x in notebook.suggest_links(self.db, p)] or None,
+                "files": [{"name": f.get("name"), "type": f["type"], "size": f["size"]} for f in notebook.files(self.db, p["id"])] or None,
                 "could_go_in": [
                     {"parent_id": x["page"], "title": x["title"], "place": x["place"], "why": x["why"]}
                     for x in notebook.suggest_homes(self.db, p)

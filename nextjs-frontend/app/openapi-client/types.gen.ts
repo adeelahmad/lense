@@ -7398,6 +7398,39 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteFile
+ */
+export type NoteFile = {
+  /**
+   * Key
+   *
+   * the editor's key for it (a hash of its bytes)
+   */
+  key: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Type
+   */
+  type?: string;
+  /**
+   * Size
+   */
+  size?: number;
+  /**
+   * Author
+   */
+  author?: "person" | "assistant";
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteHistory
  */
 export type NoteHistory = {
@@ -20667,6 +20700,151 @@ export type MovePageResponses = {
 };
 
 export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
+
+export type DeletePageFileData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  url: "/api/v1/notes/{pid}/files";
+};
+
+export type DeletePageFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletePageFileError = DeletePageFileErrors[keyof DeletePageFileErrors];
+
+export type DeletePageFileResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeletePageFileResponse = DeletePageFileResponses[keyof DeletePageFileResponses];
+
+export type PageFilesData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/files";
+};
+
+export type PageFilesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageFilesError = PageFilesErrors[keyof PageFilesErrors];
+
+export type PageFilesResponses = {
+  /**
+   * Response Notes-Page Files
+   *
+   * Successful Response
+   */
+  200: Array<NoteFile>;
+};
+
+export type PageFilesResponse = PageFilesResponses[keyof PageFilesResponses];
+
+export type GetBlobData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query: {
+    /**
+     * Key
+     */
+    key: string;
+  };
+  url: "/api/v1/notes/{pid}/blobs";
+};
+
+export type GetBlobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetBlobError = GetBlobErrors[keyof GetBlobErrors];
+
+export type GetBlobResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+};
+
+export type GetBlobResponse = GetBlobResponses[keyof GetBlobResponses];
+
+export type PutBlobData = {
+  body: Blob | File;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query: {
+    /**
+     * Key
+     *
+     * the editor's key for it
+     */
+    key: string;
+    /**
+     * Name
+     *
+     * its file name, when it has one
+     */
+    name?: string | null;
+  };
+  url: "/api/v1/notes/{pid}/blobs";
+};
+
+export type PutBlobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PutBlobError = PutBlobErrors[keyof PutBlobErrors];
+
+export type PutBlobResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteFile;
+};
+
+export type PutBlobResponse = PutBlobResponses[keyof PutBlobResponses];
 
 export type ListCommentsData = {
   body?: never;

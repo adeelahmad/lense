@@ -212,12 +212,12 @@ Todo:
   one click; the assistant sees them as could_go_in)
 - [ ] Self-organising, next: nest notes without a click when the fit is clear (decision model, like PARA filing)
 - [x] # topics move to the SKOS topics once the graph thread splits them from entities (#135)
-- [ ] Attachments on a page, encrypted through the keyring
+- [x] Attachments on a page, encrypted through the keyring (in the file store)
 - [x] The file store (blobs.py, docs/storage.md): this machine or any storage connection through rclone (S3, Drive,
       Dropbox, OneDrive, SFTP, SMB, WebDAV, a folder), keyring-encrypted before it leaves, optional rclone crypt; the
       `files` settings, a check, the assistant's file_storage tool. Adeel said go 2026-10-05, with rclone and crypt
 - [x] Settings → Storage and the setup wizard step (pick or add a connection, folder, crypt, check); new installs choose
-- [ ] Attachments on notes in the file store; BlockSuite images and files
+- [x] Attachments on notes in the file store: BlockSuite's blob source keeps images and files there (note_file)
 - [ ] Moving uploads and recordings' media to the file store (pipelines need local copies: a cache)
 - [ ] A downloadable storage key (the server secret; opens every namespace that isn't a passkey vault)
 - [ ] File storage over MCP (admins)

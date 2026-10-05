@@ -6,8 +6,9 @@ assistant write. The assistant is the main writer and organiser; people can do e
 Status: **built**: pages (free notes in a tree, a page per recording, entity, topic, collection or speaker), @ and #
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
-find, read and write them ([MCP](mcp.md)), page history with restore, suggested links to what a note names, and the project or area a note fits under.
-**Planned**: nesting notes under their project or area without a click, attachments on encrypted object storage, pages in the graph.
+find, read and write them ([MCP](mcp.md)), page history with restore, suggested links to what a note names, the
+project or area a note fits under, and images and attachments kept where Settings → Storage says.
+**Planned**: nesting notes under their project or area without a click, pages in the graph.
 
 ## A page
 
@@ -57,6 +58,16 @@ typed is never sent on each keystroke, empty notes are never sent, and nothing i
 API and `lens worker` processes run this pass with the routines. Each model call, and each filing decision, counts in
 the [activity ledger](activity.md) for the note (`note_page:5`) and its namespace; a note's page shows its costs and
 activity at the bottom.
+
+## Files and images
+
+Images, attachments and other files dropped or pasted into a page are kept where **Settings → Storage** says
+([Storage](storage.md)): on this machine, or on a storage connection (S3, Google Drive, Dropbox, OneDrive, SFTP, SMB,
+WebDAV), encrypted with the namespace's key before they leave the machine. The editor names each by the SHA-256 of its
+bytes, so the same file is kept once per page, and the server checks the name matches the bytes. Anyone who reads the
+page reads its files; editors add them (`PUT /api/v1/notes/{id}/blobs?key=…`, up to `server.max_upload_mb`). Images
+and PDFs show in place; anything a browser could run (HTML, SVG) only downloads. Deleting the page deletes its files.
+The assistant sees a page's files (names, types, sizes) when it reads it.
 
 ## Filing (PARA)
 

@@ -5,12 +5,12 @@ import { ArrowUpRight, FileText, History, Link2, Shapes, Sparkles, Trash2 } from
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Notes } from "@/app/openapi-client";
 import type { NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
 import { ActivityPanel } from "@/components/costs/costs";
-import type { EditorChange, LinkTarget } from "@/components/notes/block-editor";
+import type { EditorBlobs, EditorChange, LinkTarget } from "@/components/notes/block-editor";
 import { HomeSuggestion } from "@/components/notes/home-suggestions";
 import { LinkSuggestions } from "@/components/notes/link-suggestions";
 import { NoteHistory } from "@/components/notes/note-history";
@@ -87,6 +87,46 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
   const now = useRef({ page, title, key });
   now.current = { page, title, key };
 
+  // The editor's images and attachments: kept on the server once the page exists, until then held back
+  const queued = useRef<[string, Blob][]>([]);
+  const putBlob = useCallback(
+    async (pid: number, key: string, blob: Blob) => {
+      try {
+        await data(
+          Notes.putBlob({
+            client,
+            path: { pid },
+            query: { key, name: blob instanceof File ? blob.name : null },
+            body: blob,
+            headers: { "Content-Type": blob.type || "application/octet-stream" },
+          }),
+        );
+      } catch (err) {
+        toast({
+          title: "Couldn’t keep the file",
+          body: err instanceof ApiError ? err.message : "Please try again.",
+          tone: "red",
+        });
+      }
+    },
+    [client, toast],
+  );
+  const blobs = useMemo<EditorBlobs>(
+    () => ({
+      get: async (key) => {
+        if (savedId.current == null) return null;
+        return (await data(
+          Notes.getBlob({ client, path: { pid: savedId.current }, query: { key }, parseAs: "blob" }),
+        )) as unknown as Blob;
+      },
+      set: async (key, blob) => {
+        if (savedId.current == null) queued.current.push([key, blob]);
+        else await putBlob(savedId.current, key, blob);
+      },
+    }),
+    [client, putBlob],
+  );
+
   const flush = useCallback(async () => {
     clearTimeout(timer.current);
     const c = pending.current;
@@ -114,6 +154,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
           }),
         );
         savedId.current = out.id;
+        for (const [k, b] of queued.current.splice(0)) void putBlob(out.id, k, b);
       } else {
         const body: Record<string, unknown> = {};
         if (c.title !== undefined && c.title.trim()) body.title = c.title.trim();
@@ -361,6 +402,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
         onChange={(c: EditorChange) => change({ body: c.markdown, doc: c.doc })}
         search={search}
         onOpenLink={openLink}
+        blobs={blobs}
       />
       {canEdit && saved && (
         <LinkSuggestions
