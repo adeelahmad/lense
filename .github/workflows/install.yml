@@ -58,12 +58,9 @@ jobs:
         run: |
           url="$(cat setup-url)"
           base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          # answering already: install.sh waits for the API too, so the address works the moment it's handed over
           curl -fsS -o /dev/null "$url"
-          for _ in $(seq 1 60); do
-            status="$(curl -fsS "$base/api/v1/auth/status" || true)"
-            echo "$status" | grep -q '"setup_required":true' && break
-            sleep 5
-          done
+          status="$(curl -fsS "$base/api/v1/auth/status")"
           echo "$status"
           echo "$status" | grep -q '"setup_required":true'
 

@@ -166,7 +166,9 @@ $COMPOSE -f docker-compose.prod.yml up -d --build
 
 say "Waiting for the web app..."
 i=0
-until curl -fsS -o /dev/null "http://127.0.0.1:$PORT/login" 2>/dev/null; do
+# the page and the API behind it: the setup page needs both, and the API starts a few seconds after the page
+until curl -fsS -o /dev/null "http://127.0.0.1:$PORT/login" 2>/dev/null &&
+  curl -fsS -o /dev/null "http://127.0.0.1:$PORT/api/v1/auth/status" 2>/dev/null; do
   i=$((i + 1))
   [ $i -gt 300 ] && fail "Lens didn't answer within 10 minutes. See what happened: cd $DIR && $COMPOSE -f docker-compose.prod.yml logs"
   sleep 2
