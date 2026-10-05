@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Renditions, reports and exports are encrypted too.** With encryption at rest on (or in a vault), the PDF made of a
+  Word file or an email, the HTML reports and the exports Lens keeps are stored encrypted, and download and open as
+  before. `lens encrypt` converts the ones already there. An export sent to a storage connection still arrives plain.
 - **Fewer steps to an answer.** Asking on Home sends the question when you press Enter, instead of opening an empty
   chat on the first keystroke and waiting for a second Enter. With only one namespace, it is picked for you, so pages
   that need a namespace stop asking. Once a model is set, the setup wizard offers **Finish with defaults** for the

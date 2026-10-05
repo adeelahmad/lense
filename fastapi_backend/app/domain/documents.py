@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-from . import convert, ingest, store, video, webcapture
+from . import convert, ingest, keyring, store, video, webcapture
 
 R = store.R
 TYPES = {
@@ -442,6 +442,8 @@ def transcribe(db, cfg, rid, say):
     _clear(d)
     read = read_image if rec["source"] == "image" else read_pdf
     pages, blocks, notes, ocred = read(pdf, d, opts, engine, say, why)
+    if learnt:  # the rendition, read: kept encrypted from here on, like the file it was made from
+        keyring.protect(db, cfg, rec["space"], pdf)
     segs = segments_of(blocks)
     rows = [{**p, "id": R("page", f"{rid}-{p['idx']}"), "recording": rid, "space": rec["space"]} for p in pages]
     db.run(

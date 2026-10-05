@@ -120,3 +120,43 @@ def test_working_copies_go_once_unused(db, cfg, folder):
     assert keyring.sweep(cfg) == 0  # still held by the job using it
     keyring.release()
     assert keyring.sweep(cfg) == 1 and not os.path.exists(w)
+
+
+def test_reports_exports_and_renditions_are_kept_encrypted(client, db, cfg, folder):
+    from app.domain import analyze, convert, render
+    from tests.helpers import quiet
+
+    eff = settings.effective(db, cfg)
+    he = _editor(client, db)
+    wav, tr = folder / "clip.wav", folder / "clip.txt"
+    write_wav(wav)
+    tr.write_text("[00:00] Alice: A short clip about the capsid.\n[00:02] Bob: Indeed it is short.")
+    ingest.import_transcript(db, eff, "pods", tr, audio=wav, log=quiet)
+    analyze.analyze_pending(db, eff, log=quiet)
+
+    written = render.build_reports(db, eff, log=quiet)
+    assert written and all(keyring.is_encrypted(p) for p in written)
+    assert b"capsid" not in written[0].read_bytes()
+    page = client.get(f"/reports/pods/{written[0].name}", headers=he)
+    assert page.status_code == 200 and "capsid" in page.text
+    overview = client.get("/reports/pods/", headers=he)
+    assert overview.status_code == 200 and written[0].name in overview.text
+
+    # a document's PDF rendition downloads as its plain bytes
+    pdf = text_pdf(["Harbour report"])
+    doc = _upload(client, he, b"Harbour notes\n", "notes.txt")
+    out = convert.rendition_path(cfg, doc)
+    keyring.keep(db, eff, store.ns_id(db, "pods"), out, pdf)
+    assert keyring.is_encrypted(out)
+    r = client.get(f"/api/v1/recordings/{doc}/pdf", headers=he)
+    assert r.status_code == 200 and r.content == pdf and r.headers["content-type"] == "application/pdf"
+
+    # outside data_dir (a folder `lens report` was told to write to), files stay as they are
+    plain = keyring.keep(db, eff, store.ns_id(db, "pods"), folder / "out" / "r.html", "<p>hi</p>")
+    assert plain.read_text() == "<p>hi</p>"
+
+    # lens encrypt (or making it a vault) finds them too
+    keyring.encrypt_all(db, eff, decrypt=True, log=lambda *_: None)
+    assert not any(keyring.is_encrypted(p) for _, p in keyring.made_files(db, eff))
+    assert keyring.encrypt_all(db, eff, log=lambda *_: None) >= len(written) + 1
+    assert all(keyring.is_encrypted(p) for _, p in keyring.made_files(db, eff))

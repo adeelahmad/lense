@@ -70,7 +70,7 @@ def serve_document(db: DB, cfg: dict[str, Any], rec: dict[str, Any], request: Re
 
 
 @router.get("/recordings/{rid}/pdf", response_class=FileResponse, responses={200: {"content": {"application/pdf": {}}}})
-def get_pdf(rid: int, acl: Acl, cfg: Cfg, s: str = "") -> FileResponse:
+def get_pdf(rid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Response:
     """The PDF made of a document that isn't one (a Word file, an email, …): what its pages are drawn from, to save.
     Accepts a bearer token, a share link (``?s=``) or a signed link."""
     rec = acl.recording(rid, share=s)
@@ -78,7 +78,7 @@ def get_pdf(rid: int, acl: Acl, cfg: Cfg, s: str = "") -> FileResponse:
     if rec.get("source") != "document" or not path.is_file():
         raise HTTPException(404, "not found")
     name = pathlib.PurePosixPath(str((rec.get("remote") or {}).get("path") or rec.get("path") or "document")).stem or "document"
-    return FileResponse(path, media_type="application/pdf", filename=f"{name}.pdf", headers=files.HEADERS)
+    return stored_file(db, cfg, path, request, "application/pdf", f"{name}.pdf", files.HEADERS)
 
 
 @router.get("/recordings/{rid}/frames/{name}", response_class=FileResponse, responses={200: {"content": {"image/jpeg": {}}}})
