@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Encryption at rest has its own page in Settings.** Settings › Encryption turns encrypting files on disk on or
+  off, and the files already kept follow in the background, with how far it has got on the page. Turning it off
+  leaves vaults' files encrypted (also for `lens encrypt --off`). It also sets how long working copies and unlocked
+  vaults last.
+- **A moved recording's files move to the new namespace's key.** Moving a recording re-encrypts its files with the
+  key of the namespace it goes to, so they open only with that namespace's key, and a vault it leaves no longer holds
+  them. Moving out of or into a locked vault waits until it's unlocked (423).
+- **The copies Lens keeps of files on storage sources are encrypted too.** With encryption at rest on (or in a
+  vault), the cached copy of a recording that lives on S3, Drive, a mailbox or another connection is stored with its
+  namespace's key, and still plays, seeks and is processed as before. `lens encrypt` converts the ones already there.
 - **Frames, page images and face crops are encrypted too.** With encryption at rest on (or in a vault), the stills
   Lens draws from videos, documents and images are stored encrypted and still show as before; visitors still get faces
   pixelated where the namespace asks. `lens encrypt` converts the ones already there.

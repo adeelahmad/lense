@@ -2241,6 +2241,28 @@
         }
       }
     },
+    "/api/v1/settings/encryption/progress": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Get Encryption",
+        "description": "How far converting the files already kept has got, since encryption.files was last changed in the app (on this\nserver process).",
+        "operationId": "get_encryption",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncryptionProgress"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/llm/test": {
       "post": {
         "tags": [
@@ -5829,7 +5851,7 @@
           "resources"
         ],
         "summary": "Move Recording",
-        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. 409\nwhen the new namespace has the same file or a job is running on it. Audited as `recording.move`.",
+        "description": "Move a recording to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its\nfiles are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on\nit; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.",
         "operationId": "move_recording",
         "parameters": [
           {
@@ -28485,6 +28507,68 @@
           "ok"
         ],
         "title": "EmbedTestResult"
+      },
+      "EncryptionProgress": {
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "title": "Running"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "encrypted",
+                  "plain"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed",
+            "default": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "default": 0
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "running"
+        ],
+        "title": "EncryptionProgress",
+        "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped\nearly."
       },
       "EntityDefine": {
         "properties": {

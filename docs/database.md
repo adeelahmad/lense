@@ -1,7 +1,8 @@
 # Database: SurrealDB
 
 Everything Lens stores lives in SurrealDB: recordings, transcript segments, speakers and voiceprints, entities and
-the knowledge graph, full-text indexes, jobs, accounts, settings and audit.
+the knowledge graph, jobs, accounts, settings and audit. The word search index is kept beside it, in a SQLite file by
+default ([below](#schema)).
 
 ## Two ways to run it
 
@@ -20,11 +21,12 @@ The Docker setups run SurrealDB 3.2.4 on the `surrealkv` storage engine. Lens is
 engine and with SurrealDB 2.3 and 3.2 servers.
 
 !!! note "Embedded mode is for trying Lens and small archives"
-    The embedded engine (SurrealDB 2.x inside the Python SDK) is slow to write and its full-text index loses entries
-    when the database is closed and reopened. Lens repairs the index once per process, before the first search (the
-    API does it at startup, `lens` commands that don't search skip it), which takes about 30 ms per transcript
-    segment: seconds for a few thousand segments, but about ten minutes for 20,000. Beyond a few thousand segments,
-    run a SurrealDB server; the Docker setups already do.
+    The embedded engine (SurrealDB 2.x inside the Python SDK) is slow to write. With `search.engine: surrealdb`, its
+    full-text index also loses entries when the database is closed and reopened. Lens then repairs the index once per
+    process, before the first search (the API does it at startup, `lens` commands that don't search skip it), which
+    takes about 30 ms per transcript segment: seconds for a few thousand segments, but about ten minutes for 20,000.
+    The default word index (SQLite) isn't affected. Beyond a few thousand segments, run a SurrealDB server; the Docker
+    setups already do.
 
 !!! warning "Use `surrealkv` (or RocksDB/TiKV) for servers, not `memory`"
     Under concurrent writes, SurrealDB 3.2.4's `memory` engine occasionally loses updates (we reproduced duplicate ids
@@ -54,8 +56,8 @@ With `opensearch`, the same words go to an OpenSearch (or Elasticsearch-compatib
 an index per table named `lens-<namespace>-<database>-<table>`, with the `english` analyser unless
 `search.stemming: none`. It suits an archive too big for one small machine, with OpenSearch on another one. When the
 cluster can't be reached, searches read the tables instead and say nothing is wrong, so Lens keeps working. The
-`opensearch` compose profile (`docker compose --profile opensearch up`) runs one next to Lens at
-`http://opensearch:9200`.
+`opensearch` profile of the production compose file (`docker compose -f docker-compose.prod.yml --profile opensearch
+up -d`) runs one next to Lens at `http://opensearch:9200`.
 
 With `surrealdb`, full-text indexes use 3.x's `FULLTEXT` syntax and fall back to 2.x's `SEARCH`, with a
 `snowball(english)` analyser unless `search.stemming: none`. After changing either setting, run `lens reindex` (or
@@ -113,9 +115,10 @@ single statements and for `run()` transactions (which roll back as a whole, so r
   deletes only the extras.
 * **Multi-statement `query()` in the Python SDK** only checks the first statement's result. Transactions go through
   `DB.run()`, which checks every statement.
-* **The embedded full-text index loses postings on reopen** (the `SEARCH` index of the 2.x embedded engine): after a
-  restart, searches silently missed most segments. `DB.ready_fulltext()` rebuilds it once per process before the
-  first full-text query; `tests/domain/test_search_index.py` covers it. Servers (3.x `FULLTEXT`) are unaffected.
+* **The embedded full-text index loses postings on reopen** (the `SEARCH` index of the 2.x embedded engine, used only
+  with `search.engine: surrealdb`): after a restart, searches silently missed most segments. `DB.ready_fulltext()`
+  rebuilds it once per process before the first full-text query; `tests/domain/test_search_index.py` covers it.
+  Servers (3.x `FULLTEXT`) are unaffected.
 * **The embedded engine's vector index drops filtered rows**: with a KNN operator plus a parenthesised or OR
   filter, or sometimes just two filters, 2.x returned nothing. On the embedded engine, search by meaning compares the
   query with every passage that passes the filter (`vector::similarity::cosine`) instead, which is exact and takes

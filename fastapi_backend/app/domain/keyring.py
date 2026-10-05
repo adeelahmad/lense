@@ -24,6 +24,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import io
+import logging
 import os
 import pathlib
 import secrets
@@ -34,6 +35,8 @@ import threading
 import time
 
 from . import settings, store
+
+log_ = logging.getLogger(__name__)
 
 R = store.R
 MAGIC = b"LENSE1"
@@ -141,9 +144,32 @@ def status(db, sid):
     }
 
 
+_HELD = threading.local()
+
+
+@contextlib.contextmanager
+def holding(db, cfg, sids):
+    """Keep the data keys of namespaces `sids` open for this thread until the block ends, so a vault whose unlock runs
+    out (or is locked) meanwhile doesn't stop a change half way. Raises Locked on entry, before anything is done."""
+    held = {}
+    for sid in sorted({int(s) for s in sids}):
+        version, key = data_key(db, cfg, sid)
+        held[(sid, None)] = held[(sid, version)] = (version, key)
+        held.update({k: (k[1], v) for k, v in _cache(db).items() if k[0] == sid})
+    before = getattr(_HELD, "keys", None)
+    _HELD.keys = {**(before or {}), **held}
+    try:
+        yield
+    finally:
+        _HELD.keys = before
+
+
 def data_key(db, cfg, sid, version=None, create=True):
     """The namespace's data key (the current version unless one is named), as (version, key)."""
     sid = int(sid)
+    held = getattr(_HELD, "keys", None)
+    if held and (sid, None if version is None else int(version)) in held:
+        return held[(sid, None if version is None else int(version))]
     _expire(db, sid)
     cache = _cache(db)
     if version is not None and (sid, int(version)) in cache:
@@ -535,6 +561,8 @@ def plain_path(db, cfg, path):
         with r, os.fdopen(fd, "wb") as out:
             while part := r.read(1024 * 1024):
                 out.write(part)
+        st = os.stat(path)
+        os.utime(tmp, (st.st_atime, st.st_mtime))  # tools that read a file's time see the original's
         yield tmp
     finally:
         with contextlib.suppress(OSError):
@@ -857,6 +885,18 @@ def made_files(db, cfg):
         if d.is_dir():
             for f in sorted(d.glob("*.jpg")):
                 yield r["space"], str(f)
+    from . import sources
+
+    for r in db.rows("SELECT space, remote FROM recording WHERE remote != NONE"):
+        with contextlib.suppress(KeyError, ValueError, TypeError):
+            p = sources.cache_file(
+                cfg,
+                r["remote"]["source"],
+                sources.check_path(cfg, sources.get(db, r["remote"]["source"]), r["remote"]["path"]),
+                r["space"],
+            )
+            if p.is_file() and owned(cfg, p):
+                yield r["space"], str(p)
     for sid, name in store.space_names(db).items():
         for kind, pattern in (("reports", "*.html"), ("exports", "*")):
             d = data / kind / name
@@ -866,21 +906,178 @@ def made_files(db, cfg):
                         yield sid, str(p)
 
 
-def encrypt_all(db, cfg, decrypt=False, log=print, space=None):
+def recording_files(db, cfg, rid):
+    """The files Lens keeps of one recording, where they are for its namespace now: its own file under data_dir, its
+    supplementary files, its rendition, frames, page images and face crops, its cached copy from a storage source,
+    and its report pages and exports."""
+    from . import files as filemod, render, sources
+
+    rec = db.one("SELECT title, space, path, remote, source FROM $r", r=store.R("recording", rid))
+    if not rec:
+        return
+    data = pathlib.Path(cfg["data_dir"])
+    if rec.get("path") and not rec.get("remote"):
+        p = store.resolve_path(cfg, rec["path"])
+        if p and owned(cfg, p) and os.path.isfile(p):
+            yield str(p)
+    for f in db.rows("SELECT record::id(id) AS id, recording, name FROM resource_file WHERE recording = $r", r=rid):
+        p = filemod.path_of(cfg, f)
+        if p.is_file():
+            yield str(p)
+    p = data / "renditions" / f"{int(rid)}.pdf"
+    if p.is_file():
+        yield str(p)
+    d = data / "frames" / str(int(rid))
+    if d.is_dir():
+        yield from (str(f) for f in sorted(d.glob("*.jpg")))
+    if rec.get("remote"):
+        with contextlib.suppress(KeyError, ValueError, TypeError):
+            rm = rec["remote"]
+            p = sources.cache_file(cfg, rm["source"], sources.check_path(cfg, sources.get(db, rm["source"]), rm["path"]), rec["space"])
+            if p.is_file() and owned(cfg, p):
+                yield str(p)
+    name = store.space_names(db).get(rec["space"])
+    if not name:
+        return
+    reports, page = data / "reports" / name, f"{render.slug(rec.get('title'))}-{int(rid)}"
+    for p in [reports / f"{page}.html", *sorted(reports.glob(f"{page}--*.html"))]:
+        if p.is_file():
+            yield str(p)
+    for o in db.rows("SELECT key, value FROM output WHERE recording = $r AND string::starts_with(key, 'export_')", r=rid):
+        f = pathlib.PurePosixPath((o.get("value") or {}).get("file") or "").name
+        if f and (data / "exports" / name / f).is_file():
+            yield str(data / "exports" / name / f)
+
+
+def keys_needed(db, cfg, sid, paths) -> set[int]:
+    """The namespaces whose keys moving the files at `paths` to namespace `sid` needs (see rekey): each encrypted
+    one's own and, when any of them is to be encrypted there, the new namespace's. Hold them with holding()."""
+    need = {_space_of(p) for p in paths if is_encrypted(p)}
+    if need or any(wanted(db, cfg, sid, p) for p in paths):
+        need.add(int(sid))
+    return need
+
+
+def rekey(db, cfg, sid, path) -> bool:
+    """Keep a file of a recording that moved to namespace `sid` under that namespace's key: an encrypted one is
+    re-encrypted with it (also when encryption.files is off there, so a file is never turned back to plain), a plain
+    one is encrypted when wanted() there. Atomic, and its modification time is kept. Returns whether it changed."""
+    if not is_encrypted(path):
+        return protect(db, cfg, sid, path)
+    if _space_of(path) == int(sid):
+        return False
+    st = os.stat(path)
+    with Reader(db, cfg, path) as r, Writer(db, cfg, sid, path) as w:
+        while part := r.read(1024 * 1024):
+            w.write(part)
+    os.utime(path, (st.st_atime, st.st_mtime))
+    return True
+
+
+def _in_a_vault(db, path, spaces) -> bool:
+    """Whether a file belongs to a vault: one of the namespaces that keep it, or the one whose key it has. Asked for
+    each file as it comes, so a namespace made a vault meanwhile counts."""
+    return any(status(db, s)["vault"] for s in {*spaces, *([_space_of(path)] if is_encrypted(path) else [])})
+
+
+def encrypt_all(db, cfg, decrypt=False, log=print, space=None, stop=None, progress=None):
     """Encrypt (or, with decrypt, turn back) every file Lens keeps, or one namespace's (`space`); files already that
-    way are skipped, so it can run again after stopping half way. Returns how many changed."""
-    changed = 0
-    for sid, p in stored_files(db, cfg):
+    way are skipped, so it can run again after stopping half way. An encrypted file under another namespace's key is
+    moved to its own namespace's; a vault's files stay encrypted. `stop()` true ends it early; `progress(n)` hears how
+    many have changed so far. Returns how many changed."""
+    changed, files = 0, list(stored_files(db, cfg))
+    spaces: dict[str, set[int]] = {}
+    for sid, p in files:
+        spaces.setdefault(str(p), set()).add(int(sid))
+    for sid, p in files:
+        if stop is not None and stop():
+            break
         if space is not None and sid != int(space):
             continue
         try:
-            st = os.stat(p)
-            done = decrypt_file(db, cfg, p) if decrypt else encrypt_file(db, cfg, sid, p)
+            if decrypt and _in_a_vault(db, p, spaces[str(p)]):  # a vault's files are never turned back to plain
+                continue
+            st, keeps_time = os.stat(p), False
+            if decrypt:
+                done = decrypt_file(db, cfg, p)
+            elif is_encrypted(p):
+                # under another namespace's key (a move that stopped half way): its own, unless two namespaces share it
+                done = keeps_time = len(spaces[str(p)]) == 1 and rekey(db, cfg, sid, p)
+            else:
+                done = encrypt_file(db, cfg, sid, p)
         except (Locked, Damaged, OSError) as e:  # a vault, a damaged file, one gone or not writable: the rest go on
             log(f"skipped {p}: {e}")
             continue
         if done:
-            os.utime(p, (st.st_atime, st.st_mtime))
+            if not keeps_time:
+                os.utime(p, (st.st_atime, st.st_mtime))
             changed += 1
+            if progress is not None:
+                progress(changed)
     log(f"{'decrypted' if decrypt else 'encrypted'} {changed} file(s)")
     return changed
+
+
+# ---------- converting the files already kept, when encryption.files changes ----------
+conversion: dict = {"running": False, "to": None, "changed": 0, "skipped": 0, "error": None, "finished_at": None}
+_CONVERT = threading.Lock()
+_converter: dict = {"gen": 0, "thread": None}
+
+
+def convert(db, cfg, on: bool) -> threading.Thread:
+    """Encrypt (on) or turn back to plain (off, vaults aside) the files already kept, in the background, after
+    encryption.files was changed in the app; `conversion` says how far it got. Changing it again stops this run and
+    starts the other way."""
+    with _CONVERT:
+        _converter["gen"] += 1
+        gen, before = _converter["gen"], _converter["thread"]
+
+        def run():
+            if before is not None:
+                before.join()
+            if gen != _converter["gen"]:
+                return  # changed again before this one started
+            skipped = 0
+
+            def note(line):
+                nonlocal skipped
+                if line.startswith("skipped"):
+                    skipped += 1
+                    conversion["skipped"] = skipped
+                log_.info("encryption: %s", line)
+
+            conversion.update(running=True, to="encrypted" if on else "plain", changed=0, skipped=0, error=None, finished_at=None)
+            try:
+                encrypt_all(
+                    db,
+                    cfg,
+                    decrypt=not on,
+                    log=note,
+                    stop=lambda: gen != _converter["gen"],
+                    progress=lambda n: conversion.update(changed=n),
+                )
+            except Exception as e:  # noqa: BLE001 - a run that fails leaves the rest as it was; it's tried again on the next change
+                log_.exception("encryption: converting the files already kept failed")
+                conversion["error"] = str(e) or type(e).__name__
+            finally:
+                if gen == _converter["gen"]:  # else the next run carries on from here
+                    conversion.update(running=False, finished_at=time.time())
+
+        th = threading.Thread(target=run, daemon=True, name="encryption-convert")
+        _converter["thread"] = th
+        th.start()
+        return th
+
+
+def stop_converting():
+    """Stop a conversion that's running and wait for it (before a namespace becomes a vault, so a run turning files
+    back to plain can't reach its files once it is one)."""
+    with _CONVERT:
+        _converter["gen"] += 1
+        th = _converter["thread"]
+    if th is not None:
+        th.join()
+    if conversion["running"]:
+        conversion.update(
+            running=False, error="stopped when a namespace was made a vault; change the setting again to finish", finished_at=time.time()
+        )

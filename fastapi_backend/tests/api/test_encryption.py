@@ -7,6 +7,8 @@ import os
 import pathlib
 import time
 
+import pytest
+
 from app.domain import ingest, keyring, settings, setup, store
 from tests.helpers import login, make_user, text_pdf, write_wav
 
@@ -160,3 +162,181 @@ def test_reports_exports_and_renditions_are_kept_encrypted(client, db, cfg, fold
     assert not any(keyring.is_encrypted(p) for _, p in keyring.made_files(db, eff))
     assert keyring.encrypt_all(db, eff, log=lambda *_: None) >= len(written) + 1
     assert all(keyring.is_encrypted(p) for _, p in keyring.made_files(db, eff))
+
+
+def test_files_cached_from_a_storage_source_are_kept_encrypted(client, db, cfg, folder, monkeypatch):
+    from app.domain import sources
+
+    eff = settings.effective(db, cfg)
+    wav = folder / "remote.wav"
+    write_wav(wav, seconds=1.0)
+    monkeypatch.setattr(sources, "get", lambda db, sid: {"id": sid, "type": "s3", "name": "bucket"})
+
+    def fetch(db, cfg, src, args, timeout=None):
+        dest = args("remote")[-1]
+        pathlib.Path(dest).write_bytes(wav.read_bytes())
+
+    monkeypatch.setattr(sources, "run", fetch)
+    sid = store.ns_id(db, "pods")
+    db.q(
+        "CREATE recording:77 CONTENT $d",
+        d={"space": sid, "source": "audio", "remote": {"source": 5, "path": "calls/remote.wav"}, "path": "bucket:calls/remote.wav"},
+    )
+    rec = db.one("SELECT * FROM recording:77")
+    work = ingest.audio_path(db, eff, rec)
+    cached = sources.cache_file(eff, 5, "calls/remote.wav", sid)
+    assert keyring.is_encrypted(cached) and pathlib.Path(work).read_bytes() == wav.read_bytes()
+    assert (sid, str(cached)) in list(keyring.made_files(db, eff))
+    he = _editor(client, db)
+    r = client.get("/api/v1/recordings/77/audio", headers={**he, "Range": "bytes=0-9"})
+    assert r.status_code == 206 and r.content == wav.read_bytes()[:10]
+
+    # each namespace keeps its own copy, under its own key
+    other = store.ns_id(db, "other")
+    assert sources.cache_file(eff, 5, "calls/remote.wav", other) != cached
+
+    # a locked vault fetches nothing, and leaves nothing plain behind
+    def locked(*a, **k):
+        raise keyring.Locked("locked")
+
+    monkeypatch.setattr(keyring, "data_key", locked)
+    with pytest.raises(keyring.Locked):
+        sources.cached_copy(db, eff, 5, "calls/other.wav", sid)
+    assert not sources.cache_file(eff, 5, "calls/other.wav", sid).exists()
+    assert not list(cached.parent.glob("*.part"))
+
+
+def test_a_moved_recording_keeps_its_files_under_the_new_namespace_key(client, db, cfg, folder, monkeypatch):
+    eff = settings.effective(db, cfg)
+    make_user(db, "own@x.io", "owner password 1", roles={"pods": "owner", "calls": "editor"})
+    ho = login(client, "own@x.io", "owner password 1")
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    data = wav.read_bytes()
+    rid = _upload(client, ho, data, "talk.wav")
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    frames = pathlib.Path(eff["data_dir"]) / "frames" / str(rid)
+    kept = keyring.keep(db, eff, pods, frames / "shot-1.jpg", b"a frame")
+    plain = frames / "shot-2.jpg"
+    plain.write_bytes(b"one left plain")
+    files = list(keyring.recording_files(db, eff, rid))
+    assert str(kept) in files and str(plain) in files and len(files) == 3
+
+    # the new namespace is a vault nobody has unlocked: nothing moves
+    kek = keyring.derive(b"prf output", "lens/passkey")
+    keyring.add_wrapper(db, eff, calls, "passkey:phone", kek)
+    keyring.remove_wrapper(db, calls, "server")
+    keyring.lock(db, calls)
+    r = client.post(f"/api/v1/recordings/{rid}/move", headers=ho, json={"namespace": "calls"})
+    assert r.status_code == 423, r.text
+    assert db.one("SELECT space FROM $r", r=R("recording", rid))["space"] == pods
+    assert keyring.Reader(db, eff, kept).space == pods
+
+    # unlocked when the move starts: its key is held until the move is done, even if the vault locks meanwhile
+    from app.domain import moving
+
+    files_of = moving._files
+
+    def locks_meanwhile(*a, **k):
+        keyring.lock(db, calls)
+        return files_of(*a, **k)
+
+    monkeypatch.setattr(moving, "_files", locks_meanwhile)
+    keyring.unlock(db, calls, "passkey:phone", kek)
+    r = client.post(f"/api/v1/recordings/{rid}/move", headers=ho, json={"namespace": "calls"})
+    assert r.status_code == 200, r.text
+    keyring.unlock(db, calls, "passkey:phone", kek)
+    for p in keyring.recording_files(db, eff, rid):
+        with keyring.Reader(db, eff, p) as f:
+            assert f.space == calls
+    assert keyring.read_plain(db, eff, kept) == b"a frame" and keyring.read_plain(db, eff, plain) == b"one left plain"
+    assert client.get(f"/api/v1/recordings/{rid}/audio", headers=ho).content == data
+
+    # and they open only while the vault they're in is unlocked
+    keyring.lock(db, calls)
+    assert client.get(f"/api/v1/recordings/{rid}/audio", headers=ho).status_code == 423
+
+    keyring.unlock(db, calls, "passkey:phone", kek)
+
+    # a file left under another namespace's key (a move that stopped half way) is moved by lens encrypt
+    keyring.rekey(db, eff, pods, kept)
+    assert keyring.Reader(db, eff, kept).space == pods
+    keyring.encrypt_all(db, eff, log=lambda *_: None)
+    assert keyring.Reader(db, eff, kept).space == calls and keyring.read_plain(db, eff, kept) == b"a frame"
+
+    # and lens encrypt --off leaves a vault's files encrypted
+    keyring.encrypt_all(db, eff, decrypt=True, log=lambda *_: None)
+    assert keyring.is_encrypted(kept)
+
+
+def test_a_file_two_namespaces_share_keeps_its_key_when_one_moves(client, db, cfg, folder):
+    eff = settings.effective(db, cfg)
+    make_user(db, "own@x.io", "owner password 1", roles={"pods": "owner", "calls": "editor"})
+    ho = login(client, "own@x.io", "owner password 1")
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    rid = _upload(client, ho, wav.read_bytes(), "talk.wav")
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    rec = db.one("SELECT * FROM $r", r=R("recording", rid))
+    other = store.ns_id(db, "other")
+    db.q("CREATE recording:9001 CONTENT $d", d={"space": other, "source": "audio", "path": rec["path"]})  # an IIIF import twice
+    r = client.post(f"/api/v1/recordings/{rid}/move", headers=ho, json={"namespace": "calls"})
+    assert r.status_code == 200, r.text
+    assert keyring.Reader(db, eff, store.resolve_path(eff, rec["path"])).space == pods
+    assert calls != pods
+
+
+def test_changing_the_setting_in_the_app_converts_the_files_already_kept(client, db, cfg, folder):
+    he = _editor(client, db)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    hr = login(client, "root@x.io", "root password 1")
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    rid = _upload(client, he, wav.read_bytes(), "talk.wav")
+    path = db.one("SELECT path FROM $r", r=R("recording", rid))["path"]
+    assert keyring.is_encrypted(path)
+
+    def converted():
+        th = keyring._converter["thread"]
+        th.join(timeout=30)
+        return client.get("/api/v1/settings/encryption/progress", headers=hr).json()
+
+    assert client.put("/api/v1/settings/encryption", headers=hr, json={"files": False}).status_code == 200
+    got = converted()
+    assert not keyring.is_encrypted(path) and pathlib.Path(path).read_bytes() == wav.read_bytes()
+    assert (got["running"], got["to"], got["changed"], got["skipped"]) == (False, "plain", 1, 0)
+
+    assert client.put("/api/v1/settings/encryption", headers=hr, json={"files": True}).status_code == 200
+    got = converted()
+    assert keyring.is_encrypted(path) and (got["to"], got["changed"]) == ("encrypted", 1)
+
+    # saving it unchanged, or another key, converts nothing
+    th = keyring._converter["thread"]
+    assert client.put("/api/v1/settings/encryption", headers=hr, json={"files": True, "work_minutes": 20}).status_code == 200
+    assert keyring._converter["thread"] is th
+    assert client.get("/api/v1/settings/encryption/progress", headers=he).status_code == 403
+
+
+def test_turning_files_back_to_plain_leaves_vaults_and_their_shared_files_encrypted(client, db, cfg, folder, monkeypatch):
+    eff = settings.effective(db, cfg)
+    he = _editor(client, db)
+    wav = folder / "talk.wav"
+    write_wav(wav, seconds=1.0)
+    rid = _upload(client, he, wav.read_bytes(), "talk.wav")
+    path = db.one("SELECT path FROM $r", r=R("recording", rid))["path"]
+    calls = store.ns_id(db, "calls")
+    db.q("CREATE recording:9002 CONTENT $d", d={"space": calls, "source": "audio", "path": path})  # the same file there
+    kek = keyring.derive(b"prf output", "lens/passkey")
+    keyring.add_wrapper(db, eff, calls, "passkey:phone", kek)
+    keyring.remove_wrapper(db, calls, "server")  # unlocked here: its key opens, but its files stay encrypted
+    seen = []
+    keyring.encrypt_all(db, eff, decrypt=True, log=lambda *_: None, progress=seen.append)
+    assert keyring.is_encrypted(path) and seen == []
+
+    # a run that fails says so
+    def broken(*a, **k):
+        raise RuntimeError("the database went away")
+
+    monkeypatch.setattr(keyring, "stored_files", broken)
+    keyring.convert(db, eff, True).join(timeout=30)
+    assert keyring.conversion["error"] == "the database went away" and not keyring.conversion["running"]

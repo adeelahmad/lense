@@ -61,7 +61,7 @@ graph:
   min_edge_weight: 2
 
 search:
-  stemming: english                 # english | none (run `lens-archive reindex` after changing)
+  stemming: english                 # english | none (run `lens reindex` after changing)
   engine: sqlite                    # sqlite (a small index next to the database) | surrealdb (its own index; more memory) | opensearch
   opensearch_url: ""                # with engine: opensearch, e.g. http://search.lan:9200 (and opensearch_user / opensearch_password)
 

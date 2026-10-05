@@ -371,6 +371,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "encryption":
+      return <EncryptionBody ctx={ctx} />;
     case "storage":
       return <StorageBody ctx={ctx} />;
     case "telemetry":
@@ -566,6 +568,53 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ))}
       {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const progress = useQuery({
+    queryKey: ["encryption-progress", ctx.view.encryption?.updated_at ?? null],
+    queryFn: () => data(Admin.getEncryption({ client })),
+    refetchInterval: (q) => (q.state.data?.running ? 2000 : false),
+  });
+  const p = progress.data;
+  const on = Boolean(ctx.view.encryption?.values.files);
+  return (
+    <>
+      {p?.running ? (
+        <Banner title={p.to === "plain" ? "Turning files back to plain…" : "Encrypting the files already kept…"}>
+          {p.changed} done so far. Lens keeps working meanwhile, and files that arrive now are already stored the new
+          way.
+        </Banner>
+      ) : p?.error ? (
+        <Banner tone="error" title={`Converting stopped after ${p.changed} file(s).`}>
+          {p.error}. The rest are as they were; change the setting again, or run lens encrypt, to finish.
+        </Banner>
+      ) : p?.to ? (
+        <Banner
+          tone={p.skipped ? "warning" : "success"}
+          title={`${p.changed} file(s) ${p.to === "plain" ? "turned back to plain" : "encrypted"}.`}
+        >
+          {p.skipped
+            ? `${p.skipped} skipped: a vault nobody has unlocked, or a damaged file. They’re converted the next time this changes, or with lens encrypt.`
+            : "Every file Lens keeps is stored the new way."}
+        </Banner>
+      ) : (
+        <Banner title={on ? "Files are encrypted on disk." : "Files are kept as they are."}>
+          Encrypted files still play, seek, download and are processed as before. Transcripts, search and the rest of
+          the database aren’t covered; put the data volume on an encrypted disk for those.
+        </Banner>
+      )}
+      <F ctx={ctx} id="encryption.files" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="encryption.work_minutes" />
+        <F ctx={ctx} id="encryption.vault_minutes" />
+      </div>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Vaults are set on each namespace’s page: only their owners’ passkeys open them.
+      </p>
     </>
   );
 }

@@ -161,4 +161,12 @@ fastapi_backend/archive-data/
 # The schema the dev API writes for the dev web app (docker-compose.yml); nextjs-frontend/openapi.json is the tracked one
 local-shared-data/*
 !local-shared-data/.gitkeep
-.local-ci/
+
+# mkdocs build output (make docs-build)
+/site/
+
+# Claude Code worktrees
+/.claude/worktrees/
+
+# ci/local-ci.sh logs
+/.local-ci/
