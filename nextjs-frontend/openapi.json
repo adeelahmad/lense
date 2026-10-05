@@ -26600,11 +26600,12 @@
               "ready",
               "waiting",
               "fetching",
+              "later",
               "failed",
               "missing"
             ],
             "title": "State",
-            "description": "waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off"
+            "description": "waiting/fetching: being fetched, and the steps that need it wait; later: fetched on first use, when a job needs it; missing: needed but fetching is off"
           },
           "detail": {
             "anyOf": [
@@ -26643,6 +26644,12 @@
             "type": "boolean",
             "title": "Auto",
             "description": "components.auto: fetch what's needed without asking"
+          },
+          "ahead": {
+            "type": "boolean",
+            "title": "Ahead",
+            "description": "components.ahead: fetch it all now, not on first use",
+            "default": false
           },
           "machine": {
             "$ref": "#/components/schemas/Machine",

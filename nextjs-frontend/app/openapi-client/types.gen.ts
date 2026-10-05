@@ -2291,9 +2291,9 @@ export type ComponentState = {
   /**
    * State
    *
-   * waiting/fetching: being fetched, and the steps that need it wait; missing: needed but fetching is off
+   * waiting/fetching: being fetched, and the steps that need it wait; later: fetched on first use, when a job needs it; missing: needed but fetching is off
    */
-  state: "ready" | "waiting" | "fetching" | "failed" | "missing";
+  state: "ready" | "waiting" | "fetching" | "later" | "failed" | "missing";
   /**
    * Detail
    *
@@ -2317,6 +2317,12 @@ export type Components = {
    * components.auto: fetch what's needed without asking
    */
   auto: boolean;
+  /**
+   * Ahead
+   *
+   * components.ahead: fetch it all now, not on first use
+   */
+  ahead?: boolean;
   /**
    * the API's machine
    */
