@@ -4,6 +4,7 @@ version = "0.3.0"
 description = "Lens: usable context for you and your agents. A private AI hub where every source becomes cited memory."
 requires-python = ">=3.12,<3.14"
 readme = "README.md"
+license = "MIT"
 dependencies = [
     "fastapi[standard]>=0.142.2,<0.143",
     "starlette>=1.3.1", # security floor (Dependabot); fastapi itself allows older
