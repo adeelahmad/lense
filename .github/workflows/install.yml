@@ -59,7 +59,7 @@ jobs:
           url="$(cat setup-url)"
           base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
           curl -fsS -o /dev/null "$url"
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             status="$(curl -fsS "$base/api/v1/auth/status" || true)"
             echo "$status" | grep -q '"setup_required":true' && break
             sleep 5
@@ -81,4 +81,8 @@ jobs:
 
       - name: Stop
         if: always()
-        run: cd "$LENS_DIR" 2>/dev/null && docker compose -f docker-compose.prod.yml down -v || true
+        run: |
+          if [ -d "$LENS_DIR" ]; then
+            cd "$LENS_DIR"
+            docker compose -f docker-compose.prod.yml down -v || true
+          fi
