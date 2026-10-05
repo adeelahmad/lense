@@ -7,9 +7,21 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Frames, page images and face crops are encrypted too.** With encryption at rest on (or in a vault), the stills
   Lens draws from videos, documents and images are stored encrypted and still show as before; visitors still get faces
   pixelated where the namespace asks. `lens encrypt` converts the ones already there.
+- **Word search no longer weighs down the database.** Searching words in transcripts, text on screen, files, objects
+  and descriptions now uses a small SQLite index next to the database instead of SurrealDB's own full-text index. On
+  10,000 transcript lines the database used 64 MB of memory instead of 380 MB, and writing them took half the time.
+  Nothing changes in how search, the assistant or IIIF search behave. Existing installs build the new index on their
+  first start and give back the old one's memory. Settings › Search › **Word search** switches back to SurrealDB's
+  index, or to an **OpenSearch** cluster on another machine for a big archive (then Reindex now); the `opensearch`
+  compose profile runs one next to Lens.
+
+- **A much smaller web app image.** The production image runs Next.js's standalone server with only the packages it
+  uses: 465 MB instead of 2.56 GB. Cloudron and `pnpm build` keep `next start`.
+
 - **Renditions, reports and exports are encrypted too.** With encryption at rest on (or in a vault), the PDF made of a
   Word file or an email, the HTML reports and the exports Lens keeps are stored encrypted, and download and open as
   before. `lens encrypt` converts the ones already there. An export sent to a storage connection still arrives plain.
+
 - **Fewer steps to an answer.** Asking on Home sends the question when you press Enter, instead of opening an empty
   chat on the first keystroke and waiting for a second Enter. With only one namespace, it is picked for you, so pages
   that need a namespace stop asking. Once a model is set, the setup wizard offers **Finish with defaults** for the

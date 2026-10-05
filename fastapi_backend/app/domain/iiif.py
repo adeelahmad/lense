@@ -37,6 +37,7 @@ from . import (
     settings,
     speakers as spk,
     store,
+    textindex,
 )
 
 R = store.R
@@ -681,13 +682,23 @@ def search(db, base, q, rids, page_url, page=0):
     if not words or not rids:
         return empty
     try:
-        if not db.ready_fulltext():
-            raise LookupError("no full-text index on this engine")
-        rows = db.rows(
-            "SELECT recording, idx, t0, t1, text, page, box FROM segment WHERE text @1@ $q AND recording IN $r LIMIT 2000",
-            q=" ".join(words),
-            r=list(rids),
+        rows = textindex.rows(
+            db,
+            "segment",
+            textindex.words(" ".join(words)),
+            "recording, idx, t0, t1, text, page, box",
+            " AND recording IN $r",
+            {"r": list(rids)},
+            2000,
         )
+        if rows is None:
+            if not db.ready_fulltext():
+                raise LookupError("no full-text index on this engine")
+            rows = db.rows(
+                "SELECT recording, idx, t0, t1, text, page, box FROM segment WHERE text @1@ $q AND recording IN $r LIMIT 2000",
+                q=" ".join(words),
+                r=list(rids),
+            )
     except Exception:  # noqa: BLE001 - no full-text index on this engine
         rows = [
             s

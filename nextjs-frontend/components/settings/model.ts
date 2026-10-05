@@ -1110,6 +1110,36 @@ export const FIELDS: FieldSpec[] = [
   // Search
   {
     section: "search",
+    key: "engine",
+    label: "Word search",
+    kind: "select",
+    options: [
+      { value: "sqlite", label: "Built in (SQLite)" },
+      { value: "surrealdb", label: "SurrealDB index" },
+      { value: "opensearch", label: "OpenSearch" },
+    ],
+    hint: "Built in is fast and small enough for a Raspberry Pi; SurrealDB's index needs several times the memory; OpenSearch runs on another machine",
+  },
+  {
+    section: "search",
+    key: "opensearch_url",
+    label: "OpenSearch address",
+    kind: "text",
+    mono: true,
+    placeholder: "http://search.lan:9200",
+    hint: "An OpenSearch or Elasticsearch-compatible cluster. Lens keeps its own indexes there, named lens-…",
+  },
+  { section: "search", key: "opensearch_user", label: "User", kind: "text", mono: true },
+  { section: "search", key: "opensearch_password", label: "Password", kind: "secret" },
+  {
+    section: "search",
+    key: "opensearch_verify",
+    label: "Check its certificate",
+    kind: "switch",
+    hint: "Turn off only for a cluster with a self-signed certificate on your own network",
+  },
+  {
+    section: "search",
     key: "stemming",
     label: "Stemming",
     kind: "select",
@@ -2276,7 +2306,8 @@ export function why(c: Change): string | null {
         .join(" ") || null
     );
   }
-  if (id === "search.stemming") return "Search keeps the old index until you rebuild it (Reindex).";
+  if (id === "search.stemming" || id === "search.engine")
+    return "Search keeps the old index until you rebuild it (Reindex).";
   if (id === "embeddings.model" || id === "embeddings.document_prefix")
     return "Vectors from another model can’t be compared: search by meaning stops until recordings are indexed again (the hourly routine, or Index now).";
   if (id === "iiif.base_url") return "Every IIIF identifier changes.";

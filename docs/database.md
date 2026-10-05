@@ -41,8 +41,25 @@ that are queried. Graph edges are real relations: `mentions` (segment → entity
 SELECT ->mentions->entity.name FROM segment WHERE recording = 12;
 ```
 
-Full-text indexes use 3.x's `FULLTEXT` syntax and fall back to 2.x's `SEARCH`, with a `snowball(english)` analyser
-unless `search.stemming: none` (then run `lens reindex`).
+Word search (`search.engine`) is kept out of SurrealDB by default. With `sqlite`, the default, the text of transcript
+lines, text on screen, file lines, objects and descriptions is indexed in a SQLite FTS5 file per database
+(`<data_dir>/search/`, BM25 ranking, Porter stemming, highlights; `app/domain/textindex.py`). An event on each of
+those tables notes changed rows in `text_change`, and the index catches up before each search, so writers need do
+nothing. SurrealDB still decides which rows a person may see. On 10,000 transcript lines against a 3.2.4 server
+(`surrealkv` storage) this used 64 MB of server memory instead of 380 MB, and writing and indexing them took about 5 s
+instead of 10 s; the SQLite file was 4 MB.
+
+With `opensearch`, the same words go to an OpenSearch (or Elasticsearch-compatible) cluster at
+`search.opensearch_url` (with `opensearch_user`, `opensearch_password` and `opensearch_verify` when it needs them):
+an index per table named `lens-<namespace>-<database>-<table>`, with the `english` analyser unless
+`search.stemming: none`. It suits an archive too big for one small machine, with OpenSearch on another one. When the
+cluster can't be reached, searches read the tables instead and say nothing is wrong, so Lens keeps working. The
+`opensearch` compose profile (`docker compose --profile opensearch up`) runs one next to Lens at
+`http://opensearch:9200`.
+
+With `surrealdb`, full-text indexes use 3.x's `FULLTEXT` syntax and fall back to 2.x's `SEARCH`, with a
+`snowball(english)` analyser unless `search.stemming: none`. After changing either setting, run `lens reindex` (or
+Settings › Search › Reindex now): it switches engines, taking the other one's index down.
 
 Passages for search by meaning (`passage`) carry their vector in `embedding`, under an HNSW index (`passage_vec`,
 cosine; servers only) defined when the first vector is stored, since its `DIMENSION` is the model's; `embedding_state:current` says
