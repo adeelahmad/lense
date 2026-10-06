@@ -709,8 +709,37 @@ Report as `DISPOSITION (status)`, for example `OUT-OF-MODEL: trusted-input (clos
 
 ## 1.18 Open questions for the maintainers
 
-Waves 1 and 2 are answered (2026-10). The waves below run in order of impact. Waves 9 to 11 come from the phase 3.6
-backtest.
+Waves 1 and 2 are answered (2026-10). Waves 3 to 11 are decided *(maintainer, 2026-10-06, delegated)*: the maintainer
+asked for the proposed answers to be taken, the code checked against each, and every gap fixed. Each ruling below is
+the proposed answer, except where the table says otherwise. The questions stay below as the record of what was asked.
+
+| Q | Ruling | Code against it |
+| --- | --- | --- |
+| Q1 | Supported, not the proposed "no": the IIIF cookie now holds only origins the person confirmed, so `*` no longer hands a token to any site | fixed (#160) |
+| Q2 | Proposed answer | gap held: stripping a browser-set `X-Forwarded-For` when `TRUST_PROXY_HEADERS` is off changes IP groups and throttles on installs without a proxy, so it waits for the maintainer; docs fixed (#161) |
+| Q3–Q12 | Proposed answers | hold as written |
+| Q13 | Proposed answer | `docs/mcp.md` no longer opens with "only reads" (this revision) |
+| Q14–Q19 | Proposed answers | hold as written |
+| Q20 | Claim P-CONVERT-TIMEOUT | decoders, document readers and speech encoding given timeouts (#202) |
+| Q21 | `VALID` under P-NO-INJECTION | ffmpeg and ffprobe get a demuxer allow-list (#196) |
+| Q22–Q25 | Proposed answers | Q24 checked: holds |
+| Q26 | Proposed answer; render-time fetch is `VALID-HARDENING` | pasted Markdown images no longer fetch (#194) |
+| Q27 | Claim P-EXT-SCOPE for tools | arguments never change the host (checked); another person's tool now asks first unless an admin shared it (#203) |
+| Q28 | Proposed answer | — |
+| Q29 | Proposed answer | checked: holds |
+| Q30–Q34 | Proposed answers | — |
+| Q35 | Proposed answer | moving the telemetry endpoint drops saved headers even when the form sends the mask (#199) |
+| Q36 | Proposed answer | dev compose sensor ports bound to loopback (#204); production compose held, since LAN sensors would stop connecting |
+| Q37 | Confirmed as listed | — |
+| Q38 | Claim it | checked: holds |
+| Q39 | Claim it | a refresh racing a sign-out can no longer revive the session (#198) |
+| Q40 | Claim it | control characters no longer slip past the `next` check (#197) |
+| Q41–Q42 | Proposed answers | — |
+| Q43 | Claim it | IIIF media is kept per namespace (#201) |
+| Q44–Q46 | Proposed answers | — |
+| Q47 | Proposed answer | MCP list offsets capped at 10,000 (#200) |
+
+The sections each answer "lands in" are not yet rewritten; until they are, this table governs.
 
 **Wave 3 — identity and sessions**
 - **Q1** — `iiif.allowed_origins` defaults to `["*"]`, and the IIIF cookie is `SameSite=None`. Is that default supported on an exposed host?

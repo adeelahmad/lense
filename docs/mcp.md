@@ -3,7 +3,8 @@
 Lens is a [Model Context Protocol](https://modelcontextprotocol.io) server, so agents (Claude, Cursor, VS Code,
 ChatGPT and other MCP clients) can search the archive, read recordings and cite them. An agent signs in as a person
 and sees exactly what that person sees: their namespaces, the collections they were given a role on, and the graphs
-those open. Everything it can do only reads.
+those open. Its tools read, except the few listed under [Tools](#tools) that suggest or write, which need a
+write-scope token and editor access.
 
 ## Connecting
 
