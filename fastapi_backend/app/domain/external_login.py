@@ -269,8 +269,10 @@ def start(db, cfg, key, origin, mode="login", account=None, next_path="/"):
 
 
 def _safe_next(path):
+    """A path on this site. Browsers drop tabs and line breaks from a URL ("/\\t/evil.example" is "//evil.example")."""
     path = path or "/"
-    return path if path.startswith("/") and not path.startswith("//") and "\\" not in path else "/"
+    ok = path.startswith("/") and not path.startswith("//") and "\\" not in path and not re.search(r"[\x00-\x1f\x7f]", path)
+    return path if ok else "/"
 
 
 def claim(db, state, browser):

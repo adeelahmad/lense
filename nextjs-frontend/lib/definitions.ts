@@ -48,7 +48,9 @@ export type FormState =
     }
   | undefined;
 
-/** Only same-origin paths are allowed as post-login destinations. */
+/** Only same-origin paths are allowed as post-login destinations. Browsers drop tabs and line breaks from a URL, so
+ * "/\t/evil.example" would become "//evil.example": control characters and backslashes are refused anywhere. */
 export function safeCallbackUrl(value: unknown): string {
-  return typeof value === "string" && /^\/(?![/\\])/.test(value) ? value : "/";
+  // eslint-disable-next-line no-control-regex
+  return typeof value === "string" && /^\/(?![/\\])/.test(value) && !/[\x00-\x1f\x7f\\]/.test(value) ? value : "/";
 }

@@ -37,6 +37,9 @@ describe("safeCallbackUrl", () => {
     ["//evil.example", "/"],
     ["/\\evil.example", "/"],
     ["https://evil.example", "/"],
+    ["/\t/evil.example", "/"],
+    ["/\n/evil.example", "/"],
+    ["/\r/evil.example", "/"],
     [null, "/"],
   ])("%p -> %p", (input, expected) => {
     expect(safeCallbackUrl(input)).toBe(expected);
