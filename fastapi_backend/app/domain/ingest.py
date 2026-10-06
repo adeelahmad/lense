@@ -36,11 +36,27 @@ def parse_sv(raw):
 
 
 # ---------- files ----------
+# The demuxers ffmpeg may pick for a file it is given: audio and video containers only. ffmpeg chooses by content,
+# not extension, and a playlist (concat, hls) or image sequence would make it read other files next to this one.
+MEDIA_DEMUXERS = "mp3,mov,wav,flac,ogg,aac,matroska,amr,avi,asf,mpeg,mpegts,aiff"
+
+
 def probe(path):
     ch = 0
     try:
         out = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=channels,codec_type", "-of", "json", str(path)],
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-format_whitelist",
+                MEDIA_DEMUXERS,
+                "-show_entries",
+                "format=duration:stream=channels,codec_type",
+                "-of",
+                "json",
+                str(path),
+            ],
             capture_output=True,
             text=True,
             timeout=120,
@@ -111,6 +127,8 @@ def decode(path, channels=1):
             "-nostdin",
             "-v",
             "error",
+            "-format_whitelist",
+            MEDIA_DEMUXERS,
             "-i",
             str(path),
             "-f",
