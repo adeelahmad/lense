@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-from . import convert, ingest, keyring, store, video, webcapture
+from . import anytopdf, convert, ingest, keyring, store, video, webcapture
 
 R = store.R
 TYPES = {
@@ -385,6 +385,9 @@ def read_image(path, d, opts, engine, say, why="no OCR engine is available"):
 
 
 # ---------- the transcribe step for documents and images ----------
+BY = {"libreoffice": "LibreOffice", "chromium": "Chromium", "anytopdf": "anytopdf"}  # who made its PDF, for people
+
+
 def segments_of(blocks):
     """Blocks by page as segments in page order, each with its page, its box and a reading-pace time."""
     out, t = [], 0
@@ -429,18 +432,26 @@ def transcribe(db, cfg, rid, say):
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"its file isn't there ({rec.get('path')})")
     opts, (engine, why) = cfg["documents"], video.ocr_engine_why(cfg)
-    learnt, pdf = {}, path
-    if rec["source"] == "document" and convert.needs(path):
+    learnt, pdf, source = {}, path, rec["source"]
+    if source == "document" and convert.needs(path):
         pdf = convert.rendition_path(cfg, rid)
         try:
             learnt = convert.to_pdf(cfg, path, pdf)
         except convert.Unavailable as e:
             raise ValueError(f"this {convert.word(path)} can't be read here: {e}") from None
-        say(f"made into a PDF by {'LibreOffice' if learnt['by'] == 'libreoffice' else 'Chromium'}")
+        say(f"made into a PDF by {BY[learnt['by']]}")
+    elif source == "image" and anytopdf.mode(cfg) == "anytopdf" and anytopdf.available(cfg):
+        # anytopdf flattens a photographed page and reads it: its PDF is the image's rendition, read like a document's
+        try:
+            learnt = {"by": anytopdf.to_pdf(cfg, path, convert.rendition_path(cfg, rid), scan=True)}
+            pdf = convert.rendition_path(cfg, rid)
+            say("made into a PDF by anytopdf")
+        except (anytopdf.Unavailable, ValueError) as e:  # read as before: it's an image Lens reads itself
+            say(f"read without anytopdf: {e}")
     d = video.frames_dir(cfg, rid)
     d.mkdir(parents=True, exist_ok=True)
     _clear(d)
-    read = read_image if rec["source"] == "image" else read_pdf
+    read = read_image if source == "image" and not learnt else read_pdf
     try:
         with keyring.sealing(db, cfg, rec["space"], d):  # the pages drawn: encrypted, even if this fails part way
             pages, blocks, notes, ocred = read(pdf, d, opts, engine, say, why)

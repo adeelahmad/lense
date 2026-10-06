@@ -402,6 +402,25 @@ class Objects(Component):
         fetch_file(cfg, "yolox_s.onnx", say)
 
 
+class Anytopdf(Component):
+    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here."""
+
+    def needed(self, cfg, m):
+        from . import anytopdf
+
+        return anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg) and bool(anytopdf.archive())
+
+    def present(self, cfg):
+        from . import anytopdf
+
+        return bool(anytopdf.binary(cfg))
+
+    def fetch(self, cfg, m, say):
+        from . import anytopdf
+
+        anytopdf.fetch(cfg, say)
+
+
 class Msg(Component):
     def needed(self, cfg, m):
         return False  # only when asked for (components.also): it's GPL-3.0
@@ -525,6 +544,14 @@ COMPONENTS = [
         "reads Word, PowerPoint and spreadsheet files",
         check=_soffice,
         hint="in the full Lens image (LENS_TARGET=full, the default)",
+    ),
+    Anytopdf(
+        "anytopdf",
+        "anytopdf",
+        "makes documents and photographed pages into searchable PDFs (documents.converter)",
+        steps={"transcribe"},
+        size_mb=50,
+        license="MIT OR Apache-2.0",
     ),
     PYTORCH,
     SENSEVOICE,

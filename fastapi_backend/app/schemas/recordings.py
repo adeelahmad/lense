@@ -124,10 +124,10 @@ class EmailInfo(ResponseModel):
 
 
 class Rendition(ResponseModel):
-    """How a document that isn't a PDF was made into one."""
+    """How a document that isn't a PDF (or an image anytopdf read) was made into one."""
 
-    from_: str = Field(alias="from", description="its own type: .docx, .eml, …")
-    by: Literal["libreoffice", "chromium"]
+    from_: str = Field(alias="from", description="its own type: .docx, .eml, .jpg, …")
+    by: Literal["libreoffice", "chromium", "anytopdf"]
 
 
 class WebPage(ResponseModel):

@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **anytopdf can make Lens's PDFs.** Settings › Documents › Make PDFs with anytopdf. On `auto` (the default) nothing
+  changes unless anytopdf is here: then it reads the emails, web pages and text a server without Chromium couldn't.
+  Choose "For every document and image" and Lens downloads anytopdf 0.3.0 (checked against its release checksum);
+  it then also reads images, flattening a photographed page before OCR. Or set a conversion node, another machine
+  running `anytopdf queue serve`, and a small server reads Word, PowerPoint and spreadsheet files too
+  ([anytopdf](docs/configuration.md#anytopdf)).
 - **Connect Slack, WhatsApp, Telegram, Discord and Matrix from the web app.** Start the optional `matterbridge`
   service, then turn on Settings › Chat rooms › Run Matterbridge here and add a bot token and rooms. To link
   WhatsApp, scan the QR code the page shows. Lens writes Matterbridge's config, a gateway per room, and restarts it

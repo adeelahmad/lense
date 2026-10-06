@@ -89,8 +89,18 @@ EDITABLE = {
     "files": None,
     "tokens": None,
     "auth": ("passwords",),
-    # the LibreOffice and Chromium paths are startup settings only (the web app can't choose what the server runs)
-    "documents": ("page_pixels", "thumb_pixels", "ocr_below_chars", "max_pages", "convert_seconds", "attachment_resources"),
+    # the LibreOffice, Chromium and anytopdf paths are startup settings only (the web app can't choose what the server runs)
+    "documents": (
+        "page_pixels",
+        "thumb_pixels",
+        "ocr_below_chars",
+        "max_pages",
+        "convert_seconds",
+        "attachment_resources",
+        "converter",
+        "anytopdf_url",
+        "anytopdf_token",
+    ),
 }
 SECRETS = {
     "search": ("opensearch_password",),
@@ -105,6 +115,7 @@ SECRETS = {
     "telemetry": ("headers",),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
+    "documents": ("anytopdf_token",),
 }
 ENUMS = {
     ("transcribe", "engine"): {"sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
@@ -128,6 +139,7 @@ ENUMS = {
     ("bridge", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("files", "store"): {"local", "connection"},
+    ("documents", "converter"): {"auto", "anytopdf", "lens"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -404,6 +416,20 @@ def _check(section, key, value, default):
         if not isinstance(value, bool):
             raise ValueError("documents.attachment_resources is true or false")
         return value
+    if (section, key) == ("documents", "converter"):
+        return value
+    if (section, key) == ("documents", "anytopdf_url"):
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("documents.anytopdf_url is a conversion node's http(s) address, such as https://convert.home:8640")
+        return value.strip().rstrip("/")
+    if (section, key) == ("documents", "anytopdf_token"):
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and 16 <= len(value.strip()) <= 500):
+            raise ValueError("documents.anytopdf_token is the conversion node's token (ANYTOPDF_QUEUE_TOKEN), 16 characters or more")
+        return value.strip()
     if section == "documents":
         lo, hi = DOCUMENT_RANGES[key]
         if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
@@ -908,6 +934,8 @@ def save(db, base, section, changes, user=None):
                     telemetry.parse_headers(v)  # ValueError when malformed
                 if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
                     raise ValueError(f"matterbridge.{k} is one line of text")
+                if (section, k) == ("documents", "anytopdf_token"):
+                    v = _check(section, k, v, None)
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"
                 raise ValueError(f"{section}.{k} must be text")

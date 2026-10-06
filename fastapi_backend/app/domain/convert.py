@@ -32,7 +32,7 @@ import time
 from email.utils import getaddresses, parsedate_to_datetime
 from html.parser import HTMLParser
 
-from . import netguard, store
+from . import anytopdf, netguard, store
 
 R = store.R
 OFFICE = {
@@ -134,8 +134,10 @@ def _has_msg():
 def capabilities(cfg):
     """What this server can make into PDFs: Office files (LibreOffice), text, Markdown, saved web pages and emails
     (Chromium or LibreOffice), Outlook .msg emails (those, and the extract-msg package), and web pages captured from
-    their address (Chromium)."""
-    office, pages = bool(soffice(cfg)), bool(chromium(cfg) or soffice(cfg))
+    their address (Chromium). anytopdf does the same where Lens can't (anytopdf.py): emails, text and pages here, and
+    Office files too on a conversion node."""
+    by = None if anytopdf.mode(cfg) == "lens" else anytopdf.available(cfg)
+    office, pages = bool(soffice(cfg) or by == "node"), bool(chromium(cfg) or soffice(cfg) or by)
     return {"office": office, "pages": pages, "msg": pages and _has_msg(), "web": bool(chromium(cfg))}
 
 
@@ -146,7 +148,7 @@ def unavailable(cfg, name):
         return None
     can = capabilities(cfg)
     if ext in OFFICE and not can["office"]:
-        return f"converting {word(name)}s needs LibreOffice on the server (the lens:full image)"
+        return f"converting {word(name)}s needs LibreOffice on the server (the lens:full image) or an anytopdf conversion node"
     if ext not in OFFICE and not can["pages"]:
         return f"converting {word(name)}s needs Chromium or LibreOffice on the server (the lens:full image)"
     if ext == ".msg" and not can["msg"]:
@@ -160,6 +162,7 @@ def bootstrap(cfg):
     return {
         "soffice": d.get("soffice") or (shutil.which("soffice") or shutil.which("libreoffice") or "not installed"),
         "chromium": d.get("chromium") or (chromium(cfg) or "not installed"),
+        "anytopdf": anytopdf.binary(cfg) or "not installed",
         "web_networks": [str(n) for n in d.get("web_networks") or []],
     }
 
@@ -722,27 +725,49 @@ def email_page(e):
 
 
 # ---------- making the PDF ----------
+def by_anytopdf(cfg, src):
+    """Whether anytopdf makes this document's PDF (documents.converter): always when set to `anytopdf`, never when set
+    to `lens`, and on `auto` only when Lens's own converters can't."""
+    how = anytopdf.mode(cfg)
+    if how == "lens" or not anytopdf.available(cfg):
+        return False
+    if how == "anytopdf":
+        return ext_of(src) not in OFFICE or bool(soffice(cfg)) or anytopdf.available(cfg) == "node"
+    ext = ext_of(src)
+    return not soffice(cfg) if ext in OFFICE else not (chromium(cfg) or soffice(cfg))
+
+
+def page_pdf(cfg, page, out, via_anytopdf):
+    """A page of HTML made into a PDF: by Chromium (or LibreOffice), or by anytopdf, which reads its text."""
+    if not via_anytopdf:
+        return html_pdf(cfg, page, out)
+    with tempfile.TemporaryDirectory(prefix="lens-page-") as tmp:
+        p = pathlib.Path(tmp) / "page.html"
+        p.write_text(page, encoding="utf-8")
+        return anytopdf.to_pdf(cfg, p, out)
+
+
 def to_pdf(cfg, src, out):
     """Make `out`, the PDF of the document at `src`. Returns what was learnt on the way: {by, title?, email?,
     attachments?}. Unavailable when the server can't; ValueError when the file can't be read."""
     why = unavailable(cfg, src)
     if why:
         raise Unavailable(why)
-    ext, path = ext_of(src), pathlib.Path(src)
+    ext, path, via = ext_of(src), pathlib.Path(src), by_anytopdf(cfg, src)
     if ext in OFFICE:
-        return {"by": office_pdf(cfg, path, out)}
+        return {"by": anytopdf.to_pdf(cfg, path, out) if via else office_pdf(cfg, path, out)}
     if ext in (".eml", ".msg"):
         e = read_msg(path) if ext == ".msg" else read_eml(path)
         page, attachments = email_page(e)
         info = {k: e[k] for k in ("subject", "from", "to", "cc", "date") if e.get(k)}
-        return {"by": html_pdf(cfg, page, out), "title": e["subject"] or None, "email": info, "attachments": attachments}
+        return {"by": page_pdf(cfg, page, out, via), "title": e["subject"] or None, "email": info, "attachments": attachments}
     raw = path.read_bytes()
     if ext in store.PAGE_EXT:
         page, title = web_page(raw)
-        return {"by": html_pdf(cfg, page, out), "title": title or None}
+        return {"by": page_pdf(cfg, page, out, via), "title": title or None}
     text, title = decode(raw), path.stem
     page = markdown_page(text, title, ext == ".mdx") if ext in (".md", ".markdown", ".mdx") else text_page(text, title)
-    return {"by": html_pdf(cfg, page, out)}
+    return {"by": page_pdf(cfg, page, out, via)}
 
 
 # ---------- an email's attachments ----------

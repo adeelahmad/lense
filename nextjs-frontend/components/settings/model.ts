@@ -21,6 +21,8 @@ export type SettingsView = Record<string, SectionView> & {
     local_roots?: string[];
     soffice?: string;
     chromium?: string;
+    /** The anytopdf program (documents.anytopdf), or "not installed". */
+    anytopdf?: string;
     /** Networks web pages may be captured from besides the public internet (documents.web_networks). */
     web_networks?: string[];
     /** The YOLOX model the objects step uses, or "not found". */
@@ -2064,6 +2066,29 @@ export const FIELDS: FieldSpec[] = [
     kind: "switch",
     hint: "Documents, images, audio, video and emails attached to an email; they’re kept as its files either way",
   },
+  {
+    section: "documents",
+    key: "converter",
+    label: "Make PDFs with anytopdf",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Where Lens can’t itself" },
+      { value: "anytopdf", label: "For every document and image" },
+      { value: "lens", label: "Never" },
+    ],
+    hint: "anytopdf reads emails, web pages and text without Chromium, and flattens photographed pages before reading them",
+  },
+  {
+    section: "documents",
+    key: "anytopdf_url",
+    label: "Conversion node",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "https://convert.home:8640",
+    hint: "Another machine running anytopdf queue serve: it converts instead, Office files too",
+  },
+  { section: "documents", key: "anytopdf_token", label: "Conversion node token", kind: "secret" },
   // IIIF & metadata
   {
     section: "iiif",

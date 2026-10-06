@@ -409,6 +409,9 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </div>
           <F ctx={ctx} id="documents.convert_seconds" />
           <F ctx={ctx} id="documents.attachment_resources" />
+          <F ctx={ctx} id="documents.converter" />
+          <F ctx={ctx} id="documents.anytopdf_url" />
+          <F ctx={ctx} id="documents.anytopdf_token" />
           <Converters view={ctx.view} />
         </>
       );
@@ -1709,6 +1712,7 @@ function Converters({ view }: { view: SettingsView }) {
   const rows: [string, string | undefined, string][] = [
     ["LibreOffice", b.soffice, "Word, PowerPoint and spreadsheet files, OpenDocument and RTF"],
     ["Chromium", b.chromium, "text, Markdown, saved web pages and emails (LibreOffice does them too, plainer)"],
+    ["anytopdf", b.anytopdf, "text, web pages, emails and photographed pages; downloaded when chosen above"],
   ];
   return (
     <div className="flex flex-col gap-1.5 rounded-md border border-border bg-surface p-3.5">
