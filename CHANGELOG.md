@@ -8,6 +8,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `X-Forwarded-For` a browser sends and tells the API the address it was reached from. Behind a reverse proxy, set
   `TRUST_PROXY_HEADERS=true` on the web app, or every visitor counts as the proxy's address
   ([Trusted proxies](docs/configuration.md#trusted-proxies)). The Cloudflare tunnel keeps working as before.
+- **The sensor hub's ports follow the web app's.** The production compose file publishes MQTT (1883) and syslog
+  (5514) where the web app is: on this machine only unless `LENS_BIND=0.0.0.0` (which `install.sh` sets on a server).
+  If devices on your network send to a Lens whose web app is local only, set `LENS_SENSOR_BIND=0.0.0.0`
+  ([Sensors](docs/sensors.md)).
 - **Approve the assistant's reversible changes from the chat room.** When Lens proposes merging entities or a new
   namespace in Slack, WhatsApp or another bridged room, the people listed in Settings › Chat rooms can reply "yes" or
   "no" there instead of opening the web app. Settings, imports, runs and extensions still wait for the web app.
