@@ -30,7 +30,7 @@ Todo:
       the plugin's validator was not available in the session that made this edit, so re-run it)
 
 Watch out: the prose is canonical. After any edit to `threat-model.md`, regenerate the YAML and JSON (its hash is in
-the YAML) and re-run the plugin's `validate_model.py`.
+the YAML) and run `ci/validate_threat_model.py` (CI runs it on every change to these files).
 
 ## 2026-10-04 · Graph history: versions, replay, rollback
 

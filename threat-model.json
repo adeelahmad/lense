@@ -943,6 +943,14 @@
       "source": "docs/configuration.md \"Neither may reach anything\""
     },
     {
+      "property": "P-CONVERT-TIMEOUT",
+      "violation_symptom": "hang",
+      "severity_tier": "correctness",
+      "conditions": "every document conversion and capture ends within documents.convert_seconds and leaves no process of its group running; ffmpeg decoding (6 h), antiword, catdoc and pdftotext reads (300 s) and ffmpeg encoding for a speech service (600 s) end at their timeouts",
+      "provenance": "documented",
+      "source": "maintainer ruling, 2026-10-06 (Q20)"
+    },
+    {
       "property": "P-TEMPLATE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
@@ -1217,14 +1225,14 @@
     },
     {
       "property": "N-DECODERS",
-      "reason": "sandboxing or memory-safety for ffmpeg, poppler, antiword and similar decoders; memory bugs inside them route to §1.9; does not cover Lens's own process control (timeouts, killing children): that is the unresolved x-process-control row",
+      "reason": "sandboxing or memory-safety for ffmpeg, poppler, antiword and similar decoders; memory bugs inside them route to §1.9; does not cover Lens's own process control (timeouts, killing children): that is P-CONVERT-TIMEOUT",
       "false_friend": false,
       "provenance": "inferred",
       "source": "open question Q20"
     },
     {
       "property": "N-BOMBS",
-      "reason": "bounds on decompressed size, nested emails or media duration (docx XML, email attachments, long media); does not cover a conversion or capture outliving Lens's own timeout (x-process-control, Q20)",
+      "reason": "bounds on decompressed size, nested emails or media duration (docx XML, email attachments, long media); does not cover a conversion or capture outliving Lens's own timeout (P-CONVERT-TIMEOUT)",
       "false_friend": false,
       "provenance": "inferred",
       "source": "open question Q22"

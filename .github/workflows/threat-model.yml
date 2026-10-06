@@ -1,0 +1,28 @@
+name: threat model
+
+# Checks that threat-model.md (canonical), threat-model.yaml and threat-model.json agree: the YAML's prose hash, the
+# property ids in all three, and the open-question numbers. See ci/validate_threat_model.py.
+on:
+  push:
+    branches: [main]
+    paths: [threat-model.md, threat-model.yaml, threat-model.json, ci/validate_threat_model.py, .github/workflows/threat-model.yml]
+  pull_request:
+    paths: [threat-model.md, threat-model.yaml, threat-model.json, ci/validate_threat_model.py, .github/workflows/threat-model.yml]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+      - name: Validate the threat model
+        run: uv run --no-project --python 3.12 --with pyyaml python ci/validate_threat_model.py
