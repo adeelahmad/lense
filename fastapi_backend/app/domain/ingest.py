@@ -36,11 +36,27 @@ def parse_sv(raw):
 
 
 # ---------- files ----------
+# The demuxers ffmpeg may pick for a file it is given: audio and video containers only. ffmpeg chooses by content,
+# not extension, and a playlist (concat, hls) or image sequence would make it read other files next to this one.
+MEDIA_DEMUXERS = "mp3,mov,wav,flac,ogg,aac,matroska,amr,avi,asf,mpeg,mpegts,aiff"
+
+
 def probe(path):
     ch = 0
     try:
         out = subprocess.run(
-            ["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=channels,codec_type", "-of", "json", str(path)],
+            [
+                "ffprobe",
+                "-v",
+                "error",
+                "-format_whitelist",
+                MEDIA_DEMUXERS,
+                "-show_entries",
+                "format=duration:stream=channels,codec_type",
+                "-of",
+                "json",
+                str(path),
+            ],
             capture_output=True,
             text=True,
             timeout=120,
@@ -126,6 +142,8 @@ def _decode(path, channels):
             "-nostdin",
             "-v",
             "error",
+            "-format_whitelist",
+            MEDIA_DEMUXERS,
             "-i",
             str(path),
             "-f",
@@ -381,8 +399,8 @@ def _make_engine(cfg, e):
 
 def get_engine(cfg, log=None):
     """The configured engine; when it isn't installed here (or its packages are there but don't import, e.g. FunASR
-    without PyTorch), the first one that is (the Docker images and packages carry faster-whisper, not SenseVoice, the
-    default), so an import is transcribed rather than failing. With none at all, says how to add one."""
+    without PyTorch), the first one that is (say faster-whisper baked in with EXTRAS=whisper, while SenseVoice, the default, is
+    still being fetched), so an import is transcribed rather than failing. With none at all, says how to add one."""
     e = cfg["transcribe"]["engine"]
     if e not in ENGINE_MODULES:
         return _make_engine(cfg, e)
@@ -399,9 +417,10 @@ def get_engine(cfg, log=None):
             log(f"  {e} isn't installed on this worker ({why[e]}); transcribing with {x}")
         return engine
     raise EngineMissing(
-        f"no speech-to-text engine is installed on this worker ({why[e]}). In Docker, rebuild the images "
-        "(make dev, or docker compose up --build --renew-anon-volumes): they carry faster-whisper, and "
-        "EXTRAS=sensevoice adds SenseVoice. Elsewhere: uv sync --extra whisper (or --extra sensevoice)"
+        f"no speech-to-text engine is installed on this worker ({why[e]}). Install it in Settings → Components "
+        "(or turn on components.auto), pick a cloud engine in Settings → Speech, or bake one into the Docker images "
+        "with EXTRAS=whisper (or sensevoice) in .env and rebuild (make run, or make dev). "
+        "Elsewhere: uv sync --extra whisper (or --extra sensevoice)"
     )
 
 

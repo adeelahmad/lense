@@ -128,7 +128,7 @@ def test_paste_and_chunk_stitching(db, cfg):
 
 
 def test_an_engine_that_isnt_installed_falls_back_to_one_that_is(monkeypatch):
-    """The Docker images carry faster-whisper, not SenseVoice (the default engine): imports are transcribed anyway."""
+    """faster-whisper is there (EXTRAS=whisper), SenseVoice (the default engine) not yet: imports are transcribed anyway."""
     made = []
 
     def sensevoice(cfg):
@@ -176,6 +176,6 @@ def test_with_no_engine_at_all_the_error_says_how_to_add_one(monkeypatch):
 
     monkeypatch.setattr(builtins, "__import__", no_engines)
     cfg = {"transcribe": {"engine": "sensevoice", "device": "cpu", "sensevoice": {}}}
-    with pytest.raises(ingest.EngineMissing, match=r"no speech-to-text engine.*FunASR.*make dev") as e:
+    with pytest.raises(ingest.EngineMissing, match=r"no speech-to-text engine.*FunASR.*Settings → Components.*EXTRAS=whisper") as e:
         ingest.get_engine(cfg)
     assert not isinstance(e.value, SystemExit)  # a job records it as a plain error, not "SystemExit: ..."

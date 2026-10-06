@@ -3,7 +3,7 @@ video's sampled frames, a document's pages and an image, found by a detector and
 
 Engines (video.object_engine):
 - yolox, the default: YOLOX on ONNX Runtime (both Apache-2.0). Its model is a YOLOX .onnx file: video.yolox_model, or
-  one in MODELS (the lens:full image has yolox_s there); `pip install "lens[objects]"` brings ONNX Runtime.
+  one in MODELS or the data folder's models (components.py fetches yolox_s there on first use); `pip install "lens[objects]"` brings ONNX Runtime.
 - ultralytics: Ultralytics YOLO (video.ultralytics_model, such as yolov8n.pt). It's AGPL-3.0: a server that lets
   others use it must offer them its source, so it's in no image or extra; `pip install ultralytics` to use it.
 Without one the objects step is skipped, saying why.
@@ -23,7 +23,7 @@ import numpy as np
 from . import faces, jobs, keyring, store
 
 R = store.R
-MODELS = pathlib.Path("/opt/lens/models")  # where the lens:full image keeps its models
+MODELS = pathlib.Path("/opt/lens/models")  # models put there by hand, or by older lens:full images
 BOXES_MAX = 500  # boxes kept per kind and resource
 COCO = (
     "person bicycle car motorcycle airplane bus train truck boat traffic_light fire_hydrant stop_sign parking_meter bench "

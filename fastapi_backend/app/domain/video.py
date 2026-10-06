@@ -40,7 +40,10 @@ def frames_dir(cfg, rid):
 def probe_media(path):
     """kind (video or audio), size, frame rate and duration. Cover art in audio files doesn't count as video."""
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)], capture_output=True, text=True, timeout=120
+        ["ffprobe", "-v", "error", "-format_whitelist", ingest.MEDIA_DEMUXERS, "-show_streams", "-show_format", "-of", "json", str(path)],
+        capture_output=True,
+        text=True,
+        timeout=120,
     )
     j = json.loads(out.stdout or "{}")
     streams = j.get("streams") or []
@@ -68,6 +71,8 @@ def scene_changes(path, threshold):
             "ffmpeg",
             "-hide_banner",
             "-nostats",
+            "-format_whitelist",
+            ingest.MEDIA_DEMUXERS,
             "-i",
             str(path),
             "-map",
@@ -103,6 +108,8 @@ def extract_frame(path, t, dest, width):
             "error",
             "-ss",
             f"{t:.3f}",
+            "-format_whitelist",
+            ingest.MEDIA_DEMUXERS,
             "-i",
             str(path),
             "-frames:v",
@@ -130,6 +137,8 @@ def sample_frames(path, every, dest_dir, width):
             "-hide_banner",
             "-loglevel",
             "error",
+            "-format_whitelist",
+            ingest.MEDIA_DEMUXERS,
             "-i",
             str(path),
             "-map",

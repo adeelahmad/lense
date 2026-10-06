@@ -251,8 +251,8 @@ video's sampled frames and on a document's or an image's pages ([API](api.md#obj
 `video.object_engine`:
 
 * `yolox`, the default: YOLOX on ONNX Runtime, both Apache-2.0. It needs ONNX Runtime (`pip install -e ".[objects]"`)
-  and a YOLOX `.onnx` model as YOLOX's releases publish them. The `lens:full` image has YOLOX-s in `/opt/lens/models`,
-  where Lens finds it without being told ([Deployment](deployment.md)).
+  and a YOLOX `.onnx` model as YOLOX's releases publish them. Lens fetches both, with YOLOX-s, the first time
+  a job needs them ([Components](components.md)), and also finds a model put in `/opt/lens/models`.
 * `ultralytics`: Ultralytics YOLO (`pip install ultralytics`). It's AGPL-3.0: a server that lets others use it must
   offer them its source, so it's in no image and no extra.
 * `off`.
@@ -268,7 +268,7 @@ Set at startup only:
 
 | Setting | Default | |
 |---|---|---|
-| `video.yolox_model` | the first `yolox*.onnx` in `/opt/lens/models` | a YOLOX model: YOLOX-s (35 MB, the image's), or YOLOX-Nano and YOLOX-Tiny (smaller and faster, less sure) |
+| `video.yolox_model` | the first `yolox*.onnx` in `/opt/lens/models` or the data folder's models | a YOLOX model: YOLOX-s (35 MB, the one fetched), or YOLOX-Nano and YOLOX-Tiny (smaller and faster, less sure) |
 | `video.ultralytics_model` | `yolov8n.pt` | Ultralytics weights, a file or a name Ultralytics downloads |
 
 On a CPU, YOLOX-s takes about a tenth of a second a frame. What's found is kept per kind and resource: where it's seen

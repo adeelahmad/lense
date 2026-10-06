@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.domain import faces, ingest, jobs, store, video
-from tests.helpers import drain, quiet
+from tests.helpers import drain, quiet, write_wav
 from tests.video_helpers import FakeFaces, has_tesseract, make_video, needs_ffmpeg
 
 pytestmark = needs_ffmpeg
@@ -60,3 +60,16 @@ def test_face_modes(db, cfg, rid):
     faces.set_mode(db, sid, "off", cfg=cfg)
     assert (db.values("SELECT VALUE id FROM face"), db.values("SELECT VALUE id FROM face_track")) == ([], [])
     assert not list(video.frames_dir(cfg, rid).glob("face-*.jpg"))  # crops go too
+
+
+@needs_ffmpeg
+def test_ffmpeg_refuses_playlists_that_point_at_other_files(folder):
+    """ffmpeg picks a demuxer by content: a "clip.mp3" that is really an ffconcat list must not read the file it names."""
+    folder.mkdir(parents=True, exist_ok=True)
+    write_wav(folder / "secret.wav")
+    trick = folder / "clip.mp3"
+    trick.write_text("ffconcat version 1.0\nfile secret.wav\n")
+    with pytest.raises(RuntimeError):
+        ingest.decode(trick)
+    assert ingest.probe(trick)[0] is None
+    assert len(ingest.decode(folder / "secret.wav")) > 0  # real media still decodes
