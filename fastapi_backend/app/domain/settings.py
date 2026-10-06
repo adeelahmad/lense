@@ -888,7 +888,8 @@ def save(db, base, section, changes, user=None):
             raise ValueError(f"unknown setting {section}.{k}")
         before = data.get(k, (base.get(section) or {}).get(k))
         data[k] = _check(section, k, v, defaults[k])
-        if (section, k) == ("telemetry", "endpoint") and "headers" not in (changes or {}) and _origin(before) != _origin(data[k]):
+        new_headers = isinstance((changes or {}).get("headers"), str)  # the mask echoed back is no new value
+        if (section, k) == ("telemetry", "endpoint") and not new_headers and _origin(before) != _origin(data[k]):
             # the saved headers (an auth token) were for the old collector: they don't go to a new host
             if before:
                 sealed.pop("headers", None)
