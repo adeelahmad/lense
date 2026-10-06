@@ -1477,237 +1477,284 @@
     {
       "claim": "Q1: `iiif.allowed_origins` defaults to `[\"*\"]`, and the IIIF cookie is `SameSite=None`. Is that default supported on an exposed host?",
       "field": "build_variants, downstream_responsibilities, properties_not_provided",
-      "proposed": "no; on an exposed host the operator lists trusted viewer origins, and a report that needs `*` routes `OUT-OF-MODEL: non-default-build`. Alternative: supported, and §1.12 disclaims that any site can get an IIIF token for a person signed in to IIIF."
+      "proposed": "no; on an exposed host the operator lists trusted viewer origins, and a report that needs `*` routes `OUT-OF-MODEL: non-default-build`. Alternative: supported, and §1.12 disclaims that any site can get an IIIF token for a person signed in to IIIF.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Supported (not the proposed no): the IIIF cookie holds only confirmed origins (#160)."
     },
     {
       "claim": "Q2: Outside the compose files (web app alone, `install.sh`, NAS packages, Proxmox), is IP-group and throttle trust promised as shipped, or only behind a reverse proxy that sets `X-Forwarded-For`?",
       "field": "properties_provided, properties_not_provided, downstream_responsibilities",
-      "proposed": "each shipped variant promises a correct trusted-proxy chain by default, as the compose files do; a shipped variant that makes visitors share one address, or lets them claim one, is `VALID` under P-IPGROUP or P-THROTTLE. A chain the operator builds stays N-XFF."
+      "proposed": "each shipped variant promises a correct trusted-proxy chain by default, as the compose files do; a shipped variant that makes visitors share one address, or lets them claim one, is `VALID` under P-IPGROUP or P-THROTTLE. A chain the operator builds stays N-XFF.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Proposed answer. Gap held for the maintainer: stripping a browser-set X-Forwarded-For changes installs without a proxy; docs fixed (#161)."
     },
     {
       "claim": "Q3: Do a password change, a reset or \"remove all passkeys\" end API tokens, app grants and IIIF cookies?",
       "field": "properties_not_provided",
-      "proposed": "no; disclaim. Disabling the account ends them all."
+      "proposed": "no; disclaim. Disabling the account ends them all.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q4: Is the 168-hour web session sliding (reset on each refresh) or absolute?",
       "field": "properties_not_provided",
-      "proposed": "sliding; no absolute cap is promised."
+      "proposed": "sliding; no absolute cap is promised.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q5: Anonymous `refresh`, `ticket`, `password/forgot`, `passkey/options`, `oauth/token` and short-share-code guesses are unthrottled; counters are per process and reset on restart; each API process has its own setup code unless `LENS_SETUP_CODE` is set; expiry uses wall-clock time. Disclaim all of these?",
       "field": "properties_not_provided, environment",
-      "proposed": "yes. These are volume attacks on secrets of 58 bits or more."
+      "proposed": "yes. These are volume attacks on secrets of 58 bits or more.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q6: Existence leaks: the passkey 404, external-login messages that echo an email, anonymous 401 versus 404, and sequential ids. Disclaim?",
       "field": "properties_not_provided",
-      "proposed": "yes, correctness-only. Only password sign-in and signed-in 404s promise non-disclosure."
+      "proposed": "yes, correctness-only. Only password sign-in and signed-in 404s promise non-disclosure.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q7: A share token (`?s=`) works on the audio, video, frames and page API routes, not only the player and embed. By design?",
       "field": "properties_provided",
-      "proposed": "yes; it grants viewer on that one recording on any route that takes `s`."
+      "proposed": "yes; it grants viewer on that one recording on any route that takes `s`.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q8: Each handler checks its own role, with no central policy. Is that the contract for the roughly 370 routes read by gate only? Is the public surface just the auth, OAuth, passkey, external-login, sensor-push, `/public`, IIIF, embed and share routes? Do role changes apply on the next request? Is `proxy.ts` only a page gate?",
       "field": "entry_points, properties_not_provided",
-      "proposed": "yes to all. A route that skips its check breaks P-NS-ISOLATION."
+      "proposed": "yes to all. A route that skips its check breaks P-NS-ISOLATION.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q9: All namespaces share one database and credential. Are worker hosts and credential holders trusted peers, so a DB-level compromise voids isolation by design?",
       "field": "adversaries, properties_not_provided",
-      "proposed": "yes; disclaim."
+      "proposed": "yes; disclaim.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q10: Share links survive the creator losing their role. Report links sign media for every recording in the page. Signed links outlive role removal and moves. By design?",
       "field": "properties_not_provided",
-      "proposed": "yes; disclaim. Revoke shares, or rotate `ACCESS_SECRET_KEY`."
+      "proposed": "yes; disclaim. Revoke shares, or rotate `ACCESS_SECRET_KEY`.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q11: Saved assistant answers are not re-filtered after access is lost; only cited passages are. Accept, limited to text the same person already saw?",
       "field": "properties_not_provided",
-      "proposed": "yes; correctness-only."
+      "proposed": "yes; correctness-only.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q12: Delete commits rows atomically and removes files after. Move, merge, graph undo and RDF import are stepwise. Job steps run at least once and are not rolled back. Disclaim, provided partial state never widens access?",
       "field": "properties_not_provided",
-      "proposed": "yes; partial state is possible after a crash."
+      "proposed": "yes; partial state is possible after a crash.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q13: `docs/mcp.md` opens \"Everything it can do only reads\", yet three write tools exist. Is the \"Every tool reads, except\" paragraph the contract? Are tokens naming no server accepted at `/mcp` by design?",
       "field": "properties_provided",
-      "proposed": "yes to both; write tools need write scope and the editor role."
+      "proposed": "yes to both; write tools need write scope and the editor role.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Proposed answer; docs/mcp.md opening fixed."
     },
     {
       "claim": "Q14: `secret.key` sits in `data_dir` with the sealed rows and backups. Does \"encrypted at rest\" protect only against a database-only or export-only leak?",
       "field": "properties_not_provided, adversaries",
-      "proposed": "yes; disclaim a stolen `data_dir` that holds the key."
+      "proposed": "yes; disclaim a stolen `data_dir` that holds the key.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q15: Notification targets may use any port; the guard checks addresses only. By design?",
       "field": "properties_provided",
-      "proposed": "yes."
+      "proposed": "yes.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q16: IIIF import holds media up to 4 GB in memory, rclone copies have no byte cap, and SPARQL has no time bound. Guarantee or disclaim?",
       "field": "properties_not_provided",
-      "proposed": "disclaim; admin-started. (Listener connection counts moved to N-VOLUME.)"
+      "proposed": "disclaim; admin-started. (Listener connection counts moved to N-VOLUME.)",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q17: Remote content (storage, mail, calendars, IIIF manifests, model replies) is untrusted data. Remote names become local paths only through hashes and `clean_name`. Symlinks inside `sources.local_roots` are followed. Confirm?",
       "field": "entry_points, adversaries, properties_not_provided",
-      "proposed": "yes to all."
+      "proposed": "yes to all.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q18: Error text from admin-set servers (up to 300 characters of the reply, internal host names, a URL as typed) may reach the person whose action triggered the call. Accept?",
       "field": "outputs (§1.8; YAML only, no JSON field)",
-      "proposed": "yes; credentials typed into a URL are the admin's choice."
+      "proposed": "yes; credentials typed into a URL are the admin's choice.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q19: Side-effect holes: optional extras fetch weights; plain `urllib` callers honour `HTTP(S)_PROXY`; the loopback guard proxy is usable by local processes during a capture; SPARQL sets a process-global flag; temp files live outside `data_dir`; the web app was not scanned. Is this the full list?",
       "field": "environment",
-      "proposed": "yes; same-host processes are trusted."
+      "proposed": "yes; same-host processes are trusted.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q20: Every subprocess takes an argument list with server-built paths, never a shell, and decoder memory bugs are upstream. Lens promises arguments, timeouts and process-group kills, not a sandbox. Is a conversion or capture that outlives its timeout, or leaves children alive after a kill (a print command that never finishes, a hung LibreOffice), a Lens defect?",
       "field": "environment, properties_provided, properties_not_provided",
-      "proposed": "yes; claim P-CONVERT-TIMEOUT (every conversion and capture ends within its timeout, with its whole process group), correctness-only. Alternative: disclaim in N-DECODERS."
+      "proposed": "yes; claim P-CONVERT-TIMEOUT (every conversion and capture ends within its timeout, with its whole process group), correctness-only. Alternative: disclaim in N-DECODERS.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Claim P-CONVERT-TIMEOUT; timeouts added (#202)."
     },
     {
       "claim": "Q21: Lens passes no `-protocol_whitelist` to ffmpeg. If an upload (`.m3u8` playlist or concat file) makes ffmpeg read another local file or fetch a URL, is that a breach?",
       "field": "properties_provided, properties_not_provided",
-      "proposed": "yes, `VALID` under P-NO-INJECTION. Alternative: disclaim demuxer behaviour in §1.12."
+      "proposed": "yes, `VALID` under P-NO-INJECTION. Alternative: disclaim demuxer behaviour in §1.12.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): VALID under P-NO-INJECTION; ffmpeg demuxer allow-list (#196)."
     },
     {
       "claim": "Q22: docx XML is read whole; emails nest without a depth cap; some decoders lack a timeout; media duration is unbounded. Guarantee or disclaim?",
       "field": "properties_not_provided",
-      "proposed": "disclaim size, nesting and duration; a stuck job is requeued after `stale_minutes`. Timeouts themselves are Q20."
+      "proposed": "disclaim size, nesting and duration; a stuck job is requeued after `stale_minutes`. Timeouts themselves are Q20.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q23: Any writer can use a `template` node in a custom node. Is the Jinja sandbox a security guarantee for that reach?",
       "field": "properties_provided",
-      "proposed": "yes; an escape there is `VALID` under P-NO-CODE."
+      "proposed": "yes; an escape there is `VALID` under P-NO-CODE.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q24: Is stored text from a lower role running as script in another person's browser (notes, transcripts, a `javascript:` link in the notes editor, the player) a promised boundary? Do consumers outside Lens own escaping for exports and RDF?",
       "field": "properties_provided",
-      "proposed": "yes to both. Stored XSS inside the web app is `VALID`."
+      "proposed": "yes to both. Stored XSS inside the web app is `VALID`.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q25: Cypher refuses nested repeats heuristically; one regex match cannot be stopped mid-way. Admin workflow regexes are unguarded. Is the 8-second budget a guarantee?",
       "field": "properties_provided, properties_not_provided",
-      "proposed": "a correctness-only guarantee; ReDoS past the heuristic is volume-class; admin regexes are trusted."
+      "proposed": "a correctness-only guarantee; ReDoS past the heuristic is volume-class; admin regexes are trusted.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q26: Prompt injection from content is disclaimed when it only changes the model's words or writes a note in a namespace the person can edit, and `VALID` only when it crosses the person's reads, approvals or role. What about injected text that makes an answer carry readable text to an attacker URL (a rendered image or link)?",
       "field": "properties_not_provided, adversaries, known_misuse",
-      "proposed": "confirm the first part, including that `write_note` needs no approval. For the egress channel: answers must not fetch on render, so such a report is `VALID-HARDENING`. Alternative: disclaim it in N-PROMPT."
+      "proposed": "confirm the first part, including that `write_note` needs no approval. For the egress channel: answers must not fetch on render, so such a report is `VALID-HARDENING`. Alternative: disclaim it in N-PROMPT.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Proposed answer; Markdown images no longer fetch on paste (#194)."
     },
     {
       "claim": "Q27: An extension's `effect: read` label is the author's word, and a shared `http` tool can send a user's readable data to the author's host. Does another person's tool run in my assistant only when an admin shared it or I enabled it, and can tool arguments change the `http` tool's host?",
       "field": "properties_provided, properties_not_provided, known_misuse",
-      "proposed": "claim P-EXT-SCOPE for tools too (another person's tool runs only when an admin shared it or I enabled it; arguments never change the host), security-critical. Alternative: disclaim, and enabling another person's extension is an act of trust."
+      "proposed": "claim P-EXT-SCOPE for tools too (another person's tool runs only when an admin shared it or I enabled it; arguments never change the host), security-critical. Alternative: disclaim, and enabling another person's extension is an act of trust.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Claim P-EXT-SCOPE for tools; another person's tool asks first unless an admin shared it (#203)."
     },
     {
       "claim": "Q28: The chat-room bridge answers as the admin when no account is set. Supported on an exposed instance?",
       "field": "downstream_responsibilities",
-      "proposed": "supported; the admin owns the choice."
+      "proposed": "supported; the admin owns the choice.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q29: Are the sensor limits (256 KB payload, 600 per minute, 64 KB syslog line) promises or tunables? Is an unauthenticated MQTT publish, with `mqtt_anonymous` off, a breach?",
       "field": "entry_points, properties_provided",
-      "proposed": "tunables; the unauthenticated publish is `VALID` under P-SENSORS."
+      "proposed": "tunables; the unauthenticated publish is `VALID` under P-SENSORS.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q30: Cloudflare terminates TLS for tunnel traffic. Is it a trusted dependency? Is the quick `trycloudflare.com` address for real use?",
       "field": "build_variants",
-      "proposed": "trusted; the quick address is for trying Lens."
+      "proposed": "trusted; the quick address is for trying Lens.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q31: `install.sh` on a headless host and the NAS packages listen on all interfaces over HTTP, and print a `?code=` setup URL. Supported only on a trusted LAN until HTTPS is set up?",
       "field": "build_variants",
-      "proposed": "yes; the setup window relies on a code of about 72 bits and a private log. Until ratified such reports route `non-default-build (escalated)`."
+      "proposed": "yes; the setup window relies on a code of about 72 bits and a private log. Until ratified such reports route `non-default-build (escalated)`.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q32: Is the server log an operator-trusted channel, so setup codes and sign-in links there are by design, while stored source and model credentials never appear?",
       "field": "properties_not_provided, downstream_responsibilities",
-      "proposed": "yes."
+      "proposed": "yes.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q33: Proxmox services run as root inside the unprivileged LXC; the SurrealDB container runs as root. Supported?",
       "field": "build_variants",
-      "proposed": "yes; the container is the boundary."
+      "proposed": "yes; the container is the boundary.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q34: Coverage and scope: not yet read per item are about 60 assistant read tools and 30 settings tools, per-role file parsers (SRT, VTT, JSON, OHMS XML), faces, voice and objects, pipeline and routine actions, and the frontend pages. `examples/`, `overrides/`, `ci/`, `prod-frontend-deploy.yml`, `tests/`, `watcher.py` and `commands/` are unsupported or inert. No vendored third-party source ships. The N/A matrix rows tagged with this question hold. Confirm, and complete the rest next revision?",
       "field": "out_of_scope, entry_points",
-      "proposed": "yes; treat the unread surface as **inferred** until then."
+      "proposed": "yes; treat the unread surface as **inferred** until then.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q35: P-ADMIN-GUARD claims the documented guards on iCal feeds and the telemetry endpoint. Is it security-critical, and does moving the telemetry endpoint to another host also promise to drop the saved headers, so a collector's token never reaches a new host?",
       "field": "properties_provided, entry_points",
-      "proposed": "security-critical for the iCal guard (a remote calendar's redirect is attacker-controlled); correctness-only for the telemetry checks; yes, the header drop is promised and joins P-ADMIN-GUARD."
+      "proposed": "security-critical for the iCal guard (a remote calendar's redirect is attacker-controlled); correctness-only for the telemetry checks; yes, the header drop is promised and joins P-ADMIN-GUARD.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Proposed answer; telemetry headers dropped on endpoint move (#199)."
     },
     {
       "claim": "Q36: Is every default exposure of the dev stack unsupported, or only its known secrets, `SURREAL_PASS=root` and the web port on all interfaces?",
       "field": "out_of_scope, build_variants",
-      "proposed": "only those; any other dev-stack port reachable beyond loopback (API, DB, Mailpit, MQTT, syslog) is a defect, fixed when found and claimed under P-HARDENED."
+      "proposed": "only those; any other dev-stack port reachable beyond loopback (API, DB, Mailpit, MQTT, syslog) is a defect, fixed when found and claimed under P-HARDENED.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Proposed answer; dev compose sensor ports on loopback (#204); production compose held (LAN sensors)."
     },
     {
       "claim": "Q37: Confirm the tiers of the documented properties promoted in this revision: P-ACCESS-PARTS, P-BEARER-ONLY, P-FRAME, P-EXT-SCOPE and P-ADMIN-GUARD (security-critical); P-LIFETIMES, P-HARDENED, P-CHILD-SECRETS and P-REMOTE-NAMES (correctness-only).",
       "field": "properties_provided",
-      "proposed": "confirm as listed. This is an edge probe of documented claims."
+      "proposed": "confirm as listed. This is an edge probe of documented claims.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Confirmed as listed."
     },
     {
       "claim": "Q38: With `TRUST_PROXY_HEADERS` off and the default trusted proxies, can any request header choose the address that OAuth discovery, the passkey origin or the external-login redirect names?",
       "field": "properties_provided, properties_not_provided, entry_points",
-      "proposed": "no; claim it, security-critical, from docs/authentication.md \"anyone could choose the address\". Alternative: disclaim."
+      "proposed": "no; claim it, security-critical, from docs/authentication.md \"anyone could choose the address\". Alternative: disclaim.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Claim it; checked, holds."
     },
     {
       "claim": "Q39: Can a token minted while its grant or API token is being revoked outlive the revocation?",
       "field": "properties_provided",
-      "proposed": "no; claim it as part of P-AUTH-REQ (\"its tokens stop working at once\")."
+      "proposed": "no; claim it as part of P-AUTH-REQ (\"its tokens stop working at once\").",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Claim it; refresh/sign-out race fixed (#198)."
     },
     {
       "claim": "Q40: Is the post-sign-in `next` target (external login, sign-in links) limited to same-origin paths?",
       "field": "properties_provided, properties_not_provided",
-      "proposed": "yes; claim it, correctness-only. Alternative: disclaim open redirects."
+      "proposed": "yes; claim it, correctness-only. Alternative: disclaim open redirects.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Claim it; control characters refused in next (#197)."
     },
     {
       "claim": "Q41: Can a request by anyone but a pending sign-in link's owner or an admin (for example an anonymous \"lost your passkey\" email) cancel that link?",
       "field": "properties_provided",
-      "proposed": "no; claim it, correctness-only."
+      "proposed": "no; claim it, correctness-only.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q42: Setup-code guesses are unthrottled. Add the setup routes to N-THROTTLE-SCOPE (resting on the code's entropy), or throttle them?",
       "field": "properties_not_provided, properties_provided",
-      "proposed": "disclaim; the code is about 72 bits and lives only until the first admin exists."
+      "proposed": "disclaim; the code is about 72 bits and lives only until the first admin exists.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q43: Beyond IMAP (P-REMOTE-NAMES), is remote content from rclone sources, iCal feeds and IIIF imports served only under the identity it was fetched for?",
       "field": "properties_provided, properties_not_provided",
-      "proposed": "yes; claim it, correctness-only."
+      "proposed": "yes; claim it, correctness-only.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Claim it; IIIF media kept per namespace (#201)."
     },
     {
       "claim": "Q44: Are released images built only from clean CI checkouts, so host-local files such as `.env.local` cannot enter a layer?",
       "field": "build_variants",
-      "proposed": "yes for released packages; a local build from a working tree is dev-only."
+      "proposed": "yes for released packages; a local build from a working tree is dev-only.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q45: §1.9: are SurrealDB, Next.js and NextAuth, PyJWT, `webauthn`, `cryptography`, rclone and the stdlib clients upstream-owned as listed, and is the build, lint and codegen toolchain out of every running service?",
       "field": "dependencies (§1.9; YAML only, no JSON field)",
-      "proposed": "yes to both; a toolchain advisory is in model only when the affected code ships in an image."
+      "proposed": "yes to both; a toolchain advisory is in model only when the affected code ships in an image.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q46: Meta: the backtest found candidate known non-findings for OIDC nonce or ID-token checks (N-OIDC), phishing through open app registration (N-OAUTH-CLIENT), and audit-log tamper evidence (N-AUDIT), but each rests on one synthesized report. Do you actually receive these reports often enough to list them in §1.15?",
       "field": "known_non_findings",
-      "proposed": "only list the ones you have seen at least twice; until then they route `BY-DESIGN: property-disclaimed` through §1.12."
+      "proposed": "only list the ones you have seen at least twice; until then they route `BY-DESIGN: property-disclaimed` through §1.12.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
       "claim": "Q47: Do MCP tool arguments (offsets, page sizes) promise the same maximums as the REST search API, for example a 10,000 cap on `get_entity`'s mentions offset?",
       "field": "properties_provided, entry_points",
-      "proposed": "yes; MCP tools share the search maximums, and a tool argument past them is refused."
+      "proposed": "yes; MCP tools share the search maximums, and a tool argument past them is refused.",
+      "ruling": "Decided 2026-10-06 (maintainer, delegated): Proposed answer; MCP offsets capped (#200)."
     }
   ]
 }
