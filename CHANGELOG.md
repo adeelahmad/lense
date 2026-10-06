@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Connect Slack, WhatsApp, Telegram, Discord and Matrix from the web app.** Start the optional `matterbridge`
+  service, then turn on Settings › Chat rooms › Run Matterbridge here and add a bot token and rooms. To link
+  WhatsApp, scan the QR code the page shows. Lens writes Matterbridge's config, a gateway per room, and restarts it
+  when the settings change.
 - **Approve the assistant's reversible changes from the chat room.** When Lens proposes merging entities or a new
   namespace in Slack, WhatsApp or another bridged room, the people listed in Settings › Chat rooms can reply "yes" or
   "no" there instead of opening the web app. Settings, imports, runs and extensions still wait for the web app.

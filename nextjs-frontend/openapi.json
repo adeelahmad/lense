@@ -25519,6 +25519,17 @@
             ],
             "title": "Answered",
             "description": "messages it answered since it started"
+          },
+          "matterbridge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MatterbridgeStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the Matterbridge Lens runs, when it runs one"
           }
         },
         "additionalProperties": true,
@@ -35372,6 +35383,77 @@
           "manifest"
         ],
         "title": "ManifestChecked"
+      },
+      "MatterbridgeRoom": {
+        "properties": {
+          "gateway": {
+            "type": "string",
+            "title": "Gateway",
+            "description": "its gateway's name, for bridge.rooms (like slack-general = pods)"
+          },
+          "network": {
+            "type": "string",
+            "title": "Network"
+          },
+          "room": {
+            "type": "string",
+            "title": "Room"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "gateway",
+          "network",
+          "room"
+        ],
+        "title": "MatterbridgeRoom"
+      },
+      "MatterbridgeStatus": {
+        "properties": {
+          "run": {
+            "type": "boolean",
+            "title": "Run"
+          },
+          "gateways": {
+            "items": {
+              "$ref": "#/components/schemas/MatterbridgeRoom"
+            },
+            "type": "array",
+            "title": "Gateways",
+            "default": []
+          },
+          "whatsapp_qr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whatsapp Qr",
+            "description": "the QR code WhatsApp waits to be scanned with, as text lines"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why its config couldn't be written"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "run"
+        ],
+        "title": "MatterbridgeStatus"
       },
       "Me": {
         "properties": {

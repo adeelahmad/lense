@@ -56,9 +56,12 @@ x-backend: &backend
     LENS_TELEMETRY: ${LENS_TELEMETRY:-}
     LENS_TELEMETRY_ENDPOINT: ${LENS_TELEMETRY_ENDPOINT:-}
     LENS_TELEMETRY_HEADERS: ${LENS_TELEMETRY_HEADERS:-}
+    # the volume shared with the matterbridge service (its config, written from Settings → Chat rooms)
+    LENS_MATTERBRIDGE_DIR: /matterbridge
   volumes:
     - archive-data:/data
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
+    - matterbridge-data:/matterbridge
   depends_on:
     surrealdb:
       condition: service_healthy
@@ -113,6 +116,19 @@ services:
     restart: unless-stopped
     networks: [lens]
 
+  # Matterbridge run by Lens (docs/chat-rooms.md): the assistant in Slack, Discord, Telegram, Matrix and WhatsApp rooms,
+  # set up in Settings → Chat rooms → Run Matterbridge here, which writes its config into the volume the two share.
+  # Opt-in, and it builds Matterbridge from source the first time: `docker compose --profile matterbridge up -d`.
+  matterbridge:
+    security_opt: ["no-new-privileges:true"]
+    image: lens-matterbridge:${LENS_VERSION:-prod}
+    build: ./matterbridge
+    profiles: [matterbridge]
+    volumes:
+      - matterbridge-data:/matterbridge
+    restart: unless-stopped
+    networks: [lens]
+
   # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
   # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
   # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
@@ -145,6 +161,7 @@ services:
 
 volumes:
   surreal-data:
+  matterbridge-data:
   archive-data:
   fedora-data:
   opensearch-data:

@@ -39,6 +39,8 @@ x-backend: &backend
     LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
     CORS_ORIGINS: '["http://localhost:3000"]'
     OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
+    # the volume shared with the matterbridge service (its config, written from Settings → Chat rooms)
+    LENS_MATTERBRIDGE_DIR: /matterbridge
   volumes:
     - ./fastapi_backend:/app
     # the image's own packages, not the source tree's: anonymous, so `make dev` (up --build --renew-anon-volumes)
@@ -47,6 +49,7 @@ x-backend: &backend
     - archive-data:/data
     - ./local-shared-data:/app/shared-data
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
+    - matterbridge-data:/matterbridge
   depends_on:
     surrealdb:
       condition: service_healthy
@@ -116,6 +119,18 @@ services:
       - "127.0.0.1:8025:8025" # the mailbox
     networks: [lens]
 
+  # Matterbridge run by Lens (docs/chat-rooms.md): the assistant in Slack, Discord, Telegram, Matrix and WhatsApp rooms,
+  # set up in Settings → Chat rooms → Run Matterbridge here, which writes its config into the volume the two share.
+  # Opt-in, and it builds Matterbridge from source the first time: `docker compose --profile matterbridge up -d`.
+  matterbridge:
+    security_opt: ["no-new-privileges:true"]
+    image: lens-matterbridge:dev
+    build: ./matterbridge
+    profiles: [matterbridge]
+    volumes:
+      - matterbridge-data:/matterbridge
+    networks: [lens]
+
   # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
   # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
   # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
@@ -133,6 +148,7 @@ services:
 
 volumes:
   surreal-data:
+  matterbridge-data:
   archive-data:
   fedora-data:
 

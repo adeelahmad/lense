@@ -1635,6 +1635,8 @@ export type {
   MarkEntitiesNotSameErrors,
   MarkEntitiesNotSameResponse,
   MarkEntitiesNotSameResponses,
+  MatterbridgeRoom,
+  MatterbridgeStatus,
   Me,
   MeData,
   Member,

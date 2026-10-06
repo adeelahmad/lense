@@ -1133,6 +1133,10 @@ export type BridgeStatus = {
    * messages it answered since it started
    */
   answered?: number | null;
+  /**
+   * the Matterbridge Lens runs, when it runs one
+   */
+  matterbridge?: MatterbridgeStatus | null;
   [key: string]: unknown;
 };
 
@@ -6840,6 +6844,54 @@ export type ManifestChecked = {
   manifest: {
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+};
+
+/**
+ * MatterbridgeRoom
+ */
+export type MatterbridgeRoom = {
+  /**
+   * Gateway
+   *
+   * its gateway's name, for bridge.rooms (like slack-general = pods)
+   */
+  gateway: string;
+  /**
+   * Network
+   */
+  network: string;
+  /**
+   * Room
+   */
+  room: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MatterbridgeStatus
+ */
+export type MatterbridgeStatus = {
+  /**
+   * Run
+   */
+  run: boolean;
+  /**
+   * Gateways
+   */
+  gateways?: Array<MatterbridgeRoom>;
+  /**
+   * Whatsapp Qr
+   *
+   * the QR code WhatsApp waits to be scanned with, as text lines
+   */
+  whatsapp_qr?: string | null;
+  /**
+   * Error
+   *
+   * why its config couldn't be written
+   */
+  error?: string | null;
   [key: string]: unknown;
 };
 

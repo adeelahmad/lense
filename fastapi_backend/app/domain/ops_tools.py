@@ -36,6 +36,7 @@ SECTIONS = (
     "components",
     "mail",
     "bridge",
+    "matterbridge",
     "telemetry",
     "sensors",
 )
