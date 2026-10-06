@@ -120,8 +120,23 @@ def recorded_at(path, mtime):
     return dt.datetime.fromtimestamp(mtime).isoformat(timespec="seconds")
 
 
+DECODE_SECONDS = 6 * 3600  # a recording is decoded far faster than it plays; past this ffmpeg is stuck
+READ_SECONDS = 300  # antiword, catdoc, pdftotext
+
+
 def decode(path, channels=1):
-    out = subprocess.run(
+    try:
+        out = _decode(path, channels)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"ffmpeg: decoding took longer than {DECODE_SECONDS} s") from None
+    if out.returncode != 0:
+        raise RuntimeError("ffmpeg: " + out.stderr.decode(errors="replace")[-300:])
+    x = np.frombuffer(out.stdout, dtype=np.float32)
+    return x.reshape(-1, channels) if channels > 1 else x
+
+
+def _decode(path, channels):
+    return subprocess.run(
         [
             "ffmpeg",
             "-nostdin",
@@ -142,11 +157,8 @@ def decode(path, channels=1):
             "-",
         ],
         capture_output=True,
+        timeout=DECODE_SECONDS,
     )
-    if out.returncode != 0:
-        raise RuntimeError("ffmpeg: " + out.stderr.decode(errors="replace")[-300:])
-    x = np.frombuffer(out.stdout, dtype=np.float32)
-    return x.reshape(-1, channels) if channels > 1 else x
 
 
 def envelope(x, bins=1600):
@@ -778,7 +790,10 @@ def read_doc(path):
 
     for cmd in (["antiword", "-w", "0", str(path)], ["catdoc", "-w", str(path)]):
         if shutil.which(cmd[0]):
-            out = subprocess.run(cmd, capture_output=True, text=True)
+            try:
+                out = subprocess.run(cmd, capture_output=True, text=True, timeout=READ_SECONDS)
+            except subprocess.TimeoutExpired:
+                continue
             if out.returncode == 0 and out.stdout.strip():
                 return out.stdout
     office = shutil.which("soffice") or shutil.which("libreoffice")
@@ -804,7 +819,10 @@ def read_pdf(path):
 
         if not shutil.which("pdftotext"):
             raise SystemExit("reading PDFs needs pypdf (pip install pypdf) or pdftotext") from None
-        text = subprocess.run(["pdftotext", "-layout", str(path), "-"], capture_output=True, text=True).stdout
+        try:
+            text = subprocess.run(["pdftotext", "-layout", str(path), "-"], capture_output=True, text=True, timeout=READ_SECONDS).stdout
+        except subprocess.TimeoutExpired:
+            raise SystemExit(f"reading {path} took longer than {READ_SECONDS} s") from None
     if not text.strip():
         raise SystemExit(f"{path} has no text layer (a scan?); run OCR first")
     return re.sub(r"(\w)-\n(\w)", r"\1\2", text)
