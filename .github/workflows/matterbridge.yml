@@ -41,7 +41,7 @@ jobs:
 
       - name: Lens writes a config, and Matterbridge starts with it
         run: |
-          docker run --rm --user 1000 -v mb-data:/matterbridge alpine:3.20 sh -c 'umask 077; cat > /matterbridge/matterbridge.toml' <<'TOML'
+          docker run --rm -i --user 1000 -v mb-data:/matterbridge alpine:3.20 sh -c 'umask 077; cat > /matterbridge/matterbridge.toml' <<'TOML'
           [api.lens]
           BindAddress="0.0.0.0:4242"
           Token="ci-token"
