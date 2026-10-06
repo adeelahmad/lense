@@ -73,7 +73,8 @@ this machine or the Docker host, with their models), `PUT /api/v1/setup/storage`
 | `AUTH_SECRET` | encrypts the NextAuth session cookie (`npx auth secret`) |
 | `AUTH_URL` | pins sign-in to one public URL of the web app. Leave it unset (the Docker Compose files do) so sign-in follows the address the browser is on: its LAN name, https:// address or Cloudflare tunnel |
 | `AUTH_TRUST_HOST` | `true` behind a proxy or in Docker |
-| `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host` and `-Proto`: they're passed on to the API, which names that address in OAuth discovery. Off, the web app reports the `Host` the browser sent |
+| `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host`, `-Proto` and `-For`: they're passed on to the API, which names that address in OAuth discovery and reads the visitor's address for IP groups and throttles. Off, the web app reports the `Host` the browser sent and the address it was reached from |
+| `LENS_WEB_PROXY_HOSTS` | hosts whose `X-Forwarded-For` the web app passes on with `TRUST_PROXY_HEADERS` off (`backend,worker` in the Docker Compose files, for the Cloudflare tunnel) |
 
 ## archive.yaml
 
@@ -313,18 +314,19 @@ right past other trusted proxies. `server.trusted_proxies` (in the app: Settings
 addresses or CIDR ranges. The default trusts this machine (`127.0.0.0/8` and `::1`), which suits the web app and the
 API on one machine.
 
-* **List the web app.** The browser reaches the API through the web app, which passes on the `X-Forwarded-For` it
-  received, unchanged. When a request arrives without one, Next.js fills in the address it was reached from, so the
-  API sees the visitor's real address unless the visitor sent the header themselves. The Docker Compose files list it
-  for you:
+* **List the web app.** The browser reaches the API through the web app, which tells it the address it was reached
+  from in `X-Forwarded-For`. A visitor's own `X-Forwarded-For` is dropped, so they can't choose it; the web app
+  passes one on only from a reverse proxy (`TRUST_PROXY_HEADERS=true`) or from the hosts in `LENS_WEB_PROXY_HOSTS`
+  (the Cloudflare tunnel's containers). This is done by `lens-server.js`, which the production image starts; `next
+  dev` and `next start` pass the header on unchanged. The Docker Compose files list the web app for you:
   `LENS_TRUSTED_PROXY_HOSTS=frontend,backend,worker` trusts those containers by name (their addresses, looked up
   every 30 seconds, follow them when they're recreated; `backend` and `worker` run the Cloudflare tunnel). Elsewhere,
   list the web app's address here, or name its host in `LENS_TRUSTED_PROXY_HOSTS`. Sign-in throttles follow the same
   address, so without it everyone behind the web app shares one.
-* **Put a reverse proxy in front of the web app that sets `X-Forwarded-For`**: nginx with
-  `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, or Caddy, which does by default. The web app can't
-  tell a header a visitor made up from one a proxy set; the reverse proxy adds the real address last, and the server
-  reads that one. Without it, a visitor can claim any address by sending their own `X-Forwarded-For`.
+* **Behind a reverse proxy, set `TRUST_PROXY_HEADERS=true` on the web app** and have the proxy set
+  `X-Forwarded-For`: nginx with `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`, or Caddy, which does by
+  default. The proxy adds the real address last, and the server reads that one. Without the setting, every visitor
+  shows up as the proxy's address.
 * A request from an address that isn't trusted but carries `X-Forwarded-For` counts for no IP group, and neither does
   one from a trusted proxy that forwards nothing (the web app asking on its own behalf). A namespace's IP groups show
   your address as the server sees it, or say it can't tell.
