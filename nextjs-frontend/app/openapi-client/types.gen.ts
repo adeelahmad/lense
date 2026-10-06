@@ -11329,19 +11329,19 @@ export type Removed = {
 /**
  * Rendition
  *
- * How a document that isn't a PDF was made into one.
+ * How a document that isn't a PDF (or an image anytopdf read) was made into one.
  */
 export type Rendition = {
   /**
    * From
    *
-   * its own type: .docx, .eml, …
+   * its own type: .docx, .eml, .jpg, …
    */
   from: string;
   /**
    * By
    */
-  by: "libreoffice" | "chromium";
+  by: "libreoffice" | "chromium" | "anytopdf";
   [key: string]: unknown;
 };
 

@@ -43143,13 +43143,14 @@
           "from": {
             "type": "string",
             "title": "From",
-            "description": "its own type: .docx, .eml, \u2026"
+            "description": "its own type: .docx, .eml, .jpg, \u2026"
           },
           "by": {
             "type": "string",
             "enum": [
               "libreoffice",
-              "chromium"
+              "chromium",
+              "anytopdf"
             ],
             "title": "By"
           }
@@ -43161,7 +43162,7 @@
           "by"
         ],
         "title": "Rendition",
-        "description": "How a document that isn't a PDF was made into one."
+        "description": "How a document that isn't a PDF (or an image anytopdf read) was made into one."
       },
       "ReprocessRequest": {
         "properties": {

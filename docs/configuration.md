@@ -205,6 +205,9 @@ makes of them, or by LibreOffice where there's no Chromium. Outlook `.msg` email
 | `documents.max_pages` | 2000 | the most pages of one document that are drawn and read, 1–50000 |
 | `documents.convert_seconds` | 300 | how long making one PDF may take before its job fails, 10–3600 seconds |
 | `documents.attachment_resources` | true | whether an email's attachments that Lens can read (documents, images, audio, video, emails) also become resources of their own; they're kept as its files either way |
+| `documents.converter` | `auto` | who makes the PDFs: `auto` uses [anytopdf](#anytopdf) only for what LibreOffice and Chromium can't do here, `anytopdf` uses it for every document and image (and fetches it), `lens` never uses it |
+| `documents.anytopdf_url` | none | a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work`, such as `https://convert.home:8640`. Set, it converts instead of the program here |
+| `documents.anytopdf_token` | none | the node's bearer token (its `ANYTOPDF_QUEUE_TOKEN`), kept encrypted |
 
 Set at startup only (the config file; the web app can't choose what the server runs):
 
@@ -212,7 +215,27 @@ Set at startup only (the config file; the web app can't choose what the server r
 |---|---|---|
 | `documents.soffice` | `soffice` or `libreoffice` on PATH | LibreOffice |
 | `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too); it also captures web pages ([API](api.md#web-pages)) |
+| `documents.anytopdf` | the one Lens downloaded, else `anytopdf` on PATH | the anytopdf program |
 | `documents.web_networks` | `[]` | networks (CIDR, such as `10.20.0.0/16`) that web pages and calendar feeds may be fetched from besides the public internet: for an intranet, or a calendar server at home; loopback and cloud metadata addresses stay out unless listed. `LENS_WEB_NETWORKS` in `.env` (comma-separated) adds to it, for Docker and the packages |
+
+### anytopdf
+
+[anytopdf](https://github.com/adeelahmad/anytopdf-rs) (MIT or Apache-2.0) is Lens's sister project: one static program
+that makes documents, photos and media into searchable PDFs. Lens uses it as a converter, two ways:
+
+- **Here.** With `documents.converter` set to `anytopdf`, Lens downloads release 0.3.0 for this machine on first use
+  (Linux x86-64 and arm64, macOS), checks it against the release's checksum and keeps only the program in
+  `data_dir/models/anytopdf-0.3.0/`. It makes the PDF of text, Markdown, web pages and emails from the same cleaned page
+  Lens would print with Chromium, so a server without Chromium reads them, and it reads images too: a photographed page
+  is found, straightened and flattened before OCR. Office files still need LibreOffice beside it.
+- **On a conversion node.** With `documents.anytopdf_url` and its token set, every conversion goes to that machine as
+  a job (only the file, named `document.<type>`), and Lens fetches the PDF. The node has LibreOffice and whatever else
+  it needs, so a small server (a Raspberry Pi) reads Word, PowerPoint and spreadsheet files with nothing installed.
+  Run it behind TLS off loopback (`anytopdf queue serve --tls-cert … --tls-key …`).
+
+It runs with no network, no runtime plugins and no config file of its own, and its PDF has no provenance page and
+holds only the document's text, so what Lens reads is what the document says. Faces, objects and speech stay Lens's
+own steps. The resource's rendition says `anytopdf` made it.
 
 Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
 every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.

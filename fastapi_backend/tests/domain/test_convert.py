@@ -119,7 +119,10 @@ def test_what_the_server_can_convert(cfg, monkeypatch):
     monkeypatch.setattr(convert, "chromium", lambda cfg: None)
     assert convert.capabilities(cfg) == {"office": False, "pages": False, "msg": False, "web": False}
     assert convert.unavailable(cfg, "a.pdf") is None and convert.unavailable(cfg, "a.mp3") is None
-    assert convert.unavailable(cfg, "a.docx") == "converting Word documents needs LibreOffice on the server (the lens:full image)"
+    assert (
+        convert.unavailable(cfg, "a.docx")
+        == "converting Word documents needs LibreOffice on the server (the lens:full image) or an anytopdf conversion node"
+    )
     assert "Chromium or LibreOffice" in convert.unavailable(cfg, "a.eml")
     monkeypatch.setattr(convert, "chromium", lambda cfg: "/usr/bin/chromium")
     monkeypatch.setattr(convert, "_has_msg", lambda: False)

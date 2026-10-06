@@ -228,6 +228,10 @@ DEFAULTS = {
         "soffice": None,
         "chromium": None,
         "web_networks": [],
+        "converter": "auto",  # anytopdf.py: auto (where Lens can't convert), anytopdf (every document and image), lens
+        "anytopdf": None,  # the anytopdf program; None: the one downloaded on first use, else one on PATH
+        "anytopdf_url": None,  # a conversion node: `anytopdf queue serve` on another machine
+        "anytopdf_token": None,
     },
     "workers": {
         "inline": 1,

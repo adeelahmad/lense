@@ -219,10 +219,10 @@ def test_documents_the_server_cannot_convert(client, env, db, cfg, monkeypatch):
     assert (r.status_code, r.json()["detail"]) == (
         400,
         "this Word document can't be read here: converting Word documents needs LibreOffice on the server "
-        "(the lens:full image); import it as a transcript instead",
+        "(the lens:full image) or an anytopdf conversion node; import it as a transcript instead",
     )
     r = _start(client, he, b"x", "deck.pptx")
-    assert r.status_code == 400 and r.json()["detail"].endswith("(the lens:full image)")
+    assert r.status_code == 400 and r.json()["detail"].endswith("(the lens:full image) or an anytopdf conversion node")
     assert _start(client, he, b"%PDF", "a.pdf").status_code == 201
     # a source's files: read as transcripts where they can be (an email's text, without its attachments), else left
     assert [sources.file_kind(cfg, n) for n in ("a.docx", "a.txt", "a.pptx", "a.eml", "a.pdf")] == [
