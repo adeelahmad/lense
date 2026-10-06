@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Visitors can no longer choose the address IP groups and sign-in throttles see.** The web app drops an
+  `X-Forwarded-For` a browser sends and tells the API the address it was reached from. Behind a reverse proxy, set
+  `TRUST_PROXY_HEADERS=true` on the web app, or every visitor counts as the proxy's address
+  ([Trusted proxies](docs/configuration.md#trusted-proxies)). The Cloudflare tunnel keeps working as before.
 - **Approve the assistant's reversible changes from the chat room.** When Lens proposes merging entities or a new
   namespace in Slack, WhatsApp or another bridged room, the people listed in Settings › Chat rooms can reply "yes" or
   "no" there instead of opening the web app. Settings, imports, runs and extensions still wait for the web app.
