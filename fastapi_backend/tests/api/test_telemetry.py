@@ -95,7 +95,7 @@ def test_settings_are_checked(client, db, collector):
     # the saved headers stay with their collector: a new path keeps them, a new host drops them
     assert put({"endpoint": "http://collector:4318/otlp"}).status_code == 200
     assert client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["headers"]["set"] is True
-    assert put({"endpoint": "http://elsewhere:4318"}).status_code == 200
+    assert put({"endpoint": "http://elsewhere:4318", "headers": {"secret": True}}).status_code == 200  # the mask: unchanged
     assert client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["headers"]["set"] is False
     # unless new ones come with the move
     assert put({"endpoint": "http://third:4318", "headers": "X-Key=1"}).status_code == 200
