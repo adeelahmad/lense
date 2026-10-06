@@ -162,6 +162,8 @@ def test_the_round_trip_is_tied_to_this_browser_and_used_once(app, client, new_c
     # where to go next is always a page of this site
     got = _sign_in(client, idp, "acme-sso", ADA, next_path="//evil.example/x")
     assert got["next"] == "/"
+    got = _sign_in(client, idp, "acme-sso", ADA, next_path="/\t/evil.example/x")  # browsers drop the tab: //evil.example
+    assert got["next"] == "/"
 
 
 def test_a_wrong_client_secret_says_so(app, client, admin, idp, db):

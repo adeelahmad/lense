@@ -5,10 +5,11 @@ import { useEffect, useState } from "react";
 
 import { AuthAlert, AuthCard } from "@/components/auth/auth-card";
 import { finishSignIn } from "@/components/auth/passkey-flows";
+import { safeCallbackUrl } from "@/lib/definitions";
 
 /** A page of this site to go to next (never another site). */
 export function safeNext(next: string | null | undefined, fallback = "/"): string {
-  return next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : fallback;
+  return next && safeCallbackUrl(next) === next ? next : fallback;
 }
 
 function sentence(s: string): string {

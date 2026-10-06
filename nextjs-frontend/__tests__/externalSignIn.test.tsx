@@ -86,6 +86,7 @@ describe("coming back from the provider", () => {
     expect(safeNext("//evil.example")).toBe("/");
     expect(safeNext("https://evil.example")).toBe("/");
     expect(safeNext("/\\evil.example")).toBe("/");
+    expect(safeNext("/\t/evil.example")).toBe("/");
     expect(safeNext("/recordings?x=1")).toBe("/recordings?x=1");
   });
 });
