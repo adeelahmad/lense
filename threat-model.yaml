@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:ae018b953a701e51aa5525dbcb43091673003ecd91bbbe2d4c55740c36bcd131"
+prose_version: "threat-model.md@sha256:c426c6aad5c09c02bbd1bd6a6ccb28ba211866a1d4e9fbecb36385a7f07c307a"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 200, maintainer: 46, inferred: 91, assumption: 8}
@@ -485,7 +485,7 @@ contract_dimensions:
   - {component: ingest, dimension: recursive-cyclic-topology, status: unresolved, conditions: "emails inside emails, no stated depth cap", question_id: Q22, provenance: {kind: inferred, question_id: Q22}}
   - {component: ingest, dimension: failure-atomicity, status: claimed, property_id: P-UPLOAD, conditions: "an upload file holds whole chunks only", provenance: {kind: documented, source: 'domain/uploads.py docstring "whole chunks"'}}
   - {component: ingest, dimension: callback-execution, status: unresolved, conditions: "decoders run in the worker's process tree, unsandboxed", question_id: Q20, provenance: {kind: inferred, question_id: Q20}}
-  - {component: ingest, dimension: x-process-control, status: unresolved, conditions: "a conversion or capture outliving its timeout, or children left alive after a kill", question_id: Q20, provenance: {kind: inferred, question_id: Q20}}
+  - {component: ingest, dimension: x-process-control, status: claimed, property_id: P-CONVERT-TIMEOUT, conditions: "a conversion or capture outliving its timeout, or children left alive after a kill", provenance: {kind: maintainer, date: "2026-10-06", question_id: Q20}}
   - {component: ingest, dimension: serialization-reconstruction, status: claimed, property_id: P-UPLOAD, conditions: "nothing uploaded is executed; served as audio, video or download", provenance: {kind: documented, source: 'docs/configuration.md "uploaded is executed"'}}
   - {component: ingest, dimension: reference-lifecycle, status: unresolved, conditions: "temp dirs and process groups cleaned after conversion, best effort", question_id: Q34, provenance: {kind: inferred, question_id: Q34}}
   - {component: ingest, dimension: concurrency-reentrancy, status: unresolved, conditions: "jobs run at least once; a retried step may repeat side effects", question_id: Q12, provenance: {kind: inferred, question_id: Q12}}
@@ -1328,6 +1328,14 @@ properties_claimed:
     violation_symptoms: [info-leak]
     x-voided-by: "Chromium without sandbox (domain/convert.py:273); operator-set documents.chromium or soffice binaries"
     provenance: {kind: documented, source: 'docs/configuration.md "Neither may reach anything"'}
+  - id: P-CONVERT-TIMEOUT
+    kind: resource-bound
+    components: [ingest]
+    tier: correctness-only
+    conditions: "every document conversion and capture ends within documents.convert_seconds and leaves no process of its group running; ffmpeg decoding (6 h), antiword, catdoc and pdftotext reads (300 s) and ffmpeg encoding for a speech service (600 s) end at their timeouts"
+    violation_symptoms: [hang]
+    x-voided-by: "children that ffmpeg or a reader starts itself; only converters run in their own process group (domain/ingest.py:794, domain/speech.py:183)"
+    provenance: {kind: maintainer, date: "2026-10-06", question_id: Q20}
   - id: P-TEMPLATE
     kind: integrity
     components: [ingest, assistant]
@@ -1454,8 +1462,8 @@ properties_disclaimed:
   - {id: N-HTTP-SETUP, components: [identity], tier: security-critical, false_friend: false, conditions: "passkey protection on plain HTTP; there the code alone makes the admin and a link alone signs in; plain HTTP is supported on one machine only", provenance: {kind: documented, source: 'docs/authentication.md "the code alone makes the admin"'}}
   - {id: N-OAUTH-CLIENT, components: [identity], tier: correctness-only, false_friend: false, conditions: "checking the app's state or guarding its redirect after the code arrives; registration is open, consent is the gate; the app's side only; Lens's redirect-URI, PKCE and consent checks are P-OAUTH", provenance: {kind: documented, source: 'docs/authentication.md "Apps register themselves"'}}
   - {id: N-CHROMIUM, components: [outbound, ingest], tier: security-critical, false_friend: true, conditions: "Chromium's own sandbox in containers or as root; the netguard proxy is what stops a page; conversion and capture", x-false-friend-note: "'headless browser' is not isolation", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
-  - {id: N-DECODERS, components: [ingest], tier: security-critical, false_friend: false, conditions: "sandboxing or memory-safety for ffmpeg, poppler, antiword and similar decoders; memory bugs inside them route to §1.9; does not cover Lens's own process control (timeouts, killing children): that is the unresolved x-process-control row", provenance: {kind: inferred, question_id: Q20}}
-  - {id: N-BOMBS, components: [ingest], tier: security-critical, false_friend: false, conditions: "bounds on decompressed size, nested emails or media duration (docx XML, email attachments, long media); does not cover a conversion or capture outliving Lens's own timeout (x-process-control, Q20)", provenance: {kind: inferred, question_id: Q22}}
+  - {id: N-DECODERS, components: [ingest], tier: security-critical, false_friend: false, conditions: "sandboxing or memory-safety for ffmpeg, poppler, antiword and similar decoders; memory bugs inside them route to §1.9; does not cover Lens's own process control (timeouts, killing children): that is P-CONVERT-TIMEOUT", provenance: {kind: inferred, question_id: Q20}}
+  - {id: N-BOMBS, components: [ingest], tier: security-critical, false_friend: false, conditions: "bounds on decompressed size, nested emails or media duration (docx XML, email attachments, long media); does not cover a conversion or capture outliving Lens's own timeout (P-CONVERT-TIMEOUT)", provenance: {kind: inferred, question_id: Q22}}
   - {id: N-PROMPT, components: [assistant], tier: correctness-only, false_friend: true, conditions: "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; exfiltration through rendered answers is Q26", x-false-friend-note: "a system prompt is not a filter", provenance: {kind: inferred, question_id: Q26}}
   - {id: N-MODEL-OUTPUT, components: [assistant], tier: correctness-only, false_friend: false, conditions: "correct or grounded model output; answers can be wrong; checking sources re-asks the same model", provenance: {kind: documented, source: 'docs/assistant.md "Check sources"'}}
   - {id: N-REMOTE, components: [outbound], tier: security-critical, false_friend: false, conditions: "trust in remote content (storage listings, mail, calendars, IIIF manifests, model replies), treated as data; does not cover Lens's own cache keys or names for remote content (P-REMOTE-NAMES, Q43)", provenance: {kind: inferred, question_id: Q17}}
