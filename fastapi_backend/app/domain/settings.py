@@ -123,6 +123,7 @@ ENUMS = {
     ("voice", "tts_provider"): {"openai", "elevenlabs", "deepgram"},
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
+    ("bridge", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("files", "store"): {"local", "connection"},
 }
@@ -375,7 +376,7 @@ def _check(section, key, value, default):
         return _component_setting(key, value)
     if section == "mail" and key != "security":
         return _mail_setting(key, value)
-    if section == "bridge" and key not in ("answer", "enabled"):
+    if section == "bridge" and key not in ("answer", "enabled", "approve"):
         return _bridge_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
         if value in (None, ""):

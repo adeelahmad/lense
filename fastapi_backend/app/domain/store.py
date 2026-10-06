@@ -325,6 +325,9 @@ DEFAULTS = {
         "answer": "mention",
         "users": [],
         "rooms": [],
+        # approving the assistant's reversible changes (entity merges and edits, new namespaces) by replying in the room,
+        # for the people in bridge.users; everything else is approved in the web app (bridge.ROOM_SAFE)
+        "approve": "low_risk",
         "poll_seconds": 2,
     },
     # what Lens fetches for itself (components.py): auto fetches what the settings need, on first use unless ahead;

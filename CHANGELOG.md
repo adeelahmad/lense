@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Approve the assistant's reversible changes from the chat room.** When Lens proposes merging entities or a new
+  namespace in Slack, WhatsApp or another bridged room, the people listed in Settings › Chat rooms can reply "yes" or
+  "no" there instead of opening the web app. Settings, imports, runs and extensions still wait for the web app.
 - **Chat rooms route each question to its namespace.** In a room no namespace is given to, Lens picks the namespace
   each question is about (or the one whose assistant it names), says where it looked, and names the likeliest when
   it isn't sure. "use pods" keeps the conversation in one namespace until "use everything".
