@@ -40,7 +40,9 @@ on its own, waiting longer each time up to five minutes. Change its connection w
 pause it to disconnect. One process runs each bridge.
 
 In Docker, the hub runs in the `worker` container, which publishes 1883 and 5514; set `LENS_MQTT_PORT` or
-`LENS_SYSLOG_PORT` when something else on the machine has those ports. The development compose file
+`LENS_SYSLOG_PORT` when something else on the machine has those ports. The production compose file publishes
+them where the web app is (`LENS_BIND`: this machine only, unless `install.sh` opened Lens to the network), and the
+development one on this machine only; `LENS_SENSOR_BIND=0.0.0.0` lets devices on the network reach them. The development compose file
 (`docker-compose.yml`) publishes them on this machine only; set `LENS_SENSOR_BIND=0.0.0.0` to let devices on the
 network reach them. Run natively, it runs in `lens worker` (and in
 the API when it runs background work). Several processes can run it: the first to get the port serves it, and the

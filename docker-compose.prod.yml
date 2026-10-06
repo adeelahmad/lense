@@ -91,10 +91,12 @@ services:
     command: lens worker
     # the sensor hub (docs/sensors.md): MQTT and syslog, listened on only once sensors are turned on in the app.
     # Something else on this machine using 1883 or 5514? Set LENS_MQTT_PORT / LENS_SYSLOG_PORT to other ports.
+    # Published where the web app is (LENS_BIND: this machine only unless install.sh opened it to the network);
+    # LENS_SENSOR_BIND=0.0.0.0 lets devices on the network in while the web app stays local.
     ports:
-      - "${LENS_MQTT_PORT:-1883}:1883"
-      - "${LENS_SYSLOG_PORT:-5514}:5514/udp"
-      - "${LENS_SYSLOG_PORT:-5514}:5514/tcp"
+      - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_MQTT_PORT:-1883}:1883"
+      - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/udp"
+      - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/tcp"
     healthcheck:
       disable: true
 

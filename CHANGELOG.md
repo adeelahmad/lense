@@ -8,6 +8,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   service, then turn on Settings › Chat rooms › Run Matterbridge here and add a bot token and rooms. To link
   WhatsApp, scan the QR code the page shows. Lens writes Matterbridge's config, a gateway per room, and restarts it
   when the settings change.
+- **The sensor hub's ports follow the web app's.** The production compose file publishes MQTT (1883) and syslog
+  (5514) where the web app is: on this machine only unless `LENS_BIND=0.0.0.0` (which `install.sh` sets on a server).
+  If devices on your network send to a Lens whose web app is local only, set `LENS_SENSOR_BIND=0.0.0.0`
+  ([Sensors](docs/sensors.md)).
 - **Approve the assistant's reversible changes from the chat room.** When Lens proposes merging entities or a new
   namespace in Slack, WhatsApp or another bridged room, the people listed in Settings › Chat rooms can reply "yes" or
   "no" there instead of opening the web app. Settings, imports, runs and extensions still wait for the web app.
