@@ -1,0 +1,85 @@
+name: Matterbridge
+
+# The Matterbridge Lens runs (the optional matterbridge service, matterbridge/): it builds, it waits for the config
+# Lens writes into the shared volume (as Lens's user, uid 1000), and once there its API answers with Lens's token.
+on:
+  pull_request:
+    paths:
+      - matterbridge/**
+      - .github/workflows/matterbridge.yml
+  push:
+    branches: [main]
+    paths:
+      - matterbridge/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  matterbridge:
+    name: Build and start
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -t lens-matterbridge:ci matterbridge
+
+      - name: Start it before there's a config
+        run: |
+          docker network create mb
+          docker volume create mb-data
+          docker run -d --name mb --network mb -v mb-data:/matterbridge lens-matterbridge:ci
+          sleep 3
+          docker logs mb 2>&1 | grep -q "Waiting for Lens"
+
+      - name: Lens writes a config, and Matterbridge starts with it
+        run: |
+          docker run --rm -i --user 1000 -v mb-data:/matterbridge alpine:3.20 sh -c 'umask 077; cat > /matterbridge/matterbridge.toml' <<'TOML'
+          [api.lens]
+          BindAddress="0.0.0.0:4242"
+          Token="ci-token"
+          Buffer=1000
+          [whatsapp.lens]
+          Number="+441234567890"
+          SessionFile="/matterbridge/whatsapp"
+          [[gateway]]
+          name="whatsapp-family"
+          enable=true
+          [[gateway.inout]]
+          account="whatsapp.lens"
+          channel="Family"
+          [[gateway.inout]]
+          account="api.lens"
+          channel="api"
+          TOML
+          for _ in $(seq 1 30); do
+            if docker run --rm --network mb curlimages/curl:8.10.1 -fsS -H "Authorization: Bearer ci-token" http://mb:4242/api/health; then
+              echo; exit 0
+            fi
+            sleep 2
+          done
+          echo "Matterbridge's API didn't answer"; exit 1
+
+      - name: The log Lens reads the WhatsApp QR code from
+        run: |
+          sleep 10
+          log="$(docker run --rm -v mb-data:/matterbridge alpine:3.20 cat /matterbridge/matterbridge.log)"
+          echo "$log" | head -40
+          echo "$log" | grep -q "Starting bridge: whatsapp.lens"
+          # WhatsApp may not answer a CI runner: a QR code is welcome, not required
+          echo "$log" | grep -q "▀" || echo "::warning::no WhatsApp QR code in the log"
+
+      - name: What it said
+        if: failure()
+        run: docker logs mb
+
+      - name: Stop
+        if: always()
+        run: docker rm -f mb || true

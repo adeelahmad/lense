@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
 import { Admin, Fedora, Metadata, Sensors, Sources } from "@/app/openapi-client";
+import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -1020,10 +1021,11 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
   const status = useQuery({
     queryKey: ["bridge-status", b?.updated_at ?? null],
     queryFn: () => data(Admin.bridgeStatus({ client })),
-    refetchInterval: 10_000,
+    refetchInterval: (q) => (q.state.data?.matterbridge?.whatsapp_qr ? 3_000 : 10_000), // the QR code changes often
   });
   const test = useMutation({ mutationFn: () => data(Admin.testBridge({ client })) });
   const s = status.data;
+  const managed = Boolean(ctx.form["matterbridge.run"]);
   return (
     <>
       {s?.state === "running" ? (
@@ -1043,20 +1045,32 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
         <Banner title="Starting.">A server process picks it up within a few seconds.</Banner>
       ) : (
         <Banner title="Off.">
-          Run Matterbridge with an API account in the same gateway as your rooms, then turn this on.
+          Turn on Run Matterbridge here and add your chat networks below, or use a Matterbridge of your own with an API
+          account in the same gateway as your rooms. Then turn this on.
         </Banner>
       )}
       <F ctx={ctx} id="bridge.enabled" />
-      <F ctx={ctx} id="bridge.url" />
-      <SecretSetting
-        key={b?.updated_at ?? "none"}
-        label="API token"
-        isSet={Boolean(((b?.values?.token ?? {}) as { set?: boolean }).set)}
-        updatedBy={b?.updated_by}
-        updatedAt={b?.updated_at}
-        value={token.value as string | undefined}
-        onChange={(x) => token.onChange(x)}
+      <F
+        ctx={ctx}
+        id="matterbridge.run"
+        hint="Lens writes Matterbridge’s config from the networks below. Needs the matterbridge service: docker compose --profile matterbridge up -d (or COMPOSE_PROFILES=matterbridge in .env)."
       />
+      {managed ? (
+        <RunMatterbridge ctx={ctx} status={s?.matterbridge ?? null} />
+      ) : (
+        <>
+          <F ctx={ctx} id="bridge.url" />
+          <SecretSetting
+            key={b?.updated_at ?? "none"}
+            label="API token"
+            isSet={Boolean(((b?.values?.token ?? {}) as { set?: boolean }).set)}
+            updatedBy={b?.updated_by}
+            updatedAt={b?.updated_at}
+            value={token.value as string | undefined}
+            onChange={(x) => token.onChange(x)}
+          />
+        </>
+      )}
       <F ctx={ctx} id="bridge.account" />
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="bridge.name" />
@@ -1086,6 +1100,95 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ))}
       {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function MatterbridgeSecret({ ctx, id, label }: { ctx: BodyCtx; id: string; label: string }) {
+  const m = ctx.view.matterbridge;
+  const st = ctx.state(`matterbridge.${id}`);
+  return (
+    <SecretSetting
+      key={m?.updated_at ?? "none"}
+      label={label}
+      isSet={Boolean(((m?.values?.[id] ?? {}) as { set?: boolean }).set)}
+      updatedBy={m?.updated_by}
+      updatedAt={m?.updated_at}
+      value={st.value as string | undefined}
+      onChange={(x) => st.onChange(x)}
+    />
+  );
+}
+
+/** The chat networks of the Matterbridge Lens runs, the rooms they became, and WhatsApp's QR code while pairing. */
+function RunMatterbridge({ ctx, status }: { ctx: BodyCtx; status: MatterbridgeStatus | null }) {
+  const net = "flex flex-col gap-3 rounded-sm border border-border-subtle p-3";
+  const title = "text-[13px] font-bold leading-tight text-fg-strong";
+  return (
+    <>
+      {status?.error && (
+        <Banner tone="error" title="Matterbridge’s config isn’t written yet.">
+          {status.error}
+        </Banner>
+      )}
+      {status?.whatsapp_qr && (
+        <Banner title="Link WhatsApp.">
+          On the phone with that number, open WhatsApp › Linked devices › Link a device and scan this. It changes every
+          few seconds.
+          <pre
+            aria-label="WhatsApp QR code"
+            className="mt-2 w-fit bg-white p-2 font-mono text-[9px] leading-[1] text-black"
+          >
+            {status.whatsapp_qr}
+          </pre>
+        </Banner>
+      )}
+      <div className={net}>
+        <span className={title}>Slack</span>
+        <MatterbridgeSecret ctx={ctx} id="slack_token" label="Bot token (xoxb-…)" />
+        <F ctx={ctx} id="matterbridge.slack_channels" />
+      </div>
+      <div className={net}>
+        <span className={title}>WhatsApp</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="matterbridge.whatsapp_number" />
+          <F ctx={ctx} id="matterbridge.whatsapp_groups" />
+        </div>
+      </div>
+      <div className={net}>
+        <span className={title}>Telegram</span>
+        <MatterbridgeSecret ctx={ctx} id="telegram_token" label="Bot token (from @BotFather)" />
+        <F ctx={ctx} id="matterbridge.telegram_chats" />
+      </div>
+      <div className={net}>
+        <span className={title}>Discord</span>
+        <MatterbridgeSecret ctx={ctx} id="discord_token" label="Bot token" />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="matterbridge.discord_server" />
+          <F ctx={ctx} id="matterbridge.discord_channels" />
+        </div>
+      </div>
+      <div className={net}>
+        <span className={title}>Matrix</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="matterbridge.matrix_server" />
+          <F ctx={ctx} id="matterbridge.matrix_login" />
+        </div>
+        <MatterbridgeSecret ctx={ctx} id="matrix_password" label="Matrix password" />
+        <F ctx={ctx} id="matterbridge.matrix_rooms" />
+      </div>
+      {(status?.gateways ?? []).length > 0 && (
+        <p className="text-[12.5px] leading-normal text-fg-secondary">
+          Rooms, by the name to use in Rooms for a namespace’s assistant:{" "}
+          {(status?.gateways ?? []).map((g, i) => (
+            <span key={g.gateway}>
+              {i > 0 && ", "}
+              <code className="font-mono">{g.gateway}</code>
+            </span>
+          ))}
+          .
+        </p>
+      )}
     </>
   );
 }

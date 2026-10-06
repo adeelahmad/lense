@@ -35,7 +35,7 @@ import threading
 import urllib.error
 import urllib.request
 
-from . import ai_tools, auth, auto_scope, chat, graph_history, llm, ns_assistant, store
+from . import ai_tools, auth, auto_scope, chat, graph_history, llm, matterbridge, ns_assistant, store
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -53,21 +53,29 @@ def ready(cfg):
     b = cfg.get("bridge") or {}
     if not b.get("enabled"):
         return "off"
-    if not b.get("url"):
+    if not b.get("url") and not matterbridge.running(cfg):
         return "no Matterbridge API address"
     if not b.get("account"):
         return "no Lens account to answer as"
     return None
 
 
+def endpoint(cfg):
+    """(Matterbridge's API address, its token): the one Lens runs (matterbridge.py), else bridge.url and bridge.token."""
+    if matterbridge.running(cfg):
+        return matterbridge.api_url(), matterbridge.api_token(cfg)
+    b = cfg["bridge"]
+    return b.get("url"), b.get("token")
+
+
 # ---------- Matterbridge's API ----------
 def _call(cfg, method, path, body=None):
-    b = cfg["bridge"]
+    url, token = endpoint(cfg)
     headers = {"Content-Type": "application/json", "User-Agent": "Lens"}
-    if b.get("token"):
-        headers["Authorization"] = f"Bearer {b['token']}"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(
-        b["url"].rstrip("/") + path, data=json.dumps(body).encode() if body is not None else None, headers=headers, method=method
+        url.rstrip("/") + path, data=json.dumps(body).encode() if body is not None else None, headers=headers, method=method
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
@@ -75,7 +83,8 @@ def _call(cfg, method, path, body=None):
     except urllib.error.HTTPError as e:
         raise BridgeError(f"Matterbridge answered HTTP {e.code}" + (" (check the token)" if e.code == 401 else "")) from None
     except (urllib.error.URLError, OSError) as e:
-        raise BridgeError(f"can't reach Matterbridge at {b['url']}: {getattr(e, 'reason', e)}") from None
+        hint = " (is the matterbridge service running? docker compose --profile matterbridge up -d)" if matterbridge.running(cfg) else ""
+        raise BridgeError(f"can't reach Matterbridge at {url}: {getattr(e, 'reason', e)}{hint}") from None
     return json.loads(raw or b"null")
 
 
@@ -97,10 +106,14 @@ def check(db, cfg):
     """Whether Matterbridge answers and the account to answer as is there: None when all is well, else what's wrong.
     (It asks /api/health, not /api/messages, which would take the messages waiting for the thread.)"""
     b = cfg.get("bridge") or {}
-    if not b.get("url"):
+    if matterbridge.running(cfg):
+        problem = matterbridge.write(cfg)
+        if problem:
+            return problem
+    elif not b.get("url"):
         return "set Matterbridge's API address first"
     try:
-        _call({"bridge": b}, "GET", "/api/health")
+        _call(cfg, "GET", "/api/health")
     except BridgeError as e:
         return str(e)
     except ValueError:
@@ -491,6 +504,10 @@ def tick(db, cfg, base, me):
         return 0
     _HELD.add(me)
     try:
+        if matterbridge.running(cfg):  # the config follows the settings; the service restarts Matterbridge on a change
+            problem = matterbridge.write(cfg)
+            if problem:
+                raise BridgeError(problem)
         said = fetch(cfg)
     except Exception as e:
         _note(db, me, error=str(e), at=store.now())

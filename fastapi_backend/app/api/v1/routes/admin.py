@@ -22,6 +22,7 @@ from app.domain import (
     keyring,
     llm,
     local_llm,
+    matterbridge,
     semantic,
     settings,
     sources,
@@ -146,7 +147,7 @@ def test_file_store(user: AdminWriter, cfg: Cfg, db: Db, body: FileStoreTry | No
 @router.get("/settings/bridge")
 def bridge_status(user: AdminReader, cfg: Cfg, db: Db) -> BridgeStatus:
     """How the assistant's chat-room bridge (Matterbridge) is doing."""
-    return BridgeStatus(**bridge.status(db, cfg))
+    return BridgeStatus(**bridge.status(db, cfg), matterbridge=matterbridge.status(cfg) if matterbridge.running(cfg) else None)
 
 
 @router.get("/settings/local-llm/status")

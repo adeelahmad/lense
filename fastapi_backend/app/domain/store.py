@@ -330,6 +330,24 @@ DEFAULTS = {
         "approve": "low_risk",
         "poll_seconds": 2,
     },
+    # Matterbridge run by Lens (matterbridge.py): with `run` on, the matterbridge service in Docker Compose gets its
+    # config from these, a gateway per room, and the bridge talks to it; off, bridge.url is a Matterbridge of your own
+    "matterbridge": {
+        "run": False,
+        "slack_token": None,
+        "slack_channels": [],
+        "discord_token": None,
+        "discord_server": None,
+        "discord_channels": [],
+        "telegram_token": None,
+        "telegram_chats": [],
+        "matrix_server": None,
+        "matrix_login": None,
+        "matrix_password": None,
+        "matrix_rooms": [],
+        "whatsapp_number": None,
+        "whatsapp_groups": [],
+    },
     # what Lens fetches for itself (components.py): auto fetches what the settings need, on first use unless ahead;
     # also names optional ones (fetched straight away)
     "components": {"auto": True, "ahead": False, "also": []},

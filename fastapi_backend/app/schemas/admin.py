@@ -21,6 +21,19 @@ class MailTestResult(ResponseModel):
     error: str | None = None
 
 
+class MatterbridgeRoom(ResponseModel):
+    gateway: str = Field(description="its gateway's name, for bridge.rooms (like slack-general = pods)")
+    network: str
+    room: str
+
+
+class MatterbridgeStatus(ResponseModel):
+    run: bool
+    gateways: list[MatterbridgeRoom] = []
+    whatsapp_qr: str | None = Field(None, description="the QR code WhatsApp waits to be scanned with, as text lines")
+    error: str | None = Field(None, description="why its config couldn't be written")
+
+
 class BridgeStatus(ResponseModel):
     state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
         description="off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); "
@@ -30,6 +43,7 @@ class BridgeStatus(ResponseModel):
     holder: str | None = Field(None, description="the server process reading Matterbridge")
     at: str | None = Field(None, description="when it last looked")
     answered: int | None = Field(None, description="messages it answered since it started")
+    matterbridge: MatterbridgeStatus | None = Field(None, description="the Matterbridge Lens runs, when it runs one")
 
 
 class TunnelStatus(ResponseModel):

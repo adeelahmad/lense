@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Connect Slack, WhatsApp, Telegram, Discord and Matrix from the web app.** Start the optional `matterbridge`
+  service, then turn on Settings › Chat rooms › Run Matterbridge here and add a bot token and rooms. To link
+  WhatsApp, scan the QR code the page shows. Lens writes Matterbridge's config, a gateway per room, and restarts it
+  when the settings change.
 - **Visitors can no longer choose the address IP groups and sign-in throttles see.** The web app drops an
   `X-Forwarded-For` a browser sends and tells the API the address it was reached from. Behind a reverse proxy, set
   `TRUST_PROXY_HEADERS=true` on the web app, or every visitor counts as the proxy's address

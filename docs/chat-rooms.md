@@ -4,7 +4,37 @@ Lens's assistant can answer in Slack, Discord, Telegram, Matrix, Mattermost, IRC
 [Matterbridge](https://github.com/42wim/matterbridge) bridges. Say "Lens, what did we decide about the launch?" (or
 "@Lens …") in a bridged room and it answers there, as it would in Chat.
 
-## Set it up
+## Set it up in the web app
+
+Lens can run Matterbridge for you, so adding Slack or WhatsApp takes no config file:
+
+1. Start the optional `matterbridge` service once, next to Lens:
+
+   ```sh
+   docker compose -f docker-compose.prod.yml --profile matterbridge up -d
+   ```
+
+   (or add `COMPOSE_PROFILES=matterbridge` to Lens's `.env`, and run the install command again). The first start
+   builds Matterbridge, which takes a few minutes. It waits until Lens gives it something to do.
+
+2. Open **Settings → Chat rooms**, turn on **Run Matterbridge here** and **Answer in chat rooms**, and add a network:
+   - **Slack**: a bot token (`xoxb-…`) and the channels it is invited to.
+   - **WhatsApp**: the phone number and the group names. The page then shows a QR code: on that phone, open
+     WhatsApp › Linked devices › Link a device and scan it. Lens stays linked after restarts. A number of its own
+     is best.
+   - **Telegram**: a bot token from @BotFather and the chat IDs.
+   - **Discord**: a bot token, the server and its channels.
+   - **Matrix**: the homeserver, a login and password, and the rooms.
+
+Lens writes Matterbridge's config from these settings, with a gateway for each room named after the network and the
+room (`slack-general`, `whatsapp-family-chat`). The page lists the names, so you can give a room to a namespace
+with **Rooms for a namespace's assistant**. Matterbridge restarts by itself whenever the settings change. Its API
+token comes from the server's secret key, so there's nothing to copy.
+
+The service is built with WhatsApp support, which upstream Matterbridge leaves out because a library it uses is
+GPL-3.0. It is a separate program that Lens only talks to over HTTP, and it runs only when you start it.
+
+## Or use a Matterbridge of your own
 
 1. Give Matterbridge an API account and put it in the gateway with your rooms:
 
@@ -62,6 +92,10 @@ That's all. Without an account given, it answers as the admin who turned it on.
 - **One reader.** Matterbridge hands out each message once, so only one server process reads it: the API and the
   workers all run the bridge thread, and whichever holds the lease (renewed every look, given up when it stops or the
   bridge is turned off) does the reading. Settings → Chat rooms says whether it is listening and how many messages it answered.
+
+Settings (`matterbridge`): `run`, `slack_token`, `slack_channels`, `discord_token`, `discord_server`,
+`discord_channels`, `telegram_token`, `telegram_chats`, `matrix_server`, `matrix_login`, `matrix_password`,
+`matrix_rooms`, `whatsapp_number`, `whatsapp_groups` (the tokens and the password are secrets).
 
 Settings (`bridge`): `enabled`, `url`, `token` (a secret), `account`, `name` (default Lens), `answer` (`mention` or
 `all`), `gateway`, `users`, `approve` (`low_risk` or `off`), `rooms`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to

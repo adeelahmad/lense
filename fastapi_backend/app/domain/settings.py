@@ -43,6 +43,7 @@ EDITABLE = {
     "local_llm": ("enabled", "model", "use_as_provider", "context", "threads", "gpu_layers", "port", "host"),
     "mail": None,
     "bridge": None,
+    "matterbridge": None,
     "notifications": None,
     "telemetry": None,
     "activity": None,
@@ -100,6 +101,7 @@ SECRETS = {
     "speech": ("openai_api_key", "elevenlabs_api_key", "assemblyai_api_key", "deepgram_api_key"),
     "mail": ("password",),
     "bridge": ("token",),
+    "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers",),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
@@ -378,6 +380,8 @@ def _check(section, key, value, default):
         return _mail_setting(key, value)
     if section == "bridge" and key not in ("answer", "enabled", "approve"):
         return _bridge_setting(key, value)
+    if section == "matterbridge" and key != "run":
+        return _matterbridge_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
         if value in (None, ""):
             return None
@@ -575,6 +579,27 @@ def _bridge_setting(key, value):
     if key == "name" and not re.match(r"^[\w .-]{1,40}$", value):
         raise ValueError("bridge.name is a short name, such as Lens")
     return value
+
+
+def _matterbridge_setting(key, value):
+    if key.endswith(("_channels", "_chats", "_rooms", "_groups")):
+        if not (isinstance(value, list) and len(value) <= 100 and all(isinstance(v, str) and len(v) <= 200 for v in value)):
+            raise ValueError(f"matterbridge.{key} is a list of rooms, one per line")
+        return list(dict.fromkeys(v.strip() for v in value if v.strip()))
+    if key not in store.DEFAULTS["matterbridge"]:
+        raise ValueError(f"unknown setting matterbridge.{key}")
+    if value in (None, ""):
+        return None
+    if not (isinstance(value, str) and len(value.strip()) <= 500) or "\n" in value:
+        raise ValueError(f"matterbridge.{key} is one line of text")
+    value = value.strip()
+    if key == "matrix_server":
+        u = urllib.parse.urlsplit(value)
+        if u.scheme not in ("http", "https") or not u.hostname:
+            raise ValueError("matterbridge.matrix_server is the https:// address of the Matrix homeserver")
+    if key == "whatsapp_number" and not re.match(r"^\+[0-9]{6,16}$", value.replace(" ", "")):
+        raise ValueError("matterbridge.whatsapp_number is the phone number with its country code, like +441234567890")
+    return value.replace(" ", "") if key == "whatsapp_number" else value
 
 
 def _component_setting(key, value):
@@ -881,6 +906,8 @@ def save(db, base, section, changes, user=None):
             elif isinstance(v, str):
                 if (section, k) == ("telemetry", "headers"):
                     telemetry.parse_headers(v)  # ValueError when malformed
+                if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
+                    raise ValueError(f"matterbridge.{k} is one line of text")
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"
                 raise ValueError(f"{section}.{k} must be text")
