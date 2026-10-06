@@ -5,9 +5,12 @@
   </picture>
 </p>
 
-# Lens
+# Lens: intelligence for your agent
 
-**Usable context for you and your agents.** Lens remembers what actually happened, and shows you the exact moment.
+**Safe, secure and cost-effective.**
+
+Connect your live data streams; Lens turns them into a cited knowledge graph your agent can reason over. Runs on your
+hardware with local models or any cloud model, private by default and cost-aware.
 
 ## Install
 
@@ -23,6 +26,12 @@ for a namespace, a model provider and storage ([details](docs/get-started.md#in-
 To work on the code instead, `make run` builds and runs everything from a checkout, `make setup-code` prints the
 first-admin setup code, and `make dev` runs it with hot reload; see [Get started](docs/get-started.md).
 
+## Why Lens
+
+**AI doesn't lack intelligence. It lacks structure. Lens gives your agent eyes.** Without structure, every prompt is a
+guess about who you are and what happened. Lens supplies the people and things involved, how they relate, what happened
+when, and the source of each fact, so your agent stops guessing.
+
 Lens is one private AI hub for your whole life. Every source is a sensor: recordings, documents, email, calendars,
 chat rooms, devices and webhooks all flow in, and everything becomes memory you can trust, because every answer cites
 where it came from, down to the second of a recording or the line of a document. It runs on your own hardware, from a
@@ -31,6 +40,11 @@ Raspberry Pi to the cloud, and you own every byte.
 Lens is built first for agents and AI assistants. After setup, most people do two things: talk to an assistant that
 finds and fetches what they need, and look at the charts and reports that show what is in their archive and what it
 cost.
+
+Lens is also infrastructure to build on. An app built on Lens, such as an email responder or a customer manager,
+starts with real, structured context (who is involved, what was said, what was decided, with sources) instead of a
+blank prompt. Apps reach it the same way agents do: through the MCP server, the REST API and OAuth sign-in, limited to
+what their person may read.
 
 ## What you can do with it
 
@@ -87,5 +101,10 @@ Start with [Get started](docs/get-started.md), then [Architecture](docs/architec
 [Configuration](docs/configuration.md), [API](docs/api.md) and [Deployment](docs/deployment.md). The full guide list is
 in the [docs](docs/) folder. [Contributing](CONTRIBUTING.md), [Security](SECURITY.md),
 [Changelog](CHANGELOG.md).
+
+## License
+
+Lens is open source under the [MIT License](LICENSE.txt). Optional extras that you install yourself may carry their own
+licenses (for example `extract-msg`, GPL-3.0, for Outlook `.msg` files); none is part of the default install.
 
 Built on the [Next.js FastAPI Template](https://github.com/vintasoftware/nextjs-fastapi-template) (MIT).

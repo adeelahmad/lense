@@ -34,7 +34,8 @@ can open them, and harvesters can follow them.
   recordings.
 - **Authorization Flow 2.0:** protected audio and transcripts carry a probe service.
   - Other viewers open `/iiif/auth/access` to sign in and get a token from `/iiif/auth/token`, which posts it only to
-    the viewer's origin.
+    the viewer's origin. The page signs in with a password, so where passwords are off (`auth.passwords`) it offers
+    no form and a submitted one answers 403; such viewers play only what is open to everyone.
   - A successful probe returns a short-lived signed link, so playback doesn't depend on third-party cookies.
   - `/iiif/auth/logout` revokes the tokens.
 - **Import:** `POST /api/v1/import/iiif` (admins) takes a Presentation 3 Manifest or Collection from another server.
@@ -54,7 +55,9 @@ namespace, and only owners change it:
 Set `iiif.base_url` to the stable public HTTPS address, since identifiers are built from it. Put the server behind
 HTTPS before publishing: the authorization flow requires it, and its cookie is `SameSite=None; Secure`. Other IIIF
 viewers also need the public host in `server.allowed_hosts`. `iiif.viewers` holds "Open in" links, using `{manifest}` and
-`{content_state}` placeholders; `iiif.allowed_origins` limits which viewer sites can get tokens.
+`{content_state}` placeholders; `iiif.allowed_origins` limits which viewer sites can get tokens. Even where every site
+is allowed (`*`, the default), a site gets a token only for people who signed in for it or confirmed it with Continue
+on the access page, so a page someone visits can't quietly use their sign-in.
 
 **Metadata.** Viewers show label, summary (in several languages), label/value pairs, rights (a Creative Commons or
 RightsStatements.org URI), attribution, provider, date, languages, creators, contributors, subjects (optionally linked

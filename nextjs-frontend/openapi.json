@@ -17088,6 +17088,52 @@
         }
       }
     },
+    "/api/v1/watches/routes/preview": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Preview Routes",
+        "description": "Where the latest messages of an email account would go under these routing rules, before saving them.",
+        "operationId": "preview_routes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoutedMessage"
+                  },
+                  "type": "array",
+                  "title": "Response Sources-Preview Routes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/watches/{wid}": {
       "patch": {
         "tags": [
@@ -22443,6 +22489,585 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/import-hooks": {
+      "get": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "List Import Hooks",
+        "description": "The namespace's import webhooks (owners). Their tokens aren't shown again, only their last four characters.",
+        "operationId": "list_import_hooks",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImportHook"
+                  },
+                  "title": "Response Import Hooks-List Import Hooks"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "Create Import Hook",
+        "description": "Make an import webhook for the namespace (owners). Its token is in the answer and never shown again. Audited as\n`import_hook.create`.",
+        "operationId": "create_import_hook",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportHookCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportHookCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/import-hooks/{hid}": {
+      "patch": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "Update Import Hook",
+        "description": "Rename a hook, pause or resume it (`enabled`), or change its collection or pipeline (null for the namespace's\nown) (owners).",
+        "operationId": "update_import_hook",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "hid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Hid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportHookUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportHook"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "Delete Import Hook",
+        "description": "Delete a hook (owners): its token stops working. What it imported stays.",
+        "operationId": "delete_import_hook",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "hid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Hid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/import-hooks/{hid}/token": {
+      "post": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "New Import Hook Token",
+        "description": "A new token for the hook (owners); the old one stops working at once.",
+        "operationId": "new_import_hook_token",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "hid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Hid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportHookToken"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hooks/import": {
+      "post": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "Push To Import Hook",
+        "description": "Push something into an import webhook's namespace, with its token as a bearer token. Three ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over\nuploads.max_mb. Audited as `import.hook`.",
+        "operationId": "push_to_import_hook",
+        "parameters": [
+          {
+            "name": "filename",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the file's name, for a raw body",
+              "title": "Filename"
+            },
+            "description": "the file's name, for a raw body"
+          },
+          {
+            "name": "title",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "its title (default: the file's name, or the page's)",
+              "title": "Title"
+            },
+            "description": "its title (default: the file's name, or the page's)"
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HookPushed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "What a JSON push carries: a web address or text (send a file as the raw body, or as multipart form files).",
+                "properties": {
+                  "url": {
+                    "anyOf": [
+                      {
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "a web page or PDF to keep as a document",
+                    "title": "Url"
+                  },
+                  "text": {
+                    "anyOf": [
+                      {
+                        "maxLength": 5000000,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "text to import as a transcript, as pasted text is",
+                    "title": "Text"
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "maxLength": 200,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Title"
+                  }
+                },
+                "title": "HookPush",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hooks/import/{token}": {
+      "post": {
+        "tags": [
+          "import hooks"
+        ],
+        "summary": "Push To Import Hook Token",
+        "description": "The same, with the token in the address, for services that can only be given a URL. Prefer the bearer token:\naddresses end up in logs.",
+        "operationId": "push_to_import_hook_token",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the file's name, for a raw body",
+              "title": "Filename"
+            },
+            "description": "the file's name, for a raw body"
+          },
+          {
+            "name": "title",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Title"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HookPushed"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "url": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "description": "What a JSON push carries: a web address or text (send a file as the raw body, or as multipart form files).",
+                "properties": {
+                  "url": {
+                    "anyOf": [
+                      {
+                        "format": "uri",
+                        "maxLength": 2083,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "a web page or PDF to keep as a document",
+                    "title": "Url"
+                  },
+                  "text": {
+                    "anyOf": [
+                      {
+                        "maxLength": 5000000,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "text to import as a transcript, as pasted text is",
+                    "title": "Text"
+                  },
+                  "title": {
+                    "anyOf": [
+                      {
+                        "maxLength": 200,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Title"
+                  }
+                },
+                "title": "HookPush",
+                "type": "object"
               }
             }
           }
@@ -32287,6 +32912,77 @@
         "type": "object",
         "title": "HighlightUpdate"
       },
+      "HookItem": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "file",
+              "url",
+              "text"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the file's name, the address, or the text's title"
+          },
+          "recording": {
+            "type": "integer",
+            "title": "Recording",
+            "description": "the recording or resource it became"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "the job that runs its pipeline"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "description": "the namespace had this file already; it's that recording",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "recording"
+        ],
+        "title": "HookItem"
+      },
+      "HookPushed": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HookItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "namespace",
+          "items"
+        ],
+        "title": "HookPushed"
+      },
       "HubLogin": {
         "properties": {
           "id": {
@@ -32644,6 +33340,237 @@
           "problems"
         ],
         "title": "IiifValidation"
+      },
+      "ImportHook": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "where its imports go (default: the namespace's default collection)"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "the pipeline its imports run (default: the namespace's)"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "false while paused: pushes are refused, and the token keeps"
+          },
+          "token_tail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Tail",
+            "description": "the token's last four characters, to tell tokens apart"
+          },
+          "used": {
+            "type": "integer",
+            "title": "Used",
+            "description": "how many things it has imported",
+            "default": 0
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "namespace",
+          "enabled",
+          "created_at"
+        ],
+        "title": "ImportHook"
+      },
+      "ImportHookCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "description": "what pushes to it, e.g. Scanner or Zapier"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ImportHookCreate"
+      },
+      "ImportHookCreated": {
+        "properties": {
+          "hook": {
+            "$ref": "#/components/schemas/ImportHook"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "shown this once: send it as a bearer token, or put it in the address"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "where to push, on this server's address (POST, with Authorization: Bearer <token>)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "hook",
+          "token",
+          "path"
+        ],
+        "title": "ImportHookCreated"
+      },
+      "ImportHookToken": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "shown this once; the old token has stopped working"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "ImportHookToken"
+      },
+      "ImportHookUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ImportHookUpdate"
       },
       "ImportPreview": {
         "properties": {
@@ -42536,6 +43463,234 @@
         ],
         "title": "RollbackAsk"
       },
+      "Route": {
+        "properties": {
+          "match": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "propertyNames": {
+              "enum": [
+                "from",
+                "to",
+                "subject",
+                "list",
+                "mailbox"
+              ]
+            },
+            "type": "object",
+            "title": "Match",
+            "description": "conditions, all of which must match; each holds patterns, any of which may"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "where matching messages go (a namespace that exists)"
+          },
+          "skip": {
+            "type": "boolean",
+            "title": "Skip",
+            "description": "matching messages aren't imported at all",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "match"
+        ],
+        "title": "Route"
+      },
+      "RoutePreviewRequest": {
+        "properties": {
+          "source": {
+            "type": "integer",
+            "title": "Source"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "default": ""
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "the watch's own namespace, for messages no rule matches"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/Route"
+            },
+            "type": "array",
+            "title": "Routes",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "namespace"
+        ],
+        "title": "RoutePreviewRequest"
+      },
+      "RouteView": {
+        "properties": {
+          "match": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Match"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "None when skipped, or the namespace was deleted"
+          },
+          "skip": {
+            "type": "boolean",
+            "title": "Skip",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "match"
+        ],
+        "title": "RouteView"
+      },
+      "RoutedMessage": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "When"
+          },
+          "from": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "From",
+            "default": []
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "To",
+            "default": []
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "skipped": {
+            "type": "boolean",
+            "title": "Skipped",
+            "default": false
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule",
+            "description": "the rule that decided, counted from 1; None: no rule matched"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "RoutedMessage"
+      },
       "Routine": {
         "properties": {
           "id": {
@@ -49795,6 +50950,14 @@
             ],
             "title": "Enabled"
           },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteView"
+            },
+            "type": "array",
+            "title": "Routes",
+            "default": []
+          },
           "last_scan_at": {
             "anyOf": [
               {
@@ -49971,6 +51134,21 @@
               }
             ],
             "title": "Enabled"
+          },
+          "routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Route"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routes",
+            "description": "an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at."
           },
           "source": {
             "type": "integer",
@@ -50215,6 +51393,21 @@
               }
             ],
             "title": "Enabled"
+          },
+          "routes": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Route"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routes",
+            "description": "an email watch's routing rules, tried in order: the first whose conditions all match a new message sends it to its namespace (or skips it); a message no rule matches goes to the watch's namespace. Patterns ignore case; without * or ? they match anywhere in the text. `to` covers To, Cc and the address the inbox received it at."
           }
         },
         "additionalProperties": false,

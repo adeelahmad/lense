@@ -167,3 +167,6 @@ local-shared-data/*
 
 # Claude Code worktrees
 /.claude/worktrees/
+
+# ci/local-ci.sh logs
+/.local-ci/

@@ -1064,6 +1064,7 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <F ctx={ctx} id="bridge.gateway" />
       <F ctx={ctx} id="bridge.users" />
+      <F ctx={ctx} id="bridge.rooms" />
       <F ctx={ctx} id="bridge.poll_seconds" />
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
@@ -1099,6 +1100,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         The assistant uses the model set in LLM provider; it needs one that supports tool calls.
       </p>
       <F ctx={ctx} id="ai.tools" />
+      <F ctx={ctx} id="ai.compact" />
       <F ctx={ctx} id="ai.refine_notes" />
       <F ctx={ctx} id="ai.organise_notes" />
       <div className="flex flex-col gap-2">

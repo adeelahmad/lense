@@ -87,13 +87,14 @@ def passkey_setup_options(body: PasskeySetupStart, request: Request, db: Db, cfg
 def passkey_setup(body: PasskeyAnswer, request: Request, db: Db) -> LoginTicket:
     """Make the first admin with the passkey the browser just created. Answers a ticket for signing in."""
     archive = request.app.state.archive
-    if not archive.setup_code:
-        raise HTTPException(403, "setup is closed")
-    try:
-        uid = passkeys.setup_finish(db, body.flow, body.credential, body.name)
-    except ValueError as e:
-        raise HTTPException(400, str(e)) from None
-    archive.setup_code = None
+    with auth.SETUP_LOCK:
+        if not archive.setup_code:
+            raise HTTPException(403, "setup is closed")
+        try:
+            uid = passkeys.setup_finish(db, body.flow, body.credential, body.name)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        archive.setup_code = None
     u = auth.get_account(db, uid)
     auth.audit(db, {"id": uid, "email": u["email"]}, "setup", detail=["passkey"])
     return LoginTicket(ticket=passkeys.issue_ticket(db, uid, "passkey"))
@@ -105,13 +106,14 @@ def setup_without_passkey(body: PasskeySetupStart, request: Request, db: Db) -> 
     other than localhost). No password: they sign in later with a passkey (at an https:// address) or a sign-in link."""
     key = _throttle(request, "setup", shared=True)
     archive = request.app.state.archive
-    code = archive.setup_code
-    if not code or auth.account_count(db) or not secrets.compare_digest(body.code.strip(), code):
-        _hit(key)
-        raise HTTPException(403, "setup is closed or the code is wrong")
-    with domain_errors():
-        uid = auth.create_account(db, body.email, None, body.name, admin=True)
-    archive.setup_code = None
+    with auth.SETUP_LOCK:
+        code = archive.setup_code
+        if not code or auth.account_count(db) or not secrets.compare_digest(body.code.strip(), code):
+            _hit(key)
+            raise HTTPException(403, "setup is closed or the code is wrong")
+        with domain_errors():
+            uid = auth.create_account(db, body.email, None, body.name, admin=True)
+        archive.setup_code = None
     auth.audit(db, {"id": uid, "email": body.email.strip().lower()}, "setup", detail=["setup-code"])
     return LoginTicket(ticket=passkeys.issue_ticket(db, uid, "setup"))
 

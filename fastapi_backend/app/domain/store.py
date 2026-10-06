@@ -257,6 +257,7 @@ DEFAULTS = {
         "tools": True,
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
+        "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "disabled_tools": [],
         "max_steps": 6,
@@ -312,7 +313,8 @@ DEFAULTS = {
     },
     # the assistant in chat rooms through Matterbridge (bridge.py): url is its API (http://matterbridge:4242), token its
     # API token; it answers as `account` (an email), when a message names it (answer "mention") or to every message
-    # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`
+    # ("all"), from anyone or only the chat usernames in `users`, in every gateway or only `gateway`; `rooms` gives a
+    # gateway (or gateway/channel) to a namespace's own assistant, as "gateway = namespace" (ns_assistant.py)
     "bridge": {
         "enabled": False,
         "url": None,
@@ -322,6 +324,7 @@ DEFAULTS = {
         "name": "Lens",
         "answer": "mention",
         "users": [],
+        "rooms": [],
         "poll_seconds": 2,
     },
     # what Lens fetches for itself (components.py): auto fetches what the settings need, on first use unless ahead;
@@ -871,6 +874,11 @@ SCHEMA = [
     # address ranges whose visitors see all of a namespace's recordings, or chosen ones (docs/access.md): ip_group:<n>
     "DEFINE TABLE IF NOT EXISTS ip_group SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS ip_group_space ON ip_group FIELDS space",
+    # addresses other services push files, web addresses or text to, into one namespace (domain/import_hooks.py):
+    # import_hook:<n>, found by the hash of its token
+    "DEFINE TABLE IF NOT EXISTS import_hook SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS import_hook_space ON import_hook FIELDS space",
+    "DEFINE INDEX IF NOT EXISTS import_hook_token ON import_hook FIELDS token_hash UNIQUE",
     # audio and video arriving in pieces (docs/api.md, Uploads): upload:<random id>
     "DEFINE TABLE IF NOT EXISTS upload SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS upload_account ON upload FIELDS account",

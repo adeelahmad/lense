@@ -53,7 +53,7 @@ function watchedText(ws: Watch[]) {
 
 type Editing = { source: Source | null; replaceToken?: boolean } | null;
 type Watching = {
-  source: { id: number; name: string };
+  source: { id: number; name: string; type?: string };
   path: string;
   watch?: Watch | null;
 } | null;
@@ -408,7 +408,7 @@ export function SourcesPage() {
                     pipelineName={pipelineName(w)}
                     onEdit={() =>
                       setWatching({
-                        source: { id: current.id, name: current.name },
+                        source: { id: current.id, name: current.name, type: current.type },
                         path: w.path,
                         watch: w,
                       })

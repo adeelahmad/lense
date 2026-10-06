@@ -2,6 +2,36 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-05 · Threat model
+
+Goal (Adeel): write down Lens's security contract, meaning what it assumes, guarantees and leaves to whoever runs it,
+so a security report can be routed against something written. Modeled at 5f799f2; produced with the threat-model
+plugin (1.2.1).
+
+Rulings from Adeel (2026-10), recorded in the model as maintainer claims:
+
+- Exposure to the internet behind HTTPS is supported. Only the instance admin is trusted; an admin is equivalent to
+  code on the host. Owners, editors, viewers, tokens, MCP agents and the assistant acting for them are not.
+- URLs only an admin can set (model server, sources, IIIF import, Fedora, telemetry) are trusted input. SSRF is in
+  scope for URLs a non-admin sets (web import, extension `http` tools, notification targets), and for the guards Lens
+  documents on admin URLs (iCal, the telemetry endpoint).
+- Shipped defaults (plain HTTP, SurrealDB root/root) are supported on one machine only. `docker-compose.yml` and
+  `make dev` are dev-only.
+- Downloaded binaries and models are trusted to HTTPS and their publisher, with no further integrity claim.
+
+Todo:
+
+- [x] Recon, surface pass over 4 families, waves 1–2 of questions
+- [x] Draft `threat-model.md`; backtest against 36 real security commits plus 81 synthesized reports (no fixed item
+      closes); revise
+- [x] `threat-model.yaml` and `threat-model.json`; link from SECURITY.md
+- [ ] Waves 3–11 of §1.18 (47 open questions), then promote answers to maintainer claims
+- [x] Align SECURITY.md's SSRF example ("a model server") with the admin-URL ruling (YAML hash refreshed;
+      the plugin's validator was not available in the session that made this edit, so re-run it)
+
+Watch out: the prose is canonical. After any edit to `threat-model.md`, regenerate the YAML and JSON (its hash is in
+the YAML) and re-run the plugin's `validate_model.py`.
+
 ## 2026-10-04 · Graph history: versions, replay, rollback
 
 Goal (Adeel): make the graph replayable and versioned.

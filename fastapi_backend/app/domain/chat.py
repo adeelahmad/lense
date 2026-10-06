@@ -262,9 +262,13 @@ def with_context(question, ctx):
     return "\n\n".join(parts)
 
 
-def past_turns(history, n=6):
+def past_turns(history, n=6, summary=None):
     """The conversation's last messages for the model, with the files sent with each; a question asked about
-    highlighted text keeps (the start of) that text, so a follow-up still knows what "it" was."""
+    highlighted text keeps (the start of) that text, so a follow-up still knows what "it" was. With a `summary`
+    (compaction is on), every message it doesn't cover yet, up to RECENT + COMPACT_AFTER of them."""
+    if summary is not None:
+        history = [m for m in history if m["id"] > (summary.get("upto") or 0)]
+        n = RECENT + COMPACT_AFTER
     out = []
     for m in list(history)[-n:]:
         sel = ((m.get("context") or {}).get("selection") or "")[:500] if m["role"] == "user" else ""
@@ -273,10 +277,10 @@ def past_turns(history, n=6):
     return out
 
 
-def messages_for(question, passages, history=()):
+def messages_for(question, passages, history=(), summary=None):
     ctx = "\n\n".join(f"[{p['n']}] {p['title']} · {(p.get('recorded_at') or '')[:10]} · {p['time']}\n{p['text']}" for p in passages)
-    msgs = [{"role": "system", "content": SYSTEM}]
-    msgs += past_turns(history)
+    msgs = [{"role": "system", "content": SYSTEM + summary_note(summary)}]
+    msgs += past_turns(history, summary=summary)
     msgs.append({"role": "user", "content": f"Excerpts:\n\n{ctx or '(nothing in the archive matched)'}\n\nQuestion: {question}"})
     return msgs
 
@@ -370,7 +374,63 @@ def rewind(db, cid, mid):
     if not m or m["chat"] != cid or m["role"] != "user":
         raise KeyError(mid)
     db.q("DELETE chat_message WHERE chat = $c AND record::id(id) >= $m", c=cid, m=mid)
+    # a summary that covers what was removed no longer holds: the messages left are folded in again
+    db.q("UPDATE $r SET summary = NONE WHERE summary.upto >= $m", r=R("chat", cid), m=mid)
     return m
+
+
+# ---------- compaction: a long conversation keeps a summary of what the model no longer sees word for word ----------
+RECENT = 6  # the latest messages, always given word for word
+COMPACT_AFTER = 8  # how many more build up before they're folded into the summary (one model call per that many)
+TURN_CHARS = 1500  # of each message, for the summary
+COMPACT_SYSTEM = (
+    "You keep the running summary of a conversation between a person and their assistant, so the assistant still "
+    "knows what was said once the messages themselves are out of view. Fold the new messages into the summary so far: "
+    "what the person wants and prefers, facts and decisions settled, what the assistant did or proposed (and whether "
+    "it was approved), and what is still open. Keep names, dates, numbers and namespaces exact; leave out excerpt "
+    "numbers like [2], small talk and anything the newer messages replaced. Write short plain sentences, at most 250 "
+    "words. Reply with the summary alone."
+)
+
+
+def memory(db, cfg, cid):
+    """What compaction knows of a conversation: {"text", "upto": the last message it covers, "at"}, empty before the
+    first summary; None when compaction is off (the model then sees the last 6 messages only, as before)."""
+    if not cfg["ai"].get("compact", True) or not llm.configured(cfg):
+        return None
+    return (db.one("SELECT summary FROM $r", r=R("chat", cid)) or {}).get("summary") or {"text": "", "upto": 0}
+
+
+def summary_note(summary):
+    text = ((summary or {}).get("text") or "").strip()
+    return f"\n\nEarlier in this conversation (a summary; the messages themselves are no longer shown):\n{text}" if text else ""
+
+
+def _said(m):
+    who = "Person" if m["role"] == "user" else "Assistant"
+    text = (m.get("content") or "").strip()
+    text = text[:TURN_CHARS] + (" (cut short)" if len(text) > TURN_CHARS else "")
+    did = "; ".join(s.get("summary") or s.get("tool") or "" for s in m.get("steps") or [] if s)
+    return f"{who}: {text}" + (f"\n(What it did: {did[:500]})" if did else "")
+
+
+def compact(db, cfg, cid):
+    """Fold the messages older than the latest RECENT into the conversation's summary, once COMPACT_AFTER of them have
+    built up (ai.compact, on by default; needs a model). Returns the new summary, or None when nothing changed."""
+    had = memory(db, cfg, cid)
+    if had is None:
+        return None
+    fresh = [m for m in history(db, cid) if m["id"] > (had.get("upto") or 0)]
+    if len(fresh) < RECENT + COMPACT_AFTER:
+        return None
+    old = fresh[:-RECENT]
+    ask = f"Summary so far:\n{had.get('text') or '(none yet)'}\n\nNew messages:\n\n" + "\n\n".join(_said(m) for m in old)
+    text = llm.chat(cfg, [{"role": "system", "content": COMPACT_SYSTEM}, {"role": "user", "content": ask}], max_tokens=800).strip()
+    if not text:
+        return None
+    out = {"text": text, "upto": old[-1]["id"], "at": store.now()}
+    db.q("UPDATE $r SET summary = $s", r=R("chat", cid), s=out)
+    return out
 
 
 def model_choices(cfg):
@@ -451,14 +511,15 @@ SETUP_SYSTEM = (
 )
 
 
-def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False):
+def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False, summary=None):
     """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
     answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
     Raises llm.ToolsUnsupported."""
     system = TOOL_SYSTEM + ("\n\n" + SETUP_SYSTEM if setup else "")
     note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
     system += note() if note else ""
-    msgs = [{"role": "system", "content": system}] + past_turns(history)
+    system += summary_note(summary)
+    msgs = [{"role": "system", "content": system}] + past_turns(history, summary=summary)
     msgs.append({"role": "user", "content": question})
     for step in range(max_steps):
         msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)

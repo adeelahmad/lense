@@ -179,3 +179,83 @@ def test_the_thread_answers_on_its_own(db, cfg, room):
         stop.set()
         th.join(5)
     assert bridge.status(db, cfg)["state"] == "starting"  # it let go when it stopped
+
+
+def test_a_room_conversation_is_summarised_as_it_goes_on(db, cfg, room, llm):
+    from app.domain import chat
+
+    cfg["ai"]["tools"] = False
+    for i in range((chat.RECENT + chat.COMPACT_AFTER) // 2 + 1):
+        room.waiting = [said(f"Lens, question {i}?")]
+        run(db, cfg)
+    cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE kind = 'bridge' LIMIT 1")
+    assert chat.memory(db, cfg, cid)["text"] == "OK"  # the fake model's summary
+    last = [b for b in llm.seen if b["messages"][0]["content"].startswith(chat.SYSTEM)][-1]["messages"]
+    assert "Earlier in this conversation" in last[0]["content"] and "question 0?" not in str(last[1:])
+
+
+def test_a_room_given_to_a_namespace_assistant(client, db, cfg, room, llm):
+    from app.domain import ns_assistant, store
+
+    pods = store.ns_id(db, "pods")
+    ns_assistant.save_profile(db, pods, enabled=True, name="Podpal", instructions="Be brief.")
+    ns_assistant.remember(db, pods, "Episodes ship on Fridays.", 1, author="person")
+    a = login(client, "root@x.io", "root password 1")
+    bad = client.put("/api/v1/settings/bridge", headers=a, json={"rooms": ["team"]})
+    assert bad.status_code == 400
+    got = client.put("/api/v1/settings/bridge", headers=a, json={"rooms": ["Team/General=Pods", " ", "other = calls"]})
+    assert got.status_code == 200
+    cfg["bridge"]["rooms"] = settings.Settings(db, cfg).current()["bridge"]["rooms"]
+    assert cfg["bridge"]["rooms"] == ["Team/General = pods", "other = calls"]
+    room.waiting = [said("Podpal, when do episodes ship?"), said("Podpal, hi", gateway="other")]
+    assert run(db, cfg) == 1  # not in a room given to another namespace
+    asked = [m for m in llm.seen if m.get("tools")][-1]
+    system = next(m["content"] for m in asked["messages"] if m["role"] == "system")
+    assert "You are Podpal, the assistant of the pods namespace" in system and "Episodes ship on Fridays." in system
+    rows = db.rows("SELECT scope FROM chat WHERE kind = 'bridge'")
+    assert [r["scope"] for r in rows] == [{"namespaces": ["pods"]}]
+    # Lens's own name still works there, and the room follows the setting when it changes: open again, its
+    # conversations are routed per question (test_an_open_room_routes_each_question)
+    cfg["bridge"]["rooms"] = []
+    cfg["ai"]["tools"] = False
+    room.waiting = [said("Lens, and Mondays?")]
+    assert run(db, cfg) == 1
+    assert db.one("SELECT VALUE room FROM chat WHERE kind = 'bridge' LIMIT 1") is None
+    assert bridge.room_namespace({"bridge": {"rooms": ["team = pods", "team/x = calls"]}}, {"gateway": "team", "channel": "x"}) == "calls"
+
+
+def test_an_open_room_routes_each_question(db, cfg, room, llm):
+    """In a room no namespace is given to, Lens routes: an assistant's name, a sure pick, a hint, or the person's pick."""
+    from app.domain import chat, ns_assistant, store
+
+    cfg["ai"]["tools"] = False
+    make_user(db, "bot2@x.io", "bot password 1", roles={"pods": "viewer", "calls": "viewer"})
+    cfg["bridge"]["account"] = "bot2@x.io"
+    ns_assistant.save_profile(db, store.ns_id(db, "pods"), enabled=True, name="Podpal")
+
+    def ask(text):
+        room.posted = []
+        room.waiting = [said(text)]
+        assert run(db, cfg) == 1
+        return room.posted[-1]["text"], db.one("SELECT VALUE scope FROM chat WHERE kind = 'bridge' LIMIT 1")
+
+    # a namespace's assistant by name, in any open room
+    assert ask("Podpal, when do episodes ship?") == ("OK", {"namespaces": ["pods"]})
+    # sure of the namespace: scoped, and said once
+    llm.decision = {"choice": "calls", "confidence": 0.99}
+    text, scope = ask("Lens, when does the shipment leave?")
+    assert scope == {"namespaces": ["calls"]} and text.endswith("(Looked in calls. Say “use everything” to look everywhere.)")
+    assert ask("Lens, and the next one?") == ("OK", {"namespaces": ["calls"]})
+    # unsure: everywhere, with the likeliest to pick, hinted once
+    llm.decision = {"choice": "pods", "confidence": 0.3}
+    text, scope = ask("Lens, what about Friday?")
+    assert scope == {} and "If this is about calls or pods, say “use calls” to keep this conversation there" in text
+    assert ask("Lens, and Saturday?") == ("OK", {})
+    # the person's pick sticks until they widen it
+    assert ask("Lens, use pods") == ("OK, this conversation stays in pods until you say “use everything”.", {"namespaces": ["pods"]})
+    llm.decision = {"choice": "calls", "confidence": 0.99}
+    assert ask("Lens, when does the shipment leave?") == ("OK", {"namespaces": ["pods"]})
+    assert ask("Lens, use everything")[1] == {}
+    assert ask("Lens, use the force")[0].startswith("OK\n")  # not a namespace: a question, answered
+    cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE kind = 'bridge' LIMIT 1")
+    assert "use pods" in [m["content"] for m in chat.history(db, cid)]  # kept in the conversation like any message

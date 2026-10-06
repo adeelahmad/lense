@@ -696,6 +696,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "compact",
+    label: "Summarise long conversations",
+    kind: "switch",
+    hint: "The model always reads the latest messages word for word; older ones are folded into a running summary, so long chats and chat rooms remember what was said.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
@@ -876,6 +883,14 @@ export const FIELDS: FieldSpec[] = [
     label: "Only for these chat usernames",
     kind: "lines",
     hint: "One per line; empty answers everyone in the bridged rooms.",
+  },
+  {
+    section: "bridge",
+    key: "rooms",
+    label: "Rooms for a namespace’s assistant",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like team = pods or team/general = pods: conversations there talk to that namespace’s own assistant, which also answers to its name. In other rooms Lens picks the namespace for each question.",
   },
   {
     section: "bridge",

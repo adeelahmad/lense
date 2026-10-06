@@ -57,10 +57,10 @@ Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 
-Lens's license isn't decided yet. `LICENSE.txt` is still the MIT notice of the
-template Lens started from (Vinta's Next.js FastAPI template); it isn't a decision about Lens. Until a license is
-chosen, contribute only if you're fine with the maintainer deciding later how Lens is licensed, including your
-contributions.
+Lens is MIT-licensed ([LICENSE.txt](LICENSE.txt)). By contributing, you agree that your contributions are licensed
+under the same terms.
 
-<!-- TODO(license): pick a license, replace LICENSE.txt, and say here what contributors agree to
-(for example "contributions are licensed under the project's license"). -->
+Keep it that way: a new dependency that is a required part of Lens must have a license that lets Lens stay MIT (MIT,
+BSD, ISC, Apache-2.0, MPL-2.0 and LGPL libraries used unmodified are fine). A GPL or AGPL package may only be an
+opt-in extra that people install themselves, the way `extract-msg` (GPL-3.0, for Outlook `.msg` files) is today, and
+the extra's comment in `pyproject.toml` should say so.

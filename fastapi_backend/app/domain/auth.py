@@ -87,6 +87,11 @@ def create_account(db, email, password, name=None, admin=False):
     return uid
 
 
+# The setup routes check "no accounts yet" and make the first admin while holding this, so two setup requests at once
+# can't both pass the check. The setup code lives in the one API process, so a process lock is enough.
+SETUP_LOCK = threading.Lock()
+
+
 def passwords_on(cfg):
     """Whether passwords sign in at all (auth.passwords). Fresh installs use passkeys only; installs that already had
     passwords keep them until an admin turns them off (domain/settings.keep_passwords)."""

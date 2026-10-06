@@ -25,6 +25,7 @@ from app.api.v1.routes import (
     graph_history,
     hierarchy,
     iiif,
+    import_hooks,
     imports,
     jobs,
     metadata,
@@ -113,6 +114,7 @@ for module in (
     notifications,
     routines,
     sensors,
+    import_hooks,
     voice,
     vaults,
 ):
