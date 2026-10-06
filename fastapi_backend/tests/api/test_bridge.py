@@ -68,7 +68,14 @@ def test_the_bridge_is_set_up_and_checked_in_the_app(client, db, cfg, mb):
     client.put("/api/v1/settings/bridge", headers=a, json={"account": None, "enabled": False})
     client.put("/api/v1/settings/bridge", headers=a, json={"enabled": True})  # who turns it on is who it answers as
     assert settings.Settings(db, cfg).current()["bridge"]["account"] == "root@x.io"
-    for bad in ({"url": "matterbridge:4242"}, {"account": "bot"}, {"answer": "sometimes"}, {"poll_seconds": 0}, {"users": "alice"}):
+    for bad in (
+        {"url": "matterbridge:4242"},
+        {"account": "bot"},
+        {"answer": "sometimes"},
+        {"approve": "always"},
+        {"poll_seconds": 0},
+        {"users": "alice"},
+    ):
         assert client.put("/api/v1/settings/bridge", headers=a, json=bad).status_code == 400, bad
 
 
@@ -128,6 +135,54 @@ def test_it_reads_only_what_its_account_can_and_asks_before_changing_anything(cl
     text = room.posted[-1]["text"]
     assert text.startswith("I asked to run two workers.\n\nWaiting for approval in Lens: ") and "/chat/" in text
     assert settings.Settings(db, cfg).current()["workers"]["inline"] != 2
+
+
+def test_low_risk_changes_are_approved_by_replying_in_the_room(client, db, cfg, room, llm):
+    from app.domain import store
+
+    cfg["bridge"].update(account="root@x.io", users=["alice"])
+
+    def ask(text, *script, **who):
+        llm.tool_script = list(script)
+        room.waiting = [said(text, **who)]
+        run(db, cfg)
+        return room.posted[-1]["text"]
+
+    family = {"content": "", "tool_calls": [call(1, "create_namespace", {"name": "family", "graph": "isolated"})]}
+    text = ask("Lens, make a family namespace", family, {"content": "I asked to create it."})
+    assert text.startswith(
+        "I asked to create it.\n\nWaiting for your yes: Create the namespace family (isolated graph). Reply “yes” to do it"
+    )
+    posted = len(room.posted)
+    ask("Lens, yes", username="bob")  # only the people in bridge.users talk to Lens, and approve
+    assert len(room.posted) == posted
+    assert "family" not in store.space_names(db).values()
+    assert ask("Lens, yes") == "Done: Create the namespace family (isolated graph)"
+    assert "family" in store.space_names(db).values()
+    audit = db.rows("SELECT detail FROM audit_log WHERE action = 'assistant.approval'")
+    assert audit[-1]["detail"]["via"] == "chat room" and audit[-1]["detail"]["by"] == "alice"
+
+    # "no" declines; with nothing waiting, "yes" is just said to the assistant
+    kids = {"content": "", "tool_calls": [call(1, "create_namespace", {"name": "kids", "graph": "shared"})]}
+    ask("Lens, and kids", kids, {"content": "Asked."})
+    assert ask("Lens, no") == "Declined: Create the namespace kids (shared graph)"
+    assert ask("Lens, yes", {"content": "Yes to what?"}) == "Yes to what?"
+
+    # anything else is approved in the web app, even when "yes" is said in the room
+    workers = {"content": "", "tool_calls": [call(1, "change_settings", {"section": "workers", "changes": {"inline": 2}})]}
+    text = ask("Lens, run two workers", workers, {"content": "I asked to run two workers."})
+    assert "Waiting for approval in Lens: " in text and "/chat/" in text and "Reply" not in text
+    assert ask("Lens, yes").startswith("Waiting for approval in Lens: ")
+    assert settings.Settings(db, cfg).current()["workers"]["inline"] != 2
+
+    # turned off, or no list of who may talk to Lens: the web app only
+    for change in ({"approve": "off"}, {"users": []}):
+        cfg["bridge"].update({"users": ["alice"], "approve": "low_risk", **change})
+        text = ask(
+            "Lens, make a pets namespace", {**family, "tool_calls": [call(1, "create_namespace", {"name": "pets"})]}, {"content": "Asked."}
+        )
+        assert "Waiting for approval in Lens: " in text and "Reply" not in text
+        db.q("UPDATE approval SET status = 'declined' WHERE status = 'pending'")
 
 
 def test_one_process_reads_the_rooms(db, cfg, room):

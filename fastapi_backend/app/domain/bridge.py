@@ -16,7 +16,11 @@ namespace's assistant goes to that namespace; otherwise the decision model picks
 (auto_scope.place), and when it isn't sure the answer looks everywhere and says which namespaces it might be. Saying
 "use <namespace>" keeps the conversation in one namespace until "use everything".
 
-Refine later: approving in the room itself, voice notes, files posted in the room, one Lens account per chat user.
+The assistant's reversible changes (entity merges and edits, new namespaces: ROOM_SAFE) can be approved by replying
+"yes" (or "no") in the room, when bridge.approve is "low_risk" and the sender is one of bridge.users; everything else
+waits for approval in the web app, linked from the answer.
+
+Refine later: voice notes, files posted in the room, one Lens account per chat user.
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ import threading
 import urllib.error
 import urllib.request
 
-from . import ai_tools, auth, auto_scope, chat, llm, ns_assistant, store
+from . import ai_tools, auth, auto_scope, chat, graph_history, llm, ns_assistant, store
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -299,14 +303,90 @@ def answer(db, cfg, base, account, cid, q):
     return text, approvals
 
 
-def reply_text(cfg, text, approvals, cid, db=None):
-    """The answer as a chat message: what it proposed waits for approval in the web app, linked."""
+# ---------- approving in the room ----------
+# what can be approved by a reply in the room: changes to the graph (history keeps them, and they can be undone) and
+# new namespaces; settings, imports, batch runs, extensions and forgetting are approved in the web app
+ROOM_SAFE = {"propose_entity_change", "create_namespace"}
+YES_RX = re.compile(r"^(?:yes|y|yep|approve|approved|ok|okay|do it|go ahead)(?:\s+#?(\d+|all))?\s*[.!]*$", re.I)
+NO_RX = re.compile(r"^(?:no|n|nope|decline|cancel|don't)(?:\s+#?(\d+|all))?\s*[.!]*$", re.I)
+
+
+def room_approver(cfg, m=None):
+    """Whether the sender of `m` (anyone in bridge.users, when m is None) may approve in the room: only with
+    bridge.approve on and a list of who may talk to Lens, since a room's other people aren't the account's."""
+    b = cfg["bridge"]
+    allowed = {u.strip().lower() for u in b.get("users") or [] if u.strip()}
+    if b.get("approve", "low_risk") == "off" or not allowed:
+        return False
+    if m is None:
+        return True
+    return (m.get("username") or "").strip("<> ").lower() in allowed or (m.get("userid") or "").lower() in allowed
+
+
+def pending(db, cid):
+    return db.rows("SELECT record::id(id) AS id, tool, summary FROM approval WHERE chat = $c AND status = 'pending' ORDER BY id", c=cid)
+
+
+def decide_in_room(db, cfg, base, account, cid, m, q):
+    """A "yes" or "no" to what this conversation is waiting on: carried out (the ROOM_SAFE ones) or declined, and the
+    reply to post. None when q isn't one, or nothing waits."""
+    yes, no = YES_RX.match(q.strip()), NO_RX.match(q.strip())
+    if not (yes or no) or not room_approver(cfg, m):
+        return None
+    waiting = pending(db, cid)
+    if not waiting:
+        return None
+    pick = (yes or no).group(1)
+    if pick and pick.lower() != "all":
+        waiting = [a for a in waiting if a["id"] == int(pick)]
+        if not waiting:
+            return f"Nothing is waiting as #{pick}."
+    elif not pick and len(waiting) > 1 and yes:  # "yes" to several things is ambiguous: say which
+        listed = "; ".join(f"#{a['id']} {a['summary']}" for a in waiting)
+        return f"Several things are waiting: {listed}. Say “yes all” or “yes <number>”."
+    roles = auth.roles(db, account)
+    readable, editable = set(roles), {s for s in roles if auth.allows(roles, s, "editor")}
+    who = (m.get("username") or "").strip("<> ")
+    user = {"id": account["id"], "email": account["email"]}
+    lines, web = [], []
+    for a in waiting:
+        if yes and a["tool"] not in ROOM_SAFE:
+            web.append(a)
+            continue
+        decision = "approve" if yes else "decline"
+        try:
+            with graph_history.acting(why=f"approved in a chat room by {who}" if yes else None):
+                out = ai_tools.approve(db, cfg, a["id"], user, editable, decision, base, account["admin"], readable)
+        except (ValueError, PermissionError, KeyError) as e:
+            lines.append(f"Couldn't do “{a['summary']}”: {e}")
+            continue
+        auth.audit(db, user, "assistant.approval", f"approval:{a['id']}", {"decision": decision, "via": "chat room", "by": who, **out})
+        lines.append(("Done: " if yes else "Declined: ") + a["summary"])
+    if web:
+        lines.append(_web_line(cfg, db, cid, web))
+    return "\n".join(lines)
+
+
+def _web_line(cfg, db, cid, approvals):
     from app.email import app_url
 
+    return "Waiting for approval in Lens: " + "; ".join(a["summary"] for a in approvals) + f"\n{app_url(cfg, db)}/chat/{cid}"
+
+
+def reply_text(cfg, text, approvals, cid, db=None):
+    """The answer as a chat message: what it proposed can be approved by replying "yes" (ROOM_SAFE, for the people
+    allowed to: room_approver), or waits for approval in the web app, linked (through the tunnel, when there is one:
+    the room is often far from home)."""
     out = (text or "").strip() or "(no answer)"
-    if approvals:
-        out += "\n\nWaiting for approval in Lens: " + "; ".join(a["summary"] for a in approvals)
-        out += f"\n{app_url(cfg, db)}/chat/{cid}"  # through the tunnel, when there is one: the room is often far from home
+    here = [a for a in approvals if a.get("tool") in ROOM_SAFE] if room_approver(cfg) else []
+    web = [a for a in approvals if a not in here]
+    if len(here) == 1:
+        out += f"\n\nWaiting for your yes: {here[0]['summary']}. Reply “yes” to do it, or “no”."
+    elif here:
+        listed = "; ".join(f"#{a['id']} {a['summary']}" for a in here)
+        out += f"\n\nWaiting for your yes: {listed}. Reply “yes all”, “yes <number>” or “no”."
+    if web:
+        out += "\n\n" + _web_line(cfg, db, cid, web)
     return out
 
 
@@ -323,6 +403,12 @@ def handle(db, cfg, base, m):
     cid = conversation(db, account, m, ns if sid is not None else None)
     note = None
     try:
+        decided = decide_in_room(db, cfg, base, account, cid, m, q)
+        if decided:
+            chat.add(db, cid, "user", q)
+            chat.add(db, cid, "assistant", decided)
+            post(cfg, m.get("gateway"), decided, m.get("channel"))
+            return True
         if sid is None:
             said, note = route(db, cfg, account, cid, q, by_name[1] if by_name else None)
             if said:

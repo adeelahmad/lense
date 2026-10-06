@@ -886,6 +886,17 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "bridge",
+    key: "approve",
+    label: "Approving in the room",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these in the room. Settings, imports, runs and extensions are always approved in the web app. Needs the list of usernames.",
+  },
+  {
+    section: "bridge",
     key: "rooms",
     label: "Rooms for a namespace’s assistant",
     kind: "lines",

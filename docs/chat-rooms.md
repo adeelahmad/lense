@@ -39,6 +39,12 @@ That's all. Without an account given, it answers as the admin who turned it on.
   proposes (running work, changing settings) wait for approval in the web app, as in Chat; its answer says so and
   links to the conversation, through the Cloudflare tunnel while one is up (Settings › Remote access), so the link
   opens away from home too.
+- **Approving in the room.** Reversible changes (merging, renaming or retyping entities, new namespaces) can be
+  approved right there: the answer says "Reply “yes” to do it", and "yes" (or "no") does it (or declines it). With
+  several waiting, "yes all" or "yes 12". Only the chat usernames listed may talk to Lens and approve, so it needs
+  that list; **Approving in the room: only in the web app** turns it off. Settings, imports, batch runs, extensions
+  and forgetting are always approved in the web app. Each approval is in the audit log with "via chat room" and who
+  said yes.
 - **Conversations.** Each person in each room is a conversation of that account's, titled
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)).
@@ -58,7 +64,7 @@ That's all. Without an account given, it answers as the admin who turned it on.
   bridge is turned off) does the reading. Settings → Chat rooms says whether it is listening and how many messages it answered.
 
 Settings (`bridge`): `enabled`, `url`, `token` (a secret), `account`, `name` (default Lens), `answer` (`mention` or
-`all`), `gateway`, `users`, `rooms`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to
+`all`), `gateway`, `users`, `approve` (`low_risk` or `off`), `rooms`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to
 Matterbridge at …").
 
-Refine later: approving in the room itself, voice notes and files posted in rooms, one Lens account per chat user.
+Refine later: voice notes and files posted in rooms, one Lens account per chat user.
