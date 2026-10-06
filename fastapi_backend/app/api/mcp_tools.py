@@ -407,7 +407,7 @@ MEDIA = ("audio", "video", "transcript", "document", "image")
     Arg("media", "string", "only this kind", enum=MEDIA),
     Arg("sort", "string", "order: date, title or duration; - first for descending", default="-date", enum=SORTS),
     Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
-    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
 )
 def list_recordings(
     ctx: Context,
@@ -716,7 +716,7 @@ def _entity_row(e: dict[str, Any]) -> dict[str, Any]:
     Arg("recording_id", "integer", "only those mentioned in this recording"),
     Arg("sort", "string", "order", default="mentions", enum=("mentions", "recordings", "recent", "rising", "name")),
     Arg("limit", "integer", "how many", default=25, minimum=1, maximum=100),
-    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
 )
 def list_entities(
     ctx: Context,
@@ -1058,7 +1058,7 @@ def graph_paths(ctx: Context, from_node: str, to_node: str, max_depth: int, shor
     Arg("top", "boolean", "only topics with no broader topic", default=False),
     Arg("broader_id", "integer", "only the narrower topics of this one"),
     Arg("limit", "integer", "how many", default=50, minimum=1, maximum=200),
-    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
 )
 def list_topics(
     ctx: Context, query: str | None, namespace: str | None, top: bool, broader_id: int | None, limit: int, offset: int
