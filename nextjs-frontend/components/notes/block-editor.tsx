@@ -4,6 +4,7 @@ import "@toeverything/theme/style.css";
 
 import { useEffect, useRef } from "react";
 
+import { remoteImagesAsLinks } from "@/components/notes/links";
 import { cn } from "@/lib/utils";
 
 export type LinkTarget = { target: string; label: string; kind: string };
@@ -120,7 +121,10 @@ export default function BlockEditor({
       } else {
         const job = new store.Job({ collection });
         const made = markdown.trim()
-          ? await new blocks.MarkdownAdapter(job).toDoc({ file: markdown, assets: job.assetsManager })
+          ? await new blocks.MarkdownAdapter(job).toDoc({
+              file: remoteImagesAsLinks(markdown),
+              assets: job.assetsManager,
+            })
           : undefined;
         if (made) id = made.id;
         else {
@@ -143,7 +147,7 @@ export default function BlockEditor({
         if (target && markdown.trim()) {
           const job = new store.Job({ collection });
           const slice = await new blocks.MarkdownAdapter(job).toSliceSnapshot({
-            file: markdown,
+            file: remoteImagesAsLinks(markdown),
             assets: job.assetsManager,
             workspaceId: collection.id,
             pageId: page.id,

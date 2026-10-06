@@ -33,3 +33,12 @@ export const PLACES = [
   { value: "resource", label: "Resource" },
   { value: "archive", label: "Archive" },
 ] as const;
+
+/** Markdown images from the web, as links. BlockSuite's Markdown importer fetches every http(s) image as the page
+ * opens, so an image in Markdown the assistant or the API wrote (text that content in the archive can steer) would
+ * send whatever its address holds to that site without a click. Links still need one. */
+export function remoteImagesAsLinks(markdown: string): string {
+  return markdown
+    .replace(/!\[([^\]]*)\]\(\s*(<?https?:[^)]*)\)/gi, "[$1]($2)")
+    .replace(/!\[([^\]]*)\]\[([^\]]*)\]/g, "[$1][$2]");
+}
