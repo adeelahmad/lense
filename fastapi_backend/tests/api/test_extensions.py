@@ -142,6 +142,26 @@ def test_tools_and_skills_in_a_conversation(app, db, cfg, folder, new_client, ll
     assert "use_skill" not in names()
 
 
+def test_another_persons_tools_ask_first(app, db, cfg, folder, new_client):
+    """`effect: read` is its author's word, so a teammate's tool waits for a yes; one's own, or an admin's, doesn't."""
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    ca, ha = s.cl["admin"]
+    tid = c.post("/api/v1/extensions", headers=h, json={"text": TOOL}).json()["id"]
+    c.patch(f"/api/v1/extensions/{tid}", headers=h, json={"visibility": "namespace", "namespaces": ["pods"]})
+    aid = ca.post("/api/v1/extensions", headers=ha, json={"text": TOOL.replace("translate", "translate_shared")}).json()["id"]
+    ca.patch(f"/api/v1/extensions/{aid}", headers=ha, json={"visibility": "everyone"})
+
+    def effects(email):
+        a = db.one("SELECT record::id(id) AS id, admin FROM account WHERE email = $e", e=email)
+        me = extensions.who(a["id"], email, a.get("admin"), {s.pods: "viewer"})
+        return {n: t["spec"]["effect"] for n, t in extensions.Active(db, me).tools.items()}
+
+    viewer = db.one("SELECT VALUE email FROM account WHERE email != 'ed@x.io' AND admin != true LIMIT 1")
+    assert effects("ed@x.io") == {"translate": "read", "translate_shared": "read"}
+    assert effects(viewer) == {"translate": "change", "translate_shared": "read"}
+
+
 def test_change_tools_ask_first_and_hooks(app, db, cfg, folder, new_client, llm, monkeypatch):
     s = Assist(app, db, cfg, folder, new_client)
     c, h = s.cl["editor"]

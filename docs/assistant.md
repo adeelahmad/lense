@@ -138,7 +138,8 @@ shared with namespaces (admins can share with everyone), and switched on or off 
 - **Tool**: something the assistant can call, with typed parameters. Its body is a prompt (`{{param}}` in the text), a
   web request (public addresses only), or a graph drawn on the canvas (`ask_model`, `call_tool` and the primitives,
   from `arg` nodes to `return` nodes), or Python code (admins only, below). A tool with `effect: change` asks for
-  approval before it runs.
+  approval before it runs, and so does another person's tool (unless an admin shared it), since `effect: read` is
+  only its author's word.
 - **Skill**: instructions and a line saying when to use them. The assistant sees the line, and reads the instructions
   only when the skill applies.
 - **Hook**: runs when a question arrives, before or after a tool, or after an answer, to add context, block a tool or
