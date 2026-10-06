@@ -599,12 +599,15 @@ class Active:
                     continue
                 if it["kind"] == "tool" and it["spec"]["run"]["type"] == "python" and not _owner_admin(db, g):
                     continue  # code runs only while an admin owns it
+                spec = it["spec"]
+                if it["kind"] == "tool" and not trusted and spec["effect"] == "read":
+                    spec = {**spec, "effect": "change"}  # "read" is its author's word: another person's tool asks first
                 item = {
                     "ext": g["id"],
                     "version": g["version"],
                     "name": it["name"],
                     "description": it.get("description"),
-                    "spec": it["spec"],
+                    "spec": spec,
                 }
                 if it["kind"] == "tool":
                     self.tools.setdefault(it["name"], item)
