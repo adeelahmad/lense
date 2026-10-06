@@ -235,13 +235,27 @@ def refresh_session(db, cfg, raw):
     if not _active(u):
         return None
     new = secrets.token_urlsafe(32)
-    db.run(
-        ["UPDATE $old SET rotated = true, rotated_at = rotated_at OR $now", "CREATE $new CONTENT $d"],
-        old=R("login_session", sha(raw)),
-        now=store.now(),
-        new=R("login_session", sha(new)),
-        d={"account": u["id"], "sid": s["sid"], "created_at": store.now(), "expires_at": _later(cfg["server"].get("session_hours", 168))},
-    )
+    try:
+        # one step: a sign-out (or a password change, a passkey removed) that deleted the session since it was read
+        # leaves nothing to rotate, and the session stays ended instead of coming back under the new token
+        db.run(
+            [
+                "LET $kept = (UPDATE $old SET rotated = true, rotated_at = rotated_at OR $now RETURN id)",
+                "IF array::len($kept) = 0 { THROW 'the session has ended' }",
+                "CREATE $new CONTENT $d",
+            ],
+            old=R("login_session", sha(raw)),
+            now=store.now(),
+            new=R("login_session", sha(new)),
+            d={
+                "account": u["id"],
+                "sid": s["sid"],
+                "created_at": store.now(),
+                "expires_at": _later(cfg["server"].get("session_hours", 168)),
+            },
+        )
+    except RuntimeError:
+        return None
     return public(u), new, s["sid"]
 
 

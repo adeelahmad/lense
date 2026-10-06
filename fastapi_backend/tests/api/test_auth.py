@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 from app.domain import auth
 from tests.helpers import login, make_user
 
@@ -110,3 +112,20 @@ def test_welcome_tour_opens_until_finished(client, db):
 
     tok = client.post("/api/v1/tokens", json={"name": "ci", "scope": "read"}, headers=h).json()
     assert client.post("/api/v1/auth/me/tour", headers={"Authorization": f"Bearer {tok['token']}"}).status_code == 403
+
+
+def test_a_refresh_racing_a_sign_out_does_not_bring_the_session_back(db, cfg):
+    """The session is read, then rotated: a sign-out in between must leave it ended, not revived under a new token."""
+    uid = auth.create_account(db, "ada@x.io", "ada password 12")
+    raw, sid = auth.start_session(db, cfg, uid)
+    real = auth.get_account
+
+    def signed_out_meanwhile(db_, account):
+        auth.end_session(db, raw)  # another tab signs out after the refresh read the session
+        return real(db_, account)
+
+    with mock.patch.object(auth, "get_account", signed_out_meanwhile):
+        assert auth.refresh_session(db, cfg, raw) is None
+    assert not auth.session_active(db, sid)
+    raw2, _ = auth.start_session(db, cfg, uid)
+    assert auth.refresh_session(db, cfg, raw2) is not None  # an ordinary refresh still works
