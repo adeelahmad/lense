@@ -146,6 +146,9 @@ def multipart(fields, files):
     return bytes(out), f"multipart/form-data; boundary={b}"
 
 
+ENCODE_SECONDS = 600  # a piece sent to a speech service encodes in seconds; past this ffmpeg is stuck
+
+
 def encode(audio):
     """16 kHz mono samples as a small file to send: Ogg Opus, or FLAC where ffmpeg has no Opus. (bytes, name, type)."""
     pcm = np.ascontiguousarray(audio, dtype=np.float32).tobytes()
@@ -153,30 +156,34 @@ def encode(audio):
         ("libopus", "ogg", "audio.ogg", "audio/ogg", ["-b:a", "32k"]),
         ("flac", "flac", "audio.flac", "audio/flac", []),
     ):
-        out = subprocess.run(
-            [
-                "ffmpeg",
-                "-nostdin",
-                "-v",
-                "error",
-                "-f",
-                "f32le",
-                "-ar",
-                str(SR),
-                "-ac",
-                "1",
-                "-i",
-                "-",
-                "-c:a",
-                codec,
-                *extra,
-                "-f",
-                fmt,
-                "-",
-            ],
-            input=pcm,
-            capture_output=True,
-        )
+        try:
+            out = subprocess.run(
+                [
+                    "ffmpeg",
+                    "-nostdin",
+                    "-v",
+                    "error",
+                    "-f",
+                    "f32le",
+                    "-ar",
+                    str(SR),
+                    "-ac",
+                    "1",
+                    "-i",
+                    "-",
+                    "-c:a",
+                    codec,
+                    *extra,
+                    "-f",
+                    fmt,
+                    "-",
+                ],
+                input=pcm,
+                capture_output=True,
+                timeout=ENCODE_SECONDS,
+            )
+        except subprocess.TimeoutExpired:
+            raise ProviderError(f"ffmpeg took longer than {ENCODE_SECONDS} s to encode the audio to send") from None
         if out.returncode == 0 and out.stdout:
             return out.stdout, name, ctype
     raise ProviderError("ffmpeg couldn't encode the audio to send: " + out.stderr.decode(errors="replace")[-200:])

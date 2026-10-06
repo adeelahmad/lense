@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import http.server
 import json
+import shutil
+import sys
 import threading
 import urllib.parse
 
@@ -315,3 +317,25 @@ def test_words_become_segments():
     segs = speech.group_words(w)
     assert [len(json.loads(s["words"])) for s in segs] == [40, 5, 1]  # long sentence breaks, then the pause
     assert speech._short("en-US") == "en" and speech._short("english") == "en"
+
+
+def test_stuck_converters_are_stopped(tmp_path, monkeypatch):
+    """ffmpeg, antiword and pdftotext that never finish are given up on, so one bad file can't hold a worker."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for name in ("ffmpeg", "antiword", "pdftotext"):
+        (bin_dir / name).write_text(f"#!/bin/sh\nexec {shutil.which('sleep')} 60\n")
+        (bin_dir / name).chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir))  # nothing else: no real catdoc or LibreOffice
+    for mod, name in ((ingest, "DECODE_SECONDS"), (ingest, "READ_SECONDS"), (speech, "ENCODE_SECONDS")):
+        monkeypatch.setattr(mod, name, 0.5)
+    with pytest.raises(RuntimeError, match="longer than"):
+        ingest.decode(tmp_path / "a.wav")
+    with pytest.raises(speech.ProviderError, match="longer than"):
+        speech.encode(np.zeros(1600, dtype=np.float32))
+    monkeypatch.setitem(sys.modules, "pypdf", None)  # pdftotext is the fallback
+    with pytest.raises(SystemExit, match="longer than"):
+        ingest.read_pdf(tmp_path / "a.pdf")
+    (tmp_path / "a.doc").write_bytes(b"x")
+    with pytest.raises(SystemExit):  # antiword gave up; no catdoc or LibreOffice here
+        ingest.read_doc(tmp_path / "a.doc")
