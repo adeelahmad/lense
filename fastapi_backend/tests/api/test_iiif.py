@@ -272,6 +272,12 @@ def test_import_from_iiif(env):
         assert meta["related"][0]["id"] == f"{base}/manifest.json"
         again = c.post("/api/v1/import/iiif", headers=h, json={"url": f"{base}/manifest.json", "namespace": "oral", "wait": True})
         assert again.json()["recordings"] == []  # no duplicates
+        # the same manifest in another namespace gets its own copy of the media: each is sealed with its namespace's key
+        other = c.post("/api/v1/import/iiif", headers=h, json={"url": f"{base}/manifest.json", "namespace": "oral3", "wait": True})
+        rid3 = other.json()["recordings"][0]
+        paths = [env.db.one("SELECT VALUE path FROM $r", r=iiif.R("recording", x)) for x in (rid, rid3)]
+        assert paths[0] != paths[1], paths
+        assert c.get(f"/api/v1/recordings/{rid}/audio", headers=h).status_code in (200, 206)
         # a Collection's Manifests are found in the Collections inside it too (Lens nests its own), referenced or embedded
         talks = {"@context": iiif.P3, "id": f"{base}/talks.json", "type": "Collection", "label": {"en": ["Talks"]}}
         talks["items"] = [{"id": f"{base}/manifest.json", "type": "Manifest", "label": {"en": ["Oral history 7"]}}]
