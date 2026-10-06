@@ -107,6 +107,8 @@ services:
       API_BASE_URL: http://backend:8000
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET}
       AUTH_TRUST_HOST: "true"
+      # the containers running the Cloudflare tunnel: their X-Forwarded-For names the visitor (lens-server.js)
+      LENS_WEB_PROXY_HOSTS: backend,worker
       # no AUTH_URL: sign-in follows the address the browser is on (its LAN name, https:// address or Cloudflare tunnel)
     ports:
       # this machine only by default; LENS_BIND=0.0.0.0 to reach it from the network (install.sh does on a server)
