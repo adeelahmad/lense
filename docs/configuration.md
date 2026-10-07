@@ -223,9 +223,9 @@ Set at startup only (the config file; the web app can't choose what the server r
 [anytopdf](https://github.com/adeelahmad/anytopdf-rs) (MIT or Apache-2.0) is Lens's sister project: one static program
 that makes documents, photos and media into searchable PDFs. Lens uses it as a converter, two ways:
 
-- **Here.** With `documents.converter` set to `anytopdf`, Lens downloads release 0.3.0 for this machine on first use
+- **Here.** With `documents.converter` set to `anytopdf`, Lens downloads release 0.4.0 for this machine on first use
   (Linux x86-64 and arm64, macOS), checks it against the release's checksum and keeps only the program in
-  `data_dir/models/anytopdf-0.3.0/`. It makes the PDF of text, Markdown, web pages and emails from the same cleaned page
+  `data_dir/models/anytopdf-0.4.0/`. It makes the PDF of text, Markdown, web pages and emails from the same cleaned page
   Lens would print with Chromium, so a server without Chromium reads them, and it reads images too: a photographed page
   is found, straightened and flattened before OCR. Office files still need LibreOffice beside it.
 - **On a conversion node.** With `documents.anytopdf_url` and its token set, every conversion goes to that machine as
