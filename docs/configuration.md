@@ -227,7 +227,10 @@ that makes documents, photos and media into searchable PDFs. Lens uses it as a c
   (Linux x86-64 and arm64, macOS), checks it against the release's checksum and keeps only the program and its face and object plugins in
   `data_dir/models/anytopdf-0.4.0/`. It makes the PDF of text, Markdown, web pages and emails from the same cleaned page
   Lens would print with Chromium, so a server without Chromium reads them, and it reads images too: a photographed page
-  is found, straightened and flattened before OCR. Office files still need LibreOffice beside it.
+  is found, straightened and flattened before OCR. Office files still need LibreOffice beside it. Where Chromium and
+  poppler's `pdftoppm` are installed too, it draws each web page and email as it looks (`--html-render`, offline) and
+  keeps the page's text as the search layer; without them (a Raspberry Pi, the lean image) it reads the text alone.
+  On a conversion node, its own options decide (`anytopdf queue serve … -- --html-render`).
 - **On a conversion node.** With `documents.anytopdf_url` and its token set, every conversion goes to that machine as
   a job (only the file, named `document.<type>`), and Lens fetches the PDF. The node has LibreOffice and whatever else
   it needs, so a small server (a Raspberry Pi) reads Word, PowerPoint and spreadsheet files with nothing installed.

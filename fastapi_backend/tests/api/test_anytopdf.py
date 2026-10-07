@@ -160,6 +160,31 @@ def test_with_anytopdf_chosen_it_reads_images_too(here, client, env, db, cfg, fo
     assert any("read without anytopdf: anytopdf couldn't read it (error: it broke)" in x for x in log), log
 
 
+def test_with_a_browser_and_poppler_here_it_draws_web_pages(here, client, env, db, cfg, monkeypatch):
+    from app.domain import documents
+
+    he, ha = env["he"], env["ha"]
+    assert client.put("/api/v1/settings/documents", headers=ha, json={"converter": "anytopdf"}).status_code == 200
+    monkeypatch.setattr(convert, "chromium", lambda cfg: "/opt/browser/chrome")
+    monkeypatch.setattr(documents, "_poppler", lambda: ("/usr/bin/pdftoppm", "/usr/bin/pdftotext"))
+    page = _upload(client, he, b"<html><title>Tides</title><body><h1>High water</h1></body></html>", "tides.html")
+    mail = _upload(client, he, _email("Harbour report", 9), "mail.eml")
+    drain(db, settings.effective(db, cfg))
+    for up in (page, mail):
+        assert _rec(db, up["recording"])["rendition"]["by"] == "anytopdf"
+    runs = [r for r in fake_anytopdf.runs(here) if r["args"][3].endswith(".html")]  # pages, emails and an attached email
+    assert len(runs) >= 2 and all("--html-render" in r["args"] for r in runs)
+    assert all(r["anytopdf_env"] == ["ANYTOPDF_CHROME", "ANYTOPDF_DATA_DIR"] for r in runs)
+
+    # without pdftoppm (a small server), it reads the page's text, as before
+    monkeypatch.setattr(documents, "_poppler", lambda: (None, None))
+    again = _upload(client, he, b"<html><body><p>Low water</p></body></html>", "low.html")
+    drain(db, settings.effective(db, cfg))
+    assert _rec(db, again["recording"])["rendition"]["by"] == "anytopdf"
+    last = fake_anytopdf.runs(here)[-1]
+    assert "--html-render" not in last["args"] and last["anytopdf_env"] == ["ANYTOPDF_DATA_DIR"]
+
+
 def test_anytopdf_settings(client, env):
     ha = env["ha"]
     put = lambda changes: client.put("/api/v1/settings/documents", headers=ha, json=changes)  # noqa: E731
