@@ -9,10 +9,13 @@ import {
   GitCommitHorizontal,
   Globe,
   Mail,
+  MapPin,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
+
+import type { Enrichment } from "@/app/openapi-client";
 
 import { uploadKindName } from "@/components/import/files";
 import { ContentTypePicker } from "@/components/recording/content-type";
@@ -156,10 +159,25 @@ export function DetailsTab() {
           )}
         />
       )}
+      {rec.enrichment && <Group icon={MapPin} title="Places and dates" rows={enrichmentRows(rec.enrichment)} />}
       <Group icon={GitCommitHorizontal} title="Provenance" rows={provenance} />
       <Group icon={Workflow} title="Processing" rows={processing} />
     </>
   );
+}
+
+/** What anytopdf found (analysis.anytopdf): where a photo was taken, the places its text names, the dates it gives. */
+function enrichmentRows(e: Enrichment): Row[] {
+  const near = e.place
+    ? `${e.place.name}${e.place.lat != null && e.place.lon != null ? ` (${e.place.lat.toFixed(4)}, ${e.place.lon.toFixed(4)})` : ""}`
+    : null;
+  const dates = (e.dates ?? []).map((d) => (d.iso && d.iso !== d.text ? `${d.text} (${d.iso})` : d.text));
+  return [
+    ["Taken near", near],
+    ["Places named", (e.places ?? []).map((p) => p.name).join(" · ") || null],
+    ["Dates", dates.join(" · ") || null],
+    ["Found by", e.by],
+  ];
 }
 
 /** A web address that opens in a new tab. */

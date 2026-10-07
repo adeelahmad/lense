@@ -738,13 +738,14 @@ def by_anytopdf(cfg, src):
 
 
 def page_pdf(cfg, page, out, via_anytopdf):
-    """A page of HTML made into a PDF: by Chromium (or LibreOffice), or by anytopdf, which reads its text."""
+    """A page of HTML made into a PDF: by Chromium (or LibreOffice), or by anytopdf, which draws it as it looks where
+    Chromium and pdftoppm are here and otherwise reads its text."""
     if not via_anytopdf:
         return html_pdf(cfg, page, out)
     with tempfile.TemporaryDirectory(prefix="lens-page-") as tmp:
         p = pathlib.Path(tmp) / "page.html"
         p.write_text(page, encoding="utf-8")
-        return anytopdf.to_pdf(cfg, p, out)
+        return anytopdf.to_pdf(cfg, p, out, render=True)
 
 
 def to_pdf(cfg, src, out):

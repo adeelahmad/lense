@@ -139,6 +139,39 @@ class WebPage(ResponseModel):
     how: Literal["printed", "pdf"] | None = Field(None, description="printed by Chromium, or a PDF kept as it was")
 
 
+class EnrichedPlace(ResponseModel):
+    """A place anytopdf found: named in the text, or where a photo was taken (its GPS fix, named offline)."""
+
+    name: str
+    city: str | None = None
+    region: str | None = None
+    country: str | None = None
+    country_code: str | None = None
+    lat: float | None = None
+    lon: float | None = None
+    km: float | None = Field(None, description="a GPS fix: how far it is from the named place")
+    from_: Literal["gps", "text"] = Field("text", alias="from")
+    said: str | None = Field(None, description="named in the text: the words that name it")
+
+
+class EnrichedDate(ResponseModel):
+    """A date or time the text gives."""
+
+    text: str = Field(description="as the text says it")
+    iso: str | None = Field(None, description="its ISO 8601 value, when the text pins one down")
+    kind: Literal["date", "datetime", "time"] | None = None
+
+
+class Enrichment(ResponseModel):
+    """The places and dates anytopdf found in a recording (analysis.anytopdf); members of its namespace only."""
+
+    by: str = Field(description="anytopdf and its version")
+    place: EnrichedPlace | None = Field(None, description="a photo: where it was taken")
+    places: list[EnrichedPlace] = Field(default_factory=list, description="places its text names")
+    dates: list[EnrichedDate] = Field(default_factory=list)
+    at: str | None = Field(None, description="when they were found")
+
+
 class AttachedTo(ResponseModel):
     """The email a resource was attached to (it's one of that email's files too)."""
 
@@ -174,6 +207,7 @@ class Recording(ResponseModel):
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
     web: WebPage | None = Field(None, description="a web page captured as a document")
+    enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
 
 
 class Page(ResponseModel):

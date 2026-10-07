@@ -404,14 +404,16 @@ class Objects(Component):
 
 
 class Anytopdf(Component):
-    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here."""
+    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here, or Settings →
+    Analysis asks it for places and dates (enrich.py), or Settings → Video for objects (objects.py)."""
 
     def _serves(self, cfg):
         from . import anytopdf
 
         converts = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
         detects = cfg["video"].get("object_engine") == "anytopdf"  # its objects plugin runs here, node or not
-        return ({"transcribe"} if converts else set()) | ({"objects"} if detects else set())
+        enriches = bool((cfg.get("analysis") or {}).get("anytopdf"))
+        return ({"transcribe"} if converts else set()) | ({"objects"} if detects else set()) | ({"analyze"} if enriches else set())
 
     def needed(self, cfg, m):
         from . import anytopdf
@@ -559,8 +561,8 @@ COMPONENTS = [
     Anytopdf(
         "anytopdf",
         "anytopdf",
-        "makes documents and photographed pages into searchable PDFs (documents.converter), and finds objects (video.object_engine)",
-        steps={"transcribe", "objects"},
+        "makes documents and photographed pages into searchable PDFs (documents.converter), finds places and dates, and objects (video.object_engine)",
+        steps={"transcribe", "analyze", "objects"},
         size_mb=50,
         license="MIT OR Apache-2.0",
     ),

@@ -1176,6 +1176,8 @@ import type {
   TelemetryStatusResponses,
   TestBridgeData,
   TestBridgeResponses,
+  TestConversionNodeData,
+  TestConversionNodeResponses,
   TestDecisionsData,
   TestDecisionsResponses,
   TestEmbeddingsData,
@@ -2440,6 +2442,20 @@ export class Admin {
   ): RequestResult<TestBridgeResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestBridgeResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Conversion Node
+   *
+   * Check that the conversion node (documents.anytopdf_url) answers at its address and takes Lens's token.
+   */
+  public static testConversionNode<ThrowOnError extends boolean = false>(
+    options?: Options<TestConversionNodeData, ThrowOnError>,
+  ): RequestResult<TestConversionNodeResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestConversionNodeResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/documents/node/test",
       ...options,
     });
   }
