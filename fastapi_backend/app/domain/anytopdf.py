@@ -4,7 +4,9 @@ searchable PDFs that Lens then reads like any other (docs/api.md#documents-and-i
 It runs one of two ways, chosen in Settings → Documents:
 - here: the anytopdf program, a single static binary that components.py downloads on first use (checked against its
   release checksum) unless documents.anytopdf names one. It reads emails, web pages, text and photographed pages with no
-  Chromium, and flattens a photographed page before OCR; Office files still need LibreOffice beside it.
+  Chromium, and flattens a photographed page before OCR; Office files still need LibreOffice beside it. Where Chromium
+  and poppler's pdftoppm are here too, it renders a web page or email into page images (--html-render, offline) with
+  the page's text as their search layer, so it keeps its look; without them it reads the page's text alone.
 - on a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work` (documents.anytopdf_url,
   with its bearer token, documents.anytopdf_token). The node has LibreOffice and whatever else it needs, so a small
   server (a Raspberry Pi) reads Office files without installing anything.
@@ -142,20 +144,29 @@ def _args(cfg, scan=False):
     return args
 
 
-def to_pdf(cfg, src, out, scan=False):
-    """Make `out`, the PDF of the file at `src`, on the conversion node if one is set, else here. Returns who made it:
-    "anytopdf"."""
+def renderer(cfg):
+    """The browser anytopdf renders a page of HTML with here (--html-render), or None where it can't: it needs Chromium
+    and poppler's pdftoppm, which a small server (a Raspberry Pi) usually hasn't."""
+    from . import convert, documents
+
+    browser = convert.chromium(cfg)
+    return browser if browser and documents._poppler()[0] else None
+
+
+def to_pdf(cfg, src, out, scan=False, render=False):
+    """Make `out`, the PDF of the file at `src`, on the conversion node if one is set, else here; `render` asks for a
+    page of HTML drawn as it looks, where that can be done. Returns who made it: "anytopdf"."""
     where = available(cfg)
     if where == "node":
         _remote(cfg, pathlib.Path(src), pathlib.Path(out))
     elif where == "here":
-        _local(cfg, pathlib.Path(src), pathlib.Path(out), scan)
+        _local(cfg, pathlib.Path(src), pathlib.Path(out), scan, renderer(cfg) if render else None)
     else:
         raise Unavailable("anytopdf isn't installed here, and no conversion node is set (documents.anytopdf_url)")
     return "anytopdf"
 
 
-def _local(cfg, src, out, scan):
+def _local(cfg, src, out, scan, browser=None):
     from . import convert
 
     exe = binary(cfg)
@@ -167,6 +178,9 @@ def _local(cfg, src, out, scan):
         env = netguard.nowhere_env({**os.environ, "HOME": tmp, "ANYTOPDF_DATA_DIR": f"{tmp}/data", "TMPDIR": tmp})
         env = {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_") or k == "ANYTOPDF_DATA_DIR"}
         argv = [exe, "--no-plugins", "--no-config", "convert", str(doc), "-o", str(made), *_args(cfg, scan)]
+        if browser:  # drawn offline: the page Lens made has nothing to fetch, and the browser couldn't anyway
+            argv.append("--html-render")
+            env["ANYTOPDF_CHROME"] = browser
         r = convert._run(argv, seconds, env=env, cwd=tmp)
         if r.returncode != 0 or not made.is_file() or made.stat().st_size == 0:
             said = convert._last_said(r.stderr or r.stdout)
