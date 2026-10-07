@@ -1,5 +1,6 @@
 """An anytopdf for tests (anytopdf.py): `anytopdf ... convert IN -o OUT ...` writes a PDF of IN's text (a page of
-HTML's text without its markup; an image's, the words in its name), and logs how it was run, one JSON line each, to
+HTML's text without its markup; an image's, the words in its name) and, with --dump-graph, what its plugins found (a
+face, and a bus when it's given an objects model). It logs how it was run, one JSON line each, to
 the file named by its log. It's also a conversion node: `node(token)` serves `anytopdf queue serve`'s API from
 memory, converting each upload the same way."""
 
@@ -31,6 +32,13 @@ if "unreadable" in open(src, "rb").read().decode("utf-8", "replace"):
     print("WARNING [input.unreadable]: it can't be read", file=sys.stderr)
     sys.exit(3)
 pathlib.Path(out).write_bytes(pdf_of(src, open(src, "rb").read()))
+if "--dump-graph" in args:  # what its plugins found: a face, and a bus when given an objects model
+    found = [{"kind": "face", "text": "face", "confidence": 0.9, "region": {"x": 0.1, "y": 0.2, "width": 0.05, "height": 0.06}, "attributes": {"face_index": "0"}},
+             {"kind": "face", "text": "1 face", "confidence": None, "region": None, "attributes": {}}]
+    if os.environ.get("ANYTOPDF_OBJECTS_MODEL"):
+        found.append({"kind": "object", "text": "bus", "confidence": 0.93, "region": {"x": 0.02, "y": 0.2, "width": 0.9, "height": 0.5}, "attributes": {"label": "bus"}})
+    graph = {"sources": [], "units": [{"kind": "visual", "annotations": found}]}
+    pathlib.Path(args[args.index("--dump-graph") + 1]).write_text(json.dumps(graph))
 """
 
 
