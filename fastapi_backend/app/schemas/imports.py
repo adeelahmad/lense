@@ -6,7 +6,7 @@ from pydantic import Field
 
 from app.schemas.common import RequestModel, ResponseModel
 
-TranscriptFormat = Literal["auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt"]
+TranscriptFormat = Literal["auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt", "chat"]
 
 
 class ImportPreviewRequest(RequestModel):

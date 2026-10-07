@@ -2575,6 +2575,12 @@ export type ContentRules = {
    * Max Minutes
    */
   max_minutes?: number | null;
+  /**
+   * Forms
+   *
+   * what the file was found to hold, e.g. [chat]
+   */
+  forms?: Array<"chat"> | null;
 };
 
 /**
@@ -5835,7 +5841,7 @@ export type ImportPreviewRequest = {
   /**
    * Format
    */
-  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt";
+  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt" | "chat";
   /**
    * Filename
    */
@@ -5859,7 +5865,7 @@ export type ImportRequest = {
   /**
    * Format
    */
-  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt";
+  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt" | "chat";
   /**
    * Filename
    */

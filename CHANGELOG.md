@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **WhatsApp, Telegram, Slack and iMessage chats.** Import an exported chat (or upload a WhatsApp .txt) and Lens
+  reads it message by message, with who sent each one as its speaker and when it was sent, so the assistant can
+  answer from your real conversations. It gets the new Chat export content type
+  ([Chat exports](docs/processing.md#importing-transcripts)).
 - **anytopdf can make Lens's PDFs.** Settings › Documents › Make PDFs with anytopdf. On `auto` (the default) nothing
   changes unless anytopdf is here: then it reads the emails, web pages and text a server without Chromium couldn't.
   Choose "For every document and image" and Lens downloads anytopdf 0.4.0 (checked against its release checksum);
