@@ -106,6 +106,12 @@ class BridgeTestResult(ResponseModel):
     error: str | None = None
 
 
+class ConversionNodeTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    ms: int | None = None
+
+
 class EncryptionProgress(ResponseModel):
     """Converting the files already kept after encryption.files changed: `to` "encrypted" or "plain" (vaults stay
     encrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped

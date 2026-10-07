@@ -7,12 +7,27 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Export an evidence PDF.** A resource's Export menu, and a collection's page, download it as one PDF made by
   anytopdf: each file's pages (audio and video with their transcript), searchable, then a provenance page with every
   file's SHA-256, so it can be handed on and checked ([Evidence PDFs](docs/api.md#evidence-pdfs)).
+- **Places and dates from anytopdf.** Turn on Settings › Analysis › Find places and dates with anytopdf (off by
+  default) and analysis also asks anytopdf, offline, for the places a text names, the dates it gives (with their ISO
+  value) and where a photo was taken (from its GPS fix, with `exiftool` installed). They become places and dates in the
+  graph, and the resource's Details tab lists them for the namespace's members
+  ([anytopdf](docs/configuration.md#anytopdf)).
+- **WhatsApp, Telegram, Slack and iMessage chats.** Import an exported chat (or upload a WhatsApp .txt) and Lens
+  reads it message by message, with who sent each one as its speaker and when it was sent, so the assistant can
+  answer from your real conversations. It gets the new Chat export content type
+  ([Chat exports](docs/processing.md#importing-transcripts)).
 - **anytopdf can make Lens's PDFs.** Settings › Documents › Make PDFs with anytopdf. On `auto` (the default) nothing
   changes unless anytopdf is here: then it reads the emails, web pages and text a server without Chromium couldn't.
   Choose "For every document and image" and Lens downloads anytopdf 0.4.0 (checked against its release checksum);
   it then also reads images, flattening a photographed page before OCR. Or set a conversion node, another machine
   running `anytopdf queue serve`, and a small server reads Word, PowerPoint and spreadsheet files too
   ([anytopdf](docs/configuration.md#anytopdf)).
+- **A conversion node gets the token and nothing more.** Lens refuses a node that redirects (so its token never
+  goes on to another server), caps what the node answers and refuses a PDF that isn't one. Settings › Documents ›
+  Check it says whether the node answers and takes the token ([anytopdf](docs/configuration.md#anytopdf)).
+- **Web pages and emails keep their look when anytopdf makes the PDF.** Where Chromium and `pdftoppm` are installed,
+  anytopdf draws the page as page images, offline, with its text as the search layer. Without them it reads the text,
+  as before.
 - **Connect Slack, WhatsApp, Telegram, Discord and Matrix from the web app.** Start the optional `matterbridge`
   service, then turn on Settings › Chat rooms › Run Matterbridge here and add a bot token and rooms. To link
   WhatsApp, scan the QR code the page shows. Lens writes Matterbridge's config, a gateway per room, and restarts it

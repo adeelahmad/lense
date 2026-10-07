@@ -148,7 +148,8 @@ DEFAULTS = {
         "sample_seconds": 60,
         "cross_namespace": "suggest",
     },
-    "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": []},
+    # anytopdf: the places and dates anytopdf (run here) finds, as hints for the extractor (enrich.py)
+    "analysis": {"entities": "rules", "spacy_model": "en_core_web_sm", "gazetteer": [], "anytopdf": False},
     # chat_models: the models people may pick in Chat; empty: whatever the model server lists (docs/configuration.md)
     "llm": {
         "base_url": None,

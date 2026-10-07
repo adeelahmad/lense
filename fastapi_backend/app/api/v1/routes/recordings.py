@@ -269,7 +269,7 @@ def retag_recordings(body: RecordingsRetag, acl: Acl, user: Writer, db: Db) -> T
 def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     r = acl.recording(rid)
     space = db.one("SELECT name FROM $s", s=R("space", r["space"])) or {}
-    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary", "access_parts")}
+    d = {k: v for k, v in r.items() if k not in ("envelope", "stats", "summary", "access_parts", "enrichment")}
     a = acc.of(db, rid)
     d.update(access=a["access"], open=a["open"], featured=a["featured"], access_inherited=a["inherited"])
     d.update(
@@ -291,6 +291,8 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     ]
     d["jobs"] = jobs.list_jobs(db, recording=rid, limit=5)
     d["attached_to"] = _attached_to(acl, db, r.get("attached_to"))
+    if r.get("enrichment") and acl.member(r):  # where a photo was taken: members only
+        d["enrichment"] = {k: v for k, v in r["enrichment"].items() if k != "photo_fp"}
     return Recording.model_validate(sign_urls(d, full=True))
 
 

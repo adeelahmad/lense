@@ -87,6 +87,7 @@ describe("content types", () => {
     expect(rulesText({ extensions: [".srt", ".vtt"], pattern: "sync", min_minutes: 5 })).toBe(
       ".srt .vtt · name ~ sync · ≥ 5 min",
     );
+    expect(rulesText({ forms: ["chat"] })).toBe("holds a chat");
     expect(rulesText(null)).toBe("");
   });
 });

@@ -18,6 +18,7 @@ class ContentRules(RequestModel):
     pattern: str | None = Field(default=None, description="a regular expression found in the file name or title")
     min_minutes: float | None = None
     max_minutes: float | None = None
+    forms: list[Literal["chat"]] | None = Field(default=None, description="what the file was found to hold, e.g. [chat]")
 
 
 class ContentType(ResponseModel):

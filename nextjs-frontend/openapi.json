@@ -2488,6 +2488,28 @@
         }
       }
     },
+    "/api/v1/settings/documents/node/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Conversion Node",
+        "description": "Check that the conversion node (documents.anytopdf_url) answers at its address and takes Lens's token.",
+        "operationId": "test_conversion_node",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionNodeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/decisions/status": {
       "get": {
         "tags": [
@@ -28204,6 +28226,22 @@
               }
             ],
             "title": "Max Minutes"
+          },
+          "forms": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "const": "chat"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forms",
+            "description": "what the file was found to hold, e.g. [chat]"
           }
         },
         "additionalProperties": false,
@@ -28484,6 +28522,42 @@
           "content_type"
         ],
         "title": "ContentTypeUse"
+      },
+      "ConversionNodeTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "ConversionNodeTestResult"
       },
       "Converters": {
         "properties": {
@@ -29283,6 +29357,218 @@
         ],
         "title": "EncryptionProgress",
         "description": "Converting the files already kept after encryption.files changed: `to` \"encrypted\" or \"plain\" (vaults stay\nencrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped\nearly."
+      },
+      "EnrichedDate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "as the text says it"
+          },
+          "iso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iso",
+            "description": "its ISO 8601 value, when the text pins one down"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "date",
+                  "datetime",
+                  "time"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "EnrichedDate",
+        "description": "A date or time the text gives."
+      },
+      "EnrichedPlace": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "country": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country"
+          },
+          "country_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Country Code"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lon"
+          },
+          "km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Km",
+            "description": "a GPS fix: how far it is from the named place"
+          },
+          "from": {
+            "type": "string",
+            "enum": [
+              "gps",
+              "text"
+            ],
+            "title": "From",
+            "default": "text"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Said",
+            "description": "named in the text: the words that name it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "EnrichedPlace",
+        "description": "A place anytopdf found: named in the text, or where a photo was taken (its GPS fix, named offline)."
+      },
+      "Enrichment": {
+        "properties": {
+          "by": {
+            "type": "string",
+            "title": "By",
+            "description": "anytopdf and its version"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EnrichedPlace"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a photo: where it was taken"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/EnrichedPlace"
+            },
+            "type": "array",
+            "title": "Places",
+            "description": "places its text names"
+          },
+          "dates": {
+            "items": {
+              "$ref": "#/components/schemas/EnrichedDate"
+            },
+            "type": "array",
+            "title": "Dates"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when they were found"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "by"
+        ],
+        "title": "Enrichment",
+        "description": "The places and dates anytopdf found in a recording (analysis.anytopdf); members of its namespace only."
       },
       "EntityDefine": {
         "properties": {
@@ -33724,7 +34010,8 @@
               "json",
               "jsonl",
               "srt",
-              "vtt"
+              "vtt",
+              "chat"
             ],
             "title": "Format",
             "default": "auto"
@@ -33781,7 +34068,8 @@
               "json",
               "jsonl",
               "srt",
-              "vtt"
+              "vtt",
+              "chat"
             ],
             "title": "Format",
             "default": "auto"
@@ -42356,6 +42644,17 @@
               }
             ],
             "description": "a web page captured as a document"
+          },
+          "enrichment": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Enrichment"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the places and dates anytopdf found (analysis.anytopdf)"
           }
         },
         "additionalProperties": true,
