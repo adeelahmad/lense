@@ -12,13 +12,14 @@ import pathlib
 import re
 import sys
 import threading
+import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 SCRIPT = r"""#!@PYTHON@
 import json, os, pathlib, sys
 sys.path.insert(0, @ROOT@)
-from tests.fake_anytopdf import pdf_of
+from tests.fake_anytopdf import evidence_of, pdf_of
 
 args = sys.argv[1:]
 if args == ["--version"]:
@@ -26,11 +27,16 @@ if args == ["--version"]:
     sys.exit(0)
 with open(@LOG@, "a") as f:
     f.write(json.dumps({"args": args, "proxy": os.environ.get("https_proxy"), "anytopdf_env": sorted(k for k in os.environ if k.startswith("ANYTOPDF_"))}) + "\n")
-src, out = args[args.index("convert") + 1], args[args.index("-o") + 1]
-if "unreadable" in open(src, "rb").read().decode("utf-8", "replace"):
+at, out = args.index("convert") + 1, args[args.index("-o") + 1]
+srcs = args[at:next((i for i in range(at, len(args)) if args[i].startswith("-")), len(args))]
+said = [args[i + 1] for i, a in enumerate(args) if a == "--transcript"]
+if any("unreadable" in open(src, "rb").read().decode("utf-8", "replace") for src in srcs):
     print("WARNING [input.unreadable]: it can't be read", file=sys.stderr)
     sys.exit(3)
-pathlib.Path(out).write_bytes(pdf_of(src, open(src, "rb").read()))
+if len(srcs) == 1 and not said and "--no-provenance-page" in args:
+    pathlib.Path(out).write_bytes(pdf_of(srcs[0], open(srcs[0], "rb").read()))
+else:
+    pathlib.Path(out).write_bytes(evidence_of([(s, open(s, "rb").read()) for s in srcs], said, "--no-provenance-page" not in args))
 """
 
 
@@ -51,6 +57,29 @@ def text_of(name, raw):
         text = html.unescape(re.sub(r"<[^>]+>", "\n", text))
     lines = [x.strip().encode("latin-1", "replace").decode("latin-1") for x in text.splitlines() if x.strip()]
     return lines or ["(empty)"]
+
+
+def evidence_of(files, transcripts=(), provenance=True):
+    """Several files as one PDF, a page each (audio and video as the transcript of the same name, given or packed
+    beside it), then a provenance page with each one's SHA-256."""
+    import hashlib
+
+    from tests.helpers import text_pdf
+
+    said = {pathlib.Path(t).stem: pathlib.Path(t).read_bytes() for t in transcripts}
+    pages = []
+    for name, raw in files:
+        stem, ext = pathlib.Path(name).stem, pathlib.Path(name).suffix.lower()
+        if ext in (".wav", ".mp3", ".m4a", ".mp4", ".webm", ".ogg", ".flac"):
+            pages.append(["\n".join([f"Audio source: {pathlib.Path(name).name}", *text_of("x.srt", said.get(stem, b"(no transcript)"))])])
+        else:
+            pages.append(["\n".join(text_of(name, raw))])
+    if provenance:
+        lines = ["Provenance"]
+        for name, raw in files:
+            lines += [f"Source: {pathlib.Path(name).name}", f"SHA-256: {hashlib.sha256(raw).hexdigest()}"]
+        pages.append(["\n".join(lines)])
+    return text_pdf(pages)
 
 
 def pdf_of(name, raw):
@@ -95,11 +124,22 @@ class Node(http.server.BaseHTTPRequestHandler):
         Node.seen.append(f"POST {self.path}")
         if not self._authorized():
             return
-        name = re.search(r"filename=([^&]+)", self.path).group(1)
+        name = urllib.parse.unquote_plus(re.search(r"filename=([^&]+)", self.path).group(1))
         raw = self.rfile.read(int(self.headers["Content-Length"]))
         jid = f"job_{len(Node.jobs) + 1}"
         failed = b"unreadable" in raw
-        Node.jobs[jid] = {"name": name, "pdf": None if failed else pdf_of(name, raw)}
+        if failed:
+            made = None
+        elif name.endswith(".zip"):  # one job of several files: each one's page (the node's own options keep provenance)
+            import io
+            import zipfile
+
+            z = zipfile.ZipFile(io.BytesIO(raw))
+            files = [(n, z.read(n)) for n in z.namelist()]
+            made = evidence_of(files)
+        else:
+            made = pdf_of(name, raw)
+        Node.jobs[jid] = {"name": name, "pdf": made}
         self._send(202, {"job_id": jid, "state": "queued", "origin": "http", "inputs": [name]})
 
     def do_GET(self):  # noqa: N802

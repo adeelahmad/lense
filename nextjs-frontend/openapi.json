@@ -6989,6 +6989,45 @@
         }
       }
     },
+    "/api/v1/resources/{rid}/evidence.pdf": {
+      "get": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Evidence Pdf",
+        "description": "The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with\ntheir transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't\nrun here (it's fetched on first use unless Settings \u203a Documents says never to use it).",
+        "operationId": "evidence_pdf",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/{rid}/segments/{idx}": {
       "patch": {
         "tags": [
@@ -19692,6 +19731,45 @@
                   "$ref": "#/components/schemas/Ok"
                 }
               }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/collections/{cid}/evidence.pdf": {
+      "get": {
+        "tags": [
+          "collections"
+        ],
+        "summary": "Collection Evidence",
+        "description": "The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each\none's pages, then a provenance page with every file's SHA-256 and size. At most 50 recordings.",
+        "operationId": "collection_evidence",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {}
             }
           },
           "422": {

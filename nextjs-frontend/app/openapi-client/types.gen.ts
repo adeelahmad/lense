@@ -20813,6 +20813,36 @@ export type ExportRecordingResponses = {
   200: unknown;
 };
 
+export type EvidencePdfData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/evidence.pdf";
+};
+
+export type EvidencePdfErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type EvidencePdfError = EvidencePdfErrors[keyof EvidencePdfErrors];
+
+export type EvidencePdfResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+};
+
+export type EvidencePdfResponse = EvidencePdfResponses[keyof EvidencePdfResponses];
+
 export type EditSegmentData = {
   body: SegmentUpdate;
   path: {
@@ -28573,6 +28603,36 @@ export type UpdateCollectionResponses = {
 };
 
 export type UpdateCollectionResponse = UpdateCollectionResponses[keyof UpdateCollectionResponses];
+
+export type CollectionEvidenceData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/collections/{cid}/evidence.pdf";
+};
+
+export type CollectionEvidenceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CollectionEvidenceError = CollectionEvidenceErrors[keyof CollectionEvidenceErrors];
+
+export type CollectionEvidenceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+};
+
+export type CollectionEvidenceResponse = CollectionEvidenceResponses[keyof CollectionEvidenceResponses];
 
 export type EstimateBatchData = {
   body: BatchPlan;

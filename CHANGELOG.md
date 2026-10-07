@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Export an evidence PDF.** A resource's Export menu, and a collection's page, download it as one PDF made by
+  anytopdf: each file's pages (audio and video with their transcript), searchable, then a provenance page with every
+  file's SHA-256, so it can be handed on and checked ([Evidence PDFs](docs/api.md#evidence-pdfs)).
 - **anytopdf can make Lens's PDFs.** Settings › Documents › Make PDFs with anytopdf. On `auto` (the default) nothing
   changes unless anytopdf is here: then it reads the emails, web pages and text a server without Chromium couldn't.
   Choose "For every document and image" and Lens downloads anytopdf 0.4.0 (checked against its release checksum);

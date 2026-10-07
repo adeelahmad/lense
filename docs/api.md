@@ -365,6 +365,7 @@ DELETE /api/v1/resources/{rid}/share
 GET    /api/v1/resources/{rid}/shares
 DELETE /api/v1/resources/{rid}/shares/{id}
 GET    /api/v1/resources/{rid}/export.{fmt}
+GET    /api/v1/resources/{rid}/evidence.pdf
 PATCH  /api/v1/resources/{rid}/segments/{idx}
 POST   /api/v1/resources/{rid}/segments/{idx}/split
 POST   /api/v1/resources/{rid}/segments/{idx}/merge
@@ -531,6 +532,22 @@ drawn: a track's `spans`, `first_ms` and `boxes` then count pages (from 0) rathe
 how many pages it's on (the namespace's faces don't count those as time on screen). Published, a document is a IIIF
 Manifest with a Canvas per page ([IIIF](iiif.md)), and its public page shows its pages and its text page by page
 ([public](#public)).
+
+### Evidence PDFs
+
+`GET /resources/{rid}/evidence.pdf` and `GET /collections/{cid}/evidence.pdf` are a resource, or the ones in a
+collection you can read (a list in its own order, a filter's oldest first; 50 at most), as one PDF to hand on, made by
+[anytopdf](configuration.md#anytopdf). Each resource goes in as its own file: a document or an image as it is, a
+captured web page as captured, audio or video with Lens's transcript of it (its speakers' names on each line), and a
+transcript without media as its text. The PDF is searchable PDF/A-3 with its text and chunks embedded, and its last
+page is a provenance page giving every file's SHA-256 and size, so whoever gets it can check each part against the
+file it came from. It holds no paths of the server (anytopdf's `share` profile), is made when asked for, and nothing
+of it is kept. Anyone who can read the resources can have it (share links and signed links can't).
+
+anytopdf runs as it does for conversions (no network, plugins or config file of its own); if it isn't here it's
+fetched on first use, unless Settings › Documents says never to use it (503). A conversion node takes one file per
+job and its own options: a single document goes as it is, and more go as one zip, with audio and video as their
+transcripts only.
 
 ## notes
 
@@ -1135,7 +1152,10 @@ POST   /api/v1/collections
 GET    /api/v1/collections/{cid}
 PATCH  /api/v1/collections/{cid}
 DELETE /api/v1/collections/{cid}
+GET    /api/v1/collections/{cid}/evidence.pdf
 ```
+
+`GET /{cid}/evidence.pdf` is the collection as one [evidence PDF](#evidence-pdfs).
 
 ## views
 

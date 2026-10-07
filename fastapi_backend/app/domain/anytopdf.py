@@ -43,6 +43,8 @@ ARCHIVES = {
 MACHINES = {"amd64": "x86_64", "arm64": "arm64", "aarch64": "aarch64"}
 # its search layer: the document's own text, not the dates, colours and places it would add
 QUIET = ["--no-provenance-page", "--no-entities", "--colors", "off", "--location", "off"]
+# an evidence PDF to hand on: the same, with its provenance page, and no paths of this server in it
+EVIDENCE = ["--profile", "share", *QUIET[1:]]
 POLL_SECONDS = 1.0
 
 
@@ -155,6 +157,12 @@ def to_pdf(cfg, src, out, scan=False):
     return "anytopdf"
 
 
+def _env(tmp):
+    """Run with no network, and none of this server's own ANYTOPDF_* settings: only what Lens passes."""
+    env = netguard.nowhere_env({**os.environ, "HOME": tmp, "ANYTOPDF_DATA_DIR": f"{tmp}/data", "TMPDIR": tmp})
+    return {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_") or k == "ANYTOPDF_DATA_DIR"}
+
+
 def _local(cfg, src, out, scan):
     from . import convert
 
@@ -164,10 +172,8 @@ def _local(cfg, src, out, scan):
         doc = pathlib.Path(tmp) / f"document{src.suffix.lower()}"
         shutil.copyfile(src, doc)
         made = pathlib.Path(tmp) / "out.pdf"
-        env = netguard.nowhere_env({**os.environ, "HOME": tmp, "ANYTOPDF_DATA_DIR": f"{tmp}/data", "TMPDIR": tmp})
-        env = {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_") or k == "ANYTOPDF_DATA_DIR"}
         argv = [exe, "--no-plugins", "--no-config", "convert", str(doc), "-o", str(made), *_args(cfg, scan)]
-        r = convert._run(argv, seconds, env=env, cwd=tmp)
+        r = convert._run(argv, seconds, env=_env(tmp), cwd=tmp)
         if r.returncode != 0 or not made.is_file() or made.stat().st_size == 0:
             said = convert._last_said(r.stderr or r.stdout)
             raise ValueError(f"anytopdf couldn't read it ({said or f'exit {r.returncode}'})")
@@ -192,11 +198,12 @@ def _said(e):
         return getattr(e, "reason", str(e))
 
 
-def _remote(cfg, src, out):
-    """The file sent to the conversion node as a job, waited for, and its PDF fetched."""
+def _remote(cfg, src, out, name=None):
+    """The file sent to the conversion node as a job (named `name`, else document.<type>), waited for, and its PDF
+    fetched."""
     seconds = _opts(cfg).get("convert_seconds") or 300
     try:
-        with _call(cfg, "POST", "/v1/jobs", src.read_bytes(), {"filename": f"document{src.suffix.lower()}"}) as r:
+        with _call(cfg, "POST", "/v1/jobs", src.read_bytes(), {"filename": name or f"document{src.suffix.lower()}"}) as r:
             job = json.loads(r.read())
         jid, end = job["job_id"], time.monotonic() + seconds
         while job.get("state") not in ("succeeded", "failed"):
@@ -218,3 +225,45 @@ def _remote(cfg, src, out):
         raise ValueError(f"the conversion node said {e.code}: {_said(e)}") from None
     except (urllib.error.URLError, OSError) as e:
         raise ValueError(f"the conversion node can't be reached ({getattr(e, 'reason', e)})") from None
+
+
+def evidence(cfg, inputs, transcripts, out):
+    """Make `out`, one evidence PDF of the files `inputs`, in order: each one's pages, then a provenance page giving
+    every source's SHA-256 and size, as a PDF/A-3 with its text and chunks embedded. `transcripts` are Lens's
+    transcripts (.srt) of the audio and video among them, by the same name, shown as each one's timed transcript.
+
+    Here, it's one run over them all. A conversion node takes one file per job and its own options, so there a single
+    document goes as it is, and anything more as one zip, each audio or video as its transcript only (when it has
+    one) rather than the media itself."""
+    where = available(cfg)
+    if not where:
+        raise Unavailable("anytopdf isn't installed here, and no conversion node is set (documents.anytopdf_url)")
+    inputs, transcripts, out = [pathlib.Path(x) for x in inputs], [pathlib.Path(x) for x in transcripts], pathlib.Path(out)
+    if where == "node":
+        if len(inputs) == 1 and not transcripts:
+            return _remote(cfg, inputs[0], out, name=inputs[0].name)
+        import zipfile
+
+        said = {t.stem: t for t in transcripts}
+        with tempfile.TemporaryDirectory(prefix="lens-evidence-") as tmp:
+            pack = pathlib.Path(tmp) / "evidence.zip"
+            with zipfile.ZipFile(pack, "w", zipfile.ZIP_DEFLATED) as z:
+                for f in inputs:
+                    sent = said.get(f.stem, f)
+                    z.write(sent, sent.name)
+            return _remote(cfg, pack, out, name="evidence.zip")
+    exe, seconds = binary(cfg), (_opts(cfg).get("convert_seconds") or 300) * max(1, len(inputs))
+    with tempfile.TemporaryDirectory(prefix="lens-evidence-") as tmp:
+        made = pathlib.Path(tmp) / "evidence.pdf"
+        argv = [exe, "--no-plugins", "--no-config", "convert", *map(str, inputs), "-o", str(made), *EVIDENCE]
+        argv += ["--ocr", "off"] if (cfg.get("video") or {}).get("ocr_engine") == "none" else []
+        for t in transcripts:
+            argv += ["--transcript", str(t)]
+        from . import convert
+
+        r = convert._run(argv, seconds, env=_env(tmp), cwd=tmp)
+        if r.returncode != 0 or not made.is_file() or made.stat().st_size == 0:
+            said = convert._last_said(r.stderr or r.stdout)
+            raise ValueError(f"anytopdf couldn't make the evidence PDF ({said or f'exit {r.returncode}'})")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(made), out)
