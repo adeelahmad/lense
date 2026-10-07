@@ -13,6 +13,9 @@ documents.converter says when: `auto` (the default) uses it only for what Lens c
 every document and image, `lens` never. Run here, it has no network, no runtime plugins (faces, objects and speech
 stay Lens's own steps) and no config file of its own; its PDF has no provenance page, and its search layer holds the
 document's text only, so what Lens reads from it is what the document says.
+
+analyze() asks its face and object plugins, kept beside the program, what is in a picture: sandboxed, with no network,
+reading only the picture and the models Lens names.
 """
 
 from __future__ import annotations
@@ -44,6 +47,8 @@ MACHINES = {"amd64": "x86_64", "arm64": "arm64", "aarch64": "aarch64"}
 # its search layer: the document's own text, not the dates, colours and places it would add
 QUIET = ["--no-provenance-page", "--no-entities", "--colors", "off", "--location", "off"]
 POLL_SECONDS = 1.0
+# the plugins Lens keeps beside the program, for analyze(): the rest of the release's plugins stay behind
+PLUGINS = ("anytopdf-plugin-faces", "anytopdf-plugin-face-id", "anytopdf-plugin-objects")
 
 
 class Unavailable(RuntimeError):
@@ -97,7 +102,8 @@ def mode(cfg):
 
 
 def fetch(cfg, say=None):
-    """Download this machine's anytopdf release, check it against its checksum, and keep only the program."""
+    """Download this machine's anytopdf release, check it against its checksum, and keep only the program and its
+    face and object plugins (PLUGINS)."""
     import hashlib
 
     found = archive()
@@ -105,7 +111,7 @@ def fetch(cfg, say=None):
         raise Unavailable(f"anytopdf has no build for {platform.system()} {platform.machine()}")
     name, sha = found
     dest = fetched_path(cfg)
-    if dest.is_file():
+    if dest.is_file() and (dest.parent / "plugins").is_dir():  # fetched before plugins were kept: fetched again
         return str(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     if say:
@@ -118,17 +124,29 @@ def fetch(cfg, say=None):
                 f.write(chunk)
         if h.hexdigest() != sha:
             raise RuntimeError(f"{name} didn't match its checksum")
-        want = f"{name.removesuffix('.tar.gz')}/anytopdf"
+        top = name.removesuffix(".tar.gz")
+        wanted = {f"{top}/anytopdf": "anytopdf", **{f"{top}/plugins/{p}": f"plugins/{p}" for p in PLUGINS}}
+        got = pathlib.Path(tmp) / "got"
         with tarfile.open(part) as t:
-            member = t.getmember(want)  # the program only: its plugins stay behind, and nothing else is unpacked
-            if not member.isfile():
-                raise RuntimeError(f"{want} in {name} isn't a file")
-            src = t.extractfile(member)
-            out = pathlib.Path(tmp) / "anytopdf"
-            with open(out, "wb") as f:
-                shutil.copyfileobj(src, f)
-        out.chmod(0o755)
-        out.replace(dest)
+            for want, to in wanted.items():  # these only: nothing else in the archive is unpacked
+                try:
+                    member = t.getmember(want)
+                except KeyError:
+                    if to == "anytopdf":
+                        raise
+                    continue  # a plugin this release doesn't ship: analyze() goes without it
+                if not member.isfile():
+                    raise RuntimeError(f"{want} in {name} isn't a file")
+                out = got / to
+                out.parent.mkdir(parents=True, exist_ok=True)
+                with t.extractfile(member) as src, open(out, "wb") as f:
+                    shutil.copyfileobj(src, f)
+                out.chmod(0o755)
+        if (dest.parent / "plugins").exists():
+            shutil.rmtree(dest.parent / "plugins")
+        if (got / "plugins").exists():
+            (got / "plugins").replace(dest.parent / "plugins")
+        (got / "anytopdf").replace(dest)
     return str(dest)
 
 
@@ -218,3 +236,51 @@ def _remote(cfg, src, out):
         raise ValueError(f"the conversion node said {e.code}: {_said(e)}") from None
     except (urllib.error.URLError, OSError) as e:
         raise ValueError(f"the conversion node can't be reached ({getattr(e, 'reason', e)})") from None
+
+
+def analyze(cfg, picture, models=None, seconds=None):
+    """What anytopdf's plugins find in a picture, run here: [{"kind": "face" | "object", "label", "box": [x, y, w, h]
+    fractions, "score", "attributes"}], one per thing found where it is (their summaries left out).
+
+    `models` are the plugins' settings, such as {"ANYTOPDF_OBJECTS_MODEL": "/models/yolox_s.onnx"}: a plugin that
+    needs a model runs only when it's given one, and may read nothing else (the plugins run sandboxed, with no network
+    and no config file). Faces are found by the bundled YuNet whatever is given."""
+    from . import convert
+
+    exe = binary(cfg)
+    if not exe:
+        raise Unavailable("anytopdf isn't installed here (documents.anytopdf)")
+    models = {k: str(v) for k, v in (models or {}).items() if k.startswith("ANYTOPDF_") and v}
+    seconds = seconds or _opts(cfg).get("convert_seconds") or 300
+    with tempfile.TemporaryDirectory(prefix="lens-anytopdf-") as tmp:
+        pic = pathlib.Path(tmp) / f"picture{pathlib.Path(picture).suffix.lower() or '.jpg'}"
+        shutil.copyfile(picture, pic)
+        env = netguard.nowhere_env({**os.environ, "HOME": tmp, "TMPDIR": tmp})
+        env = {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_")}
+        env.update(models, ANYTOPDF_DATA_DIR=f"{tmp}/data")
+        reads = [a for v in models.values() if os.path.exists(v) for a in ("--plugin-sandbox-allow-read", v)]
+        graph = pathlib.Path(tmp) / "graph.json"
+        argv = [exe, "--no-config", "--plugin-sandbox", "strict", *reads, "--plugin-timeout", str(int(seconds))]
+        argv += ["convert", str(pic), "-o", f"{tmp}/out.pdf", "--dump-graph", str(graph), "--ocr", "off", *QUIET]
+        r = convert._run(argv, seconds, env=env, cwd=tmp)
+        if r.returncode != 0 or not graph.is_file():
+            said = convert._last_said(r.stderr or r.stdout)
+            raise ValueError(f"anytopdf couldn't look at it ({said or f'exit {r.returncode}'})")
+        found = json.loads(graph.read_text())
+    out = []
+    for unit in found.get("units") or []:
+        for a in unit.get("annotations") or []:
+            box = a.get("region")
+            if a.get("kind") not in ("face", "object") or not box:
+                continue
+            attrs = a.get("attributes") or {}
+            out.append(
+                {
+                    "kind": a["kind"],
+                    "label": attrs.get("label") or a["kind"],
+                    "box": [float(box["x"]), float(box["y"]), float(box["width"]), float(box["height"])],
+                    "score": float(a.get("confidence") or 0.0),
+                    "attributes": attrs,
+                }
+            )
+    return out
