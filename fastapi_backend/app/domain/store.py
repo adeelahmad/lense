@@ -119,6 +119,7 @@ TEXT_EXT = (".txt", ".text", ".md", ".markdown", ".mdx")
 PAGE_EXT = (".html", ".htm")
 EMAIL_EXT = (".eml", ".msg")
 DOCUMENT_EXT = (".pdf", *OFFICE_EXT, *TEXT_EXT, *PAGE_EXT, *EMAIL_EXT)
+STRUCTURED_EXT = (".json", ".jsonl")  # read as records, a chat or a transcript (domain/records.py)
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp")
 DEFAULTS = {
     "data_dir": "./archive-data",
@@ -216,7 +217,12 @@ DEFAULTS = {
     # where Lens keeps the files it makes its own, such as notes' attachments (blobs.py, docs/storage.md): "local"
     # (data_dir/objects) or "connection" (a storage source, under its folder); crypt wraps it in rclone crypt too
     "files": {"store": "local", "connection": None, "folder": "lens", "crypt": False},
-    "uploads": {"max_mb": 4096, "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT), "chunk_mb": 8, "expire_hours": 24},
+    "uploads": {
+        "max_mb": 4096,
+        "extensions": list(MEDIA_EXT + DOCUMENT_EXT + IMAGE_EXT + STRUCTURED_EXT),
+        "chunk_mb": 8,
+        "expire_hours": 24,
+    },
     # documents and images (docs/configuration.md): how large their pages are drawn, when a page is read by OCR, and
     # how many pages are read at most
     "documents": {

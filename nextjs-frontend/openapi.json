@@ -28154,7 +28154,10 @@
               {
                 "items": {
                   "type": "string",
-                  "const": "chat"
+                  "enum": [
+                    "chat",
+                    "records"
+                  ]
                 },
                 "type": "array"
               },

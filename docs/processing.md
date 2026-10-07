@@ -34,6 +34,14 @@ as a year-long recording. The chat is dated by its first message and gets the Ch
 or iMessage .txt uploaded with the other files is read the same way; any other text file stays a document.
 `--format chat` (`"format": "chat"`) refuses a file that isn't one.
 
+**Records.** JSON and JSON Lines that aren't a transcript (their rows have fields a transcript's lines don't, like an
+order's `total`) are read as records, one line each: a JSON Lines file a record per line, a JSON file its list (or the
+one list of objects it holds, such as `{"orders": [...]}`), else the object itself. A record's text is its fields,
+one `name: value` per line, nested ones by their path (`address.city: Paris`), so search and the assistant see every
+value. Each line says which record it is (`record`, from 0) and, for JSON Lines, where its line starts in the file
+(`offset`, in bytes). The resource gets the Records content type. JSON and JSON Lines can be uploaded with the other
+files too.
+
     lens import podcasts episode.docx --audio episode.mp3 --speakers "SPEAKER_00=Host A,SPEAKER_01=Host B"
     pbpaste | lens import notes - --title "Standup"
     lens import notes minutes.pdf --format text
@@ -334,13 +342,13 @@ Every resource is video, audio, image or text (transcripts, documents, web pages
 text), read from its file; a video file that hasn't been probed yet is told by its extension.
 Under each base type is a vocabulary of content types (Pipelines → Content types): Lens starts with podcast, interview
 and meeting (audio), screen-share tutorial and recorded meeting (video), photo and scanned page (image), chat export,
-transcript, document, web page, email and calendar event (text), plus a general type for each base. Admins can rename and change
+records, transcript, document, web page, email and calendar event (text), plus a general type for each base. Admins can rename and change
 them, remove all but the general ones, and add their own. A default that's removed stays removed; defaults added in a
 later release appear on upgrade.
 
 A resource's content type is the one someone chose (its Details tab, `PUT /api/v1/recordings/{id}/content-type`), else
 the first of its base type whose rules all match (file extensions, a pattern in the file name or title, a length,
-what Lens found the file holds: `forms: [chat]`), else the general one. One recognised by what the file holds comes
+what Lens found the file holds: `forms: [chat]` or `[records]`), else the general one. One recognised by what the file holds comes
 before one recognised by its name, so a Telegram result.json is a chat export, not a transcript. Patterns ignore case and see `_` as a space, so `\bcalls?\b` matches `team_call.mp3` but not
 `recall.mp3`. The pipeline that runs is the one chosen for the run, else the namespace's override for the
 content type, else the content type's pipeline, else the namespace default, else the standard pipeline. Content types

@@ -35,7 +35,7 @@ FIELDS = (
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
 # transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
 ATTACH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "report"]
-CHAT_EXT, CHAT_MAX = frozenset({".txt", ".text"}), 64 * 1024 * 1024  # WhatsApp and iMessage exports, read whole
+CHAT_EXT, TEXT_MAX = (".txt", ".text"), 64 * 1024 * 1024  # WhatsApp and iMessage exports, and JSON: read whole
 TRANSCRIPT_EXT = frozenset({".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf"})  # documents imports read as text too
 
 
@@ -306,7 +306,7 @@ def finish(db, cfg, row, admin=False):
         st = dest.stat()
         fp = ingest.fingerprint(dest)
         kind = documents.kind_of(row["filename"])
-        chat = None if target else _chat(dest)  # a WhatsApp or iMessage export: read as a chat, not a page
+        read = None if target else _as_text(dest)  # a chat export or JSON: read into lines, not drawn as pages
         deletion.forget(db, sid, fp)  # uploaded on purpose: a recording deleted before comes back
         dup = (
             None
@@ -317,8 +317,8 @@ def finish(db, cfg, row, admin=False):
                 f=fp,
             )
         )
-        copy = bool(dup and (has_file(db, cfg, dup) if kind else has_media(db, cfg, dup)))  # it's here already, with its file
-        probed = ingest.probe(dest) if not copy and (target or not kind) else None  # read before the file is encrypted
+        copy = bool(dup and (has_file(db, cfg, dup) if kind or read else has_media(db, cfg, dup)))  # it's here already, with its file
+        probed = ingest.probe(dest) if not copy and (target or not (kind or read)) else None  # read before the file is encrypted
         if not copy:
             keyring.protect(db, cfg, sid, dest)
         job = None
@@ -326,11 +326,12 @@ def finish(db, cfg, row, admin=False):
             rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by, probed)
         elif copy:
             rid = dup["id"]
-        elif chat:
+        elif read:
             home = _home(db, sid, row.get("collection"))
             title = row.get("title") or pathlib.Path(row["filename"]).stem
             at = ingest.recorded_at(dest, st.st_mtime)
-            rid = ingest._store_import(db, cfg, row["namespace"], chat, title, fp, str(dest), at, None, None, "import:chat", home)
+            how = "import:" + (read.get("form") or dest.suffix.lstrip("."))
+            rid = ingest._store_import(db, cfg, row["namespace"], read, title, fp, str(dest), at, None, None, how, home)
             job = jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
         elif kind:
             rid, job = _document(db, dest, st, fp, sid, row, kind, dup, by)
@@ -377,10 +378,19 @@ def finish(db, cfg, row, admin=False):
     return get(db, uid)
 
 
-def _chat(dest):
-    """A text file that is a chat export (chats.py), read; else None."""
-    if dest.suffix.lower() not in CHAT_EXT or dest.stat().st_size > CHAT_MAX:
+def _as_text(dest):
+    """What a file read as text holds: a chat export (chats.py) for a text file that is one, and whatever a JSON or
+    JSON Lines file holds (a chat, records or a transcript); else None. ValueError for JSON that can't be read."""
+    ext = dest.suffix.lower()
+    if ext not in CHAT_EXT + store.STRUCTURED_EXT or dest.stat().st_size > TEXT_MAX:
+        if ext in store.STRUCTURED_EXT:
+            raise ValueError(f"JSON files up to {TEXT_MAX // MB} MB")
         return None
+    if ext in store.STRUCTURED_EXT:
+        t = ingest.read_transcript(dest)
+        if not t["segments"]:
+            raise ValueError("there's nothing to read in this file")
+        return t
     from . import chats
 
     return chats.read(dest.read_text(encoding="utf-8-sig", errors="replace"), dest.name)

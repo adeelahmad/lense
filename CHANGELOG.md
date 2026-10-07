@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **JSON and JSON Lines as records.** A JSON file that isn't a transcript (orders, contacts, sensor logs, an API
+  dump) is read one record at a time, every field searchable, each line pointing back at its record; it gets the new
+  Records content type. JSON files can now be uploaded with the other files ([Records](docs/processing.md#importing-transcripts)).
 - **Places and dates from anytopdf.** Turn on Settings › Analysis › Find places and dates with anytopdf (off by
   default) and analysis also asks anytopdf, offline, for the places a text names, the dates it gives (with their ISO
   value) and where a photo was taken (from its GPS fix, with `exiftool` installed). They become places and dates in the

@@ -194,8 +194,10 @@ def locked(section):
 
 
 # The types uploads.extensions may name: what the folder scans import, a few more that ffmpeg reads, and documents and
-# images.
-UPLOAD_TYPES = frozenset([*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp", *store.DOCUMENT_EXT, *store.IMAGE_EXT])
+# images, and JSON.
+UPLOAD_TYPES = frozenset(
+    [*store.MEDIA_EXT, ".aif", ".aiff", ".wma", ".mpg", ".mpeg", ".3gp", *store.DOCUMENT_EXT, *store.IMAGE_EXT, *store.STRUCTURED_EXT]
+)
 UPLOAD_RANGES = {"max_mb": (1, 1_000_000), "chunk_mb": (1, 64), "expire_hours": (1, 720)}
 DOCUMENT_RANGES = {
     "page_pixels": (800, 6000),
