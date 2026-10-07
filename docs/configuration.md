@@ -248,6 +248,10 @@ Lens can also ask anytopdf's face and object plugins what is in a picture (`anyt
 (`--plugin-sandbox strict`: no network, writing only to their own workspace, reading only the picture and the models
 Lens names), and the objects plugin runs only when it's given a model, such as Lens's YOLOX file.
 
+With `video.face_engine` set to `anytopdf`, the faces step uses these plugins too ([Video](video.md)): YuNet finds the
+faces and the face-id plugin describes them with Lens's SFace file. Lens reads each face's description from the face
+index of that run, then deletes it with the rest of the run.
+
 **Places and dates.** With `analysis.anytopdf` on (Settings › Analysis › Find places and dates with anytopdf; off by
 default), analysis asks anytopdf, run here with no network and no plugins, what a recording's text and a photo hold:
 

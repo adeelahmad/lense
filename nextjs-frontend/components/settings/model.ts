@@ -1467,6 +1467,7 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "opencv", label: "OpenCV (YuNet + SFace)" },
       { value: "insightface", label: "InsightFace" },
+      { value: "anytopdf", label: "anytopdf (its plugins + SFace)" },
       { value: "none", label: "Off" },
     ],
   },

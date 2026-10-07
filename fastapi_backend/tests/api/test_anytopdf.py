@@ -169,8 +169,7 @@ class _Hostile(fake_anytopdf.Node):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
-        if _Hostile.mode == "long":  # the upload read first: answering over it resets the connection on some runners
-            self.rfile.read(int(self.headers["Content-Length"]))
+        if _Hostile.mode == "long":
             return self._send(202, b"{" + b" " * (anytopdf.MAX_JSON + 10) + b"}")
         if _Hostile.mode == "odd id":
             return self._send(202, {"job_id": "../../admin", "state": "queued"})
@@ -368,6 +367,68 @@ def test_its_plugins_look_at_a_picture(cfg, tmp_path):
     cfg["documents"]["anytopdf"] = str(tmp_path / "gone")
     with pytest.raises(anytopdf.Unavailable):
         anytopdf.analyze(cfg, pic)
+
+
+def _with_face_plugins(cfg, tmp_path):
+    """The fake program with the face plugins beside it, as a release archive has them, and an SFace file."""
+    log = tmp_path / "runs.jsonl"
+    cfg["documents"]["anytopdf"] = fake_anytopdf.make(tmp_path / "anytopdf", log)
+    assert not anytopdf.face_plugins(cfg)
+    (tmp_path / "plugins").mkdir()
+    for name in anytopdf.FACE_PLUGINS:
+        (tmp_path / "plugins" / name).write_text("#!/bin/sh\n")
+        (tmp_path / "plugins" / name).chmod(0o755)
+    assert anytopdf.face_plugins(cfg)
+    model = tmp_path / "face_recognition_sface_2021dec.onnx"
+    model.write_bytes(b"a model")
+    return log, model
+
+
+def test_its_plugins_describe_faces(cfg, tmp_path):
+    import numpy as np
+
+    log, model = _with_face_plugins(cfg, tmp_path)
+    pics = [tmp_path / n for n in ("a.jpg", "b.jpg", "empty.jpg")]
+    for pic, raw in zip(pics, (b"a picture", b"the same person", b"nobody here"), strict=True):
+        pic.write_bytes(raw)
+    found = anytopdf.faces(cfg, [str(p) for p in pics], model)
+    assert list(found) == [str(p) for p in pics] and found[str(pics[2])] == []  # by picture, in one run
+    a, b = found[str(pics[0])][0], found[str(pics[1])][0]
+    assert (a["box"], a["score"]) == ([0.1, 0.2, 0.05, 0.06], 0.9)
+    assert abs(np.linalg.norm(a["embedding"]) - 1) < 1e-6 and a["embedding"] @ b["embedding"] > 0.99
+    (run,) = fake_anytopdf.runs(log)
+    args = run["args"]
+    assert args[args.index("--plugin-sandbox") + 1] == "strict" and args[args.index("--plugin-sandbox-allow-read") + 1] == str(model)
+    assert "--recognize-faces" in args and run["anytopdf_env"] == ["ANYTOPDF_DATA_DIR", "ANYTOPDF_FACE_EMBED_MODEL"]
+    assert not any(pathlib.Path(x).name in ("a.jpg", "b.jpg") for x in args)  # copies: no names of Lens's files
+
+    # a face in the graph that the index has no description of isn't one Lens can keep
+    graph = {
+        "sources": [{"id": "s", "path": "/p.jpg"}],
+        "units": [{"source_id": "s", "annotations": [{"kind": "face", "region": {"x": 0, "y": 0, "width": 1, "height": 1}}]}],
+    }
+    assert anytopdf.faces_found(graph, tmp_path / "none.sqlite") == {}
+
+
+def test_anytopdf_as_the_face_engine(cfg, tmp_path):
+    from app.domain import video
+
+    cfg["video"]["face_engine"] = "anytopdf"
+    cfg["documents"]["anytopdf"] = str(tmp_path / "gone")
+    assert video.face_engine(cfg) is None  # not here: the faces step says there's no face engine
+    log, model = _with_face_plugins(cfg, tmp_path)
+    cfg["video"]["sface_model"] = str(model)
+    engine = video.face_engine(cfg)
+    assert engine.name == "anytopdf"
+    pic = tmp_path / "frame.jpg"
+    pic.write_bytes(b"a frame")
+    assert [f["box"] for f in engine.faces(pic)] == [[0.1, 0.2, 0.05, 0.06]]
+
+    # fetched for it: anytopdf, and the SFace file only (it finds faces itself, so no YuNet or OpenCV)
+    del cfg["video"]["sface_model"]
+    assert components.BY_ID["anytopdf"].needed(cfg, {}) == bool(anytopdf.archive())
+    faces = components.BY_ID["faces"]
+    assert faces.needed(cfg, {}) and faces._files(cfg) == components.FACE_FILES[1:]
 
 
 @pytest.fixture

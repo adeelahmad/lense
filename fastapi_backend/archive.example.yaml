@@ -132,7 +132,7 @@ video:                              # everything here except the model paths can
   ocr_engine: auto                  # auto (Apple Vision on a Mac, else Tesseract, else RapidOCR) | tesseract | apple-vision | rapidocr | none
   ocr_languages: [eng]
   ocr_min_confidence: 60
-  face_engine: opencv               # opencv (YuNet + SFace from the OpenCV Zoo) | insightface (non-commercial models) | none
+  face_engine: opencv               # opencv (YuNet + SFace from the OpenCV Zoo) | insightface (non-commercial models) | anytopdf (its plugins, with SFace) | none
   yunet_model: null                 # path to face_detection_yunet_2023mar.onnx (bootstrap-only)
   sface_model: null                 # path to face_recognition_sface_2021dec.onnx (bootstrap-only)
   face_cluster_threshold: 0.6
