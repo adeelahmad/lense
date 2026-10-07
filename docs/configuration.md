@@ -241,6 +241,19 @@ Lens can also ask anytopdf's face and object plugins what is in a picture (`anyt
 (`--plugin-sandbox strict`: no network, writing only to their own workspace, reading only the picture and the models
 Lens names), and the objects plugin runs only when it's given a model, such as Lens's YOLOX file.
 
+**Places and dates.** With `analysis.anytopdf` on (Settings › Analysis › Find places and dates with anytopdf; off by
+default), analysis asks anytopdf, run here with no network and no plugins, what a recording's text and a photo hold:
+
+- the places its text names, from anytopdf's offline gazetteer (GeoNames, CC BY 4.0), and the dates and times it
+  gives, with their ISO value when the text pins one down ("3 March 2026", not "next Friday");
+- where a photo was taken: its GPS fix, named offline after the nearest town. anytopdf reads GPS with `exiftool`, so
+  without `exiftool` beside it a photo gets no place. Each photo is read once.
+
+They are hints: the places and dates join the names the extractor finds in each line (a name the rules only knew as a
+term becomes a place), and the namespace's entity setup still decides what is kept. What was found shows on the
+resource's Details tab, for the namespace's members only: visitors, embeds and share links don't see where a photo was
+taken. If anytopdf can't read something, analysis goes on without hints. Lens downloads anytopdf for this the same way.
+
 Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
 every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.
 Chromium runs with its sandbox where it can, and without it as root or where the container lacks what the sandbox

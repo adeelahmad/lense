@@ -199,6 +199,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
         <>
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
+          <F ctx={ctx} id="analysis.anytopdf" />
           <F
             ctx={ctx}
             id="analysis.gazetteer"

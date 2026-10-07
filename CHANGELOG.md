@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Places and dates from anytopdf.** Turn on Settings › Analysis › Find places and dates with anytopdf (off by
+  default) and analysis also asks anytopdf, offline, for the places a text names, the dates it gives (with their ISO
+  value) and where a photo was taken (from its GPS fix, with `exiftool` installed). They become places and dates in the
+  graph, and the resource's Details tab lists them for the namespace's members
+  ([anytopdf](docs/configuration.md#anytopdf)).
 - **anytopdf can make Lens's PDFs.** Settings › Documents › Make PDFs with anytopdf. On `auto` (the default) nothing
   changes unless anytopdf is here: then it reads the emails, web pages and text a server without Chromium couldn't.
   Choose "For every document and image" and Lens downloads anytopdf 0.4.0 (checked against its release checksum);

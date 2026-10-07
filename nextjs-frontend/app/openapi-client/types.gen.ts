@@ -3186,6 +3186,119 @@ export type EncryptionProgress = {
 };
 
 /**
+ * EnrichedDate
+ *
+ * A date or time the text gives.
+ */
+export type EnrichedDate = {
+  /**
+   * Text
+   *
+   * as the text says it
+   */
+  text: string;
+  /**
+   * Iso
+   *
+   * its ISO 8601 value, when the text pins one down
+   */
+  iso?: string | null;
+  /**
+   * Kind
+   */
+  kind?: "date" | "datetime" | "time" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * EnrichedPlace
+ *
+ * A place anytopdf found: named in the text, or where a photo was taken (its GPS fix, named offline).
+ */
+export type EnrichedPlace = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * City
+   */
+  city?: string | null;
+  /**
+   * Region
+   */
+  region?: string | null;
+  /**
+   * Country
+   */
+  country?: string | null;
+  /**
+   * Country Code
+   */
+  country_code?: string | null;
+  /**
+   * Lat
+   */
+  lat?: number | null;
+  /**
+   * Lon
+   */
+  lon?: number | null;
+  /**
+   * Km
+   *
+   * a GPS fix: how far it is from the named place
+   */
+  km?: number | null;
+  /**
+   * From
+   */
+  from?: "gps" | "text";
+  /**
+   * Said
+   *
+   * named in the text: the words that name it
+   */
+  said?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Enrichment
+ *
+ * The places and dates anytopdf found in a recording (analysis.anytopdf); members of its namespace only.
+ */
+export type Enrichment = {
+  /**
+   * By
+   *
+   * anytopdf and its version
+   */
+  by: string;
+  /**
+   * a photo: where it was taken
+   */
+  place?: EnrichedPlace | null;
+  /**
+   * Places
+   *
+   * places its text names
+   */
+  places?: Array<EnrichedPlace>;
+  /**
+   * Dates
+   */
+  dates?: Array<EnrichedDate>;
+  /**
+   * At
+   *
+   * when they were found
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * EntityDefine
  */
 export type EntityDefine = {
@@ -10806,6 +10919,10 @@ export type Recording = {
    * a web page captured as a document
    */
   web?: WebPage | null;
+  /**
+   * the places and dates anytopdf found (analysis.anytopdf)
+   */
+  enrichment?: Enrichment | null;
   [key: string]: unknown;
 };
 
