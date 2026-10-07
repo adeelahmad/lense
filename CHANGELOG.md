@@ -23,6 +23,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   it then also reads images, flattening a photographed page before OCR. Or set a conversion node, another machine
   running `anytopdf queue serve`, and a small server reads Word, PowerPoint and spreadsheet files too
   ([anytopdf](docs/configuration.md#anytopdf)).
+- **Where anytopdf made a document's PDF, Lens uses the words it read.** anytopdf 0.4.0 lists every word it found on
+  a picture page with where it is, so a photographed or scanned page's text comes from anytopdf's OCR, block by block
+  with its place on the page, without Lens reading the page again. Pages without those words are read as before.
 - **A conversion node gets the token and nothing more.** Lens refuses a node that redirects (so its token never
   goes on to another server), caps what the node answers and refuses a PDF that isn't one. Settings › Documents ›
   Check it says whether the node answers and takes the token ([anytopdf](docs/configuration.md#anytopdf)).
