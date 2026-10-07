@@ -243,3 +243,26 @@ def node(token):
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Node)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv, f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+CLIP = r"""#!@PYTHON@
+import json, os, sys
+flag, value = sys.argv[1], sys.argv[2]
+assert os.environ.get("ANYTOPDF_CLIP_MODEL_DIR"), "no model folder"
+words = (open(value, "rb").read().decode("latin-1") if flag == "--encode-image" else value).lower()
+vec = [1.0 if "bus" in words else 0.0, 1.0 if "beach" in words else 0.0, 0.2]
+print(json.dumps({"dim": len(vec), "embedding": vec, "model": "clip-fake"}))
+"""
+
+
+def clip(plugins_dir, model_dir):
+    """A CLIP plugin for tests (photos.py): a picture whose bytes say bus (or beach) is like a query that does."""
+    plugins_dir, model_dir = pathlib.Path(plugins_dir), pathlib.Path(model_dir)
+    plugins_dir.mkdir(parents=True, exist_ok=True)
+    model_dir.mkdir(parents=True, exist_ok=True)
+    for f in ("visual.onnx", "textual.onnx", "bpe_simple_vocab_16e6.txt.gz"):
+        (model_dir / f).write_bytes(b"model")
+    p = plugins_dir / "anytopdf-plugin-clip"
+    p.write_text(CLIP.replace("@PYTHON@", sys.executable))
+    p.chmod(0o755)
+    return str(p)

@@ -7,6 +7,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **anytopdf can find faces.** Settings › Video, OCR, faces and objects › Face engine › anytopdf: its plugins find
   the faces in frames and pages and describe them with the same SFace model, so a server needs no OpenCV, and the
   people a namespace already knows still match ([Video](docs/video.md)). Who someone is stays in Lens.
+- **Search photos by what they show.** Turn on Settings › Search › Search photos by what they show (off by default)
+  and Lens downloads anytopdf's CLIP model (about 600 MB). Search then also shows the photos most like what you typed,
+  such as "a bus on a city street", whatever words are on them ([anytopdf](docs/configuration.md#anytopdf)).
 - **anytopdf can find objects.** Settings › Video › Object detector › anytopdf runs Lens's YOLOX model with
   anytopdf's objects plugin (sandboxed, no network), so a lean server or a Raspberry Pi finds objects without ONNX
   Runtime. Lens fetches anytopdf and the model on first use. YOLOX on ONNX Runtime stays the default

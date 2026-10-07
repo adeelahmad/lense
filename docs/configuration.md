@@ -265,6 +265,13 @@ term becomes a place), and the namespace's entity setup still decides what is ke
 resource's Details tab, for the namespace's members only: visitors, embeds and share links don't see where a photo was
 taken. If anytopdf can't read something, analysis goes on without hints. Lens downloads anytopdf for this the same way.
 
+**Search photos by what they show.** With `embeddings.photos` on (Settings › Search › Search photos by what they
+show; off by default), Lens keeps anytopdf's CLIP plugin beside the program and downloads its model, OpenAI's CLIP
+ViT-B/32 (about 600 MB, into `data_dir/models/clip`). The `embed` step then gives each image resource a CLIP vector
+(once per file, on the CPU, offline), and a search also shows the photos most like it, such as "a bus on a city
+street", in the namespaces and collections the person may see (`GET /api/v1/search/photos`). It needs no embeddings
+server, and its vectors are kept apart from search by meaning's. On a Raspberry Pi it works, slowly.
+
 Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
 every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.
 Chromium runs with its sandbox where it can, and without it as root or where the container lacks what the sandbox

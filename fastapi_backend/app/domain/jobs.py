@@ -72,8 +72,13 @@ def _analyze(db, cfg, rid, say, spec=None):
 
 
 def _embed(db, cfg, rid, say, spec=None):
-    from . import semantic
+    from . import photos, semantic
 
+    if photos.enabled(cfg):  # a photo's CLIP vector: apart from the embeddings server, and never in its way
+        try:
+            photos.index_recording(db, cfg, rid, say)
+        except (photos.Unavailable, ValueError, OSError) as e:
+            say(f"not indexed for searching photos: {e}")
     if not semantic.configured(cfg):
         raise Skip("search by meaning is off, or has no embeddings server (Settings → Search)")
     try:

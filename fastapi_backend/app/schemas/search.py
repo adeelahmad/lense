@@ -112,3 +112,17 @@ class Mention(ResponseModel):
     text: str | None = None
     speaker: str | None = None
     recorded_at: str = ""
+
+
+class PhotoHit(ResponseModel):
+    """A photo like what was asked for (embeddings.photos)."""
+
+    recording: int
+    title: str | None = None
+    namespace: str | None = None
+    similarity: float = Field(description="CLIP's cosine similarity of the photo and the query; a good match is about 0.3")
+    thumb: str | None = Field(None, description="a signed link to it, small")
+
+
+class PhotoResults(ResponseModel):
+    hits: list[PhotoHit] = Field(default_factory=list)

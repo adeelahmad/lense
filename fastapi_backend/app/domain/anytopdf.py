@@ -62,7 +62,7 @@ MAX_JSON = 1 << 20  # the most of a conversion node's job answer that is read
 MAX_PDF = 2 << 30  # the largest PDF taken from a conversion node
 JOB_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 # the plugins Lens keeps beside the program, for analyze(): the rest of the release's plugins stay behind
-PLUGINS = ("anytopdf-plugin-faces", "anytopdf-plugin-face-id", "anytopdf-plugin-objects")
+PLUGINS = ("anytopdf-plugin-faces", "anytopdf-plugin-face-id", "anytopdf-plugin-objects", "anytopdf-plugin-clip")
 # what finds faces (YuNet, built in) and what describes them (an ArcFace-style ONNX model), for faces()
 FACE_PLUGINS = PLUGINS[:2]
 
@@ -119,7 +119,7 @@ def mode(cfg):
 
 def fetch(cfg, say=None):
     """Download this machine's anytopdf release, check it against its checksum, and keep only the program and its
-    face and object plugins (PLUGINS)."""
+    face, object and CLIP plugins (PLUGINS)."""
     import hashlib
 
     found = archive()
@@ -127,7 +127,8 @@ def fetch(cfg, say=None):
         raise Unavailable(f"anytopdf has no build for {platform.system()} {platform.machine()}")
     name, sha = found
     dest = fetched_path(cfg)
-    if dest.is_file() and (dest.parent / "plugins").is_dir():  # fetched before plugins were kept: fetched again
+    asked = dest.parent / "plugins" / ".asked"  # the plugins it was fetched for: fetched again when Lens keeps more
+    if dest.is_file() and asked.is_file() and set(PLUGINS) <= set(asked.read_text().split()):
         return str(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     if say:
@@ -160,8 +161,9 @@ def fetch(cfg, say=None):
                 out.chmod(0o755)
         if (dest.parent / "plugins").exists():
             shutil.rmtree(dest.parent / "plugins")
-        if (got / "plugins").exists():
-            (got / "plugins").replace(dest.parent / "plugins")
+        (got / "plugins").mkdir(exist_ok=True)
+        (got / "plugins" / ".asked").write_text("\n".join(PLUGINS) + "\n")
+        (got / "plugins").replace(dest.parent / "plugins")
         (got / "anytopdf").replace(dest)
     return str(dest)
 
