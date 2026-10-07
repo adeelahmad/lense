@@ -302,3 +302,20 @@ def test_an_upload_goes_into_a_collection(client, env, db, cfg):
     # attaching keeps the recording where it is
     rid = ingest.import_text(db, cfg, "pods", "[00:00] Ann: Hello there.\n[00:02] Ben: Hi.\n[00:04] Ann: Bye.")
     assert _attach(client, he, data, rid, collection=talks).status_code == 400
+
+
+def test_a_chat_export_uploaded_is_read_as_a_chat(client, env, db, cfg, monkeypatch):
+    """A WhatsApp export dropped in as a text file becomes a chat by who said it, not a page of text."""
+    from app.domain import content_types, convert
+
+    monkeypatch.setattr(convert, "unavailable", lambda cfg, name: None)  # a text file is a document Lens can read
+    chat = b"31/12/2023, 21:41 - Alice: Happy new year!\n31/12/2023, 21:42 - Bob: Same to you\n"
+    done = _upload(client, env["he"], chat, name="WhatsApp Chat with Alice.txt")
+    rid = done["recording"]
+    rec = db.one("SELECT source, form, title FROM $r", r=R("recording", rid))
+    assert (rec["source"], rec["form"], rec["title"]) == ("transcript", "chat", "WhatsApp Chat with Alice")
+    assert db.values("SELECT VALUE local_speaker FROM segment WHERE recording = $r", r=rid) == ["Alice", "Bob"]
+    assert content_types.of_recording(db, rid)[0]["key"] == "chat_export" and done["job"]
+    # any other text file is still a document
+    done = _upload(client, env["he"], b"Shopping: eggs, milk.\nAnd bread.", name="list.txt")
+    assert db.one("SELECT source FROM $r", r=R("recording", done["recording"]))["source"] == "document"

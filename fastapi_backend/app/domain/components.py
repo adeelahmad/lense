@@ -403,17 +403,25 @@ class Objects(Component):
 
 
 class Anytopdf(Component):
-    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here."""
+    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here, or Settings →
+    Analysis asks it for places and dates (enrich.py)."""
 
     def needed(self, cfg, m):
         from . import anytopdf
 
-        return anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg) and bool(anytopdf.archive())
+        here = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
+        return (here or bool((cfg.get("analysis") or {}).get("anytopdf"))) and bool(anytopdf.archive())
 
     def present(self, cfg):
         from . import anytopdf
 
         return bool(anytopdf.binary(cfg))
+
+    def serves(self, cfg, m):
+        from . import anytopdf
+
+        here = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
+        return ({"transcribe"} if here else set()) | ({"analyze"} if (cfg.get("analysis") or {}).get("anytopdf") else set())
 
     def fetch(self, cfg, m, say):
         from . import anytopdf
@@ -548,8 +556,8 @@ COMPONENTS = [
     Anytopdf(
         "anytopdf",
         "anytopdf",
-        "makes documents and photographed pages into searchable PDFs (documents.converter)",
-        steps={"transcribe"},
+        "makes documents and photographed pages into searchable PDFs (documents.converter), finds places and dates",
+        steps={"transcribe", "analyze"},
         size_mb=50,
         license="MIT OR Apache-2.0",
     ),

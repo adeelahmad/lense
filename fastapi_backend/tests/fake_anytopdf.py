@@ -1,5 +1,6 @@
 """An anytopdf for tests (anytopdf.py): `anytopdf ... convert IN -o OUT ...` writes a PDF of IN's text (a page of
-HTML's text without its markup; an image's, the words in its name), and logs how it was run, one JSON line each, to
+HTML's text without its markup; an image's, the words in its name) and, with --dump-graph, what its plugins found (a
+face, and a bus when it's given an objects model). It logs how it was run, one JSON line each, to
 the file named by its log. It's also a conversion node: `node(token)` serves `anytopdf queue serve`'s API from
 memory, converting each upload the same way."""
 
@@ -31,7 +32,21 @@ if "unreadable" in open(src, "rb").read().decode("utf-8", "replace"):
     print("WARNING [input.unreadable]: it can't be read", file=sys.stderr)
     sys.exit(3)
 pathlib.Path(out).write_bytes(pdf_of(src, open(src, "rb").read()))
+if "--dump-graph" in args and "--no-plugins" in args:  # what it finds with no plugins: places and dates
+    from tests.fake_anytopdf import graph_of
+    pathlib.Path(args[args.index("--dump-graph") + 1]).write_text(json.dumps(graph_of(src, open(src, "rb").read(), args)))
+elif "--dump-graph" in args:  # what its plugins found: a face, and a bus when given an objects model
+    found = [{"kind": "face", "text": "face", "confidence": 0.9, "region": {"x": 0.1, "y": 0.2, "width": 0.05, "height": 0.06}, "attributes": {"face_index": "0"}},
+             {"kind": "face", "text": "1 face", "confidence": None, "region": None, "attributes": {}}]
+    if os.environ.get("ANYTOPDF_OBJECTS_MODEL"):
+        found.append({"kind": "object", "text": "bus", "confidence": 0.93, "region": {"x": 0.02, "y": 0.2, "width": 0.9, "height": 0.5}, "attributes": {"label": "bus"}})
+    graph = {"sources": [], "units": [{"kind": "visual", "annotations": found}]}
+    pathlib.Path(args[args.index("--dump-graph") + 1]).write_text(json.dumps(graph))
 """
+# the places the fake's gazetteer knows, and where a photo whose bytes say GPS was taken
+PLACES = {"Berlin": ("Berlin, Germany", "Berlin", "Germany", "DE", "52.524", "13.411")}
+GPS = ("Paris 16 Passy, Ile-de-France, France", "Paris 16 Passy", "France", "FR", "48.858056", "2.294444")
+DATES = [(r"\b(\d{4}-\d{2}-\d{2})\b", "date", None), (r"\b3 March 2026\b", "date", "2026-03-03"), (r"\bnext Friday\b", "date", None)]
 
 
 def text_of(name, raw):
@@ -51,6 +66,56 @@ def text_of(name, raw):
         text = html.unescape(re.sub(r"<[^>]+>", "\n", text))
     lines = [x.strip().encode("latin-1", "replace").decode("latin-1") for x in text.splitlines() if x.strip()]
     return lines or ["(empty)"]
+
+
+def _loc(text, place, city, country, code, lat, lon, source, **more):
+    attributes = {"place": place, "city": city, "country": country, "country_code": code, "latitude": lat, "longitude": lon}
+    return {"kind": "location", "text": place, "provider": "location", "attributes": {**attributes, "source": source, **more}}
+
+
+def graph_of(name, raw, args):
+    """`--dump-graph`'s document graph: the places and dates in a text (unless --location is off, or --no-entities),
+    and a photo's GPS place when its bytes say GPS."""
+    where = args[args.index("--location") + 1] if "--location" in args else "on"
+    notes = []
+    if pathlib.Path(str(name)).suffix.lower() in (".png", ".jpg", ".jpeg"):
+        if where != "off" and b"GPS" in raw:
+            notes.append({**_loc(GPS[0], *GPS, "gps", distance_km="1.4"), "confidence": None})
+    else:
+        text = raw.decode("utf-8", "replace")
+        if where == "on":
+            for word, p in PLACES.items():
+                if re.search(rf"\b{word}\b", text):
+                    notes.append({**_loc(p[0], *p, "text", matched=word), "confidence": 0.6})
+            if "Mobile" in text:  # a place name that's usually a word: anytopdf isn't sure
+                notes.append(
+                    {
+                        **_loc(
+                            "Mobile",
+                            "Mobile, Alabama, United States",
+                            "Mobile",
+                            "United States",
+                            "US",
+                            "30.69",
+                            "-88.04",
+                            "text",
+                            matched="Mobile",
+                        ),
+                        "confidence": 0.3,
+                    }
+                )
+        if "--no-entities" not in args:
+            for rx, kind, iso in DATES:
+                for m in re.finditer(rx, text):
+                    at = {"entity": kind, "from": "text", **({"iso": iso or m.group(1)} if (iso or m.groups()) else {"relative": "true"})}
+                    notes.append(
+                        {"kind": "timestamp", "text": m.group(0), "provider": "text-entities", "confidence": None, "attributes": at}
+                    )
+    return {
+        "sources": [{"id": "s1", "path": str(name)}],
+        "units": [{"id": "u1", "source_id": "s1", "kind": "text", "annotations": notes}],
+        "metadata": {},
+    }
 
 
 def pdf_of(name, raw):
