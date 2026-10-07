@@ -310,13 +310,16 @@ video's sampled frames and on a document's or an image's pages ([API](api.md#obj
   a job needs them ([Components](components.md)), and also finds a model put in `/opt/lens/models`.
 * `ultralytics`: Ultralytics YOLO (`pip install ultralytics`). It's AGPL-3.0: a server that lets others use it must
   offer them its source, so it's in no image and no extra.
+* `anytopdf`: the same YOLOX model, run by [anytopdf](#anytopdf)'s objects plugin, sandboxed with no network. It
+  needs no ONNX Runtime in Lens, for a lean server or a Raspberry Pi; Lens fetches anytopdf and YOLOX-s the first
+  time a job needs them. anytopdf runs here even when documents go to a conversion node.
 * `off`.
 
 Without one the step is skipped, and its job says why. Settings → Video, OCR, faces and objects:
 
 | Setting | Default | |
 |---|---|---|
-| `video.object_engine` | `yolox` | `yolox`, `ultralytics` or `off` |
+| `video.object_engine` | `yolox` | `yolox`, `ultralytics`, `anytopdf` or `off` |
 | `video.object_min_score` | 0.4 | how sure the detector must be to keep what it found, 0.05–0.95 |
 
 Set at startup only:
