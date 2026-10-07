@@ -10,6 +10,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   it then also reads images, flattening a photographed page before OCR. Or set a conversion node, another machine
   running `anytopdf queue serve`, and a small server reads Word, PowerPoint and spreadsheet files too
   ([anytopdf](docs/configuration.md#anytopdf)).
+- **Where anytopdf made a document's PDF, Lens uses the words it read.** anytopdf 0.4.0 lists every word it found on
+  a picture page with where it is, so a photographed or scanned page's text comes from anytopdf's OCR, block by block
+  with its place on the page, without Lens reading the page again. Pages without those words are read as before.
 - **Connect Slack, WhatsApp, Telegram, Discord and Matrix from the web app.** Start the optional `matterbridge`
   service, then turn on Settings › Chat rooms › Run Matterbridge here and add a bot token and rooms. To link
   WhatsApp, scan the QR code the page shows. Lens writes Matterbridge's config, a gateway per room, and restarts it

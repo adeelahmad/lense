@@ -142,7 +142,11 @@ def test_with_anytopdf_chosen_it_reads_images_too(here, client, env, db, cfg, fo
     drain(db, settings.effective(db, cfg))
     rec = _rec(db, up["recording"])
     assert (rec["source"], rec["status"], rec["rendition"]) == ("image", "analyzed", {"from": ".png", "by": "anytopdf"}), rec.get("error")
-    assert rec["engine"] == "image" and "Photographed page document" in _text(db, up["recording"])
+    assert rec["engine"] == "image+ocr:anytopdf" and "Photographed page document" in _text(db, up["recording"])
+    # its words, with where anytopdf's OCR found them, are its text: not read again
+    segs = db.rows("SELECT text, page, box FROM segment WHERE recording = $r", r=up["recording"])
+    assert segs == [{"text": "Photographed page document", "page": 0, "box": [0.1, 0.1, 0.55, 0.02]}]
+    assert db.one("SELECT VALUE text FROM page WHERE recording = $r", r=up["recording"]) == "ocr"
     assert "--scan-mode" in fake_anytopdf.runs(here)[-1]["args"]
     assert convert.rendition_path(cfg, up["recording"]).is_file()
 
@@ -224,3 +228,6 @@ def test_the_real_anytopdf(real, lean, client, env, db, cfg):
         rec = _rec(db, up["recording"])
         assert (rec["status"], rec["rendition"]["by"]) == ("analyzed", "anytopdf"), rec.get("error")
         assert words in _text(db, up["recording"]), _text(db, up["recording"])
+    # the photographed page: its text from the words anytopdf's OCR found, each block with where it is
+    assert _rec(db, page["recording"])["engine"] == "image+ocr:anytopdf"
+    assert all(s["box"] for s in db.rows("SELECT box FROM segment WHERE recording = $r", r=page["recording"]))
