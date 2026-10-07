@@ -259,6 +259,9 @@ const DOCUMENT = [
   ".htm",
   ".eml",
   ".msg",
+  ".zip",
+  ".tar",
+  ".tgz",
 ];
 const IMAGE = [
   ".jpg",

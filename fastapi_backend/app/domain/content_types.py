@@ -52,6 +52,7 @@ DEFAULTS = [
     ("transcript", "text", "Transcript", "Who said what, imported as text", {"extensions": [".srt", ".vtt", ".json", ".jsonl"]}),
     ("document", "text", "Document", "A PDF, Word or Markdown file", {"extensions": [".pdf", ".docx", ".doc", ".md", ".odt", ".rtf"]}),
     ("web_page", "text", "Web page", "A captured web page", {"extensions": [".html", ".htm"]}),
+    ("archive", "text", "Archive", "A zip or tar file, and the files in it", {"extensions": [".tar", ".tgz", ".zip"]}),
     ("email", "text", "Email", "A message, with its attachments", {"extensions": [".eml", ".msg"]}),
     ("calendar_event", "text", "Calendar event", "An invitation or a calendar entry", {"extensions": [".ics"]}),
 ]  # fmt: skip
