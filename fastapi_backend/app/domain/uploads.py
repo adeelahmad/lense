@@ -35,6 +35,7 @@ FIELDS = (
 # What runs once media is attached to a transcript: its waveform (the transcript is kept), speakers by voice unless the
 # transcript named them, shots, text on screen and faces for video, then the analysis and report pages again.
 ATTACH_STEPS = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "report"]
+CHAT_EXT, CHAT_MAX = frozenset({".txt", ".text"}), 64 * 1024 * 1024  # WhatsApp and iMessage exports, read whole
 TRANSCRIPT_EXT = frozenset({".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf"})  # documents imports read as text too
 
 
@@ -305,6 +306,7 @@ def finish(db, cfg, row, admin=False):
         st = dest.stat()
         fp = ingest.fingerprint(dest)
         kind = documents.kind_of(row["filename"])
+        chat = None if target else _chat(dest)  # a WhatsApp or iMessage export: read as a chat, not a page
         deletion.forget(db, sid, fp)  # uploaded on purpose: a recording deleted before comes back
         dup = (
             None
@@ -324,6 +326,12 @@ def finish(db, cfg, row, admin=False):
             rid, job = target, _attach(db, cfg, target, sid, dest, st, fp, by, probed)
         elif copy:
             rid = dup["id"]
+        elif chat:
+            home = _home(db, sid, row.get("collection"))
+            title = row.get("title") or pathlib.Path(row["filename"]).stem
+            at = ingest.recorded_at(dest, st.st_mtime)
+            rid = ingest._store_import(db, cfg, row["namespace"], chat, title, fp, str(dest), at, None, None, "import:chat", home)
+            job = jobs.enqueue(db, rid, None, by=by, pipeline=row.get("pipeline"))
         elif kind:
             rid, job = _document(db, dest, st, fp, sid, row, kind, dup, by)
         else:
@@ -367,6 +375,15 @@ def finish(db, cfg, row, admin=False):
     if copy:
         shutil.rmtree(dest.parent, ignore_errors=True)
     return get(db, uid)
+
+
+def _chat(dest):
+    """A text file that is a chat export (chats.py), read; else None."""
+    if dest.suffix.lower() not in CHAT_EXT or dest.stat().st_size > CHAT_MAX:
+        return None
+    from . import chats
+
+    return chats.read(dest.read_text(encoding="utf-8-sig", errors="replace"), dest.name)
 
 
 def _document(db, dest, st, fp, sid, row, kind, dup, by):

@@ -227,11 +227,18 @@ that makes documents, photos and media into searchable PDFs. Lens uses it as a c
   (Linux x86-64 and arm64, macOS), checks it against the release's checksum and keeps only the program and its face and object plugins in
   `data_dir/models/anytopdf-0.4.0/`. It makes the PDF of text, Markdown, web pages and emails from the same cleaned page
   Lens would print with Chromium, so a server without Chromium reads them, and it reads images too: a photographed page
-  is found, straightened and flattened before OCR. Office files still need LibreOffice beside it.
+  is found, straightened and flattened before OCR. Office files still need LibreOffice beside it. Where Chromium and
+  poppler's `pdftoppm` are installed too, it draws each web page and email as it looks (`--html-render`, offline) and
+  keeps the page's text as the search layer; without them (a Raspberry Pi, the lean image) it reads the text alone.
+  On a conversion node, its own options decide (`anytopdf queue serve … -- --html-render`).
 - **On a conversion node.** With `documents.anytopdf_url` and its token set, every conversion goes to that machine as
   a job (only the file, named `document.<type>`), and Lens fetches the PDF. The node has LibreOffice and whatever else
   it needs, so a small server (a Raspberry Pi) reads Word, PowerPoint and spreadsheet files with nothing installed.
   Run it behind TLS off loopback (`anytopdf queue serve --tls-cert … --tls-key …`).
+  Lens sends the file and token only to the address set: an http(s) address with no user name or password, and a
+  node that answers with a redirect is refused, so the token never goes on to another server. A job's answer is read
+  to 1 MB at most and its PDF to 2 GB, and a PDF that doesn't start like one is refused. **Check it** in Settings →
+  Documents asks the node for a job with Lens's token and says whether it answered and took it.
 
 It runs with no network, no runtime plugins and no config file of its own, and its PDF has no provenance page and
 holds only the document's text, so what Lens reads is what the document says. Faces, objects and speech stay Lens's

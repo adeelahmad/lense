@@ -109,7 +109,7 @@ def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Wri
                 path = pathlib.Path(d) / name
                 path.write_bytes(raw)
                 rid = ingest.import_transcript(
-                    db, cfg, ns, path, title=title or path.stem, speaker_names=names, fmt=body.format, collection=body.collection
+                    db, cfg, ns, path, title=title, speaker_names=names, fmt=body.format, collection=body.collection
                 )
             db.q("UPDATE $r SET path = $p", r=store.R("recording", rid), p="upload:" + name)
         else:
@@ -171,7 +171,7 @@ def preview_import(body: ImportPreviewRequest, user: Writer, cfg: Cfg) -> Import
             t, detected = ingest.read_text_transcript(text, fmt), fmt if fmt != "auto" else ingest.sniff(text)
     segs = t["segments"]
     return ImportPreview(
-        format=detected,
+        format="chat" if t.get("form") == "chat" else detected,
         title=t.get("title"),
         segments=len(segs),
         duration_ms=max((x["t1"] for x in segs), default=0),

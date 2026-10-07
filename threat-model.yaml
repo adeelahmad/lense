@@ -2,10 +2,10 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:c426c6aad5c09c02bbd1bd6a6ccb28ba211866a1d4e9fbecb36385a7f07c307a"
+prose_version: "threat-model.md@sha256:c7c945e760490e73dbb947e89beff868a218b89b839b4172f9d928d4853e992a"
 model_status: under-review
 triage_policy: strict
-confidence: {documented: 200, maintainer: 46, inferred: 91, assumption: 8}
+confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
 
 generation:
   model: "Claude Opus 5.5 (claude-opus-5-5)"
@@ -1336,6 +1336,14 @@ properties_claimed:
     violation_symptoms: [hang]
     x-voided-by: "children that ffmpeg or a reader starts itself; only converters run in their own process group (domain/ingest.py:794, domain/speech.py:183)"
     provenance: {kind: maintainer, date: "2026-10-06", question_id: Q20}
+  - id: P-CONVERSION-NODE
+    kind: confidentiality
+    components: [outbound, ingest]
+    tier: security-critical
+    conditions: "a conversion node (documents.anytopdf_url) gets the document and its token only at the address the admin set: http(s) with no user name or password, and no redirect is followed; its job answers are read to 1 MB, its PDF to 2 GB, and a PDF that doesn't start like one is refused before Lens reads it; anytopdf converting here has no network, no plugins and no config file"
+    violation_symptoms: [info-leak, bad-data-accepted]
+    x-voided-by: "the node's address is trusted input (N-ADMIN); a node on plain http off loopback sends the token in clear (domain/anytopdf.py:237-244); what the node reads from the document is the node's"
+    provenance: {kind: documented, source: 'docs/configuration.md "the token never goes on to another server"'}
   - id: P-TEMPLATE
     kind: integrity
     components: [ingest, assistant]

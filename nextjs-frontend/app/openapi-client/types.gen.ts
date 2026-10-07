@@ -2575,6 +2575,12 @@ export type ContentRules = {
    * Max Minutes
    */
   max_minutes?: number | null;
+  /**
+   * Forms
+   *
+   * what the file was found to hold, e.g. [chat]
+   */
+  forms?: Array<"chat"> | null;
 };
 
 /**
@@ -2726,6 +2732,25 @@ export type ContentTypeUse = {
    * Content Type
    */
   content_type: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ConversionNodeTestResult
+ */
+export type ConversionNodeTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
   [key: string]: unknown;
 };
 
@@ -5948,7 +5973,7 @@ export type ImportPreviewRequest = {
   /**
    * Format
    */
-  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt";
+  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt" | "chat";
   /**
    * Filename
    */
@@ -5972,7 +5997,7 @@ export type ImportRequest = {
   /**
    * Format
    */
-  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt";
+  format?: "auto" | "text" | "markdown" | "mdx" | "json" | "jsonl" | "srt" | "vtt" | "chat";
   /**
    * Filename
    */
@@ -18226,6 +18251,22 @@ export type TestBridgeResponses = {
 };
 
 export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
+
+export type TestConversionNodeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/documents/node/test";
+};
+
+export type TestConversionNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConversionNodeTestResult;
+};
+
+export type TestConversionNodeResponse = TestConversionNodeResponses[keyof TestConversionNodeResponses];
 
 export type DecisionStatusData = {
   body?: never;

@@ -2488,6 +2488,28 @@
         }
       }
     },
+    "/api/v1/settings/documents/node/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Conversion Node",
+        "description": "Check that the conversion node (documents.anytopdf_url) answers at its address and takes Lens's token.",
+        "operationId": "test_conversion_node",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversionNodeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/decisions/status": {
       "get": {
         "tags": [
@@ -28126,6 +28148,22 @@
               }
             ],
             "title": "Max Minutes"
+          },
+          "forms": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "const": "chat"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forms",
+            "description": "what the file was found to hold, e.g. [chat]"
           }
         },
         "additionalProperties": false,
@@ -28406,6 +28444,42 @@
           "content_type"
         ],
         "title": "ContentTypeUse"
+      },
+      "ConversionNodeTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "ConversionNodeTestResult"
       },
       "Converters": {
         "properties": {
@@ -33858,7 +33932,8 @@
               "json",
               "jsonl",
               "srt",
-              "vtt"
+              "vtt",
+              "chat"
             ],
             "title": "Format",
             "default": "auto"
@@ -33915,7 +33990,8 @@
               "json",
               "jsonl",
               "srt",
-              "vtt"
+              "vtt",
+              "chat"
             ],
             "title": "Format",
             "default": "auto"
