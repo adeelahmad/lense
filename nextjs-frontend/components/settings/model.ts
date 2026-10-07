@@ -1258,6 +1258,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "embeddings",
+    key: "photos",
+    label: "Search photos by what they show",
+    kind: "switch",
+    hint: "anytopdf’s CLIP plugin compares each photo with the search, offline. Downloads a 600 MB model",
+  },
+  {
+    section: "embeddings",
     key: "base_url",
     label: "Embeddings server (OpenAI-compatible)",
     kind: "text",

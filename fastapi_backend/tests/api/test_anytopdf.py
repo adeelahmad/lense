@@ -319,13 +319,14 @@ def test_it_is_fetched_when_asked_for(cfg, monkeypatch, tmp_path):
     got = anytopdf.fetch(cfg)
     assert got == str(anytopdf.fetched_path(cfg)) and os.access(got, os.X_OK)
     kept = sorted(str(p.relative_to(anytopdf.fetched_path(cfg).parent)) for p in anytopdf.fetched_path(cfg).parent.rglob("*"))
-    assert kept == ["anytopdf", "plugins", "plugins/anytopdf-plugin-faces"]  # the program and its face and object plugins
+    # the program and its face, object and CLIP plugins (those the release has), and which it was fetched for
+    assert kept == ["anytopdf", "plugins", "plugins/.asked", "plugins/anytopdf-plugin-faces"]
     assert comp.present({**cfg, "documents": {**cfg["documents"], "anytopdf": None}})
 
     monkeypatch.setattr(anytopdf, "archive", lambda: (f"{name}.tar.gz", "0" * 64))
     assert anytopdf.fetch(cfg) == got  # already here
-    shutil.rmtree(anytopdf.fetched_path(cfg).parent / "plugins")
-    with pytest.raises(RuntimeError, match="checksum"):  # fetched before plugins were kept: fetched again
+    (anytopdf.fetched_path(cfg).parent / "plugins" / ".asked").write_text("anytopdf-plugin-faces\n")
+    with pytest.raises(RuntimeError, match="checksum"):  # fetched before Lens kept the plugins it keeps now: again
         anytopdf.fetch(cfg)
     anytopdf.fetched_path(cfg).unlink()
     with pytest.raises(RuntimeError, match="checksum"):
