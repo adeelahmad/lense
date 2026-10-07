@@ -16,6 +16,10 @@ every document and image, `lens` never. Run here, it has no network, no runtime 
 stay Lens's own steps) and no config file of its own; its PDF has no provenance page, and its search layer holds the
 document's text only, so what Lens reads from it is what the document says.
 
+A conversion node gets the document and its token at the address the admin set and nowhere else: only http(s), no
+user name or password in the address, and no redirect is followed, so the token never goes on to another server.
+What it answers is bounded (MAX_JSON for a job, MAX_PDF for its PDF, which must start like one) before Lens reads it.
+
 analyze() asks its face and object plugins, kept beside the program, what is in a picture: sandboxed, with no network,
 reading only the picture and the models Lens names.
 """
@@ -26,6 +30,7 @@ import json
 import os
 import pathlib
 import platform
+import re
 import shutil
 import tarfile
 import tempfile
@@ -49,6 +54,9 @@ MACHINES = {"amd64": "x86_64", "arm64": "arm64", "aarch64": "aarch64"}
 # its search layer: the document's own text, not the dates, colours and places it would add
 QUIET = ["--no-provenance-page", "--no-entities", "--colors", "off", "--location", "off"]
 POLL_SECONDS = 1.0
+MAX_JSON = 1 << 20  # the most of a conversion node's job answer that is read
+MAX_PDF = 2 << 30  # the largest PDF taken from a conversion node
+JOB_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 # the plugins Lens keeps beside the program, for analyze(): the rest of the release's plugins stay behind
 PLUGINS = ("anytopdf-plugin-faces", "anytopdf-plugin-face-id", "anytopdf-plugin-objects")
 
@@ -207,19 +215,69 @@ def _local(cfg, src, out, scan, browser=None):
         shutil.move(str(made), out)
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A conversion node that answers with a redirect is refused: the token goes to the address set, never on."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(req.full_url, code, "it redirected elsewhere, and Lens doesn't follow", headers, fp)
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
+def _url(cfg):
+    """The node's address, refused unless it is http(s) with a host and no user name or password."""
+    url = node(cfg)
+    u = urllib.parse.urlsplit(url or "")
+    if u.scheme not in ("http", "https") or not u.hostname or u.username is not None or u.password is not None:
+        raise ValueError("documents.anytopdf_url is a conversion node's http(s) address, such as https://convert.home:8640")
+    return url
+
+
 def _call(cfg, method, path, body=None, query=None):
-    url = node(cfg) + path + (f"?{urllib.parse.urlencode(query)}" if query else "")
+    url = _url(cfg) + path + (f"?{urllib.parse.urlencode(query)}" if query else "")
     token = _opts(cfg).get("anytopdf_token") or ""
     headers = {"Authorization": f"Bearer {token}"} if token else {}
     if body is not None:
         headers["Content-Length"] = str(len(body))
     req = urllib.request.Request(url, data=body, method=method, headers=headers)
-    return urllib.request.urlopen(req, timeout=60)
+    return _OPENER.open(req, timeout=60)
+
+
+def _job(r):
+    """A job the node answered with, read no further than MAX_JSON, with an id that is only an id."""
+    raw = r.read(MAX_JSON + 1)
+    if len(raw) > MAX_JSON:
+        raise ValueError("the conversion node's answer was too long")
+    try:
+        job = json.loads(raw)
+    except ValueError:
+        raise ValueError("the conversion node didn't answer like anytopdf queue serve") from None
+    if not isinstance(job, dict) or not JOB_ID.fullmatch(str(job.get("job_id") or "")):
+        raise ValueError("the conversion node didn't answer like anytopdf queue serve")
+    return job
+
+
+def _save_pdf(r, part):
+    """The node's PDF, written to `part`: refused when it doesn't start like a PDF or runs past MAX_PDF."""
+    size, head = 0, b""
+    with open(part, "wb") as f:
+        while chunk := r.read(1 << 20):
+            if not size:
+                head = chunk[:5]
+            size += len(chunk)
+            if size > MAX_PDF:
+                raise ValueError(f"the conversion node's PDF ran past {MAX_PDF >> 30} GB")
+            f.write(chunk)
+    if head != b"%PDF-":
+        raise ValueError("the conversion node sent something that isn't a PDF")
 
 
 def _said(e):
+    if 300 <= e.code < 400:
+        return e.reason
     try:
-        return json.loads(e.read() or b"{}").get("error") or e.reason
+        return str(json.loads(e.read(MAX_JSON) or b"{}").get("error") or e.reason)[:300]
     except (ValueError, AttributeError):
         return getattr(e, "reason", str(e))
 
@@ -227,22 +285,22 @@ def _said(e):
 def _remote(cfg, src, out):
     """The file sent to the conversion node as a job, waited for, and its PDF fetched."""
     seconds = _opts(cfg).get("convert_seconds") or 300
+    part = out.with_suffix(".part")
     try:
         with _call(cfg, "POST", "/v1/jobs", src.read_bytes(), {"filename": f"document{src.suffix.lower()}"}) as r:
-            job = json.loads(r.read())
+            job = _job(r)
         jid, end = job["job_id"], time.monotonic() + seconds
         while job.get("state") not in ("succeeded", "failed"):
             if time.monotonic() > end:
                 raise ValueError(f"the conversion node took longer than {seconds} s (documents.convert_seconds)")
             time.sleep(POLL_SECONDS)
             with _call(cfg, "GET", f"/v1/jobs/{urllib.parse.quote(jid)}") as r:
-                job = json.loads(r.read())
+                job = _job(r)
         if job["state"] == "failed":
             raise ValueError(f"the conversion node couldn't read it (exit {job.get('exit_code')})")
         out.parent.mkdir(parents=True, exist_ok=True)
-        part = out.with_suffix(".part")
-        with _call(cfg, "GET", f"/v1/jobs/{urllib.parse.quote(jid)}/output") as r, open(part, "wb") as f:
-            shutil.copyfileobj(r, f)
+        with _call(cfg, "GET", f"/v1/jobs/{urllib.parse.quote(jid)}/output") as r:
+            _save_pdf(r, part)
         part.replace(out)
     except urllib.error.HTTPError as e:
         if e.code == 401:
@@ -250,6 +308,28 @@ def _remote(cfg, src, out):
         raise ValueError(f"the conversion node said {e.code}: {_said(e)}") from None
     except (urllib.error.URLError, OSError) as e:
         raise ValueError(f"the conversion node can't be reached ({getattr(e, 'reason', e)})") from None
+    finally:
+        part.unlink(missing_ok=True)
+
+
+def check(cfg):
+    """Whether the conversion node answers at its address and takes Lens's token: None when it does, else what's
+    wrong. It asks for a job that isn't there, which a node that took the token answers with 404."""
+    if not node(cfg):
+        return "set the conversion node's address first (documents.anytopdf_url)"
+    try:
+        with _call(cfg, "GET", "/v1/jobs/lens-check"):
+            return None
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return None
+        if e.code == 401:
+            return "it refused Lens's token (documents.anytopdf_token)"
+        return f"it said {e.code}: {_said(e)}"
+    except ValueError as e:
+        return str(e)
+    except (urllib.error.URLError, OSError) as e:
+        return f"it can't be reached ({getattr(e, 'reason', e)})"
 
 
 def analyze(cfg, picture, models=None, seconds=None):

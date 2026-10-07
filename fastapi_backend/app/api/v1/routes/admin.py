@@ -14,6 +14,7 @@ from app import email
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.middleware import host_name
 from app.domain import (
+    anytopdf,
     auth,
     blobs,
     bridge,
@@ -35,6 +36,7 @@ from app.schemas.admin import (
     AuditEntry,
     BridgeStatus,
     BridgeTestResult,
+    ConversionNodeTestResult,
     DecisionStatus,
     DecisionTestResult,
     EmbedTestResult,
@@ -181,6 +183,14 @@ def test_bridge(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
     """Check that Matterbridge answers at its address with its token, and that the account to answer as exists."""
     error = bridge.check(db, cfg)
     return BridgeTestResult(ok=error is None, error=error)
+
+
+@router.post("/settings/documents/node/test")
+def test_conversion_node(user: AdminWriter, cfg: Cfg) -> ConversionNodeTestResult:
+    """Check that the conversion node (documents.anytopdf_url) answers at its address and takes Lens's token."""
+    t0 = time.time()
+    error = anytopdf.check(cfg)
+    return ConversionNodeTestResult(ok=error is None, error=error, ms=None if error else int((time.time() - t0) * 1000))
 
 
 @router.get("/settings/decisions/status")

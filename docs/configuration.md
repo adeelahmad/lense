@@ -235,6 +235,10 @@ that makes documents, photos and media into searchable PDFs. Lens uses it as a c
   a job (only the file, named `document.<type>`), and Lens fetches the PDF. The node has LibreOffice and whatever else
   it needs, so a small server (a Raspberry Pi) reads Word, PowerPoint and spreadsheet files with nothing installed.
   Run it behind TLS off loopback (`anytopdf queue serve --tls-cert … --tls-key …`).
+  Lens sends the file and token only to the address set: an http(s) address with no user name or password, and a
+  node that answers with a redirect is refused, so the token never goes on to another server. A job's answer is read
+  to 1 MB at most and its PDF to 2 GB, and a PDF that doesn't start like one is refused. **Check it** in Settings →
+  Documents asks the node for a job with Lens's token and says whether it answered and took it.
 
 It runs with no network, no runtime plugins and no config file of its own, and its PDF has no provenance page and
 holds only the document's text, so what Lens reads is what the document says. Faces, objects and speech stay Lens's
