@@ -167,7 +167,8 @@ class _Hostile(fake_anytopdf.Node):
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
-        if _Hostile.mode == "long":
+        if _Hostile.mode == "long":  # the upload read first: answering over it resets the connection on some runners
+            self.rfile.read(int(self.headers["Content-Length"]))
             return self._send(202, b"{" + b" " * (anytopdf.MAX_JSON + 10) + b"}")
         if _Hostile.mode == "odd id":
             return self._send(202, {"job_id": "../../admin", "state": "queued"})
