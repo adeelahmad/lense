@@ -161,6 +161,8 @@ class _Hostile(fake_anytopdf.Node):
     mode = ""
 
     def do_POST(self):  # noqa: N802
+        if _Hostile.mode in ("redirect", "long", "odd id"):  # the upload read first, or Lens may see a reset instead
+            self.rfile.read(int(self.headers["Content-Length"]))
         if _Hostile.mode == "redirect":
             self.send_response(307)
             self.send_header("Location", f"http://127.0.0.1:{_Hostile.elsewhere}/v1/jobs")
