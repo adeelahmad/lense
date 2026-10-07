@@ -389,15 +389,16 @@ class Faces(Component):
 
 class Objects(Component):
     def needed(self, cfg, m):
-        return cfg["video"].get("object_engine") == "yolox"
+        return cfg["video"].get("object_engine") in ("yolox", "anytopdf")
 
     def present(self, cfg):
         from . import objects
 
-        return importable("onnxruntime") and bool(objects.yolox_model(cfg))
+        onnx = cfg["video"].get("object_engine") == "anytopdf" or importable("onnxruntime")  # anytopdf runs the model itself
+        return onnx and bool(objects.yolox_model(cfg))
 
     def fetch(self, cfg, m, say):
-        if not importable("onnxruntime"):
+        if cfg["video"].get("object_engine") != "anytopdf" and not importable("onnxruntime"):
             pip_install(cfg, "objects", say)
         fetch_file(cfg, "yolox_s.onnx", say)
 
@@ -405,10 +406,20 @@ class Objects(Component):
 class Anytopdf(Component):
     """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here."""
 
+    def _serves(self, cfg):
+        from . import anytopdf
+
+        converts = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
+        detects = cfg["video"].get("object_engine") == "anytopdf"  # its objects plugin runs here, node or not
+        return ({"transcribe"} if converts else set()) | ({"objects"} if detects else set())
+
     def needed(self, cfg, m):
         from . import anytopdf
 
-        return anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg) and bool(anytopdf.archive())
+        return bool(self._serves(cfg)) and bool(anytopdf.archive())
+
+    def serves(self, cfg, m):
+        return self._serves(cfg)
 
     def present(self, cfg):
         from . import anytopdf
@@ -548,8 +559,8 @@ COMPONENTS = [
     Anytopdf(
         "anytopdf",
         "anytopdf",
-        "makes documents and photographed pages into searchable PDFs (documents.converter)",
-        steps={"transcribe"},
+        "makes documents and photographed pages into searchable PDFs (documents.converter), and finds objects (video.object_engine)",
+        steps={"transcribe", "objects"},
         size_mb=50,
         license="MIT OR Apache-2.0",
     ),

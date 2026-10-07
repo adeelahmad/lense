@@ -6,6 +6,8 @@ Engines (video.object_engine):
   one in MODELS or the data folder's models (components.py fetches yolox_s there on first use); `pip install "lens[objects]"` brings ONNX Runtime.
 - ultralytics: Ultralytics YOLO (video.ultralytics_model, such as yolov8n.pt). It's AGPL-3.0: a server that lets
   others use it must offer them its source, so it's in no image or extra; `pip install ultralytics` to use it.
+- anytopdf: the same YOLOX model, run by anytopdf's objects plugin (anytopdf.analyze, sandboxed with no network), so a
+  lean server or a Raspberry Pi needs no ONNX Runtime in Python. components.py fetches anytopdf and the model.
 Without one the objects step is skipped, saying why.
 
 A resource's objects are rows of object_track, one per kind: the spans it's in (time, or pages for a document, as
@@ -167,11 +169,39 @@ class UltralyticsYolo:
         return sorted(out, key=lambda o: -o["score"])
 
 
+class AnytopdfObjects:
+    """YOLOX run by anytopdf's objects plugin: the program here (documents.anytopdf, or the one fetched) and a YOLOX
+    .onnx model, without ONNX Runtime in Lens."""
+
+    name = "anytopdf"
+
+    def __init__(self, cfg):
+        from . import anytopdf
+
+        if not anytopdf.binary(cfg):
+            raise RuntimeError("anytopdf isn't installed here (it's fetched the first time a job needs it)")
+        model = yolox_model(cfg)
+        if not model or not pathlib.Path(model).is_file():
+            raise RuntimeError("no YOLOX model: set video.yolox_model to a YOLOX .onnx file (the lens:full image has one)")
+        self.cfg, self.models = cfg, {"ANYTOPDF_OBJECTS_MODEL": model}
+        self.min_score = float(cfg["video"].get("object_min_score") or 0.4)
+
+    def detect(self, path):
+        from . import anytopdf
+
+        out = []
+        for o in anytopdf.analyze(self.cfg, path, self.models):
+            if o["kind"] == "object" and o["score"] >= self.min_score:
+                label = str(o["label"]).replace("_", " ").casefold()
+                out.append({"label": label, "score": o["score"], "box": [round(float(v), 4) for v in o["box"]]})
+        return sorted(out, key=lambda o: -o["score"])
+
+
 def _fractions(x1, y1, x2, y2, W, H):
     return [round(x1 / W, 4), round(y1 / H, 4), round((x2 - x1) / W, 4), round((y2 - y1) / H, 4)]
 
 
-ENGINES = {"yolox": YoloxOnnx, "ultralytics": UltralyticsYolo}
+ENGINES = {"yolox": YoloxOnnx, "ultralytics": UltralyticsYolo, "anytopdf": AnytopdfObjects}
 
 
 def engine(cfg):

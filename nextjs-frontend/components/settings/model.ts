@@ -1489,6 +1489,7 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "yolox", label: "YOLOX on ONNX Runtime (Apache-2.0)" },
       { value: "ultralytics", label: "Ultralytics YOLO (AGPL-3.0)" },
+      { value: "anytopdf", label: "YOLOX run by anytopdf (no ONNX Runtime)" },
       { value: "off", label: "Off" },
     ],
     hint: "Finds people, vehicles, animals and everyday things on frames and pages",

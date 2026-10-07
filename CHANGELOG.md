@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **anytopdf can find objects.** Settings › Video › Object detector › anytopdf runs Lens's YOLOX model with
+  anytopdf's objects plugin (sandboxed, no network), so a lean server or a Raspberry Pi finds objects without ONNX
+  Runtime. Lens fetches anytopdf and the model on first use. YOLOX on ONNX Runtime stays the default
+  ([Objects](docs/configuration.md#objects)).
 - **anytopdf can make Lens's PDFs.** Settings › Documents › Make PDFs with anytopdf. On `auto` (the default) nothing
   changes unless anytopdf is here: then it reads the emails, web pages and text a server without Chromium couldn't.
   Choose "For every document and image" and Lens downloads anytopdf 0.4.0 (checked against its release checksum);
