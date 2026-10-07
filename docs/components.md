@@ -15,6 +15,7 @@ archive that only uses cloud models never downloads them, which keeps a small ma
 | Whisper model | `transcribe.engine` is `whisper` | the faster-whisper model named in `transcribe.whisper.model` |
 | Voice IDs | speakers are separated by clustering (the default) | SpeechBrain and its ECAPA voiceprint model |
 | Face models | `video.face_engine` is `opencv` (the default) | OpenCV, YuNet and SFace |
+| Face models | `video.face_engine` is `anytopdf` | SFace, for anytopdf to describe faces with (anytopdf too) |
 | Object model | `video.object_engine` is `yolox` (the default) | ONNX Runtime and YOLOX-s |
 | Chat model, embedding model | the LLM provider or embeddings server is Ollama | pulled on that server (`/api/pull`) |
 | Outlook .msg emails | listed in `components.also` | extract-msg (GPL-3.0, so only when asked for) |

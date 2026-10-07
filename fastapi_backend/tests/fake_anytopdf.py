@@ -1,6 +1,7 @@
 """An anytopdf for tests (anytopdf.py): `anytopdf ... convert IN -o OUT ...` writes a PDF of IN's text (a page of
-HTML's text without its markup; an image's, the words in its name) and, with --dump-graph, what its plugins found (a
-face, and a bus when it's given an objects model). It logs how it was run, one JSON line each, to
+HTML's text without its markup; an image's, the words in its name) and, with --dump-graph, what its plugins found on
+each picture (a face, and a bus when it's given an objects model), with each face described in the face index when it
+recognises faces. It logs how it was run, one JSON line each, to
 the file named by its log. It's also a conversion node: `node(token)` serves `anytopdf queue serve`'s API from
 memory, converting each upload the same way."""
 
@@ -27,19 +28,52 @@ if args == ["--version"]:
     sys.exit(0)
 with open(@LOG@, "a") as f:
     f.write(json.dumps({"args": args, "proxy": os.environ.get("https_proxy"), "anytopdf_env": sorted(k for k in os.environ if k.startswith("ANYTOPDF_"))}) + "\n")
-src, out = args[args.index("convert") + 1], args[args.index("-o") + 1]
-if "unreadable" in open(src, "rb").read().decode("utf-8", "replace"):
+srcs, out = args[args.index("convert") + 1 : args.index("-o")], args[args.index("-o") + 1]
+if any("unreadable" in open(src, "rb").read().decode("utf-8", "replace") for src in srcs):
     print("WARNING [input.unreadable]: it can't be read", file=sys.stderr)
     sys.exit(3)
-pathlib.Path(out).write_bytes(pdf_of(src, open(src, "rb").read()))
-if "--dump-graph" in args:  # what its plugins found: a face, and a bus when given an objects model
-    found = [{"kind": "face", "text": "face", "confidence": 0.9, "region": {"x": 0.1, "y": 0.2, "width": 0.05, "height": 0.06}, "attributes": {"face_index": "0"}},
-             {"kind": "face", "text": "1 face", "confidence": None, "region": None, "attributes": {}}]
-    if os.environ.get("ANYTOPDF_OBJECTS_MODEL"):
-        found.append({"kind": "object", "text": "bus", "confidence": 0.93, "region": {"x": 0.02, "y": 0.2, "width": 0.9, "height": 0.5}, "attributes": {"label": "bus"}})
-    graph = {"sources": [], "units": [{"kind": "visual", "annotations": found}]}
+pathlib.Path(out).write_bytes(pdf_of(srcs[0], open(srcs[0], "rb").read()))
+if "--dump-graph" in args:  # what its plugins found on each picture: a face, and a bus when given an objects model
+    from tests.fake_anytopdf import face_of
+
+    sources, units, seen = [], [], []
+    for n, src in enumerate(srcs):
+        found = [{"kind": "face", "text": "face", "confidence": 0.9, "region": {"x": 0.1, "y": 0.2, "width": 0.05, "height": 0.06}, "attributes": {"face_index": "0"}},
+                 {"kind": "face", "text": "1 face", "confidence": None, "region": None, "attributes": {}}]
+        if b"nobody" in open(src, "rb").read():
+            found = []
+        if os.environ.get("ANYTOPDF_OBJECTS_MODEL"):
+            found.append({"kind": "object", "text": "bus", "confidence": 0.93, "region": {"x": 0.02, "y": 0.2, "width": 0.9, "height": 0.5}, "attributes": {"label": "bus"}})
+        sources.append({"id": f"source-{n}", "path": src})
+        units.append({"kind": "visual", "source_id": f"source-{n}", "annotations": found})
+        seen += [(src, face_of(src), a["region"]) for a in found if a["kind"] == "face" and a["region"]]
+    graph = {"sources": sources, "units": units}
     pathlib.Path(args[args.index("--dump-graph") + 1]).write_text(json.dumps(graph))
+    if "--recognize-faces" in args and os.environ.get("ANYTOPDF_FACE_EMBED_MODEL"):  # each face, described, in its index
+        import sqlite3
+
+        db = sqlite3.connect(args[args.index("--face-index") + 1])
+        db.execute("CREATE TABLE sightings (id INTEGER PRIMARY KEY, source_path TEXT, vector BLOB, x REAL, y REAL, w REAL, h REAL)")
+        for src, vec, r in seen:
+            db.execute("INSERT INTO sightings (source_path, vector, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)", (src, vec, r["x"], r["y"], r["width"], r["height"]))
+        db.commit()
 """
+
+
+def face_of(path):
+    """The description the fake gives a face, as little-endian f32: a picture's background colour decides who it is
+    (as video_helpers.FakeFaces), anything else is one person."""
+    import numpy as np
+
+    e = np.zeros(128, dtype="<f4")
+    try:
+        from PIL import Image
+
+        e[int(np.argmax(Image.open(path).convert("RGB").getpixel((2, 2))))] = 3.0  # not unit length: Lens makes it so
+    except OSError:
+        e[0] = 3.0
+    e[5] = 0.3
+    return e.tobytes()
 
 
 def text_of(name, raw):

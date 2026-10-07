@@ -15,11 +15,13 @@ stay Lens's own steps) and no config file of its own; its PDF has no provenance 
 document's text only, so what Lens reads from it is what the document says.
 
 analyze() asks its face and object plugins, kept beside the program, what is in a picture: sandboxed, with no network,
-reading only the picture and the models Lens names.
+reading only the picture and the models Lens names. faces() also has its face-id plugin describe each face, for
+video.face_engine `anytopdf`.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import pathlib
@@ -49,6 +51,8 @@ QUIET = ["--no-provenance-page", "--no-entities", "--colors", "off", "--location
 POLL_SECONDS = 1.0
 # the plugins Lens keeps beside the program, for analyze(): the rest of the release's plugins stay behind
 PLUGINS = ("anytopdf-plugin-faces", "anytopdf-plugin-face-id", "anytopdf-plugin-objects")
+# what finds faces (YuNet, built in) and what describes them (an ArcFace-style ONNX model), for faces()
+FACE_PLUGINS = PLUGINS[:2]
 
 
 class Unavailable(RuntimeError):
@@ -238,13 +242,10 @@ def _remote(cfg, src, out):
         raise ValueError(f"the conversion node can't be reached ({getattr(e, 'reason', e)})") from None
 
 
-def analyze(cfg, picture, models=None, seconds=None):
-    """What anytopdf's plugins find in a picture, run here: [{"kind": "face" | "object", "label", "box": [x, y, w, h]
-    fractions, "score", "attributes"}], one per thing found where it is (their summaries left out).
-
-    `models` are the plugins' settings, such as {"ANYTOPDF_OBJECTS_MODEL": "/models/yolox_s.onnx"}: a plugin that
-    needs a model runs only when it's given one, and may read nothing else (the plugins run sandboxed, with no network
-    and no config file). Faces are found by the bundled YuNet whatever is given."""
+@contextlib.contextmanager
+def _looked_at(cfg, pictures, models, seconds, args=()):
+    """anytopdf run here over copies of the pictures with its plugins, sandboxed with no network: (its folder, its
+    graph, {copy: picture}) while the block runs, then nothing of it is left."""
     from . import convert
 
     exe = binary(cfg)
@@ -253,20 +254,34 @@ def analyze(cfg, picture, models=None, seconds=None):
     models = {k: str(v) for k, v in (models or {}).items() if k.startswith("ANYTOPDF_") and v}
     seconds = seconds or _opts(cfg).get("convert_seconds") or 300
     with tempfile.TemporaryDirectory(prefix="lens-anytopdf-") as tmp:
-        pic = pathlib.Path(tmp) / f"picture{pathlib.Path(picture).suffix.lower() or '.jpg'}"
-        shutil.copyfile(picture, pic)
+        names = {}
+        for n, picture in enumerate(pictures):
+            pic = pathlib.Path(tmp) / f"picture-{n}{pathlib.Path(picture).suffix.lower() or '.jpg'}"
+            shutil.copyfile(picture, pic)
+            names[str(pic)] = picture
         env = netguard.nowhere_env({**os.environ, "HOME": tmp, "TMPDIR": tmp})
         env = {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_")}
         env.update(models, ANYTOPDF_DATA_DIR=f"{tmp}/data")
         reads = [a for v in models.values() if os.path.exists(v) for a in ("--plugin-sandbox-allow-read", v)]
         graph = pathlib.Path(tmp) / "graph.json"
         argv = [exe, "--no-config", "--plugin-sandbox", "strict", *reads, "--plugin-timeout", str(int(seconds))]
-        argv += ["convert", str(pic), "-o", f"{tmp}/out.pdf", "--dump-graph", str(graph), "--ocr", "off", *QUIET]
+        argv += ["convert", *names, "-o", f"{tmp}/out.pdf", "--dump-graph", str(graph), "--ocr", "off", *QUIET, *args]
         r = convert._run(argv, seconds, env=env, cwd=tmp)
         if r.returncode != 0 or not graph.is_file():
             said = convert._last_said(r.stderr or r.stdout)
             raise ValueError(f"anytopdf couldn't look at it ({said or f'exit {r.returncode}'})")
-        found = json.loads(graph.read_text())
+        yield pathlib.Path(tmp), json.loads(graph.read_text()), names
+
+
+def analyze(cfg, picture, models=None, seconds=None):
+    """What anytopdf's plugins find in a picture, run here: [{"kind": "face" | "object", "label", "box": [x, y, w, h]
+    fractions, "score", "attributes"}], one per thing found where it is (their summaries left out).
+
+    `models` are the plugins' settings, such as {"ANYTOPDF_OBJECTS_MODEL": "/models/yolox_s.onnx"}: a plugin that
+    needs a model runs only when it's given one, and may read nothing else (the plugins run sandboxed, with no network
+    and no config file). Faces are found by the bundled YuNet whatever is given."""
+    with _looked_at(cfg, [picture], models, seconds) as (_, found, _names):
+        pass
     out = []
     for unit in found.get("units") or []:
         for a in unit.get("annotations") or []:
@@ -283,4 +298,55 @@ def analyze(cfg, picture, models=None, seconds=None):
                     "attributes": attrs,
                 }
             )
+    return out
+
+
+def face_plugins(cfg):
+    """Whether the plugins that find and describe faces are beside the program (fetch() keeps them in plugins/)."""
+    exe = binary(cfg)
+    found = [pathlib.Path(exe).resolve().parent / "plugins" / n for n in FACE_PLUGINS] if exe else []
+    return bool(found) and all(p.is_file() and os.access(p, os.X_OK) for p in found)
+
+
+def faces(cfg, pictures, model, seconds=None):
+    """The faces on each picture, found by anytopdf's YuNet and described by its face-id plugin with `model` (the SFace
+    file Lens fetches, so they match faces OpenCV found), in one run: {picture: [{"box": [x, y, w, h] fractions,
+    "score", "embedding": unit vector}]}. The face index it builds is thrown away with the run: who someone is stays
+    Lens's (faces.py)."""
+    models = {"ANYTOPDF_FACE_EMBED_MODEL": model}
+    with _looked_at(cfg, pictures, models, seconds, ["--recognize-faces", "--face-index", "faces.sqlite"]) as (tmp, graph, names):
+        found = faces_found(graph, tmp / "faces.sqlite")
+    return {picture: found.get(copy, []) for copy, picture in names.items()}
+
+
+def faces_found(graph, index):
+    """The faces in the graph of a run, by the file each is on: {path: [{"box", "score", "embedding"}]}. The graph has
+    each face's box and confidence but never its embedding; that is in the run's face index (faces.sqlite, its
+    sightings), at the same box."""
+    import sqlite3
+
+    import numpy as np
+
+    def key(path, box):
+        return str(path), *(round(float(v), 3) for v in box)
+
+    seen = {}
+    if pathlib.Path(index).is_file():
+        with contextlib.closing(sqlite3.connect(f"file:{index}?mode=ro", uri=True)) as db:
+            for path, vec, *box in db.execute("SELECT source_path, vector, x, y, w, h FROM sightings ORDER BY id"):
+                seen[key(path, box)] = np.frombuffer(vec, dtype="<f4").astype(np.float64)
+    paths = {s.get("id"): s.get("path") for s in graph.get("sources") or []}
+    out = {}
+    for unit in graph.get("units") or []:
+        path = paths.get(unit.get("source_id"))
+        for a in unit.get("annotations") or []:
+            r = a.get("region")
+            if a.get("kind") != "face" or not r:  # the one without a box is the picture's count ("2 faces")
+                continue
+            box = [float(r["x"]), float(r["y"]), float(r["width"]), float(r["height"])]
+            emb = seen.get(key(path, box))
+            if emb is None:
+                continue
+            face = {"box": box, "score": float(a.get("confidence") or 0.0), "embedding": emb / (np.linalg.norm(emb) + 1e-9)}
+            out.setdefault(path, []).append(face)
     return out

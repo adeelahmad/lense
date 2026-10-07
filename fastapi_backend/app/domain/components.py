@@ -373,17 +373,26 @@ class Voices(Component):
 
 
 class Faces(Component):
+    """OpenCV with YuNet and SFace; for anytopdf (video.face_engine `anytopdf`) only SFace, which its face-id plugin
+    describes faces with, since it finds them itself."""
+
+    def _files(self, cfg):
+        return FACE_FILES[1:] if cfg["video"].get("face_engine") == "anytopdf" else FACE_FILES
+
     def needed(self, cfg, m):
         v = cfg["video"]
+        if v.get("face_engine") == "anytopdf":
+            return not v.get("sface_model")
         return v.get("face_engine") == "opencv" and not (v.get("yunet_model") and v.get("sface_model") and importable("cv2"))
 
     def present(self, cfg):
-        return importable("cv2") and all(model_file(cfg, n) for n in FACE_FILES)
+        opencv = cfg["video"].get("face_engine") == "anytopdf" or importable("cv2")
+        return opencv and all(model_file(cfg, n) for n in self._files(cfg))
 
     def fetch(self, cfg, m, say):
-        if not importable("cv2"):
+        if cfg["video"].get("face_engine") != "anytopdf" and not importable("cv2"):
             pip_install(cfg, "faces", say)
-        for n in FACE_FILES:
+        for n in self._files(cfg):
             fetch_file(cfg, n, say)
 
 
@@ -403,12 +412,14 @@ class Objects(Component):
 
 
 class Anytopdf(Component):
-    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here."""
+    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here or it finds faces
+    (video.face_engine `anytopdf`)."""
 
     def needed(self, cfg, m):
         from . import anytopdf
 
-        return anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg) and bool(anytopdf.archive())
+        faces = (cfg.get("video") or {}).get("face_engine") == "anytopdf"
+        return (faces or anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)) and bool(anytopdf.archive())
 
     def present(self, cfg):
         from . import anytopdf
@@ -548,8 +559,8 @@ COMPONENTS = [
     Anytopdf(
         "anytopdf",
         "anytopdf",
-        "makes documents and photographed pages into searchable PDFs (documents.converter)",
-        steps={"transcribe"},
+        "makes documents and photographed pages into searchable PDFs (documents.converter), and can find faces",
+        steps={"transcribe", "faces"},
         size_mb=50,
         license="MIT OR Apache-2.0",
     ),

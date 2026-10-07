@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **anytopdf can find faces.** Settings › Video, OCR, faces and objects › Face engine › anytopdf: its plugins find
+  the faces in frames and pages and describe them with the same SFace model, so a server needs no OpenCV, and the
+  people a namespace already knows still match ([Video](docs/video.md)). Who someone is stays in Lens.
 - **anytopdf can make Lens's PDFs.** Settings › Documents › Make PDFs with anytopdf. On `auto` (the default) nothing
   changes unless anytopdf is here: then it reads the emails, web pages and text a server without Chromium couldn't.
   Choose "For every document and image" and Lens downloads anytopdf 0.4.0 (checked against its release checksum);
