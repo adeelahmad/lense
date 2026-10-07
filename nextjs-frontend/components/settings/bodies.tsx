@@ -1534,6 +1534,7 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
           {test.isError && <Banner tone="error">{test.error.message}</Banner>}
         </>
       )}
+      <F ctx={ctx} id="embeddings.photos" />
       {s && (
         <div className="flex flex-col gap-2 rounded-md border border-blue-border bg-blue-surface px-3.5 py-3">
           <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold">

@@ -434,6 +434,27 @@ class Anytopdf(Component):
         anytopdf.fetch(cfg, say)
 
 
+class ClipModel(Component):
+    """anytopdf's CLIP plugin and its model (photos.py), fetched when Settings → Search asks to search photos."""
+
+    def needed(self, cfg, m):
+        from . import anytopdf, photos
+
+        return photos.enabled(cfg) and bool(anytopdf.archive() or photos.plugin(cfg))
+
+    def present(self, cfg):
+        from . import photos
+
+        return bool(photos.plugin(cfg)) and photos.model_ready(cfg)
+
+    def fetch(self, cfg, m, say):
+        from . import anytopdf, photos
+
+        if not photos.plugin(cfg):
+            anytopdf.fetch(cfg, say)
+        photos.fetch_model(cfg, say)
+
+
 class Msg(Component):
     def needed(self, cfg, m):
         return False  # only when asked for (components.also): it's GPL-3.0
@@ -565,6 +586,14 @@ COMPONENTS = [
         steps={"transcribe", "analyze", "objects"},
         size_mb=50,
         license="MIT OR Apache-2.0",
+    ),
+    ClipModel(
+        "clip",
+        "CLIP model",
+        "searches photos by what they show (embeddings.photos), with anytopdf's CLIP plugin",
+        steps={"embed"},
+        size_mb=600,
+        license="MIT",
     ),
     PYTORCH,
     SENSEVOICE,
