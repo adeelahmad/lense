@@ -8,7 +8,8 @@ import shutil
 
 import pytest
 
-from app.domain import ingest, jobs, objects, store
+from app.domain import components, ingest, jobs, objects, store
+from tests import fake_anytopdf
 from tests.helpers import drain, login, make_user, quiet, text_pdf
 from tests.video_helpers import make_video, needs_ffmpeg
 
@@ -146,7 +147,37 @@ def test_object_settings_are_checked(client, people):
     assert (r.status_code, r.json()["detail"]) == (400, "video.object_min_score is a number from 0.05 to 0.95")
     r = client.put("/api/v1/settings/video", json={"object_engine": "magic"}, headers=ha)
     assert r.status_code == 400 and "ultralytics" in r.json()["detail"]
+    assert client.put("/api/v1/settings/video", json={"object_engine": "anytopdf"}, headers=ha).status_code == 200
     assert client.put("/api/v1/settings/video", json={"object_engine": "off", "object_min_score": 0.5}, headers=ha).status_code == 200
     assert client.put("/api/v1/settings/video", json={"yolox_model": "/tmp/x.onnx"}, headers=ha).status_code == 400  # startup only
     assert client.put("/api/v1/settings/video", json={"object_min_score": 0.5}, headers=people["he"]).status_code == 403
     assert "yolox_model" in client.get("/api/v1/settings", headers=ha).json()["bootstrap"]
+
+
+def test_anytopdf_finds_objects_with_lens_yolox_model(cfg, tmp_path, monkeypatch):
+    cfg["video"].update(object_engine="anytopdf", yolox_model=None)
+    monkeypatch.setattr(objects, "MODELS", tmp_path / "no-models")
+    cfg["documents"]["anytopdf"] = str(tmp_path / "gone")
+    assert objects.engine(cfg) == (None, "anytopdf isn't installed here (it's fetched the first time a job needs it)")
+    log = tmp_path / "runs.jsonl"
+    cfg["documents"]["anytopdf"] = fake_anytopdf.make(tmp_path / "anytopdf", log)
+    found, why = objects.engine(cfg)
+    assert found is None and why.startswith("no YOLOX model")
+
+    model = tmp_path / "yolox_s.onnx"
+    model.write_bytes(b"a model")
+    cfg["video"]["yolox_model"] = str(model)
+    found, why = objects.engine(cfg)
+    assert (found.name, why) == ("anytopdf", None)
+    pic = tmp_path / "bus.jpg"
+    pic.write_bytes(b"a picture")
+    assert found.detect(pic) == [{"label": "bus", "score": 0.93, "box": [0.02, 0.2, 0.9, 0.5]}]  # its face is left out
+    assert fake_anytopdf.runs(log)[-1]["anytopdf_env"] == ["ANYTOPDF_DATA_DIR", "ANYTOPDF_OBJECTS_MODEL"]
+    cfg["video"]["object_min_score"] = 0.95
+    assert objects.engine(cfg)[0].detect(pic) == []  # not sure enough
+
+    # what it needs is fetched on first use: anytopdf and the model, not ONNX Runtime
+    assert components.BY_ID["anytopdf"].serves(cfg, None) == {"objects"}
+    assert components.BY_ID["objects"].needed(cfg, None) and components.BY_ID["objects"].present(cfg)
+    cfg["video"]["object_engine"] = "yolox"
+    assert components.BY_ID["anytopdf"].serves(cfg, None) == set()
