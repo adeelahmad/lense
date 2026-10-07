@@ -28126,6 +28126,22 @@
               }
             ],
             "title": "Max Minutes"
+          },
+          "forms": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "const": "chat"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forms",
+            "description": "what the file was found to hold, e.g. [chat]"
           }
         },
         "additionalProperties": false,
@@ -33646,7 +33662,8 @@
               "json",
               "jsonl",
               "srt",
-              "vtt"
+              "vtt",
+              "chat"
             ],
             "title": "Format",
             "default": "auto"
@@ -33703,7 +33720,8 @@
               "json",
               "jsonl",
               "srt",
-              "vtt"
+              "vtt",
+              "chat"
             ],
             "title": "Format",
             "default": "auto"

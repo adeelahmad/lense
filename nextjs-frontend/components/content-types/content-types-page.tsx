@@ -35,6 +35,7 @@ type Draft = {
   pattern: string;
   min: string;
   max: string;
+  forms?: Rules["forms"];
 };
 
 const blank = (base = "audio"): Draft => ({
@@ -60,6 +61,7 @@ function toDraft(t: ContentType): Draft {
     pattern: r.pattern ?? "",
     min: r.min_minutes == null ? "" : String(r.min_minutes),
     max: r.max_minutes == null ? "" : String(r.max_minutes),
+    forms: r.forms,
   };
 }
 
@@ -70,6 +72,7 @@ function draftRules(d: Draft): Rules {
   if (d.pattern.trim()) r.pattern = d.pattern.trim();
   if (d.min.trim()) r.min_minutes = Number(d.min);
   if (d.max.trim()) r.max_minutes = Number(d.max);
+  if (d.forms?.length) r.forms = d.forms;
   return r;
 }
 

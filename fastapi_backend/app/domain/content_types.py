@@ -3,12 +3,13 @@
 Every resource has one of four base types, read from its file: video, audio, image or text (transcripts, documents and
 web pages are text). Under each base type is a vocabulary of subtypes, e.g. podcast or interview under audio, or a
 screen-share tutorial under video. A subtype has a label, a description, an optional pipeline and optional rules that
-recognise it (file extensions, a pattern in the file name, a length). Lens starts with a few; they can all be edited,
+recognise it (file extensions, a pattern in the file name, a length, what the file was found to hold: a chat, say).
+Lens starts with a few; they can all be edited,
 the ones that aren't a base type's general subtype can be removed (a removed default stays removed), and people can
 add their own.
 
 A resource's subtype is the one someone chose (`recording.content_type`), else the first subtype of its base type
-whose rules all match, else its base type's general subtype. The pipeline that runs is, in order: the one chosen for
+whose rules all match (one recognised by what the file holds first), else its base type's general subtype. The pipeline that runs is, in order: the one chosen for
 the run, the namespace's override for the subtype, the subtype's own pipeline, the namespace default, the standard
 pipeline (pipelines.resolve). Subtypes start with no pipeline, so nothing changes until someone sets one.
 """
@@ -23,7 +24,9 @@ from . import render, store
 R = store.R
 BASES = ("video", "audio", "image", "text")
 KEY_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
-RULES = {"extensions", "pattern", "min_minutes", "max_minutes"}
+RULES = {"extensions", "pattern", "min_minutes", "max_minutes", "forms"}
+# what a reader can find a file holds (recording.form): a chat export (domain/chats.py)
+FORMS = ("chat",)
 FIELDS = "record::id(id) AS key, base, label, description, pipeline, rules, general, builtin, ord"
 MAX_TYPES = 200
 
@@ -42,6 +45,7 @@ DEFAULTS = [
     ("scan", "image", "Scanned page", "A page from a scanner or a phone", {"pattern": r"\bscan(s|ned|ning)?\b"}),
     ("photo", "image", "Photo", "A photograph", {"extensions": [".jpg", ".jpeg", ".heic"]}),
     ("text", "text", "Text", "Any text", {}),
+    ("chat_export", "text", "Chat export", "A WhatsApp, Telegram, Slack or iMessage chat, by who said it", {"forms": ["chat"]}),
     ("transcript", "text", "Transcript", "Who said what, imported as text", {"extensions": [".srt", ".vtt", ".json", ".jsonl"]}),
     ("document", "text", "Document", "A PDF, Word or Markdown file", {"extensions": [".pdf", ".docx", ".doc", ".md", ".odt", ".rtf"]}),
     ("web_page", "text", "Web page", "A captured web page", {"extensions": [".html", ".htm"]}),
@@ -130,6 +134,11 @@ def _clean_rules(rules):
         except re.error as e:
             raise ValueError(f"the file name pattern doesn't work ({e})") from None
         out["pattern"] = str(rules["pattern"])[:300]
+    forms = rules.get("forms")
+    if forms:
+        if not isinstance(forms, list) or any(f not in FORMS for f in forms):
+            raise ValueError(f"forms are a list from: {', '.join(FORMS)}")
+        out["forms"] = sorted(set(forms))
     for k in ("min_minutes", "max_minutes"):
         v = rules.get(k)
         if v is not None:
@@ -229,8 +238,9 @@ def delete(db, key):
         db.q("DELETE $r", r=R("content_type", key))
 
 
-def matches(rules, filename, text, minutes):
-    """Whether every rule holds: the file's extension, the pattern somewhere in its name or title, its length."""
+def matches(rules, filename, text, minutes, form=None):
+    """Whether every rule holds: the file's extension, the pattern somewhere in its name or title, its length, what it
+    was found to hold."""
     if not rules:
         return False
     ext = pathlib.PurePosixPath(filename or "").suffix.lower()
@@ -240,6 +250,7 @@ def matches(rules, filename, text, minutes):
         or ("pattern" in rules and not re.search(rules["pattern"], text, re.I))
         or ("min_minutes" in rules and (minutes is None or minutes < rules["min_minutes"]))
         or ("max_minutes" in rules and (minutes is None or minutes > rules["max_minutes"]))
+        or ("forms" in rules and form not in rules["forms"])
     )
 
 
@@ -250,15 +261,16 @@ def recognise(db, rec, types=None):
     filename = pathlib.PurePosixPath(rec.get("path") or "").name or (rec.get("title") or "")
     text = " ".join(x for x in (filename, rec.get("title")) if x)
     minutes = rec["duration_ms"] / 60000 if rec.get("duration_ms") else None
-    for t in types:
-        if not t["general"] and matches(t.get("rules"), filename, text, minutes):
+    held = sorted(types, key=lambda t: "forms" not in (t.get("rules") or {}))  # what it holds says more than its name
+    for t in held:
+        if not t["general"] and matches(t.get("rules"), filename, text, minutes, rec.get("form")):
             return t
     return next((t for t in types if t["general"]), types[0] if types else None)
 
 
 def of_recording(db, rid):
     """(the resource's subtype, whether someone chose it)."""
-    rec = db.one("SELECT source, media, path, title, duration_ms, content_type FROM $r", r=R("recording", int(rid)))
+    rec = db.one("SELECT source, media, path, title, duration_ms, form, content_type FROM $r", r=R("recording", int(rid)))
     if not rec:
         raise KeyError(rid)
     types = all_types(db)
