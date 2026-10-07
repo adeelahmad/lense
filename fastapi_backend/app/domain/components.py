@@ -412,19 +412,26 @@ class Objects(Component):
 
 
 class Anytopdf(Component):
-    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here or it finds faces
-    (video.face_engine `anytopdf`)."""
+    """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here, Settings →
+    Analysis asks it for places and dates (enrich.py), or it finds faces (video.face_engine `anytopdf`)."""
 
     def needed(self, cfg, m):
         from . import anytopdf
 
+        here = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
         faces = (cfg.get("video") or {}).get("face_engine") == "anytopdf"
-        return (faces or anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)) and bool(anytopdf.archive())
+        return (here or faces or bool((cfg.get("analysis") or {}).get("anytopdf"))) and bool(anytopdf.archive())
 
     def present(self, cfg):
         from . import anytopdf
 
         return bool(anytopdf.binary(cfg))
+
+    def serves(self, cfg, m):
+        from . import anytopdf
+
+        here = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
+        return ({"transcribe"} if here else set()) | ({"analyze"} if (cfg.get("analysis") or {}).get("anytopdf") else set())
 
     def fetch(self, cfg, m, say):
         from . import anytopdf
@@ -559,8 +566,8 @@ COMPONENTS = [
     Anytopdf(
         "anytopdf",
         "anytopdf",
-        "makes documents and photographed pages into searchable PDFs (documents.converter), and can find faces",
-        steps={"transcribe", "faces"},
+        "makes documents and photographed pages into searchable PDFs (documents.converter), finds places, dates and faces",
+        steps={"transcribe", "analyze", "faces"},
         size_mb=50,
         license="MIT OR Apache-2.0",
     ),

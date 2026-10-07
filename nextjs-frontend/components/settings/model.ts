@@ -604,6 +604,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "analysis",
+    key: "anytopdf",
+    label: "Find places and dates with anytopdf",
+    kind: "switch",
+    hint: "Offline: places a text names, dates it gives and where a photo was taken become hints for the entities found",
+  },
+  {
+    section: "analysis",
     key: "gazetteer",
     label: "Custom vocabulary",
     kind: "lines",

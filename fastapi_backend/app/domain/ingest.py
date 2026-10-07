@@ -449,6 +449,7 @@ def segment_rows(rid, nid, segs):
                     "words": s.get("words"),
                     "page": s.get("page"),  # a document's or an image's page (domain/documents.py)
                     "box": s.get("box"),
+                    "at": s.get("at"),  # when a chat message was sent (domain/chats.py)
                 }
             )
         )
@@ -858,7 +859,7 @@ def read_calendar(path):
 
 DOC_READERS = {".docx": read_docx, ".doc": read_doc, ".pdf": read_pdf}
 MARKDOWN_READERS = {".eml": read_email, ".ics": read_calendar}  # their subject or event title is the title
-FORMATS = ("auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt")
+FORMATS = ("auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt", "chat")
 
 
 def read_text_transcript(raw, fmt="auto", name=None):
@@ -866,6 +867,14 @@ def read_text_transcript(raw, fmt="auto", name=None):
     that don't say when they are get a speaking-rate estimate, and `timed` is false when every line got one."""
     raw = raw.lstrip("\ufeff")
     fmt = fmt or "auto"
+    if fmt in ("auto", "chat"):  # a WhatsApp, Telegram, Slack or iMessage export: who sent each message (chats.py)
+        from . import chats
+
+        found = chats.read(raw, name)
+        if found:
+            return found
+        if fmt == "chat":
+            raise ValueError("this isn't a WhatsApp, Telegram, Slack or iMessage chat export")
     if fmt == "auto":
         ext = pathlib.Path(name or "").suffix.lower()
         fmt = {
@@ -981,8 +990,9 @@ def _store_import(db, cfg, ns, t, title, fp, src, st, audio, speaker_names, engi
                 "path": src,
                 "source": "audio" if audio else "transcript",
                 "title": title or t.get("title") or "Untitled",
-                "recorded_at": st,
+                "recorded_at": t.get("recorded_at") or st,
                 "duration_ms": dur or max(s["t1"] for s in segs),
+                "form": t.get("form"),
                 "channels": ch,
                 "language": _language(segs),
                 "engine": engine,
@@ -1010,7 +1020,7 @@ def import_transcript(db, cfg, ns, tpath, audio=None, title=None, speaker_names=
         cfg,
         ns,
         t,
-        title or pathlib.Path(tpath).stem,
+        title or (t.get("title") if t.get("form") == "chat" else None) or pathlib.Path(tpath).stem,  # a Telegram chat's name
         fingerprint(src),
         str(src.resolve()),
         recorded_at(src, st.st_mtime),

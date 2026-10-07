@@ -199,6 +199,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
         <>
           <F ctx={ctx} id="analysis.entities" />
           {raw("analysis.entities") === "spacy" && <F ctx={ctx} id="analysis.spacy_model" />}
+          <F ctx={ctx} id="analysis.anytopdf" />
           <F
             ctx={ctx}
             id="analysis.gazetteer"
@@ -412,6 +413,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="documents.converter" />
           <F ctx={ctx} id="documents.anytopdf_url" />
           <F ctx={ctx} id="documents.anytopdf_token" />
+          <ConversionNodeCheck ctx={ctx} />
           <Converters view={ctx.view} />
         </>
       );
@@ -471,6 +473,37 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ) : (
           <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function ConversionNodeCheck({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const test = useMutation({ mutationFn: () => data(Admin.testConversionNode({ client })) });
+  if (!ctx.view.documents?.values?.anytopdf_url) return null;
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check it"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Uses the saved settings, not your unsaved changes"
+            : "Asks the conversion node for a job with Lens’s token"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="The conversion node answers.">
+            Its address and token check out ({test.data.ms} ms).
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
             {test.data.error}
           </Banner>
         ))}

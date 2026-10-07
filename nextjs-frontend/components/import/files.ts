@@ -168,6 +168,7 @@ const FORMAT_NAME: Record<string, string> = {
   docx: "Word (.docx)",
   doc: "Word (.doc)",
   pdf: "PDF",
+  chat: "Chat export",
 };
 
 /** The parser's format word as people say it: "SubRip (.srt)", "Plain text". */
@@ -178,7 +179,7 @@ export function formatName(format: string | null | undefined): string {
 
 /** Formats without timings: turn times are estimated from word count ("~0:04"). */
 export function isUntimed(format: string | null | undefined): boolean {
-  return ["text", "txt", "markdown", "md", "mdx", "docx", "doc", "pdf"].includes((format || "").toLowerCase());
+  return ["text", "txt", "markdown", "md", "mdx", "docx", "doc", "pdf", "chat"].includes((format || "").toLowerCase());
 }
 
 /** A friendly title from a file name: "ep14-transcript.srt" → "ep14 transcript". */
