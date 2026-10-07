@@ -10,6 +10,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   it then also reads images, flattening a photographed page before OCR. Or set a conversion node, another machine
   running `anytopdf queue serve`, and a small server reads Word, PowerPoint and spreadsheet files too
   ([anytopdf](docs/configuration.md#anytopdf)).
+- **A conversion node gets the token and nothing more.** Lens refuses a node that redirects (so its token never
+  goes on to another server), caps what the node answers and refuses a PDF that isn't one. Settings › Documents ›
+  Check it says whether the node answers and takes the token ([anytopdf](docs/configuration.md#anytopdf)).
 - **Connect Slack, WhatsApp, Telegram, Discord and Matrix from the web app.** Start the optional `matterbridge`
   service, then turn on Settings › Chat rooms › Run Matterbridge here and add a bot token and rooms. To link
   WhatsApp, scan the QR code the page shows. Lens writes Matterbridge's config, a gateway per room, and restarts it

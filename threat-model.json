@@ -951,6 +951,14 @@
       "source": "maintainer ruling, 2026-10-06 (Q20)"
     },
     {
+      "property": "P-CONVERSION-NODE",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "a conversion node (documents.anytopdf_url) gets the document and its token only at the address the admin set: http(s) with no user name or password, and no redirect is followed; its job answers are read to 1 MB, its PDF to 2 GB, and a PDF that doesn't start like one is refused before Lens reads it; anytopdf run here has no network, no plugins and no config file",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"the token never goes on to another server\""
+    },
+    {
       "property": "P-TEMPLATE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",

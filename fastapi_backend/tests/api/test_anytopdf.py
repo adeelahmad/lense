@@ -135,6 +135,99 @@ def test_a_conversion_node_converts_office_files_too(lean, client, env, db, cfg,
     assert job["status"] == "failed" and "can't be reached" in job["error"]
 
 
+def test_check_it_says_whether_the_node_answers_and_takes_the_token(client, env):
+    ha = env["ha"]
+    check = lambda: client.post("/api/v1/settings/documents/node/test", headers=ha).json()  # noqa: E731
+    assert not check()["ok"] and "set the conversion node's address" in check()["error"]
+    srv, url = fake_anytopdf.node(TOKEN)
+    try:
+        assert client.put("/api/v1/settings/documents", headers=ha, json={"anytopdf_url": url, "anytopdf_token": TOKEN}).status_code == 200
+        got = check()
+        assert got["ok"] and got["error"] is None and got["ms"] >= 0, got
+        assert client.put("/api/v1/settings/documents", headers=ha, json={"anytopdf_token": "another token 0123456789"}).status_code == 200
+        got = check()
+        assert not got["ok"] and "refused Lens's token" in got["error"]
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    got = check()
+    assert not got["ok"] and "can't be reached" in got["error"]
+
+
+class _Hostile(fake_anytopdf.Node):
+    """A conversion node that misbehaves the way `mode` says."""
+
+    mode = ""
+
+    def do_POST(self):  # noqa: N802
+        if _Hostile.mode == "redirect":
+            self.send_response(307)
+            self.send_header("Location", f"http://127.0.0.1:{_Hostile.elsewhere}/v1/jobs")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if _Hostile.mode == "long":
+            return self._send(202, b"{" + b" " * (anytopdf.MAX_JSON + 10) + b"}")
+        if _Hostile.mode == "odd id":
+            return self._send(202, {"job_id": "../../admin", "state": "queued"})
+        super().do_POST()
+
+    def do_GET(self):  # noqa: N802
+        if _Hostile.mode == "not a pdf" and self.path.endswith("/output") and self._authorized():
+            return self._send(200, b"<html>not a PDF</html>", "application/pdf")
+        super().do_GET()
+
+
+def test_a_misbehaving_node_gets_nothing_more_and_gives_nothing_unchecked(cfg, tmp_path):
+    import http.server
+    import threading
+
+    seen = []
+
+    class Elsewhere(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            seen.append(self.headers.get("Authorization"))
+            self.send_response(500)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    other = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Elsewhere)
+    threading.Thread(target=other.serve_forever, daemon=True).start()
+    srv, url = fake_anytopdf.node(TOKEN)
+    srv.RequestHandlerClass = _Hostile
+    _Hostile.elsewhere = other.server_address[1]
+    cfg["documents"].update(anytopdf_url=url, anytopdf_token=TOKEN, convert_seconds=10)
+    src = tmp_path / "notes.txt"
+    src.write_text("Notes\n")
+    out = tmp_path / "out.pdf"
+    try:
+        for mode, said in (
+            ("redirect", "doesn't follow"),
+            ("long", "answer was too long"),
+            ("odd id", "didn't answer like anytopdf queue serve"),
+            ("not a pdf", "isn't a PDF"),
+        ):
+            _Hostile.mode = mode
+            with pytest.raises(ValueError, match=said):
+                anytopdf.to_pdf(cfg, src, out)
+            assert not out.exists() and not out.with_suffix(".part").exists()
+        assert seen == []  # the token never went on to where the node pointed
+        _Hostile.mode = ""
+        anytopdf.to_pdf(cfg, src, out)
+        assert out.read_bytes().startswith(b"%PDF-")
+        cfg["documents"]["anytopdf_url"] = url.replace("http://", "http://user:pw@")
+        with pytest.raises(ValueError, match="http\\(s\\) address"):
+            anytopdf.to_pdf(cfg, src, out)
+        cfg["documents"]["anytopdf_url"] = "file:///etc"
+        assert "http(s) address" in anytopdf.check(cfg)
+    finally:
+        for s in (srv, other):
+            s.shutdown()
+            s.server_close()
+
+
 def test_with_anytopdf_chosen_it_reads_images_too(here, client, env, db, cfg, folder):
     he, ha = env["he"], env["ha"]
     assert client.put("/api/v1/settings/documents", headers=ha, json={"converter": "anytopdf"}).status_code == 200

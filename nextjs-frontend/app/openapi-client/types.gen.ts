@@ -2730,6 +2730,25 @@ export type ContentTypeUse = {
 };
 
 /**
+ * ConversionNodeTestResult
+ */
+export type ConversionNodeTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * Converters
  *
  * What this server can make into PDFs to read as documents (docs/api.md#documents-and-images).
@@ -18109,6 +18128,22 @@ export type TestBridgeResponses = {
 };
 
 export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
+
+export type TestConversionNodeData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/documents/node/test";
+};
+
+export type TestConversionNodeResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConversionNodeTestResult;
+};
+
+export type TestConversionNodeResponse = TestConversionNodeResponses[keyof TestConversionNodeResponses];
 
 export type DecisionStatusData = {
   body?: never;
