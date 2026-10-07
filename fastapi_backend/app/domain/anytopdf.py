@@ -4,7 +4,9 @@ searchable PDFs that Lens then reads like any other (docs/api.md#documents-and-i
 It runs one of two ways, chosen in Settings → Documents:
 - here: the anytopdf program, a single static binary that components.py downloads on first use (checked against its
   release checksum) unless documents.anytopdf names one. It reads emails, web pages, text and photographed pages with no
-  Chromium, and flattens a photographed page before OCR; Office files still need LibreOffice beside it.
+  Chromium, and flattens a photographed page before OCR; Office files still need LibreOffice beside it. Where Chromium
+  and poppler's pdftoppm are here too, it renders a web page or email into page images (--html-render, offline) with
+  the page's text as their search layer, so it keeps its look; without them it reads the page's text alone.
 - on a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work` (documents.anytopdf_url,
   with its bearer token, documents.anytopdf_token). The node has LibreOffice and whatever else it needs, so a small
   server (a Raspberry Pi) reads Office files without installing anything.
@@ -17,6 +19,9 @@ document's text only, so what Lens reads from it is what the document says.
 A conversion node gets the document and its token at the address the admin set and nowhere else: only http(s), no
 user name or password in the address, and no redirect is followed, so the token never goes on to another server.
 What it answers is bounded (MAX_JSON for a job, MAX_PDF for its PDF, which must start like one) before Lens reads it.
+
+analyze() asks its face and object plugins, kept beside the program, what is in a picture: sandboxed, with no network,
+reading only the picture and the models Lens names.
 """
 
 from __future__ import annotations
@@ -52,6 +57,8 @@ POLL_SECONDS = 1.0
 MAX_JSON = 1 << 20  # the most of a conversion node's job answer that is read
 MAX_PDF = 2 << 30  # the largest PDF taken from a conversion node
 JOB_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
+# the plugins Lens keeps beside the program, for analyze(): the rest of the release's plugins stay behind
+PLUGINS = ("anytopdf-plugin-faces", "anytopdf-plugin-face-id", "anytopdf-plugin-objects")
 
 
 class Unavailable(RuntimeError):
@@ -105,7 +112,8 @@ def mode(cfg):
 
 
 def fetch(cfg, say=None):
-    """Download this machine's anytopdf release, check it against its checksum, and keep only the program."""
+    """Download this machine's anytopdf release, check it against its checksum, and keep only the program and its
+    face and object plugins (PLUGINS)."""
     import hashlib
 
     found = archive()
@@ -113,7 +121,7 @@ def fetch(cfg, say=None):
         raise Unavailable(f"anytopdf has no build for {platform.system()} {platform.machine()}")
     name, sha = found
     dest = fetched_path(cfg)
-    if dest.is_file():
+    if dest.is_file() and (dest.parent / "plugins").is_dir():  # fetched before plugins were kept: fetched again
         return str(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     if say:
@@ -126,17 +134,29 @@ def fetch(cfg, say=None):
                 f.write(chunk)
         if h.hexdigest() != sha:
             raise RuntimeError(f"{name} didn't match its checksum")
-        want = f"{name.removesuffix('.tar.gz')}/anytopdf"
+        top = name.removesuffix(".tar.gz")
+        wanted = {f"{top}/anytopdf": "anytopdf", **{f"{top}/plugins/{p}": f"plugins/{p}" for p in PLUGINS}}
+        got = pathlib.Path(tmp) / "got"
         with tarfile.open(part) as t:
-            member = t.getmember(want)  # the program only: its plugins stay behind, and nothing else is unpacked
-            if not member.isfile():
-                raise RuntimeError(f"{want} in {name} isn't a file")
-            src = t.extractfile(member)
-            out = pathlib.Path(tmp) / "anytopdf"
-            with open(out, "wb") as f:
-                shutil.copyfileobj(src, f)
-        out.chmod(0o755)
-        out.replace(dest)
+            for want, to in wanted.items():  # these only: nothing else in the archive is unpacked
+                try:
+                    member = t.getmember(want)
+                except KeyError:
+                    if to == "anytopdf":
+                        raise
+                    continue  # a plugin this release doesn't ship: analyze() goes without it
+                if not member.isfile():
+                    raise RuntimeError(f"{want} in {name} isn't a file")
+                out = got / to
+                out.parent.mkdir(parents=True, exist_ok=True)
+                with t.extractfile(member) as src, open(out, "wb") as f:
+                    shutil.copyfileobj(src, f)
+                out.chmod(0o755)
+        if (dest.parent / "plugins").exists():
+            shutil.rmtree(dest.parent / "plugins")
+        if (got / "plugins").exists():
+            (got / "plugins").replace(dest.parent / "plugins")
+        (got / "anytopdf").replace(dest)
     return str(dest)
 
 
@@ -150,20 +170,29 @@ def _args(cfg, scan=False):
     return args
 
 
-def to_pdf(cfg, src, out, scan=False):
-    """Make `out`, the PDF of the file at `src`, on the conversion node if one is set, else here. Returns who made it:
-    "anytopdf"."""
+def renderer(cfg):
+    """The browser anytopdf renders a page of HTML with here (--html-render), or None where it can't: it needs Chromium
+    and poppler's pdftoppm, which a small server (a Raspberry Pi) usually hasn't."""
+    from . import convert, documents
+
+    browser = convert.chromium(cfg)
+    return browser if browser and documents._poppler()[0] else None
+
+
+def to_pdf(cfg, src, out, scan=False, render=False):
+    """Make `out`, the PDF of the file at `src`, on the conversion node if one is set, else here; `render` asks for a
+    page of HTML drawn as it looks, where that can be done. Returns who made it: "anytopdf"."""
     where = available(cfg)
     if where == "node":
         _remote(cfg, pathlib.Path(src), pathlib.Path(out))
     elif where == "here":
-        _local(cfg, pathlib.Path(src), pathlib.Path(out), scan)
+        _local(cfg, pathlib.Path(src), pathlib.Path(out), scan, renderer(cfg) if render else None)
     else:
         raise Unavailable("anytopdf isn't installed here, and no conversion node is set (documents.anytopdf_url)")
     return "anytopdf"
 
 
-def _local(cfg, src, out, scan):
+def _local(cfg, src, out, scan, browser=None):
     from . import convert
 
     exe = binary(cfg)
@@ -175,6 +204,9 @@ def _local(cfg, src, out, scan):
         env = netguard.nowhere_env({**os.environ, "HOME": tmp, "ANYTOPDF_DATA_DIR": f"{tmp}/data", "TMPDIR": tmp})
         env = {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_") or k == "ANYTOPDF_DATA_DIR"}
         argv = [exe, "--no-plugins", "--no-config", "convert", str(doc), "-o", str(made), *_args(cfg, scan)]
+        if browser:  # drawn offline: the page Lens made has nothing to fetch, and the browser couldn't anyway
+            argv.append("--html-render")
+            env["ANYTOPDF_CHROME"] = browser
         r = convert._run(argv, seconds, env=env, cwd=tmp)
         if r.returncode != 0 or not made.is_file() or made.stat().st_size == 0:
             said = convert._last_said(r.stderr or r.stdout)
@@ -298,3 +330,51 @@ def check(cfg):
         return str(e)
     except (urllib.error.URLError, OSError) as e:
         return f"it can't be reached ({getattr(e, 'reason', e)})"
+
+
+def analyze(cfg, picture, models=None, seconds=None):
+    """What anytopdf's plugins find in a picture, run here: [{"kind": "face" | "object", "label", "box": [x, y, w, h]
+    fractions, "score", "attributes"}], one per thing found where it is (their summaries left out).
+
+    `models` are the plugins' settings, such as {"ANYTOPDF_OBJECTS_MODEL": "/models/yolox_s.onnx"}: a plugin that
+    needs a model runs only when it's given one, and may read nothing else (the plugins run sandboxed, with no network
+    and no config file). Faces are found by the bundled YuNet whatever is given."""
+    from . import convert
+
+    exe = binary(cfg)
+    if not exe:
+        raise Unavailable("anytopdf isn't installed here (documents.anytopdf)")
+    models = {k: str(v) for k, v in (models or {}).items() if k.startswith("ANYTOPDF_") and v}
+    seconds = seconds or _opts(cfg).get("convert_seconds") or 300
+    with tempfile.TemporaryDirectory(prefix="lens-anytopdf-") as tmp:
+        pic = pathlib.Path(tmp) / f"picture{pathlib.Path(picture).suffix.lower() or '.jpg'}"
+        shutil.copyfile(picture, pic)
+        env = netguard.nowhere_env({**os.environ, "HOME": tmp, "TMPDIR": tmp})
+        env = {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_")}
+        env.update(models, ANYTOPDF_DATA_DIR=f"{tmp}/data")
+        reads = [a for v in models.values() if os.path.exists(v) for a in ("--plugin-sandbox-allow-read", v)]
+        graph = pathlib.Path(tmp) / "graph.json"
+        argv = [exe, "--no-config", "--plugin-sandbox", "strict", *reads, "--plugin-timeout", str(int(seconds))]
+        argv += ["convert", str(pic), "-o", f"{tmp}/out.pdf", "--dump-graph", str(graph), "--ocr", "off", *QUIET]
+        r = convert._run(argv, seconds, env=env, cwd=tmp)
+        if r.returncode != 0 or not graph.is_file():
+            said = convert._last_said(r.stderr or r.stdout)
+            raise ValueError(f"anytopdf couldn't look at it ({said or f'exit {r.returncode}'})")
+        found = json.loads(graph.read_text())
+    out = []
+    for unit in found.get("units") or []:
+        for a in unit.get("annotations") or []:
+            box = a.get("region")
+            if a.get("kind") not in ("face", "object") or not box:
+                continue
+            attrs = a.get("attributes") or {}
+            out.append(
+                {
+                    "kind": a["kind"],
+                    "label": attrs.get("label") or a["kind"],
+                    "box": [float(box["x"]), float(box["y"]), float(box["width"]), float(box["height"])],
+                    "score": float(a.get("confidence") or 0.0),
+                    "attributes": attrs,
+                }
+            )
+    return out

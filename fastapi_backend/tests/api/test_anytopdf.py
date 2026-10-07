@@ -5,6 +5,7 @@ other; with `lens` it's never used."""
 from __future__ import annotations
 
 import os
+import pathlib
 import shutil
 import tarfile
 
@@ -252,6 +253,31 @@ def test_with_anytopdf_chosen_it_reads_images_too(here, client, env, db, cfg, fo
     assert any("read without anytopdf: anytopdf couldn't read it (error: it broke)" in x for x in log), log
 
 
+def test_with_a_browser_and_poppler_here_it_draws_web_pages(here, client, env, db, cfg, monkeypatch):
+    from app.domain import documents
+
+    he, ha = env["he"], env["ha"]
+    assert client.put("/api/v1/settings/documents", headers=ha, json={"converter": "anytopdf"}).status_code == 200
+    monkeypatch.setattr(convert, "chromium", lambda cfg: "/opt/browser/chrome")
+    monkeypatch.setattr(documents, "_poppler", lambda: ("/usr/bin/pdftoppm", "/usr/bin/pdftotext"))
+    page = _upload(client, he, b"<html><title>Tides</title><body><h1>High water</h1></body></html>", "tides.html")
+    mail = _upload(client, he, _email("Harbour report", 9), "mail.eml")
+    drain(db, settings.effective(db, cfg))
+    for up in (page, mail):
+        assert _rec(db, up["recording"])["rendition"]["by"] == "anytopdf"
+    runs = [r for r in fake_anytopdf.runs(here) if r["args"][3].endswith(".html")]  # pages, emails and an attached email
+    assert len(runs) >= 2 and all("--html-render" in r["args"] for r in runs)
+    assert all(r["anytopdf_env"] == ["ANYTOPDF_CHROME", "ANYTOPDF_DATA_DIR"] for r in runs)
+
+    # without pdftoppm (a small server), it reads the page's text, as before
+    monkeypatch.setattr(documents, "_poppler", lambda: (None, None))
+    again = _upload(client, he, b"<html><body><p>Low water</p></body></html>", "low.html")
+    drain(db, settings.effective(db, cfg))
+    assert _rec(db, again["recording"])["rendition"]["by"] == "anytopdf"
+    last = fake_anytopdf.runs(here)[-1]
+    assert "--html-render" not in last["args"] and last["anytopdf_env"] == ["ANYTOPDF_DATA_DIR"]
+
+
 def test_anytopdf_settings(client, env):
     ha = env["ha"]
     put = lambda changes: client.put("/api/v1/settings/documents", headers=ha, json=changes)  # noqa: E731
@@ -281,6 +307,7 @@ def test_it_is_fetched_when_asked_for(cfg, monkeypatch, tmp_path):
     (tmp_path / name / "plugins").mkdir(parents=True)
     (tmp_path / name / "anytopdf").write_bytes(b"#!/bin/sh\necho anytopdf 0.4.0\n")
     (tmp_path / name / "plugins" / "anytopdf-plugin-faces").write_bytes(b"x")
+    (tmp_path / name / "plugins" / "anytopdf-plugin-sentiment").write_bytes(b"x")  # not one Lens keeps
     with tarfile.open(tmp_path / f"{name}.tar.gz", "w:gz") as t:
         t.add(tmp_path / name, arcname=name)
     raw = (tmp_path / f"{name}.tar.gz").read_bytes()
@@ -291,14 +318,48 @@ def test_it_is_fetched_when_asked_for(cfg, monkeypatch, tmp_path):
     monkeypatch.setattr(anytopdf.urllib.request, "urlopen", lambda url, timeout=None: io.BytesIO(raw))
     got = anytopdf.fetch(cfg)
     assert got == str(anytopdf.fetched_path(cfg)) and os.access(got, os.X_OK)
-    assert sorted(p.name for p in anytopdf.fetched_path(cfg).parent.iterdir()) == ["anytopdf"]
+    kept = sorted(str(p.relative_to(anytopdf.fetched_path(cfg).parent)) for p in anytopdf.fetched_path(cfg).parent.rglob("*"))
+    assert kept == ["anytopdf", "plugins", "plugins/anytopdf-plugin-faces"]  # the program and its face and object plugins
     assert comp.present({**cfg, "documents": {**cfg["documents"], "anytopdf": None}})
 
     monkeypatch.setattr(anytopdf, "archive", lambda: (f"{name}.tar.gz", "0" * 64))
+    assert anytopdf.fetch(cfg) == got  # already here
+    shutil.rmtree(anytopdf.fetched_path(cfg).parent / "plugins")
+    with pytest.raises(RuntimeError, match="checksum"):  # fetched before plugins were kept: fetched again
+        anytopdf.fetch(cfg)
     anytopdf.fetched_path(cfg).unlink()
     with pytest.raises(RuntimeError, match="checksum"):
         anytopdf.fetch(cfg)
     assert not anytopdf.fetched_path(cfg).exists()
+
+
+def test_its_plugins_look_at_a_picture(cfg, tmp_path):
+    log = tmp_path / "runs.jsonl"
+    cfg["documents"]["anytopdf"] = fake_anytopdf.make(tmp_path / "anytopdf", log)
+    pic = tmp_path / "bus.jpg"
+    pic.write_bytes(b"a picture")
+    model = tmp_path / "yolox_s.onnx"
+    model.write_bytes(b"a model")
+    assert anytopdf.analyze(cfg, pic) == [
+        {"kind": "face", "label": "face", "box": [0.1, 0.2, 0.05, 0.06], "score": 0.9, "attributes": {"face_index": "0"}}
+    ]  # faces are found whatever is given; their summary is left out
+    found = anytopdf.analyze(cfg, pic, {"ANYTOPDF_OBJECTS_MODEL": model, "HOME": "/elsewhere"})
+    assert [(f["kind"], f["label"], f["box"]) for f in found] == [
+        ("face", "face", [0.1, 0.2, 0.05, 0.06]),
+        ("object", "bus", [0.02, 0.2, 0.9, 0.5]),
+    ]
+    run = fake_anytopdf.runs(log)[-1]
+    args = run["args"]
+    assert args[args.index("--plugin-sandbox") + 1] == "strict" and args[args.index("--plugin-sandbox-allow-read") + 1] == str(model)
+    assert "--no-plugins" not in args and "--no-config" in args and args[args.index("--ocr") + 1] == "off"
+    assert run["anytopdf_env"] == ["ANYTOPDF_DATA_DIR", "ANYTOPDF_OBJECTS_MODEL"] and run["proxy"]  # only what it's given, no network
+
+    pic.write_bytes(b"unreadable")
+    with pytest.raises(ValueError, match="anytopdf couldn't look at it"):
+        anytopdf.analyze(cfg, pic)
+    cfg["documents"]["anytopdf"] = str(tmp_path / "gone")
+    with pytest.raises(anytopdf.Unavailable):
+        anytopdf.analyze(cfg, pic)
 
 
 @pytest.fixture
@@ -317,3 +378,6 @@ def test_the_real_anytopdf(real, lean, client, env, db, cfg):
         rec = _rec(db, up["recording"])
         assert (rec["status"], rec["rendition"]["by"]) == ("analyzed", "anytopdf"), rec.get("error")
         assert words in _text(db, up["recording"]), _text(db, up["recording"])
+    pic = pathlib.Path(cfg["data_dir"]) / "page.png"
+    pic.write_bytes(_png(scan(["Galway harbour"])))
+    assert anytopdf.analyze(cfg, pic) == []  # its plugins ran, sandboxed, and found no face on a page of text

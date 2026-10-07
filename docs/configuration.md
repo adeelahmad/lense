@@ -224,10 +224,13 @@ Set at startup only (the config file; the web app can't choose what the server r
 that makes documents, photos and media into searchable PDFs. Lens uses it as a converter, two ways:
 
 - **Here.** With `documents.converter` set to `anytopdf`, Lens downloads release 0.4.0 for this machine on first use
-  (Linux x86-64 and arm64, macOS), checks it against the release's checksum and keeps only the program in
+  (Linux x86-64 and arm64, macOS), checks it against the release's checksum and keeps only the program and its face and object plugins in
   `data_dir/models/anytopdf-0.4.0/`. It makes the PDF of text, Markdown, web pages and emails from the same cleaned page
   Lens would print with Chromium, so a server without Chromium reads them, and it reads images too: a photographed page
-  is found, straightened and flattened before OCR. Office files still need LibreOffice beside it.
+  is found, straightened and flattened before OCR. Office files still need LibreOffice beside it. Where Chromium and
+  poppler's `pdftoppm` are installed too, it draws each web page and email as it looks (`--html-render`, offline) and
+  keeps the page's text as the search layer; without them (a Raspberry Pi, the lean image) it reads the text alone.
+  On a conversion node, its own options decide (`anytopdf queue serve … -- --html-render`).
 - **On a conversion node.** With `documents.anytopdf_url` and its token set, every conversion goes to that machine as
   a job (only the file, named `document.<type>`), and Lens fetches the PDF. The node has LibreOffice and whatever else
   it needs, so a small server (a Raspberry Pi) reads Word, PowerPoint and spreadsheet files with nothing installed.
@@ -240,6 +243,10 @@ that makes documents, photos and media into searchable PDFs. Lens uses it as a c
 It runs with no network, no runtime plugins and no config file of its own, and its PDF has no provenance page and
 holds only the document's text, so what Lens reads is what the document says. Faces, objects and speech stay Lens's
 own steps. The resource's rendition says `anytopdf` made it.
+
+Lens can also ask anytopdf's face and object plugins what is in a picture (`anytopdf.analyze`). They run sandboxed
+(`--plugin-sandbox strict`: no network, writing only to their own workspace, reading only the picture and the models
+Lens names), and the objects plugin runs only when it's given a model, such as Lens's YOLOX file.
 
 Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
 every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.
