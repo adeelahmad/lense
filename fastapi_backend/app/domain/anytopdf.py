@@ -14,7 +14,8 @@ It runs one of two ways, chosen in Settings → Documents:
 documents.converter says when: `auto` (the default) uses it only for what Lens can't convert itself, `anytopdf` for
 every document and image, `lens` never. Run here, it has no network, no runtime plugins (faces, objects and speech
 stay Lens's own steps) and no config file of its own; its PDF has no provenance page, and its search layer holds the
-document's text only, so what Lens reads from it is what the document says.
+document's text only, so what Lens reads from it is what the document says. Where a page of its PDF is a picture, the
+words it read there, each with where it is (page_words), are that page's text: Lens doesn't read it again.
 
 A conversion node gets the document and its token at the address the admin set and nowhere else: only http(s), no
 user name or password in the address, and no redirect is followed, so the token never goes on to another server.
@@ -56,6 +57,7 @@ MACHINES = {"amd64": "x86_64", "arm64": "arm64", "aarch64": "aarch64"}
 # its search layer: the document's own text, not the dates, colours and places it would add
 QUIET = ["--no-provenance-page", "--no-entities", "--colors", "off", "--location", "off"]
 POLL_SECONDS = 1.0
+CHUNKS = "anytopdf-chunks.json"  # what it read, embedded in each PDF it makes (anytopdf.chunks/1)
 MAX_JSON = 1 << 20  # the most of a conversion node's job answer that is read
 MAX_PDF = 2 << 30  # the largest PDF taken from a conversion node
 JOB_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
@@ -474,3 +476,37 @@ def faces_found(graph, index):
             face = {"box": box, "score": float(a.get("confidence") or 0.0), "embedding": emb / (np.linalg.norm(emb) + 1e-9)}
             out.setdefault(path, []).append(face)
     return out
+
+
+def page_words(pdf):
+    """The words anytopdf read on each page of a PDF it made, from the chunks it embeds in it: {page (from 0): {"words":
+    [{text, box}] in reading order, box [x, y, w, h] as fractions of the page, "ocr": whether OCR read them}}. Only pages
+    whose every chunk is a picture with its words are given (an email's own text has no words, so its pages are read as
+    before); {} for a PDF without them (one anytopdf before 0.4.0 made, or not anytopdf)."""
+    try:
+        from pypdf import PdfReader
+
+        found = PdfReader(str(pdf)).attachments.get(CHUNKS) or []
+        chunks = json.loads(found[0])["chunks"] if found else []
+    except Exception:  # noqa: BLE001 - without its chunks, the PDF is read as any other
+        return {}
+    out, mixed = {}, set()
+    for c in chunks if isinstance(chunks, list) else []:
+        pages = c.get("pages") or {}
+        first, last = pages.get("first"), pages.get("last")
+        if not isinstance(first, int) or not isinstance(last, int):
+            continue
+        words = c.get("words") if c.get("kind") == "visual" and first == last else None
+        if not words:
+            mixed.update(range(first - 1, last))
+            continue
+        page = out.setdefault(first - 1, {"words": [], "ocr": False})
+        page["ocr"] = page["ocr"] or "pdftotext" not in (c.get("providers") or [])
+        for w in words:
+            try:
+                box = [round(float(w[k]), 4) for k in ("x", "y", "width", "height")]
+            except (KeyError, TypeError, ValueError):
+                continue
+            if str(w.get("text") or "").strip() and box[2] > 0 and box[3] > 0:
+                page["words"].append({"text": str(w["text"]).strip(), "box": box})
+    return {i: p for i, p in out.items() if i not in mixed and p["words"]}

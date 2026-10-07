@@ -153,9 +153,28 @@ def graph_of(name, raw, args):
 
 
 def pdf_of(name, raw):
+    """The PDF of a file: its text; an image's also embeds the words its OCR read, with where they are (0.4.0's
+    chunks)."""
     from tests.helpers import text_pdf
 
-    return text_pdf([["\n".join(text_of(name, raw))]])
+    pdf = text_pdf([["\n".join(text_of(name, raw))]])
+    if pathlib.Path(str(name)).suffix.lower() not in (".png", ".jpg", ".jpeg"):
+        return pdf
+    words = [{"text": w, "x": 0.1 + 0.2 * i, "y": 0.1, "width": 0.15, "height": 0.02} for i, w in enumerate(text_of(name, raw)[0].split())]
+    return with_chunks(pdf, [{"kind": "visual", "pages": {"first": 1, "last": 1}, "providers": ["tesseract"], "words": words}])
+
+
+def with_chunks(pdf, chunks):
+    """A PDF with these anytopdf.chunks/1 chunks embedded, as anytopdf embeds them."""
+    import io
+
+    from pypdf import PdfReader, PdfWriter
+
+    w = PdfWriter(clone_from=PdfReader(io.BytesIO(pdf)))
+    w.add_attachment("anytopdf-chunks.json", json.dumps({"schema_version": "anytopdf.chunks/1", "chunks": chunks}).encode())
+    out = io.BytesIO()
+    w.write(out)
+    return out.getvalue()
 
 
 def make(path, log):
