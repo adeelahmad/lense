@@ -582,7 +582,7 @@ def file_kind(cfg, name, documents_as="document"):
             return "transcript"
         return None if convert.unavailable(cfg, name) else "document"
     if ext in store.IMAGE_EXT:
-        return "image"
+        return None if convert.unavailable(cfg, name) else "image"  # a RAW photo needs anytopdf
     return "transcript" if ext in TRANSCRIPT_EXT else None
 
 

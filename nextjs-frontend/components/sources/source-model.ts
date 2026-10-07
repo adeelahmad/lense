@@ -175,7 +175,9 @@ function checkedAt(iso: string | null | undefined, now: Date): string {
 // ---------- rclone authorize ----------
 
 export type TokenCheck =
-  { ok: true; token: string; expiry?: Date; refreshes: boolean } | { ok: false; error: string } | { ok: null };
+  | { ok: true; token: string; expiry?: Date; refreshes: boolean }
+  | { ok: false; error: string }
+  | { ok: null };
 
 /**
  * `rclone authorize dropbox` prints a JSON token between arrows ("Paste the following into your remote machine --->"
@@ -260,7 +262,26 @@ const DOCUMENT = [
   ".eml",
   ".msg",
 ];
-const IMAGE = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp"];
+const IMAGE = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".tif",
+  ".tiff",
+  ".webp",
+  ".gif",
+  ".bmp",
+  ".arw",
+  ".cr2",
+  ".cr3",
+  ".dng",
+  ".nef",
+  ".orf",
+  ".raf",
+  ".rw2",
+  ".heic",
+  ".heif",
+];
 
 export type SourceFileKind = "audio" | "transcript" | "document" | "image" | "other";
 

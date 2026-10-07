@@ -30,7 +30,9 @@ const TEXT_DOC_EXT = [".txt", ".text", ".md", ".markdown", ".mdx"];
 const PAGE_EXT = [".html", ".htm"];
 const EMAIL_EXT = [".eml", ".msg"];
 export const DOCUMENT_EXT = [".pdf", ...OFFICE_EXT, ...TEXT_DOC_EXT, ...PAGE_EXT, ...EMAIL_EXT];
-export const IMAGE_EXT = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp"];
+/** Camera RAW and HEIC photos (the backend's CAMERA_EXT): read by anytopdf, so the server takes them only with it. */
+const CAMERA_EXT = [".arw", ".cr2", ".cr3", ".dng", ".nef", ".orf", ".raf", ".rw2", ".heic", ".heif"];
+export const IMAGE_EXT = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp", ...CAMERA_EXT];
 /** What a document is, in words (the backend's convert.WORDS). */
 const DOCUMENT_NAME: Record<string, string> = {
   ".pdf": "PDF document",
@@ -85,6 +87,9 @@ export const DEFAULT_LIMITS: UploadLimits = {
     ".webm",
     ".webp",
     ...DOCUMENT_EXT,
+    ...CAMERA_EXT,
+    ".json",
+    ".jsonl",
   ].sort(),
   chunk_mb: 8,
   transcript_mb: 50,

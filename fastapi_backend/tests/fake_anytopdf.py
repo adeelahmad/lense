@@ -91,7 +91,7 @@ def face_of(path):
 def text_of(name, raw):
     """What the fake reads in a file: an image's name, a page of HTML's text, else its text."""
     name = str(name)
-    if pathlib.Path(name).suffix.lower() in (".png", ".jpg", ".jpeg"):
+    if pathlib.Path(name).suffix.lower() in (".png", ".jpg", ".jpeg", ".nef", ".dng", ".heic"):  # a camera RAW too
         return [f"Photographed page {pathlib.Path(name).stem}"]
     if pathlib.Path(name).suffix.lower() == ".docx":  # its paragraphs, as LibreOffice on the node would read them
         import io
