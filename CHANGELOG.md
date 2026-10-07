@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Places and dates from anytopdf.** Turn on Settings › Analysis › Find places and dates with anytopdf (off by
+  default) and analysis also asks anytopdf, offline, for the places a text names, the dates it gives (with their ISO
+  value) and where a photo was taken (from its GPS fix, with `exiftool` installed). They become places and dates in the
+  graph, and the resource's Details tab lists them for the namespace's members
+  ([anytopdf](docs/configuration.md#anytopdf)).
 - **WhatsApp, Telegram, Slack and iMessage chats.** Import an exported chat (or upload a WhatsApp .txt) and Lens
   reads it message by message, with who sent each one as its speaker and when it was sent, so the assistant can
   answer from your real conversations. It gets the new Chat export content type

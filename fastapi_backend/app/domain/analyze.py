@@ -9,7 +9,7 @@ import re
 import urllib.request
 from collections import Counter, defaultdict
 
-from . import entity_map, entity_setup, graph_history, store, telemetry
+from . import enrich, entity_map, entity_setup, graph_history, store, telemetry
 
 STOP = set(
     """a about above after again against all almost also am an and any are aren as at be because been before being
@@ -412,6 +412,12 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
         for (a, sa), (b, sb) in zip(ws, ws[1:]):
             tn[a + " " + b] += 1
             ts[a + " " + b][sa + " " + sb] += 1
+    if given is None:  # the places and dates anytopdf finds, where they're on (enrich.py)
+        for es, hints in zip(seg_ents, enrich.enrich(db, cfg, rid, segs)):
+            typed = {ent_key(n): t for n, t in hints}
+            es[:] = [(n, typed.get(ent_key(n), t) if t == "TERM" else t) for n, t in es]  # a bare term anytopdf knows
+            have = {ent_key(n) for n, _ in es}
+            es.extend(h for h in hints if ent_key(h[0]) not in have)
     if setup["types"] and not listed:  # the namespace (or collection) keeps only some types
         seg_ents = [[(n, t) for n, t in es if entity_setup.keeps(setup, t)] for es in seg_ents]
     surface = {t: c.most_common(1)[0][0] for t, c in ts.items()}

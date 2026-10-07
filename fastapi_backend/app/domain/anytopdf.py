@@ -201,9 +201,8 @@ def _local(cfg, src, out, scan, browser=None):
         doc = pathlib.Path(tmp) / f"document{src.suffix.lower()}"
         shutil.copyfile(src, doc)
         made = pathlib.Path(tmp) / "out.pdf"
-        env = netguard.nowhere_env({**os.environ, "HOME": tmp, "ANYTOPDF_DATA_DIR": f"{tmp}/data", "TMPDIR": tmp})
-        env = {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_") or k == "ANYTOPDF_DATA_DIR"}
         argv = [exe, "--no-plugins", "--no-config", "convert", str(doc), "-o", str(made), *_args(cfg, scan)]
+        env = _env(tmp)
         if browser:  # drawn offline: the page Lens made has nothing to fetch, and the browser couldn't anyway
             argv.append("--html-render")
             env["ANYTOPDF_CHROME"] = browser
@@ -213,6 +212,37 @@ def _local(cfg, src, out, scan, browser=None):
             raise ValueError(f"anytopdf couldn't read it ({said or f'exit {r.returncode}'})")
         out.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(made), out)
+
+
+def _env(tmp):
+    """No network, and no anytopdf settings but its own data folder, in `tmp`."""
+    env = netguard.nowhere_env({**os.environ, "HOME": tmp, "ANYTOPDF_DATA_DIR": f"{tmp}/data", "TMPDIR": tmp})
+    return {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_") or k == "ANYTOPDF_DATA_DIR"}
+
+
+def graph(cfg, src, args):
+    """What anytopdf finds in the file at `src` (run here, offline, with no plugins): its document graph, {sources,
+    units: [{kind, visible_text, annotations: [{kind, text, confidence, attributes}]}]}, from `--dump-graph`. The PDF
+    it makes on the way is thrown away. Unavailable when it isn't here; ValueError when it can't read the file."""
+    from . import convert
+
+    exe = binary(cfg)
+    if not exe:
+        raise Unavailable("anytopdf isn't installed here")
+    seconds = _opts(cfg).get("convert_seconds") or 300
+    with tempfile.TemporaryDirectory(prefix="lens-anytopdf-") as tmp:
+        doc = pathlib.Path(tmp) / f"document{pathlib.Path(src).suffix.lower()}"
+        shutil.copyfile(src, doc)
+        made, dump = pathlib.Path(tmp) / "out.pdf", pathlib.Path(tmp) / "graph.json"
+        argv = [exe, "--no-plugins", "--no-config", "convert", str(doc), "-o", str(made), "--dump-graph", str(dump), *args]
+        r = convert._run(argv, seconds, env=_env(tmp), cwd=tmp)
+        if r.returncode != 0 or not dump.is_file():
+            said = convert._last_said(r.stderr or r.stdout)
+            raise ValueError(f"anytopdf couldn't read it ({said or f'exit {r.returncode}'})")
+        try:
+            return json.loads(dump.read_text())
+        except ValueError:
+            raise ValueError("anytopdf's document graph wasn't JSON") from None
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
