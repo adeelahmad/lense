@@ -180,7 +180,9 @@ export function formatName(format: string | null | undefined): string {
 
 /** Formats without timings: turn times are estimated from word count ("~0:04"). */
 export function isUntimed(format: string | null | undefined): boolean {
-  return ["text", "txt", "markdown", "md", "mdx", "docx", "doc", "pdf", "chat", "records"].includes((format || "").toLowerCase());
+  return ["text", "txt", "markdown", "md", "mdx", "docx", "doc", "pdf", "chat", "records"].includes(
+    (format || "").toLowerCase(),
+  );
 }
 
 /** A friendly title from a file name: "ep14-transcript.srt" → "ep14 transcript". */
