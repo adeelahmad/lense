@@ -22,7 +22,7 @@ from tests.fake_anytopdf import pdf_of
 
 args = sys.argv[1:]
 if args == ["--version"]:
-    print("anytopdf 0.3.0")
+    print("anytopdf 0.4.0")
     sys.exit(0)
 with open(@LOG@, "a") as f:
     f.write(json.dumps({"args": args, "proxy": os.environ.get("https_proxy"), "anytopdf_env": sorted(k for k in os.environ if k.startswith("ANYTOPDF_"))}) + "\n")

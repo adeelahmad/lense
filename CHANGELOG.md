@@ -6,7 +6,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 - **anytopdf can make Lens's PDFs.** Settings › Documents › Make PDFs with anytopdf. On `auto` (the default) nothing
   changes unless anytopdf is here: then it reads the emails, web pages and text a server without Chromium couldn't.
-  Choose "For every document and image" and Lens downloads anytopdf 0.3.0 (checked against its release checksum);
+  Choose "For every document and image" and Lens downloads anytopdf 0.4.0 (checked against its release checksum);
   it then also reads images, flattening a photographed page before OCR. Or set a conversion node, another machine
   running `anytopdf queue serve`, and a small server reads Word, PowerPoint and spreadsheet files too
   ([anytopdf](docs/configuration.md#anytopdf)).

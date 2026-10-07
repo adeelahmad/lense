@@ -31,14 +31,14 @@ import urllib.request
 
 from . import netguard
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 RELEASES = "https://github.com/adeelahmad/anytopdf-rs/releases/download"
 # the release archives Lens fetches, by (system, machine), with the sha256 its release published (SHA256SUMS)
 ARCHIVES = {
-    ("Linux", "x86_64"): ("x86_64-unknown-linux-musl", "2a789bf099cd14b5f68a147b44170d3f243299565b09b93b3a3329811a2492c0"),
-    ("Linux", "aarch64"): ("aarch64-unknown-linux-musl", "9c6cc307a3e6dc7e7e44c390176ce62e7b77ebad640ea74c569272104a79f6dd"),
-    ("Darwin", "x86_64"): ("x86_64-apple-darwin", "71b9170b75ac6b1783e91f15aaef9fba826d0bda5af7dbb6bbc0efcc9445f2bc"),
-    ("Darwin", "arm64"): ("aarch64-apple-darwin", "29751b5a916a328cafdad52af19a6415a9b72c36ddc8784c8c11bbd936d435c3"),
+    ("Linux", "x86_64"): ("x86_64-unknown-linux-musl", "6f112cb8a961734dee5dbe32dc52418fb1dae59a13bbd7157e9cf03b11d98d1a"),
+    ("Linux", "aarch64"): ("aarch64-unknown-linux-musl", "2478227d025b57e83df919de8eac1e413769a477ec55324ef461afdbe3e4e08f"),
+    ("Darwin", "x86_64"): ("x86_64-apple-darwin", "9226586135d8bd49bee9b7a57e39af6913f39c06d31c3187856cd53a939d0e81"),
+    ("Darwin", "arm64"): ("aarch64-apple-darwin", "6b0a803ab4cc1cf8cba3bb21adb874df5a9bea521b5149773b0f5c7ec7248cc5"),
 }
 MACHINES = {"amd64": "x86_64", "arm64": "arm64", "aarch64": "aarch64"}
 # its search layer: the document's own text, not the dates, colours and places it would add

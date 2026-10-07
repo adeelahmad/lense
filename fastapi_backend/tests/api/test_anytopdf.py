@@ -181,12 +181,12 @@ def test_it_is_fetched_when_asked_for(cfg, monkeypatch, tmp_path):
     assert not comp.needed(cfg, {})  # a node does the work
 
     # the release archive for this machine, checked against its checksum; only the program is kept
-    assert anytopdf.archive("Linux", "aarch64")[0] == "anytopdf-0.3.0-aarch64-unknown-linux-musl.tar.gz"
-    assert anytopdf.archive("Darwin", "arm64")[0] == "anytopdf-0.3.0-aarch64-apple-darwin.tar.gz"
+    assert anytopdf.archive("Linux", "aarch64")[0] == "anytopdf-0.4.0-aarch64-unknown-linux-musl.tar.gz"
+    assert anytopdf.archive("Darwin", "arm64")[0] == "anytopdf-0.4.0-aarch64-apple-darwin.tar.gz"
     assert anytopdf.archive("Windows", "AMD64") is None
-    name = "anytopdf-0.3.0-x86_64-unknown-linux-musl"
+    name = "anytopdf-0.4.0-x86_64-unknown-linux-musl"
     (tmp_path / name / "plugins").mkdir(parents=True)
-    (tmp_path / name / "anytopdf").write_bytes(b"#!/bin/sh\necho anytopdf 0.3.0\n")
+    (tmp_path / name / "anytopdf").write_bytes(b"#!/bin/sh\necho anytopdf 0.4.0\n")
     (tmp_path / name / "plugins" / "anytopdf-plugin-faces").write_bytes(b"x")
     with tarfile.open(tmp_path / f"{name}.tar.gz", "w:gz") as t:
         t.add(tmp_path / name, arcname=name)
