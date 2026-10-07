@@ -389,39 +389,44 @@ class Faces(Component):
 
 class Objects(Component):
     def needed(self, cfg, m):
-        return cfg["video"].get("object_engine") == "yolox"
+        return cfg["video"].get("object_engine") in ("yolox", "anytopdf")
 
     def present(self, cfg):
         from . import objects
 
-        return importable("onnxruntime") and bool(objects.yolox_model(cfg))
+        onnx = cfg["video"].get("object_engine") == "anytopdf" or importable("onnxruntime")  # anytopdf runs the model itself
+        return onnx and bool(objects.yolox_model(cfg))
 
     def fetch(self, cfg, m, say):
-        if not importable("onnxruntime"):
+        if cfg["video"].get("object_engine") != "anytopdf" and not importable("onnxruntime"):
             pip_install(cfg, "objects", say)
         fetch_file(cfg, "yolox_s.onnx", say)
 
 
 class Anytopdf(Component):
     """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here, or Settings →
-    Analysis asks it for places and dates (enrich.py)."""
+    Analysis asks it for places and dates (enrich.py), or Settings → Video for objects (objects.py)."""
+
+    def _serves(self, cfg):
+        from . import anytopdf
+
+        converts = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
+        detects = cfg["video"].get("object_engine") == "anytopdf"  # its objects plugin runs here, node or not
+        enriches = bool((cfg.get("analysis") or {}).get("anytopdf"))
+        return ({"transcribe"} if converts else set()) | ({"objects"} if detects else set()) | ({"analyze"} if enriches else set())
 
     def needed(self, cfg, m):
         from . import anytopdf
 
-        here = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
-        return (here or bool((cfg.get("analysis") or {}).get("anytopdf"))) and bool(anytopdf.archive())
+        return bool(self._serves(cfg)) and bool(anytopdf.archive())
+
+    def serves(self, cfg, m):
+        return self._serves(cfg)
 
     def present(self, cfg):
         from . import anytopdf
 
         return bool(anytopdf.binary(cfg))
-
-    def serves(self, cfg, m):
-        from . import anytopdf
-
-        here = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
-        return ({"transcribe"} if here else set()) | ({"analyze"} if (cfg.get("analysis") or {}).get("anytopdf") else set())
 
     def fetch(self, cfg, m, say):
         from . import anytopdf
@@ -556,8 +561,8 @@ COMPONENTS = [
     Anytopdf(
         "anytopdf",
         "anytopdf",
-        "makes documents and photographed pages into searchable PDFs (documents.converter), finds places and dates",
-        steps={"transcribe", "analyze"},
+        "makes documents and photographed pages into searchable PDFs (documents.converter), finds places and dates, and objects (video.object_engine)",
+        steps={"transcribe", "analyze", "objects"},
         size_mb=50,
         license="MIT OR Apache-2.0",
     ),
