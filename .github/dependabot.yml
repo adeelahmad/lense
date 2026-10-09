@@ -23,6 +23,10 @@ updates:
     groups:
       javascript-minor:
         update-types: [minor, patch]
+    ignore:
+      # BlockSuite after 0.19 is published as raw TypeScript (exports point at src/*.ts) and drops the editor
+      # presets, so it only builds inside AFFiNE's own repo. The notes editor stays on 0.19.5 until that changes.
+      - dependency-name: "@blocksuite/*"
 
   - package-ecosystem: github-actions
     directory: /

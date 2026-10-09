@@ -8,6 +8,7 @@ import { AuthAlert } from "@/components/auth/auth-card";
 import { Button } from "@/components/ui/button";
 import { getErrorMessage } from "@/lib/api/client";
 import { anonymousClient } from "@/lib/auth/webauthn";
+import { navigate } from "@/lib/navigate";
 
 /** The provider's sign-in page for this browser (with the cookie that ties the round trip to it). */
 export async function externalSignInUrl(key: string, next: string): Promise<string> {
@@ -36,7 +37,7 @@ export function ExternalSignIn({
     setBusy(key);
     setError(null);
     try {
-      window.location.assign(await externalSignInUrl(key, callbackUrl));
+      navigate.assign(await externalSignInUrl(key, callbackUrl));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(null);

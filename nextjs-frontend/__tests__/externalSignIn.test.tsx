@@ -6,6 +6,7 @@ import { ExternalSignIn } from "@/components/auth/external-sign-in";
 import { ExternalSigninReturn, safeNext } from "@/components/auth/external-signin-return";
 import { finishSignIn } from "@/components/auth/passkey-flows";
 import { LoginForm } from "@/components/auth/login-form";
+import { navigate } from "@/lib/navigate";
 
 jest.mock("@/components/actions/login-action", () => ({ login: jest.fn() }));
 jest.mock("@/components/auth/passkey-flows", () => ({ passkeyTicket: jest.fn(), finishSignIn: jest.fn() }));
@@ -18,18 +19,13 @@ jest.mock("@/lib/auth/webauthn", () => ({
 const GOOGLE = { key: "google", kind: "google" as const, label: "Google" };
 const GITHUB = { key: "github", kind: "github" as const, label: "GitHub" };
 
-const assign = jest.fn();
-const replace = jest.fn();
-beforeAll(() => {
-  Object.defineProperty(window, "location", {
-    configurable: true,
-    value: { ...window.location, assign, replace, hash: "", pathname: "/external-signin", hostname: "localhost" },
-  });
-});
+jest.mock("@/lib/navigate", () => ({ navigate: { assign: jest.fn(), replace: jest.fn() } }));
+
+const { assign, replace } = navigate as jest.Mocked<typeof navigate>;
 afterEach(() => jest.clearAllMocks());
 
 function at(hash: string) {
-  (window.location as { hash: string }).hash = hash;
+  window.history.replaceState(null, "", `/external-signin${hash}`);
 }
 
 describe("signing in with an outside account", () => {
