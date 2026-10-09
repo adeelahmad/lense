@@ -49,6 +49,9 @@ OFFICE = {
 }
 WORDS = {
     **OFFICE,
+    ".zip": "zip archive",
+    ".tar": "tar archive",
+    ".tgz": "tar archive",
     ".pdf": "PDF",
     ".txt": "text file",
     ".text": "text file",
@@ -61,6 +64,9 @@ WORDS = {
     ".msg": "Outlook email",
 }
 TYPES = {
+    ".zip": "application/zip",
+    ".tar": "application/x-tar",
+    ".tgz": "application/gzip",
     ".doc": "application/msword",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ".odt": "application/vnd.oasis.opendocument.text",
@@ -770,6 +776,12 @@ def to_pdf(cfg, src, out):
         page, attachments = email_page(e)
         info = {k: e[k] for k in ("subject", "from", "to", "cc", "date") if e.get(k)}
         return {"by": page_pdf(cfg, page, out, via), "title": e["subject"] or None, "email": info, "attachments": attachments}
+    if ext in store.ARCHIVE_EXT:
+        from . import archives
+
+        inside, left = archives.read(path)
+        page = archives.page(path.name, inside, left)
+        return {"by": page_pdf(cfg, page, out, via), "attachments": inside, "archive": {"files": len(inside), "left_out": len(left)}}
     raw = path.read_bytes()
     if ext in store.PAGE_EXT:
         page, title = web_page(raw)
@@ -780,11 +792,12 @@ def to_pdf(cfg, src, out):
 
 
 # ---------- an email's attachments ----------
-def keep_attachments(db, cfg, rid, attachments, say):
-    """An email's attachments kept as its files (once: a file it has already isn't added again), and those Lens can
-    read made resources of their own beside it (documents.attachment_resources), queued for the namespace's pipeline.
-    A resource made from an attachment says which email and file it came from (attached_to)."""
-    from . import documents, files
+def keep_attachments(db, cfg, rid, attachments, say, archive=False):
+    """An email's attachments (or an archive's files) kept as its files (once: a file it has already isn't added
+    again), and those Lens can read made resources of their own beside it (documents.attachment_resources), queued for
+    the namespace's pipeline. A resource made from an attachment says which email and file it came from (attached_to).
+    A chat export or JSON among them becomes a chat, records or a transcript; an archive in an archive stays a file."""
+    from . import archives, documents, files
 
     rec = db.one("SELECT space, collection, recorded_at FROM $r", r=R("recording", rid)) or {}
     have = {(f["name"], f["size"]): f for f in files.of(db, rid) if f.get("role") == "attachment"}
@@ -794,6 +807,7 @@ def keep_attachments(db, cfg, rid, attachments, say):
             f = have.get((files.clean_name(a["name"]), len(a["data"])))
         except ValueError:  # a name with nothing left to keep
             f, a = None, {**a, "name": "attachment"}
+        held = _held(a["name"], a["data"])
         if f is None:
             tmp = files.incoming(cfg)
             tmp.write_bytes(a["data"])
@@ -805,15 +819,62 @@ def keep_attachments(db, cfg, rid, attachments, say):
             kept += 1
         if not (cfg.get("documents") or {}).get("attachment_resources", True) or f.get("resource"):
             continue
+        if held:
+            made += _transcript_of(db, cfg, rid, rec, f, held)
+            continue
+        if archive and archives.is_archive(f["name"]):
+            continue
         ext = ext_of(f["name"])
         kind = documents.kind_of(f["name"]) or ("audio" if ext in {e.lower() for e in cfg["audio"]["extensions"]} else None)
         if not kind or unavailable(cfg, f["name"]):
             continue
         made += _resource_of(db, cfg, rid, rec, f, kind)
+    what = "file" if archive else "attachment"
     if attachments[MAX_ATTACHMENTS:]:
-        say(f"only its first {MAX_ATTACHMENTS} attachments were kept")
+        say(f"only its first {MAX_ATTACHMENTS} {what}s were kept")
     if attachments:
-        say(f"{len(attachments)} attachment(s): {kept} kept now, {made} made resource(s) of their own")
+        say(f"{len(attachments)} {what}(s): {kept} kept now, {made} made resource(s) of their own")
+
+
+def _held(name, data):
+    """What a chat export's text or a JSON file holds (a chat, records or a transcript), read; else None."""
+    from . import chats, ingest, uploads
+
+    ext = ext_of(name)
+    if ext not in uploads.CHAT_EXT + store.STRUCTURED_EXT or len(data) > uploads.TEXT_MAX:
+        return None
+    text = data.decode("utf-8-sig", errors="replace")
+    if ext in uploads.CHAT_EXT:
+        return chats.read(text, name)
+    try:
+        t = ingest.read_text_transcript(text, "auto", name)
+    except ValueError:
+        return None
+    return t if t["segments"] else None
+
+
+def _transcript_of(db, cfg, rid, rec, f, held):
+    """A chat, records or a transcript among an email's attachments or an archive's files, as a resource of its own: 1
+    if made."""
+    from . import files, ingest, jobs
+
+    src = files.path_of(cfg, f)
+    fp = ingest.fingerprint(src, db=db, cfg=cfg)
+    known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{rec['space']}:{fp}")
+    if known:
+        db.q("UPDATE $r SET resource = $x", r=R("resource_file", f["id"]), x=known["id"])
+        return 0
+    ns = store.space_names(db).get(rec["space"]) or str(rec["space"])
+    title = pathlib.PurePosixPath(f["name"]).stem or f["name"]
+    if held.get("form") == "chat" and held.get("title"):
+        title = held["title"]
+    at = rec.get("recorded_at") or store.now()
+    how = "import:" + (held.get("form") or ext_of(f["name"]).lstrip("."))
+    new = ingest._store_import(db, cfg, ns, held, title, fp, f"file:{f['id']}", at, None, None, how, rec.get("collection"))
+    db.q("UPDATE $r SET attached_to = $a", r=R("recording", new), a={"resource": int(rid), "file": f["id"]})
+    db.q("UPDATE $r SET resource = $x", r=R("resource_file", f["id"]), x=new)
+    jobs.enqueue(db, new, None, by=f"email:{rid}")
+    return 1
 
 
 def _resource_of(db, cfg, rid, rec, f, kind):
