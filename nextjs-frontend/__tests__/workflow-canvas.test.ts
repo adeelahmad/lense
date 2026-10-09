@@ -88,6 +88,7 @@ describe("content types", () => {
       ".srt .vtt · name ~ sync · ≥ 5 min",
     );
     expect(rulesText({ forms: ["chat"] })).toBe("holds a chat");
+    expect(rulesText({ extensions: [".json"], forms: ["records"] })).toBe(".json · holds records");
     expect(rulesText(null)).toBe("");
   });
 });

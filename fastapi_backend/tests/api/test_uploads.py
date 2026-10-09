@@ -319,3 +319,17 @@ def test_a_chat_export_uploaded_is_read_as_a_chat(client, env, db, cfg, monkeypa
     # any other text file is still a document
     done = _upload(client, env["he"], b"Shopping: eggs, milk.\nAnd bread.", name="list.txt")
     assert db.one("SELECT source FROM $r", r=R("recording", done["recording"]))["source"] == "document"
+
+
+def test_json_uploaded_is_read_as_records(client, env, db, cfg):
+    """JSON can be uploaded with the other files: records one by one (or a chat, or a transcript)."""
+    from app.domain import content_types
+
+    data = b'[{"name": "Ada", "role": "admin"}, {"name": "Bo", "role": "editor"}]'
+    done = _upload(client, env["he"], data, name="people.json")
+    rec = db.one("SELECT source, form, engine FROM $r", r=R("recording", done["recording"]))
+    assert (rec["source"], rec["form"], rec["engine"]) == ("transcript", "records", "import:records")
+    assert content_types.of_recording(db, done["recording"])[0]["key"] == "structured" and done["job"]
+    r = _start(client, env["he"], 7, name="empty.json")
+    uid = r.json()["id"]
+    assert _send(client, env["he"], uid, 0, b"[1, 2]x").status_code == 400  # not JSON
