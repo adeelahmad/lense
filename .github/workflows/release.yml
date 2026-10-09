@@ -111,6 +111,21 @@ jobs:
         run: |
           python3 .github/scripts/release.py notes "$TAG" > notes.md
           if [ -s notes.md ] && grep -q '[^[:space:]]' notes.md; then
+            # GitHub refuses notes over 125,000 characters: keep whole entries up to that and link the rest. This
+            # lives here, not in release.py, because this job runs the script as it was at the tag.
+            python3 - <<'EOF'
+          import os
+          from pathlib import Path
+
+          notes = Path("notes.md")
+          text = notes.read_text()
+          limit = 120_000
+          if len(text) > limit:
+              end = text.rfind("\n- ", 0, limit)
+              link = f"https://github.com/{os.environ['GH_REPO']}/blob/{os.environ['TAG']}/CHANGELOG.md"
+              notes.write_text(f"{text[: end if end > 0 else limit].rstrip()}\n\nThe rest is in [CHANGELOG.md]({link}).\n")
+              print(f"::notice::The notes were cut to fit; the rest is in {link}")
+          EOF
             echo "NOTES=--notes-file=notes.md" >> "$GITHUB_ENV"
           else
             echo "::warning::CHANGELOG.md has no ${TAG#v} section; the notes list the merged pull requests instead"
