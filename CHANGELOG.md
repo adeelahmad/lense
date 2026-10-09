@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.4.2 <small>October 9, 2026</small> {id="0.4.2"}
+
+### Dependencies
+
+- bump jest to 30 and keep BlockSuite on 0.19 ([#241](https://github.com/adeelahmad/lense/pull/241))
+
 ## 0.4.1 <small>October 9, 2026</small> {id="0.4.1"}
 
 ### Fixes
