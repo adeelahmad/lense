@@ -175,9 +175,7 @@ function checkedAt(iso: string | null | undefined, now: Date): string {
 // ---------- rclone authorize ----------
 
 export type TokenCheck =
-  | { ok: true; token: string; expiry?: Date; refreshes: boolean }
-  | { ok: false; error: string }
-  | { ok: null };
+  { ok: true; token: string; expiry?: Date; refreshes: boolean } | { ok: false; error: string } | { ok: null };
 
 /**
  * `rclone authorize dropbox` prints a JSON token between arrows ("Paste the following into your remote machine --->"
