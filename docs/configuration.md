@@ -241,6 +241,12 @@ that makes documents, photos and media into searchable PDFs. Lens uses it as a c
   to 1 MB at most and its PDF to 2 GB, and a PDF that doesn't start like one is refused. **Check it** in Settings →
   Documents asks the node for a job with Lens's token and says whether it answered and took it.
 
+**Camera RAW and HEIC photos** (.dng, .cr2, .cr3, .nef, .arw, .orf, .raf, .rw2, .heic, .heif) are photos Lens can't
+open itself, so anytopdf reads them wherever it is here or a node is set, whatever `documents.converter` says but
+`lens`: RAW from the preview the camera embedded, HEIC where libheif or ImageMagick is beside anytopdf. Without
+anytopdf, uploading one says what it needs, and folder scans pass them by. A RAW photo gets the Camera RAW photo
+content type.
+
 It runs with no network, no runtime plugins and no config file of its own, and its PDF has no provenance page and
 holds only the document's text, so what Lens reads is what the document says. Faces, objects and speech stay Lens's
 own steps. The resource's rendition says `anytopdf` made it.

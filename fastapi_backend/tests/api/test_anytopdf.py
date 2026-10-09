@@ -259,6 +259,27 @@ def test_with_anytopdf_chosen_it_reads_images_too(here, client, env, db, cfg, fo
     assert any("read without anytopdf: anytopdf couldn't read it (error: it broke)" in x for x in log), log
 
 
+def test_camera_raw_photos_are_read_by_anytopdf(here, client, env, db, cfg):
+    """A RAW photo is one Lens can't open: anytopdf reads it, whatever documents.converter says but `lens`."""
+    from app.domain import content_types
+
+    he, ha = env["he"], env["ha"]
+    up = _upload(client, he, b"NEF raw bytes", "DSC_0042.nef")
+    drain(db, settings.effective(db, cfg))
+    rec = _rec(db, up["recording"])
+    assert (rec["source"], rec["status"], rec["rendition"]) == ("image", "analyzed", {"from": ".nef", "by": "anytopdf"}), rec.get("error")
+    assert "Photographed page document" in _text(db, up["recording"])
+    assert "--scan-mode" not in fake_anytopdf.runs(here)[-1]["args"]  # a photo, not a page to flatten
+    assert content_types.of_recording(db, up["recording"])[0]["key"] == "raw_photo"
+
+    # without anytopdf (or with Lens's converters chosen) a RAW photo isn't taken, and says what it needs
+    assert client.put("/api/v1/settings/documents", headers=ha, json={"converter": "lens"}).status_code == 200
+    r = _start(client, he, b"x" * 10, "DSC_0043.nef")
+    assert r.status_code == 400 and "camera RAW photos needs anytopdf" in r.json()["detail"], r.text
+    r = _start(client, he, b"x" * 10, "IMG_0001.heic")
+    assert r.status_code == 400 and "HEIC photos needs anytopdf" in r.json()["detail"], r.text
+
+
 def test_with_a_browser_and_poppler_here_it_draws_web_pages(here, client, env, db, cfg, monkeypatch):
     from app.domain import documents
 

@@ -120,7 +120,10 @@ PAGE_EXT = (".html", ".htm")
 EMAIL_EXT = (".eml", ".msg")
 DOCUMENT_EXT = (".pdf", *OFFICE_EXT, *TEXT_EXT, *PAGE_EXT, *EMAIL_EXT)
 STRUCTURED_EXT = (".json", ".jsonl")  # read as records, a chat or a transcript (domain/records.py)
-IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp")
+RAW_EXT = (".arw", ".cr2", ".cr3", ".dng", ".nef", ".orf", ".raf", ".rw2")  # camera RAW
+# photos Pillow can't open: anytopdf reads them (RAW from its embedded preview; HEIC where libheif is beside it)
+CAMERA_EXT = (*RAW_EXT, ".heic", ".heif")
+IMAGE_EXT = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp", *CAMERA_EXT)
 DEFAULTS = {
     "data_dir": "./archive-data",
     "database": {"url": None, "namespace": "archive", "database": "main", "user": "root", "password": "root"},
