@@ -13,6 +13,7 @@ import { FacetPanel } from "@/components/search/facet-panel";
 import { fromServer, groupByRecording } from "@/components/search/facets";
 import { hasMedia } from "@/components/search/links";
 import { NoResults } from "@/components/search/no-results";
+import { PhotoHits } from "@/components/search/photos";
 import { InlinePlayerBar, useInlinePlayer } from "@/components/search/player";
 import {
   activeFilterCount,
@@ -425,6 +426,7 @@ export function SearchPage() {
               }}
             />
           )}
+          {enabled && <PhotoHits q={q} namespace={filters.namespace} />}
           {enabled && results.isLoading && <ResultsSkeleton />}
           {enabled && results.isError && (
             <Banner

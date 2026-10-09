@@ -10420,6 +10420,81 @@
         }
       }
     },
+    "/api/v1/search/photos": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search Photos",
+        "description": "Photos that show what was asked for, best first, in the namespaces you can read and the collections you were\ngiven a role on, whatever words are on them: anytopdf's CLIP plugin compares the query with each photo\n(Settings \u2192 Search \u2192 Search photos by what they show; off by default).",
+        "operationId": "search_photos",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300,
+              "description": "what the photo shows, such as \"a bus on a city street\"",
+              "title": "Q"
+            },
+            "description": "what the photo shows, such as \"a bus on a city street\""
+          },
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ns"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 24,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoResults"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/search/terms": {
       "get": {
         "tags": [
@@ -40199,6 +40274,75 @@
           "email"
         ],
         "title": "PermissionAdd"
+      },
+      "PhotoHit": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "similarity": {
+            "type": "number",
+            "title": "Similarity",
+            "description": "CLIP's cosine similarity of the photo and the query; a good match is about 0.3"
+          },
+          "thumb": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumb",
+            "description": "a signed link to it, small"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording",
+          "similarity"
+        ],
+        "title": "PhotoHit",
+        "description": "A photo like what was asked for (embeddings.photos)."
+      },
+      "PhotoResults": {
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/PhotoHit"
+            },
+            "type": "array",
+            "title": "Hits"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "PhotoResults"
       },
       "Pipeline": {
         "properties": {

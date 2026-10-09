@@ -7,6 +7,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Export an evidence PDF.** A resource's Export menu, and a collection's page, download it as one PDF made by
   anytopdf: each file's pages (audio and video with their transcript), searchable, then a provenance page with every
   file's SHA-256, so it can be handed on and checked ([Evidence PDFs](docs/api.md#evidence-pdfs)).
+- **anytopdf can find faces.** Settings › Video, OCR, faces and objects › Face engine › anytopdf: its plugins find
+  the faces in frames and pages and describe them with the same SFace model, so a server needs no OpenCV, and the
+  people a namespace already knows still match ([Video](docs/video.md)). Who someone is stays in Lens.
+- **Search photos by what they show.** Turn on Settings › Search › Search photos by what they show (off by default)
+  and Lens downloads anytopdf's CLIP model (about 600 MB). Search then also shows the photos most like what you typed,
+  such as "a bus on a city street", whatever words are on them ([anytopdf](docs/configuration.md#anytopdf)).
+- **anytopdf can find objects.** Settings › Video › Object detector › anytopdf runs Lens's YOLOX model with
+  anytopdf's objects plugin (sandboxed, no network), so a lean server or a Raspberry Pi finds objects without ONNX
+  Runtime. Lens fetches anytopdf and the model on first use. YOLOX on ONNX Runtime stays the default
+  ([Objects](docs/configuration.md#objects)).
 - **Places and dates from anytopdf.** Turn on Settings › Analysis › Find places and dates with anytopdf (off by
   default) and analysis also asks anytopdf, offline, for the places a text names, the dates it gives (with their ISO
   value) and where a photo was taken (from its GPS fix, with `exiftool` installed). They become places and dates in the
@@ -22,6 +32,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   it then also reads images, flattening a photographed page before OCR. Or set a conversion node, another machine
   running `anytopdf queue serve`, and a small server reads Word, PowerPoint and spreadsheet files too
   ([anytopdf](docs/configuration.md#anytopdf)).
+- **Where anytopdf made a document's PDF, Lens uses the words it read.** anytopdf 0.4.0 lists every word it found on
+  a picture page with where it is, so a photographed or scanned page's text comes from anytopdf's OCR, block by block
+  with its place on the page, without Lens reading the page again. Pages without those words are read as before.
 - **A conversion node gets the token and nothing more.** Lens refuses a node that redirects (so its token never
   goes on to another server), caps what the node answers and refuses a PDF that isn't one. Settings › Documents ›
   Check it says whether the node answers and takes the token ([anytopdf](docs/configuration.md#anytopdf)).

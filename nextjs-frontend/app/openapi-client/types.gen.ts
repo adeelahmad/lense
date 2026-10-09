@@ -9531,6 +9531,50 @@ export type PermissionAdd = {
 };
 
 /**
+ * PhotoHit
+ *
+ * A photo like what was asked for (embeddings.photos).
+ */
+export type PhotoHit = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Similarity
+   *
+   * CLIP's cosine similarity of the photo and the query; a good match is about 0.3
+   */
+  similarity: number;
+  /**
+   * Thumb
+   *
+   * a signed link to it, small
+   */
+  thumb?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PhotoResults
+ */
+export type PhotoResults = {
+  /**
+   * Hits
+   */
+  hits?: Array<PhotoHit>;
+  [key: string]: unknown;
+};
+
+/**
  * Pipeline
  */
 export type Pipeline = {
@@ -23045,6 +23089,46 @@ export type SearchTranscriptsResponses = {
 };
 
 export type SearchTranscriptsResponse = SearchTranscriptsResponses[keyof SearchTranscriptsResponses];
+
+export type SearchPhotosData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Q
+     *
+     * what the photo shows, such as "a bus on a city street"
+     */
+    q: string;
+    /**
+     * Ns
+     */
+    ns?: string | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/search/photos";
+};
+
+export type SearchPhotosErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SearchPhotosError = SearchPhotosErrors[keyof SearchPhotosErrors];
+
+export type SearchPhotosResponses = {
+  /**
+   * Successful Response
+   */
+  200: PhotoResults;
+};
+
+export type SearchPhotosResponse = SearchPhotosResponses[keyof SearchPhotosResponses];
 
 export type SuggestTermsData = {
   body?: never;

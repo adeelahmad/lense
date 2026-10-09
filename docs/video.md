@@ -18,8 +18,12 @@ soundtrack, and three more steps look at the picture. Each step skips itself for
   - When a face is on screen while one speaker talks, the app suggests they're the same person.
   - People can be renamed, merged (with undo), linked to a speaker, marked "not a face" or deleted.
   - Engines: OpenCV's YuNet + SFace (`pip install -e ".[faces]"`, then point `video.yunet_model` and
-    `video.sface_model` at the ONNX files from the OpenCV Zoo) or InsightFace, whose pretrained models are licensed for
-    non-commercial research only.
+    `video.sface_model` at the ONNX files from the OpenCV Zoo), InsightFace, whose pretrained models are licensed for
+    non-commercial research only, or `anytopdf`: [anytopdf](configuration.md#anytopdf)'s plugins find faces with
+    their built-in YuNet and describe them with the same SFace file, so it needs neither OpenCV nor Python packages
+    (Lens fetches anytopdf and SFace on first use). Its faces match ones OpenCV found, so switching keeps the people a
+    namespace knows. It looks at up to 50 frames or pages per run, sandboxed and offline; anytopdf's own face index
+    is thrown away after each run, since who someone is stays Lens's.
 
 Faces are biometric data, so they are off by default. A namespace owner chooses:
 

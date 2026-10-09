@@ -3,12 +3,14 @@
 ffmpeg finds scene changes and samples frames. An OCR engine reads text from the frames: Tesseract (anywhere), Apple
 Vision (on a Mac, through pyobjc), RapidOCR (onnxruntime) or docTR (PyTorch). A face engine detects faces and, where a namespace allows
 it, describes them for the per-namespace registry in faces.py: OpenCV's YuNet + SFace (Apache-2.0/MIT models from the
-OpenCV Zoo; set video.yunet_model and video.sface_model) or InsightFace (its pretrained models are licensed for
-non-commercial research only). Frames and face crops live in data_dir/frames/<recording>/.
+OpenCV Zoo; set video.yunet_model and video.sface_model), InsightFace (its pretrained models are licensed for
+non-commercial research only) or anytopdf, whose plugins find faces and describe them with the same SFace model.
+Frames and face crops live in data_dir/frames/<recording>/.
 """
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import json
 import pathlib
@@ -23,6 +25,7 @@ import numpy as np
 from . import ingest, jobs, keyring, store
 
 R = store.R
+FACE_BATCH = 50  # pictures per run of a face engine that reads many at once
 VIDEO_TYPES = {
     ".mp4": "video/mp4",
     ".m4v": "video/mp4",
@@ -442,9 +445,38 @@ class InsightFaces:
         ]
 
 
+class AnytopdfFaces:
+    """anytopdf (anytopdf.py) finds faces with the YuNet built into its faces plugin and describes them with the same
+    SFace model OpenCVFaces uses, through its face-id plugin, so neither OpenCV nor Python packages are needed and its
+    faces match the ones OpenCV found. Who they are stays Lens's: the namespace's registry in faces.py."""
+
+    name = "anytopdf"
+
+    def __init__(self, cfg):
+        from . import anytopdf, components
+
+        self.cfg = cfg
+        self.model = cfg["video"].get("sface_model") or components.model_file(cfg, components.FACE_FILES[1])
+        if not (self.model and pathlib.Path(self.model).exists()):
+            raise RuntimeError("set video.sface_model to the OpenCV Zoo SFace ONNX file")
+        if not anytopdf.face_plugins(cfg):
+            raise RuntimeError("anytopdf isn't here with its faces and face-id plugins")
+
+    def faces(self, path):
+        return self.faces_on([path])[str(path)]
+
+    def faces_on(self, paths):
+        """The faces on many pictures in one run of anytopdf: {path: faces}."""
+        from . import anytopdf
+
+        found = anytopdf.faces(self.cfg, [str(p) for p in paths], self.model)
+        return {str(p): found[str(p)] for p in paths}
+
+
 def face_engine(cfg):
     try:
-        return {"opencv": OpenCVFaces, "insightface": InsightFaces}[cfg["video"].get("face_engine") or "opencv"](cfg)
+        engines = {"opencv": OpenCVFaces, "insightface": InsightFaces, "anytopdf": AnytopdfFaces}
+        return engines[cfg["video"].get("face_engine") or "opencv"](cfg)
     except (ImportError, RuntimeError, KeyError):
         return None
 
@@ -576,7 +608,15 @@ def step_faces(db, cfg, rid, say):
     else:
         frames, step = rec.get("samples") or [], rec.get("sample_ms") or 5000
     d, dets = frames_dir(cfg, rid), []
-    for t, name in frames:
-        with keyring.plain_picture(db, cfg, d / name) as pic:
-            dets += [{"t": t, "frame": name, **f} for f in engine.faces(pic)]
+    if hasattr(engine, "faces_on"):  # many pictures at a time, where starting the engine costs more than a picture
+        for n in range(0, len(frames), FACE_BATCH):
+            batch = frames[n : n + FACE_BATCH]
+            with contextlib.ExitStack() as open_:
+                pics = [str(open_.enter_context(keyring.plain_picture(db, cfg, d / name))) for _, name in batch]
+                found = engine.faces_on(pics)
+            dets += [{"t": t, "frame": name, **f} for (t, name), pic in zip(batch, pics) for f in found[pic]]
+    else:
+        for t, name in frames:
+            with keyring.plain_picture(db, cfg, d / name) as pic:
+                dets += [{"t": t, "frame": name, **f} for f in engine.faces(pic)]
     faces.store_tracks(db, cfg, rid, rec["space"], dets, mode, step, say, paged)

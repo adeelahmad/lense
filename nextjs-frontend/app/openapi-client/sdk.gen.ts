@@ -1103,6 +1103,9 @@ import type {
   SealVaultData,
   SealVaultErrors,
   SealVaultResponses,
+  SearchPhotosData,
+  SearchPhotosErrors,
+  SearchPhotosResponses,
   SearchPublicData,
   SearchPublicErrors,
   SearchPublicResponses,
@@ -4916,6 +4919,22 @@ export class Search {
   ): RequestResult<SearchTranscriptsResponses, SearchTranscriptsErrors, ThrowOnError> {
     return (options.client ?? client).get<SearchTranscriptsResponses, SearchTranscriptsErrors, ThrowOnError>({
       url: "/api/v1/search",
+      ...options,
+    });
+  }
+
+  /**
+   * Search Photos
+   *
+   * Photos that show what was asked for, best first, in the namespaces you can read and the collections you were
+   * given a role on, whatever words are on them: anytopdf's CLIP plugin compares the query with each photo
+   * (Settings → Search → Search photos by what they show; off by default).
+   */
+  public static searchPhotos<ThrowOnError extends boolean = false>(
+    options: Options<SearchPhotosData, ThrowOnError>,
+  ): RequestResult<SearchPhotosResponses, SearchPhotosErrors, ThrowOnError> {
+    return (options.client ?? client).get<SearchPhotosResponses, SearchPhotosErrors, ThrowOnError>({
+      url: "/api/v1/search/photos",
       ...options,
     });
   }

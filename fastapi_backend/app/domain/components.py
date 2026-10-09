@@ -373,60 +373,97 @@ class Voices(Component):
 
 
 class Faces(Component):
+    """OpenCV with YuNet and SFace; for anytopdf (video.face_engine `anytopdf`) only SFace, which its face-id plugin
+    describes faces with, since it finds them itself."""
+
+    def _files(self, cfg):
+        return FACE_FILES[1:] if cfg["video"].get("face_engine") == "anytopdf" else FACE_FILES
+
     def needed(self, cfg, m):
         v = cfg["video"]
+        if v.get("face_engine") == "anytopdf":
+            return not v.get("sface_model")
         return v.get("face_engine") == "opencv" and not (v.get("yunet_model") and v.get("sface_model") and importable("cv2"))
 
     def present(self, cfg):
-        return importable("cv2") and all(model_file(cfg, n) for n in FACE_FILES)
+        opencv = cfg["video"].get("face_engine") == "anytopdf" or importable("cv2")
+        return opencv and all(model_file(cfg, n) for n in self._files(cfg))
 
     def fetch(self, cfg, m, say):
-        if not importable("cv2"):
+        if cfg["video"].get("face_engine") != "anytopdf" and not importable("cv2"):
             pip_install(cfg, "faces", say)
-        for n in FACE_FILES:
+        for n in self._files(cfg):
             fetch_file(cfg, n, say)
 
 
 class Objects(Component):
     def needed(self, cfg, m):
-        return cfg["video"].get("object_engine") == "yolox"
+        return cfg["video"].get("object_engine") in ("yolox", "anytopdf")
 
     def present(self, cfg):
         from . import objects
 
-        return importable("onnxruntime") and bool(objects.yolox_model(cfg))
+        onnx = cfg["video"].get("object_engine") == "anytopdf" or importable("onnxruntime")  # anytopdf runs the model itself
+        return onnx and bool(objects.yolox_model(cfg))
 
     def fetch(self, cfg, m, say):
-        if not importable("onnxruntime"):
+        if cfg["video"].get("object_engine") != "anytopdf" and not importable("onnxruntime"):
             pip_install(cfg, "objects", say)
         fetch_file(cfg, "yolox_s.onnx", say)
 
 
 class Anytopdf(Component):
     """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here, or Settings →
-    Analysis asks it for places and dates (enrich.py)."""
+    Analysis asks it for places and dates (enrich.py), or Settings → Video for objects (objects.py) or faces."""
+
+    def _serves(self, cfg):
+        from . import anytopdf
+
+        converts = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
+        detects = cfg["video"].get("object_engine") == "anytopdf"  # its objects plugin runs here, node or not
+        faces = cfg["video"].get("face_engine") == "anytopdf"
+        enriches = bool((cfg.get("analysis") or {}).get("anytopdf"))
+        steps = {"transcribe": converts, "objects": detects, "faces": faces, "analyze": enriches}
+        return {step for step, wanted in steps.items() if wanted}
 
     def needed(self, cfg, m):
         from . import anytopdf
 
-        here = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
-        return (here or bool((cfg.get("analysis") or {}).get("anytopdf"))) and bool(anytopdf.archive())
+        return bool(self._serves(cfg)) and bool(anytopdf.archive())
+
+    def serves(self, cfg, m):
+        return self._serves(cfg)
 
     def present(self, cfg):
         from . import anytopdf
 
         return bool(anytopdf.binary(cfg))
 
-    def serves(self, cfg, m):
-        from . import anytopdf
-
-        here = anytopdf.mode(cfg) == "anytopdf" and not anytopdf.node(cfg)
-        return ({"transcribe"} if here else set()) | ({"analyze"} if (cfg.get("analysis") or {}).get("anytopdf") else set())
-
     def fetch(self, cfg, m, say):
         from . import anytopdf
 
         anytopdf.fetch(cfg, say)
+
+
+class ClipModel(Component):
+    """anytopdf's CLIP plugin and its model (photos.py), fetched when Settings → Search asks to search photos."""
+
+    def needed(self, cfg, m):
+        from . import anytopdf, photos
+
+        return photos.enabled(cfg) and bool(anytopdf.archive() or photos.plugin(cfg))
+
+    def present(self, cfg):
+        from . import photos
+
+        return bool(photos.plugin(cfg)) and photos.model_ready(cfg)
+
+    def fetch(self, cfg, m, say):
+        from . import anytopdf, photos
+
+        if not photos.plugin(cfg):
+            anytopdf.fetch(cfg, say)
+        photos.fetch_model(cfg, say)
 
 
 class Msg(Component):
@@ -556,10 +593,18 @@ COMPONENTS = [
     Anytopdf(
         "anytopdf",
         "anytopdf",
-        "makes documents and photographed pages into searchable PDFs (documents.converter), finds places and dates",
-        steps={"transcribe", "analyze"},
+        "makes documents and photographed pages into searchable PDFs (documents.converter), finds places and dates, and objects and faces (video.object_engine, video.face_engine)",
+        steps={"transcribe", "analyze", "objects", "faces"},
         size_mb=50,
         license="MIT OR Apache-2.0",
+    ),
+    ClipModel(
+        "clip",
+        "CLIP model",
+        "searches photos by what they show (embeddings.photos), with anytopdf's CLIP plugin",
+        steps={"embed"},
+        size_mb=600,
+        license="MIT",
     ),
     PYTORCH,
     SENSEVOICE,
