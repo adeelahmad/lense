@@ -1258,6 +1258,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "embeddings",
+    key: "photos",
+    label: "Search photos by what they show",
+    kind: "switch",
+    hint: "anytopdf’s CLIP plugin compares each photo with the search, offline. Downloads a 600 MB model",
+  },
+  {
+    section: "embeddings",
     key: "base_url",
     label: "Embeddings server (OpenAI-compatible)",
     kind: "text",
@@ -1460,6 +1467,7 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "opencv", label: "OpenCV (YuNet + SFace)" },
       { value: "insightface", label: "InsightFace" },
+      { value: "anytopdf", label: "anytopdf (its plugins + SFace)" },
       { value: "none", label: "Off" },
     ],
   },
@@ -1496,6 +1504,7 @@ export const FIELDS: FieldSpec[] = [
     options: [
       { value: "yolox", label: "YOLOX on ONNX Runtime (Apache-2.0)" },
       { value: "ultralytics", label: "Ultralytics YOLO (AGPL-3.0)" },
+      { value: "anytopdf", label: "YOLOX run by anytopdf (no ONNX Runtime)" },
       { value: "off", label: "Off" },
     ],
     hint: "Finds people, vehicles, animals and everyday things on frames and pages",

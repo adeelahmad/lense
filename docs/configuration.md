@@ -248,6 +248,10 @@ Lens can also ask anytopdf's face and object plugins what is in a picture (`anyt
 (`--plugin-sandbox strict`: no network, writing only to their own workspace, reading only the picture and the models
 Lens names), and the objects plugin runs only when it's given a model, such as Lens's YOLOX file.
 
+With `video.face_engine` set to `anytopdf`, the faces step uses these plugins too ([Video](video.md)): YuNet finds the
+faces and the face-id plugin describes them with Lens's SFace file. Lens reads each face's description from the face
+index of that run, then deletes it with the rest of the run.
+
 **Places and dates.** With `analysis.anytopdf` on (Settings › Analysis › Find places and dates with anytopdf; off by
 default), analysis asks anytopdf, run here with no network and no plugins, what a recording's text and a photo hold:
 
@@ -260,6 +264,13 @@ They are hints: the places and dates join the names the extractor finds in each 
 term becomes a place), and the namespace's entity setup still decides what is kept. What was found shows on the
 resource's Details tab, for the namespace's members only: visitors, embeds and share links don't see where a photo was
 taken. If anytopdf can't read something, analysis goes on without hints. Lens downloads anytopdf for this the same way.
+
+**Search photos by what they show.** With `embeddings.photos` on (Settings › Search › Search photos by what they
+show; off by default), Lens keeps anytopdf's CLIP plugin beside the program and downloads its model, OpenAI's CLIP
+ViT-B/32 (about 600 MB, into `data_dir/models/clip`). The `embed` step then gives each image resource a CLIP vector
+(once per file, on the CPU, offline), and a search also shows the photos most like it, such as "a bus on a city
+street", in the namespaces and collections the person may see (`GET /api/v1/search/photos`). It needs no embeddings
+server, and its vectors are kept apart from search by meaning's. On a Raspberry Pi it works, slowly.
 
 Neither may reach anything while converting: Chromium goes through a proxy inside Lens that serves the page and refuses
 every other request (the page also allows no scripts), and LibreOffice is given a proxy address that isn't there.
@@ -303,13 +314,16 @@ video's sampled frames and on a document's or an image's pages ([API](api.md#obj
   a job needs them ([Components](components.md)), and also finds a model put in `/opt/lens/models`.
 * `ultralytics`: Ultralytics YOLO (`pip install ultralytics`). It's AGPL-3.0: a server that lets others use it must
   offer them its source, so it's in no image and no extra.
+* `anytopdf`: the same YOLOX model, run by [anytopdf](#anytopdf)'s objects plugin, sandboxed with no network. It
+  needs no ONNX Runtime in Lens, for a lean server or a Raspberry Pi; Lens fetches anytopdf and YOLOX-s the first
+  time a job needs them. anytopdf runs here even when documents go to a conversion node.
 * `off`.
 
 Without one the step is skipped, and its job says why. Settings → Video, OCR, faces and objects:
 
 | Setting | Default | |
 |---|---|---|
-| `video.object_engine` | `yolox` | `yolox`, `ultralytics` or `off` |
+| `video.object_engine` | `yolox` | `yolox`, `ultralytics`, `anytopdf` or `off` |
 | `video.object_min_score` | 0.4 | how sure the detector must be to keep what it found, 0.05–0.95 |
 
 Set at startup only:

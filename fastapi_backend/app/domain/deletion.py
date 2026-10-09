@@ -49,6 +49,7 @@ OWN = (
     "file_line",
     "page",
     "passage",
+    "photo_vector",
 )
 
 

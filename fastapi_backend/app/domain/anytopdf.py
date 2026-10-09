@@ -14,18 +14,21 @@ It runs one of two ways, chosen in Settings → Documents:
 documents.converter says when: `auto` (the default) uses it only for what Lens can't convert itself, `anytopdf` for
 every document and image, `lens` never. Run here, it has no network, no runtime plugins (faces, objects and speech
 stay Lens's own steps) and no config file of its own; its PDF has no provenance page, and its search layer holds the
-document's text only, so what Lens reads from it is what the document says.
+document's text only, so what Lens reads from it is what the document says. Where a page of its PDF is a picture, the
+words it read there, each with where it is (page_words), are that page's text: Lens doesn't read it again.
 
 A conversion node gets the document and its token at the address the admin set and nowhere else: only http(s), no
 user name or password in the address, and no redirect is followed, so the token never goes on to another server.
 What it answers is bounded (MAX_JSON for a job, MAX_PDF for its PDF, which must start like one) before Lens reads it.
 
 analyze() asks its face and object plugins, kept beside the program, what is in a picture: sandboxed, with no network,
-reading only the picture and the models Lens names.
+reading only the picture and the models Lens names. faces() also has its face-id plugin describe each face, for
+video.face_engine `anytopdf`.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import pathlib
@@ -54,11 +57,14 @@ MACHINES = {"amd64": "x86_64", "arm64": "arm64", "aarch64": "aarch64"}
 # its search layer: the document's own text, not the dates, colours and places it would add
 QUIET = ["--no-provenance-page", "--no-entities", "--colors", "off", "--location", "off"]
 POLL_SECONDS = 1.0
+CHUNKS = "anytopdf-chunks.json"  # what it read, embedded in each PDF it makes (anytopdf.chunks/1)
 MAX_JSON = 1 << 20  # the most of a conversion node's job answer that is read
 MAX_PDF = 2 << 30  # the largest PDF taken from a conversion node
 JOB_ID = re.compile(r"[A-Za-z0-9_.:-]{1,128}")
 # the plugins Lens keeps beside the program, for analyze(): the rest of the release's plugins stay behind
-PLUGINS = ("anytopdf-plugin-faces", "anytopdf-plugin-face-id", "anytopdf-plugin-objects")
+PLUGINS = ("anytopdf-plugin-faces", "anytopdf-plugin-face-id", "anytopdf-plugin-objects", "anytopdf-plugin-clip")
+# what finds faces (YuNet, built in) and what describes them (an ArcFace-style ONNX model), for faces()
+FACE_PLUGINS = PLUGINS[:2]
 
 
 class Unavailable(RuntimeError):
@@ -113,7 +119,7 @@ def mode(cfg):
 
 def fetch(cfg, say=None):
     """Download this machine's anytopdf release, check it against its checksum, and keep only the program and its
-    face and object plugins (PLUGINS)."""
+    face, object and CLIP plugins (PLUGINS)."""
     import hashlib
 
     found = archive()
@@ -121,7 +127,8 @@ def fetch(cfg, say=None):
         raise Unavailable(f"anytopdf has no build for {platform.system()} {platform.machine()}")
     name, sha = found
     dest = fetched_path(cfg)
-    if dest.is_file() and (dest.parent / "plugins").is_dir():  # fetched before plugins were kept: fetched again
+    asked = dest.parent / "plugins" / ".asked"  # the plugins it was fetched for: fetched again when Lens keeps more
+    if dest.is_file() and asked.is_file() and set(PLUGINS) <= set(asked.read_text().split()):
         return str(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
     if say:
@@ -154,8 +161,9 @@ def fetch(cfg, say=None):
                 out.chmod(0o755)
         if (dest.parent / "plugins").exists():
             shutil.rmtree(dest.parent / "plugins")
-        if (got / "plugins").exists():
-            (got / "plugins").replace(dest.parent / "plugins")
+        (got / "plugins").mkdir(exist_ok=True)
+        (got / "plugins" / ".asked").write_text("\n".join(PLUGINS) + "\n")
+        (got / "plugins").replace(dest.parent / "plugins")
         (got / "anytopdf").replace(dest)
     return str(dest)
 
@@ -362,13 +370,10 @@ def check(cfg):
         return f"it can't be reached ({getattr(e, 'reason', e)})"
 
 
-def analyze(cfg, picture, models=None, seconds=None):
-    """What anytopdf's plugins find in a picture, run here: [{"kind": "face" | "object", "label", "box": [x, y, w, h]
-    fractions, "score", "attributes"}], one per thing found where it is (their summaries left out).
-
-    `models` are the plugins' settings, such as {"ANYTOPDF_OBJECTS_MODEL": "/models/yolox_s.onnx"}: a plugin that
-    needs a model runs only when it's given one, and may read nothing else (the plugins run sandboxed, with no network
-    and no config file). Faces are found by the bundled YuNet whatever is given."""
+@contextlib.contextmanager
+def _looked_at(cfg, pictures, models, seconds, args=()):
+    """anytopdf run here over copies of the pictures with its plugins, sandboxed with no network: (its folder, its
+    graph, {copy: picture}) while the block runs, then nothing of it is left."""
     from . import convert
 
     exe = binary(cfg)
@@ -377,20 +382,34 @@ def analyze(cfg, picture, models=None, seconds=None):
     models = {k: str(v) for k, v in (models or {}).items() if k.startswith("ANYTOPDF_") and v}
     seconds = seconds or _opts(cfg).get("convert_seconds") or 300
     with tempfile.TemporaryDirectory(prefix="lens-anytopdf-") as tmp:
-        pic = pathlib.Path(tmp) / f"picture{pathlib.Path(picture).suffix.lower() or '.jpg'}"
-        shutil.copyfile(picture, pic)
+        names = {}
+        for n, picture in enumerate(pictures):
+            pic = pathlib.Path(tmp) / f"picture-{n}{pathlib.Path(picture).suffix.lower() or '.jpg'}"
+            shutil.copyfile(picture, pic)
+            names[str(pic)] = picture
         env = netguard.nowhere_env({**os.environ, "HOME": tmp, "TMPDIR": tmp})
         env = {k: v for k, v in env.items() if not k.startswith("ANYTOPDF_")}
         env.update(models, ANYTOPDF_DATA_DIR=f"{tmp}/data")
         reads = [a for v in models.values() if os.path.exists(v) for a in ("--plugin-sandbox-allow-read", v)]
         graph = pathlib.Path(tmp) / "graph.json"
         argv = [exe, "--no-config", "--plugin-sandbox", "strict", *reads, "--plugin-timeout", str(int(seconds))]
-        argv += ["convert", str(pic), "-o", f"{tmp}/out.pdf", "--dump-graph", str(graph), "--ocr", "off", *QUIET]
+        argv += ["convert", *names, "-o", f"{tmp}/out.pdf", "--dump-graph", str(graph), "--ocr", "off", *QUIET, *args]
         r = convert._run(argv, seconds, env=env, cwd=tmp)
         if r.returncode != 0 or not graph.is_file():
             said = convert._last_said(r.stderr or r.stdout)
             raise ValueError(f"anytopdf couldn't look at it ({said or f'exit {r.returncode}'})")
-        found = json.loads(graph.read_text())
+        yield pathlib.Path(tmp), json.loads(graph.read_text()), names
+
+
+def analyze(cfg, picture, models=None, seconds=None):
+    """What anytopdf's plugins find in a picture, run here: [{"kind": "face" | "object", "label", "box": [x, y, w, h]
+    fractions, "score", "attributes"}], one per thing found where it is (their summaries left out).
+
+    `models` are the plugins' settings, such as {"ANYTOPDF_OBJECTS_MODEL": "/models/yolox_s.onnx"}: a plugin that
+    needs a model runs only when it's given one, and may read nothing else (the plugins run sandboxed, with no network
+    and no config file). Faces are found by the bundled YuNet whatever is given."""
+    with _looked_at(cfg, [picture], models, seconds) as (_, found, _names):
+        pass
     out = []
     for unit in found.get("units") or []:
         for a in unit.get("annotations") or []:
@@ -408,3 +427,88 @@ def analyze(cfg, picture, models=None, seconds=None):
                 }
             )
     return out
+
+
+def face_plugins(cfg):
+    """Whether the plugins that find and describe faces are beside the program (fetch() keeps them in plugins/)."""
+    exe = binary(cfg)
+    found = [pathlib.Path(exe).resolve().parent / "plugins" / n for n in FACE_PLUGINS] if exe else []
+    return bool(found) and all(p.is_file() and os.access(p, os.X_OK) for p in found)
+
+
+def faces(cfg, pictures, model, seconds=None):
+    """The faces on each picture, found by anytopdf's YuNet and described by its face-id plugin with `model` (the SFace
+    file Lens fetches, so they match faces OpenCV found), in one run: {picture: [{"box": [x, y, w, h] fractions,
+    "score", "embedding": unit vector}]}. The face index it builds is thrown away with the run: who someone is stays
+    Lens's (faces.py)."""
+    models = {"ANYTOPDF_FACE_EMBED_MODEL": model}
+    with _looked_at(cfg, pictures, models, seconds, ["--recognize-faces", "--face-index", "faces.sqlite"]) as (tmp, graph, names):
+        found = faces_found(graph, tmp / "faces.sqlite")
+    return {picture: found.get(copy, []) for copy, picture in names.items()}
+
+
+def faces_found(graph, index):
+    """The faces in the graph of a run, by the file each is on: {path: [{"box", "score", "embedding"}]}. The graph has
+    each face's box and confidence but never its embedding; that is in the run's face index (faces.sqlite, its
+    sightings), at the same box."""
+    import sqlite3
+
+    import numpy as np
+
+    def key(path, box):
+        return str(path), *(round(float(v), 3) for v in box)
+
+    seen = {}
+    if pathlib.Path(index).is_file():
+        with contextlib.closing(sqlite3.connect(f"file:{index}?mode=ro", uri=True)) as db:
+            for path, vec, *box in db.execute("SELECT source_path, vector, x, y, w, h FROM sightings ORDER BY id"):
+                seen[key(path, box)] = np.frombuffer(vec, dtype="<f4").astype(np.float64)
+    paths = {s.get("id"): s.get("path") for s in graph.get("sources") or []}
+    out = {}
+    for unit in graph.get("units") or []:
+        path = paths.get(unit.get("source_id"))
+        for a in unit.get("annotations") or []:
+            r = a.get("region")
+            if a.get("kind") != "face" or not r:  # the one without a box is the picture's count ("2 faces")
+                continue
+            box = [float(r["x"]), float(r["y"]), float(r["width"]), float(r["height"])]
+            emb = seen.get(key(path, box))
+            if emb is None:
+                continue
+            face = {"box": box, "score": float(a.get("confidence") or 0.0), "embedding": emb / (np.linalg.norm(emb) + 1e-9)}
+            out.setdefault(path, []).append(face)
+    return out
+
+
+def page_words(pdf):
+    """The words anytopdf read on each page of a PDF it made, from the chunks it embeds in it: {page (from 0): {"words":
+    [{text, box}] in reading order, box [x, y, w, h] as fractions of the page, "ocr": whether OCR read them}}. Only pages
+    whose every chunk is a picture with its words are given (an email's own text has no words, so its pages are read as
+    before); {} for a PDF without them (one anytopdf before 0.4.0 made, or not anytopdf)."""
+    try:
+        from pypdf import PdfReader
+
+        found = PdfReader(str(pdf)).attachments.get(CHUNKS) or []
+        chunks = json.loads(found[0])["chunks"] if found else []
+    except Exception:  # noqa: BLE001 - without its chunks, the PDF is read as any other
+        return {}
+    out, mixed = {}, set()
+    for c in chunks if isinstance(chunks, list) else []:
+        pages = c.get("pages") or {}
+        first, last = pages.get("first"), pages.get("last")
+        if not isinstance(first, int) or not isinstance(last, int):
+            continue
+        words = c.get("words") if c.get("kind") == "visual" and first == last else None
+        if not words:
+            mixed.update(range(first - 1, last))
+            continue
+        page = out.setdefault(first - 1, {"words": [], "ocr": False})
+        page["ocr"] = page["ocr"] or "pdftotext" not in (c.get("providers") or [])
+        for w in words:
+            try:
+                box = [round(float(w[k]), 4) for k in ("x", "y", "width", "height")]
+            except (KeyError, TypeError, ValueError):
+                continue
+            if str(w.get("text") or "").strip() and box[2] > 0 and box[3] > 0:
+                page["words"].append({"text": str(w["text"]).strip(), "box": box})
+    return {i: p for i, p in out.items() if i not in mixed and p["words"]}

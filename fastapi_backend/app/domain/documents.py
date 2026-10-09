@@ -139,6 +139,30 @@ def merge_lines(lines):
     return [{"text": p["text"], "conf": sum(p["confs"]) / len(p["confs"]), "box": [round(v, 4) for v in p["box"]]} for p in out]
 
 
+def word_lines(words):
+    """Words in reading order ({text, box}) as lines ({text, conf, box}): a word not level with the line before it, or
+    left of where that line's last word starts, begins a new one."""
+    out = []
+    for w in words:
+        x, y, ww, h = w["box"]
+        cur = out[-1] if out else None
+        if cur:
+            lx, ly, lw, lh = cur["box"]
+            mid = y + h / 2
+            if ly <= mid <= ly + lh and x >= cur["x"]:
+                cur["text"] += " " + w["text"]
+                cur["box"] = [min(lx, x), min(ly, y), max(lx + lw, x + ww) - min(lx, x), max(ly + lh, y + h) - min(ly, y)]
+                cur["x"] = x
+                continue
+        out.append({"text": w["text"], "conf": 100, "box": list(w["box"]), "x": x})
+    return [{"text": ln["text"], "conf": ln["conf"], "box": ln["box"]} for ln in out]
+
+
+def word_blocks(words):
+    """Words with where each is on the page (anytopdf's) as blocks: their lines, put together into paragraphs."""
+    return [{"text": t, "box": p["box"]} for p in merge_lines(word_lines(words)) if (t := _clean(p["text"]))]
+
+
 def ocr_blocks(engine, path):
     """What an OCR engine reads on a page, as blocks: Tesseract's own paragraphs, else its lines put together."""
     found = engine.paragraphs(path) if hasattr(engine, "paragraphs") else merge_lines(engine.lines(path))
@@ -261,8 +285,10 @@ def _pdf_text(pdftotext, path, first, last):
         return {i: [] for i in range(first, last + 1)}
 
 
-def read_pdf(path, d, opts, engine, say, why="no OCR engine is available"):
-    """Draw a PDF's pages into d and read their text: (pages, blocks by page, notes). `why` there's no OCR engine."""
+def read_pdf(path, d, opts, engine, say, why="no OCR engine is available", known=None):
+    """Draw a PDF's pages into d and read their text: (pages, blocks by page, notes). `why` there's no OCR engine.
+    `known`: pages whose words anytopdf already read ({page: {words, ocr}}, anytopdf.page_words), not read again."""
+    known = known or {}
     n = page_count(path)
     total, n = n, min(n, opts["max_pages"])
     pdftoppm, pdftotext = _poppler()
@@ -273,11 +299,14 @@ def read_pdf(path, d, opts, engine, say, why="no OCR engine is available"):
     for first in range(0, n, BATCH):
         last = min(n, first + BATCH) - 1
         sizes = draw_pages(pdftoppm, path, d, first, last, opts) if pdftoppm else {}
-        text = _pdf_text(pdftotext, path, first, last)
+        todo = [i for i in range(first, last + 1) if i not in known]
+        text = _pdf_text(pdftotext, path, todo[0], todo[-1]) if todo else {}
         for i in range(first, last + 1):
             found, how = text.get(i) or [], "pdf"
+            if i in known:
+                found, how = word_blocks(known[i]["words"]), "ocr" if known[i]["ocr"] else "pdf"
             chars = sum(len(b["text"]) for b in found)
-            if chars < opts["ocr_below_chars"] and engine and pdftoppm:
+            if i not in known and chars < opts["ocr_below_chars"] and engine and pdftoppm:
                 with tempfile.TemporaryDirectory(dir=d) as tmp:
                     sharp = _sharp(pdftoppm, path, i, tmp)
                     read = ocr_blocks(engine, sharp) if sharp else []
@@ -302,7 +331,7 @@ def read_pdf(path, d, opts, engine, say, why="no OCR engine is available"):
             blocks[i] = found
         if n > BATCH:
             say(f"read {last + 1} of {n} pages")
-    scanned = sum(1 for p in pages if p.get("chars", 0) < opts["ocr_below_chars"])
+    scanned = sum(1 for p in pages if p.get("chars", 0) < opts["ocr_below_chars"] and p["idx"] not in known)
     if scanned and not engine:
         notes.append(f"{scanned} page(s) without text weren't read: {why}")
     if total > n:
@@ -451,10 +480,14 @@ def transcribe(db, cfg, rid, say):
     d = video.frames_dir(cfg, rid)
     d.mkdir(parents=True, exist_ok=True)
     _clear(d)
-    read = read_image if source == "image" and not learnt else read_pdf
+    # where anytopdf made the PDF, the words it read on each page, with where they are, are used as they are
+    known = anytopdf.page_words(pdf) if learnt.get("by") == "anytopdf" else {}
     try:
         with keyring.sealing(db, cfg, rec["space"], d):  # the pages drawn: encrypted, even if this fails part way
-            pages, blocks, notes, ocred = read(pdf, d, opts, engine, say, why)
+            if source == "image" and not learnt:
+                pages, blocks, notes, ocred = read_image(pdf, d, opts, engine, say, why)
+            else:
+                pages, blocks, notes, ocred = read_pdf(pdf, d, opts, engine, say, why, known)
     finally:
         if learnt:  # the rendition, read: kept encrypted from here on, like the file it was made from
             keyring.protect(db, cfg, rec["space"], pdf)
@@ -468,7 +501,9 @@ def transcribe(db, cfg, rid, say):
     )
     first = next((p for p in pages if p.get("width")), {})
     media = store.clean({"kind": rec["source"], "pages": len(pages), "width": first.get("width"), "height": first.get("height")})
-    how = ("pdf" if rec["source"] == "document" else "image") + (f"+ocr:{engine.name}" if ocred and engine else "")
+    theirs = sum(1 for p in pages if p["idx"] in known and known[p["idx"]]["ocr"])  # pages anytopdf's OCR read
+    ocr_by = engine.name if ocred and engine else "anytopdf" if theirs else None
+    how = ("pdf" if rec["source"] == "document" else "image") + (f"+ocr:{ocr_by}" if ocr_by else "")
     patch = {"status": "transcribed", "engine": how, "media": media, "transcribed_at": store.now()}
     if learnt:
         patch["rendition"] = {"from": convert.ext_of(path), "by": learnt["by"]}
@@ -481,4 +516,7 @@ def transcribe(db, cfg, rid, say):
     if learnt.get("attachments") is not None:
         convert.keep_attachments(db, cfg, rid, learnt["attachments"], say)
     by_ocr = f", {ocred} read by OCR ({engine.name})" if ocred and engine else ""
+    by_ocr += f", {theirs} read by anytopdf's OCR" if theirs else ""
+    if known:
+        say(f"{len(known)} page(s) read from the words anytopdf found")
     say(f"{len(pages)} page(s){by_ocr}, {len(segs)} block(s) of text")

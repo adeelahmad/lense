@@ -73,3 +73,27 @@ def test_ffmpeg_refuses_playlists_that_point_at_other_files(folder):
         ingest.decode(trick)
     assert ingest.probe(trick)[0] is None
     assert len(ingest.decode(folder / "secret.wav")) > 0  # real media still decodes
+
+
+def test_anytopdf_finds_and_describes_the_faces(db, cfg, rid, folder, monkeypatch):
+    """With anytopdf as the face engine, every frame is looked at in one run, and its descriptions tell people apart
+    as Lens's own engines do."""
+    from app.domain import anytopdf
+    from tests import fake_anytopdf
+
+    monkeypatch.undo()  # the real face_engine, not the fixture's FakeFaces
+    log = folder / "runs.jsonl"
+    cfg["documents"]["anytopdf"] = fake_anytopdf.make(folder / "anytopdf", log)
+    (folder / "plugins").mkdir()
+    for name in anytopdf.FACE_PLUGINS:
+        (folder / "plugins" / name).write_text("#!/bin/sh\n")
+        (folder / "plugins" / name).chmod(0o755)
+    (folder / "sface.onnx").write_bytes(b"a model")
+    cfg["video"] |= {"face_engine": "anytopdf", "sface_model": str(folder / "sface.onnx"), "sample_seconds": 1}
+    sid = store.ns_id(db, "pods")
+    faces.set_mode(db, sid, "recognize", "Name the hosts", "root@x.io")
+    jobs.enqueue(db, rid, None, by="test")
+    drain(db, cfg)
+    assert [t["spans"] for t in faces.tracks_for(db, rid)] == [[[0, 3000], [6000, 9000]], [[3000, 6000]]]
+    assert len(faces.list_faces(db, sid)) == 2
+    assert len([r for r in fake_anytopdf.runs(log) if "--recognize-faces" in r["args"]]) == 1

@@ -1,6 +1,7 @@
 """An anytopdf for tests (anytopdf.py): `anytopdf ... convert IN -o OUT ...` writes a PDF of IN's text (a page of
-HTML's text without its markup; an image's, the words in its name) and, with --dump-graph, what its plugins found (a
-face, and a bus when it's given an objects model). It logs how it was run, one JSON line each, to
+HTML's text without its markup; an image's, the words in its name) and, with --dump-graph, what its plugins found on
+each picture (a face, and a bus when it's given an objects model), with each face described in the face index when it
+recognises faces. It logs how it was run, one JSON line each, to
 the file named by its log. It's also a conversion node: `node(token)` serves `anytopdf queue serve`'s API from
 memory, converting each upload the same way."""
 
@@ -27,26 +28,59 @@ if args == ["--version"]:
     sys.exit(0)
 with open(@LOG@, "a") as f:
     f.write(json.dumps({"args": args, "proxy": os.environ.get("https_proxy"), "anytopdf_env": sorted(k for k in os.environ if k.startswith("ANYTOPDF_"))}) + "\n")
-src, out = args[args.index("convert") + 1], args[args.index("-o") + 1]
-if "unreadable" in open(src, "rb").read().decode("utf-8", "replace"):
+srcs, out = args[args.index("convert") + 1 : args.index("-o")], args[args.index("-o") + 1]
+if any("unreadable" in open(src, "rb").read().decode("utf-8", "replace") for src in srcs):
     print("WARNING [input.unreadable]: it can't be read", file=sys.stderr)
     sys.exit(3)
-pathlib.Path(out).write_bytes(pdf_of(src, open(src, "rb").read()))
+pathlib.Path(out).write_bytes(pdf_of(srcs[0], open(srcs[0], "rb").read()))
 if "--dump-graph" in args and "--no-plugins" in args:  # what it finds with no plugins: places and dates
     from tests.fake_anytopdf import graph_of
-    pathlib.Path(args[args.index("--dump-graph") + 1]).write_text(json.dumps(graph_of(src, open(src, "rb").read(), args)))
-elif "--dump-graph" in args:  # what its plugins found: a face, and a bus when given an objects model
-    found = [{"kind": "face", "text": "face", "confidence": 0.9, "region": {"x": 0.1, "y": 0.2, "width": 0.05, "height": 0.06}, "attributes": {"face_index": "0"}},
-             {"kind": "face", "text": "1 face", "confidence": None, "region": None, "attributes": {}}]
-    if os.environ.get("ANYTOPDF_OBJECTS_MODEL"):
-        found.append({"kind": "object", "text": "bus", "confidence": 0.93, "region": {"x": 0.02, "y": 0.2, "width": 0.9, "height": 0.5}, "attributes": {"label": "bus"}})
-    graph = {"sources": [], "units": [{"kind": "visual", "annotations": found}]}
+    pathlib.Path(args[args.index("--dump-graph") + 1]).write_text(json.dumps(graph_of(srcs[0], open(srcs[0], "rb").read(), args)))
+elif "--dump-graph" in args:  # what its plugins found on each picture: a face, and a bus when given an objects model
+    from tests.fake_anytopdf import face_of
+
+    sources, units, seen = [], [], []
+    for n, src in enumerate(srcs):
+        found = [{"kind": "face", "text": "face", "confidence": 0.9, "region": {"x": 0.1, "y": 0.2, "width": 0.05, "height": 0.06}, "attributes": {"face_index": "0"}},
+                 {"kind": "face", "text": "1 face", "confidence": None, "region": None, "attributes": {}}]
+        if b"nobody" in open(src, "rb").read():
+            found = []
+        if os.environ.get("ANYTOPDF_OBJECTS_MODEL"):
+            found.append({"kind": "object", "text": "bus", "confidence": 0.93, "region": {"x": 0.02, "y": 0.2, "width": 0.9, "height": 0.5}, "attributes": {"label": "bus"}})
+        sources.append({"id": f"source-{n}", "path": src})
+        units.append({"kind": "visual", "source_id": f"source-{n}", "annotations": found})
+        seen += [(src, face_of(src), a["region"]) for a in found if a["kind"] == "face" and a["region"]]
+    graph = {"sources": sources, "units": units}
     pathlib.Path(args[args.index("--dump-graph") + 1]).write_text(json.dumps(graph))
+    if "--recognize-faces" in args and os.environ.get("ANYTOPDF_FACE_EMBED_MODEL"):  # each face, described, in its index
+        import sqlite3
+
+        db = sqlite3.connect(args[args.index("--face-index") + 1])
+        db.execute("CREATE TABLE sightings (id INTEGER PRIMARY KEY, source_path TEXT, vector BLOB, x REAL, y REAL, w REAL, h REAL)")
+        for src, vec, r in seen:
+            db.execute("INSERT INTO sightings (source_path, vector, x, y, w, h) VALUES (?, ?, ?, ?, ?, ?)", (src, vec, r["x"], r["y"], r["width"], r["height"]))
+        db.commit()
 """
 # the places the fake's gazetteer knows, and where a photo whose bytes say GPS was taken
 PLACES = {"Berlin": ("Berlin, Germany", "Berlin", "Germany", "DE", "52.524", "13.411")}
 GPS = ("Paris 16 Passy, Ile-de-France, France", "Paris 16 Passy", "France", "FR", "48.858056", "2.294444")
 DATES = [(r"\b(\d{4}-\d{2}-\d{2})\b", "date", None), (r"\b3 March 2026\b", "date", "2026-03-03"), (r"\bnext Friday\b", "date", None)]
+
+
+def face_of(path):
+    """The description the fake gives a face, as little-endian f32: a picture's background colour decides who it is
+    (as video_helpers.FakeFaces), anything else is one person."""
+    import numpy as np
+
+    e = np.zeros(128, dtype="<f4")
+    try:
+        from PIL import Image
+
+        e[int(np.argmax(Image.open(path).convert("RGB").getpixel((2, 2))))] = 3.0  # not unit length: Lens makes it so
+    except OSError:
+        e[0] = 3.0
+    e[5] = 0.3
+    return e.tobytes()
 
 
 def text_of(name, raw):
@@ -119,9 +153,28 @@ def graph_of(name, raw, args):
 
 
 def pdf_of(name, raw):
+    """The PDF of a file: its text; an image's also embeds the words its OCR read, with where they are (0.4.0's
+    chunks)."""
     from tests.helpers import text_pdf
 
-    return text_pdf([["\n".join(text_of(name, raw))]])
+    pdf = text_pdf([["\n".join(text_of(name, raw))]])
+    if pathlib.Path(str(name)).suffix.lower() not in (".png", ".jpg", ".jpeg"):
+        return pdf
+    words = [{"text": w, "x": 0.1 + 0.2 * i, "y": 0.1, "width": 0.15, "height": 0.02} for i, w in enumerate(text_of(name, raw)[0].split())]
+    return with_chunks(pdf, [{"kind": "visual", "pages": {"first": 1, "last": 1}, "providers": ["tesseract"], "words": words}])
+
+
+def with_chunks(pdf, chunks):
+    """A PDF with these anytopdf.chunks/1 chunks embedded, as anytopdf embeds them."""
+    import io
+
+    from pypdf import PdfReader, PdfWriter
+
+    w = PdfWriter(clone_from=PdfReader(io.BytesIO(pdf)))
+    w.add_attachment("anytopdf-chunks.json", json.dumps({"schema_version": "anytopdf.chunks/1", "chunks": chunks}).encode())
+    out = io.BytesIO()
+    w.write(out)
+    return out.getvalue()
 
 
 def make(path, log):
@@ -190,3 +243,26 @@ def node(token):
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Node)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv, f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+CLIP = r"""#!@PYTHON@
+import json, os, sys
+flag, value = sys.argv[1], sys.argv[2]
+assert os.environ.get("ANYTOPDF_CLIP_MODEL_DIR"), "no model folder"
+words = (open(value, "rb").read().decode("latin-1") if flag == "--encode-image" else value).lower()
+vec = [1.0 if "bus" in words else 0.0, 1.0 if "beach" in words else 0.0, 0.2]
+print(json.dumps({"dim": len(vec), "embedding": vec, "model": "clip-fake"}))
+"""
+
+
+def clip(plugins_dir, model_dir):
+    """A CLIP plugin for tests (photos.py): a picture whose bytes say bus (or beach) is like a query that does."""
+    plugins_dir, model_dir = pathlib.Path(plugins_dir), pathlib.Path(model_dir)
+    plugins_dir.mkdir(parents=True, exist_ok=True)
+    model_dir.mkdir(parents=True, exist_ok=True)
+    for f in ("visual.onnx", "textual.onnx", "bpe_simple_vocab_16e6.txt.gz"):
+        (model_dir / f).write_bytes(b"model")
+    p = plugins_dir / "anytopdf-plugin-clip"
+    p.write_text(CLIP.replace("@PYTHON@", sys.executable))
+    p.chmod(0o755)
+    return str(p)

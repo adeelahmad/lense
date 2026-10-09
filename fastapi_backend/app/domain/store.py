@@ -186,6 +186,7 @@ DEFAULTS = {
         "neighbours": 40,
         "min_similarity": None,
         "timeout": 60,
+        "photos": False,  # search photos by what they show, with anytopdf's CLIP plugin (photos.py; a 600 MB model)
     },
     "server": {
         "host": "127.0.0.1",
@@ -1107,6 +1108,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS passage_rec ON passage FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS passage_space ON passage FIELDS space",
     "DEFINE TABLE IF NOT EXISTS embedding_state SCHEMALESS",
+    # each image resource's CLIP vector, for searching photos by what they show (app/domain/photos.py): photo_vector:<rid>
+    "DEFINE TABLE IF NOT EXISTS photo_vector SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS photo_vector_space ON photo_vector FIELDS space",
     # collections, batch runs, assistant approvals
     "DEFINE TABLE IF NOT EXISTS saved_collection SCHEMALESS",
     # saved views of the Library (app/domain/views.py)

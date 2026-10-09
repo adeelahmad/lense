@@ -9,9 +9,9 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from app.api.deps import Acl, Cfg, CurrentUser, Db
 from app.api.media import sign_urls
 from app.domain import graph as graphmod
-from app.domain import graph_history, render, store
+from app.domain import graph_history, hierarchy, photos, render, store
 from app.domain import search as searchmod
-from app.schemas.search import Graph, Mention, SearchResults, TermSuggestion
+from app.schemas.search import Graph, Mention, PhotoResults, SearchResults, TermSuggestion
 
 router = APIRouter(tags=["search"])
 
@@ -70,6 +70,51 @@ def search_transcripts(
         mode=mode,
     )
     return sign_urls(res, full=True)
+
+
+@router.get("/search/photos")
+def search_photos(
+    acl: Acl,
+    user: CurrentUser,
+    db: Db,
+    cfg: Cfg,
+    q: str = Query(min_length=1, max_length=300, description='what the photo shows, such as "a bus on a city street"'),
+    ns: str | None = None,
+    limit: int = Query(24, ge=1, le=100),
+) -> PhotoResults:
+    """Photos that show what was asked for, best first, in the namespaces you can read and the collections you were
+    given a role on, whatever words are on them: anytopdf's CLIP plugin compares the query with each photo
+    (Settings → Search → Search photos by what they show; off by default)."""
+    if not photos.enabled(cfg):
+        raise HTTPException(409, "searching photos by what they show is off (Settings → Search)")
+    whole, part = acl.scope(ns)
+    spaces, also = set(whole), hierarchy.recordings_in(db, [c for cols in part.values() for c in cols])
+    try:
+        hits = photos.search(db, cfg, q, spaces, also, limit)
+    except photos.Unavailable as e:
+        raise HTTPException(503, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(502, str(e)) from None
+    rids = [h["recording"] for h in hits]
+    recs = {
+        r["id"]: r
+        for r in db.rows("SELECT record::id(id) AS id, title, space FROM recording WHERE id IN $r", r=[R("recording", x) for x in rids])
+    }
+    thumbs = {
+        x["recording"]: x.get("thumb") for x in db.rows("SELECT recording, thumb FROM page WHERE recording IN $r AND idx = 0", r=rids)
+    }
+    names = store.space_names(db)
+    out = [
+        {
+            **h,
+            "title": recs.get(h["recording"], {}).get("title"),
+            "namespace": names.get(recs.get(h["recording"], {}).get("space")),
+            "thumb": f"{store.API}/recordings/{h['recording']}/frames/{thumbs[h['recording']]}" if thumbs.get(h["recording"]) else None,
+        }
+        for h in hits
+        if h["recording"] in recs
+    ]
+    return PhotoResults.model_validate(sign_urls({"hits": out}, full=True))
 
 
 @router.get("/search/terms")
