@@ -6,7 +6,7 @@
   "description": "file://cloudron/DESCRIPTION.md",
   "changelog": "file://cloudron/CHANGELOG",
   "postInstallMessage": "file://cloudron/POSTINSTALL.md",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "upstreamVersion": "0.3.0",
   "website": "https://github.com/adeelahmad/lense",
   "packagerName": "Adeel Ahmad",

@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.4.1 <small>October 9, 2026</small> {id="0.4.1"}
+
+### Fixes
+
+- **release:** cut release notes over GitHub's 125,000 character limit ([#236](https://github.com/adeelahmad/lense/pull/236))
+
+### Dependencies
+
+- bump backend and frontend dependencies, TypeScript 6 included ([#239](https://github.com/adeelahmad/lense/pull/239))
+
 ## 0.4.0 <small>October 9, 2026</small> {id="0.4.0"}
 
 - **Import videos and podcasts by their address.** Turn on Settings › Documents › Import videos and podcasts by their
