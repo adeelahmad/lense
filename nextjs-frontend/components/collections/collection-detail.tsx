@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, FileText, MessagesSquare, Pencil, Play, Trash2 } from "lucide-react";
+import { ChevronLeft, FileCheck, FileText, MessagesSquare, Pencil, Play, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,6 +10,7 @@ import { Collections } from "@/app/openapi-client";
 import type { Collection } from "@/app/openapi-client/types.gen";
 import { CollectionDialog } from "@/components/collections/collection-dialog";
 import { describeCollection } from "@/components/collections/describe";
+import { saveBlob, slug } from "@/components/recording/hooks";
 import { recordingHref } from "@/components/search/links";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState, PageHeader, SkeletonRows } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
-import { data, useApiClient } from "@/lib/api/browser";
+import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { count, shortDate, tc } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 
@@ -46,6 +47,20 @@ export function CollectionDetail({ id }: { id: number }) {
       toast({ title: "Collection deleted", tone: "intent" });
       router.push("/collections");
     },
+  });
+  const evidence = useMutation({
+    mutationFn: async (name: string) => {
+      const blob = (await data(
+        Collections.collectionEvidence({ client, path: { cid: id }, parseAs: "blob" }),
+      )) as unknown as Blob;
+      saveBlob(blob, `${slug(name)}-evidence.pdf`);
+    },
+    onError: (e) =>
+      toast({
+        title: "Couldn’t make the evidence PDF",
+        body: e instanceof ApiError ? e.message : "Please try again.",
+        tone: "red",
+      }),
   });
   if (col.isLoading) return <SkeletonRows rows={5} className="px-6 py-8" />;
   if (col.isError || !col.data)
@@ -118,6 +133,21 @@ export function CollectionDetail({ id }: { id: number }) {
               ) : (
                 "Report"
               )}
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<FileCheck />}
+              disabled={c.count === 0 || c.count > 50 || evidence.isPending}
+              disabledReason={
+                c.count === 0
+                  ? "It has no recordings"
+                  : c.count > 50
+                    ? "An evidence PDF holds 50 recordings at most"
+                    : undefined
+              }
+              onClick={() => evidence.mutate(c.name)}
+            >
+              {evidence.isPending ? "Making the PDF…" : "Evidence PDF"}
             </Button>
             <Button
               variant="ghost"

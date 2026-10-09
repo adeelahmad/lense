@@ -8,9 +8,11 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 
-from app.api.deps import Acl, CurrentUser, Db, Principal, Writer
-from app.domain import recsets, store
+from app.api import evidence as evidence_api
+from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer
+from app.domain import evidence, recsets, store
 from app.domain.store import DB
 from app.schemas.collections import Collection, CollectionCreate, CollectionDetail, CollectionUpdate
 from app.schemas.common import Created, Ok
@@ -60,6 +62,17 @@ def get_collection(cid: int, user: CurrentUser, acl: Acl, db: Db) -> CollectionD
     return CollectionDetail.model_validate(
         {**col, "count": len(ids), "recordings": sorted(rows, key=lambda r: r.get("recorded_at") or "", reverse=True)}
     )
+
+
+@router.get("/{cid}/evidence.pdf", response_class=Response, responses=evidence_api.PDF)
+def collection_evidence(cid: int, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg) -> Response:
+    """The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
+    one's pages, then a provenance page with every file's SHA-256 and size. At most 50 recordings."""
+    col = own_collection(db, cid, user)
+    ids = recsets.members(db, col, set(acl.roles))
+    if len(ids) > evidence.MAX:
+        raise HTTPException(400, f"an evidence PDF holds {evidence.MAX} recordings at most; this collection has {len(ids)}")
+    return evidence_api.download(db, cfg, ids if col.get("recordings") is not None else ids[::-1], col["name"])
 
 
 @router.patch("/{cid}")
