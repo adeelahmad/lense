@@ -445,6 +445,25 @@ class Anytopdf(Component):
         anytopdf.fetch(cfg, say)
 
 
+class YtDlp(Component):
+    """yt-dlp (mediaurl.py), fetched when Settings → Documents lets videos and podcasts be imported by address."""
+
+    def needed(self, cfg, m):
+        from . import mediaurl
+
+        return mediaurl.enabled(cfg)
+
+    def present(self, cfg):
+        from . import mediaurl
+
+        return bool(mediaurl.program(cfg))
+
+    def fetch(self, cfg, m, say):
+        from . import mediaurl
+
+        mediaurl.fetch(cfg, say)
+
+
 class ClipModel(Component):
     """anytopdf's CLIP plugin and its model (photos.py), fetched when Settings → Search asks to search photos."""
 
@@ -597,6 +616,14 @@ COMPONENTS = [
         steps={"transcribe", "analyze", "objects", "faces"},
         size_mb=50,
         license="MIT OR Apache-2.0",
+    ),
+    YtDlp(
+        "yt-dlp",
+        "yt-dlp",
+        "downloads videos and podcasts imported by their address (documents.video_urls)",
+        steps={"transcribe"},
+        size_mb=35,
+        license="Unlicense",
     ),
     ClipModel(
         "clip",

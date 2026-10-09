@@ -9,7 +9,7 @@ import { Imports } from "@/app/openapi-client";
 import { webAddress, webAddressProblem } from "@/components/import/files";
 import { WebLinks } from "@/components/import/web-links";
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
+import { Checkbox, Field, Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 
@@ -17,7 +17,8 @@ type Captured = { url: string; id: number };
 
 /**
  * Import (web page): give an address; the server keeps the page as it is now, as a PDF (a PDF link as it is, other
- * pages printed by its browser), and reads it like any document. Public addresses only.
+ * pages printed by its browser), and reads it like any document. Public addresses only. Or, where the server lets it
+ * (documents.video_urls), a video's or podcast's address: its media is downloaded and transcribed.
  */
 export function WebTab({
   namespace,
@@ -41,19 +42,27 @@ export function WebTab({
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [shown, setShown] = useState(false);
+  const [media, setMedia] = useState(false);
   const [captured, setCaptured] = useState<Captured[]>([]);
   const problem = webAddressProblem(url);
   const capture = useMutation({
-    mutationFn: () =>
-      data(
-        Imports.importWebPage({
-          client,
-          body: { url: webAddress(url), namespace: namespace ?? "", title: title.trim() || null, pipeline, collection },
-        }),
-      ),
+    mutationFn: () => {
+      const body = {
+        url: webAddress(url),
+        namespace: namespace ?? "",
+        title: title.trim() || null,
+        pipeline,
+        collection,
+      };
+      return data(media ? Imports.importVideo({ client, body }) : Imports.importWebPage({ client, body }));
+    },
     onSuccess: (r) => {
       setCaptured((c) => [{ url: webAddress(url), id: r.id }, ...c].slice(0, 10));
-      toast({ title: "Capturing the page", body: "It’s kept as a PDF and read like any document.", tone: "green" });
+      toast(
+        media
+          ? { title: "Importing the video", body: "Its media is downloaded, then transcribed.", tone: "green" }
+          : { title: "Capturing the page", body: "It’s kept as a PDF and read like any document.", tone: "green" },
+      );
       setUrl("");
       setTitle("");
       setShown(false);
@@ -97,7 +106,15 @@ export function WebTab({
               />
             )}
           </Field>
-          <Field label="Title" optional hint="Default: the page’s own title">
+          <Checkbox
+            checked={media}
+            onCheckedChange={(v) => {
+              setMedia(v);
+              capture.reset();
+            }}
+            label="It’s a video or a podcast: download its media and transcribe it"
+          />
+          <Field label="Title" optional hint={media ? "Default: its own title" : "Default: the page’s own title"}>
             {({ id: fid, describedBy }) => (
               <Input
                 id={fid}
@@ -115,7 +132,7 @@ export function WebTab({
               disabled={Boolean(blockReason) || capture.isPending}
               disabledReason={blockReason ?? undefined}
             >
-              {capture.isPending ? "Capturing…" : "Capture the page"}
+              {capture.isPending ? "Adding…" : media ? "Import the video" : "Capture the page"}
             </Button>
           </div>
           {captured.length > 0 && (

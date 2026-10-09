@@ -410,6 +410,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </div>
           <F ctx={ctx} id="documents.convert_seconds" />
           <F ctx={ctx} id="documents.attachment_resources" />
+          <F ctx={ctx} id="documents.video_urls" />
           <F ctx={ctx} id="documents.converter" />
           <F ctx={ctx} id="documents.anytopdf_url" />
           <F ctx={ctx} id="documents.anytopdf_token" />

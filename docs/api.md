@@ -729,6 +729,23 @@ are taken in order, without repeats. It answers with each link's `status`: `queu
 `already` (a page captured from that address is in the namespace: its `recording`) or `skipped` (`detail` says why,
 as the checks above would). Audited as `import.web` once, with how many were queued.
 
+### Videos and podcasts
+
+`POST /api/v1/import/video {url, namespace, title?, collection?, pipeline?}` imports a video or a podcast episode by its
+address (editors of the namespace; admins may name a new one): a page on a video site, a podcast's episode page, or a
+media file. It's off by default: `documents.video_urls` (Settings › Documents) turns it on, and until then it answers
+400. Its transcribe step downloads the media with [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense), which Lens
+fetches on first use (release 2026.08.19, checked against its SHA-256, into `data_dir/models/`) unless one is on PATH,
+then transcribes it like an upload. One video is downloaded, never a playlist: the best single file with both sound and
+picture, at most 720 lines high, so nothing needs joining, and at most `uploads.max_mb`. yt-dlp runs with no config
+file, plugins or cache, and the same proxy as capturing a web page as its only way out, so only public addresses on
+ports 80 and 443 (and `documents.web_networks`) are reached; the address is checked when it's given, as above.
+
+The resource is audio until it's downloaded (the namespace's pipeline for audio runs, unless `pipeline` names one);
+the video steps then see its picture. Its `web` is `{url, media: true, final, site, by, captured_at}`, and its title
+the video's own unless `title` gave one. Downloading happens once: transcribing it again keeps the file, which is the
+resource's media (`GET /resources/{rid}/media`). Audited as `import.video`.
+
 ### Import webhooks
 
 An import webhook is an address other services push files, web addresses or text to (a scanner, a phone shortcut,

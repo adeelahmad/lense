@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Import videos and podcasts by their address.** Turn on Settings › Documents › Import videos and podcasts by their
+  address (off by default), then Import › Web page › It's a video or a podcast. Lens downloads its media with yt-dlp,
+  fetched on first use, through the same public-addresses-only proxy as web pages, and transcribes it
+  ([Videos and podcasts](docs/api.md#videos-and-podcasts)).
 - **Capture many web pages at once.** Import › Web page › Many pages at once takes pasted links, a browser's
   bookmark export or Chrome's Bookmarks file. Each link is captured like a single page, and its bookmark folders
   become its tags. Links already captured in the namespace are left as they are

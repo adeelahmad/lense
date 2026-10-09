@@ -42,7 +42,7 @@ def _spec(s):
 
 
 def _transcribe(db, cfg, rid, say, spec=None):
-    rec = db.one("SELECT source, engine, status, envelope FROM $r", r=R("recording", rid)) or {}
+    rec = db.one("SELECT source, engine, status, envelope, web, path, space, title FROM $r", r=R("recording", rid)) or {}
     if rec.get("source") in ("document", "image"):
         from . import documents
 
@@ -54,6 +54,10 @@ def _transcribe(db, cfg, rid, say, spec=None):
             ingest.add_envelope(db, cfg, rid)
             return say("drew the waveform of the attached media; kept the transcript that came with it")
         raise Skip("the transcript came with the media; kept it (force the step to transcribe again)")
+    if (rec.get("web") or {}).get("media"):  # a video or episode given by its address: its media downloaded first
+        from . import mediaurl
+
+        mediaurl.ensure(db, cfg, rid, rec, say)
     ingest.transcribe_one(db, cfg, rid, say)
 
 

@@ -97,6 +97,7 @@ EDITABLE = {
         "max_pages",
         "convert_seconds",
         "attachment_resources",
+        "video_urls",
         "converter",
         "anytopdf_url",
         "anytopdf_token",
@@ -414,9 +415,9 @@ def _check(section, key, value, default):
         return _local_llm_setting(key, value)
     if section == "decisions" and key != "engine":
         return _decision_setting(key, value)
-    if (section, key) == ("documents", "attachment_resources"):
+    if (section, key) in (("documents", "attachment_resources"), ("documents", "video_urls")):
         if not isinstance(value, bool):
-            raise ValueError("documents.attachment_resources is true or false")
+            raise ValueError(f"documents.{key} is true or false")
         return value
     if (section, key) == ("documents", "converter"):
         return value

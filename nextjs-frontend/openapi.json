@@ -9916,6 +9916,48 @@
         }
       }
     },
+    "/api/v1/import/video": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Import Video",
+        "description": "Import a video or podcast episode by its address (editors; admins may name a new namespace), when\ndocuments.video_urls lets it (off by default): its transcribe step downloads the media with yt-dlp, one video, never\na playlist, through the same checks as capturing a web page (public addresses on ports 80 and 443, and the\nnetworks in documents.web_networks), at most uploads.max_mb; then it's transcribed like an upload. Audited as\n`import.video`.",
+        "operationId": "import_video",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/import/web/links": {
       "post": {
         "tags": [
@@ -51284,6 +51326,66 @@
           "version"
         ],
         "title": "VersionSaved"
+      },
+      "VideoImportRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Url",
+            "description": "the video's or episode's address, http:// or https://"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "a namespace you edit; admins may name a new one"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "default: its own title, once it's downloaded"
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "run this pipeline afterwards instead of the namespace's"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the namespace to put it in; default: its default collection"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url",
+          "namespace"
+        ],
+        "title": "VideoImportRequest"
       },
       "ViewCreate": {
         "properties": {

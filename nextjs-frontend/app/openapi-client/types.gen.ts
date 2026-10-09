@@ -15894,6 +15894,42 @@ export type VersionSaved = {
 };
 
 /**
+ * VideoImportRequest
+ */
+export type VideoImportRequest = {
+  /**
+   * Url
+   *
+   * the video's or episode's address, http:// or https://
+   */
+  url: string;
+  /**
+   * Namespace
+   *
+   * a namespace you edit; admins may name a new one
+   */
+  namespace: string;
+  /**
+   * Title
+   *
+   * default: its own title, once it's downloaded
+   */
+  title?: string | null;
+  /**
+   * Pipeline
+   *
+   * run this pipeline afterwards instead of the namespace's
+   */
+  pipeline?: number | null;
+  /**
+   * Collection
+   *
+   * a collection of the namespace to put it in; default: its default collection
+   */
+  collection?: number | null;
+};
+
+/**
  * ViewCreate
  */
 export type ViewCreate = {
@@ -22898,6 +22934,31 @@ export type ImportWebPageResponses = {
 };
 
 export type ImportWebPageResponse = ImportWebPageResponses[keyof ImportWebPageResponses];
+
+export type ImportVideoData = {
+  body: VideoImportRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/import/video";
+};
+
+export type ImportVideoErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportVideoError = ImportVideoErrors[keyof ImportVideoErrors];
+
+export type ImportVideoResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportResult;
+};
+
+export type ImportVideoResponse = ImportVideoResponses[keyof ImportVideoResponses];
 
 export type ImportWebLinksData = {
   body: LinksImportRequest;

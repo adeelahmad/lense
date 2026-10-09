@@ -9,7 +9,9 @@ import { webRows } from "@/components/recording/document/model";
 import { sourceLabel, webHost } from "@/components/recording/labels";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-jest.mock("@/app/openapi-client", () => ({ Imports: { importWebPage: jest.fn(), importWebLinks: jest.fn() } }));
+jest.mock("@/app/openapi-client", () => ({
+  Imports: { importWebPage: jest.fn(), importWebLinks: jest.fn(), importVideo: jest.fn() },
+}));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
@@ -117,6 +119,27 @@ describe("capturing a web page", () => {
       collection: null,
     });
     expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Capturing 1 page" }));
+  });
+
+  it("imports a video or podcast by its address, when asked to", async () => {
+    m(Imports.importVideo).mockResolvedValueOnce({
+      data: { ok: true, id: 52, job: 10 },
+      response: { ok: true, status: 200 },
+    });
+    show();
+    fireEvent.click(screen.getByRole("checkbox", { name: /video or a podcast/ }));
+    fireEvent.change(screen.getByLabelText("Page address"), { target: { value: "example.org/watch?v=1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Import the video" }));
+    await waitFor(() => expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/resources/52"));
+    expect(Imports.importWebPage).not.toHaveBeenCalled();
+    expect(m(Imports.importVideo).mock.calls[0][0].body).toEqual({
+      url: "https://example.org/watch?v=1",
+      namespace: "pods",
+      title: null,
+      pipeline: 3,
+      collection: null,
+    });
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Importing the video" }));
   });
 
   it("waits for a namespace it may import into", () => {
