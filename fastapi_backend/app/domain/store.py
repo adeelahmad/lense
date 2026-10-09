@@ -628,11 +628,16 @@ class DB:
             self._pool.put(c)
         except Exception as e:  # noqa: BLE001
             self.close()
-            hint = (
-                " If another process has this embedded database open, stop it or point both at a SurrealDB server (SURREAL_URL=ws://...)."
-                if self.embedded
-                else ""
-            )
+            if self.embedded:
+                hint = " If another process has this embedded database open, stop it or point both at a SurrealDB server (SURREAL_URL=ws://...)."
+            elif "authentication" in str(e).lower():
+                # the server keeps the root user it was first started with: a later SURREAL_PASS doesn't change it
+                hint = (
+                    " SURREAL_USER/SURREAL_PASS don't match the user this database was created with."
+                    " Set them back to the values it was first started with (see .env), then restart."
+                )
+            else:
+                hint = ""
             raise SystemExit(f"cannot open SurrealDB at {url}: {e}.{hint}") from None
 
     def _open(self):
