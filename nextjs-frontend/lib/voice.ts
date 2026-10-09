@@ -127,7 +127,7 @@ function micError(e: unknown): VoiceError {
 }
 
 /** Loudness (RMS) of what the mic hears now. */
-function level(an: AnalyserNode, buf: Float32Array): number {
+function level(an: AnalyserNode, buf: Float32Array<ArrayBuffer>): number {
   an.getFloatTimeDomainData(buf);
   let sum = 0;
   for (let i = 0; i < buf.length; i++) sum += buf[i] * buf[i];

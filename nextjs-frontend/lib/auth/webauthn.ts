@@ -85,8 +85,8 @@ export function requestOptions(o: Json): PublicKeyCredentialRequestOptions {
 
 /** The browser's answer as WebAuthn JSON (what the API checks). */
 export function credentialJson(cred: PublicKeyCredential): Json {
-  const withJson = cred as PublicKeyCredential & { toJSON?: () => Json };
-  if (typeof withJson.toJSON === "function") return withJson.toJSON();
+  const withJson = cred as { toJSON?: () => unknown };
+  if (typeof withJson.toJSON === "function") return withJson.toJSON() as Json;
   const r = cred.response as AuthenticatorResponse & {
     attestationObject?: ArrayBuffer;
     authenticatorData?: ArrayBuffer;
