@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AuthAlert, AuthCard } from "@/components/auth/auth-card";
 import { finishSignIn } from "@/components/auth/passkey-flows";
 import { safeCallbackUrl } from "@/lib/definitions";
+import { navigate } from "@/lib/navigate";
 
 /** A page of this site to go to next (never another site). */
 export function safeNext(next: string | null | undefined, fallback = "/"): string {
@@ -39,7 +40,7 @@ export function ExternalSigninReturn() {
       return;
     }
     if (got.get("connected")) {
-      window.location.replace(`${safeNext(next, "/account")}?connected=${encodeURIComponent(got.get("connected")!)}`);
+      navigate.replace(`${safeNext(next, "/account")}?connected=${encodeURIComponent(got.get("connected")!)}`);
       return;
     }
     setBack(safeNext(next, "/login"));
