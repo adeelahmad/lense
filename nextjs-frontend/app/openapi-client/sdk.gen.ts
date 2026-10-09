@@ -616,6 +616,9 @@ import type {
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
+  ImportWebLinksData,
+  ImportWebLinksErrors,
+  ImportWebLinksResponses,
   ImportWebPageData,
   ImportWebPageErrors,
   ImportWebPageResponses,
@@ -4752,6 +4755,28 @@ export class Imports {
   ): RequestResult<ImportWebPageResponses, ImportWebPageErrors, ThrowOnError> {
     return (options.client ?? client).post<ImportWebPageResponses, ImportWebPageErrors, ThrowOnError>({
       url: "/api/v1/import/web",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Import Web Links
+   *
+   * Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a
+   * file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
+   * a page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in
+   * (`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that
+   * can't be is skipped, saying why. Audited as `import.web` once, with how many were queued.
+   */
+  public static importWebLinks<ThrowOnError extends boolean = false>(
+    options: Options<ImportWebLinksData, ThrowOnError>,
+  ): RequestResult<ImportWebLinksResponses, ImportWebLinksErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportWebLinksResponses, ImportWebLinksErrors, ThrowOnError>({
+      url: "/api/v1/import/web/links",
       ...options,
       headers: {
         "Content-Type": "application/json",

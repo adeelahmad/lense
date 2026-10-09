@@ -7,6 +7,7 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 
 import { Imports } from "@/app/openapi-client";
 import { webAddress, webAddressProblem } from "@/components/import/files";
+import { WebLinks } from "@/components/import/web-links";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
@@ -65,75 +66,78 @@ export function WebTab({
   };
   return (
     <div className="grid min-h-0 flex-1 gap-0 border-t border-border md:grid-cols-[minmax(0,1fr)_340px]">
-      <form onSubmit={submit} className="flex flex-col gap-4 px-4 py-5 md:px-6" noValidate>
-        <div className="flex items-start gap-3 rounded-md border border-border bg-surface p-3.5">
-          <Globe aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-secondary" />
-          <p className="text-[13px] leading-[1.5] text-fg-secondary">
-            The page is kept as it is now, as a PDF: a link to a PDF as it is, any other page as the server’s browser
-            shows it. Its text is read page by page, like any document. Only public pages can be captured.
-          </p>
-        </div>
-        <Field
-          label="Page address"
-          error={shown && problem ? problem : capture.error ? (capture.error as Error).message : undefined}
-        >
-          {({ id: fid, describedBy, invalid }) => (
-            <Input
-              id={fid}
-              aria-describedby={describedBy}
-              invalid={invalid}
-              type="url"
-              inputMode="url"
-              autoComplete="off"
-              autoFocus
-              placeholder="example.org/news/harbour-reopens"
-              value={url}
-              onChange={(e) => {
-                setUrl(e.target.value);
-                capture.reset();
-              }}
-            />
-          )}
-        </Field>
-        <Field label="Title" optional hint="Default: the page’s own title">
-          {({ id: fid, describedBy }) => (
-            <Input
-              id={fid}
-              aria-describedby={describedBy}
-              maxLength={200}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          )}
-        </Field>
-        <div>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={Boolean(blockReason) || capture.isPending}
-            disabledReason={blockReason ?? undefined}
+      <div className="flex flex-col gap-6 px-4 py-5 md:px-6">
+        <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+          <div className="flex items-start gap-3 rounded-md border border-border bg-surface p-3.5">
+            <Globe aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-secondary" />
+            <p className="text-[13px] leading-[1.5] text-fg-secondary">
+              The page is kept as it is now, as a PDF: a link to a PDF as it is, any other page as the server’s browser
+              shows it. Its text is read page by page, like any document. Only public pages can be captured.
+            </p>
+          </div>
+          <Field
+            label="Page address"
+            error={shown && problem ? problem : capture.error ? (capture.error as Error).message : undefined}
           >
-            {capture.isPending ? "Capturing…" : "Capture the page"}
-          </Button>
-        </div>
-        {captured.length > 0 && (
-          <section aria-labelledby={`${id}-done`} className="flex flex-col gap-1.5">
-            <h2 id={`${id}-done`} className="text-[13px] font-bold text-fg-strong">
-              Captured here
-            </h2>
-            <ul className="flex flex-col">
-              {captured.map((c) => (
-                <li key={c.id} className="flex min-w-0 items-center gap-2 border-t border-border py-2 text-[13px]">
-                  <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg-secondary">{c.url}</span>
-                  <Link href={`/resources/${c.id}`} className="shrink-0 font-semibold text-fg-accent hover:underline">
-                    Open
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </form>
+            {({ id: fid, describedBy, invalid }) => (
+              <Input
+                id={fid}
+                aria-describedby={describedBy}
+                invalid={invalid}
+                type="url"
+                inputMode="url"
+                autoComplete="off"
+                autoFocus
+                placeholder="example.org/news/harbour-reopens"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  capture.reset();
+                }}
+              />
+            )}
+          </Field>
+          <Field label="Title" optional hint="Default: the page’s own title">
+            {({ id: fid, describedBy }) => (
+              <Input
+                id={fid}
+                aria-describedby={describedBy}
+                maxLength={200}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            )}
+          </Field>
+          <div>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={Boolean(blockReason) || capture.isPending}
+              disabledReason={blockReason ?? undefined}
+            >
+              {capture.isPending ? "Capturing…" : "Capture the page"}
+            </Button>
+          </div>
+          {captured.length > 0 && (
+            <section aria-labelledby={`${id}-done`} className="flex flex-col gap-1.5">
+              <h2 id={`${id}-done`} className="text-[13px] font-bold text-fg-strong">
+                Captured here
+              </h2>
+              <ul className="flex flex-col">
+                {captured.map((c) => (
+                  <li key={c.id} className="flex min-w-0 items-center gap-2 border-t border-border py-2 text-[13px]">
+                    <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-fg-secondary">{c.url}</span>
+                    <Link href={`/resources/${c.id}`} className="shrink-0 font-semibold text-fg-accent hover:underline">
+                      Open
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </form>
+        <WebLinks namespace={namespace} blockReason={blockReason} pipeline={pipeline} collection={collection} />
+      </div>
       <aside className="flex flex-col gap-4 border-t border-border bg-surface px-4 py-5 md:border-l md:border-t-0 md:px-5">
         {namespaceControl}
         {pipelineControl}

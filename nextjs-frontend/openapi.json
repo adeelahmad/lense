@@ -9916,6 +9916,48 @@
         }
       }
     },
+    "/api/v1/import/web/links": {
+      "post": {
+        "tags": [
+          "imports"
+        ],
+        "summary": "Import Web Links",
+        "description": "Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a\nfile: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
+        "operationId": "import_web_links",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinksImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinksImport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/import/preview": {
       "post": {
         "tags": [
@@ -35259,6 +35301,163 @@
           "model"
         ],
         "title": "LayaStatus"
+      },
+      "LinkImportResult": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "already",
+              "skipped"
+            ],
+            "title": "Status",
+            "description": "queued to be captured; already in the namespace (that resource); skipped (detail says why)"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "status"
+        ],
+        "title": "LinkImportResult"
+      },
+      "LinksImport": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/LinkImportResult"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "title": "LinksImport"
+      },
+      "LinksImportRequest": {
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "title": "Namespace",
+            "description": "a namespace you edit; admins may name a new one"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "addresses, one per line"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "the file, base64 encoded"
+          },
+          "folders_as_tags": {
+            "type": "boolean",
+            "title": "Folders As Tags",
+            "description": "tag each page with the bookmark folders it was in",
+            "default": true
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pipeline",
+            "description": "run this pipeline afterwards instead of the namespace's"
+          },
+          "collection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection",
+            "description": "a collection of the namespace to put them in; default: its default collection"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "namespace"
+        ],
+        "title": "LinksImportRequest",
+        "description": "Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a\nbrowser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."
       },
       "LlmEstimate": {
         "properties": {

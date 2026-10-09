@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Capture many web pages at once.** Import › Web page › Many pages at once takes pasted links, a browser's
+  bookmark export or Chrome's Bookmarks file. Each link is captured like a single page, and its bookmark folders
+  become its tags. Links already captured in the namespace are left as they are
+  ([Web pages](docs/api.md#web-pages)).
 - **Export an evidence PDF.** A resource's Export menu, and a collection's page, download it as one PDF made by
   anytopdf: each file's pages (audio and video with their transcript), searchable, then a provenance page with every
   file's SHA-256, so it can be handed on and checked ([Evidence PDFs](docs/api.md#evidence-pdfs)).

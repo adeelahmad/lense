@@ -67,6 +67,33 @@ class WebImportRequest(RequestModel):
     collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
 
 
+class LinksImportRequest(RequestModel):
+    """Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a
+    browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."""
+
+    namespace: str = Field(description="a namespace you edit; admins may name a new one")
+    text: str | None = Field(None, max_length=1_000_000, description="addresses, one per line")
+    filename: str | None = None
+    data: str | None = Field(None, description="the file, base64 encoded")
+    folders_as_tags: bool = Field(True, description="tag each page with the bookmark folders it was in")
+    pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
+    collection: int | None = Field(None, description="a collection of the namespace to put them in; default: its default collection")
+
+
+class LinkImportResult(ResponseModel):
+    url: str
+    status: Literal["queued", "already", "skipped"] = Field(
+        description="queued to be captured; already in the namespace (that resource); skipped (detail says why)"
+    )
+    recording: int | None = None
+    job: int | None = None
+    detail: str | None = None
+
+
+class LinksImport(ResponseModel):
+    results: list[LinkImportResult]
+
+
 class SourceImportResult(ResponseModel):
     path: str
     status: Literal["queued", "already", "skipped", "error"]
