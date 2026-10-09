@@ -616,6 +616,9 @@ import type {
   ImportTranscriptData,
   ImportTranscriptErrors,
   ImportTranscriptResponses,
+  ImportVideoData,
+  ImportVideoErrors,
+  ImportVideoResponses,
   ImportWebLinksData,
   ImportWebLinksErrors,
   ImportWebLinksResponses,
@@ -4755,6 +4758,28 @@ export class Imports {
   ): RequestResult<ImportWebPageResponses, ImportWebPageErrors, ThrowOnError> {
     return (options.client ?? client).post<ImportWebPageResponses, ImportWebPageErrors, ThrowOnError>({
       url: "/api/v1/import/web",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Import Video
+   *
+   * Import a video or podcast episode by its address (editors; admins may name a new namespace), when
+   * documents.video_urls lets it (off by default): its transcribe step downloads the media with yt-dlp, one video, never
+   * a playlist, through the same checks as capturing a web page (public addresses on ports 80 and 443, and the
+   * networks in documents.web_networks), at most uploads.max_mb; then it's transcribed like an upload. Audited as
+   * `import.video`.
+   */
+  public static importVideo<ThrowOnError extends boolean = false>(
+    options: Options<ImportVideoData, ThrowOnError>,
+  ): RequestResult<ImportVideoResponses, ImportVideoErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportVideoResponses, ImportVideoErrors, ThrowOnError>({
+      url: "/api/v1/import/video",
       ...options,
       headers: {
         "Content-Type": "application/json",

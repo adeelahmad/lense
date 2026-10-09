@@ -67,6 +67,14 @@ class WebImportRequest(RequestModel):
     collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
 
 
+class VideoImportRequest(RequestModel):
+    url: str = Field(min_length=1, max_length=2000, description="the video's or episode's address, http:// or https://")
+    namespace: str = Field(description="a namespace you edit; admins may name a new one")
+    title: str | None = Field(None, max_length=200, description="default: its own title, once it's downloaded")
+    pipeline: int | None = Field(None, description="run this pipeline afterwards instead of the namespace's")
+    collection: int | None = Field(None, description="a collection of the namespace to put it in; default: its default collection")
+
+
 class LinksImportRequest(RequestModel):
     """Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a
     browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."""

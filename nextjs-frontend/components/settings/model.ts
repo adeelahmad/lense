@@ -2084,6 +2084,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "documents",
+    key: "video_urls",
+    label: "Import videos and podcasts by their address",
+    kind: "switch",
+    hint: "Downloads the media with yt-dlp (fetched on first use) from public sites, then transcribes it; off by default",
+  },
+  {
+    section: "documents",
     key: "converter",
     label: "Make PDFs with anytopdf",
     kind: "select",

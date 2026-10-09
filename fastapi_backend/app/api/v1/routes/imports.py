@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, AdminWriter, Cfg, Db, Writer, domain_errors
-from app.domain import auth, convert, ingest, jobs, library, links, pipelines, sources, store, webcapture
+from app.domain import auth, convert, ingest, jobs, library, links, mediaurl, pipelines, sources, store, webcapture
 from app.domain.store import DB
 from app.schemas.imports import (
     ImportPreview,
@@ -28,6 +28,7 @@ from app.schemas.imports import (
     SourceImport,
     SourceImportRequest,
     SourceImportResult,
+    VideoImportRequest,
     WebImportRequest,
 )
 
@@ -153,6 +154,39 @@ def import_web_page(body: WebImportRequest, acl: Acl, user: Writer, db: Db, cfg:
     rid = webcapture.create(db, sid, url, body.title, body.collection, by=user.email)
     job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
     auth.audit(db, user.as_audit(), "import.web", f"recording:{rid}", {"url": url, "namespace": ns})
+    return ImportResult(id=rid, job=job)
+
+
+@router.post("/video")
+def import_video(body: VideoImportRequest, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> ImportResult:
+    """Import a video or podcast episode by its address (editors; admins may name a new namespace), when
+    documents.video_urls lets it (off by default): its transcribe step downloads the media with yt-dlp, one video, never
+    a playlist, through the same checks as capturing a web page (public addresses on ports 80 and 443, and the
+    networks in documents.web_networks), at most uploads.max_mb; then it's transcribed like an upload. Audited as
+    `import.video`."""
+    ns = body.namespace.strip()
+    if not store.NS_RX.match(ns):
+        raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
+    if not mediaurl.enabled(cfg):
+        raise HTTPException(400, "importing videos and podcasts by address is off (Settings → Documents)")
+    check_pipeline(db, body.pipeline)
+    sid: int | None
+    try:
+        sid = store.ns_id(db, ns, create=False)
+        acl.need(sid, "editor")
+    except KeyError:
+        if not user.admin:
+            raise HTTPException(403, "only admins can create namespaces") from None
+        sid = None
+    check_collection(db, sid, body.collection)
+    try:
+        url = webcapture.check_url(cfg, body.url)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    sid = sid if sid is not None else store.ns_id(db, ns)
+    rid = mediaurl.create(db, sid, url, body.title, body.collection, by=user.email)
+    job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
+    auth.audit(db, user.as_audit(), "import.video", f"recording:{rid}", {"url": url, "namespace": ns})
     return ImportResult(id=rid, job=job)
 
 
