@@ -29,7 +29,8 @@ const OFFICE_EXT = [".doc", ".docx", ".odt", ".rtf", ".ppt", ".pptx", ".odp", ".
 const TEXT_DOC_EXT = [".txt", ".text", ".md", ".markdown", ".mdx"];
 const PAGE_EXT = [".html", ".htm"];
 const EMAIL_EXT = [".eml", ".msg"];
-export const DOCUMENT_EXT = [".pdf", ...OFFICE_EXT, ...TEXT_DOC_EXT, ...PAGE_EXT, ...EMAIL_EXT];
+const ARCHIVE_EXT = [".zip", ".tar", ".tgz"];
+export const DOCUMENT_EXT = [".pdf", ...OFFICE_EXT, ...TEXT_DOC_EXT, ...PAGE_EXT, ...EMAIL_EXT, ...ARCHIVE_EXT];
 /** Camera RAW and HEIC photos (the backend's CAMERA_EXT): read by anytopdf, so the server takes them only with it. */
 const CAMERA_EXT = [".arw", ".cr2", ".cr3", ".dng", ".nef", ".orf", ".raf", ".rw2", ".heic", ".heif"];
 export const IMAGE_EXT = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp", ...CAMERA_EXT];
@@ -55,6 +56,9 @@ const DOCUMENT_NAME: Record<string, string> = {
   ".htm": "Web page",
   ".eml": "Email",
   ".msg": "Outlook email",
+  ".zip": "Zip archive",
+  ".tar": "Tar archive",
+  ".tgz": "Tar archive",
 };
 
 export const SUPPORTED_LIST = "txt, md, mdx, docx, doc, pdf, srt, vtt, json, jsonl";

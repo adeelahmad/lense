@@ -8,6 +8,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   address (off by default), then Import › Web page › It's a video or a podcast. Lens downloads its media with yt-dlp,
   fetched on first use, through the same public-addresses-only proxy as web pages, and transcribes it
   ([Videos and podcasts](docs/api.md#videos-and-podcasts)).
+- **Zip and tar archives.** Upload a .zip, .tar or .tgz and Lens lists what's in it, keeps its files, and reads the
+  ones it can as resources of their own (a WhatsApp export with media becomes the chat and its photos). Encrypted
+  entries, links and nested archives aren't opened, and unpacking stops at 100 files or 512 MB
+  ([Archives](docs/processing.md#importing-transcripts)).
 - **Camera RAW and HEIC photos.** DNG, CR2, CR3, NEF, ARW, ORF, RAF, RW2, HEIC and HEIF can be uploaded and scanned
   when anytopdf is here or a conversion node is set: anytopdf reads them, and RAW photos get the new Camera RAW photo
   content type. Without anytopdf, Lens says what reading them needs ([anytopdf](docs/configuration.md#anytopdf)).

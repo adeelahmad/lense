@@ -474,3 +474,41 @@ def test_the_real_anytopdf(real, lean, client, env, db, cfg):
     pic = pathlib.Path(cfg["data_dir"]) / "page.png"
     pic.write_bytes(_png(scan(["Galway harbour"])))
     assert anytopdf.analyze(cfg, pic) == []  # its plugins ran, sandboxed, and found no face on a page of text
+
+
+def test_an_uploaded_zip_keeps_its_files(lean, here, client, env, db, cfg):
+    """A zip: a page of what's in it, its files kept, and those Lens reads made resources (a chat, records, a page)."""
+    import json
+
+    from app.domain import content_types
+    from tests.api.test_archives import zip_of
+
+    he = env["he"]
+    data = zip_of({
+        "WhatsApp Chat with Alice.txt": "31/12/2023, 21:41 - Alice: Happy new year!\n31/12/2023, 21:42 - Bob: Same to you\n",
+        "IMG-001.png": "not really a png",
+        "orders.json": json.dumps([{"id": 1, "item": "tea"}, {"id": 2, "item": "cake"}]),
+        "inner.zip": zip_of({"deep.txt": "Deep"}),
+        "notes.txt": "Tide notes. High water at noon.",
+    })  # fmt: skip
+    up = _upload(client, he, data, "export.zip")
+    drain(db, settings.effective(db, cfg))
+    rid = up["recording"]
+    rec = db.one("SELECT source, status, rendition, archive, error FROM $r", r=R("recording", rid))
+    assert (rec["source"], rec["status"], rec["rendition"]["by"]) == ("document", "analyzed", "anytopdf"), rec.get("error")
+    assert rec["archive"] == {"files": 5, "left_out": 0}
+    assert "WhatsApp Chat with Alice.txt" in _text(db, rid) and "orders.json" in _text(db, rid)  # its contents page
+    assert content_types.of_recording(db, rid)[0]["key"] == "archive"
+
+    files = client.get(f"/api/v1/resources/{rid}/files", headers=he).json()["files"]
+    assert {f["name"] for f in files} == {"WhatsApp Chat with Alice.txt", "IMG-001.png", "orders.json", "inner.zip", "notes.txt"}
+    made = {r["title"]: r for r in db.rows("SELECT title, source, form, attached_to FROM recording WHERE attached_to.resource = $r", r=rid)}
+    assert made["WhatsApp Chat with Alice"]["form"] == "chat" and made["orders"]["form"] == "records"
+    assert made["notes"]["source"] == "document" and made["IMG-001"]["source"] == "image"
+    assert "inner" not in made  # an archive in an archive is kept, not opened
+    assert all(m["attached_to"]["resource"] == rid for m in made.values())
+
+
+def test_without_a_way_to_make_pages_an_archive_says_so(lean, client, env):
+    r = _start(client, env["he"], b"x", "photos.zip")
+    assert r.status_code == 400 and "zip archive" in r.json()["detail"], r.text

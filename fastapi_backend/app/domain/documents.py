@@ -518,6 +518,8 @@ def transcribe(db, cfg, rid, say):
     patch = {"status": "transcribed", "engine": how, "media": media, "transcribed_at": store.now()}
     if learnt:
         patch["rendition"] = {"from": convert.ext_of(path), "by": learnt["by"]}
+    if learnt.get("archive"):
+        patch["archive"] = learnt["archive"]  # {files, left_out}
     if learnt.get("email"):
         patch["email"] = learnt["email"]
         patch.update(_named(rec, path, learnt))
@@ -525,7 +527,7 @@ def transcribe(db, cfg, rid, say):
     for note in notes:
         say(note)
     if learnt.get("attachments") is not None:
-        convert.keep_attachments(db, cfg, rid, learnt["attachments"], say)
+        convert.keep_attachments(db, cfg, rid, learnt["attachments"], say, archive=bool(learnt.get("archive")))
     by_ocr = f", {ocred} read by OCR ({engine.name})" if ocred and engine else ""
     by_ocr += f", {theirs} read by anytopdf's OCR" if theirs else ""
     if known:

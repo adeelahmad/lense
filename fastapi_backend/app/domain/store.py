@@ -118,7 +118,8 @@ OFFICE_EXT = (".doc", ".docx", ".odt", ".rtf", ".ppt", ".pptx", ".odp", ".xls", 
 TEXT_EXT = (".txt", ".text", ".md", ".markdown", ".mdx")
 PAGE_EXT = (".html", ".htm")
 EMAIL_EXT = (".eml", ".msg")
-DOCUMENT_EXT = (".pdf", *OFFICE_EXT, *TEXT_EXT, *PAGE_EXT, *EMAIL_EXT)
+ARCHIVE_EXT = (".zip", ".tar", ".tgz")  # a contents page, and the files in it kept (domain/archives.py)
+DOCUMENT_EXT = (".pdf", *OFFICE_EXT, *TEXT_EXT, *PAGE_EXT, *EMAIL_EXT, *ARCHIVE_EXT)
 STRUCTURED_EXT = (".json", ".jsonl")  # read as records, a chat or a transcript (domain/records.py)
 RAW_EXT = (".arw", ".cr2", ".cr3", ".dng", ".nef", ".orf", ".raf", ".rw2")  # camera RAW
 # photos Pillow can't open: anytopdf reads them (RAW from its embedded preview; HEIC where libheif is beside it)

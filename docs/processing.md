@@ -34,6 +34,13 @@ as a year-long recording. The chat is dated by its first message and gets the Ch
 or iMessage .txt uploaded with the other files is read the same way; any other text file stays a document.
 `--format chat` (`"format": "chat"`) refuses a file that isn't one.
 
+**Archives.** A zip or tar file (.zip, .tar, .tgz) uploaded or scanned is a document whose page lists what's in
+it, and its files are kept as its files, as an email's attachments are: those Lens can read become resources of
+their own that say which archive they came from, a chat export in it a chat and JSON in it records (so a WhatsApp
+export with media is the chat and its photos). Only plain files are taken, an encrypted entry or a link is left
+out, an archive inside one is kept but not opened, and reading stops at 100 files or 512 MB unpacked, so a zip bomb
+can't fill the disk. What was left out, and why, is on its page. Archives get the Archive content type.
+
 **Records.** JSON and JSON Lines that aren't a transcript (their rows have fields a transcript's lines don't, like an
 order's `total`) are read as records, one line each: a JSON Lines file a record per line, a JSON file its list (or the
 one list of objects it holds, such as `{"orders": [...]}`), else the object itself. A record's text is its fields,
