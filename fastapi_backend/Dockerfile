@@ -4,7 +4,7 @@
 # for most scripts. Heavy Python extras and models (speech, voice IDs, faces, objects) are in neither: a worker fetches
 # them in the background, at run time, when a job first needs them or they're turned on in Settings → Components.
 # Outlook .msg emails also need the msg extra (extract-msg, GPL-3.0): --build-arg EXTRAS="msg".
-FROM python:3.12-slim-bookworm AS base
+FROM python:3.14-slim-bookworm AS base
 
 # UV_NO_CACHE: no package cache left in the image (it doubled its size) or in the container (what workers fetch); the
 # build's own `uv sync` steps use a BuildKit cache mount instead, outside the image, so a rerun after a failed or
