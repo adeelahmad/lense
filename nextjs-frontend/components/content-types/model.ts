@@ -1,7 +1,7 @@
 /** Content types as the app shows them. */
 
 /** What Lens can find a file holds (the API's ContentRules.forms). */
-export type Form = "chat";
+export type Form = "chat" | "records";
 
 export type Rules = {
   extensions?: string[];
@@ -12,7 +12,7 @@ export type Rules = {
   forms?: Form[];
 };
 
-const FORM_NAME: Record<Form, string> = { chat: "holds a chat" };
+const FORM_NAME: Record<Form, string> = { chat: "holds a chat", records: "holds records" };
 
 /** "ext .srt .vtt · name ~ podcast|episode · ≥ 10 min" */
 export function rulesText(r?: Rules | null): string {

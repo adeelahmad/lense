@@ -450,6 +450,8 @@ def segment_rows(rid, nid, segs):
                     "page": s.get("page"),  # a document's or an image's page (domain/documents.py)
                     "box": s.get("box"),
                     "at": s.get("at"),  # when a chat message was sent (domain/chats.py)
+                    "record": s.get("record"),  # which record of a JSON file (domain/records.py)
+                    "offset": s.get("offset"),  # where its line starts in a JSON Lines file, in bytes
                 }
             )
         )
@@ -862,6 +864,20 @@ MARKDOWN_READERS = {".eml": read_email, ".ics": read_calendar}  # their subject 
 FORMATS = ("auto", "text", "markdown", "mdx", "json", "jsonl", "srt", "vtt", "chat")
 
 
+# the fields a transcript's JSON lines have (lens, Whisper, SenseVoice): rows with others are records (records.py)
+SEGMENT_KEYS = frozenset(
+    "text start end start_ms end_ms t0 t1 speaker spk words tags emotion event lang language id seek tokens temperature "
+    "avg_logprob compression_ratio no_speech_prob raw_text index".split()
+)
+
+
+def _spoken(rows):
+    """Whether JSON's rows are a transcript's lines: some have text, and none has a field transcripts don't (posts or
+    orders with a text field are records)."""
+    rows = [r for r in rows if isinstance(r, dict)]
+    return any(r.get("text") for r in rows) and all(set(r) <= SEGMENT_KEYS for r in rows)
+
+
 def read_text_transcript(raw, fmt="auto", name=None):
     """Transcript text in any supported shape: pasted, or read from a file. {segments, speakers, title, timed}; lines
     that don't say when they are get a speaking-rate estimate, and `timed` is false when every line got one."""
@@ -895,16 +911,27 @@ def read_text_transcript(raw, fmt="auto", name=None):
         hm = re.search(r"^#\s+(.+)$", raw, re.M)
         title = (tm or hm).group(1).strip() if (tm or hm) else None
     if fmt in ("json", "jsonl"):
-        if fmt == "jsonl" or (raw.lstrip()[:1] == "{" and "\n{" in raw.strip()):
+        jsonl, lens = fmt == "jsonl" or (raw.lstrip()[:1] == "{" and "\n{" in raw.strip()), False
+        if jsonl:
             rows = [json.loads(l) for l in raw.splitlines() if l.strip()]
             if rows and "start_ms" in rows[0] and ("raw_text" in rows[0] or "index" in rows[0]):
                 return {"segments": stitch_chunks(rows), "speakers": {}, "title": None, "timed": True}
-            segs = [_generic(r) for r in rows]
+            items = rows
+            segs = [_generic(r) for r in rows if isinstance(r, dict)]
         else:
             j = json.loads(raw)
-            if isinstance(j, dict) and str(j.get("lens", "")).startswith("lens/"):
+            lens = isinstance(j, dict) and str(j.get("lens", "")).startswith("lens/")
+            if lens:
                 speakers, title = (j.get("doc") or {}).get("speakers") or {}, (j.get("doc") or {}).get("title")
-            segs = [_generic(s) for s in (j.get("segments", []) if isinstance(j, dict) else j)]
+            items = j.get("segments", []) if isinstance(j, dict) else j if isinstance(j, list) else []
+            segs = [_generic(s) for s in items if isinstance(s, dict)]
+        # not a transcript's lines: records, one segment each (records.py)
+        if not lens and not _spoken(items if isinstance(items, list) else []):
+            from . import records
+
+            found = records.read(raw, lines=jsonl)
+            if found:
+                return found
     elif fmt in ("srt", "vtt"):
         segs = _cues(raw)
     elif fmt in ("markdown", "mdx"):

@@ -25,8 +25,8 @@ R = store.R
 BASES = ("video", "audio", "image", "text")
 KEY_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 RULES = {"extensions", "pattern", "min_minutes", "max_minutes", "forms"}
-# what a reader can find a file holds (recording.form): a chat export (domain/chats.py)
-FORMS = ("chat",)
+# what a reader can find a file holds (recording.form): a chat export (domain/chats.py), records (domain/records.py)
+FORMS = ("chat", "records")
 FIELDS = "record::id(id) AS key, base, label, description, pipeline, rules, general, builtin, ord"
 MAX_TYPES = 200
 
@@ -46,6 +46,7 @@ DEFAULTS = [
     ("photo", "image", "Photo", "A photograph", {"extensions": [".jpg", ".jpeg", ".heic"]}),
     ("text", "text", "Text", "Any text", {}),
     ("chat_export", "text", "Chat export", "A WhatsApp, Telegram, Slack or iMessage chat, by who said it", {"forms": ["chat"]}),
+    ("structured", "text", "Records", "JSON or JSON Lines data, one record at a time", {"forms": ["records"]}),
     ("transcript", "text", "Transcript", "Who said what, imported as text", {"extensions": [".srt", ".vtt", ".json", ".jsonl"]}),
     ("document", "text", "Document", "A PDF, Word or Markdown file", {"extensions": [".pdf", ".docx", ".doc", ".md", ".odt", ".rtf"]}),
     ("web_page", "text", "Web page", "A captured web page", {"extensions": [".html", ".htm"]}),

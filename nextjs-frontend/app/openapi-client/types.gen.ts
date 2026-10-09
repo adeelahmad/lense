@@ -2580,7 +2580,7 @@ export type ContentRules = {
    *
    * what the file was found to hold, e.g. [chat]
    */
-  forms?: Array<"chat"> | null;
+  forms?: Array<"chat" | "records"> | null;
 };
 
 /**

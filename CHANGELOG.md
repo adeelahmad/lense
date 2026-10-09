@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **JSON and JSON Lines as records.** A JSON file that isn't a transcript (orders, contacts, sensor logs, an API
+  dump) is read one record at a time, every field searchable, each line pointing back at its record; it gets the new
+  Records content type. JSON files can now be uploaded with the other files ([Records](docs/processing.md#importing-transcripts)).
 - **Export an evidence PDF.** A resource's Export menu, and a collection's page, download it as one PDF made by
   anytopdf: each file's pages (audio and video with their transcript), searchable, then a provenance page with every
   file's SHA-256, so it can be handed on and checked ([Evidence PDFs](docs/api.md#evidence-pdfs)).

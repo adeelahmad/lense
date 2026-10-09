@@ -171,7 +171,7 @@ def preview_import(body: ImportPreviewRequest, user: Writer, cfg: Cfg) -> Import
             t, detected = ingest.read_text_transcript(text, fmt), fmt if fmt != "auto" else ingest.sniff(text)
     segs = t["segments"]
     return ImportPreview(
-        format="chat" if t.get("form") == "chat" else detected,
+        format=t.get("form") or detected,  # chat or records when that is what the file holds
         title=t.get("title"),
         segments=len(segs),
         duration_ms=max((x["t1"] for x in segs), default=0),
