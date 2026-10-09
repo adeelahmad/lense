@@ -102,7 +102,10 @@ def needs(name):
 
 def word(name):
     """What a document is, for people: "Word document", "email", "PDF"."""
-    return WORDS.get(ext_of(name), "document")
+    ext = ext_of(name)
+    if ext in store.CAMERA_EXT:
+        return "photo"
+    return WORDS.get(ext, "document")
 
 
 def content_type(name):
@@ -144,6 +147,11 @@ def capabilities(cfg):
 def unavailable(cfg, name):
     """Why this server can't read this document (None when it can): what it would need."""
     ext = ext_of(name)
+    if ext in store.CAMERA_EXT:
+        if anytopdf.mode(cfg) == "lens" or not anytopdf.available(cfg):
+            kind = "camera RAW" if ext in store.RAW_EXT else "HEIC"
+            return f"reading {kind} photos needs anytopdf (Settings › Documents › Make PDFs with anytopdf, or a conversion node)"
+        return None
     if ext not in store.DOCUMENT_EXT or ext == ".pdf":
         return None
     can = capabilities(cfg)
@@ -799,7 +807,7 @@ def keep_attachments(db, cfg, rid, attachments, say):
             continue
         ext = ext_of(f["name"])
         kind = documents.kind_of(f["name"]) or ("audio" if ext in {e.lower() for e in cfg["audio"]["extensions"]} else None)
-        if not kind or (kind == "document" and unavailable(cfg, f["name"])):
+        if not kind or unavailable(cfg, f["name"]):
             continue
         made += _resource_of(db, cfg, rid, rec, f, kind)
     if attachments[MAX_ATTACHMENTS:]:

@@ -260,7 +260,26 @@ const DOCUMENT = [
   ".eml",
   ".msg",
 ];
-const IMAGE = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".webp", ".gif", ".bmp"];
+const IMAGE = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".tif",
+  ".tiff",
+  ".webp",
+  ".gif",
+  ".bmp",
+  ".arw",
+  ".cr2",
+  ".cr3",
+  ".dng",
+  ".nef",
+  ".orf",
+  ".raf",
+  ".rw2",
+  ".heic",
+  ".heif",
+];
 
 export type SourceFileKind = "audio" | "transcript" | "document" | "image" | "other";
 

@@ -44,6 +44,8 @@ DEFAULTS = [
     ("image", "image", "Image", "Any picture", {}),
     ("scan", "image", "Scanned page", "A page from a scanner or a phone", {"pattern": r"\bscan(s|ned|ning)?\b"}),
     ("photo", "image", "Photo", "A photograph", {"extensions": [".jpg", ".jpeg", ".heic"]}),
+    ("raw_photo", "image", "Camera RAW photo", "Straight from a camera's sensor: DNG, CR2, NEF, ARW and the like",
+     {"extensions": [".arw", ".cr2", ".cr3", ".dng", ".nef", ".orf", ".raf", ".rw2"]}),
     ("text", "text", "Text", "Any text", {}),
     ("chat_export", "text", "Chat export", "A WhatsApp, Telegram, Slack or iMessage chat, by who said it", {"forms": ["chat"]}),
     ("structured", "text", "Records", "JSON or JSON Lines data, one record at a time", {"forms": ["records"]}),

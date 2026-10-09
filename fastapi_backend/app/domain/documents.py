@@ -24,6 +24,9 @@ from . import anytopdf, convert, ingest, keyring, store, video, webcapture
 R = store.R
 TYPES = {
     ".pdf": "application/pdf",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+    ".dng": "image/x-adobe-dng",
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".png": "image/png",
@@ -469,6 +472,14 @@ def transcribe(db, cfg, rid, say):
         except convert.Unavailable as e:
             raise ValueError(f"this {convert.word(path)} can't be read here: {e}") from None
         say(f"made into a PDF by {BY[learnt['by']]}")
+    elif source == "image" and convert.ext_of(path) in store.CAMERA_EXT:
+        # a camera RAW or HEIC photo: Lens can't open it, anytopdf can; its PDF is the photo's rendition
+        why = convert.unavailable(cfg, path)
+        if why:
+            raise ValueError(f"this photo can't be read here: {why}")
+        learnt = {"by": anytopdf.to_pdf(cfg, path, convert.rendition_path(cfg, rid))}
+        pdf = convert.rendition_path(cfg, rid)
+        say("made into a PDF by anytopdf")
     elif source == "image" and anytopdf.mode(cfg) == "anytopdf" and anytopdf.available(cfg):
         # anytopdf flattens a photographed page and reads it: its PDF is the image's rendition, read like a document's
         try:
