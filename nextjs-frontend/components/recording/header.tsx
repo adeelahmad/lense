@@ -34,7 +34,7 @@ import { libraryHref } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
 import { useRec } from "@/components/recording/context";
 import { pageAt, pagesSummary } from "@/components/recording/document/model";
-import { useExport, usePipelines, useRecordingActions } from "@/components/recording/hooks";
+import { useEvidence, useExport, usePipelines, useRecordingActions } from "@/components/recording/hooks";
 import { isActive, readyBefore, shortError, stepLabel, loopSteps } from "@/components/recording/jobs";
 import { Badge, StatusChip } from "@/components/ui/badge";
 import { Button, IconButton } from "@/components/ui/button";
@@ -219,6 +219,7 @@ export function HeaderActions({ compact }: { compact?: boolean }) {
 export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
   const { id, model, rec, paged } = useRec();
   const exp = useExport(id);
+  const evidence = useEvidence(id);
   // a document's text has no times for subtitles
   const formats = paged ? EXPORTS.filter(([fmt]) => fmt !== "srt" && fmt !== "vtt") : EXPORTS;
   return (
@@ -237,6 +238,14 @@ export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
             {label}
           </MenuItem>
         ))}
+        <MenuSeparator />
+        <MenuItem
+          onSelect={() => evidence.mutate({ title: model.title })}
+          disabled={evidence.isPending}
+          shortcut=".pdf"
+        >
+          Evidence PDF
+        </MenuItem>
         {rec.report_url && (
           <>
             <MenuSeparator />

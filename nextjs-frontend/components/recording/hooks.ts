@@ -578,14 +578,7 @@ export function useExport(id: number) {
           parseAs: "blob",
         }),
       )) as unknown as Blob;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${slug(title)}.${fmt}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      saveBlob(blob, `${slug(title)}.${fmt}`);
     },
     onError: (e) =>
       toast({
@@ -594,6 +587,38 @@ export function useExport(id: number) {
         tone: "red",
       }),
   });
+}
+
+/** Download the resource as an evidence PDF (anytopdf): its pages, then the file's SHA-256 on a provenance page. */
+export function useEvidence(id: number) {
+  const client = useApiClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: async ({ title }: { title: string }) => {
+      const blob = (await data(
+        Resources.evidencePdf({ client, path: { rid: id }, parseAs: "blob" }),
+      )) as unknown as Blob;
+      saveBlob(blob, `${slug(title)}-evidence.pdf`);
+    },
+    onError: (e) =>
+      toast({
+        title: "Couldn’t make the evidence PDF",
+        body: e instanceof ApiError ? e.message : "Please try again.",
+        tone: "red",
+      }),
+  });
+}
+
+/** Save a fetched file under this name. */
+export function saveBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 export function slug(s: string): string {

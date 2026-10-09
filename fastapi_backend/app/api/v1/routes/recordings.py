@@ -13,6 +13,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Path, Query, Request
 from fastapi.responses import Response
 
+from app.api import evidence as evidence_api
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Writer, domain_errors
 from app.api.media import sign_url, sign_urls
 from app.api.streaming import LOCKED, file_response, range_response
@@ -647,6 +648,15 @@ def export_recording(rid: int, fmt: str, acl: Acl, db: Db) -> Response:
         media_type=EXPORT_TYPES[fmt] + "; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{render.slug(d["title"])}.{fmt}"'},
     )
+
+
+@router.get("/{rid}/evidence.pdf", response_class=Response, responses=evidence_api.PDF)
+def evidence_pdf(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Response:
+    """The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with
+    their transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't
+    run here (it's fetched on first use unless Settings › Documents says never to use it)."""
+    rec = acl.recording(rid)
+    return evidence_api.download(db, cfg, [rid], rec.get("title") or f"recording {rid}")
 
 
 @router.patch("/{rid}/segments/{idx}")

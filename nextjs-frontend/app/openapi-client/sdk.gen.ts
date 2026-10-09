@@ -88,6 +88,9 @@ import type {
   CloseRecordingToIpGroupData,
   CloseRecordingToIpGroupErrors,
   CloseRecordingToIpGroupResponses,
+  CollectionEvidenceData,
+  CollectionEvidenceErrors,
+  CollectionEvidenceResponses,
   CombineBatchData,
   CombineBatchErrors,
   CombineBatchResponses,
@@ -344,6 +347,9 @@ import type {
   EstimateBatchData,
   EstimateBatchErrors,
   EstimateBatchResponses,
+  EvidencePdfData,
+  EvidencePdfErrors,
+  EvidencePdfResponses,
   ExploreGraphData,
   ExploreGraphErrors,
   ExploreGraphResponses,
@@ -3856,6 +3862,22 @@ export class Resources {
   ): RequestResult<ExportRecordingResponses, ExportRecordingErrors, ThrowOnError> {
     return (options.client ?? client).get<ExportRecordingResponses, ExportRecordingErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/export.{fmt}",
+      ...options,
+    });
+  }
+
+  /**
+   * Evidence Pdf
+   *
+   * The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with
+   * their transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't
+   * run here (it's fetched on first use unless Settings › Documents says never to use it).
+   */
+  public static evidencePdf<ThrowOnError extends boolean = false>(
+    options: Options<EvidencePdfData, ThrowOnError>,
+  ): RequestResult<EvidencePdfResponses, EvidencePdfErrors, ThrowOnError> {
+    return (options.client ?? client).get<EvidencePdfResponses, EvidencePdfErrors, ThrowOnError>({
+      url: "/api/v1/resources/{rid}/evidence.pdf",
       ...options,
     });
   }
@@ -7815,6 +7837,21 @@ export class Collections {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Collection Evidence
+   *
+   * The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
+   * one's pages, then a provenance page with every file's SHA-256 and size. At most 50 recordings.
+   */
+  public static collectionEvidence<ThrowOnError extends boolean = false>(
+    options: Options<CollectionEvidenceData, ThrowOnError>,
+  ): RequestResult<CollectionEvidenceResponses, CollectionEvidenceErrors, ThrowOnError> {
+    return (options.client ?? client).get<CollectionEvidenceResponses, CollectionEvidenceErrors, ThrowOnError>({
+      url: "/api/v1/collections/{cid}/evidence.pdf",
+      ...options,
     });
   }
 }
