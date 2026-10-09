@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.4.0 <small>October 9, 2026</small> {id="0.4.0"}
+
 - **Import videos and podcasts by their address.** Turn on Settings › Documents › Import videos and podcasts by their
   address (off by default), then Import › Web page › It's a video or a podcast. Lens downloads its media with yt-dlp,
   fetched on first use, through the same public-addresses-only proxy as web pages, and transcribes it
@@ -1222,6 +1224,98 @@ Tooling:
 
 - `make openapi`, the dev watcher and the pre-commit hook write the same client: the generator reads its input as an
   absolute path now (given a bare `openapi.json`, it had baked that name into the client's `baseUrl` type).
+
+### Features
+
+- **settings:** move Speakers from the sidebar into Settings ([#60](https://github.com/adeelahmad/lense/pull/60))
+- **entities:** an Entities page in the sidebar ([#62](https://github.com/adeelahmad/lense/pull/62))
+- **entities:** entity setup per namespace or collection, and types of your own ([#63](https://github.com/adeelahmad/lense/pull/63))
+- **entities:** a fixed list of entities, with Unknown and Unlabeled ([#64](https://github.com/adeelahmad/lense/pull/64))
+- **entities:** place names by description with the LLM, and manage entities from chat ([#65](https://github.com/adeelahmad/lense/pull/65))
+- **entities:** a hybrid mode, and the LLM for fixed lists ([#66](https://github.com/adeelahmad/lense/pull/66))
+- **workflows:** if/else, loops, dynamic ports and custom nodes on the canvas ([#68](https://github.com/adeelahmad/lense/pull/68))
+- **rdf:** describe the archive as linked data with Dublin Core ([#79](https://github.com/adeelahmad/lense/pull/79))
+- **security:** add per-namespace data keys and an encrypted file format ([#77](https://github.com/adeelahmad/lense/pull/77))
+- **rdf:** import Dublin Core descriptions into a namespace ([#82](https://github.com/adeelahmad/lense/pull/82))
+- **metadata:** edit every Dublin Core term, and export or import RDF from the app ([#83](https://github.com/adeelahmad/lense/pull/83))
+- **chat:** chat on any page, with the page and highlighted text as context ([#61](https://github.com/adeelahmad/lense/pull/61))
+- **rdf:** query a namespace with read-only SPARQL, from the API, the app and MCP ([#84](https://github.com/adeelahmad/lense/pull/84))
+- **assistant:** add tools, skills, hooks and plugins to the assistant ([#81](https://github.com/adeelahmad/lense/pull/81))
+- **chat:** edit a question you asked and get a new answer ([#59](https://github.com/adeelahmad/lense/pull/59))
+- **fedora:** keep a copy of the archive in a Fedora 6 repository ([#88](https://github.com/adeelahmad/lense/pull/88))
+- **assistant:** draw assistant tools on the canvas ([#92](https://github.com/adeelahmad/lense/pull/92))
+- **assistant:** make and change extensions by asking in chat or by voice ([#94](https://github.com/adeelahmad/lense/pull/94))
+- **web:** add an Extensions page to write, share, switch and try the assistant's extensions ([#97](https://github.com/adeelahmad/lense/pull/97))
+- **web:** draw assistant tools on the canvas ([#99](https://github.com/adeelahmad/lense/pull/99))
+- **extensions:** Python code tools, run in a process of their own (admins only) ([#103](https://github.com/adeelahmad/lense/pull/103))
+- **notes:** pages for notes and every resource, with @ and # links ([#118](https://github.com/adeelahmad/lense/pull/118))
+- **notes:** notes tree in the navigation, note pages and the BlockSuite editor ([#122](https://github.com/adeelahmad/lense/pull/122))
+- **notes:** keep note titles and summaries up to date with the model ([#125](https://github.com/adeelahmad/lense/pull/125))
+- **voice:** send transcription, speakers and speech to cloud providers ([#116](https://github.com/adeelahmad/lense/pull/116))
+- **notes:** the assistant keeps notes, files them in PARA, and notes open on the edgeless canvas ([#129](https://github.com/adeelahmad/lense/pull/129))
+- **notes:** count note refinement and filing in the activity ledger ([#133](https://github.com/adeelahmad/lense/pull/133))
+- **notes:** find, read and write notes over MCP ([#137](https://github.com/adeelahmad/lense/pull/137))
+- **notes:** page history, so any change (the assistant's too) can be undone ([#139](https://github.com/adeelahmad/lense/pull/139))
+- **brand:** Lens mark, favicon and app icons from the v1.0 brand kit ([#138](https://github.com/adeelahmad/lense/pull/138))
+- **brand:** Lens logo in the README and the Cloudron, Synology and QNAP package icons ([#141](https://github.com/adeelahmad/lense/pull/141))
+- **notes:** suggest links to the topics and named things a note mentions ([#140](https://github.com/adeelahmad/lense/pull/140))
+- **notes:** suggest the project or area a top-level note fits under ([#142](https://github.com/adeelahmad/lense/pull/142))
+- **llm:** run a GGUF chat model locally with llama.cpp ([#127](https://github.com/adeelahmad/lense/pull/127))
+- **storage:** keep Lens's own files on this machine or any rclone connection ([#148](https://github.com/adeelahmad/lense/pull/148))
+- **storage:** choose where files go in Settings → Storage and the setup wizard ([#149](https://github.com/adeelahmad/lense/pull/149))
+- **notes:** keep a page's images and attachments where Settings → Storage says ([#150](https://github.com/adeelahmad/lense/pull/150))
+- **mcp:** let admins see and change where files are kept ([#151](https://github.com/adeelahmad/lense/pull/151))
+- **auth:** remember when someone has seen the welcome tour ([#152](https://github.com/adeelahmad/lense/pull/152))
+- **assistant:** give each namespace its own assistant that remembers ([#154](https://github.com/adeelahmad/lense/pull/154))
+- **web:** welcome tour after the first sign-in ([#165](https://github.com/adeelahmad/lense/pull/165))
+- **sources:** route a shared inbox's mail to namespaces with rules ([#153](https://github.com/adeelahmad/lense/pull/153))
+- **assistant:** set up a namespace's assistant in the app and give it chat rooms ([#164](https://github.com/adeelahmad/lense/pull/164))
+- **web:** edit an email watch's routing rules, with a preview ([#184](https://github.com/adeelahmad/lense/pull/184))
+- **imports:** import webhooks with per-namespace tokens ([#155](https://github.com/adeelahmad/lense/pull/155))
+- **imports:** make and revoke import webhooks on the namespace page ([#187](https://github.com/adeelahmad/lense/pull/187))
+- **documents:** keep anytopdf's face and object plugins and ask them about a picture ([#221](https://github.com/adeelahmad/lense/pull/221))
+
+### Fixes
+
+- **telemetry:** trace a worker's first job and keep collector credentials safe ([#46](https://github.com/adeelahmad/lense/pull/46))
+- **documents:** a hung LibreOffice can't block a worker; CI runs on the self-hosted runner ([#27](https://github.com/adeelahmad/lense/pull/27))
+- **dev:** let the API hot reload while the web app is open ([#51](https://github.com/adeelahmad/lense/pull/51))
+- **docker:** keep the host's node_modules, .next and .env out of the web app image ([#55](https://github.com/adeelahmad/lense/pull/55))
+- **transcribe:** fall back when an engine won't import instead of failing the job ([#58](https://github.com/adeelahmad/lense/pull/58))
+- **ci:** run cleanly on the self-hosted runner ([#112](https://github.com/adeelahmad/lense/pull/112))
+- **chat:** stop the recording chat's scroll effect from returning a Promise ([#106](https://github.com/adeelahmad/lense/pull/106))
+- **notes:** keep typing when a thing's page is first saved, and open only web links ([#124](https://github.com/adeelahmad/lense/pull/124))
+- **mcp:** type graph_related's relation so the type check passes, and format test_mcp ([#131](https://github.com/adeelahmad/lense/pull/131))
+- **db:** reconnect SurrealDB connections that drop ([#123](https://github.com/adeelahmad/lense/pull/123))
+- **notes:** narrow read_note's draft page so mypy passes ([#143](https://github.com/adeelahmad/lense/pull/143))
+- **graph:** let the graph explorer and canvas zoom in further ([#144](https://github.com/adeelahmad/lense/pull/144))
+- **search:** satisfy mypy on the text index sync at startup ([#178](https://github.com/adeelahmad/lense/pull/178))
+- **docker:** survive slow networks while installing Python packages ([#182](https://github.com/adeelahmad/lense/pull/182))
+- **iiif:** refuse password sign-in on the access page when passwords are off ([#158](https://github.com/adeelahmad/lense/pull/158))
+- **auth:** make only one first admin when setup requests race ([#159](https://github.com/adeelahmad/lense/pull/159))
+- **iiif:** give access tokens only to viewers the person confirmed ([#160](https://github.com/adeelahmad/lense/pull/160))
+- **mcp:** cap the page offset of list_recordings, list_entities and list_topics ([#200](https://github.com/adeelahmad/lense/pull/200))
+- **notes:** don't fetch web images in Markdown the assistant writes ([#194](https://github.com/adeelahmad/lense/pull/194))
+- **media:** let ffmpeg read only audio and video containers ([#196](https://github.com/adeelahmad/lense/pull/196))
+- **iiif:** keep each namespace's copy of imported IIIF media apart ([#201](https://github.com/adeelahmad/lense/pull/201))
+- **extensions:** ask before running another person's tool ([#203](https://github.com/adeelahmad/lense/pull/203))
+- **auth:** refuse sign-in destinations with control characters ([#197](https://github.com/adeelahmad/lense/pull/197))
+- **auth:** don't revive a session that ended during a refresh ([#198](https://github.com/adeelahmad/lense/pull/198))
+- **docker:** publish the dev sensor ports on this machine only ([#204](https://github.com/adeelahmad/lense/pull/204))
+- **telemetry:** drop saved headers when the endpoint moves, even with the mask ([#199](https://github.com/adeelahmad/lense/pull/199))
+- **ingest:** stop ffmpeg, antiword and pdftotext runs that never finish ([#202](https://github.com/adeelahmad/lense/pull/202))
+
+### Performance
+
+- **activity:** write request rows off the event loop ([#132](https://github.com/adeelahmad/lense/pull/132))
+- **ci:** make the test suites fit the self-hosted runner ([#145](https://github.com/adeelahmad/lense/pull/145))
+- **docker:** fetch speech and object models at run time, not at build time ([#183](https://github.com/adeelahmad/lense/pull/183))
+
+### Dependencies
+
+- Bump next from 16.0.8 to 16.3.6 in /nextjs-frontend ([#3](https://github.com/adeelahmad/lense/pull/3))
+- bump the minor and patch dependency updates together ([#39](https://github.com/adeelahmad/lense/pull/39))
+- bump zod from 3.23.8 to 4.6.5 in /nextjs-frontend ([#35](https://github.com/adeelahmad/lense/pull/35))
 
 ## 0.3.0 <small>September 30, 2026</small> {id="0.3.0"}
 
