@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Capture many web pages at once.** Import › Web page › Many pages at once takes pasted links, a browser's
+  bookmark export or Chrome's Bookmarks file. Each link is captured like a single page, and its bookmark folders
+  become its tags. Links already captured in the namespace are left as they are
+  ([Web pages](docs/api.md#web-pages)).
 - **JSON and JSON Lines as records.** A JSON file that isn't a transcript (orders, contacts, sensor logs, an API
   dump) is read one record at a time, every field searchable, each line pointing back at its record; it gets the new
   Records content type. JSON files can now be uploaded with the other files ([Records](docs/processing.md#importing-transcripts)).

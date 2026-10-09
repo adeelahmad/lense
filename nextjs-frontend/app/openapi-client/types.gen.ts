@@ -6632,6 +6632,95 @@ export type LayaStatus = {
 };
 
 /**
+ * LinkImportResult
+ */
+export type LinkImportResult = {
+  /**
+   * Url
+   */
+  url: string;
+  /**
+   * Status
+   *
+   * queued to be captured; already in the namespace (that resource); skipped (detail says why)
+   */
+  status: "queued" | "already" | "skipped";
+  /**
+   * Recording
+   */
+  recording?: number | null;
+  /**
+   * Job
+   */
+  job?: number | null;
+  /**
+   * Detail
+   */
+  detail?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * LinksImport
+ */
+export type LinksImport = {
+  /**
+   * Results
+   */
+  results: Array<LinkImportResult>;
+  [key: string]: unknown;
+};
+
+/**
+ * LinksImportRequest
+ *
+ * Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a
+ * browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON).
+ */
+export type LinksImportRequest = {
+  /**
+   * Namespace
+   *
+   * a namespace you edit; admins may name a new one
+   */
+  namespace: string;
+  /**
+   * Text
+   *
+   * addresses, one per line
+   */
+  text?: string | null;
+  /**
+   * Filename
+   */
+  filename?: string | null;
+  /**
+   * Data
+   *
+   * the file, base64 encoded
+   */
+  data?: string | null;
+  /**
+   * Folders As Tags
+   *
+   * tag each page with the bookmark folders it was in
+   */
+  folders_as_tags?: boolean;
+  /**
+   * Pipeline
+   *
+   * run this pipeline afterwards instead of the namespace's
+   */
+  pipeline?: number | null;
+  /**
+   * Collection
+   *
+   * a collection of the namespace to put them in; default: its default collection
+   */
+  collection?: number | null;
+};
+
+/**
  * LlmEstimate
  */
 export type LlmEstimate = {
@@ -22809,6 +22898,31 @@ export type ImportWebPageResponses = {
 };
 
 export type ImportWebPageResponse = ImportWebPageResponses[keyof ImportWebPageResponses];
+
+export type ImportWebLinksData = {
+  body: LinksImportRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/import/web/links";
+};
+
+export type ImportWebLinksErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportWebLinksError = ImportWebLinksErrors[keyof ImportWebLinksErrors];
+
+export type ImportWebLinksResponses = {
+  /**
+   * Successful Response
+   */
+  200: LinksImport;
+};
+
+export type ImportWebLinksResponse = ImportWebLinksResponses[keyof ImportWebLinksResponses];
 
 export type PreviewImportData = {
   body: ImportPreviewRequest;

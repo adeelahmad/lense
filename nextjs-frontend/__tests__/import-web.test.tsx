@@ -9,7 +9,7 @@ import { webRows } from "@/components/recording/document/model";
 import { sourceLabel, webHost } from "@/components/recording/labels";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-jest.mock("@/app/openapi-client", () => ({ Imports: { importWebPage: jest.fn() } }));
+jest.mock("@/app/openapi-client", () => ({ Imports: { importWebPage: jest.fn(), importWebLinks: jest.fn() } }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
@@ -33,6 +33,13 @@ function show(blockReason: string | null = null) {
   );
 }
 
+beforeAll(() => {
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+});
 beforeEach(() => jest.clearAllMocks());
 
 describe("capturing a web page", () => {
@@ -80,6 +87,36 @@ describe("capturing a web page", () => {
     fireEvent.change(address, { target: { value: "http://127.0.0.1/admin" } });
     fireEvent.click(screen.getByRole("button", { name: "Capture the page" }));
     expect(await screen.findByText(/only public web pages can be captured/)).toBeInTheDocument();
+  });
+
+  it("captures many pages from pasted links, saying what became of each", async () => {
+    m(Imports.importWebLinks).mockResolvedValueOnce({
+      data: {
+        results: [
+          { url: "https://example.org/a", status: "queued", recording: 5, job: 7 },
+          { url: "https://example.org/b", status: "already", recording: 2 },
+          { url: "http://127.0.0.1/x", status: "skipped", detail: "isn't a public address" },
+        ],
+      },
+      response: { ok: true, status: 200 },
+    });
+    show();
+    expect(screen.getByRole("button", { name: "Capture them all" })).toHaveAttribute("aria-disabled", "true");
+    fireEvent.change(screen.getByLabelText(/^Links/), {
+      target: { value: "https://example.org/a\nhttps://example.org/b" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Capture them all" }));
+    await waitFor(() => expect(Imports.importWebLinks).toHaveBeenCalled());
+    expect(await screen.findByText("Already here")).toBeInTheDocument();
+    expect(screen.getByText("Skipped")).toBeInTheDocument();
+    expect(m(Imports.importWebLinks).mock.calls[0][0].body).toEqual({
+      namespace: "pods",
+      text: "https://example.org/a\nhttps://example.org/b",
+      folders_as_tags: true,
+      pipeline: 3,
+      collection: null,
+    });
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: "Capturing 1 page" }));
   });
 
   it("waits for a namespace it may import into", () => {
