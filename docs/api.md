@@ -684,6 +684,7 @@ thumbnails with its media. Attachments always need permission.
 POST   /api/v1/import
 POST   /api/v1/import/preview
 POST   /api/v1/import/web
+POST   /api/v1/import/web/links
 ```
 
 `POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
@@ -717,6 +718,16 @@ the proxy (never UDP straight to an address). `documents.web_networks` (startup)
 intranet. Without Chromium on the server it answers 400 (`GET /uploads/limits` → `convert.web`). Audited as
 `import.web`. The PDF is the resource's file (`GET /resources/{rid}/media`), named after the link
 (`annual-report.pdf`) or the page's title (`harbour-news.pdf`).
+
+`POST /api/v1/import/web/links {namespace, text | filename + data, folders_as_tags?, collection?, pipeline?}` captures
+many pages at once: pasted addresses (`text`, one per line; a line's other words become its title, `#` lines are
+skipped), or a file (base64 `data`): a list of addresses, a browser's bookmark export (the HTML file every browser
+writes) or Chrome's own Bookmarks file (JSON). Each link becomes a page captured as above, titled with its bookmark's
+name until it's captured, and tagged with the bookmark folders it was in (the innermost five, without the browser's
+own: Bookmarks bar, Other bookmarks), unless `folders_as_tags` is false. At most 500 links at once (400 beyond); links
+are taken in order, without repeats. It answers with each link's `status`: `queued` (with its `recording` and `job`),
+`already` (a page captured from that address is in the namespace: its `recording`) or `skipped` (`detail` says why,
+as the checks above would). Audited as `import.web` once, with how many were queued.
 
 ### Import webhooks
 
