@@ -74,6 +74,16 @@ class LocalModelServer(ResponseModel):
     suggested: str
 
 
+class CloudModelProvider(ResponseModel):
+    name: str
+    base_url: str
+    # the model picking it fills in, then other suggestions
+    model: str
+    models: list[str]
+    # where the provider hands out API keys
+    key_url: str
+
+
 class SetupStorage(RequestModel):
     max_upload_mb: int | None = None
     # a folder inside sources.local_roots to watch into `namespace`

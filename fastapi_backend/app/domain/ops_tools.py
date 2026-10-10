@@ -55,7 +55,9 @@ ADMIN_TOOLS = [
     ),
     (
         "find_model_servers",
-        "Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with their models.",
+        "Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with their "
+        "models, and the cloud providers Lens knows (OpenAI, Anthropic, Gemini, ...) with their address and a model: "
+        "a cloud one also needs the admin's API key.",
         {},
         [],
         False,
@@ -242,7 +244,7 @@ class OpsTools:
 
     def t_find_model_servers(self):
         found = setup.detect_llm()
-        return {"servers": found}, f"Looked for model servers nearby: {len(found)} found"
+        return {"servers": found, "cloud": list(setup.CLOUD_PROVIDERS)}, f"Looked for model servers nearby: {len(found)} found"
 
     def t_read_settings(self, section):
         if section not in SECTIONS:

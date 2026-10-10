@@ -13,6 +13,7 @@ jest.mock("@/app/openapi-client", () => ({
     saveNamespace: jest.fn(),
     saveLlm: jest.fn(),
     detectLlm: jest.fn(),
+    llmProviders: jest.fn(),
     saveStorage: jest.fn(),
     saveTelemetry: jest.fn(),
     saveOauth: jest.fn(),
@@ -27,6 +28,23 @@ jest.mock("@/lib/hooks/session", () => ({ useArchive: () => ({ me: { user: { ema
 
 const ok = (data: unknown) => Promise.resolve({ data, response: { ok: true, status: 200 } });
 const m = (f: unknown) => f as jest.Mock;
+
+const CLOUD = [
+  {
+    name: "OpenAI",
+    base_url: "https://api.openai.com/v1",
+    model: "gpt-5-mini",
+    models: ["gpt-5-mini", "gpt-5"],
+    key_url: "https://platform.openai.com/api-keys",
+  },
+  {
+    name: "Anthropic",
+    base_url: "https://api.anthropic.com/v1",
+    model: "claude-opus-5-5",
+    models: ["claude-opus-5-5", "claude-sonnet-5-5"],
+    key_url: "https://console.anthropic.com/settings/keys",
+  },
+];
 
 const VIEW = (over: Partial<SetupView> = {}): SetupView => ({
   pending: true,
@@ -58,6 +76,7 @@ function wrap(ui: ReactNode) {
 beforeEach(() => {
   jest.clearAllMocks();
   m(Setup.detectLlm).mockImplementation(() => ok([]));
+  m(Setup.llmProviders).mockImplementation(() => ok(CLOUD));
 });
 
 describe("SetupWizard", () => {
@@ -87,6 +106,31 @@ describe("SetupWizard", () => {
         base_url: "http://localhost:1234/v1",
         model: "gemma-3",
         api_key: null,
+      }),
+    );
+  });
+
+  it("fills in a cloud provider's address and model in one click, then waits for its key", async () => {
+    m(Setup.getSetup).mockImplementation(() => ok(VIEW({ namespace: { existing: ["media"], locked: false } })));
+    m(Setup.saveLlm).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    fireEvent.click(await screen.findByRole("button", { name: "OpenAI" }));
+    expect(screen.getByLabelText("Base URL")).toHaveValue("https://api.openai.com/v1");
+    expect(screen.getByLabelText("Model")).toHaveValue("gpt-5-mini");
+    expect(screen.getByRole("button", { name: "OpenAI" })).toHaveAttribute("aria-pressed", "true");
+    const key = screen.getByLabelText(/API key/);
+    await waitFor(() => expect(key).toHaveFocus()); // ready for the paste
+    expect(screen.getByRole("link", { name: "Get a key from OpenAI" })).toHaveAttribute(
+      "href",
+      "https://platform.openai.com/api-keys",
+    );
+    fireEvent.change(key, { target: { value: "sk-test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() =>
+      expect(m(Setup.saveLlm).mock.calls[0][0].body).toEqual({
+        base_url: "https://api.openai.com/v1",
+        model: "gpt-5-mini",
+        api_key: "sk-test",
       }),
     );
   });
@@ -205,6 +249,7 @@ describe("SetupWizard", () => {
     wrap(<SetupWizard />);
     const base = await screen.findByLabelText("Base URL"); // nothing to choose for the namespace: straight here
     expect(Setup.detectLlm).not.toHaveBeenCalled(); // the address is set in .env: nothing to look for
+    expect(screen.queryByRole("button", { name: "OpenAI" })).not.toBeInTheDocument();
     expect(base).toBeDisabled();
     expect(base).toHaveValue("http://vllm:8000/v1");
     expect(base).toHaveAccessibleDescription(/LENS_LLM_BASE_URL/);

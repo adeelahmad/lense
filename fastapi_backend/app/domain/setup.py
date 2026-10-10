@@ -246,6 +246,61 @@ def save_storage(db, cfg, max_upload_mb=None, folder=None, namespace=None, user=
     return sources.create_watch(db, cfg, src, folder, sid, user)
 
 
+# Cloud providers with an OpenAI-compatible API: picking one fills in its address and a model, so only the key is
+# pasted. `models` are suggestions (the model stays editable); `key_url` is where the provider hands out keys.
+CLOUD_PROVIDERS = (
+    {
+        "name": "OpenAI",
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-5-mini",
+        "models": ["gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-4.1-mini"],
+        "key_url": "https://platform.openai.com/api-keys",
+    },
+    {
+        "name": "Anthropic",
+        "base_url": "https://api.anthropic.com/v1",
+        "model": "claude-opus-5-5",
+        "models": ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
+        "key_url": "https://console.anthropic.com/settings/keys",
+    },
+    {
+        "name": "Google Gemini",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-flash-latest",
+        "models": ["gemini-flash-latest", "gemini-2.5-pro", "gemini-2.5-flash-lite"],
+        "key_url": "https://aistudio.google.com/apikey",
+    },
+    {
+        "name": "OpenRouter",
+        "base_url": "https://openrouter.ai/api/v1",
+        "model": "openrouter/auto",
+        "models": ["openrouter/auto", "openai/gpt-5-mini", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"],
+        "key_url": "https://openrouter.ai/keys",
+    },
+    {
+        "name": "Groq",
+        "base_url": "https://api.groq.com/openai/v1",
+        "model": "llama-3.3-70b-versatile",
+        "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-120b"],
+        "key_url": "https://console.groq.com/keys",
+    },
+    {
+        "name": "Mistral",
+        "base_url": "https://api.mistral.ai/v1",
+        "model": "mistral-small-latest",
+        "models": ["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest"],
+        "key_url": "https://console.mistral.ai/api-keys",
+    },
+    {
+        "name": "DeepSeek",
+        "base_url": "https://api.deepseek.com/v1",
+        "model": "deepseek-chat",
+        "models": ["deepseek-chat", "deepseek-reasoner"],
+        "key_url": "https://platform.deepseek.com/api_keys",
+    },
+)
+
+
 # Model servers people run themselves, on the ports they listen on by default. Looked for on this machine, on the
 # Docker host (host.docker.internal; the compose files map it on Linux too) and as a compose service named ollama.
 LOCAL_SERVERS = (("Ollama", 11434), ("LM Studio", 1234), ("llama.cpp", 8080), ("vLLM", 8000), ("LocalAI", 8081))

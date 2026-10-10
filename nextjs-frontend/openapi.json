@@ -4217,6 +4217,32 @@
         }
       }
     },
+    "/api/v1/setup/llm/providers": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Llm Providers",
+        "description": "Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a\nmodel, so picking one leaves only the API key to paste.",
+        "operationId": "llm_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CloudModelProvider"
+                  },
+                  "type": "array",
+                  "title": "Response Setup-Llm Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/setup/storage": {
       "put": {
         "tags": [
@@ -29302,6 +29328,43 @@
         ],
         "title": "ClientRegistration",
         "description": "Dynamic client registration (RFC 7591). Metadata Lens has no use for is ignored, as the RFC asks."
+      },
+      "CloudModelProvider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "key_url": {
+            "type": "string",
+            "title": "Key Url"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "base_url",
+          "model",
+          "models",
+          "key_url"
+        ],
+        "title": "CloudModelProvider"
       },
       "Collection": {
         "properties": {
