@@ -49,7 +49,8 @@
         "routes not read one by one (about 370)",
         "media, report, embed, IIIF content",
         "/iiif/auth/token, /probe, /logout",
-        "workers and DB peers"
+        "workers and DB peers",
+        "host control inbox and the monitoring scrape token"
       ],
       "touches": [
         "filesystem"
@@ -478,6 +479,15 @@
       "caller_must_enforce": "run peers on trusted hosts",
       "provenance": "inferred",
       "source": "open question Q9"
+    },
+    {
+      "entry_point": "host control inbox and the monitoring scrape token",
+      "parameter": "inbox/upgrade request (release ref, or action=services with monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "the agent installs only a release tag or the install's branch and only toggles the monitoring profile; the token is compared in constant time and grants metrics only",
+      "provenance": "documented",
+      "source": "docs/updates.md, docs/prometheus.md"
     }
   ],
   "environment": {

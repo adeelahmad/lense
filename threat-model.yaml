@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:6dedfe71cd1ec807c7a04b3338c03cb01f70b61882d620d46a236bbe6e257399"
+prose_version: "threat-model.md@sha256:deaa72376c5893773518be5790b22bd9e8b913cf7f76a87142a1e7c233cba055"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -418,6 +418,23 @@ entry_points:
         obligation_id: trusted-peer-hosts
         caller_must_enforce: "run peers on trusted hosts"
         provenance: {kind: inferred, question_id: Q9}
+  - id: "host control inbox and the monitoring scrape token"
+    component: authz
+    parameters:
+      - name: "inbox/upgrade request: release ref, or action=services with monitoring=on|off"
+        attacker_controllable: true
+        x-condition: "writable by the containers and local users"
+        control_kinds: [x-env-config]
+        obligation_id: agent-allow-list
+        caller_must_enforce: "the agent installs only a release tag or the install's branch, and only toggles the monitoring profile"
+        provenance: {kind: documented, source: "docs/updates.md"}
+      - name: "/metrics scrape token, .lens-control/prometheus-token"
+        attacker_controllable: true
+        x-condition: "anyone reaching the web app; the file is world-readable on the host"
+        control_kinds: [credential]
+        obligation_id: metrics-token
+        caller_must_enforce: "token compared in constant time; metrics carry no personal content"
+        provenance: {kind: documented, source: "docs/prometheus.md Privacy"}
 
 # ---------------------------------------------------------------- §1.7 contract-dimension matrix
 # Every in-scope component × the eight required dimensions appears exactly once.
