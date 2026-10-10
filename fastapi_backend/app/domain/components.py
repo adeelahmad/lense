@@ -423,7 +423,7 @@ class Anytopdf(Component):
         detects = cfg["video"].get("object_engine") == "anytopdf"  # its objects plugin runs here, node or not
         faces = cfg["video"].get("face_engine") == "anytopdf"
         enriches = bool((cfg.get("analysis") or {}).get("anytopdf"))
-        steps = {"transcribe": converts, "objects": detects, "faces": faces, "analyze": enriches}
+        steps = {"read": converts, "objects": detects, "faces": faces, "analyze": enriches}
         return {step for step, wanted in steps.items() if wanted}
 
     def needed(self, cfg, m):

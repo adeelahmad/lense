@@ -509,11 +509,11 @@ title when the caller may see it); an attachment file's `resource` is the resour
 in the namespace (`documents.attachment_resources`). Transcribing an email again keeps and makes nothing twice.
 `GET /uploads/limits` says what the server can convert (`convert: {office, pages, msg}`); an upload it can't read is
 refused, saying what it needs, and the files that can be transcripts too (PDFs, Word, text and Markdown) can be imported
-as transcripts instead (`POST /import`). Its pipeline's transcribe step draws its
-pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's
+as transcripts instead (`POST /import`). Its pipeline's read step (its transcribe step, for a document or an image:
+no speech model is fetched for one) draws its pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's
 pdftotext; pypdf without poppler, when there are no pages to look at), and by OCR (`video.ocr_engine`) the pages with
 fewer than `documents.ocr_below_chars` characters of text, drawn sharper for it. An image is one page (a TIFF one per
-frame), read by OCR. Diarize, shots and text on screen skip them; analyze, summarize and report run as for any text.
+frame), read by OCR. Diarize is left out for them, shots and text on screen skip them; analyze, summarize and report run as for any text.
 [Configuration](configuration.md#documents-and-images) has the settings.
 
 The text becomes the resource's segments, one per block, so search, chat, entities, notes and corrections

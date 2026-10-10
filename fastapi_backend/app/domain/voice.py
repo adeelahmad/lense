@@ -123,13 +123,14 @@ def can_speak(cfg):
     return speech.tts_ready(cfg)
 
 
-def speak(cfg, text):
-    """The text read aloud by the text-to-speech provider (an OpenAI-compatible /audio/speech, ElevenLabs or Deepgram),
-    as (bytes, media type); None when there's none or it failed, so the browser reads it instead."""
+def speak(cfg, text, voice=None):
+    """The text read aloud by the text-to-speech provider (an OpenAI-compatible /audio/speech, ElevenLabs, Deepgram,
+    Gemini or macOS say), in `voice` (else the settings'), as (bytes, media type); None when there's none or it failed,
+    so the browser reads it instead."""
     if not can_speak(cfg) or not text.strip():
         return None
     try:
-        return speech.speak(cfg, text)  # it writes its own row in the activity ledger
+        return speech.speak(cfg, text, voice=voice)  # it writes its own row in the activity ledger
     except speech.ProviderError as e:
         log.info("voice: text-to-speech failed, the browser reads it: %s", e)
         return None
