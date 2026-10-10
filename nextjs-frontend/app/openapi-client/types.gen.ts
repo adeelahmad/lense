@@ -674,6 +674,52 @@ export type Backend = {
 };
 
 /**
+ * Backup
+ */
+export type Backup = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   *
+   * manual, or before-upgrade
+   */
+  label: string;
+  /**
+   * Kind
+   *
+   * export: a SurrealDB export (.surql.gz); folder: an embedded database's copy
+   */
+  kind: "export" | "folder";
+  /**
+   * Bytes
+   */
+  bytes: number;
+  /**
+   * Taken At
+   */
+  taken_at: string;
+  [key: string]: unknown;
+};
+
+/**
+ * Backups
+ */
+export type Backups = {
+  /**
+   * Folder
+   */
+  folder: string;
+  /**
+   * Backups
+   */
+  backups: Array<Backup>;
+  [key: string]: unknown;
+};
+
+/**
  * Batch
  */
 export type Batch = {
@@ -11975,6 +12021,39 @@ export type RefreshRequest = {
 };
 
 /**
+ * Release
+ */
+export type Release = {
+  /**
+   * Tag
+   *
+   * vX.Y.Z
+   */
+  tag: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Url
+   *
+   * the release's page on GitHub
+   */
+  url: string;
+  /**
+   * Published At
+   */
+  published_at?: string | null;
+  /**
+   * Notes
+   *
+   * what changed, in Markdown
+   */
+  notes?: string;
+  [key: string]: unknown;
+};
+
+/**
  * Removed
  */
 export type Removed = {
@@ -15845,6 +15924,143 @@ export type Undone = {
 };
 
 /**
+ * UpdateStatus
+ */
+export type UpdateStatus = {
+  /**
+   * Current
+   *
+   * the version running
+   */
+  current: string;
+  latest?: Release | null;
+  /**
+   * Available
+   *
+   * latest is newer than current
+   */
+  available: boolean;
+  /**
+   * Checked At
+   */
+  checked_at?: string | null;
+  /**
+   * Error
+   *
+   * why the last check failed
+   */
+  error?: string | null;
+  /**
+   * Check
+   *
+   * updates.check: the daily check is on
+   */
+  check: boolean;
+  /**
+   * Auto Install
+   */
+  auto_install: boolean;
+  /**
+   * Agent
+   *
+   * what upgrades this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that upgrades it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * the last upgrade asked for
+   */
+  upgrade?: UpgradeRun | null;
+  [key: string]: unknown;
+};
+
+/**
+ * UpgradeRequest
+ */
+export type UpgradeRequest = {
+  /**
+   * Ref
+   *
+   * a release tag; default: the latest release
+   */
+  ref?: string | null;
+  /**
+   * Backup
+   *
+   * back the database up first
+   */
+  backup?: boolean;
+};
+
+/**
+ * UpgradeRun
+ */
+export type UpgradeRun = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Ref
+   *
+   * the release tag (or branch) being installed
+   */
+  ref: string;
+  /**
+   * State
+   */
+  state: "backing-up" | "queued" | "running" | "done" | "failed";
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Queued At
+   */
+  queued_at?: string | null;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Backup
+   *
+   * the backup taken first, in Backups
+   */
+  backup?: string | null;
+  /**
+   * Version
+   *
+   * the version installed, once done
+   */
+  version?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * the last lines install.sh printed
+   */
+  log?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * Upload
  */
 export type Upload = {
@@ -19144,6 +19360,158 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type GetUpdatesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/updates";
+};
+
+export type GetUpdatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: UpdateStatus;
+};
+
+export type GetUpdatesResponse = GetUpdatesResponses[keyof GetUpdatesResponses];
+
+export type CheckUpdatesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/updates/check";
+};
+
+export type CheckUpdatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: UpdateStatus;
+};
+
+export type CheckUpdatesResponse = CheckUpdatesResponses[keyof CheckUpdatesResponses];
+
+export type StartUpgradeData = {
+  /**
+   * Body
+   */
+  body?: UpgradeRequest | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/updates/upgrade";
+};
+
+export type StartUpgradeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartUpgradeError = StartUpgradeErrors[keyof StartUpgradeErrors];
+
+export type StartUpgradeResponses = {
+  /**
+   * Successful Response
+   */
+  202: UpdateStatus;
+};
+
+export type StartUpgradeResponse = StartUpgradeResponses[keyof StartUpgradeResponses];
+
+export type ListBackupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups";
+};
+
+export type ListBackupsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Backups;
+};
+
+export type ListBackupsResponse = ListBackupsResponses[keyof ListBackupsResponses];
+
+export type TakeBackupData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups";
+};
+
+export type TakeBackupResponses = {
+  /**
+   * Successful Response
+   */
+  201: Backup;
+};
+
+export type TakeBackupResponse = TakeBackupResponses[keyof TakeBackupResponses];
+
+export type DeleteBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}";
+};
+
+export type DeleteBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteBackupError = DeleteBackupErrors[keyof DeleteBackupErrors];
+
+export type DeleteBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteBackupResponse = DeleteBackupResponses[keyof DeleteBackupResponses];
+
+export type DownloadBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}";
+};
+
+export type DownloadBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DownloadBackupError = DownloadBackupErrors[keyof DownloadBackupErrors];
+
+export type DownloadBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+};
+
+export type DownloadBackupResponse = DownloadBackupResponses[keyof DownloadBackupResponses];
 
 export type ResourceHistoryData = {
   body?: never;

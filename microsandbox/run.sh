@@ -127,6 +127,8 @@ export API_BASE_URL=http://127.0.0.1:8000
 export AUTH_TRUST_HOST=true NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 export HOME=/home/lens XDG_CACHE_HOME="$DATA/.cache"
 mkdir -p "$DATA/.cache" && chown lens:lens "$DATA/.cache"
+# upgrading from the web app (docs/updates.md): the control folder install.sh mounts, and the install folder
+[ -d /control ] && export LENS_CONTROL_DIR=/control LENS_HOST_DIR="${LENS_DIR:-}"
 # the archive in the volume, as /data in the containers; the config file the backend image ships
 export ARCHIVE_CONFIG="$OPT/backend/docker/archive.yaml"
 
