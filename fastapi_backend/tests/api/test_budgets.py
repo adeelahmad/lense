@@ -171,6 +171,33 @@ def test_the_periodic_check_warns_once_per_period(db, cfg):
     assert [r["action"] for r in activity.history(db, "workflow:1", kind="run")] == ["budget.over", "budget.near"]
 
 
+def test_one_budget_for_everything_with_a_soft_and_a_hard_limit(client, db, cfg, h):
+    """`all`: every call counts; the soft limit warns, and at the hard limit runs wait and paid model calls stop."""
+    st = client.put("/api/v1/budgets", headers=h, params={"resource": "all"}, json={"usd": 1, "warn_at": 0.5}).json()
+    assert st["state"] == "ok" and st["budget"]["resource"] == "all"
+    spend(db, "routine:7", usd=0.3)
+    spend(db, "space:2", usd=0.3)  # different resources, the same overall budget
+    assert budgets.status(db, "all")["state"] == "near"
+    assert [a["resource"] for a in budgets.sweep(db, cfg)] == ["all"]
+    priced = {**cfg, "ai": {**cfg["ai"], "price_in": 1.0, "price_out": 2.0}, "llm": {**cfg["llm"], "model": "m"}}
+    assert budgets.hard_stop(db, priced, "m") is None  # under the hard limit: calls go ahead
+
+    spend(db, "routine:7", usd=0.5)
+    verdict = budgets.check(db, cfg, ["pipeline:3"])  # a run of anything waits now
+    assert not verdict["go"] and verdict["resource"] == "all" and verdict["action"] == "ask"
+    budgets._hard.clear()
+    why = budgets.hard_stop(db, priced, "m")
+    assert why.startswith("Lens has spent $1.10 of $1.00 this month")
+    assert budgets.hard_stop(db, priced, "local-model") is None  # no price: costs nothing, so it still works
+    activity.bind(db)
+    with pytest.raises(activity.OverBudget, match="Raise the limit"):
+        activity.call("model.chat", priced, "m")
+    activity.call("model.chat", priced, "local-model").end()  # not refused
+
+    client.delete("/api/v1/budgets", headers=h, params={"resource": "all"})
+    assert budgets.hard_stop(db, priced, "m") is None and budgets.check(db, cfg, ["pipeline:3"])["go"]
+
+
 def test_the_meter_follows_the_namespace_and_its_budget(client, db, h):
     sid = store.ns_id(db, "pods")
     other = store.ns_id(db, "news")
@@ -195,6 +222,9 @@ def test_the_meter_follows_the_namespace_and_its_budget(client, db, h):
     assert m["resource"] is None and m["spent"]["usd"] == 2.3 and m["budget"] is None
     assert [x["resource"] for x in m["by_namespace"]] == [f"space:{other}", f"space:{sid}"]
     assert m["by_namespace"][0]["name"] == "news"
+    budgets.put(db, "all", usd=5)  # the overall budget from setup
+    m = client.get("/api/v1/budgets/meter", headers=h).json()
+    assert m["budget"]["budget"]["resource"] == "all" and m["budget"]["left"]["usd"] == 2.7
 
     make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
     e = login(client, "ed@x.io", "editor password 1")

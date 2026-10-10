@@ -29,6 +29,7 @@ const STEPS = [
   { id: "admin", label: "Admin account" },
   { id: "namespace", label: "Namespace" },
   { id: "llm", label: "Model provider" },
+  { id: "budget", label: "Budget" },
   { id: "storage", label: "Storage" },
   { id: "apps", label: "Apps and AI" },
   { id: "telemetry", label: "Telemetry" },
@@ -44,13 +45,31 @@ const LLM_ENV: Record<string, string> = {
 const TELEMETRY_ENV: Record<string, string> = { enabled: "LENS_TELEMETRY", endpoint: "LENS_TELEMETRY_ENDPOINT" };
 const NS = /^[a-z0-9][a-z0-9_-]{0,40}$/;
 const URL_RX = /^https?:\/\/[^\s]+$/;
+/** The budget scale: the hard limit in USD (0: no limit). The soft limit is 80% of it unless set under More. */
+const LIMITS = [0, 5, 10, 25, 50, 100, 250, 500];
+
+/** Whether a model server is on this machine or its network (free to call), not a paid cloud provider. */
+export function isLocalModel(baseUrl: string | null | undefined): boolean {
+  let host: string;
+  try {
+    host = new URL(baseUrl ?? "").hostname.replace(/^\[|\]$/g, "");
+  } catch {
+    return false;
+  }
+  return (
+    !host.includes(".") || // a container next to Lens (ollama), localhost, ::1
+    /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0$)/.test(host) ||
+    /\.(local|internal|lan|home\.arpa)$/.test(host)
+  );
+}
 
 function errorText(e: unknown): string {
   return e instanceof ApiError ? e.message : "Something went wrong. Please try again.";
 }
 
 /**
- * First-run setup for a fresh install (the admin already exists): the first namespace, the model provider, storage,
+ * First-run setup for a fresh install (the admin already exists): the first namespace, the model provider, an overall
+ * AI budget (a soft limit that warns, a hard limit that stops paid model calls; none unless chosen), storage,
  * whether apps and AI assistants may sign people in (OAuth, on unless turned off) and whether to send telemetry (off
  * unless chosen), one step at a time. Each step can be skipped, and the whole wizard too; everything stays in Settings.
  * Fields .env sets are shown locked, since the environment wins.
@@ -100,12 +119,21 @@ export function SetupWizard() {
     },
   });
 
-  const next = (from: StepId, saved: boolean) => {
+  // The budget step is for a paid (cloud) model; one on this machine or its network costs nothing, so it's skipped.
+  const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const url = modelUrl ?? (view.data?.llm.values as { base_url?: string | null } | undefined)?.base_url ?? null;
+  const paid = Boolean(url) && !isLocalModel(url);
+  const steps = STEPS.filter((s) => s.id !== "budget" || paid);
+
+  const next = (from: StepId, saved: boolean, baseUrl?: string) => {
     if (saved) setDone((d) => new Set(d).add(from));
     queryClient.invalidateQueries({ queryKey: ["setup"] });
-    const i = STEPS.findIndex((s) => s.id === from);
-    if (i === STEPS.length - 1) finish.mutate(false);
-    else setStep(STEPS[i + 1].id);
+    const shown =
+      baseUrl === undefined ? steps : STEPS.filter((s) => s.id !== "budget" || (baseUrl && !isLocalModel(baseUrl)));
+    if (baseUrl !== undefined) setModelUrl(baseUrl);
+    const i = shown.findIndex((s) => s.id === from);
+    if (i === shown.length - 1) finish.mutate(false);
+    else setStep(shown[i + 1].id);
   };
 
   return (
@@ -131,7 +159,7 @@ export function SetupWizard() {
       </div>
 
       <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Setup steps">
-        {STEPS.map((s, i) => {
+        {steps.map((s, i) => {
           const on = s.id === step;
           const ok = done.has(s.id);
           return (
@@ -199,7 +227,9 @@ export function SetupWizard() {
         ) : step === "namespace" ? (
           <NamespaceStep view={view.data} onNext={(saved) => next("namespace", saved)} />
         ) : step === "llm" ? (
-          <LlmStep view={view.data} onNext={(saved) => next("llm", saved)} />
+          <LlmStep view={view.data} onNext={(saved, baseUrl) => next("llm", saved, baseUrl)} />
+        ) : step === "budget" ? (
+          <BudgetStep view={view.data} onNext={(saved) => next("budget", saved)} />
         ) : step === "storage" ? (
           <StorageStep view={view.data} onNext={(saved) => next("storage", saved)} />
         ) : step === "apps" ? (
@@ -355,7 +385,7 @@ function NamespaceStep({ view, onNext }: { view: SetupView; onNext: (saved: bool
   );
 }
 
-function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) => void }) {
+function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean, baseUrl?: string) => void }) {
   const client = useApiClient();
   const v = view.llm.values as { base_url?: string | null; model?: string | null; api_key?: { set?: boolean } };
   const locked = new Set(view.llm.locked);
@@ -517,7 +547,9 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
           </Button>
           <Button
             variant="primary"
-            onClick={() => (allLocked ? onNext(true) : save.mutate(undefined, { onSuccess: () => onNext(true) }))}
+            onClick={() =>
+              allLocked ? onNext(true, baseUrl) : save.mutate(undefined, { onSuccess: () => onNext(true, baseUrl) })
+            }
             disabled={save.isPending}
           >
             {save.isPending ? "Saving…" : allLocked ? "Continue" : "Save and continue"}
@@ -749,6 +781,177 @@ function StorageStep({ view, onNext }: { view: SetupView; onNext: (saved: boolea
 }
 
 /** Apps and AI assistants (MCP clients) signing people in with their Lens account: OAuth (docs/authentication.md). */
+function money(n: number) {
+  return `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
+}
+
+function nearest(usd: number | null | undefined) {
+  if (usd == null) return 0;
+  let best = 1;
+  LIMITS.forEach((l, i) => {
+    if (i && Math.abs(l - usd) < Math.abs(LIMITS[best] - usd)) best = i;
+  });
+  return best;
+}
+
+function BudgetStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) => void }) {
+  const client = useApiClient();
+  const b = view.budget;
+  const [level, setLevel] = useState(nearest(b.hard_usd));
+  const [soft, setSoft] = useState(b.hard_usd != null && b.soft_usd != null ? String(b.soft_usd) : "");
+  const [period, setPeriod] = useState<"day" | "week" | "month">(
+    b.period === "day" || b.period === "week" ? b.period : "month",
+  );
+  const [onOver, setOnOver] = useState<"ask" | "skip">(b.on_over === "skip" ? "skip" : "ask");
+  const [priceIn, setPriceIn] = useState(b.price_in != null ? String(b.price_in) : "");
+  const [priceOut, setPriceOut] = useState(b.price_out != null ? String(b.price_out) : "");
+  const hard = LIMITS[level];
+  const num = (v: string) => (v.trim() === "" ? null : Number(v));
+  const softN = num(soft);
+  const badSoft = softN != null && (!(softN >= 0) || softN > hard);
+  const pin = num(priceIn);
+  const pout = num(priceOut);
+  const badPrice = (pin == null) !== (pout == null) || (pin != null && !(pin >= 0)) || (pout != null && !(pout >= 0));
+  const save = useMutation({
+    mutationFn: () =>
+      data(
+        Setup.saveBudget({
+          client,
+          body: hard
+            ? { hard_usd: hard, soft_usd: softN, period, on_over: onOver, price_in: pin, price_out: pout }
+            : { hard_usd: null, price_in: pin, price_out: pout },
+        }),
+      ),
+    onSuccess: () => onNext(true),
+  });
+  const per = period === "month" ? "a month" : period === "week" ? "a week" : "a day";
+
+  return (
+    <>
+      <StepHead title="Budget">
+        How much Lens may spend on AI models in all. Past the soft limit it warns you; at the hard limit, routines and
+        workflows wait for you and paid model calls stop until you raise it. Models on your own machine cost nothing and
+        keep working.
+      </StepHead>
+      <Field label="Hard limit" hint="Change it any time in Settings → Budgets.">
+        {({ id, describedBy }) => (
+          <div className="flex flex-col gap-2">
+            <span className="text-[15px] font-semibold text-fg">{hard ? `${money(hard)} ${per}` : "No limit"}</span>
+            <input
+              id={id}
+              aria-describedby={describedBy}
+              type="range"
+              min={0}
+              max={LIMITS.length - 1}
+              step={1}
+              value={level}
+              onChange={(e) => setLevel(Number(e.target.value))}
+              className="w-full accent-[var(--aladdin-blue)]"
+            />
+            <div className="flex justify-between text-[11.5px] text-fg-muted" aria-hidden>
+              <span>None</span>
+              <span>{money(LIMITS[LIMITS.length - 1])}</span>
+            </div>
+          </div>
+        )}
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Input price" hint={`USD per million tokens for ${b.model || "the chat model"}`}>
+          {({ id, describedBy }) => (
+            <Input
+              id={id}
+              aria-describedby={describedBy}
+              inputMode="decimal"
+              placeholder="3"
+              value={priceIn}
+              onChange={(e) => setPriceIn(e.target.value.replace(/[^0-9.]/g, ""))}
+            />
+          )}
+        </Field>
+        <Field
+          label="Output price"
+          hint="From your provider's price list"
+          error={badPrice ? "Give both prices" : undefined}
+        >
+          {({ id, describedBy, invalid }) => (
+            <Input
+              id={id}
+              aria-describedby={describedBy}
+              invalid={invalid}
+              inputMode="decimal"
+              placeholder="15"
+              value={priceOut}
+              onChange={(e) => setPriceOut(e.target.value.replace(/[^0-9.]/g, ""))}
+            />
+          )}
+        </Field>
+      </div>
+      {hard > 0 && (
+        <details className="rounded-lg border border-border px-4 py-3 text-[13.5px]">
+          <summary className="cursor-pointer font-semibold text-fg">More</summary>
+          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <Field label="Soft limit (USD)" error={badSoft ? `From 0 to ${money(hard)}` : undefined}>
+              {({ id, describedBy, invalid }) => (
+                <Input
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  inputMode="decimal"
+                  placeholder={String(Math.round(hard * 80) / 100)}
+                  value={soft}
+                  onChange={(e) => setSoft(e.target.value.replace(/[^0-9.]/g, ""))}
+                />
+              )}
+            </Field>
+            <Field label="Per">
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as "day" | "week" | "month")}
+                  options={[
+                    { value: "month", label: "Month" },
+                    { value: "week", label: "Week" },
+                    { value: "day", label: "Day" },
+                  ]}
+                />
+              )}
+            </Field>
+            <Field label="At the limit, runs">
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={onOver}
+                  onChange={(e) => setOnOver(e.target.value as "ask" | "skip")}
+                  options={[
+                    { value: "ask", label: "Wait for you" },
+                    { value: "skip", label: "Are skipped" },
+                  ]}
+                />
+              )}
+            </Field>
+          </div>
+        </details>
+      )}
+      {hard > 0 && pin == null && (
+        <p className="-mt-1 text-[12px] text-fg-muted">
+          Without the model&apos;s price Lens can&apos;t count what it spends, so the limit only applies to models whose
+          price is set in Settings → Telemetry.
+        </p>
+      )}
+      {save.error && <AuthAlert tone="error">{errorText(save.error)}</AuthAlert>}
+      <Actions
+        onSkip={() => onNext(false)}
+        onSave={() => save.mutate()}
+        pending={save.isPending}
+        disabled={badSoft || badPrice}
+      />
+    </>
+  );
+}
+
 function AppsStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) => void }) {
   const client = useApiClient();
   const o = view.oauth;

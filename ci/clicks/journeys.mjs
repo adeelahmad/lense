@@ -104,8 +104,6 @@ export const JOURNEYS = [
         if (!(await found.evaluate((el) => el.classList.contains("on"))))
           await meter.click(found, "pick the model server found on this computer");
         await meter.click(page.locator("#next"), "Continue (AI model)");
-        await page.getByRole("heading", { name: "Extras" }).waitFor();
-        await meter.click(page.locator("#next"), "Continue (extras)");
         await page.getByRole("heading", { name: "Ready to install" }).waitFor();
         await meter.click(page.locator("#next"), "Install Lens");
       }
