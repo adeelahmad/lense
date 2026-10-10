@@ -74,6 +74,23 @@ if [ -z "$WIZARD" ]; then
   WIZARD=0
   [ ! -f "$DIR/.env" ] && [ -z "${LENS_BACKEND:-}" ] && tty_ok && WIZARD=1
 fi
+# Started from a launcher (Install Lens.app, the .desktop file) there is no terminal to fall back to: say why in a
+# window instead.
+gui_fail() {
+  printf '%s\n' "$1" >&2
+  if ! (: </dev/tty) 2>/dev/null; then
+    if [ "$os" = Darwin ]; then
+      osascript -e "display dialog \"$1\" buttons {\"OK\"} default button 1 with title \"Install Lens\" with icon caution" >/dev/null 2>&1
+    elif have zenity; then
+      zenity --error --title "Install Lens" --text "$1" 2>/dev/null
+    elif have kdialog; then
+      kdialog --title "Install Lens" --error "$1" 2>/dev/null
+    elif have notify-send; then
+      notify-send "Install Lens" "$1" 2>/dev/null
+    fi
+    exit 1
+  fi
+}
 if [ "$WIZARD" = 1 ] && py_ok && have curl; then
   wiz="$(mktemp -d)"
   trap 'rm -rf "$wiz"' EXIT
@@ -83,8 +100,15 @@ if [ "$WIZARD" = 1 ] && py_ok && have curl; then
     LENS_INSTALLER_FETCH=1 python3 "$wiz/lens_installer.py" --dir "$DIR" --repo "$REPO" --ref "$REF"
     exit $?
   fi
+  gui_fail "Couldn't download Lens's installer. Check the internet connection, and try again."
   echo "Couldn't download the web installer; asking here instead."
 elif [ "$WIZARD" = 1 ]; then
+  have curl || gui_fail "Lens needs curl to download itself. Install curl (on Ubuntu: sudo apt install curl), then try again."
+  if [ "$os" = Darwin ] && ! xcode-select -p >/dev/null 2>&1; then
+    xcode-select --install 2>/dev/null || true
+    gui_fail "Lens's installer needs Apple's Command Line Tools. Install them in the window that opened, then open Install Lens again."
+  fi
+  gui_fail "Lens's installer needs Python 3.8 or later. Install Python 3 with your software center, then try again."
   echo "The web installer needs Python 3.8 or later; asking here instead."
 fi
 BACKEND="${LENS_BACKEND:-}"

@@ -1,0 +1,51 @@
+name: Launchers
+
+# The double-click installers (Install Lens.app for macOS, Install Lens.cmd for Windows, Install Lens.desktop for
+# Linux), attached to each release: through the release event, or, for a release the Release workflow publishes with
+# GITHUB_TOKEN (which fires no release event), through workflow_dispatch with `tag`. On a pull request that changes
+# them, they're built and kept with the run.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the launchers to (the Release workflow passes it); blank: build this ref"
+        default: ""
+  pull_request:
+    paths:
+      - installer/launchers/**
+      - .github/workflows/launchers.yml
+
+permissions:
+  contents: read
+
+jobs:
+  launchers:
+    name: Build the launchers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to attach them to the release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Check them
+        run: |
+          sh -n "installer/launchers/Install Lens.app/Contents/MacOS/install-lens"
+          test -x "installer/launchers/Install Lens.app/Contents/MacOS/install-lens"
+          python3 -c "import plistlib; plistlib.load(open('installer/launchers/Install Lens.app/Contents/Info.plist', 'rb'))"
+          grep -q $'\r$' "installer/launchers/Install Lens.cmd" # Windows runs batch files with CRLF endings only
+          sudo apt-get install -y -q desktop-file-utils >/dev/null
+          desktop-file-validate "installer/launchers/Install Lens.desktop"
+      - run: installer/launchers/build.sh dist/launchers
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lens-launchers
+          path: dist/launchers/*
+      - name: Attach to the release
+        if: github.event_name == 'release' || inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$TAG" dist/launchers/* --clobber --repo "${{ github.repository }}"

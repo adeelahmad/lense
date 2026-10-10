@@ -45,6 +45,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 VERSION = 1
+WINDOWS = sys.platform == "win32"
 COOKIE = "lens_installer"
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 NS_RX = re.compile(r"^[a-z0-9][a-z0-9_-]{0,62}$")
@@ -155,6 +156,9 @@ def free_gb(path):
 def os_name():
     if sys.platform == "darwin":
         return "macOS " + platform.mac_ver()[0]
+    if WINDOWS:
+        build = platform.version().rsplit(".", 1)[-1]
+        return "Windows " + ("11" if build.isdigit() and int(build) >= 22000 else platform.release())
     try:
         with open("/etc/os-release") as f:
             for line in f:
@@ -175,7 +179,7 @@ def board():
 
 
 def desktop():
-    return sys.platform == "darwin" or bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
+    return WINDOWS or sys.platform == "darwin" or bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 def msb_ok():
@@ -198,7 +202,7 @@ def sudo_state():
     """root, passwordless (sudo works without asking), password (sudo asks), or none (no sudo)."""
     if hasattr(os, "geteuid") and os.geteuid() == 0:
         return "root"
-    if not have("sudo"):
+    if WINDOWS or not have("sudo"):  # Windows asks for permission itself (UAC)
         return "none"
     return "passwordless" if run(["sudo", "-n", "true"], timeout=5)[0] == 0 else "password"
 
@@ -234,6 +238,12 @@ def plan(backend, docker, sudo):
                 items.append({"what": "access to KVM for you (the kvm group)", "admin": asks})
             if os.path.isdir("/run/systemd/system"):
                 items.append({"what": "a service that starts Lens with the computer", "admin": asks, "optional": True})
+        return items
+    if WINDOWS:
+        if not docker["installed"]:
+            items.append({"what": "Docker Desktop (with winget; Windows asks for permission)", "admin": False})
+            if run(["wsl", "--status"], timeout=20)[0] != 0:
+                items.append({"what": "WSL, which Docker Desktop runs on (Windows may need a restart)", "admin": False})
         return items
     if not docker["installed"]:
         if linux:
@@ -402,7 +412,8 @@ class Installer:
             "disk_free_gb": free_gb(self.dir),
             "desktop": desktop(),
             "user": os.environ.get("USER") or os.environ.get("USERNAME") or "",
-            "supported": sys.platform == "darwin" or sys.platform.startswith("linux"),
+            "windows": WINDOWS,
+            "supported": WINDOWS or sys.platform == "darwin" or sys.platform.startswith("linux"),
             "git": have("git"),
             "curl": have("curl"),
             "docker": docker,
@@ -444,6 +455,8 @@ class Installer:
     def _script(self):
         if self.script and os.path.isfile(self.script):
             return self.script
+        if WINDOWS:  # no sh: the same steps in Python, next to this file (install.ps1 fetches it too)
+            return os.path.join(os.path.dirname(os.path.abspath(__file__)), "install_windows.py")
         here = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir, "install.sh")
         if os.path.isfile(here) and not os.environ.get("LENS_INSTALLER_FETCH"):
             return os.path.abspath(here)  # run from a checkout: its own install.sh
@@ -479,6 +492,7 @@ class Installer:
         env = dict(os.environ)
         env.update(env_vars)
         env.update({"LENS_WIZARD": "0", "LENS_YES": "1", "LENS_NO_OPEN": "1", "LENS_REPO": self.repo})
+        env.update({"PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"})  # install_windows.py's output, as it comes
         if self.password:
             env["SUDO_ASKPASS"] = self._askpass()
             env["LENS_SUDO_PASSWORD"] = self.password
@@ -489,14 +503,9 @@ class Installer:
             return
         try:
             # a session of its own: no terminal, so nothing it runs can stop to ask there
-            self.proc = subprocess.Popen(
-                ["sh", script],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                env=env,
-                start_new_session=True,
-            )
+            args = [sys.executable, script] if script.endswith(".py") else ["sh", script]
+            extra = {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0)} if WINDOWS else {"start_new_session": True}
+            self.proc = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, **extra)
         except OSError as e:
             self._finish("failed", f"Couldn't start install.sh: {e}")
             return

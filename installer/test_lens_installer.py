@@ -121,7 +121,8 @@ class Pure(unittest.TestCase):
             self.assertTrue(li.drop_env(p, "LENS_SETUP_SETTINGS"))
             with open(p) as f:
                 self.assertEqual(f.read(), "A=1\nB=2\n")
-            self.assertEqual(stat.S_IMODE(os.stat(p).st_mode), 0o600)
+            if os.name == "posix":  # Windows has no such modes
+                self.assertEqual(stat.S_IMODE(os.stat(p).st_mode), 0o600)
             self.assertFalse(li.drop_env(p, "LENS_SETUP_SETTINGS"))
 
     def test_plan_lists_docker_when_it_is_missing(self):
