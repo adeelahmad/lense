@@ -100,12 +100,14 @@ class ShareError(RuntimeError):
     pass
 
 
-def s3_remote(db, cfg, account):
+def s3_remote(db, cfg_fn, account):
     """rclone's command-line remote and environment for Lens's own S3 server (s3.py), signed in as `account` with a
-    key s3.py keeps for this share."""
+    key s3.py keeps for this share. It reads from the S3 server's loopback copy in this process, which runs whether or
+    not the S3 share itself is on."""
     from . import s3  # noqa: PLC0415 - optional until the S3 server is in
 
-    endpoint, key_id, secret = s3.service_key(db, cfg, account["id"], "nfs")
+    _, key_id, secret = s3.service_key(db, cfg_fn(), account["id"], "nfs")
+    endpoint = s3.internal_endpoint(db, cfg_fn)
     env = {
         "RCLONE_S3_PROVIDER": "Other",
         "RCLONE_S3_ENDPOINT": endpoint,
@@ -194,7 +196,7 @@ class Runner:
         if not exe:
             raise ShareError("rclone isn't installed here (it is in Lens's Docker image)")
         account = _account(self.db, c)
-        remote, env_extra = self.remote(self.db, cfg, account)
+        remote, env_extra = self.remote(self.db, self.cfg_fn, account)
         inner = _free_port()
         cmd = [exe, "serve", "nfs", remote, "--addr", f"127.0.0.1:{inner}", "--read-only", "--vfs-cache-mode", "off",
                "--dir-cache-time", "30s", "--no-checksum"]  # fmt: skip

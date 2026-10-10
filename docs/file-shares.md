@@ -46,7 +46,8 @@ own networks, and keep the port off the internet.
 ### How it works
 
 A worker runs `rclone serve nfs --read-only` (rclone is in Lens's image already; MIT licensed) over Lens's own S3
-server, signed in with an S3 key made for `nfs.account`. rclone listens on 127.0.0.1 inside the container; a small
+server (a copy on 127.0.0.1 inside the worker, so the S3 share itself needn't be on), signed in with an S3 key
+made for `nfs.account`, which is revoked when the share stops. rclone listens on 127.0.0.1 inside the container; a small
 relay in Lens (`domain/share_relay.py`) holds the published port and hands rclone only the connections from allowed
 networks. One worker serves it at a time (a lease on `app_service:nfs`), and Settings shows which one, whose view it
 shows, how many connections it turned away, and rclone's last lines when something goes wrong. Agents read the same
