@@ -275,9 +275,10 @@ def route(db, cfg, account, cid, q, ns=None):
 
 
 # ---------- answering ----------
-def answer(db, cfg, base, account, cid, q, files=()):
+def answer(db, cfg, base, account, cid, q, files=(), act_on=()):
     """Answer a question in a conversation as the account would be answered in the web app (without streaming), with
-    the files sent with it (held uploads: channels.hold). Returns (text, approvals)."""
+    the files sent with it (held uploads: channels.hold); `act_on` are the changes made at once (Channel.acts).
+    Returns (text, approvals)."""
     roles = auth.roles(db, account)
     readable = set(roles)
     editable = {s for s in roles if auth.allows(roles, s, "editor")}
@@ -295,7 +296,17 @@ def answer(db, cfg, base, account, cid, q, files=()):
     wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
     if llm.configured(cfg) and cfg["ai"].get("tools"):
         box = ai_tools.Toolbox(
-            db, cfg, {"id": account["id"], "email": account["email"]}, readable, editable, scope, cid, base, account["admin"], said=q
+            db,
+            cfg,
+            {"id": account["id"], "email": account["email"]},
+            readable,
+            editable,
+            scope,
+            cid,
+            base,
+            account["admin"],
+            said=q,
+            act_on=act_on,
         )
         try:
             text = None
@@ -449,7 +460,7 @@ def handle(db, cfg, base, m, ch=None):
             ch.send(cfg, m, cant)
             return True
         return False
-    ns = room_namespace(cfg, m)
+    ns = m.get("namespace") or room_namespace(cfg, m)
     sid = {v: k for k, v in store.space_names(db).items()}.get(ns) if ns else None
     home = ns_assistant.profile(db, sid) if sid is not None else None
     by_name = named(db, cfg, m) if sid is None else None
@@ -483,7 +494,7 @@ def handle(db, cfg, base, m, ch=None):
                 chat.add(db, cid, "assistant", said)
                 ch.send(cfg, m, said)
                 return True
-        text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS], files)
+        text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS], files, ch.acts(cfg))
     except Exception:  # noqa: BLE001 - still say something in the room
         log.exception("%s: answering failed", ch.key)
         text, approvals, note = "Something went wrong while answering. Try again.", [], None

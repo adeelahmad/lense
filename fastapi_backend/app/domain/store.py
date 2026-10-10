@@ -384,6 +384,33 @@ DEFAULTS = {
         # a Bot API server of your own (telegram-bot-api), else Telegram's
         "api_url": None,
     },
+    # the assistant's own email address (mailbox.py): mail sent or forwarded to it is answered by email and what's
+    # attached imported, with the room settings bridge has: account, name, users (the addresses it answers) and
+    # approve. The servers are guessed from the address when not set; the ports follow the security when not set.
+    "mailbox": {
+        "enabled": False,
+        "address": None,
+        "password": None,
+        "username": None,  # the sign-in name, when it isn't the address
+        "imap_host": None,
+        "imap_port": None,
+        "imap_security": "ssl",
+        "smtp_host": None,
+        "smtp_port": None,
+        "smtp_security": "starttls",
+        "folder": "INBOX",
+        "account": None,
+        "name": "Lens",
+        "users": [],
+        # "from: *@acme.com = acme", "list: * = skip" (mail_routes.py's conditions): the namespace mail is for
+        "routes": [],
+        "approve": "low_risk",
+        "imports": "auto",  # what's attached is imported without waiting for approval ("ask": it waits)
+        # whose mail counts as theirs: what the receiving server authenticated (DKIM, SPF, DMARC), or From as it is
+        "check": "authenticated",
+        "auth_server": None,  # the server whose Authentication-Results count (else the topmost)
+        "poll_seconds": 30,
+    },
     # Matterbridge run by Lens (matterbridge.py): with `run` on, the matterbridge service in Docker Compose gets its
     # config from these, a gateway per room, and the bridge talks to it; off, bridge.url is a Matterbridge of your own
     "matterbridge": {

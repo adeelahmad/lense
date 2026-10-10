@@ -37,6 +37,7 @@ SECTIONS = (
     "components",
     "mail",
     "bridge",
+    "mailbox",
     "matterbridge",
     "telemetry",
     "sensors",
@@ -226,13 +227,24 @@ def describe_namespace(db, sid, name):
 
 
 class OpsTools:
-    """Mixed into the chat Toolbox: needs db, cfg, base, user, editable, admin, act and _approval."""
+    """Mixed into the chat Toolbox: needs db, cfg, base, user, editable, admin, act (and act_on) and _approval."""
 
     def _change(self, tool, args, summary):
-        if self.act and not (tool == "change_settings" and args.get("section") in ALWAYS_ASK):
+        if (self.act or self._acts_on(tool, args)) and not (tool == "change_settings" and args.get("section") in ALWAYS_ASK):
             out = apply(self.db, self.cfg, self.base, tool, args, self.user, self.editable, self.admin)
             return {"status": "done", **out}, f"{summary}: done"
         return self._approval(tool, args, summary)
+
+    def _acts_on(self, tool, args):
+        """Whether a change is one the conversation makes at once (act_on); importing only into a namespace there is."""
+        if tool not in getattr(self, "act_on", ()):
+            return False
+        if tool == "import_files":
+            try:
+                store.ns_id(self.db, args["namespace"], create=False)
+            except KeyError:
+                return False  # a new namespace waits for approval, as create_namespace does
+        return True
 
     def t_server_status(self):
         return status(self.db, self.cfg, self.base), "Checked what's set up"
