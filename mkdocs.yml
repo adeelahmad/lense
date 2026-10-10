@@ -94,6 +94,7 @@ nav:
   - Encryption: encryption.md
   - Remote access: remote-access.md
   - Deployment: deployment.md
+  - microsandbox: microsandbox.md
   - Technology: technology-selection.md
   - Contributing: contributing.md
   - Changelog: CHANGELOG.md

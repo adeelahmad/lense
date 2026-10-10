@@ -12,6 +12,7 @@ on:
       - fastapi_backend/pyproject.toml
       - fastapi_backend/uv.lock
       - fastapi_backend/start.sh
+      - microsandbox/**
       - nextjs-frontend/Dockerfile
       - nextjs-frontend/package.json
       - nextjs-frontend/pnpm-lock.yaml
@@ -21,6 +22,7 @@ on:
     paths:
       - install.sh
       - docker-compose.prod.yml
+      - microsandbox/**
       - .github/workflows/install.yml
   schedule:
     - cron: "17 4 * * 1"
@@ -83,3 +85,63 @@ jobs:
             cd "$LENS_DIR"
             docker compose -f docker-compose.prod.yml down -v || true
           fi
+
+  microsandbox:
+    name: One-line install in a microsandbox
+    # GitHub's own Linux runners: they have KVM, which microsandbox needs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LENS_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      LENS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      LENS_DIR: /tmp/lens-install
+      LENS_NO_OPEN: "1"
+      LENS_BACKEND: microsandbox
+      LENS_TARGET: lean
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: KVM for the runner's user
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Install (as a user would, piped into sh)
+        run: |
+          sh < install.sh | tee install.log
+          grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' install.log | head -1 > setup-url
+          test -s setup-url || { echo "install.sh didn't hand over a setup address"; exit 1; }
+
+      - name: The setup address answers, and Lens waits for its first admin
+        run: |
+          url="$(cat setup-url)"
+          base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          curl -fsS -o /dev/null "$url"
+          status="$(curl -fsS "$base/api/v1/auth/status")"
+          echo "$status"
+          echo "$status" | grep -q '"setup_required":true'
+          grep -q '^LENS_BACKEND=microsandbox$' "$LENS_DIR/.env"
+
+      - name: Running it again updates in place and keeps the secrets
+        run: |
+          before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
+          LENS_BACKEND= sh < install.sh
+          after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
+          test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: What the sandbox said
+        if: failure()
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          msb doctor || true
+          msb ls || true
+          msb logs lens --tail 300 || true
+
+      - name: Stop
+        if: always()
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          msb rm -f lens || true

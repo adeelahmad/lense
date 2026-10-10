@@ -14,6 +14,10 @@ before `sh`: `LENS_DIR`, `LENS_PORT`, `LENS_PUBLIC` (`1`: from the network, `0`:
 (`lean` for the smaller image) and `LENS_REF` (a branch or tag) change the defaults; the top of `install.sh` lists
 them.
 
+Where it can (Linux with KVM, or a Mac with Apple silicon), a first install asks whether to run Lens in Docker (the
+default) or in a [microsandbox](microsandbox.md) microVM, which needs no Docker; `LENS_BACKEND=microsandbox` chooses
+it without asking.
+
 ## With Docker and make
 
 You need Docker with Compose, and `make`.
