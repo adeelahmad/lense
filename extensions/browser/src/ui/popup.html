@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lens clipper</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body { width: 420px; padding: 12px; }
+      #markdown { height: 260px; }
+      header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+      footer { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
+      footer .grow { flex: 1; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1><img src="icons/icon-32.png" alt="" /> Clip to Lens</h1>
+      <button id="options" title="Options">Options</button>
+    </header>
+    <div class="seg" role="group" aria-label="What to clip">
+      <button data-mode="page" aria-pressed="false">Page</button>
+      <button data-mode="selection" aria-pressed="false">Selection</button>
+      <button data-mode="pick" aria-pressed="false">Pick…</button>
+    </div>
+    <label for="title">Title</label>
+    <input id="title" type="text" />
+    <label for="markdown">Markdown <span class="hint">edit before sending if you like</span></label>
+    <textarea id="markdown" spellcheck="false"></textarea>
+    <label for="destination">Send to</label>
+    <select id="destination"></select>
+    <footer>
+      <button id="send" class="primary">Send to Lens</button>
+      <button id="copy">Copy</button>
+      <button id="download">Download .md</button>
+      <span class="grow"></span>
+    </footer>
+    <p id="status" class="status" role="status"></p>
+    <script src="popup.js"></script>
+  </body>
+</html>
