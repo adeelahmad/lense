@@ -2466,6 +2466,54 @@
         }
       }
     },
+    "/api/v1/settings/https/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Status",
+        "description": "How HTTPS (Settings \u203a HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it\nholds and when they run out, and Caddy's last lines.",
+        "operationId": "https_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/https/providers": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Providers",
+        "description": "The DNS providers Settings \u203a HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns\nplugin works too, by name.",
+        "operationId": "https_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HttpsProvider"
+                  },
+                  "type": "array",
+                  "title": "Response Admin-Https Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/bridge/test": {
       "post": {
         "tags": [
@@ -9860,6 +9908,99 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tree": {
+      "get": {
+        "tags": [
+          "tree"
+        ],
+        "summary": "List Folder",
+        "description": "A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'\nfiles. A file answers 400 (read it at /tree/file).",
+        "operationId": "list_folder",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026",
+              "default": "",
+              "title": "Path"
+            },
+            "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreeFolder"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tree/file": {
+      "get": {
+        "tags": [
+          "tree"
+        ],
+        "summary": "Read File",
+        "description": "A file of the tree, with byte ranges.",
+        "operationId": "read_file",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026",
+              "default": "",
+              "title": "Path"
+            },
+            "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "206": {
+            "description": "a byte range"
           },
           "422": {
             "description": "Validation Error",
@@ -36021,6 +36162,171 @@
         ],
         "title": "HookPushed"
       },
+      "HttpsCertificate": {
+        "properties": {
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Names",
+            "description": "the domain names it's for"
+          },
+          "expires": {
+            "type": "string",
+            "title": "Expires",
+            "description": "when it runs out (Caddy renews it about a month before)"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer",
+            "description": "the certificate authority that issued it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "names",
+          "expires",
+          "issuer"
+        ],
+        "title": "HttpsCertificate"
+      },
+      "HttpsProvider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the caddy-dns plugin's name, like cloudflare"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/HttpsProviderField"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "fields"
+        ],
+        "title": "HttpsProvider"
+      },
+      "HttpsProviderField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "secret": {
+            "type": "boolean",
+            "title": "Secret"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "secret"
+        ],
+        "title": "HttpsProviderField"
+      },
+      "HttpsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "Caddy is running in a server process"
+          },
+          "ports_open": {
+            "type": "boolean",
+            "title": "Ports Open",
+            "description": "a server process has the HTTPS ports (install.sh opened them)"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "the https:// address people open Lens at"
+          },
+          "certificates": {
+            "items": {
+              "$ref": "#/components/schemas/HttpsCertificate"
+            },
+            "type": "array",
+            "title": "Certificates"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why there's no certificate yet, when there isn't"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "Caddy's last lines"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "description": "where Caddy sends visitors: the web app, as the server reaches it"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the server process with the HTTPS ports"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "running",
+          "ports_open",
+          "origin"
+        ],
+        "title": "HttpsStatus"
+      },
       "HubLogin": {
         "properties": {
           "id": {
@@ -54616,6 +54922,82 @@
         "additionalProperties": false,
         "type": "object",
         "title": "TopicUpdate"
+      },
+      "TreeEntry": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "folder": {
+            "type": "boolean",
+            "title": "Folder"
+          },
+          "modified": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "a file's size in bytes"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "folder"
+        ],
+        "title": "TreeEntry"
+      },
+      "TreeFolder": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "the folder, from the top: '' for the namespaces"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TreeEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path",
+          "entries"
+        ],
+        "title": "TreeFolder"
       },
       "TunnelStatus": {
         "properties": {

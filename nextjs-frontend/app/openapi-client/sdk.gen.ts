@@ -659,6 +659,10 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  HttpsProvidersData,
+  HttpsProvidersResponses,
+  HttpsStatusData,
+  HttpsStatusResponses,
   ImportArchiveData,
   ImportArchiveErrors,
   ImportArchiveResponses,
@@ -772,6 +776,9 @@ import type {
   ListFilesData,
   ListFilesErrors,
   ListFilesResponses,
+  ListFolderData,
+  ListFolderErrors,
+  ListFolderResponses,
   ListGrantsData,
   ListGrantsResponses,
   ListGraphChangesData,
@@ -1046,6 +1053,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReadFileData,
+  ReadFileErrors,
+  ReadFileResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -2549,6 +2559,36 @@ export class Admin {
   ): RequestResult<TunnelStatusResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<TunnelStatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/tunnel/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Https Status
+   *
+   * How HTTPS (Settings › HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it
+   * holds and when they run out, and Caddy's last lines.
+   */
+  public static httpsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsStatusData, ThrowOnError>,
+  ): RequestResult<HttpsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Https Providers
+   *
+   * The DNS providers Settings › HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns
+   * plugin works too, by name.
+   */
+  public static httpsProviders<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsProvidersData, ThrowOnError>,
+  ): RequestResult<HttpsProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/providers",
       ...options,
     });
   }
@@ -4866,6 +4906,37 @@ export class Files {
   ): RequestResult<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError> {
     return (options.client ?? client).get<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/files/{fid}/lines",
+      ...options,
+    });
+  }
+}
+
+export class Tree {
+  /**
+   * List Folder
+   *
+   * A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'
+   * files. A file answers 400 (read it at /tree/file).
+   */
+  public static listFolder<ThrowOnError extends boolean = false>(
+    options?: Options<ListFolderData, ThrowOnError>,
+  ): RequestResult<ListFolderResponses, ListFolderErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListFolderResponses, ListFolderErrors, ThrowOnError>({
+      url: "/api/v1/tree",
+      ...options,
+    });
+  }
+
+  /**
+   * Read File
+   *
+   * A file of the tree, with byte ranges.
+   */
+  public static readFile<ThrowOnError extends boolean = false>(
+    options?: Options<ReadFileData, ThrowOnError>,
+  ): RequestResult<ReadFileResponses, ReadFileErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ReadFileResponses, ReadFileErrors, ThrowOnError>({
+      url: "/api/v1/tree/file",
       ...options,
     });
   }
