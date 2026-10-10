@@ -14,6 +14,7 @@ import {
   type SetupView,
   type TelemetryTestResult,
 } from "@/app/openapi-client";
+import { mcpAddress } from "@/components/account/connect-assistant";
 import { AuthAlert, AuthBrand } from "@/components/auth/auth-card";
 import { SegmentedChoice } from "@/components/settings/controls";
 import { AddConnection } from "@/components/storage/add-connection";
@@ -756,7 +757,7 @@ function AppsStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) 
   const [minutes, setMinutes] = useState(String(o.access_minutes));
   const [days, setDays] = useState(String(o.refresh_days));
   const [copied, setCopied] = useState(false);
-  const mcp = typeof window === "undefined" ? "/mcp" : `${window.location.origin}/mcp`;
+  const mcp = mcpAddress();
   const mins = Number(minutes);
   const ds = Number(days);
   const validMinutes = Number.isInteger(mins) && mins >= 5 && mins <= 1440;

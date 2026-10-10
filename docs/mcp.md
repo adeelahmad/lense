@@ -13,6 +13,8 @@ It works the other way too: Lens's own assistant calls the tools of MCP servers 
 
 The server is at `/mcp` on the web app's address: `https://lens.example.org/mcp` (`http://localhost:3000/mcp`
 locally). Add it to the client as a remote (Streamable HTTP) server, and the client sends you to Lens to sign in.
+In the web app, **Copy MCP address** in the account menu (your picture, top right) copies it in one click; it is also
+under API tokens, above Apps with access, and in the setup wizard's Apps step.
 
 | Client | |
 |---|---|
