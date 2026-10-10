@@ -744,6 +744,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "untrusted_marking",
+    label: "Treat what the assistant reads as data, not instructions",
+    kind: "switch",
+    hint: "Recordings, documents, web pages, chat rooms and what tools send back reach the model marked as material to read and cite, so instructions written in them aren't followed.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
@@ -1064,6 +1071,7 @@ export const FIELDS: FieldSpec[] = [
       { value: "deepgram", label: "Deepgram Aura (provider)" },
       { value: "gemini", label: "Google Gemini (provider)" },
       { value: "say", label: "macOS say (Lens running on a Mac)" },
+      { value: "styletts2", label: "StyleTTS2 (on this machine)" },
     ],
   },
   {
@@ -1095,6 +1103,14 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "the LLM provider’s",
   },
   { section: "voice", key: "tts_api_key", label: "Speech server API key", kind: "secret" },
+  {
+    section: "voice",
+    key: "styletts2_url",
+    label: "StyleTTS2 service",
+    kind: "text",
+    mono: true,
+    hint: "http://styletts2:8880 in Docker Compose",
+  },
   // Local model
   { section: "local_llm", key: "enabled", label: "Run a model here", kind: "switch" },
   {

@@ -848,6 +848,7 @@ recording later leaves its uploaded file in place, like any other media file.
 ```
 GET    /api/v1/search
 GET    /api/v1/search/terms
+GET    /api/v1/similar
 GET    /api/v1/graph
 GET    /api/v1/mentions
 ```
@@ -876,6 +877,16 @@ keeps to what was said.
 when search by meaning is set up and the query has no "phrases" or OR, else keyword). The reply's `mode` is how it was
 matched, `semantic` whether search by meaning is set up, and `meaning` why it wasn't used when asked for. Each hit's
 `match` is `words`, `meaning` (with its `similarity`, cosine, and shown at the passage's best line) or `both`.
+
+`GET /similar` lists the resources most like one thing, best first, in the namespaces you can read and the
+collections you were given a role on ([similar content](processing.md#similar-content)): a `text` (what was selected,
+up to 2,000 characters; `exclude` leaves out the resource it was selected in), a `recording`, a `topic` or an
+`entity`; give exactly one (422 otherwise, 404 for one you can't read). `limit` (default 10, at most 50) and `offset`
+page through them. Each item says why it's alike in `match` (`meaning`, `words`, `topics`, `entities`), with its
+`similarity` by meaning, up to three `cites` (moments to open: `source`, `idx`, `t0` or `page`, and a `snippet` with the
+key words marked), the key `words` it says, and the `topics` and `entities` in common. The reply's `mode` is `meaning`
+when an embedding model compared them too, else `words`; `terms` are the key words looked for and `meaning` says why
+it wasn't by meaning when search by meaning is set up. A resource is never listed as like itself.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and

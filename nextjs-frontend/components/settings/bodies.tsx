@@ -742,7 +742,11 @@ function StorageBody({ ctx }: { ctx: BodyCtx }) {
         <span className="text-[12px] text-fg-muted">Writes a small file there, reads it back and removes it</span>
       </div>
       {test.data &&
-        (test.data.ok ? (
+        (test.data.ok && test.data.limited ? (
+          <Banner tone="warning" title="It works, but it’s rate limited.">
+            The connection is {test.data.limited}.
+          </Banner>
+        ) : test.data.ok ? (
           <Banner tone="success" title="It works.">
             Written, read back and removed in {test.data.seconds} s.
           </Banner>
@@ -1269,6 +1273,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         The assistant uses the model set in LLM provider; it needs one that supports tool calls.
       </p>
       <F ctx={ctx} id="ai.tools" />
+      <F ctx={ctx} id="ai.untrusted_marking" />
       <F ctx={ctx} id="ai.compact" />
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="ai.compact_model" />
@@ -1329,8 +1334,16 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
             state={ctx.state("voice.tts_voice")}
           />
           {tts === "openai" && <F ctx={ctx} id="voice.tts_base_url" />}
+          {tts === "styletts2" && <F ctx={ctx} id="voice.styletts2_url" />}
         </div>
-        {tts === "say" ? (
+        {tts === "styletts2" ? (
+          <p className="text-[12.5px] text-fg-secondary">
+            Reads on this machine, in a voice like a short clip of someone speaking: put a few seconds of a .wav in the
+            service’s voices folder and pick it here. Heavy, so it runs only when started with{" "}
+            <code className="font-mono text-[12px]">docker compose --profile styletts2 up -d</code>. Tell listeners the
+            speech is synthesized unless you may use the voice.
+          </p>
+        ) : tts === "say" ? (
           <p className="text-[12.5px] text-fg-secondary">
             Uses the voices installed on the Mac Lens runs on (System Settings → Accessibility → Spoken Content adds
             more). Not available when Lens runs in Docker.

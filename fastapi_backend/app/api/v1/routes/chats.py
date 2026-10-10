@@ -219,7 +219,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         if page is None and old.get("context"):
             page = kept = old["context"]
     # what the model reads: the question with the page it was asked from, and the files it can import
-    asked = chat.with_context(q, page) + chat.attached_note(files)
+    asked = chat.with_context(q, page, cfg) + chat.attached_note(files)
     readable = set(acl.roles)
     summary: dict[str, Any] | None = None  # what compaction keeps of the earlier messages (chat.compact)
 
@@ -323,7 +323,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         text, error = "", None
         try:
             if llm.configured(cfg):
-                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past, summary), model=model):
+                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past, summary, cfg), model=model):
                     text += piece
                     yield _ev("token", {"text": piece})
                     if on.stop_requested():
