@@ -424,6 +424,15 @@ export const SPEECH_PROVIDERS = [
     urlHint: "https://api.deepgram.com, or your self-hosted Deepgram",
     modelHint: "nova-3",
   },
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    about:
+      "Gemini text to speech for spoken answers and podcasts, in 30 prebuilt voices. Get a key at aistudio.google.com.",
+    urlHint: "https://generativelanguage.googleapis.com",
+    modelHint: "gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts",
+    modelLabel: "Text-to-speech model",
+  },
 ] as const;
 
 export const FIELDS: FieldSpec[] = [
@@ -1030,6 +1039,8 @@ export const FIELDS: FieldSpec[] = [
       { value: "openai", label: "An OpenAI-compatible speech server" },
       { value: "elevenlabs", label: "ElevenLabs (provider)" },
       { value: "deepgram", label: "Deepgram Aura (provider)" },
+      { value: "gemini", label: "Google Gemini (provider)" },
+      { value: "say", label: "macOS say (Lens running on a Mac)" },
     ],
   },
   {
@@ -1123,7 +1134,7 @@ export const FIELDS: FieldSpec[] = [
     {
       section: "speech",
       key: `${p.id}_model`,
-      label: "Speech-to-text model",
+      label: ("modelLabel" in p && p.modelLabel) || "Speech-to-text model",
       kind: "text",
       mono: true,
       hint: p.modelHint,

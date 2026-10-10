@@ -13,7 +13,7 @@ Todo:
 - [x] Gemini TTS and macOS `say` as text-to-speech providers; `GET /voice/voices` lists each provider's voices;
       `POST /voice/speak` takes a voice to try
 - [ ] StyleTTS2 as an opt-in local service (off by default; heavy)
-- [ ] Settings → AI assistant → Voice: pick a voice from the list and hear it
+- [x] Settings → AI assistant → Voice: pick a voice from the list and hear it; Gemini in Speech providers
 
 Refine later: pick a second `say` voice for podcast hosts from what the Mac has; Gemini's multi-speaker mode for a
 whole podcast in one call; ElevenLabs voice settings (stability, style); cache the voice lists.
