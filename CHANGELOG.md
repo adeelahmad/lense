@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A Mac app.** Lens.app (`Lens-macOS-arm64.dmg`, Apple silicon) installs Lens in the web installer shown in its
+  window, with microsandbox inside it so no Docker is needed, then lives in the menu bar: open, start, stop and update
+  Lens, and show its logs. Lens itself opens in the browser, where passkeys work
+  ([Get started](docs/get-started.md#the-mac-app)).
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and

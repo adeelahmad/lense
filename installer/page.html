@@ -453,7 +453,7 @@ function render() {
   }
   const f = S.facts, ex = f.existing || {};
   Object.assign(S.a, { dir: f.dir, port: f.port, public: f.public, ref: f.ref,
-    backend: ex.LENS_BACKEND || "docker",
+    backend: ex.LENS_BACKEND || f.backend_default || "docker",
     // a small computer (a Raspberry Pi) gets the lean edition unless it already runs the full one
     target: ex.LENS_TARGET || (f.memory_mb && f.memory_mb < 4096 ? "lean" : "full") });
   $("#where").textContent = f.os_name;
