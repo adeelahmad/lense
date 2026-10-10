@@ -1,0 +1,2002 @@
+{
+  "surveyed": "2026-10-10T21:56:33.215Z",
+  "commit": "",
+  "viewport": "Pixel 7, 412x839, touch",
+  "device": "phone",
+  "journeys": [
+    {
+      "module": "Setup",
+      "feature": "Install with the web installer (defaults, local model found)",
+      "note": "The install line in a terminal, then the browser installer. The browser opens on its own on a desktop; on a server the link is opened by hand (counted). A computer missing Docker also asks for its password.",
+      "clicks": 8,
+      "keys": 2,
+      "prompts": 0,
+      "swipes": 3,
+      "steps": [
+        {
+          "page": "(outside the browser)",
+          "kind": "terminal",
+          "what": "paste the install line and press Enter",
+          "clicks": 0,
+          "keys": 2,
+          "prompts": 0
+        },
+        {
+          "page": "(outside the browser)",
+          "kind": "link",
+          "what": "open the installer link",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "installer:/",
+          "kind": "tap",
+          "what": "Continue (this computer)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "installer:/",
+          "kind": "tap",
+          "what": "Continue (how it runs)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "installer:/",
+          "kind": "tap",
+          "what": "pick the model server found on this computer",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "installer:/",
+          "kind": "tap",
+          "what": "Continue (AI model)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "installer:/",
+          "kind": "tap",
+          "what": "Continue (extras)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "installer:/",
+          "kind": "tap",
+          "what": "Install Lens",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "installer:/",
+          "kind": "tap",
+          "what": "Open Lens",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "install",
+      "ms": 2589,
+      "ok": true
+    },
+    {
+      "module": "Setup",
+      "feature": "Create the first admin (passkey)",
+      "note": "From the setup link, which fills in the setup code.",
+      "clicks": 2,
+      "keys": 17,
+      "prompts": 1,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/setup",
+          "kind": "type",
+          "what": "email",
+          "clicks": 1,
+          "keys": 17,
+          "prompts": 0
+        },
+        {
+          "page": "/setup",
+          "kind": "tap",
+          "what": "Create admin with a passkey",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/setup",
+          "kind": "passkey",
+          "what": "create the passkey",
+          "clicks": 0,
+          "keys": 0,
+          "prompts": 1
+        }
+      ],
+      "id": "first-admin",
+      "ms": 697,
+      "ok": true
+    },
+    {
+      "module": "Setup",
+      "feature": "First-run setup wizard, every step with its defaults",
+      "note": "The namespaces come from the install's configuration, so the wizard opens on the model provider. Finish with defaults (one click) skips the remaining steps.",
+      "clicks": 4,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 2,
+      "steps": [
+        {
+          "page": "/welcome",
+          "kind": "tap",
+          "what": "Save and continue (Connect a model provider)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "/welcome",
+          "kind": "tap",
+          "what": "Save and continue (Storage)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "/welcome",
+          "kind": "tap",
+          "what": "Save and continue (Apps and AI assistants)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/welcome",
+          "kind": "tap",
+          "what": "Save and finish (Telemetry)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "setup-wizard",
+      "ms": 828,
+      "ok": true
+    },
+    {
+      "module": "Setup",
+      "feature": "Ask the first question from the welcome tour",
+      "note": "",
+      "clicks": 0,
+      "keys": 44,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "type",
+          "what": "question",
+          "clicks": 0,
+          "keys": 42,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "key",
+          "what": "Enter to ask",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "key",
+          "what": "Enter again: the question waits in Chat's composer",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        }
+      ],
+      "id": "first-question",
+      "ms": 2944,
+      "ok": true
+    },
+    {
+      "module": "Import",
+      "feature": "Import a pasted transcript",
+      "note": "",
+      "clicks": 4,
+      "keys": 7,
+      "prompts": 0,
+      "swipes": 1,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Jump to (top bar)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "type",
+          "what": "import",
+          "clicks": 0,
+          "keys": 6,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Import recordings or transcripts",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/import",
+          "kind": "tap",
+          "what": "Paste tab",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/import",
+          "kind": "paste",
+          "what": "paste the transcript",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/import",
+          "kind": "tap",
+          "what": "Import",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        }
+      ],
+      "id": "import-paste",
+      "ms": 4017,
+      "ok": true
+    },
+    {
+      "module": "Library",
+      "feature": "Open a recording from the Library",
+      "note": "",
+      "clicks": 3,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Library",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/library",
+          "kind": "tap",
+          "what": "the recording",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "library-open",
+      "ms": 3017,
+      "ok": true
+    },
+    {
+      "module": "Search",
+      "feature": "Search for a word and see where it was said",
+      "note": "",
+      "clicks": 3,
+      "keys": 10,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Search",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/search",
+          "kind": "type",
+          "what": "the word",
+          "clicks": 1,
+          "keys": 9,
+          "prompts": 0
+        },
+        {
+          "page": "/search",
+          "kind": "key",
+          "what": "Enter to search",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        }
+      ],
+      "id": "search-word",
+      "ms": 3518,
+      "ok": true
+    },
+    {
+      "module": "Navigation",
+      "feature": "Jump to a recording with Ctrl+K",
+      "note": "",
+      "clicks": 1,
+      "keys": 8,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Jump to (top bar)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "type",
+          "what": "part of its title",
+          "clicks": 0,
+          "keys": 7,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "key",
+          "what": "Enter to open",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        }
+      ],
+      "id": "jump-to",
+      "ms": 2451,
+      "ok": true
+    },
+    {
+      "module": "Chat",
+      "feature": "Ask the assistant in Chat",
+      "note": "",
+      "clicks": 4,
+      "keys": 34,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Chat",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "tap",
+          "what": "New conversation",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "type",
+          "what": "question",
+          "clicks": 1,
+          "keys": 33,
+          "prompts": 0
+        },
+        {
+          "page": "/chat",
+          "kind": "key",
+          "what": "Enter to send",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        }
+      ],
+      "id": "chat-ask",
+      "ms": 3170,
+      "ok": true
+    },
+    {
+      "module": "Notes",
+      "feature": "Write a note",
+      "note": "",
+      "clicks": 5,
+      "keys": 36,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Notes",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/notes",
+          "kind": "tap",
+          "what": "New note",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/notes/:id",
+          "kind": "replace",
+          "what": "title",
+          "clicks": 1,
+          "keys": 9,
+          "prompts": 0
+        },
+        {
+          "page": "/notes/:id",
+          "kind": "type",
+          "what": "first line",
+          "clicks": 1,
+          "keys": 27,
+          "prompts": 0
+        }
+      ],
+      "id": "note-create",
+      "ms": 3802,
+      "ok": true
+    },
+    {
+      "module": "Topics",
+      "feature": "Add a topic",
+      "note": "",
+      "clicks": 3,
+      "keys": 9,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Topics",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/topics",
+          "kind": "tap",
+          "what": "Add topic",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/topics",
+          "kind": "type",
+          "what": "label",
+          "clicks": 0,
+          "keys": 8,
+          "prompts": 0
+        },
+        {
+          "page": "/topics",
+          "kind": "key",
+          "what": "Enter to add",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        }
+      ],
+      "id": "topic-add",
+      "ms": 3716,
+      "ok": true
+    },
+    {
+      "module": "Pipelines",
+      "feature": "Make a pipeline from the standard steps",
+      "note": "",
+      "clicks": 4,
+      "keys": 14,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Pipelines",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/pipelines",
+          "kind": "tap",
+          "what": "New pipeline",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/pipelines/new",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 14,
+          "prompts": 0
+        },
+        {
+          "page": "/pipelines/new",
+          "kind": "tap",
+          "what": "Create pipeline",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "pipeline-create",
+      "ms": 3124,
+      "ok": true
+    },
+    {
+      "module": "Routines",
+      "feature": "Make a nightly routine (sync sources, the default action)",
+      "note": "",
+      "clicks": 4,
+      "keys": 12,
+      "prompts": 0,
+      "swipes": 1,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Routines",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/routines",
+          "kind": "tap",
+          "what": "New routine",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/routines/new",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 12,
+          "prompts": 0
+        },
+        {
+          "page": "/routines/new",
+          "kind": "tap",
+          "what": "Create routine",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        }
+      ],
+      "id": "routine-create",
+      "ms": 3156,
+      "ok": true
+    },
+    {
+      "module": "Extensions",
+      "feature": "Add the example skill to the assistant",
+      "note": "",
+      "clicks": 4,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 1,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Extensions",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/extensions",
+          "kind": "tap",
+          "what": "New",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/extensions/new",
+          "kind": "tap",
+          "what": "Add to the assistant (covered by something else on the page)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        }
+      ],
+      "id": "extension-add",
+      "ms": 8257,
+      "ok": true
+    },
+    {
+      "module": "Sensors",
+      "feature": "Make a webhook sensor",
+      "note": "",
+      "clicks": 4,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Sensors",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sensors",
+          "kind": "tap",
+          "what": "Add sensor",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sensors",
+          "kind": "tap",
+          "what": "Make webhook",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "sensor-webhook",
+      "ms": 2909,
+      "ok": true
+    },
+    {
+      "module": "Settings",
+      "feature": "Change the model's timeout",
+      "note": "",
+      "clicks": 5,
+      "keys": 4,
+      "prompts": 0,
+      "swipes": 2,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Settings",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/settings/speakers",
+          "kind": "tap",
+          "what": "LLM provider",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "/settings/llm",
+          "kind": "replace",
+          "what": "timeout",
+          "clicks": 1,
+          "keys": 4,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "/settings/llm",
+          "kind": "tap",
+          "what": "Save (covered by something else on the page)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "settings-change",
+      "ms": 8925,
+      "ok": true
+    },
+    {
+      "module": "Admin",
+      "feature": "Add a person as a viewer",
+      "note": "",
+      "clicks": 6,
+      "keys": 18,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Admin",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/people",
+          "kind": "tap",
+          "what": "Create account",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/people",
+          "kind": "type",
+          "what": "email",
+          "clicks": 0,
+          "keys": 18,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/people",
+          "kind": "tap",
+          "what": "Create account",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/people",
+          "kind": "tap",
+          "what": "Copy the sign-in link",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/people",
+          "kind": "tap",
+          "what": "Done",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "person-add",
+      "ms": 3279,
+      "ok": true
+    },
+    {
+      "module": "Account",
+      "feature": "Make an API token",
+      "note": "",
+      "clicks": 4,
+      "keys": 6,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Account menu",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "API tokens",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/account/tokens",
+          "kind": "tap",
+          "what": "New token",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/account/tokens",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 6,
+          "prompts": 0
+        },
+        {
+          "page": "/account/tokens",
+          "kind": "tap",
+          "what": "Create token",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "api-token",
+      "ms": 2785,
+      "ok": true
+    },
+    {
+      "module": "Navigation",
+      "feature": "Switch to another namespace",
+      "note": "",
+      "clicks": 0,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [],
+      "id": "namespace-switch",
+      "ms": 7243,
+      "ok": false,
+      "error": "the namespace switcher isn't on the screen on a phone"
+    },
+    {
+      "module": "Agents",
+      "feature": "Connect an AI assistant (Claude, ChatGPT, Cursor) over MCP",
+      "note": "In the assistant: add a connector and give it Lens's MCP address; the assistant opens Lens's consent page, where the person allows it. After setup Lens shows the MCP address nowhere, so it is typed (counted as typed).",
+      "clicks": 3,
+      "keys": 25,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "outside",
+          "what": "in the assistant: add a connector, type Lens's MCP address, add it",
+          "clicks": 2,
+          "keys": 25,
+          "prompts": 0
+        },
+        {
+          "page": "/oauth/authorize",
+          "kind": "tap",
+          "what": "Allow",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "agent-connect",
+      "ms": 3155,
+      "ok": true
+    },
+    {
+      "module": "Import",
+      "feature": "Upload a transcript file",
+      "note": "",
+      "clicks": 5,
+      "keys": 6,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Jump to (top bar)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "type",
+          "what": "import",
+          "clicks": 0,
+          "keys": 6,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Import recordings or transcripts",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/import",
+          "kind": "upload",
+          "what": "Choose files, then the file",
+          "clicks": 2,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/import",
+          "kind": "tap",
+          "what": "Import",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "import-file",
+      "ms": 3487,
+      "ok": true
+    },
+    {
+      "module": "Sensors",
+      "feature": "Watch a folder on this machine for new files",
+      "note": "Needs rclone, as the Lens image has (CI copies the image's version); the folders offered are the allowed ones set at startup.",
+      "clicks": 10,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 1,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Sensors",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sensors",
+          "kind": "tap",
+          "what": "Files, email and calendars tab",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "Add connection",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "This machine",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "Test connection",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "Done (the test passed)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "the allowed folder",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "Watch this folder",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "Start watching",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        }
+      ],
+      "id": "source-folder",
+      "ms": 5309,
+      "ok": true
+    },
+    {
+      "module": "Entities",
+      "feature": "Find an entity and see where it was mentioned",
+      "note": "",
+      "clicks": 4,
+      "keys": 4,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Entities",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/entities",
+          "kind": "type",
+          "what": "part of its name",
+          "clicks": 1,
+          "keys": 4,
+          "prompts": 0
+        },
+        {
+          "page": "/entities",
+          "kind": "tap",
+          "what": "Raspberry Pi",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "entity-find",
+      "ms": 3824,
+      "ok": true
+    },
+    {
+      "module": "Graph",
+      "feature": "Find a speaker in the graph of what was imported",
+      "note": "The first namespace keeps its graph to itself, so the graph opens empty until it is picked as the namespace.",
+      "clicks": 2,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Graph",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "graph-find",
+      "ms": 9592,
+      "ok": false,
+      "error": "the namespace switcher isn't on the screen on a phone"
+    },
+    {
+      "module": "Podcasts",
+      "feature": "Make a podcast from a recording",
+      "note": "",
+      "clicks": 6,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 1,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Library",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/library",
+          "kind": "tap",
+          "what": "the recording",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/resources/:id",
+          "kind": "tap",
+          "what": "More actions",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/resources/:id",
+          "kind": "tap",
+          "what": "Create podcast…",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/resources/:id",
+          "kind": "tap",
+          "what": "Create podcast (covered by something else on the page)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        }
+      ],
+      "id": "podcast-create",
+      "ms": 8905,
+      "ok": true
+    },
+    {
+      "module": "Reports",
+      "feature": "Save the namespace report as a PDF",
+      "note": "The browser's print dialog does the saving (one click there, counted).",
+      "clicks": 5,
+      "keys": 0,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Reports",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/reports",
+          "kind": "tap",
+          "what": "PDF / HTML",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/reports",
+          "kind": "tap",
+          "what": "Print or save as PDF",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/reports",
+          "kind": "outside",
+          "what": "the print dialog: Save",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "report-pdf",
+      "ms": 3577,
+      "ok": true
+    },
+    {
+      "module": "Pipelines",
+      "feature": "Make a workflow",
+      "note": "",
+      "clicks": 5,
+      "keys": 13,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Pipelines",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/pipelines",
+          "kind": "tap",
+          "what": "Workflows tab",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/workflows",
+          "kind": "tap",
+          "what": "New workflow",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/workflows/new",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 13,
+          "prompts": 0
+        },
+        {
+          "page": "/workflows/new",
+          "kind": "tap",
+          "what": "Create workflow",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "workflow-create",
+      "ms": 3362,
+      "ok": true
+    },
+    {
+      "module": "Pipelines",
+      "feature": "Make a prompt template",
+      "note": "",
+      "clicks": 5,
+      "keys": 10,
+      "prompts": 0,
+      "swipes": 1,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Pipelines",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/pipelines",
+          "kind": "tap",
+          "what": "Templates tab",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "/templates",
+          "kind": "tap",
+          "what": "New template",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/templates/new",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 10,
+          "prompts": 0
+        },
+        {
+          "page": "/templates/new",
+          "kind": "tap",
+          "what": "Create and edit",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "template-create",
+      "ms": 3073,
+      "ok": true
+    },
+    {
+      "module": "Admin",
+      "feature": "Make a namespace",
+      "note": "",
+      "clicks": 4,
+      "keys": 15,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Admin",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/people",
+          "kind": "tap",
+          "what": "Namespaces tab",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/namespaces",
+          "kind": "tap",
+          "what": "New namespace",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/namespaces",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 14,
+          "prompts": 0
+        },
+        {
+          "page": "/admin/namespaces",
+          "kind": "key",
+          "what": "Enter to create",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        }
+      ],
+      "id": "namespace-create",
+      "ms": 3119,
+      "ok": true
+    },
+    {
+      "module": "Speakers",
+      "feature": "Name a speaker",
+      "note": "",
+      "clicks": 4,
+      "keys": 7,
+      "prompts": 0,
+      "swipes": 0,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Settings",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/settings/speakers",
+          "kind": "tap",
+          "what": "Host A",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/speakers/:id",
+          "kind": "tap",
+          "what": "Rename",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/speakers/:id",
+          "kind": "replace",
+          "what": "the name",
+          "clicks": 0,
+          "keys": 6,
+          "prompts": 0
+        },
+        {
+          "page": "/speakers/:id",
+          "kind": "key",
+          "what": "Enter to save",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        }
+      ],
+      "id": "speaker-rename",
+      "ms": 4092,
+      "ok": true
+    },
+    {
+      "module": "Setup",
+      "feature": "Switch to a cloud model with an API key",
+      "note": "What a Raspberry Pi install does after the installer: an OpenAI-compatible cloud provider, its model and a pasted key.",
+      "clicks": 7,
+      "keys": 39,
+      "prompts": 0,
+      "swipes": 2,
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Settings",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/settings/speakers",
+          "kind": "tap",
+          "what": "LLM provider",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "/settings/llm",
+          "kind": "replace",
+          "what": "the provider's address",
+          "clicks": 1,
+          "keys": 26,
+          "prompts": 0
+        },
+        {
+          "page": "/settings/llm",
+          "kind": "replace",
+          "what": "the model",
+          "clicks": 1,
+          "keys": 12,
+          "prompts": 0
+        },
+        {
+          "page": "/settings/llm",
+          "kind": "paste",
+          "what": "paste the API key",
+          "clicks": 1,
+          "keys": 1,
+          "prompts": 0,
+          "swipes": 1
+        },
+        {
+          "page": "/settings/llm",
+          "kind": "tap",
+          "what": "Save (covered by something else on the page)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
+      "id": "cloud-model",
+      "ms": 8559,
+      "ok": true
+    }
+  ],
+  "pages": [
+    {
+      "page": "/",
+      "label": "Home",
+      "reach": 2,
+      "controls": 4
+    },
+    {
+      "page": "/library",
+      "label": "Library",
+      "reach": 2,
+      "controls": 17
+    },
+    {
+      "page": "/search",
+      "label": "Search",
+      "reach": 2,
+      "controls": 11
+    },
+    {
+      "page": "/chat",
+      "label": "Chat",
+      "reach": 2,
+      "controls": 0
+    },
+    {
+      "page": "/notes",
+      "label": "Notes",
+      "reach": 2,
+      "controls": 2
+    },
+    {
+      "page": "/entities",
+      "label": "Entities",
+      "reach": 2,
+      "controls": 10
+    },
+    {
+      "page": "/topics",
+      "label": "Topics",
+      "reach": 2,
+      "controls": 4
+    },
+    {
+      "page": "/graph",
+      "label": "Graph",
+      "reach": 2,
+      "controls": 4
+    },
+    {
+      "page": "/podcasts",
+      "label": "Podcasts",
+      "reach": 2,
+      "controls": 1
+    },
+    {
+      "page": "/reports",
+      "label": "Reports",
+      "reach": 2,
+      "controls": 7
+    },
+    {
+      "page": "/pipelines",
+      "label": "Pipelines",
+      "reach": 2,
+      "controls": 20
+    },
+    {
+      "page": "/workflows",
+      "label": "Pipelines › Workflows",
+      "reach": 3,
+      "controls": 8
+    },
+    {
+      "page": "/workflows/nodes",
+      "label": "Pipelines › Custom nodes",
+      "reach": 3,
+      "controls": 6
+    },
+    {
+      "page": "/content-types",
+      "label": "Pipelines › Content types",
+      "reach": 3,
+      "controls": 66
+    },
+    {
+      "page": "/templates",
+      "label": "Pipelines › Templates",
+      "reach": 3,
+      "controls": 11
+    },
+    {
+      "page": "/routines",
+      "label": "Routines",
+      "reach": 2,
+      "controls": 20
+    },
+    {
+      "page": "/routines/changes",
+      "label": "Routines › Proposed changes",
+      "reach": 3,
+      "controls": 5
+    },
+    {
+      "page": "/routines/history",
+      "label": "Routines › History",
+      "reach": 3,
+      "controls": 8
+    },
+    {
+      "page": "/extensions",
+      "label": "Extensions",
+      "reach": 2,
+      "controls": 7
+    },
+    {
+      "page": "/sensors",
+      "label": "Sensors",
+      "reach": 2,
+      "controls": 8
+    },
+    {
+      "page": "/sources",
+      "label": "Sensors › Files, email and calendars",
+      "reach": 3,
+      "controls": 9
+    },
+    {
+      "page": "/sensors/logins",
+      "label": "Sensors › Hub logins",
+      "reach": 3,
+      "controls": 5
+    },
+    {
+      "page": "/settings/speakers",
+      "label": "Settings",
+      "reach": 2,
+      "controls": 5
+    },
+    {
+      "page": "/settings/transcription",
+      "label": "Settings › Transcription",
+      "reach": 3,
+      "controls": 4
+    },
+    {
+      "page": "/settings/speaker-separation",
+      "label": "Settings › Speaker separation",
+      "reach": 3,
+      "controls": 9
+    },
+    {
+      "page": "/settings/speech-providers",
+      "label": "Settings › Speech providers",
+      "reach": 3,
+      "controls": 22
+    },
+    {
+      "page": "/settings/voice-ids",
+      "label": "Settings › Voice IDs",
+      "reach": 3,
+      "controls": 6
+    },
+    {
+      "page": "/settings/analysis",
+      "label": "Settings › Analysis",
+      "reach": 3,
+      "controls": 3
+    },
+    {
+      "page": "/settings/llm",
+      "label": "Settings › LLM provider",
+      "reach": 3,
+      "controls": 11
+    },
+    {
+      "page": "/settings/local-model",
+      "label": "Settings › Local model",
+      "reach": 3,
+      "controls": 25
+    },
+    {
+      "page": "/settings/ai",
+      "label": "Settings › AI assistant",
+      "reach": 3,
+      "controls": 52
+    },
+    {
+      "page": "/settings/search",
+      "label": "Settings › Search",
+      "reach": 3,
+      "controls": 17
+    },
+    {
+      "page": "/settings/reports",
+      "label": "Settings › Reports and graph",
+      "reach": 3,
+      "controls": 5
+    },
+    {
+      "page": "/settings/video",
+      "label": "Settings › Video, OCR, faces and objects",
+      "reach": 3,
+      "controls": 19
+    },
+    {
+      "page": "/settings/workers",
+      "label": "Settings › Workers",
+      "reach": 3,
+      "controls": 18
+    },
+    {
+      "page": "/settings/sign-in",
+      "label": "Settings › Sign-in",
+      "reach": 3,
+      "controls": 2
+    },
+    {
+      "page": "/settings/encryption",
+      "label": "Settings › Encryption",
+      "reach": 3,
+      "controls": 3
+    },
+    {
+      "page": "/settings/components",
+      "label": "Settings › Components",
+      "reach": 3,
+      "controls": 3
+    },
+    {
+      "page": "/settings/access",
+      "label": "Settings › Access & embedding",
+      "reach": 3,
+      "controls": 6
+    },
+    {
+      "page": "/settings/remote-access",
+      "label": "Settings › Remote access",
+      "reach": 3,
+      "controls": 4
+    },
+    {
+      "page": "/settings/mail",
+      "label": "Settings › Email",
+      "reach": 3,
+      "controls": 8
+    },
+    {
+      "page": "/settings/bridge",
+      "label": "Settings › Chat rooms",
+      "reach": 3,
+      "controls": 13
+    },
+    {
+      "page": "/settings/notifications",
+      "label": "Settings › Notifications",
+      "reach": 3,
+      "controls": 5
+    },
+    {
+      "page": "/settings/telemetry",
+      "label": "Settings › Telemetry",
+      "reach": 3,
+      "controls": 12
+    },
+    {
+      "page": "/settings/fedora",
+      "label": "Settings › Fedora repository",
+      "reach": 3,
+      "controls": 10
+    },
+    {
+      "page": "/settings/sensors",
+      "label": "Settings › Sensors",
+      "reach": 3,
+      "controls": 15
+    },
+    {
+      "page": "/settings/uploads",
+      "label": "Settings › Uploads",
+      "reach": 3,
+      "controls": 23
+    },
+    {
+      "page": "/settings/storage",
+      "label": "Settings › Storage",
+      "reach": 3,
+      "controls": 3
+    },
+    {
+      "page": "/settings/documents",
+      "label": "Settings › Documents",
+      "reach": 3,
+      "controls": 10
+    },
+    {
+      "page": "/settings/tokens",
+      "label": "Settings › API keys",
+      "reach": 3,
+      "controls": 7
+    },
+    {
+      "page": "/settings/iiif",
+      "label": "Settings › IIIF & metadata",
+      "reach": 3,
+      "controls": 21
+    },
+    {
+      "page": "/settings/startup",
+      "label": "Settings › Set at startup",
+      "reach": 3,
+      "controls": 0
+    },
+    {
+      "page": "/admin/people",
+      "label": "Admin",
+      "reach": 2,
+      "controls": 12
+    },
+    {
+      "page": "/admin/namespaces",
+      "label": "Admin › Namespaces",
+      "reach": 3,
+      "controls": 8
+    },
+    {
+      "page": "/admin/audit",
+      "label": "Admin › Audit log",
+      "reach": 3,
+      "controls": 35
+    },
+    {
+      "page": "/admin/health",
+      "label": "Admin › System health",
+      "reach": 3,
+      "controls": 10
+    },
+    {
+      "page": "/notes/:id",
+      "label": "Pi setup",
+      "reach": 2,
+      "controls": 9
+    }
+  ]
+}
