@@ -59,6 +59,24 @@ export function clampPage(idx: number, count: number): number {
   return Math.max(0, Math.min(Math.max(0, count - 1), Math.round(idx)));
 }
 
+/**
+ * The page being read in pages scrolled one under another: the last whose top (`tops`, in order) is at or above `y`,
+ * the line a reader's eye is on.
+ */
+export function pageAtOffset(tops: number[], y: number): number {
+  let lo = 0;
+  let hi = tops.length - 1;
+  let at = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (tops[mid] <= y) {
+      at = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  return at;
+}
+
 /** The next zoom in (dir 1) or out (-1); the fit (1) when it's in between. */
 export function zoomStep(z: number, dir: 1 | -1): number {
   if (dir > 0) return ZOOMS.find((x) => x > z + 1e-6) ?? ZOOMS[ZOOMS.length - 1];

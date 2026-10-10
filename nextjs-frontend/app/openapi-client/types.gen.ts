@@ -705,6 +705,64 @@ export type Backup = {
 };
 
 /**
+ * BackupLink
+ */
+export type BackupLink = {
+  /**
+   * Url
+   *
+   * opens the download, without signing in, until it expires
+   */
+  url: string;
+  /**
+   * Expires In
+   *
+   * seconds
+   */
+  expires_in: number;
+  [key: string]: unknown;
+};
+
+/**
+ * BackupSchedule
+ */
+export type BackupSchedule = {
+  /**
+   * Schedule
+   *
+   * backups.schedule: a cron expression, or none
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Keep
+   *
+   * how many scheduled backups are kept
+   */
+  keep?: number;
+  /**
+   * Next At
+   */
+  next_at?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Backups
  */
 export type Backups = {
@@ -716,6 +774,23 @@ export type Backups = {
    * Backups
    */
   backups: Array<Backup>;
+  /**
+   * Database
+   *
+   * the database this Lens uses: a restore needs a backup of the same kind (export or folder)
+   */
+  database?: "server" | "embedded" | "memory" | null;
+  /**
+   * In Progress
+   *
+   * backups being written now, by any Lens process
+   */
+  in_progress?: Array<string>;
+  /**
+   * the restore running on this server, or the last one
+   */
+  restore?: RestoreWork | null;
+  schedule?: BackupSchedule | null;
   [key: string]: unknown;
 };
 
@@ -2840,6 +2915,31 @@ export type Converters = {
 };
 
 /**
+ * CopyWork
+ */
+export type CopyWork = {
+  /**
+   * Running
+   *
+   * copying a backup to (send) or from (fetch) the connection
+   */
+  running?: "send" | "fetch" | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Created
  */
 export type Created = {
@@ -4028,7 +4128,7 @@ export type EventInfo = {
   /**
    * Type
    */
-  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added";
+  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release";
   /**
    * Label
    */
@@ -4053,7 +4153,7 @@ export type Extension = {
   /**
    * Kind
    */
-  kind: "tool" | "skill" | "hook" | "plugin";
+  kind: "tool" | "skill" | "hook" | "plugin" | "mcp";
   /**
    * Title
    */
@@ -4105,9 +4205,17 @@ export type Extension = {
   /**
    * Origin
    *
-   * how this version was made: code, canvas or chat
+   * how this version was made: code, canvas, chat or import
    */
   origin?: string | null;
+  /**
+   * Source
+   *
+   * where it was imported from: a marketplace's plugin, a link or a file
+   */
+  source?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Updated At
    */
@@ -4160,7 +4268,7 @@ export type ExtensionDetail = {
   /**
    * Kind
    */
-  kind: "tool" | "skill" | "hook" | "plugin";
+  kind: "tool" | "skill" | "hook" | "plugin" | "mcp";
   /**
    * Title
    */
@@ -4212,9 +4320,17 @@ export type ExtensionDetail = {
   /**
    * Origin
    *
-   * how this version was made: code, canvas or chat
+   * how this version was made: code, canvas, chat or import
    */
   origin?: string | null;
+  /**
+   * Source
+   *
+   * where it was imported from: a marketplace's plugin, a link or a file
+   */
+  source?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Updated At
    */
@@ -4229,6 +4345,107 @@ export type ExtensionDetail = {
    * History
    */
   history?: Array<ExtensionVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionImportArchive
+ */
+export type ExtensionImportArchive = {
+  /**
+   * Filename
+   */
+  filename?: string | null;
+  /**
+   * Data
+   *
+   * a .zip, .skill or .tar.gz with a plugin or a skill, as base64 (20 MB at most)
+   */
+  data: string;
+  /**
+   * Preview
+   */
+  preview?: boolean;
+};
+
+/**
+ * ExtensionImportLink
+ */
+export type ExtensionImportLink = {
+  /**
+   * Url
+   *
+   * a plugin or skill: a GitHub or GitLab repository or folder, or a .zip or .tar.gz link
+   */
+  url: string;
+  /**
+   * Preview
+   *
+   * say what it would install, without installing it
+   */
+  preview?: boolean;
+};
+
+/**
+ * ExtensionImportPreview
+ */
+export type ExtensionImportPreview = {
+  /**
+   * Manifest
+   *
+   * the plugin as Lens would install it
+   */
+  manifest: {
+    [key: string]: unknown;
+  };
+  /**
+   * Skipped
+   */
+  skipped?: Array<ExtensionSkipped>;
+  /**
+   * Source
+   */
+  source: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionImported
+ */
+export type ExtensionImported = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Skipped
+   */
+  skipped?: Array<ExtensionSkipped>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionSkipped
+ */
+export type ExtensionSkipped = {
+  /**
+   * Kind
+   *
+   * what was left out: hooks, mcp, skill, command, agent or file
+   */
+  kind: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Why
+   */
+  why: string;
   [key: string]: unknown;
 };
 
@@ -5009,6 +5226,12 @@ export type FileStoreTestResult = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the connection is rate limiting: reads work, new files are kept here
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -6801,7 +7024,7 @@ export type LinksImport = {
 /**
  * LinksImportRequest
  *
- * Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a
+ * Links pasted as ``text`` (one per line), listed in ``urls``, or a file (``filename`` + base64 ``data``): a list of addresses, a
  * browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON).
  */
 export type LinksImportRequest = {
@@ -6817,6 +7040,12 @@ export type LinksImportRequest = {
    * addresses, one per line
    */
   text?: string | null;
+  /**
+   * Urls
+   *
+   * addresses, as a list
+   */
+  urls?: Array<string> | null;
   /**
    * Filename
    */
@@ -7198,6 +7427,133 @@ export type ManifestChecked = {
   manifest: {
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+};
+
+/**
+ * Marketplace
+ */
+export type Marketplace = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * the name its marketplace.json gives it
+   */
+  name: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Source
+   *
+   * where it is: a repository, or a link to its marketplace.json
+   */
+  source: string;
+  /**
+   * Plugins
+   *
+   * how many plugins it lists
+   */
+  plugins: number;
+  /**
+   * Added By
+   */
+  added_by?: string | null;
+  /**
+   * Fetched At
+   */
+  fetched_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MarketplaceCreate
+ */
+export type MarketplaceCreate = {
+  /**
+   * Source
+   *
+   * owner/repo on GitHub, a GitHub or GitLab link, or a link to a marketplace.json
+   */
+  source: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+};
+
+/**
+ * MarketplacePlugin
+ */
+export type MarketplacePlugin = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Version
+   */
+  version?: string | null;
+  /**
+   * Category
+   */
+  category?: string | null;
+  /**
+   * Author
+   */
+  author?: string | null;
+  /**
+   * Homepage
+   */
+  homepage?: string | null;
+  /**
+   * Installable
+   *
+   * whether Lens can read it (why_not says why when it can't)
+   */
+  installable: boolean;
+  /**
+   * Why Not
+   */
+  why_not?: string | null;
+  /**
+   * Installed
+   *
+   * your extension installed from it, if you installed it
+   */
+  installed?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MarketplaceSuggestion
+ */
+export type MarketplaceSuggestion = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Source
+   */
+  source: string;
   [key: string]: unknown;
 };
 
@@ -8917,7 +9273,9 @@ export type NotifyTarget = {
   /**
    * Events
    */
-  events: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added">;
+  events: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  >;
   /**
    * Enabled
    */
@@ -8992,7 +9350,9 @@ export type NotifyTargetCreate = {
    *
    * default: job.failed and batch.finished
    */
-  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  events?: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  > | null;
   /**
    * Enabled
    */
@@ -9048,7 +9408,9 @@ export type NotifyTargetUpdate = {
   /**
    * Events
    */
-  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  events?: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  > | null;
   /**
    * Enabled
    */
@@ -12139,6 +12501,52 @@ export type Release = {
 };
 
 /**
+ * RemoteBackups
+ */
+export type RemoteBackups = {
+  /**
+   * Connection
+   *
+   * backups.connection: where copies go, or none
+   */
+  connection?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Backups
+   *
+   * the copies there, newest first
+   */
+  backups?: Array<Backup>;
+  /**
+   * Error
+   *
+   * why the connection couldn't be listed
+   */
+  error?: string | null;
+  /**
+   * Last At
+   *
+   * when the last backup was copied there (or tried)
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   *
+   * why copying the last backup failed
+   */
+  last_error?: string | null;
+  copying: CopyWork;
+  [key: string]: unknown;
+};
+
+/**
  * Removed
  */
 export type Removed = {
@@ -12374,6 +12782,53 @@ export type ResourceSpend = {
    * true: cost_usd is a floor (unpriced calls); show it as an estimate
    */
   estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * RestoreStart
+ */
+export type RestoreStart = {
+  /**
+   * Confirm
+   *
+   * the backup's name again, to show this is meant: restoring replaces everything
+   */
+  confirm: string;
+};
+
+/**
+ * RestoreWork
+ */
+export type RestoreWork = {
+  /**
+   * Running
+   *
+   * a restore is running on this server now
+   */
+  running?: boolean;
+  /**
+   * Name
+   *
+   * the backup being (or last) restored
+   */
+  name?: string | null;
+  /**
+   * Error
+   *
+   * why the last restore here failed (what was there was put back)
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Before
+   *
+   * the before-restore backup of what the database held
+   */
+  before?: string | null;
   [key: string]: unknown;
 };
 
@@ -14305,6 +14760,215 @@ export type SigninLinkToken = {
 };
 
 /**
+ * SimilarCite
+ *
+ * A moment that shows why a resource is alike: one of its passages closest in meaning, or a line with shared words.
+ */
+export type SimilarCite = {
+  /**
+   * Match
+   *
+   * found by meaning (a close passage) or by the shared words
+   */
+  match: "meaning" | "words";
+  /**
+   * Source
+   *
+   * "said" (the transcript), "page" (text on a page of a document or an image) or "described" (what a shot or a page shows)
+   */
+  source: "said" | "page" | "described";
+  /**
+   * Snippet
+   *
+   * HTML: escaped text with <mark> around the key words
+   */
+  snippet: string;
+  /**
+   * Idx
+   *
+   * the line it starts at (from 0)
+   */
+  idx?: number | null;
+  /**
+   * T0
+   *
+   * ms; None on a page
+   */
+  t0?: number | null;
+  /**
+   * Page
+   *
+   * on a document or an image: which page (from 0)
+   */
+  page?: number | null;
+  /**
+   * Similarity
+   *
+   * found by meaning: how alike it is (cosine, up to 1)
+   */
+  similarity?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarEntity
+ */
+export type SimilarEntity = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarItem
+ */
+export type SimilarItem = {
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Media Kind
+   *
+   * audio, video, transcript, document or image
+   */
+  media_kind: string;
+  /**
+   * Score
+   *
+   * reciprocal-rank fusion of the lists it's in; only for ordering
+   */
+  score: number;
+  /**
+   * Match
+   *
+   * why it's alike: close in meaning, shares key words, about the same topics, mentions the same entities
+   */
+  match: Array<"meaning" | "words" | "topics" | "entities">;
+  /**
+   * Similarity
+   *
+   * by meaning: how alike its closest passage is (cosine, up to 1)
+   */
+  similarity?: number | null;
+  /**
+   * Cites
+   *
+   * up to 3 moments that show it, to open
+   */
+  cites?: Array<SimilarCite>;
+  /**
+   * Words
+   *
+   * the key words it says
+   */
+  words?: Array<string>;
+  /**
+   * Topics
+   *
+   * topics both are about
+   */
+  topics?: Array<SimilarTopic>;
+  /**
+   * Entities
+   *
+   * entities both mention
+   */
+  entities?: Array<SimilarEntity>;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarResults
+ */
+export type SimilarResults = {
+  /**
+   * Basis
+   *
+   * what the results are like
+   */
+  basis: "text" | "recording" | "topic" | "entity";
+  /**
+   * Label
+   *
+   * the text's start, or the resource's title, the topic's label, the entity's name
+   */
+  label?: string | null;
+  /**
+   * Text
+   *
+   * the text compared by meaning (a topic's labels and definition, an entity's name and description)
+   */
+  text?: string | null;
+  /**
+   * Terms
+   *
+   * the key words looked for
+   */
+  terms?: Array<string>;
+  /**
+   * Mode
+   *
+   * "meaning": an embedding model compared it too; "words": only by key words, topics and entities
+   */
+  mode: "meaning" | "words";
+  /**
+   * Meaning
+   *
+   * why it wasn't compared by meaning, when search by meaning is set up
+   */
+  meaning?: string | null;
+  /**
+   * Semantic
+   *
+   * search by meaning is set up and indexed
+   */
+  semantic?: boolean;
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<SimilarItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarTopic
+ */
+export type SimilarTopic = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -14412,6 +15076,12 @@ export type SourceHealth = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the service is rate limiting the account; it still works
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -14547,6 +15217,12 @@ export type SpeakRequest = {
    * Text
    */
   text: string;
+  /**
+   * Voice
+   *
+   * read in this voice (an id from GET /voice/voices); else the settings'
+   */
+  voice?: string | null;
 };
 
 /**
@@ -16821,6 +17497,56 @@ export type VoiceInfo = {
    * the server reads answers aloud (POST /voice/speak); else the browser does
    */
   speak: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceList
+ */
+export type VoiceList = {
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Current
+   *
+   * the voice answers are read in now (null: the provider's default)
+   */
+  current?: string | null;
+  /**
+   * Voices
+   */
+  voices: Array<VoiceOption>;
+  /**
+   * Error
+   *
+   * why the provider's voices couldn't be listed
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceOption
+ */
+export type VoiceOption = {
+  /**
+   * Id
+   *
+   * what voice.tts_voice is set to
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Detail
+   *
+   * what the provider says about it: accent, gender, style, language
+   */
+  detail?: string | null;
   [key: string]: unknown;
 };
 
@@ -19430,6 +20156,211 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type RemoteBackupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups/remote";
+};
+
+export type RemoteBackupsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RemoteBackups;
+};
+
+export type RemoteBackupsResponse = RemoteBackupsResponses[keyof RemoteBackupsResponses];
+
+export type SendBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/send";
+};
+
+export type SendBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendBackupError = SendBackupErrors[keyof SendBackupErrors];
+
+export type SendBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type SendBackupResponse = SendBackupResponses[keyof SendBackupResponses];
+
+export type FetchBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/fetch";
+};
+
+export type FetchBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FetchBackupError = FetchBackupErrors[keyof FetchBackupErrors];
+
+export type FetchBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type FetchBackupResponse = FetchBackupResponses[keyof FetchBackupResponses];
+
+export type DeleteRemoteBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/remote";
+};
+
+export type DeleteRemoteBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRemoteBackupError = DeleteRemoteBackupErrors[keyof DeleteRemoteBackupErrors];
+
+export type DeleteRemoteBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRemoteBackupResponse = DeleteRemoteBackupResponses[keyof DeleteRemoteBackupResponses];
+
+export type RestoreBackupData = {
+  body: RestoreStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/restore";
+};
+
+export type RestoreBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreBackupError = RestoreBackupErrors[keyof RestoreBackupErrors];
+
+export type RestoreBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type RestoreBackupResponse = RestoreBackupResponses[keyof RestoreBackupResponses];
+
+export type BackupLinkData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/link";
+};
+
+export type BackupLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupLinkError = BackupLinkErrors[keyof BackupLinkErrors];
+
+export type BackupLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: BackupLink;
+};
+
+export type BackupLinkResponse = BackupLinkResponses[keyof BackupLinkResponses];
+
+export type BackupFileData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Exp
+     */
+    exp?: string | null;
+    /**
+     * Sig
+     */
+    sig?: string | null;
+  };
+  url: "/api/v1/admin/backups/{name}/file";
+};
+
+export type BackupFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupFileError = BackupFileErrors[keyof BackupFileErrors];
+
+export type BackupFileResponses = {
+  /**
+   * the backup (an embedded one as a .tar.gz)
+   */
+  200: Blob | File;
+};
+
+export type BackupFileResponse = BackupFileResponses[keyof BackupFileResponses];
 
 export type GetUpdatesData = {
   body?: never;
@@ -24182,6 +25113,70 @@ export type SearchPhotosResponses = {
 };
 
 export type SearchPhotosResponse = SearchPhotosResponses[keyof SearchPhotosResponses];
+
+export type FindSimilarData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Text
+     *
+     * what was selected: a sentence, a passage, a title
+     */
+    text?: string | null;
+    /**
+     * Recording
+     *
+     * a resource: the others most like it
+     */
+    recording?: number | null;
+    /**
+     * Topic
+     *
+     * a topic: the resources most like its labels and definition, and about it
+     */
+    topic?: number | null;
+    /**
+     * Entity
+     *
+     * an entity: the resources most like its name and description, and mentioning it
+     */
+    entity?: number | null;
+    /**
+     * Exclude
+     *
+     * leave out this resource too (the one the text was selected in)
+     */
+    exclude?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/similar";
+};
+
+export type FindSimilarErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindSimilarError = FindSimilarErrors[keyof FindSimilarErrors];
+
+export type FindSimilarResponses = {
+  /**
+   * Successful Response
+   */
+  200: SimilarResults;
+};
+
+export type FindSimilarResponse = FindSimilarResponses[keyof FindSimilarResponses];
 
 export type SuggestTermsData = {
   body?: never;
@@ -29230,7 +30225,7 @@ export type ListExtensionsData = {
     /**
      * Kind
      */
-    kind?: "tool" | "skill" | "hook" | "plugin" | null;
+    kind?: "tool" | "skill" | "hook" | "plugin" | "mcp" | null;
   };
   url: "/api/v1/extensions";
 };
@@ -29304,6 +30299,60 @@ export type CheckManifestResponses = {
 };
 
 export type CheckManifestResponse = CheckManifestResponses[keyof CheckManifestResponses];
+
+export type ImportLinkData = {
+  body: ExtensionImportLink;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/import";
+};
+
+export type ImportLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportLinkError = ImportLinkErrors[keyof ImportLinkErrors];
+
+export type ImportLinkResponses = {
+  /**
+   * Response Extensions-Import Link
+   *
+   * Successful Response
+   */
+  200: ExtensionImportPreview | ExtensionImported;
+};
+
+export type ImportLinkResponse = ImportLinkResponses[keyof ImportLinkResponses];
+
+export type ImportArchiveData = {
+  body: ExtensionImportArchive;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/import/archive";
+};
+
+export type ImportArchiveErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportArchiveError = ImportArchiveErrors[keyof ImportArchiveErrors];
+
+export type ImportArchiveResponses = {
+  /**
+   * Response Extensions-Import Archive
+   *
+   * Successful Response
+   */
+  200: ExtensionImportPreview | ExtensionImported;
+};
+
+export type ImportArchiveResponse = ImportArchiveResponses[keyof ImportArchiveResponses];
 
 export type DeleteExtensionData = {
   body?: never;
@@ -29459,6 +30508,229 @@ export type TestExtensionResponses = {
 };
 
 export type TestExtensionResponse = TestExtensionResponses[keyof TestExtensionResponses];
+
+export type ListMarketplacesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces";
+};
+
+export type ListMarketplacesResponses = {
+  /**
+   * Response Extensions-List Marketplaces
+   *
+   * Successful Response
+   */
+  200: Array<Marketplace>;
+};
+
+export type ListMarketplacesResponse = ListMarketplacesResponses[keyof ListMarketplacesResponses];
+
+export type AddMarketplaceData = {
+  body: MarketplaceCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces";
+};
+
+export type AddMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddMarketplaceError = AddMarketplaceErrors[keyof AddMarketplaceErrors];
+
+export type AddMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type AddMarketplaceResponse = AddMarketplaceResponses[keyof AddMarketplaceResponses];
+
+export type SuggestedMarketplacesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces/suggested";
+};
+
+export type SuggestedMarketplacesResponses = {
+  /**
+   * Response Extensions-Suggested Marketplaces
+   *
+   * Successful Response
+   */
+  200: Array<MarketplaceSuggestion>;
+};
+
+export type SuggestedMarketplacesResponse = SuggestedMarketplacesResponses[keyof SuggestedMarketplacesResponses];
+
+export type RefreshMarketplaceData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/refresh";
+};
+
+export type RefreshMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RefreshMarketplaceError = RefreshMarketplaceErrors[keyof RefreshMarketplaceErrors];
+
+export type RefreshMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RefreshMarketplaceResponse = RefreshMarketplaceResponses[keyof RefreshMarketplaceResponses];
+
+export type DeleteMarketplaceData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}";
+};
+
+export type DeleteMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteMarketplaceError = DeleteMarketplaceErrors[keyof DeleteMarketplaceErrors];
+
+export type DeleteMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteMarketplaceResponse = DeleteMarketplaceResponses[keyof DeleteMarketplaceResponses];
+
+export type ListMarketplacePluginsData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins";
+};
+
+export type ListMarketplacePluginsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListMarketplacePluginsError = ListMarketplacePluginsErrors[keyof ListMarketplacePluginsErrors];
+
+export type ListMarketplacePluginsResponses = {
+  /**
+   * Response Extensions-List Marketplace Plugins
+   *
+   * Successful Response
+   */
+  200: Array<MarketplacePlugin>;
+};
+
+export type ListMarketplacePluginsResponse = ListMarketplacePluginsResponses[keyof ListMarketplacePluginsResponses];
+
+export type PreviewMarketplacePluginData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins/{name}/preview";
+};
+
+export type PreviewMarketplacePluginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewMarketplacePluginError = PreviewMarketplacePluginErrors[keyof PreviewMarketplacePluginErrors];
+
+export type PreviewMarketplacePluginResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionImportPreview;
+};
+
+export type PreviewMarketplacePluginResponse =
+  PreviewMarketplacePluginResponses[keyof PreviewMarketplacePluginResponses];
+
+export type InstallMarketplacePluginData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins/{name}/install";
+};
+
+export type InstallMarketplacePluginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type InstallMarketplacePluginError = InstallMarketplacePluginErrors[keyof InstallMarketplacePluginErrors];
+
+export type InstallMarketplacePluginResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionImported;
+};
+
+export type InstallMarketplacePluginResponse =
+  InstallMarketplacePluginResponses[keyof InstallMarketplacePluginResponses];
 
 export type ListChatsData = {
   body?: never;
@@ -32015,6 +33287,36 @@ export type SpeakTextResponses = {
 };
 
 export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];
+
+export type ListVoicesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Provider
+     */
+    provider?: string | null;
+  };
+  url: "/api/v1/voice/voices";
+};
+
+export type ListVoicesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListVoicesError = ListVoicesErrors[keyof ListVoicesErrors];
+
+export type ListVoicesResponses = {
+  /**
+   * Successful Response
+   */
+  200: VoiceList;
+};
+
+export type ListVoicesResponse = ListVoicesResponses[keyof ListVoicesResponses];
 
 export type UnsealVaultData = {
   body?: never;

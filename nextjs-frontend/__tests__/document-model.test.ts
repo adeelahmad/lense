@@ -21,6 +21,7 @@ import {
   facesOn,
   marksOn,
   pageAt,
+  pageAtOffset,
   pageNumber,
   pageRef,
   pagesSummary,
@@ -91,6 +92,16 @@ describe("a document's pages", () => {
     ]);
     expect(pageStart(SEGS, 2)).toBe(2000);
     expect(pageStart(SEGS, 1)).toBeNull(); // a page without text
+  });
+
+  it("knows which page is being read in pages scrolled one under another", () => {
+    const tops = [0, 1000, 2000, 3000];
+    expect(pageAtOffset(tops, 0)).toBe(0);
+    expect(pageAtOffset(tops, 999)).toBe(0);
+    expect(pageAtOffset(tops, 1000)).toBe(1);
+    expect(pageAtOffset(tops, 2500)).toBe(2);
+    expect(pageAtOffset(tops, 99999)).toBe(3);
+    expect(pageAtOffset([], 50)).toBe(0);
   });
 
   it("names pages, reads ?page= and steps the zoom", () => {

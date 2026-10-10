@@ -34,8 +34,8 @@ BACKENDS = {
     "dropbox": {"label": "Dropbox", "fields": {}, "secrets": ["token"], "oauth": "rclone authorize dropbox"},
     "drive": {
         "label": "Google Drive",
-        "fields": {"scope": "drive.readonly", "root_folder_id": ""},
-        "secrets": ["token"],
+        "fields": {"scope": "drive.readonly", "root_folder_id": "", "team_drive": "", "impersonate": ""},
+        "secrets": ["token", "service_account_credentials"],  # signs in with a token, or as a service account
         "oauth": "rclone authorize drive",
     },
     "onedrive": {
@@ -73,6 +73,26 @@ WATCH = {
     "enabled": True,
     "routes": [],  # an email watch's routing rules (mail_routes.py); none: everything goes to its namespace
 }
+
+
+# what Google Drive (and others) say when they throttle: the connection works, it is only slowed or refusing new files
+RATE_LIMIT = re.compile(r"rate ?limit|quota exceeded|exceeded .*quota|too many requests|\b429\b|upload limit", re.I)
+
+
+class RateLimited(RuntimeError):
+    """The service is throttling this account: reading usually still works, more slowly; new files may be refused."""
+
+
+def failure(text):
+    """The error to raise for what rclone printed on failing: RateLimited when the service is only throttling."""
+    msg = _clean_err(text)
+    return RateLimited(msg) if RATE_LIMIT.search(text or "") else RuntimeError(msg)
+
+
+def retries(src):
+    """rclone's retry flags for a source. Drive throttles in bursts: rclone backs off between low-level retries, so
+    Drive gets its default 10 rather than giving up on the first burst."""
+    return ["--retries", "1", "--low-level-retries", "10" if src["type"] == "drive" else "2"]
 
 
 def _bin(cfg):
@@ -147,14 +167,14 @@ def run(db, cfg, src, argv, timeout=300):
     name, d, conf = _private_conf(cfg, src)
     try:
         out = subprocess.run(
-            [_bin(cfg), "--config", conf, "--retries", "1", "--low-level-retries", "2", *argv(name)],
+            [_bin(cfg), "--config", conf, *retries(src), *argv(name)],
             capture_output=True,
             text=True,
             timeout=timeout,
         )
         _writeback(db, cfg, src, conf)
         if out.returncode:
-            raise RuntimeError(_clean_err(out.stderr) or f"rclone exited with {out.returncode}")
+            raise failure(out.stderr) if out.stderr.strip() else RuntimeError(f"rclone exited with {out.returncode}")
         return out.stdout
     finally:
         shutil.rmtree(d, ignore_errors=True)
@@ -253,6 +273,12 @@ def test(db, cfg, sid):
         if not feeds.handles(src):
             run(db, cfg, src, lambda n: ["lsjson", "--max-depth", "1", "--dirs-only", f"{n}:{target}"], timeout=60)
         health = {"ok": True, "checked_at": store.now()}
+    except RateLimited as e:  # it signed in: the service is only slowing it down, and rclone keeps retrying
+        health = {
+            "ok": True,
+            "checked_at": store.now(),
+            "limited": f"{BACKENDS[src['type']]['label']} is rate limiting this account: {e}"[:300],
+        }
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as e:
         health = {"ok": False, "checked_at": store.now(), "error": str(e)[:300]}
     db.q("UPDATE $r SET health = $h", r=R("storage_source", sid), h=health)
@@ -314,10 +340,24 @@ def _check_params(typ, params, secret_values):
     return spec
 
 
+def _secret(k, v):
+    """A secret as it's stored: a service account's key file is checked and kept on one line, as rclone reads it."""
+    if k != "service_account_credentials":
+        return str(v)
+    try:
+        key = json.loads(v)
+    except ValueError:
+        raise ValueError("the service account key isn't JSON: upload the .json key file Google Cloud gave you") from None
+    if not isinstance(key, dict) or key.get("type") != "service_account" or not key.get("client_email") or not key.get("private_key"):
+        raise ValueError("that isn't a service account key: it needs type service_account, client_email and private_key")
+    return json.dumps(key, separators=(",", ":"))
+
+
 def create(db, cfg, name, typ, params=None, secret_values=None, user=None):
     spec = _check_params(typ, params, secret_values)
+    plain = {k: _secret(k, v) for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
     sid = db.next_id("storage_source")
-    sealed = {k: settings.seal(cfg, str(v), f"source:{sid}:{k}") for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
+    sealed = {k: settings.seal(cfg, v, f"source:{sid}:{k}") for k, v in plain.items()}
     db.q(
         "CREATE $r CONTENT $d",
         r=R("storage_source", sid),
@@ -343,7 +383,7 @@ def update(db, cfg, sid, name=None, params=None, secret_values=None):
         if v is None or v == "":
             sealed.pop(k, None)
         elif isinstance(v, str):
-            sealed[k] = settings.seal(cfg, v, f"source:{sid}:{k}")
+            sealed[k] = settings.seal(cfg, _secret(k, v), f"source:{sid}:{k}")
     db.q(
         "UPDATE $r MERGE $d",
         r=R("storage_source", sid),
@@ -616,7 +656,7 @@ def poll_watch(db, cfg, wid, log=print):
     spaces = set(store.space_names(db)) if routes else set()
     if routes:
         stats["routed"] = 0
-    files, held = list_files(db, cfg, src, w["path"], w.get("cursor")), set()
+    files, held, limited = list_files(db, cfg, src, w["path"], w.get("cursor")), set(), None
     for f in files:
         kind = kind_of(cfg, w, f)
         if not kind:
@@ -635,8 +675,8 @@ def poll_watch(db, cfg, wid, log=print):
         if space is None or (first and not w.get("backfill")) or (src["id"], f["path"]) in gone[space]:
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "skipped"})
             stats["skipped"] += 1
-        elif (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
-            db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "waiting"})
+        elif limited or (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
+            db.q("UPSERT $k CONTENT $d", k=key, d=store.clean({**row, "status": "waiting", "error": limited}))
             stats["waiting"] += 1
             held.add(f["path"])
         else:
@@ -646,6 +686,12 @@ def poll_watch(db, cfg, wid, log=print):
                 stats["new"] += 1
                 if space != w["space"]:
                     stats["routed"] += 1
+            except RateLimited as e:  # throttled, not broken: this file and the rest wait for the next scan
+                limited = f"rate limited: {e}"[:300]
+                db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "waiting", "error": limited})
+                stats["waiting"] += 1
+                held.add(f["path"])
+                log(f"  {f['path']}: {limited}")
             except Exception as e:  # noqa: BLE001 - one bad file must not stop the scan
                 db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "error", "error": f"{type(e).__name__}: {e}"[:300]})
                 stats["errors"] += 1

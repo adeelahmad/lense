@@ -52,6 +52,14 @@ export type FieldSpec = {
   unit?: string;
 };
 
+/** backups.schedule: cron expressions offered in one click (any other can be typed). */
+export const BACKUP_SCHEDULES: Opt[] = [
+  { value: "0 3 * * *", label: "Every night at 3:00" },
+  { value: "0 */6 * * *", label: "Every 6 hours" },
+  { value: "0 * * * *", label: "Every hour" },
+  { value: "0 3 * * 0", label: "Every Sunday at 3:00" },
+];
+
 export type SectionId =
   | "transcription"
   | "speaker-separation"
@@ -78,6 +86,7 @@ export type SectionId =
   | "sensors"
   | "uploads"
   | "storage"
+  | "backups"
   | "documents"
   | "tokens"
   | "iiif"
@@ -261,6 +270,13 @@ export const SECTIONS: SectionSpec[] = [
       "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
   },
   {
+    id: "backups",
+    label: "Backups",
+    backend: ["backups"],
+    description:
+      "Back the database up now or on a schedule, download a backup to keep somewhere else, and restore one. Backups are kept in the server’s data folder, under backups.",
+  },
+  {
     id: "storage",
     label: "Storage",
     backend: ["files"],
@@ -386,6 +402,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     acts: true,
   },
   { name: "import_files", label: "Import files sent in a conversation", acts: true },
+  { name: "import_urls", label: "Capture web pages from addresses or a list of links", acts: true },
   { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
   { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
   { name: "read_settings", label: "Read settings (admins)", acts: false },
@@ -423,6 +440,15 @@ export const SPEECH_PROVIDERS = [
     about: "Nova speech to text with speakers, language and sentiment, and Aura text to speech.",
     urlHint: "https://api.deepgram.com, or your self-hosted Deepgram",
     modelHint: "nova-3",
+  },
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    about:
+      "Gemini text to speech for spoken answers and podcasts, in 30 prebuilt voices. Get a key at aistudio.google.com.",
+    urlHint: "https://generativelanguage.googleapis.com",
+    modelHint: "gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts",
+    modelLabel: "Text-to-speech model",
   },
 ] as const;
 
@@ -708,7 +734,36 @@ export const FIELDS: FieldSpec[] = [
     key: "compact",
     label: "Summarise long conversations",
     kind: "switch",
-    hint: "The model always reads the latest messages word for word; older ones are folded into a running summary, so long chats and chat rooms remember what was said.",
+    hint: "The model always reads the latest messages word for word; older ones are folded into a running summary, so long chats and chat rooms remember what was said. Type /compact to summarise now, or /clear to start afresh.",
+  },
+  {
+    section: "ai",
+    key: "compact_model",
+    label: "Model for summaries",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "the chat's model",
+    hint: "A smaller, cheaper model on the same provider to write them.",
+  },
+  {
+    section: "ai",
+    key: "context_tokens",
+    label: "Chat model's context",
+    kind: "int",
+    min: 1024,
+    max: 2000000,
+    nullable: true,
+    unit: "tokens",
+    placeholder: "16000",
+    hint: "A conversation is summarised early before it fills half of this.",
+  },
+  {
+    section: "ai",
+    key: "untrusted_marking",
+    label: "Treat what the assistant reads as data, not instructions",
+    kind: "switch",
+    hint: "Recordings, documents, web pages, chat rooms and what tools send back reach the model marked as material to read and cite, so instructions written in them aren't followed.",
   },
   {
     section: "ai",
@@ -1030,6 +1085,9 @@ export const FIELDS: FieldSpec[] = [
       { value: "openai", label: "An OpenAI-compatible speech server" },
       { value: "elevenlabs", label: "ElevenLabs (provider)" },
       { value: "deepgram", label: "Deepgram Aura (provider)" },
+      { value: "gemini", label: "Google Gemini (provider)" },
+      { value: "say", label: "macOS say (Lens running on a Mac)" },
+      { value: "styletts2", label: "StyleTTS2 (on this machine)" },
     ],
   },
   {
@@ -1061,6 +1119,14 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "the LLM provider’s",
   },
   { section: "voice", key: "tts_api_key", label: "Speech server API key", kind: "secret" },
+  {
+    section: "voice",
+    key: "styletts2_url",
+    label: "StyleTTS2 service",
+    kind: "text",
+    mono: true,
+    hint: "http://styletts2:8880 in Docker Compose",
+  },
   // Local model
   { section: "local_llm", key: "enabled", label: "Run a model here", kind: "switch" },
   {
@@ -1123,7 +1189,7 @@ export const FIELDS: FieldSpec[] = [
     {
       section: "speech",
       key: `${p.id}_model`,
-      label: "Speech-to-text model",
+      label: ("modelLabel" in p && p.modelLabel) || "Speech-to-text model",
       kind: "text",
       mono: true,
       hint: p.modelHint,
@@ -1644,6 +1710,52 @@ export const FIELDS: FieldSpec[] = [
     max: 1440,
     unit: "minutes",
   },
+  // Backups (docs/database.md#backups)
+  {
+    section: "backups",
+    key: "schedule",
+    label: "Back up on a schedule",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "Off",
+    hint: "Minute, hour, day of month, month, day of week: 30 2 * * 1-5 is 2:30 on weekdays. Empty: off",
+  },
+  {
+    section: "backups",
+    key: "timezone",
+    label: "Time zone",
+    kind: "text",
+    placeholder: "UTC",
+    hint: "For the schedule, like Europe/London",
+  },
+  {
+    section: "backups",
+    key: "connection",
+    label: "Also copy each backup to",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "Encrypted with this server’s secret key before it leaves the machine",
+  },
+  {
+    section: "backups",
+    key: "folder",
+    label: "Folder there",
+    kind: "text",
+    mono: true,
+    placeholder: "lens-backups",
+    hint: "For S3, the bucket and a path (my-bucket/lens-backups); for a folder on this machine, its full path",
+  },
+  {
+    section: "backups",
+    key: "keep",
+    label: "Scheduled backups kept",
+    kind: "int",
+    min: 1,
+    max: 365,
+    hint: "The oldest go when a new one is taken. Backups you take yourself stay until you delete them",
+  },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -1924,6 +2036,14 @@ export const FIELDS: FieldSpec[] = [
     mono: true,
     hint: "How this server shows in your tracing tool",
   },
+  {
+    section: "telemetry",
+    key: "prometheus",
+    label: "Prometheus endpoint",
+    kind: "switch",
+    hint: "Serve /metrics for a Prometheus scraper; off by default, and answered only with the scrape token",
+  },
+  { section: "telemetry", key: "prometheus_token", label: "Scrape token", kind: "secret" },
   {
     section: "telemetry",
     key: "prices",
@@ -2319,7 +2439,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     }
     case "select":
       if (f.key === "frame_width") return { value: Number(ui) };
-      if (f.section === "files" && f.key === "connection")
+      if ((f.section === "files" || f.section === "backups") && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };
       return { value: ui === "" && f.nullable ? null : ui };
     default: {
@@ -2518,6 +2638,14 @@ export function why(c: Change): string | null {
     if (origin(c.before) !== origin(c.after))
       return "Saved headers are removed, since they were for the old collector: enter them again if the new one needs them.";
   }
+  if (id === "telemetry.prometheus")
+    return c.after
+      ? "/metrics answers a scraper that sends the scrape token; nothing is served until a token is set."
+      : "/metrics stops answering.";
+  if (id === "telemetry.prometheus_token")
+    return c.after === ""
+      ? "The token is removed; /metrics answers no one."
+      : "Scrapers must send the new token; stored encrypted.";
   if (id === "telemetry.headers")
     return c.after === "" ? "The headers are removed." : "Sent with every export; stored encrypted.";
   if (id === "llm.api_key")

@@ -139,7 +139,7 @@ def test_fetched_for_analysis_and_only_waits_analysis(cfg):
     assert c.needed(cfg, None) is bool(enrich.anytopdf.archive())
     assert c.serves(cfg, None) == {"analyze"}
     cfg["documents"]["converter"] = "anytopdf"
-    assert c.serves(cfg, None) == {"transcribe", "analyze"}
+    assert c.serves(cfg, None) == {"read", "analyze"}
 
 
 @pytest.mark.skipif(not REAL, reason="LENS_TEST_ANYTOPDF names a real anytopdf 0.4.0")

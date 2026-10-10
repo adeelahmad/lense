@@ -430,6 +430,7 @@ third-party source; dependencies come from `uv.lock`, the pnpm lockfile and cont
 | cloudflared, llama.cpp, `hf:` models, pip packages | integrity only as far as HTTPS and the publisher | upstream; tampered downloads are disclaimed (N-DOWNLOADS) | *(maintainer, 2026-10)* |
 | Catalog GGUF models | pinned revision and SHA-256 | in model (P-MODEL-CHECKSUM) | *(documented, docs/local-models.md "checked against their SHA-256")* |
 | Optional ML extras (whisper, pyannote, speechbrain, insightface, doctr) | model inference; some fetch weights on their own | upstream | *(inferred, Q19)* |
+| StyleTTS2 service (`styletts2/`, opt-in Compose profile) and macOS `say` | text to speech; StyleTTS2 fetches its weights from Hugging Face and GitHub on first use and listens only on the Compose network; `say` gets the text on stdin, never as arguments | upstream for the model and synthesis; the argument handling in model | *(maintainer, 2026-10)* |
 | Build, lint and codegen toolchain (frontend dev dependencies, openapi-ts, linters) | building the images; in no running service | upstream; a report must show the code ships | *(inferred, Q45)* |
 | OIDC providers, SMTP, model and speech providers | honest responses over TLS | the admin chose them; trusted input | *(maintainer, 2026-10)* |
 

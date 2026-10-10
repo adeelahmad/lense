@@ -512,11 +512,11 @@ in the namespace (`documents.attachment_resources`). Transcribing an email again
 pages (`engine` `text:tika`), and every document has `described`, what it says about itself as Dublin Core terms
 (`POST /settings/documents/tika/test` checks the server). An upload it can't read is
 refused, saying what it needs, and the files that can be transcripts too (PDFs, Word, text and Markdown) can be imported
-as transcripts instead (`POST /import`). Its pipeline's transcribe step draws its
-pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's
+as transcripts instead (`POST /import`). Its pipeline's read step (its transcribe step, for a document or an image:
+no speech model is fetched for one) draws its pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's
 pdftotext; pypdf without poppler, when there are no pages to look at), and by OCR (`video.ocr_engine`) the pages with
 fewer than `documents.ocr_below_chars` characters of text, drawn sharper for it. An image is one page (a TIFF one per
-frame), read by OCR. Diarize, shots and text on screen skip them; analyze, summarize and report run as for any text.
+frame), read by OCR. Diarize is left out for them, shots and text on screen skip them; analyze, summarize and report run as for any text.
 [Configuration](configuration.md#documents-and-images) has the settings.
 
 The text becomes the resource's segments, one per block, so search, chat, entities, notes and corrections
@@ -722,9 +722,9 @@ intranet. Without Chromium on the server it answers 400 (`GET /uploads/limits` â
 `import.web`. The PDF is the resource's file (`GET /resources/{rid}/media`), named after the link
 (`annual-report.pdf`) or the page's title (`harbour-news.pdf`).
 
-`POST /api/v1/import/web/links {namespace, text | filename + data, folders_as_tags?, collection?, pipeline?}` captures
-many pages at once: pasted addresses (`text`, one per line; a line's other words become its title, `#` lines are
-skipped), or a file (base64 `data`): a list of addresses, a browser's bookmark export (the HTML file every browser
+`POST /api/v1/import/web/links {namespace, text | urls | filename + data, folders_as_tags?, collection?, pipeline?}`
+captures one or many pages at once: pasted addresses (`text`, one per line; a line's other words become its title, `#`
+lines are skipped), a JSON list of addresses (`urls`), or a file (base64 `data`): a list of addresses, a browser's bookmark export (the HTML file every browser
 writes) or Chrome's own Bookmarks file (JSON). Each link becomes a page captured as above, titled with its bookmark's
 name until it's captured, and tagged with the bookmark folders it was in (the innermost five, without the browser's
 own: Bookmarks bar, Other bookmarks), unless `folders_as_tags` is false. At most 500 links at once (400 beyond); links
@@ -841,6 +841,7 @@ recording later leaves its uploaded file in place, like any other media file.
 ```
 GET    /api/v1/search
 GET    /api/v1/search/terms
+GET    /api/v1/similar
 GET    /api/v1/graph
 GET    /api/v1/mentions
 ```
@@ -869,6 +870,16 @@ keeps to what was said.
 when search by meaning is set up and the query has no "phrases" or OR, else keyword). The reply's `mode` is how it was
 matched, `semantic` whether search by meaning is set up, and `meaning` why it wasn't used when asked for. Each hit's
 `match` is `words`, `meaning` (with its `similarity`, cosine, and shown at the passage's best line) or `both`.
+
+`GET /similar` lists the resources most like one thing, best first, in the namespaces you can read and the
+collections you were given a role on ([similar content](processing.md#similar-content)): a `text` (what was selected,
+up to 2,000 characters; `exclude` leaves out the resource it was selected in), a `recording`, a `topic` or an
+`entity`; give exactly one (422 otherwise, 404 for one you can't read). `limit` (default 10, at most 50) and `offset`
+page through them. Each item says why it's alike in `match` (`meaning`, `words`, `topics`, `entities`), with its
+`similarity` by meaning, up to three `cites` (moments to open: `source`, `idx`, `t0` or `page`, and a `snippet` with the
+key words marked), the key `words` it says, and the `topics` and `entities` in common. The reply's `mode` is `meaning`
+when an embedding model compared them too, else `words`; `terms` are the key words looked for and `meaning` says why
+it wasn't by meaning when search by meaning is set up. A resource is never listed as like itself.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
