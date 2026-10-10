@@ -9,6 +9,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Raspberry Pi, are read by Tika as text, and every document's own title, authors, language and dates are read as
   Dublin Core terms. Off until a Tika server is set ([Configuration](docs/configuration.md#apache-tika)).
 
+- **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
+  left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
+  month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
+  ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
+
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,

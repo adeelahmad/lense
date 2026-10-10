@@ -1183,6 +1183,21 @@ answers, so a filter collection's new recordings count, and a deleted collection
 `error`, and its latest source `check` (`{claims, supported, verdicts, uncited}`), as they were when it was written
 or checked.
 
+### browser
+
+```
+POST   /api/v1/browser/sessions
+GET    /api/v1/browser/sessions
+DELETE /api/v1/browser/sessions/{sid}
+GET    /api/v1/browser/sessions/{sid}/actions
+POST   /api/v1/browser/actions/{aid}
+POST   /api/v1/browser/sessions/{sid}/run
+```
+
+A browser's Lens side panel connects a session and carries out the actions the assistant asks of it; a question sent
+with `browser` (`POST /chats/{cid}/messages {content, browser}`) can use that browser while it's connected. See
+[The assistant in your browser](browser-assistant.md).
+
 ## collections
 
 Saved collections: lists of recordings from anywhere, to chat with or run batches on. A namespace's own collections,
