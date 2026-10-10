@@ -20,6 +20,7 @@ Lens is one repository with several projects, and [Nx](https://nx.dev/) runs the
 | `frontend` | `nextjs-frontend/` | `lint`, `typecheck`, `test` (`:ci` with coverage), `build`, `generate-client` |
 | `installer` | `installer/` | `test` |
 | `docs` | `docs/` (with `mkdocs.yml`, `overrides/`, `README.md`, `CHANGELOG.md`) | `build` (strict, as CI), `serve` |
+| `clipper` | `extensions/browser/` | `install` (`npm ci` when the lockfile is newer than `node_modules`), `test`, `build` (every browser target, checked) |
 
 ```bash
 pnpm exec nx run backend:test                          # one target (make test-backend)
@@ -38,16 +39,18 @@ CI (`.github/workflows/ci.yml`) runs the same targets, and only for the projects
 **Affected projects**, compares a pull request with the `main` it merges into (a push to `main` with `main`'s last
 green CI run) and lists the affected projects in its summary. **FastAPI (embedded SurrealDB)** and **FastAPI
 (SurrealDB server)** run when `backend` is affected, **Next.js** when `frontend` is, and **Other projects** runs the
-`lint`, `typecheck`, `test` and `build` targets of every other affected project (the docs site, the installer tests).
-A job that doesn't run is reported as skipped, which counts as passed, so these job names can stay required checks.
-A change to `nx.json`, the root `package.json` or `ci.yml` affects every project. Running the CI workflow by hand
-(Actions > CI > Run workflow) checks every project. `pre-commit`, `PR title`, `Install`, `threat model` and the
-packaging workflows run as before.
+`lint`, `typecheck`, `test` and `build` targets of every other affected project (the docs site, the installer tests,
+the web clipper). A job that doesn't run is reported as skipped, which counts as passed, so these job names can stay
+required checks. A change to `nx.json`, the root `package.json` or `ci.yml` affects every project. Running the CI
+workflow by hand (Actions > CI > Run workflow) checks every project. `pre-commit`, `PR title`, `Install`,
+`threat model`, the clipper's browser workflows (which also keep the zips with the run) and the packaging workflows run
+as before.
 
-To add a project (a browser extension, the desktop app), give its folder a `project.json` with a `name` and any of the
-`lint`, `typecheck`, `test` and `build` targets (`nx:run-commands`, with `cwd: "{projectRoot}"`); a target that needs
-its dependencies installed first depends on an `install` target. **Other projects** picks it up without a change to
-CI. Name files outside the folder that it reads in its `inputs`, so changing them counts as affecting it.
+To add a project (the desktop app, say), give its folder a `project.json` with a `name` and any of the `lint`,
+`typecheck`, `test` and `build` targets (`nx:run-commands`, with `cwd: "{projectRoot}"`); a target that needs its
+dependencies installed first depends on an `install` target, as the clipper's do. **Other projects** picks it up
+without a change to CI. Name files outside the folder that it reads in its `inputs`, so changing them counts as
+affecting it.
 
 ## Commit messages and PR titles
 

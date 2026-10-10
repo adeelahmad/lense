@@ -96,6 +96,10 @@ npm test            # templates, metadata, Markdown, sending (jsdom)
 npm run build       # dist/<target>/ for every target; --target chrome for one
 ```
 
+From the repository root, `pnpm exec nx run-many -t test build -p clipper` does the same (installing first when the
+lockfile changed), and CI runs it in **Other projects** when a change affects the clipper
+([Monorepo and CI](contributing.md#monorepo-and-ci-nx)).
+
 Load `dist/chrome` with **Load unpacked** on `chrome://extensions` (Developer mode on). The Browser extension workflow
 builds every target on each pull request that changes the clipper and keeps `lens-clipper-<target>.zip` with the run;
 a release gets them attached.
