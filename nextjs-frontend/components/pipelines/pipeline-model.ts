@@ -100,7 +100,7 @@ export const DESCRIBE: Record<string, string> = {
   embed: "Embeds passages so search finds them by meaning, not only their words (Settings → Search)",
   summarize: "The built-in summary with the LLM in Settings",
   llm: "Your prompt template; saves a structured output",
-  report: "The recording’s report page, or your report template",
+  report: "The asset’s report page, or your report template",
   export: "Writes a file from an export template, optionally to a source",
   workflow: "Runs a workflow you drew on the canvas: outputs, custom fields and entities",
 };

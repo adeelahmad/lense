@@ -24,7 +24,7 @@ function estimateLine(e: Estimate | null | undefined, model: string | null): str
   if (!e) return null;
   const tokens = (e.llm?.input_tokens ?? 0) + (e.llm?.output_tokens ?? 0);
   const parts = [
-    plural(e.recordings, "recording"),
+    plural(e.recordings, "asset"),
     e.hours ? `~${hoursShort(e.hours * 3.6e6)}` : null,
     tokens ? `${approxCount(tokens)} tokens` : null,
     e.llm?.cost != null ? `about ${money(e.llm.cost)}` : null,

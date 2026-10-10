@@ -17,7 +17,7 @@ class ChatScope(RequestModel):
     namespaces: list[str] | None = None
     recordings: list[int] | None = None
     collections: list[int] | None = Field(
-        default=None, description="saved collections (yours or shared): their recordings as they are when it answers"
+        default=None, description="saved collections (yours or shared): their assets as they are when it answers"
     )
     speakers: list[int] | None = None
     date_from: str | None = Field(default=None, alias="from", description="YYYY-MM-DD")
@@ -110,7 +110,7 @@ class Attachment(ResponseModel):
     id: str = Field(description="the upload")
     filename: str
     size: int
-    recording: int | None = Field(None, description="the recording it became, once imported")
+    recording: int | None = Field(None, description="the asset it became, once imported")
 
 
 class ChatMessage(ResponseModel):

@@ -279,7 +279,7 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
             <EmptyState title="No transcript yet">
               {model.audio
                 ? "Run Transcribe (Reprocess → Choose steps) to make one from the audio."
-                : "This recording has no transcript lines."}
+                : "This asset has no transcript lines."}
             </EmptyState>
           )
         ) : (

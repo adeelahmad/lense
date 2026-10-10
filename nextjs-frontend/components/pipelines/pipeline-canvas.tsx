@@ -293,12 +293,10 @@ export function PipelineCanvas({ id }: { id: number }) {
           variant="secondary"
           icon={<FlaskConical />}
           disabled={!can("editor") || dirty}
-          disabledReason={
-            !can("editor") ? "Needs editor access to a recording’s namespace" : "Publish your changes first"
-          }
+          disabledReason={!can("editor") ? "Needs editor access to an asset’s namespace" : "Publish your changes first"}
           onClick={() => setRunOpen(true)}
         >
-          Run on a recording
+          Run on an asset
         </Button>
         <Input
           aria-label="Version notes"

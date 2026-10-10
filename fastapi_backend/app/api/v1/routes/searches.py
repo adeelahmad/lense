@@ -67,7 +67,7 @@ def list_searches(user: CurrentUser, acl: Acl, db: Db) -> list[SavedSearch]:
 
 @router.post("")
 def create_search(body: SearchCreate, user: Writer, acl: Acl, db: Db) -> SavedSearch:
-    """Save a search (its words, namespace, speaker, emotion, recording and object) under a name unique among yours. Sharing it
+    """Save a search (its words, namespace, speaker, emotion, asset and object) under a name unique among yours. Sharing it
     with its namespace needs editor access there."""
     sid = acl.namespace(body.namespace) if body.namespace else None
     if body.recording is not None:

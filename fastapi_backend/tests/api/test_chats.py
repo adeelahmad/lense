@@ -125,7 +125,7 @@ def test_tools_approvals_and_checking(app, db, cfg, folder, new_client, llm):
     assert {p["namespace"] if "namespace" in p else "pods" for p in ev["passages"][0]} == {"pods"}
     assert [p["n"] for p in ev["passages"][0]] == [1, 2]
     approval = ev["approval"][0]
-    assert approval["summary"] == "Run Meeting notes (prompt) on 1 recording(s)"
+    assert approval["summary"] == "Run Meeting notes (prompt) on 1 asset(s)"
     pending = c.get("/api/v1/approvals", headers=h, params={"chat_id": cid}).json()
     assert [(x["id"], x["status"]) for x in pending] == [(approval["id"], "pending")]
     cv, hv = s.cl["viewer"]

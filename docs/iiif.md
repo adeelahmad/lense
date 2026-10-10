@@ -1,6 +1,6 @@
 # IIIF and descriptive metadata
 
-Every recording is published as a IIIF Presentation 3.0 Manifest, and every namespace as a Collection. Any IIIF viewer
+Every asset is published as a IIIF Presentation 3.0 Manifest, and every namespace as a Collection. Any IIIF viewer
 can open them, and harvesters can follow them.
 
 - **Manifest** (`/iiif/<id>/manifest`): the audio on a Canvas with its duration.
@@ -23,7 +23,7 @@ can open them, and harvesters can follow them.
   - With the media closed, each page's image has its own probe (`/iiif/auth/probe/<id>/page<n>`, "Sign in to see
     this"), the file sits behind the audio's probe, and there's no thumbnail.
 - **Collections:** `/iiif/collection` lists the namespaces, `/iiif/collection/<namespace>` the namespace's top
-  collections, and `/iiif/collection/<namespace>/<id>` one collection: the collections inside it, then its recordings'
+  collections, and `/iiif/collection/<namespace>/<id>` one collection: the collections inside it, then its assets'
   Manifests, oldest first. Each is a Collection with its parent as `partOf`, and a Manifest is `partOf` the collection
   it lives in. Collections show only what the requester may see: one with nothing visible inside it is left out.
 - **Content Search 2.0:** `/iiif/<id>/search` and `/autocomplete`, plus `/iiif/collection/<namespace>/search`. Hits come
@@ -31,7 +31,7 @@ can open them, and harvesters can follow them.
 - **Content State 1.0:** `GET /api/v1/resources/<id>/content-state?t0=&t1=` gives a link to an exact moment, encoded the
   way the spec requires, that compatible viewers open.
 - **Change Discovery 1.0:** `/iiif/discovery/activity`, a feed of Create, Update and Delete events for published
-  recordings.
+  assets.
 - **Authorization Flow 2.0:** protected audio and transcripts carry a probe service.
   - Other viewers open `/iiif/auth/access` to sign in and get a token from `/iiif/auth/token`, which posts it only to
     the viewer's origin. The page signs in with a password, so where passwords are off (`auth.passwords`) it offers
@@ -41,16 +41,16 @@ can open them, and harvesters can follow them.
 - **Import:** `POST /api/v1/import/iiif` (admins) takes a Presentation 3 Manifest or Collection from another server.
   - A Collection's Manifests are found in the Collections inside it too (at most 8 deep and 50 Collections read).
   - It copies the audio, keeps WebVTT captions as the transcript (speakers included), and maps the metadata.
-  - The recordings go into the collection of the namespace you choose (its default unless you pick one).
+  - The assets go into the collection of the namespace you choose (its default unless you pick one).
   - It then queues the namespace's pipeline, skipping transcription.
 
-A recording's access decides what is published ([Access](access.md)). It's set per recording, with a default per
+An asset's access decides what is published ([Access](access.md)). It's set per asset, with a default per
 namespace, and only owners change it:
 
 - `public`: published. Its open parts (media, transcript, index) are plain links; closed ones sit behind the
   Authorization Flow. Chapters are ranges when the index is open.
 - `restricted` and `private` (the default): not published. The manifest answers 404 unless the request carries
-  permission, and collections leave the recording out.
+  permission, and collections leave the asset out.
 
 Set `iiif.base_url` to the stable public HTTPS address, since identifiers are built from it. Put the server behind
 HTTPS before publishing: the authorization flow requires it, and its cookie is `SameSite=None; Secure`. Other IIIF
@@ -64,12 +64,12 @@ RightsStatements.org URI), attribution, provider, date, languages, creators, con
 to authorities such as Wikidata), identifiers and related links. Published custom fields ([API](api.md#fields)) are
 label/value pairs too: a resource's in its Manifest, a collection's in its Collection; internal ones never are.
 
-- Values that aren't set come from the recording itself: its title, date, language, speakers, main topics and summary.
+- Values that aren't set come from the asset itself: its title, date, language, speakers, main topics and summary.
 - A namespace profile sets required fields, defaults, controlled vocabularies, and the default access and open parts.
 - Every change is kept and can be reverted. Bulk edits report what would change before applying.
 
 Manifests are checked against IIIF's Presentation 3 JSON Schema, bundled from IIIF's presentation-validator. This needs
-`pip install jsonschema`. `GET /api/v1/resources/<id>/iiif` returns the manifest link, the recording's access, open
+`pip install jsonschema`. `GET /api/v1/resources/<id>/iiif` returns the manifest link, the asset's access, open
 parts and whether it's published, the validation result and the viewer links.
 
 ## Embedding the player

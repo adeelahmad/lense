@@ -103,7 +103,7 @@ The graph as of a version is today's rows with every later event walked back, ne
 events between two versions: for each record, how it was before the first and after the last.
 
 The graph API (`/graph/schema`, `/graph/related`, `/graph/paths`), Cypher (`POST /graph/query`), questions
-(`POST /graph/ask`) and the canvas overview (`GET /graph`) take `as_of`, a version or a version's name: entities and their cross-namespace links are as they were then; mentions, recordings and
+(`POST /graph/ask`) and the canvas overview (`GET /graph`) take `as_of`, a version or a version's name: entities and their cross-namespace links are as they were then; mentions, assets and
 speakers are today's, so an entity merged away since shows only if it is still mentioned. The explorer's graph is
 cached per graph version, so any recorded change shows at once.
 
@@ -113,7 +113,7 @@ the toolbar says which version is shown and goes back to now.
 
 Graph changes also show in each resource's activity history (docs/activity.md, `GET /api/v1/activity`): an entity's
 changes under `entity:<id>` (anyone who can read its namespace), a namespace's curation under `space:<id>` (what
-analysis found is left out there), and what analysing a recording changed under `recording:<id>`.
+analysis found is left out there), and what analysing an asset changed under `recording:<id>`.
 
 ## Refine later
 

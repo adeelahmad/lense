@@ -34,7 +34,7 @@ function fromWhere(passages: Passage[] | null): string | null {
   if (!passages?.length) return null;
   const recs = new Set(passages.map((p) => p.recording_id)).size;
   const nss = [...new Set(passages.map((p) => p.namespace).filter(Boolean))] as string[];
-  return `${plural(recs, "recording")}${nss.length ? ` in ${nss.join(", ")}` : ""}`;
+  return `${plural(recs, "asset")}${nss.length ? ` in ${nss.join(", ")}` : ""}`;
 }
 
 function StateCard({
@@ -213,8 +213,8 @@ export function Answer(p: AnswerProps) {
             i
           </span>
           <span>
-            <b className="text-fg">{p.notice}</b> Questions across many recordings may be incomplete. An admin can pick
-            a tool-capable model in Settings → AI.
+            <b className="text-fg">{p.notice}</b> Questions across many assets may be incomplete. An admin can pick a
+            tool-capable model in Settings → AI.
           </span>
         </div>
       )}

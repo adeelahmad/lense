@@ -30,7 +30,7 @@ class TopicItem(ResponseModel):
     definition: str | None = None
     broader: list[int] = []
     related: list[int] = []
-    recordings: int = Field(0, description="recordings about it (accepted)")
+    recordings: int = Field(0, description="assets about it (accepted)")
     narrower: int = Field(0, description="topics that have it as broader")
     from_entity: int | None = Field(None, description="the entity it was made from, hidden while the topic exists")
     updated: str | None = None
@@ -91,8 +91,8 @@ class RecordingTopic(ResponseModel):
 
 
 class TopicCandidate(ResponseModel):
-    label: str = Field(description="what summaries say recordings are about, which no topic covers yet")
-    recordings: int = Field(description="how many recordings' summaries say it")
+    label: str = Field(description="what summaries say assets are about, which no topic covers yet")
+    recordings: int = Field(description="how many assets' summaries say it")
 
 
 class TopicSkip(RequestModel):

@@ -72,9 +72,9 @@ export const ACTION_LABEL: Record<RoutineAction["type"], string> = {
 };
 
 export const PICK_LABEL: Record<Pick, string> = {
-  new: "new recordings (since the last run)",
-  unprocessed: "recordings not processed yet",
-  all: "all recordings",
+  new: "new assets (since the last run)",
+  unprocessed: "assets not processed yet",
+  all: "all assets",
 };
 
 export function newAction(type: RoutineAction["type"]): RoutineAction {
@@ -212,7 +212,7 @@ export function resultText(r: Record<string, unknown>): string {
     parts.push(`${n("applied") ?? 0} applied`, `${n("proposed") ?? 0} proposed`);
     if (n("skipped")) parts.push(`${n("skipped")} skipped`);
   } else {
-    parts.push(`${n("queued") ?? 0} of ${plural(n("recordings") ?? 0, "recording")} queued`);
+    parts.push(`${n("queued") ?? 0} of ${plural(n("recordings") ?? 0, "asset")} queued`);
     if (n("errors")) parts.push(plural(n("errors")!, "error"));
   }
   const name = typeof x.workflow === "string" ? `${x.workflow}${x.version ? ` v${x.version}` : ""}: ` : "";

@@ -79,7 +79,7 @@ def list_entities(
 ) -> EntityList:
     """Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
     With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-    over the recordings they see). With `collection`, those said in its recordings and those of the collections inside
+    over the assets they see). With `collection`, those said in its assets and those of the collections inside
     it (counted over them)."""
     spaces, within = set(acl.roles), None
     if recording is not None:
@@ -234,7 +234,7 @@ def get_entity_connections(eid: int, user: CurrentUser, acl: Acl, db: Db) -> dic
 
 @router.post("/entities/{eid}/rename")
 def rename_entity(eid: int, body: EntityRename, request: Request, user: Writer, acl: Acl, db: Db) -> dict[str, Any]:
-    """Rename; with `correct`, also fix the transcript lines (re-analysing the recordings). `dry_run` previews the lines."""
+    """Rename; with `correct`, also fix the transcript lines (re-analysing the assets). `dry_run` previews the lines."""
     _entity_space(db, acl, eid, "editor")
     with domain_errors():
         out = ents.rename(db, eid, body.name, body.keep_alias, body.correct, body.dry_run)

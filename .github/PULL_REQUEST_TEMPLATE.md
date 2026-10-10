@@ -1,4 +1,4 @@
-<!--- Title: a Conventional Commit, e.g. `feat(chat): answer from the selected recordings` or `fix!: drop the v1 API`.
+<!--- Title: a Conventional Commit, e.g. `feat(chat): answer from the selected assets` or `fix!: drop the v1 API`.
 It becomes this PR's line in the changelog and decides the next version (CONTRIBUTING.md). -->
 
 ## Description

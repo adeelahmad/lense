@@ -276,9 +276,9 @@ describe("namespace overview numbers", () => {
 
   it("explains recordings without a date", () => {
     expect(undatedNote(0, "all")).toBeNull();
-    expect(undatedNote(1, "all")).toBe("1 recording has no date: counted above, but in no month.");
-    expect(undatedNote(3, "6m")).toBe("3 recordings have no date, so they aren’t in any date range.");
-    expect(undatedNote(1, "ytd")).toBe("1 recording has no date, so it isn’t in any date range.");
+    expect(undatedNote(1, "all")).toBe("1 asset has no date: counted above, but in no month.");
+    expect(undatedNote(3, "6m")).toBe("3 assets have no date, so they aren’t in any date range.");
+    expect(undatedNote(1, "ytd")).toBe("1 asset has no date, so it isn’t in any date range.");
   });
 
   it("formats talk time and sizes the entity cloud", () => {

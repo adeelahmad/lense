@@ -21,17 +21,17 @@ def run_steps(db, cfg, which, ns=None, limit=0, force=False, recording=None, aud
     if "diarize" in which:
         log("diarize:", spk.diarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
     if "analyze" in which:
-        log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "recording(s)")
+        log("analyze:", analyze.analyze_pending(db, cfg, ns, limit, force, log), "asset(s)")
     if "embed" in which:
         from .domain import semantic, settings
 
         ecfg = settings.effective(db, cfg)
         if semantic.configured(ecfg):
-            log("embed:", semantic.index_pending(db, ecfg, ns, limit, force, log), "recording(s)")
+            log("embed:", semantic.index_pending(db, ecfg, ns, limit, force, log), "asset(s)")
         else:
             log("embed: skipped; search by meaning is off, or has no embeddings server and model (embeddings in archive.yaml)")
     if "summarize" in which:
-        log("summarize:", analyze.summarize_pending(db, cfg, ns, limit, force, log), "recording(s)")
+        log("summarize:", analyze.summarize_pending(db, cfg, ns, limit, force, log), "asset(s)")
     if "report" in which:
         log(
             "report:",
@@ -59,8 +59,8 @@ def _main_base(argv=None):
         p = sub.add_parser(name, help=helptext)
         p.add_argument("--ns")
         p.add_argument("--limit", type=int, default=0)
-        p.add_argument("--force", action="store_true", help="redo recordings already done")
-    p = sub.add_parser("report", help="write HTML reports (per recording and per namespace)")
+        p.add_argument("--force", action="store_true", help="redo assets already done")
+    p = sub.add_parser("report", help="write HTML reports (per asset and per namespace)")
     p.add_argument("--ns")
     p.add_argument("--recording", type=int)
     p.add_argument("--audio", choices=["link", "embed", "none"])
@@ -153,7 +153,7 @@ def _main_base(argv=None):
                 rid = ingest.import_text(conn, cfg, a.ns, sys.stdin.read(), a.title, a.format, names)
             else:
                 rid = ingest.import_transcript(conn, cfg, a.ns, a.transcript, a.audio, a.title, names, a.format)
-            print(f"imported recording {rid} into {a.ns}; next: lens analyze && lens report")
+            print(f"imported asset {rid} into {a.ns}; next: lens analyze && lens report")
         elif a.cmd == "speakers":
             if a.action == "list":
                 for s in spk.list_speakers(conn, store.ns_id(conn, a.ns, create=False)):

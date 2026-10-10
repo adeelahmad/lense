@@ -103,7 +103,7 @@ export function WelcomeTour() {
       </Stop>
       <Stop icon={<ChartNoAxesColumn />} title="See your charts">
         <p className="text-[14px] leading-normal text-fg-secondary">
-          Reports turn what you have added into charts, per namespace and per recording.
+          Reports turn what you have added into charts, per namespace and per asset.
         </p>
         <div>
           <Button variant="secondary" onClick={() => close("/reports")}>

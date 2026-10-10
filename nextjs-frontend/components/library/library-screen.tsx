@@ -265,7 +265,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
     if (!choice)
       toast({
         title: `No one called ${pendingSpeaker.name} speaks in ${namespace ?? "your namespaces"} now`,
-        body: "The view shows everyone’s recordings instead.",
+        body: "The view shows everyone’s assets instead.",
       });
   }, [pendingSpeaker, namespace, speakers.loading, speakers.choices, toast]);
   const shownState = useMemo(() => viewState({ filters, view, sort }), [filters, view, sort]);
@@ -335,7 +335,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   const placeNs = selectedNs.length === 1 ? selectedNs[0] : null;
   const placeReason =
     selectedNs.length > 1
-      ? `Collections belong to one namespace: select recordings of one namespace (these are in ${selectedNs.join(", ")}).`
+      ? `Collections belong to one namespace: select assets of one namespace (these are in ${selectedNs.join(", ")}).`
       : undefined;
   const sharedHome = new Set(selectedRows.map((r) => r.collection ?? null));
   const placeCurrent = sharedHome.size === 1 ? [...sharedHome][0] : null;
@@ -401,7 +401,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   const matching = lib.matching ?? lib.rows.length;
   const processingNow = lib.jobsCounts.running + lib.jobsCounts.queued;
   const countLine = [
-    plural(lib.total, "recording"),
+    plural(lib.total, "asset"),
     lib.ms ? `${totalDuration(lib.ms)}${namespace ? ` in ${namespace}` : ""}` : null,
     processingNow ? `${count(processingNow)} processing` : null,
   ]
@@ -465,8 +465,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
             <Eye className="size-[15px] shrink-0" aria-hidden />
             <span className="flex-1">
               You see the collections of <b className="font-bold">{namespace}</b> you were given access to: their
-              recordings, search and the recordings’ pages. Ask an owner of {namespace} for a role in it to see the
-              rest.
+              assets, search and the assets’ pages. Ask an owner of {namespace} for a role in it to see the rest.
             </span>
           </div>
         )}
@@ -501,7 +500,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
                 items={[
                   {
                     value: "all",
-                    label: "All recordings",
+                    label: "All assets",
                     count: count(lib.total),
                   },
                   {
@@ -592,7 +591,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
           </EmptyState>
         ) : me && !me.user.admin && Object.keys(me.roles ?? {}).length === 0 && !(me.partial ?? []).length ? (
           <EmptyState className="border-t border-border" title="No namespaces yet">
-            You don’t have a role in any namespace. Ask an admin to add you, and the recordings you can see will show up
+            You don’t have a role in any namespace. Ask an admin to add you, and the assets you can see will show up
             here.
           </EmptyState>
         ) : empty ? (
@@ -600,7 +599,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
         ) : shown.length === 0 ? (
           <EmptyState
             className="border-t border-border"
-            title="No recordings match"
+            title="No assets match"
             actions={
               <Button
                 variant="secondary"
@@ -629,8 +628,8 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
           <div className="flex flex-wrap items-center gap-3 px-4 py-4 text-[13px] text-fg-secondary md:px-6">
             <span className="tabular">
               {filtering
-                ? `${plural(matching, "recording")} ${matching === 1 ? "matches" : "match"}`
-                : plural(matching, "recording")}
+                ? `${plural(matching, "asset")} ${matching === 1 ? "matches" : "match"}`
+                : plural(matching, "asset")}
               {lib.recordings.hasNextPage ? ` · ${count(lib.rows.length)} loaded` : ""}
             </span>
             {lib.recordings.hasNextPage && (
@@ -674,9 +673,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
         open={podcastOpen}
         onOpenChange={setPodcastOpen}
         recordings={[...selected]}
-        what={
-          selectedRows.length === 1 ? `“${selectedRows[0].title || "Untitled"}”` : plural(selected.size, "recording")
-        }
+        what={selectedRows.length === 1 ? `“${selectedRows[0].title || "Untitled"}”` : plural(selected.size, "asset")}
         onCreated={() => setSelected(new Set())}
       />
       <TagDialog
@@ -703,7 +700,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
           title={
             selectedRows.length === 1
               ? `“${selectedRows[0].title || "Untitled"}”`
-              : plural(selectedRows.length, "recording")
+              : plural(selectedRows.length, "asset")
           }
           current={placeCurrent}
           open={placeOpen}
@@ -757,7 +754,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
 
 function LibrarySkeleton() {
   return (
-    <div className="border-t border-border" aria-busy="true" aria-label="Loading recordings">
+    <div className="border-t border-border" aria-busy="true" aria-label="Loading assets">
       {Array.from({ length: 10 }, (_, i) => (
         <div key={i} className={cn("flex h-[52px] items-center gap-4 border-b border-border px-6")}>
           <Skeleton className="size-[18px] shrink-0 rounded-xs" />

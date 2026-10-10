@@ -29,12 +29,12 @@ def search_transcripts(
     speaker: int | None = None,
     emotion: str | None = None,
     recording: int | None = None,
-    object: str | None = Query(None, max_length=60, description="only recordings this kind of object is seen in (person, car …)"),
+    object: str | None = Query(None, max_length=60, description="only assets this kind of object is seen in (person, car …)"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     facets: bool = Query(
         False,
-        description="also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object",
+        description="also count all the matching moments by namespace, speaker, emotion and asset, and list their kinds of object",
     ),
     mode: Literal["auto", "keyword", "semantic", "hybrid"] = Query(
         "auto",

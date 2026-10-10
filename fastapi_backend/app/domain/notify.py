@@ -585,7 +585,7 @@ def _rows(db, source, pos, floor, spaces, since):
 
 
 def _q(title):
-    return f"“{title}”" if title else "A recording"
+    return f"“{title}”" if title else "An asset"
 
 
 def _job_events(cfg, rows, names, titles):

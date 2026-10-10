@@ -190,7 +190,7 @@ export function HealthPage() {
           }
         >
           SurrealDB · {h.database.embedded ? "embedded" : "server"} · full-text search{" "}
-          {h.database.fulltext ? `(${h.database.fulltext})` : "unavailable"} · {count(h.counts.recordings)} recordings,{" "}
+          {h.database.fulltext ? `(${h.database.fulltext})` : "unavailable"} · {count(h.counts.recordings)} assets,{" "}
           {count(h.counts.speakers)} speakers, {count(h.counts.accounts)} accounts
         </Card>
         <Card
@@ -236,7 +236,7 @@ export function HealthPage() {
               ? `${unchecked.length} not checked yet`
               : h.sources.length
                 ? `Checked ${relative(String(h.sources[0].health?.checked_at ?? ""))}`
-                : "Recordings come only from uploads and imports."}
+                : "Assets come only from uploads and imports."}
         </Card>
         <Card
           icon={KeyRound}

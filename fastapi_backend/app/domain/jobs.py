@@ -618,7 +618,7 @@ def _run_job(db, cfg_fn, job, worker, can, log=None):
             step = spec["type"]
             gone = not db.one("SELECT id FROM $r", r=R("recording", rid))
             if gone or (db.one("SELECT cancel_requested FROM $j", j=jr) or {}).get("cancel_requested"):
-                say("the recording was deleted" if gone else "cancelled")
+                say("the asset was deleted" if gone else "cancelled")
                 save("status = 'cancelled', worker = NONE, finished_at = $t")
                 return "cancelled"
             if (db.one("SELECT drain FROM $w", w=wr) or {}).get("drain"):
@@ -695,7 +695,7 @@ def retry(db, jid):
     if j["status"] not in ("failed", "cancelled"):
         raise ValueError("only failed or cancelled jobs can be retried")
     if not db.one("SELECT id FROM $r", r=R("recording", j["recording"])):
-        raise ValueError("its recording was deleted")
+        raise ValueError("its asset was deleted")
     i = min(j.get("step_index") or 0, len(j["steps"]) - 1)
     db.q(
         "UPDATE $j SET status = 'queued', next_step = $s, step_index = $i, error = NONE, cancel_requested = false, finished_at = NONE, "

@@ -77,7 +77,7 @@ class ObjectCount(ResponseModel):
 
 
 class ObjectTrack(ResponseModel):
-    """A kind of object seen in a recording, and where."""
+    """A kind of object seen in an asset, and where."""
 
     label: str = Field(description="what it is (person, car, dog …: the COCO dataset's kinds, with the default engine)")
     spans: list[list[int]] = Field(description="[from, to) where it's seen: ms, or page numbers from 0 when `paged`")
@@ -163,7 +163,7 @@ class EnrichedDate(ResponseModel):
 
 
 class Enrichment(ResponseModel):
-    """The places and dates anytopdf found in a recording (analysis.anytopdf); members of its namespace only."""
+    """The places and dates anytopdf found in an asset (analysis.anytopdf); members of its namespace only."""
 
     by: str = Field(description="anytopdf and its version")
     place: EnrichedPlace | None = Field(None, description="a photo: where it was taken")
@@ -181,7 +181,7 @@ class AttachedTo(ResponseModel):
 
 
 class Recording(ResponseModel):
-    """The recording row (less its envelope) plus what the recording page needs."""
+    """The asset row (less its envelope) plus what the asset page needs."""
 
     id: int
     title: str | None = None
@@ -274,7 +274,7 @@ class RecordingsRetag(RequestModel):
 
 
 class TagsChanged(Ok):
-    changed: int = Field(description="how many recordings' tags changed")
+    changed: int = Field(description="how many assets' tags changed")
 
 
 class TagCount(ResponseModel):
@@ -288,7 +288,7 @@ class NamespaceAccess(ResponseModel):
 
 
 class RecordingAccess(ResponseModel):
-    """Who may see the recording: public, restricted or private (docs/access.md)."""
+    """Who may see the asset: public, restricted or private (docs/access.md)."""
 
     access: AccessLevel
     open: list[AccessPart] = Field(description="the parts anyone may use when it is public: media, transcript, index")
@@ -306,7 +306,7 @@ class RecordingAccessUpdate(RequestModel):
 
 
 class Permission(ResponseModel):
-    """Someone given permission on a recording (docs/access.md): they see all of it on the pages visitors see and in
+    """Someone given permission on an asset (docs/access.md): they see all of it on the pages visitors see and in
     IIIF, whatever its access."""
 
     account: int
@@ -317,7 +317,7 @@ class Permission(ResponseModel):
 
 
 class AccessRequest(ResponseModel):
-    """Someone asking for permission on a recording (docs/access.md)."""
+    """Someone asking for permission on an asset (docs/access.md)."""
 
     recording: int
     title: str | None = None
@@ -333,13 +333,13 @@ class AccessRequest(ResponseModel):
 
 
 class RecordingIpGroup(ResponseModel):
-    """One of the namespace's IP groups, and whether it opens this recording (docs/access.md)."""
+    """One of the namespace's IP groups, and whether it opens this asset (docs/access.md)."""
 
     id: int
     name: str
     ranges: list[str]
-    everything: bool = Field(description="it opens every recording in the namespace")
-    opens: bool = Field(description="visitors from its addresses see all of this recording")
+    everything: bool = Field(description="it opens every asset in the namespace")
+    opens: bool = Field(description="visitors from its addresses see all of this asset")
 
 
 class RecordingMove(RequestModel):

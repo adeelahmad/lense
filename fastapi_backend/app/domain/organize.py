@@ -443,7 +443,7 @@ def run(db, cfg, wid, spaces, version=None, say=print, origin=None, propose_only
 
     w = workflows.get(db, wid, version)
     if w.get("scope") != "graph":
-        raise ValueError(f"workflow {w['name']} runs on recordings, not on the graph")
+        raise ValueError(f"workflow {w['name']} runs on assets, not on the graph")
     names = store.space_names(db)
     ctx = {"namespaces": [{"id": s, "name": names.get(s)} for s in sorted(spaces)]}
     origin = {**(origin or {}), "workflow": w["id"], "workflow_version": w["version"]}

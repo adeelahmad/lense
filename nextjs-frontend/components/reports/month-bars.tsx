@@ -19,10 +19,10 @@ type Series = {
 const SERIES: Series[] = [
   {
     key: "recordings",
-    title: "Recordings",
+    title: "Assets",
     height: 84,
     format: (v) => count(v),
-    unit: (v) => `${count(v)} ${v === 1 ? "recording" : "recordings"}`,
+    unit: (v) => `${count(v)} ${v === 1 ? "asset" : "assets"}`,
   },
   {
     key: "ms",
@@ -45,7 +45,7 @@ export function MonthBars({ months }: { months: MonthBucket[] }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <h3 className="flex-1 text-[13px] font-bold leading-none text-fg">Recordings and hours per month</h3>
+        <h3 className="flex-1 text-[13px] font-bold leading-none text-fg">Assets and hours per month</h3>
         <button
           type="button"
           onClick={() => setTable((t) => !t)}
@@ -63,7 +63,7 @@ export function MonthBars({ months }: { months: MonthBucket[] }) {
                 Month
               </th>
               <th scope="col" className="py-1.5 text-right font-semibold">
-                Recordings
+                Assets
               </th>
               <th scope="col" className="py-1.5 text-right font-semibold">
                 Audio

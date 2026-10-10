@@ -95,10 +95,10 @@ export function BulkBar({
     ? `You’re a viewer in ${blocked.namespaces.join(", ")}: ${count(blocked.count)} of ${count(selected)} selected can’t be changed. Ask an owner for editor access.`
     : undefined;
   const deleteReason = notOwner.count
-    ? `Only owners delete recordings. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be deleted.`
+    ? `Only owners delete assets. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be deleted.`
     : undefined;
   const moveReason = notOwner.count
-    ? `Only owners move recordings out of their namespace. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be moved.`
+    ? `Only owners move assets out of their namespace. You don’t own ${notOwner.namespaces.join(", ")}: ${count(notOwner.count)} of ${count(selected)} selected can’t be moved.`
     : !moveTargets.length
       ? "There’s no other namespace you edit to move them to."
       : undefined;
@@ -106,7 +106,7 @@ export function BulkBar({
     <div className="pointer-events-none sticky bottom-5 z-30 mt-4 flex justify-center px-4">
       <div
         role="toolbar"
-        aria-label={`${plural(selected, "recording")} selected`}
+        aria-label={`${plural(selected, "asset")} selected`}
         className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-pill bg-fg py-1.5 pl-4 pr-1.5 text-background shadow-3 [scrollbar-width:none]"
       >
         <span className="whitespace-nowrap pr-2.5 text-[13px] font-semibold" aria-live="polite">
@@ -215,8 +215,8 @@ export function ReprocessDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title={`Reprocess ${plural(n, "recording")}?`}
-      description="The work runs in the background; statuses update in the rows. Recordings already in the queue keep their current job."
+      title={`Reprocess ${plural(n, "asset")}?`}
+      description="The work runs in the background; statuses update in the rows. Assets already in the queue keep their current job."
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -232,7 +232,7 @@ export function ReprocessDialog({
               if (ok) onOpenChange(false);
             }}
           >
-            {busy ? "Queueing…" : `Reprocess ${plural(n, "recording")}`}
+            {busy ? "Queueing…" : `Reprocess ${plural(n, "asset")}`}
           </Button>
         </>
       }
@@ -298,12 +298,12 @@ export function DeleteDialog({
     }
   }, [open]);
   const n = rows.length;
-  const name = (r: { id: number; title?: string | null }) => r.title || `Recording ${r.id}`;
+  const name = (r: { id: number; title?: string | null }) => r.title || `Asset ${r.id}`;
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => !busy && onOpenChange(o)}
-      title={n === 1 ? `Delete “${name(rows[0])}”?` : `Delete ${plural(n, "recording")}?`}
+      title={n === 1 ? `Delete “${name(rows[0])}”?` : `Delete ${plural(n, "asset")}?`}
       description="Their transcripts and analysis, chapters, reports and outputs, shares and permissions go with them. This can’t be undone."
       actions={
         <>
@@ -323,14 +323,14 @@ export function DeleteDialog({
             {busy
               ? `Deleting… ${count(done)} of ${count(n)}`
               : n === 1
-                ? "Delete recording"
-                : `Delete ${plural(n, "recording")}`}
+                ? "Delete asset"
+                : `Delete ${plural(n, "asset")}`}
           </Button>
         </>
       }
     >
       {n > 1 && (
-        <ul aria-label="Recordings to delete" className="flex flex-col gap-1 text-[13.5px] text-fg">
+        <ul aria-label="Assets to delete" className="flex flex-col gap-1 text-[13.5px] text-fg">
           {rows.slice(0, 5).map((r) => (
             <li key={r.id} className="truncate">
               {name(r)}
@@ -398,9 +398,7 @@ export function MoveDialog({
       open={open}
       onOpenChange={(o) => !busy && onOpenChange(o)}
       title={
-        rows.length === 1
-          ? `Move “${rows[0].title || `Recording ${rows[0].id}`}”`
-          : `Move ${plural(rows.length, "recording")}`
+        rows.length === 1 ? `Move “${rows[0].title || `Asset ${rows[0].id}`}”` : `Move ${plural(rows.length, "asset")}`
       }
       description="Their transcripts, media, outputs and permissions go with them."
       actions={
@@ -419,16 +417,13 @@ export function MoveDialog({
               onOpenChange(false);
             }}
           >
-            {busy ? `Moving… ${count(done)} of ${count(n)}` : `Move ${plural(n, "recording")}`}
+            {busy ? `Moving… ${count(done)} of ${count(n)}` : `Move ${plural(n, "asset")}`}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field
-          label="To"
-          hint={already ? `${plural(already, "recording")} already there stay as they are.` : undefined}
-        >
+        <Field label="To" hint={already ? `${plural(already, "asset")} already there stay as they are.` : undefined}>
           {(f) => (
             <Select
               id={f.id}
@@ -439,7 +434,7 @@ export function MoveDialog({
             />
           )}
         </Field>
-        <Tooltip content={!withAudio ? "Only recordings with audio have voices to identify" : undefined}>
+        <Tooltip content={!withAudio ? "Only assets with audio have voices to identify" : undefined}>
           <span className="w-fit">
             <Checkbox
               checked={rediarize && withAudio > 0}
@@ -469,7 +464,7 @@ export function MoveDialog({
         />
         <p className="rounded-md bg-surface px-3 py-2.5 text-[12.5px] leading-[1.45] text-fg-secondary">
           Their access and IIIF manifests stay as they are: what they had from {from || "their namespace"} is kept on
-          each recording. Analysis runs again in {to || "the new namespace"} to find their entities, and{" "}
+          each asset. Analysis runs again in {to || "the new namespace"} to find their entities, and{" "}
           {from || "their namespace"}’s scans and watched folders won’t import them again.
         </p>
       </div>
@@ -511,8 +506,8 @@ export function TagDialog({
     <Dialog
       open={open}
       onOpenChange={(o) => !busy && onOpenChange(o)}
-      title={`Tag ${plural(n, "recording")}`}
-      description="Tags help find recordings in the Library: filter by them, or see them in the Tags column."
+      title={`Tag ${plural(n, "asset")}`}
+      description="Tags help find assets in the Library: filter by them, or see them in the Tags column."
       actions={
         <>
           <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>

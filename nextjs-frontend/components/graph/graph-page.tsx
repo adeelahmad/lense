@@ -308,14 +308,14 @@ export function GraphPage() {
                 </Link>
               ) : (
                 <Link href="/import" className="text-[13px] font-bold text-fg-accent hover:underline">
-                  Import recordings or documents
+                  Import assets
                 </Link>
               )
             }
           >
             The graph is built by the Analyze step.
             {waiting > 0
-              ? ` ${plural(waiting, "recording")} ${waiting === 1 ? "is" : "are"} waiting for it`
+              ? ` ${plural(waiting, "asset")} ${waiting === 1 ? "is" : "are"} waiting for it`
               : " Nothing is waiting for it"}
             {analyzing > 0 ? ` — ${analyzing} ${analyzing === 1 ? "is" : "are"} being analyzed now.` : "."}
           </EmptyState>

@@ -33,7 +33,7 @@ What is encrypted:
   (`lens report` with a folder of your own) stay plain.
 * With `encryption.files` on, the copies Lens keeps of files on storage sources (S3, Drive, a mailbox, ...) to play
   and read them, too, when the cache is under the data folder (`sources.cache_dir` unset), with the key of the
-  recording's namespace.
+  asset's namespace.
 
 How encrypted files are used:
 
@@ -44,11 +44,11 @@ How encrypted files are used:
   (30 by default).
 * Fingerprints and sizes are those of the plain file, so the same file uploaded or scanned again is still recognised.
 
-Moving a recording to another namespace moves its files to that namespace's key: its own file, supplementary
+Moving an asset to another namespace moves its files to that namespace's key: its own file, supplementary
 files, rendition, frames, cached copy, report pages and exports are re-encrypted with it (and plain ones encrypted,
 when the new namespace wants them encrypted), keeping their modification times. A file is never turned back to plain
 by a move. When either namespace is a vault nobody has unlocked here, the move is refused (423) and nothing changes;
-once it starts, the keys it needs stay open until it's done. A file another namespace's recording shares (the same
+once it starts, the keys it needs stay open until it's done. A file another namespace's asset shares (the same
 IIIF import in both) keeps its key. A file a move couldn't re-encrypt (a crash half way, a disk error) is moved to
 its namespace's key by the next `lens encrypt`, which also never turns a vault's files back to plain with `--off`.
 

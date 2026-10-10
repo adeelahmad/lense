@@ -67,7 +67,7 @@ export function CitationChip({
           onMouseLeave={() => onHover?.(null)}
           onFocus={() => onHover?.(n)}
           onBlur={() => onHover?.(null)}
-          aria-label={`Source ${n}: ${citeLabel(passage)}. Opens the recording there.`}
+          aria-label={`Source ${n}: ${citeLabel(passage)}. Opens the asset there.`}
           className={cn(
             chip,
             "bg-blue-surface text-fg-accent hover:border-blue",

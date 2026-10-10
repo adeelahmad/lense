@@ -125,7 +125,7 @@ export function NewTemplate() {
         />
         <span className="text-[12.5px] text-fg-muted">
           {kind === "prompt"
-            ? "Sent to the model by an LLM step; its answer must match an output schema and is saved on the recording."
+            ? "Sent to the model by an LLM step; its answer must match an output schema and is saved on the asset."
             : kind === "report"
               ? "An HTML page for a report step (scripts don’t run in it)."
               : "A text file (Markdown, CSV…) written by an export step, optionally copied to a source."}

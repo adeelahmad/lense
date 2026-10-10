@@ -556,7 +556,7 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
         <div className="flex min-w-0 flex-1 basis-full flex-col gap-1 sm:basis-auto">
           <span className="truncate text-[12px] font-medium text-fg-muted">
             <Link href={`/resources/${recordingId}`} className="hover:underline">
-              {rec.data?.title ?? `Recording ${recordingId}`}
+              {rec.data?.title ?? `Asset ${recordingId}`}
             </Link>{" "}
             · Metadata
           </span>
@@ -578,7 +578,7 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
               {relative(lastEdit.at)}
             </>
           ) : (
-            "Not edited yet: values come from the recording"
+            "Not edited yet: values come from the asset"
           )}
         </span>
         <RdfMenu target={{ recording: recordingId }} />

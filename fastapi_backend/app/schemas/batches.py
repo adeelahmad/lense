@@ -10,7 +10,7 @@ from app.schemas.common import Ok, RequestModel, ResponseModel
 
 
 class BatchSelection(RequestModel):
-    """Which recordings: a collection, a list, or a filter (optionally narrowed to a namespace, entity or speaker)."""
+    """Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or speaker)."""
 
     collection: int | None = None
     recordings: list[int] | None = None
@@ -62,7 +62,7 @@ class Estimate(ResponseModel):
 class BatchEstimate(Estimate):
     label: str
     steps: list[dict[str, Any]]
-    skipped: int = Field(description="matching recordings you can't change")
+    skipped: int = Field(description="matching assets you can't change")
 
 
 class BatchNeedsConfirmation(ResponseModel):
@@ -117,7 +117,7 @@ class BatchCombine(RequestModel):
 
 
 class BatchActionResult(Ok):
-    result: int | None = Field(default=None, description="recordings started (continue) or jobs retried (retry)")
+    result: int | None = Field(default=None, description="assets started (continue) or jobs retried (retry)")
 
 
 class BatchResults(ResponseModel):

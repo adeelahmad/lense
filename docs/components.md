@@ -5,7 +5,7 @@ nothing to install by hand.
 
 Each worker looks after its own machine. It compares what the settings ask for with what's installed, and fetches
 what's missing in the background, one thing at a time. Engines and models for job steps are fetched **on first use**:
-the first time a recording is waiting for the step that needs them. Until then they show as *On first use*, and an
+the first time an asset is waiting for the step that needs them. Until then they show as *On first use*, and an
 archive that only uses cloud models never downloads them, which keeps a small machine (a Raspberry Pi) small.
 
 | Component | Fetched when | What |

@@ -61,7 +61,7 @@ what their person may read.
 - **Understand it.** Transcription and speaker recognition, entities and topics in a knowledge graph you can explore,
   query with Cypher or SPARQL, and see as it was at any version. ([Graph](docs/graph.md),
   [graph history](docs/graph-history.md), [topics](docs/topics.md), [video](docs/video.md))
-- **Keep notes beside it.** Every recording, entity and topic has a page, plus free notes that you and the assistant
+- **Keep notes beside it.** Every asset, entity and topic has a page, plus free notes that you and the assistant
   write and link. ([Notes](docs/notes.md))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, and extensions (prompts, templates and
   sandboxed Python) the assistant can call.

@@ -177,7 +177,7 @@ describe("facets and groups", () => {
     expect(f.emotions.map((e) => e.key)).toEqual(["Neutral", "Surprise"]);
     expect(f.recordings).toEqual([
       { key: "1", id: 1, label: "Episode 12", count: 2 },
-      { key: "3", id: 3, label: "Recording 3", count: 1 },
+      { key: "3", id: 3, label: "Asset 3", count: 1 },
     ]);
     expect(fromServer({ moments: 0, partial: false })).toEqual({
       namespaces: [],
@@ -237,7 +237,7 @@ describe("saved searches", () => {
   });
   it("say their filters by name", () => {
     expect(savedSearchFilters(saved)).toBe("podcasts · Alice · Happy · Episode 12");
-    expect(savedSearchFilters({ q: "x", speaker: 7, recording: 3 })).toBe("Speaker #7 · Recording #3");
+    expect(savedSearchFilters({ q: "x", speaker: 7, recording: 3 })).toBe("Speaker #7 · Asset #3");
     expect(savedSearchFilters({ q: "x" })).toBe("");
   });
 });

@@ -61,12 +61,12 @@ class RecordingFacet(ResponseModel):
 
 class ObjectFacet(ResponseModel):
     name: str = Field(description="a kind of object (person, car …)")
-    count: int = Field(description="how many of the recordings with matching moments it's seen in")
+    count: int = Field(description="how many of the assets with matching moments it's seen in")
 
 
 class SearchFacets(ResponseModel):
-    """How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,
-    most first), and the kinds of object seen in the recordings they're in. Text on screen has no speaker or emotion."""
+    """How many of all the matching moments are in each namespace, speaker, emotion and asset (up to 50 of each,
+    most first), and the kinds of object seen in the assets they're in. Text on screen has no speaker or emotion."""
 
     moments: int = Field(description="the matching moments counted: all of them, unless `partial`")
     partial: bool = Field(description="more than 20,000 moments match; the counts cover 20,000 of them")
@@ -94,7 +94,7 @@ class SearchResults(ResponseModel):
 class TermSuggestion(ResponseModel):
     word: str
     count: int = Field(description="how often it's said")
-    recordings: int = Field(description="in how many recordings")
+    recordings: int = Field(description="in how many assets")
 
 
 class Graph(ResponseModel):

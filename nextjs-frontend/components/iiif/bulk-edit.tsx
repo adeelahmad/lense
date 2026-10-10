@@ -98,8 +98,8 @@ export function BulkEditDialog({
       void qc.invalidateQueries({ queryKey: ["iiif"] });
       void qc.invalidateQueries({ queryKey: ["iiif-public"] });
       toast({
-        title: `${count(r.changed ?? 0)} recording${r.changed === 1 ? "" : "s"} changed`,
-        body: `${FIELDS.find((f) => f.value === field)?.label} in ${ns}. Each change is in its recording’s history.`,
+        title: `${count(r.changed ?? 0)} asset${r.changed === 1 ? "" : "s"} changed`,
+        body: `${FIELDS.find((f) => f.value === field)?.label} in ${ns}. Each change is in its asset’s history.`,
         tone: "green",
       });
       close();
@@ -120,7 +120,7 @@ export function BulkEditDialog({
       open={open}
       onOpenChange={(o) => !o && close()}
       title={preset?.title ?? `Bulk edit ${ns}`}
-      description="Sets one field on every recording in this namespace. Nothing is saved until you apply the dry run."
+      description="Sets one field on every asset in this namespace. Nothing is saved until you apply the dry run."
       actions={
         <>
           <Button variant="ghost" onClick={close}>

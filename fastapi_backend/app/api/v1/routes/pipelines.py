@@ -68,7 +68,7 @@ def create_pipeline_version(pid: int, body: PipelineVersionCreate, user: AdminWr
 
 @router.post("/{pid}/run")
 def run_pipeline(pid: int, body: PipelineRunRequest, user: Writer, acl: Acl, db: Db) -> JobQueued:
-    """Run this pipeline on one recording now (its outputs are kept)."""
+    """Run this pipeline on one asset now (its outputs are kept)."""
     acl.recording(body.recording, "editor")
     try:
         return JobQueued(job=jobs.enqueue(db, body.recording, None, by=user.email, pipeline=pid))

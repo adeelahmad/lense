@@ -37,7 +37,7 @@ export const NODE_GROUPS: { key: string; label: string; shape: Shape }[] = [
   { key: "TERM", label: "Terms", shape: "pill" },
   { key: "EVENT", label: "Events", shape: "hexagon" },
   { key: "WORK", label: "Works", shape: "rounded" },
-  { key: "recording", label: "Recordings", shape: "doc" },
+  { key: "recording", label: "Assets", shape: "doc" },
   { key: "collection", label: "Collections", shape: "folder" },
   { key: "namespace", label: "Namespaces", shape: "octagon" },
   { key: "topic", label: "Topics", shape: "tag" },

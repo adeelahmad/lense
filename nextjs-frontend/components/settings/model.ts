@@ -244,7 +244,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "Fedora repository",
     backend: ["fedora"],
     description:
-      "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, recording (with its file), entity and speaker, described in RDF with Dublin Core.",
+      "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, asset (with its file), entity and speaker, described in RDF with Dublin Core.",
   },
   {
     id: "sensors",
@@ -285,7 +285,7 @@ export const SECTIONS: SectionSpec[] = [
     id: "iiif",
     label: "IIIF & metadata",
     backend: ["iiif"],
-    description: "How recordings are published as IIIF Manifests and Collections.",
+    description: "How assets are published as IIIF Manifests and Collections.",
   },
   {
     id: "startup",
@@ -352,7 +352,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "search_transcripts", label: "Search transcripts", acts: false },
   {
     name: "list_recordings",
-    label: "List recordings (namespace, date, speaker, entity)",
+    label: "List assets (namespace, date, speaker, entity)",
     acts: false,
   },
   {
@@ -379,7 +379,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "read_note", label: "Read a note", acts: false },
   { name: "write_note", label: "Write notes", acts: false },
   { name: "update_note", label: "Change notes", acts: false },
-  { name: "run_template", label: "Run a template on recordings", acts: true },
+  { name: "run_template", label: "Run a template on assets", acts: true },
   {
     name: "propose_entity_change",
     label: "Propose entity merges, renames, type changes, descriptions and new entities",
@@ -736,7 +736,7 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "ai",
     key: "confirm_over_recordings",
-    label: "Ask approval above (recordings)",
+    label: "Ask approval above (assets)",
     kind: "int",
     min: 1,
     nullable: true,
@@ -990,7 +990,7 @@ export const FIELDS: FieldSpec[] = [
     key: "ahead",
     label: "Fetch everything now",
     kind: "switch",
-    hint: "Off: engines and models are fetched the first time a recording needs them",
+    hint: "Off: engines and models are fetched the first time an asset needs them",
   },
   { section: "components", key: "also", label: "Also fetch", kind: "checks" },
   // Voice
@@ -1777,7 +1777,7 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "fedora",
     key: "files",
-    label: "Send recordings’ files",
+    label: "Send assets’ files",
     kind: "switch",
     hint: "Off sends descriptions only",
   },
@@ -1798,7 +1798,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 720,
-    hint: "Catches what analysis changed, new recordings and deletions",
+    hint: "Catches what analysis changed, new assets and deletions",
   },
   {
     section: "tokens",
@@ -1847,7 +1847,7 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     mono: true,
     placeholder: "https://lens.example.org",
-    hint: "Messages link to runs and recordings here. Empty: the server’s FRONTEND_URL",
+    hint: "Messages link to runs and assets here. Empty: the server’s FRONTEND_URL",
   },
   {
     section: "notifications",
@@ -2474,7 +2474,7 @@ export function why(c: Change): string | null {
   if (id === "search.stemming" || id === "search.engine")
     return "Search keeps the old index until you rebuild it (Reindex).";
   if (id === "embeddings.model" || id === "embeddings.document_prefix")
-    return "Vectors from another model can’t be compared: search by meaning stops until recordings are indexed again (the hourly routine, or Index now).";
+    return "Vectors from another model can’t be compared: search by meaning stops until assets are indexed again (the hourly routine, or Index now).";
   if (id === "iiif.base_url") return "Every IIIF identifier changes.";
   if (id === "transcribe.engine" || id === "transcribe.language")
     return "Applies to new transcriptions; existing transcripts stay until reprocessed.";

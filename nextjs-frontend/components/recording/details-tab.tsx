@@ -137,7 +137,7 @@ export function DetailsTab() {
     <>
       <div className="flex items-center gap-2">
         <p className="flex-1 text-[12.5px] leading-snug text-fg-muted">
-          From the recording&apos;s own record. Codec and loudness details aren&apos;t measured yet.
+          From the asset&apos;s own record. Codec and loudness details aren&apos;t measured yet.
         </p>
         {model.audio && (
           <Button asChild variant="secondary" size="sm" icon={<Download />}>

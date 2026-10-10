@@ -59,9 +59,7 @@ function SetupForm({
     mutationFn: () => data(Entities.applyEntitySetup({ client, path: { name: ns }, body: { collection } })),
     onSuccess: (r) =>
       toast({
-        title: r.recordings
-          ? `Analysing ${plural(r.recordings, "recording")} again`
-          : "No analysed recordings to update",
+        title: r.recordings ? `Analysing ${plural(r.recordings, "asset")} again` : "No analysed assets to update",
         body: r.recordings ? "Their entities follow this setup once the jobs finish (Activity)." : undefined,
         tone: "green",
       }),
@@ -80,7 +78,7 @@ function SetupForm({
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: setupKey(ns) });
-      toast({ title: "Saved. Recordings analysed from now on follow it.", tone: "green" });
+      toast({ title: "Saved. Assets analysed from now on follow it.", tone: "green" });
       onDone?.();
     },
     onError: (e) =>
@@ -205,7 +203,7 @@ function SetupForm({
             disabledReason={!can ? needRole("editor", ns) : undefined}
             onClick={() => apply.mutate()}
           >
-            Apply to analysed recordings
+            Apply to analysed assets
           </Button>
         )}
         {setup.updated_at && (
@@ -250,7 +248,7 @@ export function SetupTab({ ns }: { ns: string }) {
 
   return (
     <div className="flex max-w-[860px] flex-col gap-4">
-      <Panel title={ns} subtitle="The namespace’s setup. Recordings analysed from now on follow it.">
+      <Panel title={ns} subtitle="The namespace’s setup. Assets analysed from now on follow it.">
         <SetupForm ns={ns} setup={v.namespace} types={types} collection={null} />
       </Panel>
       <Panel

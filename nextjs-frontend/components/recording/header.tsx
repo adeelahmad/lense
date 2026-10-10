@@ -74,7 +74,7 @@ export function RecordingHeader() {
             {ns}
           </Link>
         ) : (
-          <span>Recording</span>
+          <span>Asset</span>
         )}
         {ns &&
           (rec.collection_path ?? []).map((c) => (
@@ -98,7 +98,7 @@ export function RecordingHeader() {
           <Tooltip content={canEdit ? "Rename" : needRole("editor", ns)}>
             <button
               type="button"
-              aria-label="Rename recording"
+              aria-label="Rename asset"
               aria-disabled={!canEdit || undefined}
               onClick={canEdit ? openRename : undefined}
               className={cn(
@@ -165,7 +165,7 @@ export function RecordingHeader() {
           </Meta>
         )}
         <Meta icon={<Workflow />}>
-          <span title={ns ? `The pipeline new recordings in ${ns} go through` : undefined}>
+          <span title={ns ? `The pipeline new assets in ${ns} go through` : undefined}>
             {pipeline ? pipeline.name : "Standard pipeline"}
             {pipeline && (
               <span className="ml-1 font-mono text-[11px] font-medium text-fg-muted">v{pipeline.current}</span>
@@ -254,7 +254,7 @@ export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
             <MenuItem asChild>
               <a href={rec.report_url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5">
                 <ExternalLink />
-                <span className="flex-1">Open the recording report</span>
+                <span className="flex-1">Open the asset report</span>
               </a>
             </MenuItem>
           </>
@@ -275,7 +275,7 @@ export function ReprocessMenu({ disabled, reason }: { disabled: boolean; reason:
   const why = disabled
     ? reason
     : running
-      ? "A job is already running for this recording; follow it in Activity"
+      ? "A job is already running for this asset; follow it in Activity"
       : undefined;
   const nsPipeline = pipelines.data?.pipelines.find((p) => ns && p.namespaces?.includes(ns));
   const run = (body: { pipeline?: number }, label: string) =>
@@ -409,7 +409,7 @@ function MoreMenu({ compact }: { compact?: boolean }) {
             <MenuItem asChild>
               <a href={r.rec.report_url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5">
                 <ExternalLink />
-                <span className="flex-1">Recording report</span>
+                <span className="flex-1">Asset report</span>
               </a>
             </MenuItem>
           )}

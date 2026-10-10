@@ -265,7 +265,7 @@ async def push_to_import_hook(
     """Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
 
     - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
-      images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
+      images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
       transcripts;
     - multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;
     - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional

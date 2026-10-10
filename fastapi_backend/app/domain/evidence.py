@@ -80,7 +80,7 @@ def make(db, cfg, rids):
     if not rids:
         raise ValueError("there's nothing to put in it")
     if len(rids) > MAX:
-        raise ValueError(f"an evidence PDF holds {MAX} recordings at most; this has {len(rids)}")
+        raise ValueError(f"an evidence PDF holds {MAX} assets at most; this has {len(rids)}")
     ready(cfg)
     work = pathlib.Path(cfg["data_dir"]) / "tmp"
     work.mkdir(parents=True, exist_ok=True)

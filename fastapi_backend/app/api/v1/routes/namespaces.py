@@ -117,8 +117,8 @@ def get_namespace_stats(
     date_to: date | None = Query(None, alias="to", description="recorded on or before this day"),
     top: int = Query(5, ge=1, le=50, description="how many speakers in `top_speakers`"),
 ) -> NamespaceStats:
-    """The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,
-    who was heard and for how long, and the same per month. Without a range, every recording."""
+    """The namespace's numbers for the assets made in a range of days (the Reports overview): how many and how long,
+    who was heard and for how long, and the same per month. Without a range, every asset."""
     sid = acl.namespace(name)
     with domain_errors():
         return NamespaceStats(**library.namespace_stats(db, sid, date_from, date_to, top))
@@ -153,8 +153,8 @@ def list_ip_groups(name: str, request: Request, acl: Acl, user: CurrentUser, db:
 
 @router.post("/{name}/ip-groups")
 def create_ip_group(name: str, body: IpGroupCreate, request: Request, acl: Acl, user: Writer, db: Db) -> IpGroups:
-    """Add an IP group (owners): visitors from its addresses see all of every recording in the namespace
-    (everything), or of the recordings chosen on each. Answers with all of the namespace's groups."""
+    """Add an IP group (owners): visitors from its addresses see all of every asset in the namespace
+    (everything), or of the assets chosen on each. Answers with all of the namespace's groups."""
     sid = acl.namespace(name, "owner")
     with domain_errors():
         g = ipgroups.create(db, sid, body.name, body.ranges, body.everything, user.email)
@@ -164,7 +164,7 @@ def create_ip_group(name: str, body: IpGroupCreate, request: Request, acl: Acl, 
 
 @router.patch("/{name}/ip-groups/{gid}")
 def update_ip_group(name: str, gid: int, body: IpGroupUpdate, request: Request, acl: Acl, user: Writer, db: Db) -> IpGroups:
-    """Rename an IP group, change its ranges or what it opens (owners). Choosing recordings again after opening
+    """Rename an IP group, change its ranges or what it opens (owners). Choosing assets again after opening
     everything brings back the ones chosen before."""
     sid = acl.namespace(name, "owner")
     changes = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}

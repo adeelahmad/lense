@@ -61,7 +61,7 @@ export function EmptyChat({
       <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface p-4">
         <h2 className="text-[17px] font-bold text-fg">{title}</h2>
         <p className="m-0 text-[13.5px] leading-normal text-fg-secondary">
-          Answers come only from recordings you can read
+          Answers come only from assets you can read
           {scope.namespaces?.length ? ` in ${scopeWords(scope)}` : ""}, and cite the moment they’re based on.
         </p>
       </div>

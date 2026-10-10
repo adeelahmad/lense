@@ -39,7 +39,7 @@ export function fromServer(f: SearchFacets): Facets {
     recordings: (f.recordings ?? []).map((r) => ({
       key: String(r.id),
       id: r.id,
-      label: r.title || `Recording ${r.id}`,
+      label: r.title || `Asset ${r.id}`,
       count: r.count,
     })),
     objects: (f.objects ?? []).map((o) => ({ key: o.name, label: objectName(o.name), count: o.count })),
@@ -62,7 +62,7 @@ export function groupByRecording(hits: SearchHit[]): HitGroup[] {
     if (!g) {
       g = {
         recordingId: h.recording_id,
-        title: h.title || `Recording ${h.recording_id}`,
+        title: h.title || `Asset ${h.recording_id}`,
         namespace: h.namespace ?? null,
         recordedAt: h.recorded_at ?? null,
         hits: [],

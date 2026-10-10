@@ -96,11 +96,9 @@ describe("access", () => {
   });
 
   it("says what an IP group opens", () => {
-    expect(ipGroupOpens({ everything: true, chosen: 4 }, "pods")).toBe("Every recording in pods");
-    expect(ipGroupOpens({ everything: false, chosen: 1 }, "pods")).toBe("1 chosen recording");
-    expect(ipGroupOpens({ everything: false, chosen: 3 }, "pods")).toBe("3 chosen recordings");
-    expect(ipGroupOpens({ everything: false }, "pods")).toBe(
-      "No recordings yet: choose them in a recording’s Access dialog",
-    );
+    expect(ipGroupOpens({ everything: true, chosen: 4 }, "pods")).toBe("Every asset in pods");
+    expect(ipGroupOpens({ everything: false, chosen: 1 }, "pods")).toBe("1 chosen asset");
+    expect(ipGroupOpens({ everything: false, chosen: 3 }, "pods")).toBe("3 chosen assets");
+    expect(ipGroupOpens({ everything: false }, "pods")).toBe("No assets yet: choose them in an asset’s Access dialog");
   });
 });

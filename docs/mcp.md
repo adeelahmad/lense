@@ -1,7 +1,7 @@
 # MCP server
 
 Lens is a [Model Context Protocol](https://modelcontextprotocol.io) server, so agents (Claude, Cursor, VS Code,
-ChatGPT and other MCP clients) can search the archive, read recordings and cite them. An agent signs in as a person
+ChatGPT and other MCP clients) can search the archive, read assets and cite them. An agent signs in as a person
 and sees exactly what that person sees: their namespaces, the collections they were given a role on, and the graphs
 those open. Its tools read, except the few listed under [Tools](#tools) that suggest or write, which need a
 write-scope token and editor access.
@@ -37,15 +37,15 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 
 | Tool | |
 |---|---|
-| `search` | moments where words are said, shown on screen or written, best first: the recording, speaker, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, speaker or recording |
-| `list_namespaces` | the namespaces you can read, with their recordings, hours, speakers and your role |
-| `list_recordings` | recordings, newest first, by namespace, title words, dates, speaker, tag or kind |
+| `search` | moments where words are said, shown on screen or written, best first: the asset, speaker, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, speaker or asset |
+| `list_namespaces` | the namespaces you can read, with their assets, hours, speakers and your role |
+| `list_recordings` | assets, newest first, by namespace, title words, dates, speaker, tag or kind |
 | `list_speakers` | the speakers of your namespaces, the ones who talk most first |
-| `get_recording` | one recording: when, how long, speakers, summary and key points, chapters, the entities and keywords most mentioned, its link |
-| `get_transcript` | a recording's lines in order (speaker, time, text, link), a page at a time, from a line or a time window |
-| `fetch` | a recording's whole text at once, as `[m:ss] Speaker: …` lines |
-| `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said them, the recording and date, the time, the link, and all of it as Markdown |
-| `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or recording |
+| `get_recording` | one asset: when, how long, speakers, summary and key points, chapters, the entities and keywords most mentioned, its link |
+| `get_transcript` | an asset's lines in order (speaker, time, text, link), a page at a time, from a line or a time window |
+| `fetch` | an asset's whole text at once, as `[m:ss] Speaker: …` lines |
+| `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said them, the asset and date, the time, the link, and all of it as Markdown |
+| `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or asset |
 | `get_entity` | one entity: its names, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
 | `explore_graph` | the knowledge graph around an entity (`e12`) or a speaker (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
@@ -55,18 +55,18 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `graph_related` | a node's parents, children, ancestors, descendants or neighbours |
 | `graph_paths` | the paths between two nodes, shortest first |
 | `list_topics` | each namespace's vocabulary of topics ([Topics](topics.md)), by any label, top topics or the narrower ones of a topic |
-| `get_topic` | one topic: its labels, definition, broader, narrower and related topics, and the recordings about it, with links |
-| `suggest_topic` | suggest that recordings are about a topic; it waits for someone to accept it. Needs a write-scope token and editor access |
+| `get_topic` | one topic: its labels, definition, broader, narrower and related topics, and the assets about it, with links |
+| `suggest_topic` | suggest that assets are about a topic; it waits for someone to accept it. Needs a write-scope token and editor access |
 | `find_notes` | [notes](notes.md) by words in their title, summary or text, or by where they're filed (PARA), with links |
 | `read_note` | a note's Markdown with its links and backlinks, by id or as the page of a thing (`recording:12`) |
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
-| `create_podcast` | make a two-host learning [episode](podcasts.md) about recordings or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
+| `create_podcast` | make a two-host learning [episode](podcasts.md) about assets or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
 
-Results are JSON (as `structuredContent`, and the same as text). Links open the recording's page in the web app at
+Results are JSON (as `structuredContent`, and the same as text). Links open the asset's page in the web app at
 that moment (`/resources/<id>?t=<seconds>`), on the address the client used. Mistakes the agent can fix (a wrong
 argument, something it can't read) come back as a tool result with `isError`, so it can try again; what isn't the
 person's to read answers "not found", as the API does. `search` and `fetch` follow the shape ChatGPT's connectors

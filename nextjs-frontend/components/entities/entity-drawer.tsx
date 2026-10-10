@@ -167,7 +167,7 @@ export function EntityDrawer({
             <dl className="m-0 grid grid-cols-3 gap-2 text-center">
               {[
                 ["Mentions", count(d.mentions)],
-                ["Recordings", count(d.recordings)],
+                ["Assets", count(d.recordings)],
                 ["Last said", d.last ? shortDate(d.last) : "—"],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-md border border-border px-2 py-2">
@@ -307,7 +307,7 @@ export function EntityDrawer({
                       href={recordingHref(m.recording_id, m.t0 ?? undefined)}
                       className="text-[12px] font-semibold text-fg-secondary hover:text-fg-accent hover:underline"
                     >
-                      {m.title ?? `Recording ${m.recording_id}`}
+                      {m.title ?? `Asset ${m.recording_id}`}
                       {m.time ? ` · ${m.time}` : ""}
                       {m.speaker ? ` · ${m.speaker}` : ""}
                     </Link>

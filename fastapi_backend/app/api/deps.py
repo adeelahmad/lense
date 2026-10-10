@@ -194,7 +194,7 @@ class Access:
         if not have:
             raise HTTPException(404, "not found")
         if have < auth.ROLES[role]:
-            raise HTTPException(403, f"needs {role} access to this recording")
+            raise HTTPException(403, f"needs {role} access to this asset")
 
     def partial(self) -> dict[int, list[int]]:
         """The namespaces this person sees only some collections of (no role there, a role on collections in it):

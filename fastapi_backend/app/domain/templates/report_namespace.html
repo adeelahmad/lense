@@ -10,10 +10,10 @@
 <div class="rp">
   <p class="rp-kicker">Archive report</p>
   <h1>{{ ns.name }}</h1>
-  <p class="rp-facts">{{ recs|length }} recording{{ '' if recs|length == 1 else 's' }}, {{ '%.1f'|format(total_ms / 3600000) }} hours, {{ speakers|length }} speaker{{ '' if speakers|length == 1 else 's' }}{% if recs %}, {{ (recs[-1].recorded_at or '')[:10] }} to {{ (recs[0].recorded_at or '')[:10] }}{% endif %}.</p>
+  <p class="rp-facts">{{ recs|length }} asset{{ '' if recs|length == 1 else 's' }}, {{ '%.1f'|format(total_ms / 3600000) }} hours, {{ speakers|length }} speaker{{ '' if speakers|length == 1 else 's' }}{% if recs %}, {{ (recs[-1].recorded_at or '')[:10] }} to {{ (recs[0].recorded_at or '')[:10] }}{% endif %}.</p>
   <div class="rp-grid">
     <section class="rp-card">
-      <h2>Recordings by month</h2>
+      <h2>Assets by month</h2>
       <div class="rp-months">{% for m in months %}<div title="{{ m.m }}: {{ m.n }}"><b style="height:{{ '%.0f'|format(m.pct) }}%"></b><span>{{ m.m[2:] }}</span></div>{% endfor %}</div>
     </section>
     <section class="rp-card">
@@ -28,9 +28,9 @@
   <section class="rp-card"><h2>Named things</h2><div class="rp-chips">{% for e in entities %}<span title="{{ e.type|lower }}">{{ e.name }}<small>{{ e.recs }}</small></span>{% endfor %}</div></section>
   {% if graph %}<section class="rp-card"><h2>How it connects</h2><p class="rp-num">Speakers (dark, ringed) and the named things they mention; {{ graph_n }} nodes. Dashed lines mark the same person.</p><div class="rp-graph">{{ graph|safe }}</div></section>{% endif %}
   <section class="rp-card">
-    <h2>Recordings</h2>
+    <h2>Assets</h2>
     <div class="table-wrap"><table class="rp-table">
-      <thead><tr><th>Recording</th><th>Date</th><th>Length</th><th>Speakers</th><th>Summary</th></tr></thead>
+      <thead><tr><th>Asset</th><th>Date</th><th>Length</th><th>Speakers</th><th>Summary</th></tr></thead>
       <tbody>{% for r in recs %}<tr>
         <td>{% if r.link %}<a href="{{ r.link }}">{{ r.title }}</a>{% else %}{{ r.title }}{% endif %}</td>
         <td class="num">{{ (r.recorded_at or '')[:10] }}</td><td class="num">{{ (r.duration_ms or 0)|tc }}</td>

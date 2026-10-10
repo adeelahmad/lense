@@ -218,7 +218,7 @@ export function NsAssistantSection({ ns, isOwner }: { ns: string; isOwner: boole
                         {m.pinned && <Badge className="mr-1.5">Pinned</Badge>}
                         {m.recording != null ? (
                           <Link className="text-fg-accent hover:underline" href={recordingHref(m.recording, m.t0)}>
-                            {m.title || "A recording"}
+                            {m.title || "An asset"}
                             {m.time ? ` at ${m.time}` : ""}
                           </Link>
                         ) : m.author === "person" ? (

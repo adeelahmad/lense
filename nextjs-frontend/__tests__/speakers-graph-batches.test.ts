@@ -99,15 +99,15 @@ describe("batch formatting", () => {
 
   it("describes where recordings come from", () => {
     expect(describeSelection({ entity: 4 }, { entity: "Northwind Labs" })).toBe(
-      "every recording that mentions Northwind Labs",
+      "every asset that mentions Northwind Labs",
     );
-    expect(describeSelection({ namespace: "podcasts" })).toBe("every recording in podcasts");
+    expect(describeSelection({ namespace: "podcasts" })).toBe("every asset in podcasts");
     expect(
       describeSelection({
         filter: { q: "refund", namespaces: ["customer-calls"] },
       }),
-    ).toBe("recordings matching “refund” in customer-calls");
-    expect(describeSelection({ recordings: [1, 2, 3] })).toBe("3 chosen recordings");
+    ).toBe("assets matching “refund” in customer-calls");
+    expect(describeSelection({ recordings: [1, 2, 3] })).toBe("3 chosen assets");
     expect(describeSelection({ collection: 5 }, { collection: "Cohort B" })).toBe("the saved collection “Cohort B”");
   });
 

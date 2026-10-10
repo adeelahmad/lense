@@ -256,7 +256,7 @@ def run(db, cfg, base, sid, data, fmt=None, dry_run=True, user=None):
         fields, dropped = _ours(db, rec_space, fields)
         problems += dropped
         if rid in seen:
-            notes.append("this recording is described more than once here: their terms and statements add up, other fields are this one's")
+            notes.append("this asset is described more than once here: their terms and statements add up, other fields are this one's")
             fields = _combine(seen[rid], fields)
         seen[rid] = fields
         before = md.effective(db, cfg, rid)

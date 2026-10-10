@@ -60,7 +60,7 @@ export function CustomNodesPage() {
                               {d.name}
                             </Link>
                             {d.scopes.length === 1 && (
-                              <Badge tone="intent">{d.scopes[0] === "graph" ? "Graph" : "Recordings"}</Badge>
+                              <Badge tone="intent">{d.scopes[0] === "graph" ? "Graph" : "Assets"}</Badge>
                             )}
                           </span>
                           {d.description && (

@@ -265,7 +265,7 @@ function ThingPanel({
   const canRun = node.ns.some((ns) => can("editor", ns));
   const sub = isSpeaker
     ? `Speaker · ${talkTime(node.weight * 60000)} talk time · ${plural(node.recordings ?? 0, "recording")}`
-    : `${typeLabel(node)} · ${plural(node.weight, "mention")}${recs ? ` in ${plural(recs, "recording")}` : ""}`;
+    : `${typeLabel(node)} · ${plural(node.weight, "mention")}${recs ? ` in ${plural(recs, "asset")}` : ""}`;
   const runHref = isSpeaker
     ? `/batches/new?speaker=${node.refs[0]}&ns=${encodeURIComponent(node.ns[0] ?? "")}`
     : `/batches/new?entity=${node.refs.join(",")}&label=${encodeURIComponent(node.label)}`;

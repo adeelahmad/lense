@@ -71,7 +71,7 @@ export function buildAttention(input: {
     out.push({
       key: `job-${j.id}`,
       kind: "fail",
-      title: `${stepLabel(j.next_step)} failed on ${j.title || `recording ${j.recording}`}`,
+      title: `${stepLabel(j.next_step)} failed on ${j.title || `asset ${j.recording}`}`,
       meta: [short(j.error) || "No error message", when ? shortDate(when) : null, worker].filter(Boolean).join(" · "),
       action: { label: "Retry", do: { type: "retry-job", job: j.id } },
       namespace: j.space != null ? (input.nsById.get(j.space) ?? null) : null,
@@ -86,7 +86,7 @@ export function buildAttention(input: {
     out.push({
       key: `rec-${r.id}`,
       kind: "fail",
-      title: `Processing failed on ${r.title || `recording ${r.id}`}`,
+      title: `Processing failed on ${r.title || `asset ${r.id}`}`,
       meta: [short(r.error) || "No error message", r.namespace].filter(Boolean).join(" · "),
       action: {
         label: "Reprocess",
@@ -153,7 +153,7 @@ export function buildAttention(input: {
     out.push({
       key: `request-${r.recording}-${r.account}`,
       kind: "gate",
-      title: `${r.name || r.email} asked for access to ${r.title || `recording ${r.recording}`}`,
+      title: `${r.name || r.email} asked for access to ${r.title || `asset ${r.recording}`}`,
       meta: [r.message ? `“${short(r.message, 70)}”` : null, r.at ? relative(r.at, now) : null, r.namespace]
         .filter(Boolean)
         .join(" · "),

@@ -248,14 +248,14 @@ def test_speech(
 
 @router.get("/admin/semantic")
 def semantic_status(user: AdminReader, cfg: Cfg, db: Db) -> SemanticStatus:
-    """Search by meaning: whether it's set up, its model, and how many recordings are indexed with it."""
+    """Search by meaning: whether it's set up, its model, and how many assets are indexed with it."""
     return SemanticStatus(**semantic.status(db, cfg))
 
 
 @router.post("/admin/semantic/index")
 def index_semantic(user: AdminWriter, cfg: Cfg, db: Db, limit: int = Query(500, ge=1, le=5000)) -> IndexQueued:
-    """Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a
-    recording with a job waiting or running is left for the next time)."""
+    """Queue the embed step for up to `limit` assets not yet indexed with the configured model, oldest first (an
+    asset with a job waiting or running is left for the next time)."""
     if not semantic.configured(cfg):
         raise HTTPException(400, "turn search by meaning on, with an embeddings server and a model, first")
     semantic.recovered(db)

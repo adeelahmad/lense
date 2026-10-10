@@ -14,7 +14,7 @@ RequestStatus = Literal["pending", "approved", "declined"]
 
 
 class PublicRequest(ResponseModel):
-    """Someone's latest request for access to a recording."""
+    """Someone's latest request for access to an asset."""
 
     status: RequestStatus
     at: str | None = None
@@ -96,7 +96,7 @@ class PublicFile(ResponseModel):
 
 
 class PublicRecording(ResponseModel):
-    """A recording as this visitor may see it: all of it with permission, else its page, description and open parts,
+    """An asset as this visitor may see it: all of it with permission, else its page, description and open parts,
     or (restricted, signed in) its title only. Parts left out are null."""
 
     id: int
@@ -105,18 +105,18 @@ class PublicRecording(ResponseModel):
     recorded_at: str | None = None
     duration_ms: int | None = None
     media_kind: MediaKind
-    view: View = Field(description="full: with permission; public: a public recording; locked: restricted, listed with a lock")
+    view: View = Field(description="full: with permission; public: a public asset; locked: restricted, listed with a lock")
     access: AccessLevel
-    open: list[AccessPart] = Field(description="the parts a public recording opens to everyone")
+    open: list[AccessPart] = Field(description="the parts a public asset opens to everyone")
     featured: bool
-    member: bool = Field(description="the visitor has a role in the recording's namespace, so it opens in the workspace too")
-    granted: bool = Field(False, description="the visitor was given permission on this recording, so they see all of it")
+    member: bool = Field(description="the visitor has a role in the asset's namespace, so it opens in the workspace too")
+    granted: bool = Field(False, description="the visitor was given permission on this asset, so they see all of it")
     network: str | None = Field(None, description="the IP group whose addresses see all of it, when that's why the visitor does")
     description: dict[str, Any] | None = Field(None, description="descriptive metadata, as IIIF publishes it")
     media: PublicMedia | None = None
     transcript: PublicTranscript | None = None
     chapters: list[PublicChapter] | None = None
-    closed: list[AccessPart] = Field(description="parts the recording has that this visitor can't use")
+    closed: list[AccessPart] = Field(description="parts the asset has that this visitor can't use")
     files: list[PublicFile] = Field(default_factory=list, description="its supplementary files this visitor may download")
     files_closed: int = Field(0, description="how many of its files this visitor can't download")
     can_request: bool = Field(False, description="signed in without permission, with something closed: they may ask for access")
@@ -124,7 +124,7 @@ class PublicRecording(ResponseModel):
 
 
 class PublicCard(ResponseModel):
-    """A recording in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows
+    """An asset in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows
     its title only."""
 
     id: int
@@ -144,15 +144,15 @@ class PublicCollectionSummary(ResponseModel):
     name: str
     label: str
     summary: str | None = None
-    recordings: int = Field(description="how many of its recordings this visitor sees")
+    recordings: int = Field(description="how many of its assets this visitor sees")
     member: bool
     network: str | None = Field(None, description="the IP group that opens all of it to the visitor's address")
 
 
 class PublicHome(ResponseModel):
-    featured: list[PublicCard] = Field(description="featured public recordings, newest first")
+    featured: list[PublicCard] = Field(description="featured public assets, newest first")
     shared: list[PublicCard] = Field(
-        default_factory=list, description="recordings the visitor was given permission on, outside their namespaces"
+        default_factory=list, description="assets the visitor was given permission on, outside their namespaces"
     )
     collections: list[PublicCollectionSummary] = Field(description="the collections this visitor sees anything in")
 
@@ -164,9 +164,9 @@ class PublicCollection(ResponseModel):
     rights: str | None = None
     attribution: str | None = None
     provider: dict[str, Any] | None = None
-    member: bool = Field(description="the visitor has a role in this namespace, so they see all of its recordings")
-    network: str | None = Field(None, description="the IP group that opens all of its recordings to the visitor's address")
-    total: int = Field(description="how many recordings this visitor sees here, on all pages")
+    member: bool = Field(description="the visitor has a role in this namespace, so they see all of its assets")
+    network: str | None = Field(None, description="the IP group that opens all of its assets to the visitor's address")
+    total: int = Field(description="how many assets this visitor sees here, on all pages")
     items: list[PublicCard]
 
 
@@ -184,6 +184,6 @@ class PublicResult(PublicCard):
 
 class PublicSearch(ResponseModel):
     q: str
-    total: int = Field(description="how many recordings match, on all pages")
+    total: int = Field(description="how many assets match, on all pages")
     capped: bool = Field(description="there were too many matching lines to rank them all")
     items: list[PublicResult]

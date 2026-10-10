@@ -1,6 +1,6 @@
 # Database: SurrealDB
 
-Everything Lens stores lives in SurrealDB: recordings, transcript segments, speakers and voiceprints, entities and
+Everything Lens stores lives in SurrealDB: assets, transcript segments, speakers and voiceprints, entities and
 the knowledge graph, jobs, accounts, settings and audit. The word search index is kept beside it, in a SQLite file by
 default ([below](#schema)).
 
@@ -77,7 +77,7 @@ tables, or changing or removing an index that already exists, is a named step in
 * Every process that opens the database (the API, workers, `lens watch`, `lens` commands) runs the steps the database
   hasn't had yet when it starts, in order. One process takes a lock (`migration_lock:run`) and runs them; the others
   wait, so no code reads data in a shape it doesn't expect. A holder that dies loses the lock after five minutes.
-* Before a database that holds data (any recording or account) runs pending steps, the process holding the lock backs
+* Before a database that holds data (any asset or account) runs pending steps, the process holding the lock backs
   it up into `<data_dir>/backups/before-upgrade-<time>` (see [Backups](#backups)); the newest three are kept. If the
   backup fails, for example because the disk is full, the upgrade doesn't start and Lens says why; set
   `LENS_UPGRADE_BACKUP=off` to upgrade without one.

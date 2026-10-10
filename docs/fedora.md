@@ -1,7 +1,7 @@
 # Fedora repository
 
 Lens can keep a copy of the archive in [Fedora](https://wiki.lyrasis.org/display/FF) 6, the repository many libraries
-and archives use for preservation. Every namespace, collection, recording (with its file), entity and speaker becomes
+and archives use for preservation. Every namespace, collection, asset (with its file), entity and speaker becomes
 an LDP resource in Fedora, described in RDF with Dublin Core ([Linked data](rdf.md)). SurrealDB is still the working
 database, and Fedora holds a copy that is kept up to date with it.
 
@@ -31,7 +31,7 @@ Under `<url>/<root>` (the root is `lens` by default):
 | --- | --- |
 | `<namespace>` | the namespace (`dcmitype:Collection`) |
 | `<namespace>/collections/<id>` | a collection |
-| `<namespace>/recordings/<id>` | a recording: dcterms title, creator, subject, created, license and the rest |
+| `<namespace>/recordings/<id>` | an asset: dcterms title, creator, subject, created, license and the rest |
 | `<namespace>/recordings/<id>/file` | its file (a binary), unless files are off or it is larger than the limit |
 | `<namespace>/entities/<id>` | an entity (`skos:Concept`) |
 | `<namespace>/speakers/<id>` | a speaker (`foaf:Person`) |
@@ -42,9 +42,9 @@ resource also gets `owl:sameAs` pointing to its Lens URI. Links to other resourc
 
 ## Keeping it up to date
 
-- A change to a recording's metadata is queued and sent at the next sync, every `sync_seconds` (60).
+- A change to an asset's metadata is queued and sent at the next sync, every `sync_seconds` (60).
 - Every `full_hours` (24), everything is compared with what was last sent, using a hash for each resource. This
-  catches what analysis changed, new recordings, and deletions: a resource Lens no longer has is deleted from Fedora
+  catches what analysis changed, new assets, and deletions: a resource Lens no longer has is deleted from Fedora
   along with its tombstone.
 - Only what changed is sent. A file is sent again only when its size or modification time changes.
 - **Compare and send now** in Settings, or `POST /api/v1/admin/fedora/sync`, runs a full comparison straight away.

@@ -102,7 +102,7 @@ settle.
 
 With `digest` on (and a namespace), each full day (UTC) of a sensor becomes a document in its namespace: each stream's
 count and range, its JSON fields' ranges, the busiest log patterns with their labels, and the warnings and errors. It's
-a recording like any other, queued for the namespace's pipeline, so it can be searched, linked and asked about. Days
+an asset like any other, queued for the namespace's pipeline, so it can be searched, linked and asked about. Days
 are written once, oldest first, up to a week a run; a day with nothing in it is skipped.
 
 ## In the web app

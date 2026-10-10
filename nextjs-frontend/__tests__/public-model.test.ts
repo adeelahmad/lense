@@ -136,7 +136,7 @@ describe("public recording page", () => {
   it("says where a request for access stands", () => {
     const now = Date.parse("2026-09-30T20:00:00Z");
     expect(requestLine(null, "podcasts", false, now)).toBe(
-      "Parts of this recording are closed. You can ask the owners of podcasts for access to all of it.",
+      "Parts of this asset are closed. You can ask the owners of podcasts for access to all of it.",
     );
     expect(requestLine(undefined, "podcasts", true, now)).toBe("You can ask the owners of podcasts for access.");
     expect(requestLine({ status: "pending", at: "2026-09-30T19:00:00Z" }, "podcasts", false, now)).toBe(
@@ -157,7 +157,7 @@ describe("networkNote", () => {
       "You’re connecting from Reading room, so you see all of it.",
     );
     expect(networkNote("Campus", "collection")).toBe(
-      "You’re connecting from Campus, so you see all of its recordings. Visitors elsewhere see the public ones.",
+      "You’re connecting from Campus, so you see all of its assets. Visitors elsewhere see the public ones.",
     );
   });
 });

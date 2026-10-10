@@ -261,11 +261,11 @@ export function TopicDrawer({
             )}
             <section className="flex flex-col gap-2">
               <h3 className="m-0 text-[13px] font-bold text-fg-strong">
-                Recordings about it <span className="font-normal text-fg-muted">· {count(accepted.length)}</span>
+                Assets about it <span className="font-normal text-fg-muted">· {count(accepted.length)}</span>
               </h3>
               {!accepted.length && !suggested.length && (
                 <p className="m-0 text-[13px] text-fg-secondary">
-                  None yet. Add this topic to a recording from its Entities tab.
+                  None yet. Add this topic to an asset from its Entities tab.
                 </p>
               )}
               <ul className="m-0 flex list-none flex-col gap-1 p-0">
@@ -275,7 +275,7 @@ export function TopicDrawer({
                       href={`/recordings/${a.recording}`}
                       className="min-w-0 flex-1 truncate font-semibold text-fg hover:text-fg-accent hover:underline"
                     >
-                      {a.title ?? `Recording ${a.recording}`}
+                      {a.title ?? `Asset ${a.recording}`}
                     </Link>
                     {a.status === "suggested" ? (
                       <Badge tone="intent">suggested</Badge>
@@ -285,7 +285,7 @@ export function TopicDrawer({
                     {canEdit && a.status === "suggested" && (
                       <button
                         type="button"
-                        aria-label={`Accept for ${a.title ?? `recording ${a.recording}`}`}
+                        aria-label={`Accept for ${a.title ?? `asset ${a.recording}`}`}
                         disabled={tag.isPending}
                         onClick={() => tag.mutate({ recording: a.recording, remove: false })}
                         className="grid size-7 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg"
@@ -296,7 +296,7 @@ export function TopicDrawer({
                     {canEdit && (
                       <button
                         type="button"
-                        aria-label={`Not about this: ${a.title ?? `recording ${a.recording}`}`}
+                        aria-label={`Not about this: ${a.title ?? `asset ${a.recording}`}`}
                         disabled={tag.isPending}
                         onClick={() => tag.mutate({ recording: a.recording, remove: true })}
                         className="grid size-7 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg"
@@ -328,7 +328,7 @@ export function TopicDrawer({
         open={deleting}
         onOpenChange={setDeleting}
         title={`Delete ${d?.label ?? "this topic"}?`}
-        description="Its narrower topics move up to its broader ones, and recordings stop being about it."
+        description="Its narrower topics move up to its broader ones, and assets stop being about it."
         actions={
           <>
             <Button variant="ghost" onClick={() => setDeleting(false)}>
@@ -374,7 +374,7 @@ function MergeDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={`Merge into ${label}`}
-      description="The topics you pick are deleted; their labels become other labels of this one, and their recordings are about it."
+      description="The topics you pick are deleted; their labels become other labels of this one, and their assets are about it."
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -449,7 +449,7 @@ export function NewTopicDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Add topic"
-      description={`A subject the recordings of ${ns} can be about.`}
+      description={`A subject the assets of ${ns} can be about.`}
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>

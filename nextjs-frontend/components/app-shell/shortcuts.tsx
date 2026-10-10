@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Dialog } from "@/components/ui/dialog";
 
 const KEYS: [string, string][] = [
-  ["⌘ K", "Jump to a recording, speaker or page"],
+  ["⌘ K", "Jump to an asset, speaker or page"],
   ["[", "Collapse or expand the navigation"],
   ["Space", "Play or pause (recording page)"],
   ["J / L", "Back or forward 10 seconds"],

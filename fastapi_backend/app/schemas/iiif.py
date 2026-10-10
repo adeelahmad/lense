@@ -23,9 +23,9 @@ class IiifPanel(ResponseModel):
     manifest: str
     collection: str
     access: AccessLevel
-    open: list[AccessPart] = Field(description="the parts anyone may use, when the recording is public")
+    open: list[AccessPart] = Field(description="the parts anyone may use, when the asset is public")
     featured: bool = False
-    published: bool = Field(description="IIIF publishes public recordings")
+    published: bool = Field(description="IIIF publishes public assets")
     layers: list[Any]
     search: bool
     validation: IiifValidation

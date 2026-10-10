@@ -277,7 +277,7 @@ function NamespaceStep({ view, onNext }: { view: SetupView; onNext: (saved: bool
     return (
       <>
         <StepHead title="Namespaces">
-          Namespaces keep recordings, speakers and people&apos;s access apart.{" "}
+          Namespaces keep assets, speakers and people&apos;s access apart.{" "}
           {ns.locked ? (
             <>
               This server&apos;s are set in archive.yaml or <code className="font-mono">LENS_NAMESPACE</code>, so there

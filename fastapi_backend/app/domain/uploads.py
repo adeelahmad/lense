@@ -292,7 +292,7 @@ def finish(db, cfg, row, admin=False):
         if not rec:
             raise KeyError(target)
         if has_media(db, cfg, rec):
-            raise HasMedia("that recording has audio already")
+            raise HasMedia("that asset has audio already")
         sid = rec["space"]
     else:
         sid = store.ns_id(db, row["namespace"], create=admin)

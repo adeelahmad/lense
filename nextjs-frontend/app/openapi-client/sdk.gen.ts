@@ -2550,7 +2550,7 @@ export class Admin {
   /**
    * Semantic Status
    *
-   * Search by meaning: whether it's set up, its model, and how many recordings are indexed with it.
+   * Search by meaning: whether it's set up, its model, and how many assets are indexed with it.
    */
   public static semanticStatus<ThrowOnError extends boolean = false>(
     options?: Options<SemanticStatusData, ThrowOnError>,
@@ -2564,8 +2564,8 @@ export class Admin {
   /**
    * Index Semantic
    *
-   * Queue the embed step for up to `limit` recordings not yet indexed with the configured model, oldest first (a
-   * recording with a job waiting or running is left for the next time).
+   * Queue the embed step for up to `limit` assets not yet indexed with the configured model, oldest first (an
+   * asset with a job waiting or running is left for the next time).
    */
   public static indexSemantic<ThrowOnError extends boolean = false>(
     options?: Options<IndexSemanticData, ThrowOnError>,
@@ -2710,7 +2710,7 @@ export class Activity {
    *
    * A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
    * decision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph
-   * changes (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md).
+   * changes (an entity's, a namespace's, or what analysing an asset changed; docs/graph-history.md).
    */
   public static resourceHistory<ThrowOnError extends boolean = false>(
     options: Options<ResourceHistoryData, ThrowOnError>,
@@ -3060,8 +3060,8 @@ export class Namespaces {
   /**
    * Get Namespace Stats
    *
-   * The namespace's numbers for the recordings made in a range of days (the Reports overview): how many and how long,
-   * who was heard and for how long, and the same per month. Without a range, every recording.
+   * The namespace's numbers for the assets made in a range of days (the Reports overview): how many and how long,
+   * who was heard and for how long, and the same per month. Without a range, every asset.
    */
   public static getNamespaceStats<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceStatsData, ThrowOnError>,
@@ -3089,8 +3089,8 @@ export class Namespaces {
   /**
    * Create Ip Group
    *
-   * Add an IP group (owners): visitors from its addresses see all of every recording in the namespace
-   * (everything), or of the recordings chosen on each. Answers with all of the namespace's groups.
+   * Add an IP group (owners): visitors from its addresses see all of every asset in the namespace
+   * (everything), or of the assets chosen on each. Answers with all of the namespace's groups.
    */
   public static createIpGroup<ThrowOnError extends boolean = false>(
     options: Options<CreateIpGroupData, ThrowOnError>,
@@ -3122,7 +3122,7 @@ export class Namespaces {
   /**
    * Update Ip Group
    *
-   * Rename an IP group, change its ranges or what it opens (owners). Choosing recordings again after opening
+   * Rename an IP group, change its ranges or what it opens (owners). Choosing assets again after opening
    * everything brings back the ones chosen before.
    */
   public static updateIpGroup<ThrowOnError extends boolean = false>(
@@ -3255,7 +3255,7 @@ export class Namespaces {
   /**
    * List Namespace Collections
    *
-   * The namespace's collections, depth first and by name, each with its place in the tree, how many recordings it
+   * The namespace's collections, depth first and by name, each with its place in the tree, how many assets it
    * holds (with and without the collections inside it), and what you may do with it. Someone who sees only some
    * collections of the namespace gets those, starting from the ones they were given.
    */
@@ -3297,7 +3297,7 @@ export class Namespaces {
    * Delete Namespace Collection
    *
    * Delete an empty collection (editors of the namespace, or an admin of it), with the roles given on it: 409 while
-   * it holds recordings or collections, or is the namespace's default. Audited as `collection.delete`.
+   * it holds assets or collections, or is the namespace's default. Audited as `collection.delete`.
    */
   public static deleteNamespaceCollection<ThrowOnError extends boolean = false>(
     options: Options<DeleteNamespaceCollectionData, ThrowOnError>,
@@ -3326,7 +3326,7 @@ export class Namespaces {
    *
    * Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make
    * it the default. Editors of the namespace may do all of that; an admin of the collection all but moving it to the
-   * top or making it the default, and only into a collection they're an admin of. The recordings and collections
+   * top or making it the default, and only into a collection they're an admin of. The assets and collections
    * inside it go with it. Audited as `collection.update`.
    */
   public static updateNamespaceCollection<ThrowOnError extends boolean = false>(
@@ -3387,7 +3387,7 @@ export class Resources {
   /**
    * List Recordings
    *
-   * Recordings you can read, newest first by default: those of the namespaces you have a role in, and of the
+   * Assets you can read, newest first by default: those of the namespaces you have a role in, and of the
    * collections you were given a role on. Filters combine with AND; the ``X-Total-Count`` header says how many match in
    * all, so pages can be counted. Each row has your `role` on it.
    */
@@ -3403,7 +3403,7 @@ export class Resources {
   /**
    * List Tags
    *
-   * The tags on the recordings you can read (or one namespace's), with how many recordings have each.
+   * The tags on the assets you can read (or one namespace's), with how many assets have each.
    */
   public static listTags<ThrowOnError extends boolean = false>(
     options?: Options<ListTagsData, ThrowOnError>,
@@ -3417,7 +3417,7 @@ export class Resources {
   /**
    * Retag Recordings
    *
-   * Add and remove tags on several recordings at once (editors of each one's namespace).
+   * Add and remove tags on several assets at once (editors of each one's namespace).
    */
   public static retagRecordings<ThrowOnError extends boolean = false>(
     options: Options<RetagRecordingsData, ThrowOnError>,
@@ -3435,7 +3435,7 @@ export class Resources {
   /**
    * List Origins
    *
-   * Where the recordings you can read (or one namespace's) came from, with how many came from each: connected sources
+   * Where the assets you can read (or one namespace's) came from, with how many came from each: connected sources
    * by name, uploads, pasted text, IIIF imports, the archive's own folders and other imported files.
    */
   public static listOrigins<ThrowOnError extends boolean = false>(
@@ -3450,7 +3450,7 @@ export class Resources {
   /**
    * List Languages
    *
-   * The languages of the recordings you can read (or one namespace's), with how many are in each; null: not known.
+   * The languages of the assets you can read (or one namespace's), with how many are in each; null: not known.
    */
   public static listLanguages<ThrowOnError extends boolean = false>(
     options?: Options<ListLanguagesData, ThrowOnError>,
@@ -3464,7 +3464,7 @@ export class Resources {
   /**
    * List Objects
    *
-   * The kinds of object seen in the recordings you can read (or one namespace's), with how many recordings each is
+   * The kinds of object seen in the assets you can read (or one namespace's), with how many assets each is
    * in, the most first (the objects step finds them).
    */
   public static listObjects<ThrowOnError extends boolean = false>(
@@ -3479,8 +3479,8 @@ export class Resources {
   /**
    * Place Recordings
    *
-   * Move recordings into a collection of their namespace: editors of each recording (through the namespace or the
-   * collection it's in) who are editors of the collection too. Recordings of another namespace are a 400: move them
+   * Move assets into a collection of their namespace: editors of each asset (through the namespace or the
+   * collection it's in) who are editors of the collection too. Assets of another namespace are a 400: move them
    * to that namespace first. Their IIIF Manifests change (partOf), so harvesters hear an Update. Audited as
    * `recording.collection`.
    */
@@ -3500,7 +3500,7 @@ export class Resources {
   /**
    * Delete Recording
    *
-   * Delete a recording (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
+   * Delete an asset (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
    * outputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched
    * folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
    * is running on it, this answers 409. Audited as `recording.delete`.
@@ -3529,7 +3529,7 @@ export class Resources {
   /**
    * Update Recording
    *
-   * Rename a recording or replace its tags (editors). A renamed recording's report is rebuilt with the new title.
+   * Rename an asset or replace its tags (editors). A renamed asset's report is rebuilt with the new title.
    */
   public static updateRecording<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingData, ThrowOnError>,
@@ -3547,7 +3547,7 @@ export class Resources {
   /**
    * Move Recording
    *
-   * Move a recording to another namespace (owners of its namespace, editors of the new one).
+   * Move an asset to another namespace (owners of its namespace, editors of the new one).
    *
    * It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
    * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
@@ -3572,7 +3572,7 @@ export class Resources {
   /**
    * Get Recording Access
    *
-   * Who may see the recording: public, restricted or private, the parts a public one opens, featured.
+   * Who may see the asset: public, restricted or private, the parts a public one opens, featured.
    */
   public static getRecordingAccess<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingAccessData, ThrowOnError>,
@@ -3586,10 +3586,10 @@ export class Resources {
   /**
    * Update Recording Access
    *
-   * Make a recording public, restricted or private, choose what a public one opens, feature it (owners).
+   * Make an asset public, restricted or private, choose what a public one opens, feature it (owners).
    *
    * access or open set to null follow the namespace's default again. The change is kept in the metadata history, and
-   * IIIF harvesters hear when the recording is published, changed or withdrawn.
+   * IIIF harvesters hear when the asset is published, changed or withdrawn.
    */
   public static updateRecordingAccess<ThrowOnError extends boolean = false>(
     options: Options<UpdateRecordingAccessData, ThrowOnError>,
@@ -3607,7 +3607,7 @@ export class Resources {
   /**
    * List Recording Permissions
    *
-   * The people given permission on the recording (owners), newest first.
+   * The people given permission on the asset (owners), newest first.
    */
   public static listRecordingPermissions<ThrowOnError extends boolean = false>(
     options: Options<ListRecordingPermissionsData, ThrowOnError>,
@@ -3622,7 +3622,7 @@ export class Resources {
   /**
    * Add Recording Permission
    *
-   * Give someone with an account permission on the recording (owners): they see all of it on the pages visitors see
+   * Give someone with an account permission on the asset (owners): they see all of it on the pages visitors see
    * and in IIIF, whatever its access; members of its namespace already do. Answers with everyone who has permission.
    */
   public static addRecordingPermission<ThrowOnError extends boolean = false>(
@@ -3643,7 +3643,7 @@ export class Resources {
   /**
    * Remove Recording Permission
    *
-   * Take someone's permission on the recording away (owners). Answers with everyone who still has it.
+   * Take someone's permission on the asset away (owners). Answers with everyone who still has it.
    */
   public static removeRecordingPermission<ThrowOnError extends boolean = false>(
     options: Options<RemoveRecordingPermissionData, ThrowOnError>,
@@ -3658,7 +3658,7 @@ export class Resources {
   /**
    * List Recording Ip Groups
    *
-   * The namespace's IP groups (owners), each with whether visitors from its addresses see all of this recording.
+   * The namespace's IP groups (owners), each with whether visitors from its addresses see all of this asset.
    */
   public static listRecordingIpGroups<ThrowOnError extends boolean = false>(
     options: Options<ListRecordingIpGroupsData, ThrowOnError>,
@@ -3672,7 +3672,7 @@ export class Resources {
   /**
    * Close Recording To Ip Group
    *
-   * Close the recording to an IP group again (owners).
+   * Close the asset to an IP group again (owners).
    */
   public static closeRecordingToIpGroup<ThrowOnError extends boolean = false>(
     options: Options<CloseRecordingToIpGroupData, ThrowOnError>,
@@ -3687,7 +3687,7 @@ export class Resources {
   /**
    * Open Recording To Ip Group
    *
-   * Open the recording to an IP group that opens chosen recordings (owners): visitors from its addresses see all of
+   * Open the asset to an IP group that opens chosen assets (owners): visitors from its addresses see all of
    * it. Answers with the namespace's groups.
    */
   public static openRecordingToIpGroup<ThrowOnError extends boolean = false>(
@@ -3702,7 +3702,7 @@ export class Resources {
   /**
    * List Access Requests
    *
-   * Requests for access to the recording (owners), newest first; pending ones wait for an answer.
+   * Requests for access to the asset (owners), newest first; pending ones wait for an answer.
    */
   public static listAccessRequests<ThrowOnError extends boolean = false>(
     options: Options<ListAccessRequestsData, ThrowOnError>,
@@ -3716,7 +3716,7 @@ export class Resources {
   /**
    * Approve Access Request
    *
-   * Approve a request (owners): the person gets permission on the recording.
+   * Approve a request (owners): the person gets permission on the asset.
    */
   public static approveAccessRequest<ThrowOnError extends boolean = false>(
     options: Options<ApproveAccessRequestData, ThrowOnError>,
@@ -3758,7 +3758,7 @@ export class Resources {
   /**
    * Get Embed Link
    *
-   * A signed link to the embeddable player, for people who can see the recording (it expires; share links don't).
+   * A signed link to the embeddable player, for people who can see the asset (it expires; share links don't).
    */
   public static getEmbedLink<ThrowOnError extends boolean = false>(
     options: Options<GetEmbedLinkData, ThrowOnError>,
@@ -3861,7 +3861,7 @@ export class Resources {
   /**
    * List Shares
    *
-   * The recording's share links, newest first: whether each still works, how often it was played, and the sites
+   * The asset's share links, newest first: whether each still works, how often it was played, and the sites
    * whose pages embed it.
    */
   public static listShares<ThrowOnError extends boolean = false>(
@@ -3906,7 +3906,7 @@ export class Resources {
   /**
    * Edit Segment
    *
-   * Correct a transcript line (text and/or speaker); the recording is re-analysed afterwards.
+   * Correct a transcript line (text and/or speaker); the asset is re-analysed afterwards.
    */
   public static editSegment<ThrowOnError extends boolean = false>(
     options: Options<EditSegmentData, ThrowOnError>,
@@ -3927,7 +3927,7 @@ export class Resources {
    * Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word
    * it's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the
    * line's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it
-   * move down one, with their corrections. Kept in the edit history; the recording is re-analysed afterwards.
+   * move down one, with their corrections. Kept in the edit history; the asset is re-analysed afterwards.
    */
   public static splitSegment<ThrowOnError extends boolean = false>(
     options: Options<SplitSegmentData, ThrowOnError>,
@@ -3947,7 +3947,7 @@ export class Resources {
    *
    * Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the
    * second's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit
-   * history (with where to split it again); the recording is re-analysed afterwards.
+   * history (with where to split it again); the asset is re-analysed afterwards.
    */
   public static mergeSegments<ThrowOnError extends boolean = false>(
     options: Options<MergeSegmentsData, ThrowOnError>,
@@ -3975,7 +3975,7 @@ export class Resources {
   /**
    * List Outputs
    *
-   * Results of LLM pipeline steps for this recording.
+   * Results of LLM pipeline steps for this asset.
    */
   public static listOutputs<ThrowOnError extends boolean = false>(
     options: Options<ListOutputsData, ThrowOnError>,
@@ -3991,7 +3991,7 @@ export class Notes {
   /**
    * List Notes
    *
-   * Your notes on the recording and the ones shared on it: notes about the whole recording first, then by moment.
+   * Your notes on the asset and the ones shared on it: notes about the whole asset first, then by moment.
    */
   public static listNotes<ThrowOnError extends boolean = false>(
     options: Options<ListNotesData, ThrowOnError>,
@@ -4005,9 +4005,9 @@ export class Notes {
   /**
    * Create Note
    *
-   * Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole recording.
-   * Anyone who can read the recording can; only you see it unless you share it with everyone who can read the
-   * recording, which needs editor access. Up to 500 each on a recording. Sharing is audited (`note.share`).
+   * Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole asset.
+   * Anyone who can read the asset can; only you see it unless you share it with everyone who can read the
+   * asset, which needs editor access. Up to 500 each on an asset. Sharing is audited (`note.share`).
    */
   public static createNote<ThrowOnError extends boolean = false>(
     options: Options<CreateNoteData, ThrowOnError>,
@@ -4025,7 +4025,7 @@ export class Notes {
   /**
    * Delete Note
    *
-   * Delete it: its writer, or for a shared note an owner of the recording (of its namespace, or an admin of its
+   * Delete it: its writer, or for a shared note an owner of the asset (of its namespace, or an admin of its
    * collection). Deleting a shared note is audited (`note.delete`).
    */
   public static deleteNote<ThrowOnError extends boolean = false>(
@@ -4092,7 +4092,7 @@ export class Notes {
   /**
    * Link Targets
    *
-   * What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other
+   * What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, people and other
    * entities, collections and speakers.
    */
   public static linkTargets<ThrowOnError extends boolean = false>(
@@ -4107,7 +4107,7 @@ export class Notes {
   /**
    * Page About
    *
-   * The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one.
+   * The page of an asset, entity, topic, collection or speaker: its page, or a draft while nobody has written one.
    */
   public static pageAbout<ThrowOnError extends boolean = false>(
     options: Options<PageAboutData, ThrowOnError>,
@@ -4901,9 +4901,9 @@ export class Uploads {
    * Start Upload
    *
    * Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
-   * a transcript-only recording (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
+   * a transcript-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
    * namespace's. Then send the file with PUT /uploads/{uid}.
-   * 400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507
+   * 400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507
    * when the server's disk can't hold it.
    */
   public static startUpload<ThrowOnError extends boolean = false>(
@@ -4922,7 +4922,7 @@ export class Uploads {
   /**
    * Cancel Upload
    *
-   * Stop an upload and throw away what has arrived. A finished one is only forgotten: its recording stays.
+   * Stop an upload and throw away what has arrived. A finished one is only forgotten: its asset stays.
    */
   public static cancelUpload<ThrowOnError extends boolean = false>(
     options: Options<CancelUploadData, ThrowOnError>,
@@ -4936,7 +4936,7 @@ export class Uploads {
   /**
    * Get Upload
    *
-   * How much of an upload has arrived (`offset`), or the recording it became.
+   * How much of an upload has arrived (`offset`), or the asset it became.
    */
   public static getUpload<ThrowOnError extends boolean = false>(
     options: Options<GetUploadData, ThrowOnError>,
@@ -4953,7 +4953,7 @@ export class Uploads {
    * The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams
    * to disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and
    * send from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload
-   * done, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`.
+   * done, with its asset and job (for `attach`, the job that runs the steps that need media); audited as `upload`.
    */
   public static sendChunk<ThrowOnError extends boolean = false>(
     options: Options<SendChunkData, ThrowOnError>,
@@ -5066,7 +5066,7 @@ export class Searches {
   /**
    * Create Search
    *
-   * Save a search (its words, namespace, speaker, emotion, recording and object) under a name unique among yours. Sharing it
+   * Save a search (its words, namespace, speaker, emotion, asset and object) under a name unique among yours. Sharing it
    * with its namespace needs editor access there.
    */
   public static createSearch<ThrowOnError extends boolean = false>(
@@ -5253,7 +5253,7 @@ export class Entities {
    *
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
    * With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-   * over the recordings they see). With `collection`, those said in its recordings and those of the collections inside
+   * over the assets they see). With `collection`, those said in its assets and those of the collections inside
    * it (counted over them).
    */
   public static listEntities<ThrowOnError extends boolean = false>(
@@ -5456,7 +5456,7 @@ export class Entities {
   /**
    * Rename Entity
    *
-   * Rename; with `correct`, also fix the transcript lines (re-analysing the recordings). `dry_run` previews the lines.
+   * Rename; with `correct`, also fix the transcript lines (re-analysing the assets). `dry_run` previews the lines.
    */
   public static renameEntity<ThrowOnError extends boolean = false>(
     options: Options<RenameEntityData, ThrowOnError>,
@@ -5630,7 +5630,7 @@ export class Entities {
   /**
    * Apply Entity Setup
    *
-   * Analyse the recordings of the namespace (or of a collection and those inside it) again, so their entities follow
+   * Analyse the assets of the namespace (or of a collection and those inside it) again, so their entities follow
    * the setup as it is now.
    */
   public static applyEntitySetup<ThrowOnError extends boolean = false>(
@@ -5714,7 +5714,7 @@ export class Topics {
   /**
    * Delete Topic
    *
-   * Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows again.
+   * Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows again.
    */
   public static deleteTopic<ThrowOnError extends boolean = false>(
     options: Options<DeleteTopicData, ThrowOnError>,
@@ -5728,7 +5728,7 @@ export class Topics {
   /**
    * Get Topic
    *
-   * A topic with its broader, narrower and related topics and the recordings about it.
+   * A topic with its broader, narrower and related topics and the assets about it.
    */
   public static getTopic<ThrowOnError extends boolean = false>(
     options: Options<GetTopicData, ThrowOnError>,
@@ -5778,8 +5778,8 @@ export class Topics {
   /**
    * Topic Candidates
    *
-   * What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.
-   * Adding one as a topic suggests it for those recordings; skipping one stops it being offered.
+   * What the namespace's summaries say assets are about that no topic covers yet, the most assets first.
+   * Adding one as a topic suggests it for those assets; skipping one stops it being offered.
    */
   public static topicCandidates<ThrowOnError extends boolean = false>(
     options: Options<TopicCandidatesData, ThrowOnError>,
@@ -5811,7 +5811,7 @@ export class Topics {
   /**
    * Merge Topics
    *
-   * Fold topics into one: their labels become its other labels and their recordings are about it.
+   * Fold topics into one: their labels become its other labels and their assets are about it.
    */
   public static mergeTopics<ThrowOnError extends boolean = false>(
     options: Options<MergeTopicsData, ThrowOnError>,
@@ -5829,7 +5829,7 @@ export class Topics {
   /**
    * Tag Recordings
    *
-   * Say recordings of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.
+   * Say assets of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't.
    */
   public static tagRecordings<ThrowOnError extends boolean = false>(
     options: Options<TagRecordingsData, ThrowOnError>,
@@ -5847,7 +5847,7 @@ export class Topics {
   /**
    * Recording Topics
    *
-   * The topics a recording is about, and those suggested for it.
+   * The topics an asset is about, and those suggested for it.
    */
   public static recordingTopics<ThrowOnError extends boolean = false>(
     options: Options<RecordingTopicsData, ThrowOnError>,
@@ -5861,7 +5861,7 @@ export class Topics {
   /**
    * Entity To Topic
    *
-   * Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the recordings that
+   * Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the assets that
    * mention it are about the topic. The entity is hidden; deleting the topic shows it again.
    */
   public static entityToTopic<ThrowOnError extends boolean = false>(
@@ -6210,7 +6210,7 @@ export class Metadata {
   /**
    * Revert Metadata Edit
    *
-   * Put a recording's (editors) or namespace's (owners) metadata back to how it was before this edit.
+   * Put an asset's (editors) or namespace's (owners) metadata back to how it was before this edit.
    */
   public static revertMetadataEdit<ThrowOnError extends boolean = false>(
     options: Options<RevertMetadataEditData, ThrowOnError>,
@@ -6225,7 +6225,7 @@ export class Metadata {
    * Get Namespace Metadata
    *
    * The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its
-   * recordings are catalogued).
+   * assets are catalogued).
    */
   public static getNamespaceMetadata<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceMetadataData, ThrowOnError>,
@@ -6261,7 +6261,7 @@ export class Metadata {
   /**
    * Bulk Update Metadata
    *
-   * Set or clear fields on many recordings. `dry_run` (the default) reports what would change.
+   * Set or clear fields on many assets. `dry_run` (the default) reports what would change.
    */
   public static bulkUpdateMetadata<ThrowOnError extends boolean = false>(
     options: Options<BulkUpdateMetadataData, ThrowOnError>,
@@ -6281,7 +6281,7 @@ export class Rdf {
   /**
    * Get Recording Rdf
    *
-   * The recording described with Dublin Core, with the entities it mentions.
+   * The asset described with Dublin Core, with the entities it mentions.
    */
   public static getRecordingRdf<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingRdfData, ThrowOnError>,
@@ -6295,7 +6295,7 @@ export class Rdf {
   /**
    * Get Namespace Rdf
    *
-   * Everything in the namespace as one graph: itself, its collections, recordings, entities and speakers.
+   * Everything in the namespace as one graph: itself, its collections, assets, entities and speakers.
    */
   public static getNamespaceRdf<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceRdfData, ThrowOnError>,
@@ -6309,8 +6309,8 @@ export class Rdf {
   /**
    * Import Namespace Rdf
    *
-   * Read Dublin Core descriptions into the namespace's recordings (matched by their URI or an identifier). Each change
-   * is a metadata edit, kept in the recording's history. With dry_run (the default) nothing changes.
+   * Read Dublin Core descriptions into the namespace's assets (matched by their URI or an identifier). Each change
+   * is a metadata edit, kept in the asset's history. With dry_run (the default) nothing changes.
    */
   public static importNamespaceRdf<ThrowOnError extends boolean = false>(
     options: Options<ImportNamespaceRdfData, ThrowOnError>,
@@ -6588,7 +6588,7 @@ export class Iiif {
   /**
    * Get Recording Iiif
    *
-   * The recording's manifest (as `json`), whether it is published, its layers, a schema check and viewer links.
+   * The asset's manifest (as `json`), whether it is published, its layers, a schema check and viewer links.
    */
   public static getRecordingIiif<ThrowOnError extends boolean = false>(
     options: Options<GetRecordingIiifData, ThrowOnError>,
@@ -6602,7 +6602,7 @@ export class Iiif {
   /**
    * Get Content State
    *
-   * A IIIF Content State pointing at a moment (t0..t1 seconds) of the recording, and links that open it.
+   * A IIIF Content State pointing at a moment (t0..t1 seconds) of the asset, and links that open it.
    */
   public static getContentState<ThrowOnError extends boolean = false>(
     options: Options<GetContentStateData, ThrowOnError>,
@@ -6634,9 +6634,9 @@ export class Iiif {
   /**
    * Import Iiif
    *
-   * Import recordings (audio, captions and metadata) from a IIIF manifest or collection into a namespace.
+   * Import assets (audio, captions and metadata) from a IIIF manifest or collection into a namespace.
    *
-   * With `wait`, answers with the new recording ids; otherwise imports in the background (202).
+   * With `wait`, answers with the new asset ids; otherwise imports in the background (202).
    */
   public static importIiif<ThrowOnError extends boolean = false>(
     options: Options<ImportIiifData, ThrowOnError>,
@@ -6657,7 +6657,7 @@ export class Jobs {
    * List Jobs
    *
    * Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that recording's runs,
+   * any status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,
    * also for someone who sees it through a role on its collection (then the counts are of those runs only).
    */
   public static listJobs<ThrowOnError extends boolean = false>(
@@ -6672,7 +6672,7 @@ export class Jobs {
   /**
    * Create Jobs
    *
-   * Queue recordings (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace.
+   * Queue assets (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace.
    */
   public static createJobs<ThrowOnError extends boolean = false>(
     options: Options<CreateJobsData, ThrowOnError>,
@@ -6691,7 +6691,7 @@ export class Jobs {
    * Get Job
    *
    * One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its
-   * steps usually take on this recording (`estimates`, `eta_seconds`).
+   * steps usually take on this asset (`estimates`, `eta_seconds`).
    */
   public static getJob<ThrowOnError extends boolean = false>(
     options: Options<GetJobData, ThrowOnError>,
@@ -6915,7 +6915,7 @@ export class Sources {
    * Browse Source
    *
    * The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
-   * recordings each file already is.
+   * assets each file already is.
    */
   public static browseSource<ThrowOnError extends boolean = false>(
     options: Options<BrowseSourceData, ThrowOnError>,
@@ -7069,7 +7069,7 @@ export class Templates {
   /**
    * Preview Template
    *
-   * Render a template (saved, or the unsaved text in the editor) against a recording; run=true also calls the model.
+   * Render a template (saved, or the unsaved text in the editor) against an asset; run=true also calls the model.
    *
    * A template that fails to render answers ok=false with the error, so the editor can show it inline.
    */
@@ -7195,7 +7195,7 @@ export class Pipelines {
   /**
    * Run Pipeline
    *
-   * Run this pipeline on one recording now (its outputs are kept).
+   * Run this pipeline on one asset now (its outputs are kept).
    */
   public static runPipeline<ThrowOnError extends boolean = false>(
     options: Options<RunPipelineData, ThrowOnError>,
@@ -7410,7 +7410,7 @@ export class Workflows {
   /**
    * Run Workflow
    *
-   * Run this workflow on one recording now, as a job (after anything its current job still has to do).
+   * Run this workflow on one asset now, as a job (after anything its current job still has to do).
    */
   public static runWorkflow<ThrowOnError extends boolean = false>(
     options: Options<RunWorkflowData, ThrowOnError>,
@@ -7876,7 +7876,7 @@ export class Collections {
   /**
    * Get Collection
    *
-   * The collection with how many recordings you can read in it, and the newest 200 of them.
+   * The collection with how many assets you can read in it, and the newest 200 of them.
    */
   public static getCollection<ThrowOnError extends boolean = false>(
     options: Options<GetCollectionData, ThrowOnError>,
@@ -7890,7 +7890,7 @@ export class Collections {
   /**
    * Update Collection
    *
-   * Change your collection. A filter collection takes a new filter; a fixed one a new list of recordings.
+   * Change your collection. A filter collection takes a new filter; a fixed one a new list of assets.
    */
   public static updateCollection<ThrowOnError extends boolean = false>(
     options: Options<UpdateCollectionData, ThrowOnError>,
@@ -7908,8 +7908,8 @@ export class Collections {
   /**
    * Collection Evidence
    *
-   * The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
-   * one's pages, then a provenance page with every file's SHA-256 and size. At most 50 recordings.
+   * The collection's assets you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
+   * one's pages, then a provenance page with every file's SHA-256 and size. At most 50 assets.
    */
   public static collectionEvidence<ThrowOnError extends boolean = false>(
     options: Options<CollectionEvidenceData, ThrowOnError>,
@@ -7925,7 +7925,7 @@ export class Batches {
   /**
    * Estimate Batch
    *
-   * What a run would cost, before starting it. Only recordings you can change count; the rest are `skipped`.
+   * What a run would cost, before starting it. Only assets you can change count; the rest are `skipped`.
    */
   public static estimateBatch<ThrowOnError extends boolean = false>(
     options: Options<EstimateBatchData, ThrowOnError>,
@@ -7985,7 +7985,7 @@ export class Batches {
   /**
    * Combine Batch
    *
-   * One overview written by the model from every recording's result, citing each as [n]; saved on the batch.
+   * One overview written by the model from every asset's result, citing each as [n]; saved on the batch.
    */
   public static combineBatch<ThrowOnError extends boolean = false>(
     options: Options<CombineBatchData, ThrowOnError>,
@@ -8003,7 +8003,7 @@ export class Batches {
   /**
    * Control Batch
    *
-   * continue (after a sample), pause, resume, cancel, or retry the failed recordings.
+   * continue (after a sample), pause, resume, cancel, or retry the failed assets.
    */
   public static controlBatch<ThrowOnError extends boolean = false>(
     options: Options<ControlBatchData, ThrowOnError>,
@@ -8045,7 +8045,7 @@ export class Public {
   /**
    * Get Public Home
    *
-   * The home page: featured public recordings, for everyone, and the collections this visitor sees anything in.
+   * The home page: featured public assets, for everyone, and the collections this visitor sees anything in.
    */
   public static getPublicHome<ThrowOnError extends boolean = false>(
     options?: Options<GetPublicHomeData, ThrowOnError>,
@@ -8059,7 +8059,7 @@ export class Public {
   /**
    * Get Public Collection
    *
-   * A collection's page: its description and the recordings this visitor sees, newest first. Visitors see the public
+   * A collection's page: its description and the assets this visitor sees, newest first. Visitors see the public
    * ones; signed-in people also see restricted ones, locked; members see all of them. A collection with nothing for
    * this visitor answers 404, as a missing one does.
    */
@@ -8075,8 +8075,8 @@ export class Public {
   /**
    * Search Public
    *
-   * Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
-   * they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
+   * Search what this visitor may see: titles of the assets they see listed, and the lines of the transcripts
+   * they may read. Title matches come first. Restricted assets (for signed-in people) and public ones with the
    * transcript closed match on their title only.
    */
   public static searchPublic<ThrowOnError extends boolean = false>(
@@ -8091,11 +8091,11 @@ export class Public {
   /**
    * Get Public Recording
    *
-   * A recording's public page: what this visitor may see of it, and nothing more.
+   * An asset's public page: what this visitor may see of it, and nothing more.
    *
-   * Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
-   * with a lock; people with a role in its namespace, given permission on the recording, or on the network of an IP
-   * group that opens it, see all of it. Everything else answers 404, as a recording that doesn't exist would.
+   * Anyone sees a public asset's page, description and open parts; a signed-in person sees a restricted one's title
+   * with a lock; people with a role in its namespace, given permission on the asset, or on the network of an IP
+   * group that opens it, see all of it. Everything else answers 404, as an asset that doesn't exist would.
    */
   public static getPublicRecording<ThrowOnError extends boolean = false>(
     options: Options<GetPublicRecordingData, ThrowOnError>,
@@ -8109,9 +8109,9 @@ export class Public {
   /**
    * Request Access
    *
-   * Ask for access to a recording (signed in, without permission): its closed parts, or a restricted one. Asking
+   * Ask for access to an asset (signed in, without permission): its closed parts, or a restricted one. Asking
    * again replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve
-   * (which gives permission) or decline in the recording's access settings.
+   * (which gives permission) or decline in the asset's access settings.
    */
   public static requestAccess<ThrowOnError extends boolean = false>(
     options: Options<RequestAccessData, ThrowOnError>,
@@ -8131,8 +8131,8 @@ export class AccessRequests {
   /**
    * List Pending Access Requests
    *
-   * Requests waiting for an answer, for recordings in the namespaces you own (all of them for admins), newest
-   * first. Each is answered in its recording's access settings.
+   * Requests waiting for an answer, for assets in the namespaces you own (all of them for admins), newest
+   * first. Each is answered in its asset's access settings.
    */
   public static listPendingAccessRequests<ThrowOnError extends boolean = false>(
     options?: Options<ListPendingAccessRequestsData, ThrowOnError>,
@@ -8893,7 +8893,7 @@ export class ImportHooks {
    * Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
    *
    * - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
-   * images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
+   * images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
    * transcripts;
    * - multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;
    * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional
@@ -9162,7 +9162,7 @@ export class Podcasts {
   /**
    * Delete Podcast
    *
-   * Delete an episode with its audio (editors of its namespace, unlike other recordings: Lens made it). 409 while a
+   * Delete an episode with its audio (editors of its namespace, unlike other assets: Lens made it). 409 while a
    * job is working on it.
    */
   public static deletePodcast<ThrowOnError extends boolean = false>(

@@ -128,7 +128,7 @@ function ScopePicker({
         className="self-start"
         items={[
           { value: "namespaces", label: "Namespaces" },
-          { value: "recordings", label: "Recordings" },
+          { value: "recordings", label: "Assets" },
           { value: "speakers", label: "Speakers" },
           { value: "dates", label: "Dates" },
           { value: "collection", label: "Collection" },
@@ -167,7 +167,7 @@ function ScopePicker({
         )}
         {section === "recordings" && (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {index.isLoading && <li className="text-[13px] text-fg-muted">Loading recordings…</li>}
+            {index.isLoading && <li className="text-[13px] text-fg-muted">Loading assets…</li>}
             {(index.data ?? [])
               .filter((r) => inNs(r.namespace) && (!f || (r.title ?? "").toLowerCase().includes(f)))
               .slice(0, 60)
@@ -181,7 +181,7 @@ function ScopePicker({
                         recordings: toggle(scope.recordings, r.id),
                       })
                     }
-                    label={r.title ?? `Recording ${r.id}`}
+                    label={r.title ?? `Asset ${r.id}`}
                   />
                   <span className="ml-auto shrink-0 text-[12px] text-fg-muted">{r.namespace}</span>
                 </li>
@@ -249,7 +249,7 @@ function ScopePicker({
               </li>
             ))}
             <li className="pt-1 text-[12px] text-fg-muted">
-              The conversation draws on a collection’s recordings as they are each time it answers.
+              The conversation draws on a collection’s assets as they are each time it answers.
             </li>
           </ul>
         )}

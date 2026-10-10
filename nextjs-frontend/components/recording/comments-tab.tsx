@@ -152,14 +152,12 @@ function Composer() {
                 ? paged
                   ? `On ${where(time)}, the page in view`
                   : `At ${tc(time)}, where the player is`
-                : `About the whole ${paged ? "document" : "recording"}`}
+                : `About the whole ${paged ? "document" : "asset"}`}
             </span>
           }
         />
       ) : (
-        <p className="text-[13px] text-fg-muted">
-          About the whole recording. To comment on a moment, select its words.
-        </p>
+        <p className="text-[13px] text-fg-muted">About the whole asset. To comment on a moment, select its words.</p>
       )}
       <Textarea
         ref={box}

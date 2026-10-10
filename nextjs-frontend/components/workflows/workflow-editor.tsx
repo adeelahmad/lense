@@ -226,7 +226,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
               setGraph(starter(v as Scope));
             }}
             items={[
-              { value: "recording", label: "On recordings" },
+              { value: "recording", label: "On assets" },
               { value: "graph", label: "Organise the graph" },
             ]}
           />
@@ -279,7 +279,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
           disabledReason={why ?? (firstProblem ? `Fix this first: ${firstProblem[1]}` : "Trying…")}
           onClick={() => (scope === "graph" ? tryIt.mutate({ title: "every namespace" }) : setTryOpen(true))}
         >
-          {tryIt.isPending ? "Trying…" : scope === "graph" ? "Try it" : "Try on a recording"}
+          {tryIt.isPending ? "Trying…" : scope === "graph" ? "Try it" : "Try on an asset"}
         </Button>
         {!creating && scope === "recording" && (
           <Button
@@ -288,11 +288,11 @@ export function WorkflowEditor({ id }: { id?: number }) {
             icon={<FlaskConical />}
             disabled={!can("editor") || dirty}
             disabledReason={
-              !can("editor") ? "Needs editor access to a recording’s namespace" : "Publish your changes first"
+              !can("editor") ? "Needs editor access to an asset’s namespace" : "Publish your changes first"
             }
             onClick={() => setRunOpen(true)}
           >
-            Run on a recording
+            Run on an asset
           </Button>
         )}
         {!creating && (
@@ -396,17 +396,17 @@ export function WorkflowEditor({ id }: { id?: number }) {
             <div className="flex flex-col gap-2 text-[13px] text-fg-secondary">
               <h2 className="text-[15px] font-bold text-fg">How workflows run</h2>
               <p>
-                A workflow starts from the Recording node with what the pipeline made of it: transcript, summary,
-                entities and earlier outputs. Each node passes what it makes along its connections, port to port.
-                Condition and Switch send it down one branch; the nodes on the others are skipped.
+                A workflow starts from the Asset node with what the pipeline made of it: transcript, summary, entities
+                and earlier outputs. Each node passes what it makes along its connections, port to port. Condition and
+                Switch send it down one branch; the nodes on the others are skipped.
               </p>
               <p>
                 For each and Repeat go over things again: double-click one to build its body. Select several nodes
                 (Shift-drag) to fold them into a Group or save them as a custom node, to use again and share.
               </p>
               <p>
-                Try on a recording runs the graph as it is now, keeps nothing, and shows what each node passed on.
-                Attach the workflow to a pipeline as a Workflow step; it runs after the steps before it.
+                Try on an asset runs the graph as it is now, keeps nothing, and shows what each node passed on. Attach
+                the workflow to a pipeline as a Workflow step; it runs after the steps before it.
               </p>
             </div>
           )
@@ -431,7 +431,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
         onOpenChange={setTryOpen}
         onRun={(rid, title) => tryIt.mutate({ rid, title })}
         pending={tryIt.isPending}
-        title="Try on a recording"
+        title="Try on an asset"
         description="Runs the graph as it is on the canvas, saved or not, and keeps nothing: nodes that would save something say what they’d save. Model nodes still ask the model."
         action="Try it"
       />

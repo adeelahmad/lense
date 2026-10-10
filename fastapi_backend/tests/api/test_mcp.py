@@ -204,7 +204,7 @@ def test_search_and_cite(client, env):
     at = tool(client, h, "cite", recording_id=ep1, seconds=c["seconds"] + 0.5)  # the line being said then
     assert at["line"] == 1 and at["quote"].startswith("Wow, really?")
     assert tool_error(client, h, "cite", recording_id=ep1) == "give line or seconds"
-    assert tool_error(client, h, "cite", recording_id=ep1, line=99) == f"recording {ep1} has no line 99"
+    assert tool_error(client, h, "cite", recording_id=ep1, line=99) == f"asset {ep1} has no line 99"
     assert tool_error(client, h, "cite", recording_id=call, line=0) == "not found, or not something you can read"
 
 

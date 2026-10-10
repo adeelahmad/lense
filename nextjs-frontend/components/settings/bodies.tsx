@@ -804,8 +804,8 @@ function FedoraBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         Each resource is described with Dublin Core and links back to its Lens address (owl:sameAs). Changes to a
-        recording’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed,
-        new recordings and deletions follow. The workers send it.
+        asset’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed, new
+        assets and deletions follow. The workers send it.
       </p>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<RefreshCw />} onClick={() => sync.mutate()} disabled={sync.isPending || !url}>
@@ -1543,7 +1543,7 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
               {!s.configured
                 ? "Search by meaning is off"
                 : s.current
-                  ? `${s.indexed} of ${s.recordings} recordings indexed with ${s.model}`
+                  ? `${s.indexed} of ${s.recordings} assets indexed with ${s.model}`
                   : s.indexed_model
                     ? `Indexed with ${s.indexed_model}; nothing yet with ${s.model}`
                     : `Nothing indexed with ${s.model} yet`}
@@ -1562,8 +1562,8 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
           </div>
           <span className="text-[12px] leading-[1.4] text-fg-secondary">
             {s.configured
-              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New recordings are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
-              : "Turn it on and name a model to start. Recordings are indexed by their pipelines and an hourly routine."}
+              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New assets are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
+              : "Turn it on and name a model to start. Assets are indexed by their pipelines and an hourly routine."}
             {index.data &&
               ` Queued ${index.data.recordings}${index.data.remaining ? "; more are waiting for the next run" : ""}.`}
           </span>
@@ -1661,11 +1661,7 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="iiif.provider.homepage" label="Homepage" />
         <F ctx={ctx} id="iiif.provider.logo" label="Logo" />
       </div>
-      <F
-        ctx={ctx}
-        id="iiif.layers"
-        hint="Annotation layers are published only when a recording’s transcript is open."
-      />
+      <F ctx={ctx} id="iiif.layers" hint="Annotation layers are published only when an asset’s transcript is open." />
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">
           External viewers <span className="font-normal text-fg-muted">· “Open in” buttons</span>
@@ -1700,7 +1696,7 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Access per namespace</span>
         <p className="text-[12.5px] text-fg-muted">
-          The default for recordings that don’t set their own. Saved into each namespace’s metadata profile.
+          The default for assets that don’t set their own. Saved into each namespace’s metadata profile.
         </p>
         {!ready ? (
           <Skeleton className="h-24 w-full" />

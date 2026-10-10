@@ -11,7 +11,7 @@ regenerate the OpenAPI client when the API changes. The commit message is checke
 
 Write them as [Conventional Commits](https://www.conventionalcommits.org/): `type(optional scope): what changed`,
 with `!` before the colon (or a `BREAKING CHANGE:` footer in any of the PR's commits) for a breaking change, e.g.
-`feat(chat): answer from the selected recordings` or `fix(worker): retry a stalled transcription`. The types are
+`feat(chat): answer from the selected assets` or `fix(worker): retry a stalled transcription`. The types are
 `feat`, `fix`, `perf`, `revert`, `docs`, `refactor`, `test`, `build`, `ci`, `chore` and `style`.
 
 A PR's title is what counts: it lands in the merge commit, the PR title check enforces it, and it becomes the PR's

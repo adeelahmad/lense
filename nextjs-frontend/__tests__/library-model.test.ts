@@ -347,19 +347,19 @@ describe("deleting from the Library", () => {
 
   it("sums up what went, and why the rest didn't", () => {
     expect(deletedToast(3, [])).toEqual({
-      title: "Deleted 3 recordings",
+      title: "Deleted 3 assets",
       body: "The media files stay where they are, and won’t be imported again.",
       tone: "green",
     });
     const busy = { title: "Board call", message: "A job is working on it." };
     expect(deletedToast(2, [busy])).toEqual({
-      title: "Deleted 2 of 3 recordings",
+      title: "Deleted 2 of 3 assets",
       body: "Board call: A job is working on it.",
       tone: "red",
     });
-    expect(deletedToast(0, [busy])).toMatchObject({ title: "Couldn’t delete the recording" });
+    expect(deletedToast(0, [busy])).toMatchObject({ title: "Couldn’t delete the asset" });
     expect(deletedToast(0, [busy, busy])).toMatchObject({
-      title: "Couldn’t delete 2 recordings",
+      title: "Couldn’t delete 2 assets",
       body: "Board call: A job is working on it. (and 1 more)",
     });
   });
@@ -374,17 +374,17 @@ describe("moving from the Library", () => {
 
   it("sums up what moved where, and why the rest didn't", () => {
     expect(movedToast(2, "calls", [])).toEqual({
-      title: "Moved 2 recordings to calls",
+      title: "Moved 2 assets to calls",
       body: "Analysis runs again in calls; their access and IIIF stay as they were.",
       tone: "green",
     });
     const same = { title: "Board call", message: "calls already has the same file." };
     expect(movedToast(1, "calls", [same])).toEqual({
-      title: "Moved 1 of 2 recordings to calls",
+      title: "Moved 1 of 2 assets to calls",
       body: "Board call: calls already has the same file.",
       tone: "red",
     });
-    expect(movedToast(0, "calls", [same])).toMatchObject({ title: "Couldn’t move the recording" });
+    expect(movedToast(0, "calls", [same])).toMatchObject({ title: "Couldn’t move the asset" });
   });
 });
 

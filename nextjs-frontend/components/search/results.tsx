@@ -99,7 +99,7 @@ function PlayButton({ hit, player, audio }: { hit: SearchHit; player: InlinePlay
           ? `${foundAs(hit) ?? "On the page"}, of a document or an image`
           : untimed
             ? "This line's file doesn't say when it is"
-            : "No audio: this recording is a transcript"
+            : "No audio: this asset is a transcript"
       }
     >
       {btn}

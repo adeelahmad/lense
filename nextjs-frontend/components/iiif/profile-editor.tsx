@@ -50,9 +50,9 @@ const PROFILE_FIELDS: Field[] = [
 
 /** Where a field's value comes from when the profile sets no default. */
 const DERIVED: Partial<Record<Field, string>> = {
-  label: "recording title",
+  label: "asset title",
   summary: "from Summarize",
-  navDate: "recording date",
+  navDate: "asset date",
   contributors: "speakers",
   subjects: "top entities",
   language: "detected by Transcribe",
@@ -154,7 +154,7 @@ export function ProfileEditor({ ns }: { ns: string }) {
       void qc.invalidateQueries({ queryKey: ["metadata"] });
       toast({
         title: "Profile saved",
-        body: "Recordings that now miss a required field show it as a problem. Recordings without their own access follow the default.",
+        body: "Assets that now miss a required field show it as a problem. Assets without their own access follow the default.",
         tone: "green",
       });
     },
@@ -225,7 +225,7 @@ export function ProfileEditor({ ns }: { ns: string }) {
         </div>
         <p className="text-[13px] leading-[1.45] text-fg-secondary">
           Field order here is the order in the editor and in viewers’ metadata panels. Changing a required field flags
-          existing recordings that miss it; it doesn’t unpublish them.
+          existing assets that miss it; it doesn’t unpublish them.
         </p>
         {!isOwner && <Banner tone="info">{needRole("owner", ns)}. You can read the profile.</Banner>}
         {!d ? (
@@ -378,7 +378,7 @@ export function ProfileEditor({ ns }: { ns: string }) {
                 }))}
               />
               <span className="text-[12.5px] leading-[1.35] text-fg-secondary">
-                {ACCESS.find((a) => a.value === d.default_access)?.anon} Applies to recordings without their own access.
+                {ACCESS.find((a) => a.value === d.default_access)?.anon} Applies to assets without their own access.
               </span>
             </div>
             {d.default_access === "public" && (
@@ -413,7 +413,7 @@ export function ProfileEditor({ ns }: { ns: string }) {
                   <span>
                     Making “{FIELD_LABEL[f]}” required affects{" "}
                     <b>
-                      {affected(f)} published recording
+                      {affected(f)} published asset
                       {affected(f) === 1 ? "" : "s"}
                     </b>{" "}
                     that don’t have it. They’ll show “needs attention” until filled.

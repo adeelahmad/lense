@@ -38,7 +38,7 @@ def create_template(body: TemplateCreate, user: AdminWriter, db: Db) -> Created:
 
 @router.post("/preview")
 def preview_template(body: TemplatePreviewRequest, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> TemplatePreview:
-    """Render a template (saved, or the unsaved text in the editor) against a recording; run=true also calls the model.
+    """Render a template (saved, or the unsaved text in the editor) against an asset; run=true also calls the model.
 
     A template that fails to render answers ok=false with the error, so the editor can show it inline.
     """

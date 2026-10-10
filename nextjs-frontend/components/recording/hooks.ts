@@ -506,7 +506,7 @@ export function useRecordingActions(id: number) {
       void qc.invalidateQueries({ queryKey: ["recordings"] });
       toast({ title: "Renamed", tone: "green" });
     },
-    onError: fail("Couldn't rename the recording"),
+    onError: fail("Couldn't rename the asset"),
   });
   const renameSpeaker = useMutation({
     mutationFn: (v: { sid: number; name: string }) =>

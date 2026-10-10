@@ -7,7 +7,7 @@ export type ClientOptions = {
 /**
  * AccessRequest
  *
- * Someone asking for permission on a recording (docs/access.md).
+ * Someone asking for permission on an asset (docs/access.md).
  */
 export type AccessRequest = {
   /**
@@ -472,19 +472,19 @@ export type AssistantMemory = {
   /**
    * Recording
    *
-   * the recording it came from
+   * the asset it came from
    */
   recording?: number | null;
   /**
    * T0
    *
-   * the moment in that recording (ms)
+   * the moment in that asset (ms)
    */
   t0?: number | number | null;
   /**
    * Title
    *
-   * that recording's title
+   * that asset's title
    */
   title?: string | null;
   /**
@@ -592,7 +592,7 @@ export type Attachment = {
   /**
    * Recording
    *
-   * the recording it became, once imported
+   * the asset it became, once imported
    */
   recording?: number | null;
   [key: string]: unknown;
@@ -738,7 +738,7 @@ export type BatchActionResult = {
   /**
    * Result
    *
-   * recordings started (continue) or jobs retried (retry)
+   * assets started (continue) or jobs retried (retry)
    */
   result?: number | null;
   [key: string]: unknown;
@@ -828,7 +828,7 @@ export type BatchEstimate = {
   /**
    * Skipped
    *
-   * matching recordings you can't change
+   * matching assets you can't change
    */
   skipped: number;
   [key: string]: unknown;
@@ -990,7 +990,7 @@ export type BatchRun = {
 /**
  * BatchSelection
  *
- * Which recordings: a collection, a list, or a filter (optionally narrowed to a namespace, entity or speaker).
+ * Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or speaker).
  */
 export type BatchSelection = {
   /**
@@ -1198,7 +1198,7 @@ export type BrowseEntry = {
   /**
    * Imported
    *
-   * the recordings this file already is, and where
+   * the assets this file already is, and where
    */
   imported?: Array<ImportedAs>;
   [key: string]: unknown;
@@ -1575,7 +1575,7 @@ export type ChatScope = {
   /**
    * Collections
    *
-   * saved collections (yours or shared): their recordings as they are when it answers
+   * saved collections (yours or shared): their assets as they are when it answers
    */
   collections?: Array<number> | null;
   /**
@@ -1792,7 +1792,7 @@ export type Collection = {
   /**
    * Count
    *
-   * recordings in it you can read
+   * assets in it you can read
    */
   count: number;
   /**
@@ -1875,7 +1875,7 @@ export type CollectionDetail = {
   /**
    * Count
    *
-   * recordings in it you can read
+   * assets in it you can read
    */
   count: number;
   /**
@@ -1985,13 +1985,13 @@ export type CollectionNode = {
   /**
    * Recordings
    *
-   * recordings it holds
+   * assets it holds
    */
   recordings?: number;
   /**
    * Total
    *
-   * recordings it and the collections inside it hold
+   * assets it and the collections inside it hold
    */
   total?: number;
   /**
@@ -2003,7 +2003,7 @@ export type CollectionNode = {
   /**
    * Default
    *
-   * new recordings go here when nobody says where
+   * new assets go here when nobody says where
    */
   default?: boolean;
   /**
@@ -2084,7 +2084,7 @@ export type CollectionNodeUpdate = {
   /**
    * Default
    *
-   * true: new recordings go here when nobody says where
+   * true: new assets go here when nobody says where
    */
   default?: boolean | null;
 };
@@ -3291,7 +3291,7 @@ export type EnrichedPlace = {
 /**
  * Enrichment
  *
- * The places and dates anytopdf found in a recording (analysis.anytopdf); members of its namespace only.
+ * The places and dates anytopdf found in an asset (analysis.anytopdf); members of its namespace only.
  */
 export type Enrichment = {
   /**
@@ -3657,7 +3657,7 @@ export type EntitySetupApplied = {
   /**
    * Recordings
    *
-   * how many recordings are analysed again
+   * how many assets are analysed again
    */
   recordings: number;
   [key: string]: unknown;
@@ -3670,7 +3670,7 @@ export type EntitySetupApply = {
   /**
    * Collection
    *
-   * only this collection's recordings (and those inside it)
+   * only this collection's assets (and those inside it)
    */
   collection?: number | null;
 };
@@ -5536,7 +5536,7 @@ export type HookItem = {
   /**
    * Recording
    *
-   * the recording or resource it became
+   * the asset or resource it became
    */
   recording: number;
   /**
@@ -5548,7 +5548,7 @@ export type HookItem = {
   /**
    * Duplicate
    *
-   * the namespace had this file already; it's that recording
+   * the namespace had this file already; it's that asset
    */
   duplicate?: boolean;
   [key: string]: unknown;
@@ -5737,7 +5737,7 @@ export type IiifPanel = {
   /**
    * Open
    *
-   * the parts anyone may use, when the recording is public
+   * the parts anyone may use, when the asset is public
    */
   open: Array<"media" | "transcript" | "index">;
   /**
@@ -5747,7 +5747,7 @@ export type IiifPanel = {
   /**
    * Published
    *
-   * IIIF publishes public recordings
+   * IIIF publishes public assets
    */
   published: boolean;
   /**
@@ -6083,7 +6083,7 @@ export type IndexQueued = {
   /**
    * Recordings
    *
-   * recordings queued to be indexed
+   * assets queued to be indexed
    */
   recordings: number;
   /**
@@ -6098,7 +6098,7 @@ export type IndexQueued = {
 /**
  * IpGroup
  *
- * Address ranges whose visitors see all of some of the namespace's recordings without signing in (docs/access.md).
+ * Address ranges whose visitors see all of some of the namespace's assets without signing in (docs/access.md).
  */
 export type IpGroup = {
   /**
@@ -6118,13 +6118,13 @@ export type IpGroup = {
   /**
    * Everything
    *
-   * opens every recording in the namespace; else the ones chosen on each recording
+   * opens every asset in the namespace; else the ones chosen on each asset
    */
   everything: boolean;
   /**
    * Chosen
    *
-   * how many recordings it opens when it doesn't open everything
+   * how many assets it opens when it doesn't open everything
    */
   chosen?: number;
   /**
@@ -6169,7 +6169,7 @@ export type IpGroupCreate = {
   /**
    * Everything
    *
-   * open every recording in the namespace; else choose them on each recording
+   * open every asset in the namespace; else choose them on each asset
    */
   everything?: boolean;
 };
@@ -6256,7 +6256,7 @@ export type Job = {
   /**
    * Title
    *
-   * the recording's title
+   * the asset's title
    */
   title?: string | null;
   /**
@@ -6340,7 +6340,7 @@ export type Job = {
   /**
    * Estimates
    *
-   * GET /jobs/{jid}: how long each step usually takes on this recording, in seconds, from recent runs (null for a step with none)
+   * GET /jobs/{jid}: how long each step usually takes on this asset, in seconds, from recent runs (null for a step with none)
    */
   estimates?: Array<number | null> | null;
   /**
@@ -7353,7 +7353,7 @@ export type MetadataBulk = {
   /**
    * Namespace
    *
-   * every recording in this namespace (added to `recordings`)
+   * every asset in this namespace (added to `recordings`)
    */
   namespace?: string | null;
   /**
@@ -7705,7 +7705,7 @@ export type NamespaceStats = {
   /**
    * Recordings
    *
-   * recordings made in the range (without a range: all of them, dated or not)
+   * assets made in the range (without a range: all of them, dated or not)
    */
   recordings: number;
   /**
@@ -7723,25 +7723,25 @@ export type NamespaceStats = {
   /**
    * Undated
    *
-   * the namespace's recordings without a date: counted only when there's no range
+   * the namespace's assets without a date: counted only when there's no range
    */
   undated?: number;
   /**
    * First
    *
-   * the day of the earliest dated recording in the range
+   * the day of the earliest dated asset in the range
    */
   first?: string | null;
   /**
    * Last
    *
-   * the day of the latest dated recording in the range
+   * the day of the latest dated asset in the range
    */
   last?: string | null;
   /**
    * Months
    *
-   * each calendar month from `from` (else the first recording) to `to` (else the later of today and the last recording), empty ones included; at most the latest 240
+   * each calendar month from `from` (else the first asset) to `to` (else the later of today and the last asset), empty ones included; at most the latest 240
    */
   months?: Array<MonthStats>;
   /**
@@ -7940,7 +7940,7 @@ export type Note = {
   /**
    * T0
    *
-   * the moment it's about, in ms from the start; null: the whole recording
+   * the moment it's about, in ms from the start; null: the whole asset
    */
   t0?: number | null;
   /**
@@ -7958,7 +7958,7 @@ export type Note = {
   /**
    * Shared
    *
-   * everyone who can read the recording sees it
+   * everyone who can read the asset sees it
    */
   shared?: boolean;
   /**
@@ -7996,7 +7996,7 @@ export type Note = {
   /**
    * Can Delete
    *
-   * you wrote it, or it's shared and you own the recording's namespace
+   * you wrote it, or it's shared and you own the asset's namespace
    */
   can_delete: boolean;
   [key: string]: unknown;
@@ -8036,7 +8036,7 @@ export type NoteCreate = {
   /**
    * T0
    *
-   * the moment it's about, in ms from the start; leave out for the whole recording
+   * the moment it's about, in ms from the start; leave out for the whole asset
    */
   t0?: number | null;
   /**
@@ -8054,7 +8054,7 @@ export type NoteCreate = {
   /**
    * Shared
    *
-   * share it with everyone who can read the recording (needs editor access)
+   * share it with everyone who can read the asset (needs editor access)
    */
   shared?: boolean;
 };
@@ -9084,7 +9084,7 @@ export type ObjectFacet = {
   /**
    * Count
    *
-   * how many of the recordings with matching moments it's seen in
+   * how many of the assets with matching moments it's seen in
    */
   count: number;
   [key: string]: unknown;
@@ -9093,7 +9093,7 @@ export type ObjectFacet = {
 /**
  * ObjectTrack
  *
- * A kind of object seen in a recording, and where.
+ * A kind of object seen in an asset, and where.
  */
 export type ObjectTrack = {
   /**
@@ -9578,7 +9578,7 @@ export type PatternUpdate = {
 /**
  * Permission
  *
- * Someone given permission on a recording (docs/access.md): they see all of it on the pages visitors see and in
+ * Someone given permission on an asset (docs/access.md): they see all of it on the pages visitors see and in
  * IIIF, whatever its access.
  */
 export type Permission = {
@@ -9674,7 +9674,7 @@ export type PickedLine = {
   /**
    * Idx
    *
-   * the line (segment) number in the recording
+   * the line (segment) number in the asset
    */
   idx: number;
 };
@@ -10373,7 +10373,7 @@ export type PodcastStarted = {
   /**
    * Episode
    *
-   * the episode's recording id
+   * the episode's asset id
    */
   episode: number;
   /**
@@ -10507,7 +10507,7 @@ export type PrimaryFile = {
 /**
  * PublicCard
  *
- * A recording in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows
+ * An asset in a list, as this visitor may see it: a locked one (restricted, signed in without permission) shows
  * its title only.
  */
 export type PublicCard = {
@@ -10612,19 +10612,19 @@ export type PublicCollection = {
   /**
    * Member
    *
-   * the visitor has a role in this namespace, so they see all of its recordings
+   * the visitor has a role in this namespace, so they see all of its assets
    */
   member: boolean;
   /**
    * Network
    *
-   * the IP group that opens all of its recordings to the visitor's address
+   * the IP group that opens all of its assets to the visitor's address
    */
   network?: string | null;
   /**
    * Total
    *
-   * how many recordings this visitor sees here, on all pages
+   * how many assets this visitor sees here, on all pages
    */
   total: number;
   /**
@@ -10653,7 +10653,7 @@ export type PublicCollectionSummary = {
   /**
    * Recordings
    *
-   * how many of its recordings this visitor sees
+   * how many of its assets this visitor sees
    */
   recordings: number;
   /**
@@ -10766,13 +10766,13 @@ export type PublicHome = {
   /**
    * Featured
    *
-   * featured public recordings, newest first
+   * featured public assets, newest first
    */
   featured: Array<PublicCard>;
   /**
    * Shared
    *
-   * recordings the visitor was given permission on, outside their namespaces
+   * assets the visitor was given permission on, outside their namespaces
    */
   shared?: Array<PublicCard>;
   /**
@@ -10883,7 +10883,7 @@ export type PublicPage = {
 /**
  * PublicRecording
  *
- * A recording as this visitor may see it: all of it with permission, else its page, description and open parts,
+ * An asset as this visitor may see it: all of it with permission, else its page, description and open parts,
  * or (restricted, signed in) its title only. Parts left out are null.
  */
 export type PublicRecording = {
@@ -10914,7 +10914,7 @@ export type PublicRecording = {
   /**
    * View
    *
-   * full: with permission; public: a public recording; locked: restricted, listed with a lock
+   * full: with permission; public: a public asset; locked: restricted, listed with a lock
    */
   view: "full" | "public" | "locked";
   /**
@@ -10924,7 +10924,7 @@ export type PublicRecording = {
   /**
    * Open
    *
-   * the parts a public recording opens to everyone
+   * the parts a public asset opens to everyone
    */
   open: Array<"media" | "transcript" | "index">;
   /**
@@ -10934,13 +10934,13 @@ export type PublicRecording = {
   /**
    * Member
    *
-   * the visitor has a role in the recording's namespace, so it opens in the workspace too
+   * the visitor has a role in the asset's namespace, so it opens in the workspace too
    */
   member: boolean;
   /**
    * Granted
    *
-   * the visitor was given permission on this recording, so they see all of it
+   * the visitor was given permission on this asset, so they see all of it
    */
   granted?: boolean;
   /**
@@ -10966,7 +10966,7 @@ export type PublicRecording = {
   /**
    * Closed
    *
-   * parts the recording has that this visitor can't use
+   * parts the asset has that this visitor can't use
    */
   closed: Array<"media" | "transcript" | "index">;
   /**
@@ -10997,7 +10997,7 @@ export type PublicRecording = {
 /**
  * PublicRequest
  *
- * Someone's latest request for access to a recording.
+ * Someone's latest request for access to an asset.
  */
 export type PublicRequest = {
   /**
@@ -11101,7 +11101,7 @@ export type PublicSearch = {
   /**
    * Total
    *
-   * how many recordings match, on all pages
+   * how many assets match, on all pages
    */
   total: number;
   /**
@@ -11252,7 +11252,7 @@ export type RdfImportItem = {
   /**
    * Statements
    *
-   * other statements kept with the recording
+   * other statements kept with the asset
    */
   statements: number;
   [key: string]: unknown;
@@ -11350,7 +11350,7 @@ export type Reading = {
 /**
  * Recording
  *
- * The recording row (less its envelope) plus what the recording page needs.
+ * The asset row (less its envelope) plus what the asset page needs.
  */
 export type Recording = {
   /**
@@ -11471,7 +11471,7 @@ export type Recording = {
 /**
  * RecordingAccess
  *
- * Who may see the recording: public, restricted or private (docs/access.md).
+ * Who may see the asset: public, restricted or private (docs/access.md).
  */
 export type RecordingAccess = {
   /**
@@ -11571,7 +11571,7 @@ export type RecordingFacet = {
 /**
  * RecordingIpGroup
  *
- * One of the namespace's IP groups, and whether it opens this recording (docs/access.md).
+ * One of the namespace's IP groups, and whether it opens this asset (docs/access.md).
  */
 export type RecordingIpGroup = {
   /**
@@ -11589,13 +11589,13 @@ export type RecordingIpGroup = {
   /**
    * Everything
    *
-   * it opens every recording in the namespace
+   * it opens every asset in the namespace
    */
   everything: boolean;
   /**
    * Opens
    *
-   * visitors from its addresses see all of this recording
+   * visitors from its addresses see all of this asset
    */
   opens: boolean;
   [key: string]: unknown;
@@ -12468,7 +12468,7 @@ export type RoutineCatalog = {
   /**
    * Recordings
    *
-   * which recordings a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)
+   * which assets a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)
    */
   recordings: Array<string>;
   [key: string]: unknown;
@@ -12694,13 +12694,13 @@ export type SavedSearch = {
   /**
    * Recording Title
    *
-   * the recording's title, when you can read it
+   * the asset's title, when you can read it
    */
   recording_title?: string | null;
   /**
    * Object
    *
-   * a kind of object the recordings have
+   * a kind of object the assets have
    */
   object?: string | null;
   /**
@@ -12834,7 +12834,7 @@ export type SearchCreate = {
   /**
    * Object
    *
-   * a kind of object the recordings have (person, car …)
+   * a kind of object the assets have (person, car …)
    */
   object?: string | null;
   /**
@@ -12858,8 +12858,8 @@ export type SearchCreate = {
 /**
  * SearchFacets
  *
- * How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,
- * most first), and the kinds of object seen in the recordings they're in. Text on screen has no speaker or emotion.
+ * How many of all the matching moments are in each namespace, speaker, emotion and asset (up to 50 of each,
+ * most first), and the kinds of object seen in the assets they're in. Text on screen has no speaker or emotion.
  */
 export type SearchFacets = {
   /**
@@ -13232,13 +13232,13 @@ export type SemanticStatus = {
   /**
    * Recordings
    *
-   * recordings in the archive
+   * assets in the archive
    */
   recordings: number;
   /**
    * Indexed
    *
-   * recordings indexed with the configured model
+   * assets indexed with the configured model
    */
   indexed: number;
   /**
@@ -14821,7 +14821,7 @@ export type StepOutput = {
   /**
    * Key
    *
-   * saved as outputs.<key> on the recording
+   * saved as outputs.<key> on the asset
    */
   key: string;
   /**
@@ -14852,7 +14852,7 @@ export type StepQueued = {
   /**
    * Queued
    *
-   * how many recordings were queued, or "scanning"
+   * how many assets were queued, or "scanning"
    */
   queued: number | string;
   [key: string]: unknown;
@@ -15046,7 +15046,7 @@ export type TagsChanged = {
   /**
    * Changed
    *
-   * how many recordings' tags changed
+   * how many assets' tags changed
    */
   changed: number;
   [key: string]: unknown;
@@ -15396,7 +15396,7 @@ export type TermSuggestion = {
   /**
    * Recordings
    *
-   * in how many recordings
+   * in how many assets
    */
   recordings: number;
   [key: string]: unknown;
@@ -15518,13 +15518,13 @@ export type TopicCandidate = {
   /**
    * Label
    *
-   * what summaries say recordings are about, which no topic covers yet
+   * what summaries say assets are about, which no topic covers yet
    */
   label: string;
   /**
    * Recordings
    *
-   * how many recordings' summaries say it
+   * how many assets' summaries say it
    */
   recordings: number;
   [key: string]: unknown;
@@ -15648,7 +15648,7 @@ export type TopicItem = {
   /**
    * Recordings
    *
-   * recordings about it (accepted)
+   * assets about it (accepted)
    */
   recordings?: number;
   /**
@@ -15879,7 +15879,7 @@ export type Upload = {
   /**
    * Attach
    *
-   * the transcript-only recording it becomes the audio of
+   * the transcript-only asset it becomes the audio of
    */
   attach?: number | null;
   /**
@@ -15891,7 +15891,7 @@ export type Upload = {
   /**
    * Recording
    *
-   * the recording it became (or was attached to), once done
+   * the asset it became (or was attached to), once done
    */
   recording?: number | null;
   /**
@@ -15958,13 +15958,13 @@ export type UploadStart = {
   /**
    * Namespace
    *
-   * a namespace you edit; admins may name a new one, created when the upload finishes (default: the recording's)
+   * a namespace you edit; admins may name a new one, created when the upload finishes (default: the asset's)
    */
   namespace?: string;
   /**
    * Recording
    *
-   * attach the file to this transcript-only recording as its audio, instead of making a recording of it
+   * attach the file to this transcript-only asset as its audio, instead of making an asset of it
    */
   recording?: number | null;
   /**
@@ -15980,7 +15980,7 @@ export type UploadStart = {
   /**
    * Title
    *
-   * the recording's title (default: the file's name)
+   * the asset's title (default: the file's name)
    */
   title?: string | null;
   /**
@@ -15992,13 +15992,13 @@ export type UploadStart = {
   /**
    * Collection
    *
-   * a collection of the namespace to put the recording in (default: its default collection; not with `recording`)
+   * a collection of the namespace to put the asset in (default: its default collection; not with `recording`)
    */
   collection?: number | null;
   /**
    * Modified
    *
-   * the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't
+   * the file's last-modified time in milliseconds since 1970; dates the asset when its name doesn't
    */
   modified?: number | null;
   /**
@@ -16425,7 +16425,7 @@ export type ViewState = {
   /**
    * Field
    *
-   * a custom field of the view's namespace: the recordings with a value for it
+   * a custom field of the view's namespace: the assets with a value for it
    */
   field?: number | null;
   /**
@@ -17152,7 +17152,7 @@ export type WorkflowTryRequest = {
   /**
    * Recording
    *
-   * the recording to try a recording workflow on
+   * the asset to try a recording workflow on
    */
   recording?: number | null;
   /**
@@ -20347,19 +20347,19 @@ export type ListRecordingsData = {
     /**
      * Status
      *
-     * recording statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)
+     * asset statuses, or processing (a job is queued or running) and failed (the latest job failed); repeat for several (any of them matches)
      */
     status?: Array<"new" | "transcribed" | "diarized" | "analyzed" | "error" | "processing" | "failed"> | null;
     /**
      * Attention
      *
-     * only recordings that need a person: errored, latest job failed, or a voice match to review
+     * only assets that need a person: errored, latest job failed, or a voice match to review
      */
     attention?: boolean;
     /**
      * Processing
      *
-     * only recordings with a job queued or running
+     * only assets with a job queued or running
      */
     processing?: boolean;
     /**
@@ -20407,7 +20407,7 @@ export type ListRecordingsData = {
     /**
      * Featured
      *
-     * only featured recordings (true) or only the others (false)
+     * only featured assets (true) or only the others (false)
      */
     featured?: boolean | null;
     /**
@@ -20425,7 +20425,7 @@ export type ListRecordingsData = {
     /**
      * Language
      *
-     * language codes (ignoring case), none for recordings whose language isn't known; repeat for several
+     * language codes (ignoring case), none for assets whose language isn't known; repeat for several
      */
     language?: Array<string> | null;
     /**
@@ -20437,19 +20437,19 @@ export type ListRecordingsData = {
     /**
      * Edited By
      *
-     * me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)
+     * me: assets you edited (corrected the transcript, changed the catalogue record or renamed)
      */
     edited_by?: "me" | null;
     /**
      * Collection
      *
-     * a collection: the recordings in it and in the collections inside it
+     * a collection: the assets in it and in the collections inside it
      */
     collection?: number | null;
     /**
      * Field
      *
-     * a custom field (of resources): the recordings with a value for it, or with `value`
+     * a custom field (of resources): the assets with a value for it, or with `value`
      */
     field?: number | null;
     /**
@@ -23604,7 +23604,7 @@ export type SearchTranscriptsData = {
     /**
      * Object
      *
-     * only recordings this kind of object is seen in (person, car …)
+     * only assets this kind of object is seen in (person, car …)
      */
     object?: string | null;
     /**
@@ -23618,7 +23618,7 @@ export type SearchTranscriptsData = {
     /**
      * Facets
      *
-     * also count all the matching moments by namespace, speaker, emotion and recording, and list their kinds of object
+     * also count all the matching moments by namespace, speaker, emotion and asset, and list their kinds of object
      */
     facets?: boolean;
     /**

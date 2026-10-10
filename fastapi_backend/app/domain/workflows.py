@@ -368,7 +368,7 @@ def try_graph(db, cfg, graph, scope="recording", rid=None, spaces=None, user=Non
     log = []
     if scope == "recording":
         if rid is None:
-            raise ValueError("choose a recording to try it on")
+            raise ValueError("choose an asset to try it on")
         r = flow.Run(db, cfg, KITS[scope], templates.context(db, cfg, rid), log.append, dry=True, user=user, rid=rid, by=user)
     else:
         names = store.space_names(db)

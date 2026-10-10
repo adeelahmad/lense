@@ -26,20 +26,20 @@ class UploadLimits(ResponseModel):
 
 class UploadStart(RequestModel):
     namespace: str = Field(
-        "", description="a namespace you edit; admins may name a new one, created when the upload finishes (default: the recording's)"
+        "", description="a namespace you edit; admins may name a new one, created when the upload finishes (default: the asset's)"
     )
     recording: int | None = Field(
-        None, description="attach the file to this transcript-only recording as its audio, instead of making a recording of it"
+        None, description="attach the file to this transcript-only asset as its audio, instead of making an asset of it"
     )
     filename: str = Field(min_length=1, max_length=1000)
     size: int = Field(gt=0, description="the file's size in bytes")
-    title: str | None = Field(None, max_length=200, description="the recording's title (default: the file's name)")
+    title: str | None = Field(None, max_length=200, description="the asset's title (default: the file's name)")
     pipeline: int | None = Field(None, description="run this pipeline once it's here instead of the namespace's (not with `recording`)")
     collection: int | None = Field(
-        None, description="a collection of the namespace to put the recording in (default: its default collection; not with `recording`)"
+        None, description="a collection of the namespace to put the asset in (default: its default collection; not with `recording`)"
     )
     modified: int | None = Field(
-        None, ge=0, description="the file's last-modified time in milliseconds since 1970; dates the recording when its name doesn't"
+        None, ge=0, description="the file's last-modified time in milliseconds since 1970; dates the asset when its name doesn't"
     )
     hold: bool = Field(
         False,
@@ -56,9 +56,9 @@ class Upload(ResponseModel):
     size: int
     offset: int = Field(description="how many bytes have arrived: the next chunk starts here")
     state: Literal["receiving", "held", "done"] = Field(description="held: all here, waiting to be put in a namespace")
-    attach: int | None = Field(None, description="the transcript-only recording it becomes the audio of")
+    attach: int | None = Field(None, description="the transcript-only asset it becomes the audio of")
     pipeline: int | None = Field(None, description="the pipeline chosen to run once it's here (default: the namespace's)")
-    recording: int | None = Field(None, description="the recording it became (or was attached to), once done")
+    recording: int | None = Field(None, description="the asset it became (or was attached to), once done")
     job: int | None = Field(None, description="the processing queued for it, if any")
     duplicate: bool = Field(False, description="the namespace already had this file: `recording` is that one")
     created_at: str

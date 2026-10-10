@@ -1,11 +1,11 @@
 # Processing
 
-How recordings move through Lens: where they come from, what each step does, and how speakers, entities and the knowledge graph are built. Every step can be started from the web app, the API or the `lens` command line.
+How assets move through Lens: where they come from, what each step does, and how speakers, entities and the knowledge graph are built. Every step can be started from the web app, the API or the `lens` command line.
 
 ## Steps
 
 - `scan` finds audio under each namespace's paths and fingerprints it: moved files keep their history, duplicates are skipped,
-  and so are files whose recording someone deleted or moved to another namespace (at the same path, or a copy of the same
+  and so are files whose asset someone deleted or moved to another namespace (at the same path, or a copy of the same
   file).
 - `transcribe` uses SenseVoice, faster-whisper or mlx-whisper. When the configured engine isn't installed on a worker (or
   doesn't import there), it uses the next one that is and says so in the job log; with none at all the step fails,
@@ -16,7 +16,7 @@ How recordings move through Lens: where they come from, what each step does, and
   matches voiceprints against the namespace's speakers.
 - `analyze` finds entities, chapters, keywords and talk statistics; `summarize` (optional) calls any OpenAI-compatible
   server for a summary, key points, action items (with who will do them), topics, people, tone and importance, each
-  key point and action item with the time of the line it comes from; `report` writes static HTML per recording and
+  key point and action item with the time of the line it comes from; `report` writes static HTML per asset and
   per namespace, with word clouds.
 
 Every step takes `--ns`, `--limit` and `--force`; `run` does them all, and a lock stops two runs overlapping.
@@ -60,11 +60,11 @@ another saved pipeline for what you import.
 
 **Audio for a transcript.** A transcript can get its audio (or video) in the web app: Import → Paste's "Attach audio…",
 a transcript dropped together with the audio of the same name (`ep14-transcript.srt` and `ep14.m4a`), or "Attach audio"
-on a transcript-only recording's page. The file is uploaded and becomes the recording's media; the transcript and its
-speakers stay. Then these steps run, after anything the recording's job still had to do: transcribe (which keeps the
+on a transcript-only asset's page. The file is uploaded and becomes the asset's media; the transcript and its
+speakers stay. Then these steps run, after anything the asset's job still had to do: transcribe (which keeps the
 transcript and draws the waveform), diarize (speakers by voice, unless the transcript named them), shots, text on screen
-and faces (video only), analyze and report. The recording takes the file's fingerprint, so scans and uploads of the
-same file find it, unless another recording in the namespace has it already.
+and faces (video only), analyze and report. The asset takes the file's fingerprint, so scans and uploads of the
+same file find it, unless another asset in the namespace has it already.
 
 Speakers are recognised from `Name: text`, `[12:30] Name: text`, `Name (12:30): text`, Otter/Zoom/Teams exports (a
 `Name  12:30` line, then what they said), `speaker|emotion|text` lines, and the speakers in SRT/VTT and JSON. Anything
@@ -114,12 +114,12 @@ and opens each in a side panel where editors rename, retype, describe and hide i
 
 - **Index** (`GET /api/v1/entities`):
   - Search forgives misspellings and covers aliases.
-  - Filters: type, namespace, collection (and the collections inside it), speaker, recording, date range, minimum
+  - Filters: type, namespace, collection (and the collections inside it), speaker, asset, date range, minimum
     mentions, and hidden entities.
-  - Sorts: most mentioned, most recordings, most recent, rising, and name.
+  - Sorts: most mentioned, most assets, most recent, rising, and name.
   - Options: grouping by name across namespaces, a twelve-month sparkline, and facets.
 - **Entity page:** its details and aliases, paged mentions (each line with the words highlighted, linking to its moment),
-  a timeline by month or week and namespace, and connections (entities mentioned together, speakers, recordings).
+  a timeline by month or week and namespace, and connections (entities mentioned together, speakers, assets).
 - **Explorer:**
   - `GET /api/v1/graph/explore?focus=e12` gives the neighbourhood of an entity or speaker. Depth is one or two hops, and it
     can be filtered by type, edge kind and strength, within one namespace or all shared ones.
@@ -138,13 +138,13 @@ and opens each in a side panel where editors rename, retype, describe and hide i
 ### Entity setup
 
 Each namespace has an entity setup (Entities → Setup, `GET`/`PUT /api/v1/namespaces/{name}/entity-setup`): the types
-it keeps (names of other types are left out when a recording is analysed) and a description of what it's about. Any
-collection can have its own setup, which also holds for the collections inside it; a recording follows the setup of the
+it keeps (names of other types are left out when an asset is analysed) and a description of what it's about. Any
+collection can have its own setup, which also holds for the collections inside it; an asset follows the setup of the
 nearest collection that has one, else its namespace's. Editors of the namespace change its setup and any collection's;
 editors of a collection change that collection's. A namespace can add entity types of its own (Entities → Types,
 `/api/v1/namespaces/{name}/entity-types`), each with a description of what counts as one; a type can be deleted once no
-entity has it. Changes apply to recordings analysed from then on; "Apply to analysed recordings"
-(`POST /api/v1/namespaces/{name}/entity-setup/apply`) analyses the namespace's or a collection's recordings again.
+entity has it. Changes apply to assets analysed from then on; "Apply to analysed assets"
+(`POST /api/v1/namespaces/{name}/entity-setup/apply`) analyses the namespace's or a collection's assets again.
 
 A setup has a mode:
 
@@ -177,7 +177,7 @@ about them come back as not found.
 ## Search
 
 All words must appear, matched after English stemming ("exploit" also finds exploits and exploiting); "quoted phrases"
-must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or recording. The words are
+must appear as written; OR separates alternatives. Filter by namespace, speaker, emotion or asset. The words are
 looked up in the index of `search.engine`: a SQLite FTS5 file by default, SurrealDB's own index, or OpenSearch
 ([configuration](configuration.md#word-search)). For archives that aren't in English set `search.stemming: none` and
 run `lens reindex`. There is no prefix search: a trailing `*` (`expl*`) is ignored and the word is searched as it is;
@@ -188,9 +188,9 @@ stemming covers most of what prefixes were used for.
 With an embedding model set up (Settings → Search, or `embeddings` in archive.yaml: see
 [configuration](configuration.md#search-by-meaning)), search also finds moments about what was asked in other words:
 "money worries" finds "we can't afford the rent this month". The `embed` step (in the standard pipeline, after
-analyze) joins a recording's transcript lines into passages of about `embeddings.passage_chars` characters (each within
+analyze) joins an asset's transcript lines into passages of about `embeddings.passage_chars` characters (each within
 one page of a document), adds what its shots or pages are described as showing, and has the model embed each; the
-vectors live in the `passage` table under SurrealDB's HNSW index. Indexing a recording again only embeds the passages
+vectors live in the `passage` table under SurrealDB's HNSW index. Indexing an asset again only embeds the passages
 whose text changed, so a corrected line costs one request; correcting, splitting or merging lines and renaming an
 entity across the transcript run the step again.
 
@@ -209,8 +209,8 @@ Facets count the moments found by meaning too. The assistant's search tool and c
 so a question finds excerpts that answer it without sharing its words.
 
 The vectors are only comparable within one model. When the model (or `embeddings.document_prefix`) changes, the old
-vectors are dropped and searches go by the words until recordings are indexed again: the **Index for search by
-meaning** routine (seeded, hourly at :20) queues the embed step for up to 500 recordings not yet indexed with the
+vectors are dropped and searches go by the words until assets are indexed again: the **Index for search by
+meaning** routine (seeded, hourly at :20) queues the embed step for up to 500 assets not yet indexed with the
 current model each time, and does nothing (no run is recorded) while search by meaning is off or everything is indexed;
 Settings → Search shows how far it has got and can queue more now; `lens embed` indexes here and now. When the
 embeddings server can't be reached, the step is skipped (the routine tries again later) and searches go by the words,
@@ -233,11 +233,11 @@ streams to its Activity page as it's written.
 
 A run keeps a record of each step: when it started and finished, how long it took, how it ended (done, skipped,
 failed), its last message (or why it skipped, or its error), which worker ran it, its lines of the log, and the outputs
-it saved (with the template version and model that made them). A step with nothing to do for a recording skips
+it saved (with the template version and model that made them). A step with nothing to do for an asset skips
 itself and says why: no LLM is configured, it isn't a video, the speakers came with the transcript. Retrying a run
 starts the records over from the step it retries. Each finished or skipped step also adds its time to the last 25 of
 its kind (template steps per template), and `GET /jobs/{jid}` turns these into how long each step usually takes on
-that recording (scaled to its length for transcribe, diarize and the video steps) and about how long an active run
+that asset (scaled to its length for transcribe, diarize and the video steps) and about how long an active run
 has left.
 
     lens worker --steps transcribe,diarize     # e.g. on the Mac, with SURREAL_URL pointing at the server
@@ -253,11 +253,11 @@ WebDAV, or a folder on this machine; or an email account (IMAP) or a calendar fe
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
-playback. A file whose recording someone deleted, or moved to another namespace, isn't imported again, even when it
+playback. A file whose asset someone deleted, or moved to another namespace, isn't imported again, even when it
 changes.
 
 Admins can also import chosen files of a source once, without watching their folder: Import → From a source, tick the
-files, then Import (`POST /api/v1/import/source`). The listing marks files that are recordings already, and where.
+files, then Import (`POST /api/v1/import/source`). The listing marks files that are assets already, and where.
 
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
   to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
@@ -320,18 +320,18 @@ internals, caps output size, and escapes HTML in reports. Templates see `recordi
 summary's `key_points` and `action_items` print as their text and have `text`, `who` (empty when not said) and `t0`
 (where the line they come from starts, in ms; none when not known); summaries made before they had times hold plain
 strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
-`POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
+`POST /api/v1/templates/preview` renders any template, saved or not, against an asset, and with `run: true` also asks
 the model.
 
 ## Workflows and the canvas
 
-A pipeline's steps make assets (a transcript, shots, text on screen, faces); workflows turn them into metadata. A
-workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Recording node, and each
+A pipeline's steps make derived files (a transcript, shots, text on screen, faces); workflows turn them into metadata. A
+workflow is a versioned graph drawn on a canvas (Pipelines → Workflows): it starts from the Asset node, and each
 node passes what it makes along its connections.
 
 - **Entities:** Extract entities (rules) runs the built-in extractor analyze uses, plus your terms (`Name|TYPE`) and
   regular expressions (`TYPE: pattern`); Extract entities (LLM) asks the model for structured entities and keeps,
-  corrects or adds to any passed in; Merge joins lists; Save entities makes them the recording's entities (people's
+  corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
 - **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
   `action_items.0.text`), Condition (yes and no branches) and Merge.
@@ -339,7 +339,7 @@ node passes what it makes along its connections.
   Save entities.
 
 A pipeline runs a workflow as a Workflow step, pinned to the workflow's published version when the run is queued
-(`POST /api/v1/workflows/{id}/run` runs one on a recording). Pipelines can be drawn on the canvas too: a connection
+(`POST /api/v1/workflows/{id}/run` runs one on an asset). Pipelines can be drawn on the canvas too: a connection
 means "runs after", and the graph is put in order (ties left to right) and kept as the version's steps, so runs and
 Activity work as before. A pipeline saved as a list is drawn as a chain.
 
@@ -369,9 +369,9 @@ namespaces, or all of them:
 
 - **Sync** scans watched folders now (all of the routine's namespaces' folders, or the ones you pick), so new files
   come in and run their pipelines.
-- **Pipeline** queues a pipeline for recordings (one you pick, else the one each recording's content type gets, as
+- **Pipeline** queues a pipeline for assets (one you pick, else the one each asset's content type gets, as
   above): new ones (since the routine last looked), unprocessed ones, or all of them.
-- **Workflow** runs a workflow. One that runs on recordings is queued on them as a workflow step, pinned to its
+- **Workflow** runs a workflow. One that runs on assets is queued on them as a workflow step, pinned to its
   published version; one that organises the graph runs over the namespaces there and then.
 
 The schedule is a five-field cron expression (minute hour day-of-month month day-of-week, e.g. `0 3 * * *`) or
@@ -382,7 +382,7 @@ log.
 
 ### Organising the graph
 
-A workflow's scope is either recordings (above) or the graph. Graph workflows have their own nodes:
+A workflow's scope is either assets (above) or the graph. Graph workflows have their own nodes:
 
 - **Candidates** finds pairs of entities that may be one thing, by the same rules as the merge suggestions (same
   letters, acronym, spelling, sounds alike, one name inside the other): inside each namespace (merge) or across

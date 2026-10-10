@@ -139,7 +139,7 @@ embeddings:
 | `embeddings.timeout` | 60 | seconds per request (a search waits at most 15) |
 | `embeddings.query_prefix` / `document_prefix` | null | what searches and passages start with; null: what the model wants (`search_query: ` and `search_document: ` for nomic-embed-text, an instruction for mxbai and bge, `query: ` / `passage: ` for e5) |
 
-Changing the model drops the stored vectors (another model's can't be compared) until recordings are indexed again. When the server fails to index (it's down, or
+Changing the model drops the stored vectors (another model's can't be compared) until assets are indexed again. When the server fails to index (it's down, or
 doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
 waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
 
@@ -261,7 +261,7 @@ faces and the face-id plugin describes them with Lens's SFace file. Lens reads e
 index of that run, then deletes it with the rest of the run.
 
 **Places and dates.** With `analysis.anytopdf` on (Settings › Analysis › Find places and dates with anytopdf; off by
-default), analysis asks anytopdf, run here with no network and no plugins, what a recording's text and a photo hold:
+default), analysis asks anytopdf, run here with no network and no plugins, what a document's text and a photo hold:
 
 - the places its text names, from anytopdf's offline gazetteer (GeoNames, CC BY 4.0), and the dates and times it
   gives, with their ISO value when the text pins one down ("3 March 2026", not "next Friday");

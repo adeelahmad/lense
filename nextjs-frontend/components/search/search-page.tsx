@@ -152,7 +152,7 @@ export function SearchPage() {
       out.recording =
         index.byId.get(filters.recording)?.title ??
         hits.find((h) => h.recording_id === filters.recording)?.title ??
-        `Recording #${filters.recording}`;
+        `Asset #${filters.recording}`;
     return out;
   }, [filters, baseData, hits, index.byId]);
 
@@ -206,7 +206,7 @@ export function SearchPage() {
         all.find((x) => (x.title ?? "").toLowerCase().startsWith(want)) ??
         all.find((x) => (x.title ?? "").toLowerCase().includes(want));
       if (r) next.recording = r.id;
-      else issues.push(`No recording called “${typed.recording}”.`);
+      else issues.push(`No asset called “${typed.recording}”.`);
     }
     if (typed.speaker) {
       try {
@@ -383,7 +383,7 @@ export function SearchPage() {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="tabular m-0 text-[13px] text-fg-secondary" aria-live="polite">
                 <b className="text-fg">{plural(total, "moment")}</b> in {count(groups.length)}
-                {hits.length < total ? "+" : ""} {groups.length === 1 ? "recording" : "recordings"}
+                {hits.length < total ? "+" : ""} {groups.length === 1 ? "asset" : "assets"}
                 {understood && (
                   <>
                     {" "}
@@ -517,7 +517,7 @@ function Intro({ onPick }: { onPick: (example: string) => void }) {
         <p className="m-0 text-[14px] leading-normal text-fg-secondary">
           Every word must appear in the same segment, and word forms match (English stemming). When search by meaning is
           set up, passages about the same thing in other words come too, marked Related. Results only come from
-          namespaces you can read, grouped by recording. Pick an example to start from it.
+          namespaces you can read, grouped by asset. Pick an example to start from it.
         </p>
       </div>
       <div className="rounded-lg border border-border p-4">

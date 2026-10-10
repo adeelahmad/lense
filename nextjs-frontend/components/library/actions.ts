@@ -115,7 +115,7 @@ export function useRecordingActions() {
                 }),
               );
         toast({
-          title: `${plural(res.jobs.length, "recording")} queued`,
+          title: `${plural(res.jobs.length, "asset")} queued`,
           body: "Progress shows in the rows and in Activity.",
           tone: "intent",
         });
@@ -142,7 +142,7 @@ export function useRecordingActions() {
           done++;
         } catch (e) {
           toast({
-            title: `Couldn’t export recording ${id}`,
+            title: `Couldn’t export asset ${id}`,
             body: (e as Error).message,
             tone: "red",
           });
@@ -168,7 +168,7 @@ export function useRecordingActions() {
           gone.push(r.id);
           qc.removeQueries({ queryKey: ["recording", r.id] });
         } catch (e) {
-          failed.push({ title: r.title || `Recording ${r.id}`, message: (e as Error).message });
+          failed.push({ title: r.title || `Asset ${r.id}`, message: (e as Error).message });
         }
         onProgress?.(gone.length + failed.length);
       }
@@ -206,7 +206,7 @@ export function useRecordingActions() {
           moved.push(r.id);
           void qc.invalidateQueries({ queryKey: ["recording", r.id] });
         } catch (e) {
-          failed.push({ title: r.title || `Recording ${r.id}`, message: (e as Error).message });
+          failed.push({ title: r.title || `Asset ${r.id}`, message: (e as Error).message });
         }
         onProgress?.(moved.length + failed.length);
       }
@@ -224,7 +224,7 @@ export function useRecordingActions() {
       try {
         const { changed } = await data(Resources.retagRecordings({ client, body: { recordings, add, remove } }));
         toast({
-          title: changed ? `Tags changed on ${plural(changed, "recording")}` : "Their tags were already like that",
+          title: changed ? `Tags changed on ${plural(changed, "asset")}` : "Their tags were already like that",
           tone: "green",
         });
         refresh();

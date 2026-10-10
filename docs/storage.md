@@ -2,7 +2,7 @@
 
 Status: **built**: the file store (this machine, or any storage connection through rclone, optionally wrapped in rclone
 crypt), its settings, a check, the assistant's `file_storage` tool, Settings → Storage and the setup wizard's choice,
-and notes' images and attachments ([Notes](notes.md#files-and-images)). **Planned**: moving uploads and recordings' media there too, and a downloadable
+and notes' images and attachments ([Notes](notes.md#files-and-images)). **Planned**: moving uploads and assets' media there too, and a downloadable
 storage key.
 
 The files Lens makes its own, starting with notes' attachments, go where **Settings → Storage** (the `files` section)

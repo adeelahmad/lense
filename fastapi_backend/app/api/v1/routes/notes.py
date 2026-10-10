@@ -84,16 +84,16 @@ def _out(db: DB, rows: list[dict[str, Any]], owner: bool, user: Principal) -> li
 
 @router.get("")
 def list_notes(rid: int, user: CurrentUser, acl: Acl, db: Db) -> list[Note]:
-    """Your notes on the recording and the ones shared on it: notes about the whole recording first, then by moment."""
+    """Your notes on the asset and the ones shared on it: notes about the whole asset first, then by moment."""
     rec = _recording(acl, db, rid)
     return _out(db, notes.visible(db, rid, user.id), _owns(acl, rec), user)
 
 
 @router.post("")
 def create_note(rid: int, body: NoteCreate, user: Writer, acl: Acl, db: Db) -> Note:
-    """Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole recording.
-    Anyone who can read the recording can; only you see it unless you share it with everyone who can read the
-    recording, which needs editor access. Up to 500 each on a recording. Sharing is audited (`note.share`)."""
+    """Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole asset.
+    Anyone who can read the asset can; only you see it unless you share it with everyone who can read the
+    asset, which needs editor access. Up to 500 each on an asset. Sharing is audited (`note.share`)."""
     rec = _recording(acl, db, rid, "editor" if body.shared else "viewer")
     with domain_errors():
         nid = notes.create(db, rid, rec["space"], user.id, body.text, body.t0, body.t1, body.quote, body.shared, rec.get("duration_ms"))
@@ -123,12 +123,12 @@ def update_note(rid: int, nid: int, body: NoteUpdate, user: Writer, acl: Acl, db
 
 @router.delete("/{nid}")
 def delete_note(rid: int, nid: int, user: Writer, acl: Acl, db: Db) -> Ok:
-    """Delete it: its writer, or for a shared note an owner of the recording (of its namespace, or an admin of its
+    """Delete it: its writer, or for a shared note an owner of the asset (of its namespace, or an admin of its
     collection). Deleting a shared note is audited (`note.delete`)."""
     rec = _recording(acl, db, rid)
     n = _note(db, rid, nid, user)
     if not _can_delete(n, _owns(acl, rec), user):
-        raise HTTPException(403, "only its writer or an owner of the recording can delete it")
+        raise HTTPException(403, "only its writer or an owner of the asset can delete it")
     notes.delete(db, nid)
     if n["shared"]:
         auth.audit(db, user.as_audit(), "note.delete", f"recording:{rid}", {"note": nid, "writer": n["account"] == user.id})

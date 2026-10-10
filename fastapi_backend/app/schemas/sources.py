@@ -82,7 +82,7 @@ class BrowseEntry(ResponseModel):
     modified: str | None = None
     title: str | None = Field(default=None, description="an email's subject, a calendar event's title")
     when: str | None = Field(default=None, description="when an email was sent, or a calendar event starts")
-    imported: list[ImportedAs] = Field(default_factory=list, description="the recordings this file already is, and where")
+    imported: list[ImportedAs] = Field(default_factory=list, description="the assets this file already is, and where")
 
 
 RouteField = Literal["from", "to", "subject", "list", "mailbox"]

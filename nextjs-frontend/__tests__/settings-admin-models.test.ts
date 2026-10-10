@@ -281,7 +281,7 @@ describe("audit log", () => {
   it("writes targets and details in plain words, never secrets", () => {
     expect(targetText("server", "settings.save", look)).toBe("Settings · Access & embedding");
     expect(targetText("space:2", "member.set", look)).toBe("customer-calls");
-    expect(targetText("recording:12", "share.revoke", look)).toBe("Recording 12");
+    expect(targetText("recording:12", "share.revoke", look)).toBe("Asset 12");
     expect(targetHref("server", "settings.save", look)).toBe("/settings/access");
     expect(targetHref("recording:12", "x", look)).toBe("/resources/12");
     expect(detailText(entries[0], look)).toBe("Session length, Allowed hosts");

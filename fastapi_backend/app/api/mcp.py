@@ -55,9 +55,9 @@ CAPABILITIES = {"tools": {"listChanged": False}}
 INSTRUCTIONS = (
     "Lens is a private archive of recorded speech, video, documents and images, with transcripts, speakers, the people, "
     "organisations and things mentioned (entities) and a knowledge graph between them. You see what the person who "
-    "signed you in can read. Find moments with search, read a recording with get_recording and get_transcript, and "
+    "signed you in can read. Find moments with search, read an asset with get_recording and get_transcript, and "
     "follow entities and the graph with list_entities, get_entity, explore_graph and find_path. When you quote the "
-    "archive, cite each quote with the link given next to it (or ask cite for one): it opens the recording at that moment."
+    "archive, cite each quote with the link given next to it (or ask cite for one): it opens the asset at that moment."
 )
 # the per-request era's envelope (params._meta) and headers
 META_VERSION = "io.modelcontextprotocol/protocolVersion"

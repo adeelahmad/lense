@@ -224,13 +224,13 @@ export function requestLine(
     return `The owners of ${ns} declined your request ${relative(req.decided_at, now)}. You can ask again.`;
   return locked
     ? `You can ask the owners of ${ns} for access.`
-    : `Parts of this recording are closed. You can ask the owners of ${ns} for access to all of it.`;
+    : `Parts of this asset are closed. You can ask the owners of ${ns} for access to all of it.`;
 }
 
 /** Why a visitor from an IP group sees everything: "You’re connecting from Reading room, so you see all of it." */
 export function networkNote(network: string, what: "recording" | "collection", access?: string | null): string {
   if (what === "collection")
-    return `You’re connecting from ${network}, so you see all of its recordings. Visitors elsewhere see the public ones.`;
+    return `You’re connecting from ${network}, so you see all of its assets. Visitors elsewhere see the public ones.`;
   return `You’re connecting from ${network}, so you see all of it${access === "public" ? ", not only the parts open to everyone" : ""}.`;
 }
 

@@ -56,9 +56,9 @@ and quiet types (dates and numbers) are left out, as in the overview graph.
 | NARROWER | Topic → Topic (from the broader one) | |
 | RELATED | Topic → Topic | |
 
-CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER are the hierarchy: an entity's parents are the recordings that
+CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER are the hierarchy: an entity's parents are the assets that
 mention it and the speakers who said it; its ancestors go on up to collections and the namespace. A topic's parents
-are its broader topics and the recordings about it. Topics are each namespace's vocabulary ([Topics](topics.md)).
+are its broader topics and the assets about it. Topics are each namespace's vocabulary ([Topics](topics.md)).
 
 ## Scope and rights
 
@@ -136,7 +136,7 @@ cheap. Errors say what to fix and where, so an agent can correct its query.
 // who is mentioned most
 MATCH (e:Person) RETURN e.name, e.mentions ORDER BY e.mentions DESC LIMIT 10
 
-// which recordings mention Acme, and how often
+// which assets mention Acme, and how often
 MATCH (r:Recording)-[m:MENTIONS]->(e:Entity) WHERE toLower(e.name) = 'acme'
 RETURN r.name, r.date, m.count ORDER BY r.date
 

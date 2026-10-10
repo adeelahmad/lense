@@ -82,15 +82,14 @@ export const NODES: Record<string, Info> = {
     group: "AI",
   },
   input: {
-    label: "Recording",
-    describe:
-      "Where every workflow starts: the recording as templates see it (transcript, summary, entities, outputs…)",
+    label: "Asset",
+    describe: "Where every workflow starts: the asset as templates see it (transcript, summary, entities, outputs…)",
     icon: PlayCircle,
     tone: "blue",
     inputs: 0,
     outputs: ["out"],
     takes: "—",
-    gives: "recording",
+    gives: "asset",
     group: "Start",
   },
   extract_rules: {
@@ -100,7 +99,7 @@ export const NODES: Record<string, Info> = {
     tone: "green",
     inputs: 1,
     outputs: ["out"],
-    takes: "recording",
+    takes: "asset",
     gives: "entities[]",
     group: "Entities",
   },
@@ -111,13 +110,13 @@ export const NODES: Record<string, Info> = {
     tone: "gold",
     inputs: 1,
     outputs: ["out"],
-    takes: "recording or entities[]",
+    takes: "asset or entities[]",
     gives: "entities[]",
     group: "Entities",
   },
   save_entities: {
     label: "Save entities",
-    describe: "Makes these the recording’s entities (people’s corrections kept), then redoes keywords and chapters",
+    describe: "Makes these the asset’s entities (people’s corrections kept), then redoes keywords and chapters",
     icon: Tags,
     tone: "green",
     inputs: 1,
@@ -172,7 +171,7 @@ export const NODES: Record<string, Info> = {
   },
   output: {
     label: "Save output",
-    describe: "Keeps what came in as a named output of the recording (templates see it as outputs.<name>)",
+    describe: "Keeps what came in as a named output of the asset (templates see it as outputs.<name>)",
     icon: Save,
     tone: "gold",
     inputs: 1,
@@ -217,7 +216,7 @@ export const NODES: Record<string, Info> = {
   },
   template: {
     label: "Template",
-    describe: "Renders text with what came in as {{ input }} (and the recording); can read the result as JSON",
+    describe: "Renders text with what came in as {{ input }} (and the asset); can read the result as JSON",
     icon: FileText,
     tone: "neutral",
     inputs: 1,
@@ -856,7 +855,7 @@ export function problems(
         scope === "tool"
           ? "This node isn’t for tools."
           : scope === "graph"
-            ? "This node works on recordings, not the graph."
+            ? "This node works on assets, not the graph."
             : "This node is for graph workflows.",
       );
     if (kind === "workflow" && (n.type === "arg" || n.type === "return"))

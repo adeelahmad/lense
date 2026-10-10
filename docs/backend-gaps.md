@@ -14,7 +14,7 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Health: when source credentials expire; disk split into audio, cache and database | `credentials_expire_at` per source; `disk: {audio, cache, database}` |
 | How long face data is kept | a setting such as `video.face_retention_days` |
 
-## Recordings and the library
+## Assets and the library
 
 | Feature | Needed |
 |---|---|
@@ -45,7 +45,7 @@ grouped by area; each item names the smallest endpoint or field that would do.
 
 | Feature | Needed |
 |---|---|
-| "Keep theirs" (skip recordings that already have an output) | a skip-existing option |
+| "Keep theirs" (skip assets that already have an output) | a skip-existing option |
 | The "Moment" column in results | per-result timestamps |
 | Combine with a versioned template; PDF output | template versions and PDF in `/combine` |
 | Combine when reading finishes, server-side (today: the browser remembers it) | a `combine` option on the batch |
@@ -66,7 +66,7 @@ grouped by area; each item names the smallest endpoint or field that would do.
 |---|---|
 | Steps, last run and success rate in the pipeline list (today: one request per pipeline) | summary fields on `/pipelines` |
 | Dry run; run a specific version; triggers and schedules; Webhook/Notify steps | pipeline run options and step types |
-| How many recordings use a template | a usage count |
+| How many assets use a template | a usage count |
 | Namespace report link; per-report audio mode; share a namespace report | signed `report_url` on `/namespaces`; report options; report share links |
 
 ## Sharing and embeds
@@ -81,7 +81,7 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Feature | Needed |
 |---|---|
 | IIIF Presentation 4.0 | a version option on manifests and collections |
-| Choose layers per recording (today: archive-wide) | `layers` in recording metadata |
+| Choose layers per asset (today: archive-wide) | `layers` in asset metadata |
 | Order a collection by series or by hand | a `series` field and `PUT /namespaces/{ns}/iiif/order` |
 | CSV metadata import with a column mapping and dry run | `POST /metadata/import` |
 | Publish saved collections as IIIF Collections | `/iiif/collection/{ns}/saved/{id}` and a publish flag |

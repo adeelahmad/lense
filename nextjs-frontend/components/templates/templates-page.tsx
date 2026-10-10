@@ -47,7 +47,7 @@ export function TemplatesPage() {
         </EmptyState>
       ) : !rows.length ? (
         <EmptyState icon={<FileText />} title="No templates yet">
-          A prompt template turns a recording into structured notes with your own questions; report and export templates
+          A prompt template turns an asset into structured notes with your own questions; report and export templates
           shape pages and files.
         </EmptyState>
       ) : (

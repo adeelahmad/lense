@@ -238,7 +238,7 @@ export function TemplateEditor({ id }: { id: number }) {
         ? "No changes to save"
         : undefined;
   const checks = result && prompt && schema.ok ? checkAgainstSchema(result.value, schema.value as never) : [];
-  const recTitle = recs.data?.find((r) => String(r.id) === rid)?.title ?? "the recording";
+  const recTitle = recs.data?.find((r) => String(r.id) === rid)?.title ?? "the asset";
   const renderedWords = preview.data?.rendered ? preview.data.rendered.split(/\s+/).filter(Boolean).length : 0;
   const errorBar = problems[0]?.message ?? (preview.data && !preview.data.ok ? preview.data.error : null);
 
@@ -406,7 +406,7 @@ export function TemplateEditor({ id }: { id: number }) {
                 {prompt ? (result ? "Preview · structured result" : "Preview · rendered prompt") : "Preview"}
               </h2>
               <Select
-                aria-label="Recording to preview against"
+                aria-label="Asset to preview against"
                 className="h-8 w-[220px] text-[12.5px]"
                 value={rid}
                 onChange={(e) => setRid(e.target.value)}
@@ -415,7 +415,7 @@ export function TemplateEditor({ id }: { id: number }) {
                     ? [{ value: "", label: "Loading…" }]
                     : (recs.data ?? []).map((r) => ({
                         value: String(r.id),
-                        label: r.title ?? `Recording ${r.id}`,
+                        label: r.title ?? `Asset ${r.id}`,
                       }))
                 }
               />
@@ -430,7 +430,7 @@ export function TemplateEditor({ id }: { id: number }) {
                     : ""}
             </span>
             {!recs.isLoading && !(recs.data ?? []).length ? (
-              <p className="text-[13px] text-fg-secondary">Import a recording to preview templates against it.</p>
+              <p className="text-[13px] text-fg-secondary">Import an asset to preview templates against it.</p>
             ) : preview.error ? (
               <p
                 role="alert"
@@ -513,9 +513,7 @@ export function TemplateEditor({ id }: { id: number }) {
                     Show the prompt
                   </Button>
                 )}
-                <span className="text-[12px] text-fg-muted">
-                  Uses Settings → LLM; nothing is saved to the recording.
-                </span>
+                <span className="text-[12px] text-fg-muted">Uses Settings → LLM; nothing is saved to the asset.</span>
               </div>
             )}
           </section>

@@ -55,9 +55,9 @@ class HookPush(RequestModel):
 class HookItem(ResponseModel):
     kind: Literal["file", "url", "text"]
     name: str = Field(description="the file's name, the address, or the text's title")
-    recording: int = Field(description="the recording or resource it became")
+    recording: int = Field(description="the asset or resource it became")
     job: int | None = Field(None, description="the job that runs its pipeline")
-    duplicate: bool = Field(False, description="the namespace had this file already; it's that recording")
+    duplicate: bool = Field(False, description="the namespace had this file already; it's that asset")
 
 
 class HookPushed(ResponseModel):

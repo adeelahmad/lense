@@ -410,7 +410,7 @@ export function People({
     <div className="flex flex-col gap-2">
       <SectionHead title="Creators and contributors" maps="dc:creator · dc:contributor" />
       {rows.length === 0 && (
-        <p className="text-[13px] text-fg-muted">Nobody yet. Add the people who made or appear in this recording.</p>
+        <p className="text-[13px] text-fg-muted">Nobody yet. Add the people who made or appear in this asset.</p>
       )}
       {rows.map((r, i) => (
         <div
@@ -855,7 +855,7 @@ export function ProviderEditor({ draft, set, errors, readOnly }: FieldProps) {
         />
       </div>
       <p className={cn("text-[12px]", errors.provider ? "text-red-dark" : "text-fg-muted")}>
-        {errors.provider ?? "Who holds the recording. Viewers show the name and logo."}
+        {errors.provider ?? "Who holds the asset. Viewers show the name and logo."}
       </p>
     </div>
   );

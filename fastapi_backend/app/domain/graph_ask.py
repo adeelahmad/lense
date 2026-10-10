@@ -15,7 +15,7 @@ from . import cypher, graph_model, llm
 EXAMPLES = [
     {"ask": "Who is mentioned most?", "cypher": "MATCH (e:Person) RETURN e.name, e.mentions ORDER BY e.mentions DESC LIMIT 10"},
     {
-        "ask": "Which recordings mention Acme?",
+        "ask": "Which assets mention Acme?",
         "cypher": "MATCH (r:Recording)-[m:MENTIONS]->(e:Entity) WHERE toLower(e.name) = 'acme' RETURN r.name, r.date, m.count ORDER BY r.date",
     },
     {
@@ -31,7 +31,7 @@ EXAMPLES = [
         "cypher": "MATCH p = shortestPath((s:Speaker {name: 'Alice'})-[*..6]-(e:Entity {name: 'Acme'})) RETURN [n IN nodes(p) | n.name] AS chain",
     },
     {
-        "ask": "Which recordings are about gene therapy, or anything narrower?",
+        "ask": "Which assets are about gene therapy, or anything narrower?",
         "cypher": "MATCH (t:Topic)-[:NARROWER*0..6]->(n:Topic)<-[:ABOUT]-(r:Recording) WHERE toLower(t.name) = 'gene therapy' RETURN DISTINCT r, r.name, n.name",
     },
     {

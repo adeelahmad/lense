@@ -39,8 +39,8 @@ In Docker, `localhost` is the container itself: point the endpoint at a collecto
 | Signal | What | Attributes |
 | --- | --- | --- |
 | Trace | each API request, named by its route template (`GET /api/v1/recordings/{rid}`) | method, route, status code |
-| Trace | each job, with a span per step (`step transcribe`) | job, recording and pipeline ids; step type and outcome |
-| Trace | routines and their actions, workflow runs | routine, workflow and recording ids; action type; trigger |
+| Trace | each job, with a span per step (`step transcribe`) | job, asset and pipeline ids; step type and outcome |
+| Trace | routines and their actions, workflow runs | routine, workflow and asset ids; action type; trigger |
 | Trace | each call to the model server (`chat llama3.1`) | model, server host, temperature, tokens in and out, estimated cost |
 | Metric | `http.server.request.duration` | method, route, status code |
 | Metric | `lens.job.step.duration`, `lens.jobs` | step type, outcome |

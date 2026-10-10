@@ -170,11 +170,11 @@ function ProcessingRecord({ rec }: { rec: ReturnType<typeof useRec>["rec"] }) {
           ))}
         </ol>
       ) : (
-        <p className="px-3.5 py-3 text-[13px] text-fg-muted">Nothing has run on this recording yet.</p>
+        <p className="px-3.5 py-3 text-[13px] text-fg-muted">Nothing has run on this asset yet.</p>
       )}
       <p className="border-t border-border px-3.5 py-2.5 text-[12px] leading-snug text-fg-muted">
-        No pipeline runs are on record for this recording. Runs started in the app (imports, Reprocess, corrections)
-        appear here with each step&apos;s output and time.
+        No pipeline runs are on record for this asset. Runs started in the app (imports, Reprocess, corrections) appear
+        here with each step&apos;s output and time.
       </p>
     </section>
   );

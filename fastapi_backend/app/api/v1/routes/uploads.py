@@ -94,27 +94,27 @@ def upload_limits(user: CurrentUser, cfg: Cfg) -> UploadLimits:
 @router.post("", status_code=201)
 def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Upload:
     """Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
-    a transcript-only recording (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
+    a transcript-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
     namespace's. Then send the file with PUT /uploads/{uid}.
-    400 for a type not in uploads.extensions, 409 when the recording has audio already, 413 over uploads.max_mb, 507
+    400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507
     when the server's disk can't hold it."""
     ns = body.namespace.strip()
     if body.pipeline is not None and body.recording is not None:
         raise HTTPException(400, "attaching audio runs its own steps; a pipeline can't be chosen for it")
     if body.collection is not None and body.recording is not None:
-        raise HTTPException(400, "the recording stays in its collection; a collection can't be chosen for it")
+        raise HTTPException(400, "the asset stays in its collection; a collection can't be chosen for it")
     check_pipeline(db, body.pipeline)
     if body.hold and (body.recording is not None or body.pipeline is not None or body.collection is not None):
-        raise HTTPException(400, "a held file is placed later; it can't name a recording, pipeline or collection")
+        raise HTTPException(400, "a held file is placed later; it can't name an asset, pipeline or collection")
     if body.hold:
         ns = ""
     elif body.recording is not None:
         rec = acl.recording(body.recording, "editor")
         home = store.space_names(db).get(rec["space"], "")
         if ns and ns != home:
-            raise HTTPException(400, f"that recording is in {home}")
+            raise HTTPException(400, f"that asset is in {home}")
         if uploads.has_media(db, cfg, rec):
-            raise HTTPException(409, "that recording has audio already")
+            raise HTTPException(409, "that asset has audio already")
         ns = home
     elif not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
@@ -152,7 +152,7 @@ def list_uploads(user: CurrentUser, db: Db, cfg: Cfg) -> list[Upload]:
 
 @router.get("/{uid}")
 def get_upload(uid: UploadId, user: CurrentUser, db: Db, cfg: Cfg) -> Upload:
-    """How much of an upload has arrived (`offset`), or the recording it became."""
+    """How much of an upload has arrived (`offset`), or the asset it became."""
     return Upload(**uploads.view(cfg, _theirs(db, uid, user)))
 
 
@@ -169,7 +169,7 @@ async def send_chunk(
     """The next chunk of the file as the raw request body (application/octet-stream), starting at `offset`; it streams
     to disk. A chunk that breaks off is dropped whole. 409 when `offset` isn't where the upload has got to (GET it and
     send from its `offset`), or while another chunk of it is arriving. The chunk with the last byte returns the upload
-    done, with its recording and job (for `attach`, the job that runs the steps that need media); audited as `upload`."""
+    done, with its asset and job (for `attach`, the job that runs the steps that need media); audited as `upload`."""
     row = await run_in_threadpool(_theirs, db, uid, user)
     if row.get("state") in ("done", "held"):
         return Upload(**uploads.view(cfg, row))
@@ -203,6 +203,6 @@ async def send_chunk(
 
 @router.delete("/{uid}")
 def cancel_upload(uid: UploadId, user: Writer, db: Db, cfg: Cfg) -> Ok:
-    """Stop an upload and throw away what has arrived. A finished one is only forgotten: its recording stays."""
+    """Stop an upload and throw away what has arrived. A finished one is only forgotten: its asset stays."""
     uploads.cancel(db, cfg, _theirs(db, uid, user))
     return Ok()

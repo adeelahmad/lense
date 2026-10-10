@@ -28,7 +28,7 @@ export function SummaryTab() {
   const summary = rec.summary && Object.keys(rec.summary).length ? rec.summary : null;
   const outs = outputs.data ?? [];
   const busy = state.phase === "processing" || state.phase === "analyzing";
-  const regenReason = !canEdit ? needRole("editor", ns) : busy ? "A job is running for this recording" : undefined;
+  const regenReason = !canEdit ? needRole("editor", ns) : busy ? "A job is running for this asset" : undefined;
 
   if (outputs.isLoading) return <SkeletonLines />;
 

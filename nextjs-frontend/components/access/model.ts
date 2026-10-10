@@ -118,8 +118,8 @@ export function rangesText(ranges: readonly string[], max = 2): string {
 
 /** What an IP group opens: "Every recording in pods", "3 chosen recordings", or how to choose some. */
 export function ipGroupOpens(g: { everything: boolean; chosen?: number | null }, ns: string): string {
-  if (g.everything) return `Every recording in ${ns}`;
+  if (g.everything) return `Every asset in ${ns}`;
   const n = g.chosen ?? 0;
-  if (!n) return "No recordings yet: choose them in a recording’s Access dialog";
-  return `${n} chosen recording${n === 1 ? "" : "s"}`;
+  if (!n) return "No assets yet: choose them in an asset’s Access dialog";
+  return `${n} chosen asset${n === 1 ? "" : "s"}`;
 }

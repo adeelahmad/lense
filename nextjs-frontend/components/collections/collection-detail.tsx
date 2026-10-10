@@ -96,7 +96,7 @@ export function CollectionDetail({ id }: { id: number }) {
       <PageHeader
         className="mb-0"
         title={c.name}
-        meta={`${count(c.count)} ${c.count === 1 ? "recording" : "recordings"} you can read`}
+        meta={`${count(c.count)} ${c.count === 1 ? "asset" : "assets"} you can read`}
         actions={
           <>
             <Button asChild variant="secondary">
@@ -108,7 +108,7 @@ export function CollectionDetail({ id }: { id: number }) {
               asChild={canRun && c.count > 0}
               variant="secondary"
               disabled={!canRun || c.count === 0}
-              disabledReason={!canRun ? "Runs need editor access to a namespace" : "It has no recordings"}
+              disabledReason={!canRun ? "Runs need editor access to a namespace" : "It has no assets"}
               icon={canRun && c.count > 0 ? undefined : <Play />}
             >
               {canRun && c.count > 0 ? (
@@ -123,7 +123,7 @@ export function CollectionDetail({ id }: { id: number }) {
               asChild={canRun && c.count > 0}
               variant="secondary"
               disabled={!canRun || c.count === 0}
-              disabledReason={!canRun ? "Reports need editor access to a namespace" : "It has no recordings"}
+              disabledReason={!canRun ? "Reports need editor access to a namespace" : "It has no assets"}
               icon={canRun && c.count > 0 ? undefined : <FileText />}
             >
               {canRun && c.count > 0 ? (
@@ -140,9 +140,9 @@ export function CollectionDetail({ id }: { id: number }) {
               disabled={c.count === 0 || c.count > 50 || evidence.isPending}
               disabledReason={
                 c.count === 0
-                  ? "It has no recordings"
+                  ? "It has no assets"
                   : c.count > 50
-                    ? "An evidence PDF holds 50 recordings at most"
+                    ? "An evidence PDF holds 50 assets at most"
                     : undefined
               }
               onClick={() => evidence.mutate(c.name)}
@@ -176,17 +176,17 @@ export function CollectionDetail({ id }: { id: number }) {
         </p>
       </PageHeader>
       {c.recordings.length === 0 ? (
-        <EmptyState title="No recordings you can read">
+        <EmptyState title="No assets you can read">
           {c.kind === "filter"
-            ? "Nothing matches the filter yet. It keeps up to date as recordings arrive."
-            : "The recordings in this list are in namespaces you can’t read."}
+            ? "Nothing matches the filter yet. It keeps up to date as assets arrive."
+            : "The assets in this list are in namespaces you can’t read."}
         </EmptyState>
       ) : (
         <div className="overflow-hidden rounded-md border border-border">
-          <Table aria-label="Recordings in this collection">
+          <Table aria-label="Assets in this collection">
             <THead className="border-t-0">
               <tr>
-                <Th>Recording</Th>
+                <Th>Asset</Th>
                 <Th className="w-[160px]">Recorded</Th>
                 <Th className="w-[100px] text-right">Length</Th>
               </tr>
@@ -199,7 +199,7 @@ export function CollectionDetail({ id }: { id: number }) {
                       href={recordingHref(r.id)}
                       className="font-semibold text-fg hover:text-fg-accent hover:underline"
                     >
-                      {r.title ?? `Recording ${r.id}`}
+                      {r.title ?? `Asset ${r.id}`}
                     </Link>
                   </Td>
                   <Td className="text-fg-secondary">{shortDate(r.recorded_at)}</Td>
@@ -227,7 +227,7 @@ export function CollectionDetail({ id }: { id: number }) {
         open={deleting}
         onOpenChange={setDeleting}
         title="Delete this collection?"
-        description={`“${c.name}” goes; the recordings in it stay where they are.`}
+        description={`“${c.name}” goes; the assets in it stay where they are.`}
         actions={
           <>
             <Button variant="ghost" onClick={() => setDeleting(false)}>

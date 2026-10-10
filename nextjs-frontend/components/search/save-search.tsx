@@ -153,7 +153,7 @@ export function SaveSearchDialog({
         )}
         {filters.recording != null && (
           <>
-            <dt className="text-fg-secondary">Recording</dt>
+            <dt className="text-fg-secondary">Asset</dt>
             <dd className="m-0 text-fg">{labels.recording ?? filters.recording}</dd>
           </>
         )}
@@ -178,7 +178,7 @@ export function SaveSearchDialog({
       <div className="flex flex-col gap-1">
         <Checkbox checked={collection} onCheckedChange={setCollection} label="Also keep it as a collection" />
         <span className="pl-7 text-[12.5px] text-fg-muted">
-          A collection updates as new recordings match, so you can chat with it or run things on it.
+          A collection updates as new assets match, so you can chat with it or run things on it.
         </span>
       </div>
       {collection && dropped.length > 0 && (

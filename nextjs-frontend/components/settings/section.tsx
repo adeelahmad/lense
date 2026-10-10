@@ -379,7 +379,7 @@ export function SettingsSection({
             label={`Access · ${n}`}
             before={nsInitial[n]}
             after={nsAccess[n]}
-            note="The default for recordings without their own access."
+            note="The default for assets without their own access."
           />
         ))}
       </Dialog>

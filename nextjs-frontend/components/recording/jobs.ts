@@ -312,7 +312,7 @@ export const STEP_HELP: Record<StepKey, string> = {
   analyze: "Entities, chapters, keywords, talk-time stats",
   embed: "Index passages for search by meaning (needs an embedding model in Settings → Search)",
   summarize: "Summary, topics and action items (needs an LLM)",
-  report: "Recording report",
+  report: "Asset report",
 };
 
 /** Ticking a step also ticks the later steps that use its output. */
@@ -341,7 +341,7 @@ export function reprocessOptions(opts: { video: boolean; hasAudio: boolean; page
   return STEP_ORDER.filter((k) => !left.includes(k)).map((key) => {
     let disabled: string | null = null;
     if (!opts.hasAudio && key === "transcribe")
-      disabled = "This recording has no audio: its transcript was imported, so there's nothing to transcribe.";
+      disabled = "This asset has no audio: its transcript was imported, so there's nothing to transcribe.";
     else if (!opts.hasAudio && key === "diarize")
       disabled = "Speakers come from the imported transcript; diarizing needs the audio.";
     return { key, disabled };

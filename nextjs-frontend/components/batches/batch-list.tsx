@@ -17,7 +17,7 @@ export function BatchList() {
   const list = useBatchList();
   return (
     <div className="px-4 py-6 md:px-6">
-      <PageHeader title="Batch runs" meta="Templates, pipelines and steps run over many recordings" />
+      <PageHeader title="Batch runs" meta="Templates, pipelines and steps run over many assets" />
       {list.isLoading && <SkeletonRows rows={4} />}
       {list.isError && (
         <Banner

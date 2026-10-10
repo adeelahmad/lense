@@ -93,7 +93,7 @@ def regenerate_podcast(rid: int, acl: Acl, user: Writer, db: Db) -> PodcastJob:
 
 @router.delete("/{rid}")
 def delete_podcast(rid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg, request: Request) -> Ok:
-    """Delete an episode with its audio (editors of its namespace, unlike other recordings: Lens made it). 409 while a
+    """Delete an episode with its audio (editors of its namespace, unlike other assets: Lens made it). 409 while a
     job is working on it."""
     _episode(acl, db, rid, "editor")
     try:

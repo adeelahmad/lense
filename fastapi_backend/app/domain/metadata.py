@@ -142,7 +142,7 @@ def _terms(v):
     out = {}
     for term, vals in v.items():
         if term not in DC_TERMS:
-            raise MetaProblem(f"'{term}' isn't one of the Dublin Core terms a recording can be given here")
+            raise MetaProblem(f"'{term}' isn't one of the Dublin Core terms an asset can be given here")
         vals = [vals] if isinstance(vals, str) else vals
         if vals is None:
             continue
@@ -407,7 +407,7 @@ def defaults(db, cfg, rid):
     ns = namespace(db, rec.get("space"))
     lang = cfg["iiif"].get("default_language") or "none"
     level, open_ = acc.namespace_defaults(db, [rec["space"]]).get(rec.get("space"), ("private", list(acc.PARTS)))
-    d = {"label": {lang: [rec.get("title") or f"Recording {rid}"]}, "access": level, "open": open_, "featured": False}
+    d = {"label": {lang: [rec.get("title") or f"Asset {rid}"]}, "access": level, "open": open_, "featured": False}
     if rec.get("recorded_at"):
         try:
             d["navDate"] = clean({"navDate": rec["recorded_at"]})["navDate"]

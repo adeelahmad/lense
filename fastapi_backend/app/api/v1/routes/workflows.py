@@ -64,7 +64,7 @@ def try_workflow(body: WorkflowTryRequest, user: AdminWriter, acl: Acl, db: Db, 
     spaces = None
     if body.scope == "recording":
         if body.recording is None:
-            raise HTTPException(400, "choose a recording to try it on")
+            raise HTTPException(400, "choose an asset to try it on")
         acl.recording(body.recording, "editor")
     else:
         spaces = [acl.namespace(n) for n in body.namespaces] if body.namespaces else sorted(store.space_names(db))
@@ -110,7 +110,7 @@ def create_workflow_version(wid: int, body: WorkflowVersionCreate, user: AdminWr
 
 @router.post("/{wid}/run")
 def run_workflow(wid: int, body: WorkflowRunRequest, user: Writer, acl: Acl, db: Db) -> JobQueued:
-    """Run this workflow on one recording now, as a job (after anything its current job still has to do)."""
+    """Run this workflow on one asset now, as a job (after anything its current job still has to do)."""
     acl.recording(body.recording, "editor")
     try:
         w = workflows.get(db, wid, body.version)

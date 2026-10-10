@@ -25,9 +25,9 @@ class NamespaceAssistantUpdate(RequestModel):
 class AssistantMemory(ResponseModel):
     id: int
     text: str
-    recording: int | None = Field(None, description="the recording it came from")
-    t0: int | float | None = Field(None, description="the moment in that recording (ms)")
-    title: str | None = Field(None, description="that recording's title")
+    recording: int | None = Field(None, description="the asset it came from")
+    t0: int | float | None = Field(None, description="the moment in that asset (ms)")
+    title: str | None = Field(None, description="that asset's title")
     time: str | None = Field(None, description='that moment as "12:34"')
     chat: int | None = Field(None, description="the conversation it was told in")
     author: str = Field(description="assistant (kept from a conversation) or person (written here)")

@@ -115,7 +115,7 @@ function Sheet({ tab, setTab }: { tab: PanelTab; setTab: (t: PanelTab) => void }
         full ? "h-[92dvh]" : "h-[min(560px,70dvh)]",
       )}
     >
-      <D.Title className="sr-only">Recording panels</D.Title>
+      <D.Title className="sr-only">Asset panels</D.Title>
       <button
         type="button"
         onClick={() => setFull((f) => !f)}
