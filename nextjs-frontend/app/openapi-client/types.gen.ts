@@ -13400,6 +13400,149 @@ export type RoutineUpdate = {
 };
 
 /**
+ * S3Key
+ */
+export type S3Key = {
+  /**
+   * Id
+   *
+   * the access key id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  /**
+   * Email
+   *
+   * its owner (the list of everyone's keys)
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * S3KeyCreate
+ */
+export type S3KeyCreate = {
+  /**
+   * Name
+   */
+  name?: string;
+  /**
+   * Days
+   *
+   * how long it lasts (the API keys' limits); none: their default
+   */
+  days?: number | null;
+};
+
+/**
+ * S3KeyCreated
+ */
+export type S3KeyCreated = {
+  /**
+   * Id
+   *
+   * the access key id
+   */
+  id: string;
+  /**
+   * Secret
+   *
+   * the secret access key, shown this once
+   */
+  secret: string;
+  /**
+   * Port
+   *
+   * the S3 server's port
+   */
+  port: number;
+  /**
+   * Webdav Port
+   */
+  webdav_port: number;
+  [key: string]: unknown;
+};
+
+/**
+ * S3Service
+ */
+export type S3Service = {
+  /**
+   * Process
+   */
+  process?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Running
+   */
+  running?: boolean | null;
+  /**
+   * Port
+   */
+  port?: number | null;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * S3Status
+ *
+ * The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both).
+ */
+export type S3Status = {
+  /**
+   * Enabled
+   *
+   * whether an admin turned it on (shares.enabled and its own switch)
+   */
+  enabled: boolean;
+  /**
+   * Port
+   *
+   * the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)
+   */
+  port: number;
+  /**
+   * what the process running it says; none while it's off
+   */
+  service?: S3Service | null;
+  webdav: ShareServer;
+  /**
+   * Keys
+   *
+   * your access keys
+   */
+  keys: Array<S3Key>;
+  [key: string]: unknown;
+};
+
+/**
  * SavedSearch
  */
 export type SavedSearch = {
@@ -14771,6 +14914,29 @@ export type ShareLink = {
    * "/s/<code>": a short address for the same player; it expires and is revoked with the link
    */
   short?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ShareServer
+ */
+export type ShareServer = {
+  /**
+   * Enabled
+   *
+   * whether an admin turned it on (shares.enabled and its own switch)
+   */
+  enabled: boolean;
+  /**
+   * Port
+   *
+   * the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)
+   */
+  port: number;
+  /**
+   * what the process running it says; none while it's off
+   */
+  service?: S3Service | null;
   [key: string]: unknown;
 };
 
@@ -33389,6 +33555,95 @@ export type PushStreamResponses = {
 };
 
 export type PushStreamResponse = PushStreamResponses[keyof PushStreamResponses];
+
+export type S3StatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3";
+};
+
+export type S3StatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: S3Status;
+};
+
+export type S3StatusResponse = S3StatusResponses[keyof S3StatusResponses];
+
+export type AllS3KeysData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3/keys";
+};
+
+export type AllS3KeysResponses = {
+  /**
+   * Response Shares-All S3 Keys
+   *
+   * Successful Response
+   */
+  200: Array<S3Key>;
+};
+
+export type AllS3KeysResponse = AllS3KeysResponses[keyof AllS3KeysResponses];
+
+export type CreateS3KeyData = {
+  body: S3KeyCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3/keys";
+};
+
+export type CreateS3KeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateS3KeyError = CreateS3KeyErrors[keyof CreateS3KeyErrors];
+
+export type CreateS3KeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: S3KeyCreated;
+};
+
+export type CreateS3KeyResponse = CreateS3KeyResponses[keyof CreateS3KeyResponses];
+
+export type RevokeS3KeyData = {
+  body?: never;
+  path: {
+    /**
+     * Key Id
+     */
+    key_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shares/s3/keys/{key_id}";
+};
+
+export type RevokeS3KeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RevokeS3KeyError = RevokeS3KeyErrors[keyof RevokeS3KeyErrors];
+
+export type RevokeS3KeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RevokeS3KeyResponse = RevokeS3KeyResponses[keyof RevokeS3KeyResponses];
 
 export type ListImportHooksData = {
   body?: never;

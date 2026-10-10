@@ -5,7 +5,7 @@ import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { Admin, Fedora, Metadata, Sensors, Sources } from "@/app/openapi-client";
+import { Admin, Fedora, Metadata, Sensors, Shares, Sources } from "@/app/openapi-client";
 import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
@@ -388,6 +388,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <FedoraBody ctx={ctx} />;
     case "sensors":
       return <SensorsBody ctx={ctx} />;
+    case "shares":
+      return <SharesBody ctx={ctx} />;
     case "uploads":
       return (
         <>
@@ -964,6 +966,66 @@ function SensorsBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <F ctx={ctx} id="sensors.max_per_minute" />
       <F ctx={ctx} id="sensors.triage" />
+    </>
+  );
+}
+
+type ShareServer = {
+  enabled: boolean;
+  port: number;
+  service?: { running?: boolean | null; port?: number | null; error?: string | null } | null;
+};
+
+function shareText(name: string, st: ShareServer): string {
+  const svc = st.service;
+  if (svc?.error) return `${name} can’t start: ${svc.error}`;
+  if (svc?.running) return `${name} is serving on port ${svc.port}`;
+  return st.enabled ? `${name} is starting…` : `${name} is off`;
+}
+
+function SharesBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const status = useQuery({
+    queryKey: ["shares", "s3", ctx.view.shares?.updated_at ?? null],
+    queryFn: () => data(Shares.s3Status({ client })),
+    refetchInterval: 15_000,
+  });
+  const st = status.data;
+  const failed = Boolean(st?.service?.error || st?.webdav.service?.error);
+  const running = Boolean(st?.service?.running || st?.webdav.service?.running);
+  const on = ctx.values["shares.enabled"] === true;
+  return (
+    <>
+      {st && (
+        <Banner
+          tone={failed ? "error" : running ? "success" : "info"}
+          title={running || failed ? "File shares" : "Not shared"}
+          action={
+            <Button asChild size="xs" variant="secondary">
+              <Link href="/account/tokens#s3">Your access keys</Link>
+            </Button>
+          }
+        >
+          {on
+            ? `${shareText("S3", st)}. ${shareText("WebDAV", st.webdav)}. People sign in with an access key from their API tokens page.`
+            : "Turn it on below; the workers start listening within seconds."}
+        </Banner>
+      )}
+      <F ctx={ctx} id="shares.enabled" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="shares.s3" />
+        <F ctx={ctx} id="shares.s3_port" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="shares.webdav" />
+        <F ctx={ctx} id="shares.webdav_port" />
+      </div>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        With Docker, the worker container publishes 9555 (S3) and 9556 (WebDAV) where the web app is; set{" "}
+        <code className="font-mono">LENS_S3_PORT</code> or <code className="font-mono">LENS_WEBDAV_PORT</code> in .env
+        to publish them on other ports of the host.
+        {on ? "" : " Nothing listens until it’s on."}
+      </p>
     </>
   );
 }

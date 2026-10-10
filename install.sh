@@ -369,11 +369,12 @@ if [ "$BACKEND" = microsandbox ]; then
   done
   [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-bookworm): $out"
   # The internet, this network (mail servers, model servers) and this machine (Ollama, LM Studio); only the web app
-  # and the sensor ports are published, as with Docker.
+  # the sensor ports and the file shares' ports (S3, WebDAV) are published, as with Docker.
   set -- run -d -q --name lens --replace -c "$cpus" -m "${mem}M" --root-disk 16G --net public,private,host \
     -p "$bind:$PORT:3000" \
     -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
     -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
+    -p "${LENS_SHARE_BIND:-$bind}:${LENS_S3_PORT:-9555}:9555" -p "${LENS_SHARE_BIND:-$bind}:${LENS_WEBDAV_PORT:-9556}:9556" \
     -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named lens-data:/data \
     --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
   say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."

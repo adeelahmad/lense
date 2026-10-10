@@ -7,7 +7,7 @@ folders it belongs to, its metadata in a sidecar beside it. Agents and tools tha
 | Where | Status |
 | --- | --- |
 | The API (`GET /api/v1/tree`, `GET /api/v1/tree/file`) and the MCP tools `list_files` and `read_file` | built |
-| S3 and WebDAV servers (read-only, off until turned on) | in progress |
+| An [S3 server](#s3) and a [WebDAV server](#webdav) (read-only, off until turned on) | built |
 | SMB and NFS shares | in progress |
 
 Every way in serves the same tree, built by `app/domain/filetree.py`.
@@ -54,8 +54,59 @@ content_type}]}`. An empty path lists your namespaces. `GET /api/v1/tree/file?pa
 The MCP server has `list_files` and `read_file` ([MCP server](mcp.md)): `read_file` returns the text of `.txt` and
 `.json` files, a page at a time, and the download link of everything else.
 
+## S3
+
+Off until an admin turns it on, in Settings, File shares (`shares.enabled`). Then Lens's worker serves the tree
+read-only over S3 on port 9555 (`shares.s3_port`; with Docker, `LENS_S3_PORT` publishes it on another port of the
+host), where the web app is: this machine only unless Lens was opened to the network (`LENS_BIND`;
+`LENS_SHARE_BIND` sets it apart). Each namespace you can read is a bucket; keys are the paths above.
+
+Each person makes their own access keys on their API tokens page (File share access keys), while signed in to the web app;
+API tokens can't make them. A key reads as its owner and sees exactly what they see. Its secret is shown once, kept
+sealed with the server's key (S3's signatures are made with the secret itself, so it can't be hashed), expires like
+an API key (Settings, API keys), stops working when its owner is disabled, and can be revoked at once. Making and
+revoking keys is audited. `GET /api/v1/shares/s3` says whether the S3 and WebDAV servers are on and lists your keys;
+`POST /api/v1/shares/s3/keys` and `DELETE /api/v1/shares/s3/keys/{id}` make and revoke them (admins list everyone's
+with `GET /api/v1/shares/s3/keys`).
+
+Any S3 client works with path-style addressing and any region. With rclone, the remote the web app shows when you
+make a key:
+
+```ini
+[lens]
+type = s3
+provider = Other
+access_key_id = LK…
+secret_access_key = …
+endpoint = http://lens.local:9555
+force_path_style = true
+```
+
+then `rclone lsd lens:`, `rclone copy lens:pods/General ./general`, or `rclone mount lens: ~/lens`. Supported:
+listing buckets, listing objects (v1 and v2, by folder or recursively, a page at a time), reading objects whole or
+in ranges, and presigned links. Anything that writes answers AccessDenied. Requests must be signed with Signature
+Version 4.
+
+The server speaks plain HTTP. On a network you don't trust, keep it on this machine or behind TLS (a reverse proxy),
+since files travel in clear.
+
+## WebDAV
+
+Off until an admin turns it on, with S3 (Settings, File shares; `shares.webdav`, on by default once shares are).
+Lens's worker serves the same tree read-only over WebDAV on port 9556 (`shares.webdav_port`; with Docker,
+`LENS_WEBDAV_PORT`), so it mounts as a drive: in Finder, Go, Connect to Server; in Windows Explorer, Map network
+drive; in GNOME Files or Dolphin, `dav://lens.local:9556/`; or `rclone` with `type = webdav`.
+
+Sign in with an access key: its id as the user name and its secret as the password. The folders at the top are your
+namespaces. Listing (PROPFIND, one level at a time) and reading (GET, with ranges) work; anything that writes answers
+403. Eight failed sign-ins from one address within 15 minutes are refused for a while.
+
+Like S3, it speaks plain HTTP, and Basic sign-in sends the secret with every request: keep it on this machine or
+behind TLS on a network you don't trust.
+
 ## Refine later
 
+- TLS by itself for S3 and WebDAV, folders' real dates, and WebDAV locks for clients that insist on them.
 - Show supplementary files (captions, translations, attachments) beside each asset.
 - Cache an asset's text and metadata so large folders list faster.
 - A sidecar for each collection, topic and entity, and a folder of notes.

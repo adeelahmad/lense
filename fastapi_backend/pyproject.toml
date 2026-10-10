@@ -74,6 +74,7 @@ dev = [
     "onnxruntime>=1.18",  # the objects tests run a small YOLOX-shaped model
     "onnx>=1.23.2",  # ... which they build
     "mcp>=2.3.0",  # the official MCP client, to test the MCP server with
+    "botocore>=1.43.111",
 ]
 
 [tool.hatch.build.targets.wheel]

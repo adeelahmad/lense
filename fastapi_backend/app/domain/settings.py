@@ -71,6 +71,8 @@ EDITABLE = {
         "max_per_minute",
         "triage",
     ),
+    # bind is a startup setting only
+    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port"),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -419,6 +421,8 @@ def _check(section, key, value, default):
         return _backup_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
+    if section == "shares":
+        return _share_setting(key, value)
     if section == "sensors":
         return _sensor_setting(key, value)
     if section == "components":
@@ -905,6 +909,16 @@ def _sensor_setting(key, value):
         return None  # kept for good
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"sensors.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
+def _share_setting(key, value):
+    if key in ("enabled", "s3", "webdav"):
+        if not isinstance(value, bool):
+            raise ValueError(f"shares.{key} is true or false")
+        return value
+    if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+        raise ValueError(f"shares.{key} is a port number from 1 to 65535")
     return value
 
 
