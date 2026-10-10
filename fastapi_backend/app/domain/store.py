@@ -481,6 +481,10 @@ DEFAULTS = {
         "export_seconds": 60,
         "service_name": "lens",
         "prices": {},
+        # a Prometheus scrape endpoint at /metrics (docs/prometheus.md): off by default; prometheus_token is a secret
+        # the scraper sends as a bearer token, and nothing is served until one is set
+        "prometheus": False,
+        "prometheus_token": None,
     },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
