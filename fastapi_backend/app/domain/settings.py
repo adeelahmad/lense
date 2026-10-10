@@ -178,6 +178,7 @@ ENV_OVERRIDES = {
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
     ("telemetry", "prometheus"): "LENS_PROMETHEUS",
     ("telemetry", "prometheus_token"): "LENS_PROMETHEUS_TOKEN",
+    ("telemetry", "grafana_url"): "LENS_GRAFANA_URL",
     ("fedora", "enabled"): "LENS_FEDORA",
     ("fedora", "url"): "LENS_FEDORA_URL",
     ("fedora", "user"): "LENS_FEDORA_USER",
@@ -958,6 +959,12 @@ def _telemetry_setting(key, value):
         if not isinstance(value, bool):
             raise ValueError(f"telemetry.{key} is true or false")
         return value
+    if key == "grafana_url":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("telemetry.grafana_url is Grafana's http(s) address, like http://localhost:3001")
+        return value.strip().rstrip("/")
     if key == "endpoint":
         if value is None or value == "":
             return None

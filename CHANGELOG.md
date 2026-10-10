@@ -4,12 +4,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Telegram, built in.** Paste a bot token from @BotFather in Settings › Telegram and the assistant answers there:
-  no Matterbridge, no public address. It talks only to people you let in (one click on the settings page), hears
-  voice notes, takes files for the assistant to import, and does everything it does in Matterbridge rooms
-  ([Chat rooms](docs/chat-rooms.md#telegram-built-in)). Chat apps now share one channel layer, so the next one is an
-  adapter.
-
 - **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
   inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API
@@ -26,6 +20,19 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
   month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
   ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
+
+- **Ask Lens from your browser.** The web clipper extension has the Lens assistant in a side panel: **Ask Lens** in
+  its popup or on the right-click menu. It signs in with one click through Lens's own sign-in page (OAuth, nothing to
+  copy), and the conversations are the same ones Lens's chat shows, with cited answers, the steps taken and approvals.
+  While the panel is open, the assistant can use that browser: open, read, click, type and download files into the
+  conversation, only on sites you allow, asking before anything that sends, deletes, buys or posts, never typing
+  passwords or card numbers, and showing each action as it happens ([The assistant in your browser](docs/browser-assistant.md)).
+
+- **Telegram, built in.** Paste a bot token from @BotFather in Settings › Telegram and the assistant answers there:
+  no Matterbridge, no public address. It talks only to people you let in (one click on the settings page), hears
+  voice notes, takes files for the assistant to import, and does everything it does in Matterbridge rooms
+  ([Chat rooms](docs/chat-rooms.md#telegram-built-in)). Chat apps now share one channel layer, so the next one is an
+  adapter.
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 

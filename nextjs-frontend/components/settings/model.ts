@@ -775,6 +775,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "untrusted_asks",
+    label: "Ask before sending data out after reading third-party text",
+    kind: "switch",
+    hint: "Once an answer has read a recording, a document, a web page or a chat room, web tools, other servers' tools and changes the setup chat would make at once wait for your approval.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
@@ -2126,6 +2133,16 @@ export const FIELDS: FieldSpec[] = [
     hint: "Serve /metrics for a Prometheus scraper; off by default, and answered only with the scrape token",
   },
   { section: "telemetry", key: "prometheus_token", label: "Scrape token", kind: "secret" },
+  {
+    section: "telemetry",
+    key: "grafana_url",
+    label: "Grafana address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://localhost:3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. The monitoring profile runs one at :3001",
+  },
   {
     section: "telemetry",
     key: "prices",

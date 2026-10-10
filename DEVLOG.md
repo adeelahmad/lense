@@ -18,13 +18,15 @@ action log. Page text reaches the model as tool results (third-party text, untru
 PRs:
 
 - [x] Server: sessions, actions, the browser tools, `ai.browser` and `ai.browser_steps`, the API for agents
-- [ ] Extension: side panel chat, OAuth sign-in
-- [ ] Extension: browser control (read with refs, click, type, keys, download into the conversation), site
-      permissions, asking first, the action log
+- [x] Extension: side panel chat, OAuth sign-in (the Edge smoke test signs in through a stand-in consent page)
+- [x] Extension: browser control (read with refs, click, type, keys, download into the conversation), site
+      permissions, asking first, the action log (the Edge smoke test drives each against a stand-in Lens)
 
 Refine later: the browser from WhatsApp/Slack while the side panel is open (a setting, off); keep-alives in the chat
 stream while an action waits; browser tools over MCP; real input events (Chrome's debugger) for sites that ignore
-synthetic ones.
+synthetic ones; asking about the page or selection from the right-click menu; the model and namespaces picker in the
+side panel; webmail attachments behind a download button, and files redirected to another site; frames; Safari's
+default tab.
 
 ## 2026-10-10 · Similar content
 
