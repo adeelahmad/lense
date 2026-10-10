@@ -281,6 +281,18 @@ if [ "$BACKEND" = microsandbox ]; then
   [ "$mem" -gt 8192 ] && mem=8192
   cpus="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
   sensors="${LENS_SENSOR_BIND:-$bind}"
+  # The stock Python image, from mirrors that need no sign-in first: Docker Hub can refuse it ("Not authorized") when
+  # this machine has Docker Hub credentials that microsandbox can't use, and limits anonymous pulls.
+  say "Getting the base image..."
+  image=""
+  for ref in mirror.gcr.io/library/python:3.12-slim-bookworm public.ecr.aws/docker/library/python:3.12-slim-bookworm \
+    docker.io/library/python:3.12-slim-bookworm; do
+    if out="$(msb pull -q "$ref" 2>&1)"; then
+      image="$ref"
+      break
+    fi
+  done
+  [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-bookworm): $out"
   # The internet, this network (mail servers, model servers) and this machine (Ollama, LM Studio); only the web app
   # and the sensor ports are published, as with Docker.
   set -- run -d -q --name lens --replace -c "$cpus" -m "${mem}M" --root-disk 16G --net public,private,host \
@@ -288,7 +300,7 @@ if [ "$BACKEND" = microsandbox ]; then
     -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
     -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
     -v "$PWD:/lens:ro" --mount-named lens-data:/data \
-    --entrypoint /bin/sh python:3.12-slim-bookworm -- /lens/microsandbox/run.sh
+    --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
   say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
   # The command that starts it, kept for a restart of the machine: a sandbox started again (msb start) boots without
   # running Lens, so it is always replaced; its packages come from the cache in the volume, its build stays there.
