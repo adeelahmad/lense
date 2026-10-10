@@ -3,7 +3,9 @@ packages:
 onlyBuiltDependencies:
   - sharp
 # Security floors for transitive dependencies (GitHub Dependabot alerts).
-# Each one stays inside the major version its parent asks for.
+# Each one stays inside the major version its parent asks for, except where only a newer major has the fix:
+# file-type 21 (BlockSuite asks for 19), katex 0.18 (BlockSuite asks for 0.16) and postcss-selector-parser 7
+# (Tailwind 3 asks for 6). Each keeps the API its parent calls; the tests and build check it.
 overrides:
   "@babel/core@^7": ^7.29.7
   "@babel/helpers@^7": ^7.29.7
@@ -13,17 +15,23 @@ overrides:
   brace-expansion@^2: ^2.1.7
   browserslist@^4: ^4.29.3
   diff@^4: ^4.0.4
+  file-type@^19: ^21.3.1
   flatted@^3: ^3.4.4
   form-data@^4: ^4.0.6
   glob@^10: ^10.5.0
+  handlebars@^4: ^4.7.10
   js-yaml@^3: ^3.15.2
   js-yaml@^4: ^4.3.2
+  # js-yaml 3 needs argparse only for its own command line, which nothing here runs. argparse 1 pulls in sprintf-js,
+  # which has no fixed release (GHSA-hp3w-g68c-fv3c), so it is left out.
+  "js-yaml@^3>argparse": "-"
+  katex@^0.16: ^0.18.2
   lodash@^4: ^4.18.1
   minimatch@^3: ^3.1.5
   minimatch@^9: ^9.0.9
   picomatch@^2: ^2.3.2
   picomatch@^4: ^4.0.7
-  postcss-selector-parser@^6: ^6.1.4
+  postcss-selector-parser@^6: ^7.1.6
   ws@^8: ^8.22.0
   yaml@^2: ^2.9.1
   # BlockSuite 0.19.5 (the notes editor) was built against these; later icon releases dropped names it imports.
