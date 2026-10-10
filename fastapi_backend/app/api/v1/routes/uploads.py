@@ -62,7 +62,7 @@ def _may_add(acl: Access, db: Any, user: Principal, ns: str) -> None:
         if not user.admin:
             raise HTTPException(403, "only admins can create namespaces") from None
         return
-    acl.need(sid, "editor")
+    acl.need(sid, "import")
 
 
 def _may_send(acl: Access, db: Any, user: Principal, row: dict[str, Any]) -> None:
@@ -71,7 +71,7 @@ def _may_send(acl: Access, db: Any, user: Principal, row: dict[str, Any]) -> Non
     if row.get("hold"):
         return
     if row.get("attach"):
-        acl.recording(row["attach"], "editor")
+        acl.recording(row["attach"], "import")
     else:
         _may_add(acl, db, user, row["namespace"])
 
@@ -109,7 +109,7 @@ def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) ->
     if body.hold:
         ns = ""
     elif body.recording is not None:
-        rec = acl.recording(body.recording, "editor")
+        rec = acl.recording(body.recording, "import")
         home = store.space_names(db).get(rec["space"], "")
         if ns and ns != home:
             raise HTTPException(400, f"that recording is in {home}")

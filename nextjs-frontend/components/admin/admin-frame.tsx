@@ -12,7 +12,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 
-export type AdminTab = "people" | "namespaces" | "audit" | "health";
+export type AdminTab = "people" | "roles" | "namespaces" | "audit" | "health";
 
 /** Everyone, for admins (the role matrix, audit names). */
 export function usePeople() {
@@ -24,6 +24,19 @@ export function usePeople() {
     enabled: admin,
     staleTime: 15_000,
   });
+}
+
+/** Every role (viewer, editor, owner, then custom ones) and the permissions they can have. */
+export function useRoles() {
+  const client = useApiClient();
+  const q = useQuery({ queryKey: ["roles"], queryFn: () => data(Users.listRoles({ client })), staleTime: 30_000 });
+  const list = q.data?.roles ?? [
+    { name: "viewer", label: "Viewer" },
+    { name: "editor", label: "Editor" },
+    { name: "owner", label: "Owner" },
+  ];
+  const labels = Object.fromEntries(list.map((r) => [r.name, r.label]));
+  return { ...q, names: list.map((r) => r.name), labels };
 }
 
 /**
@@ -82,6 +95,7 @@ export function AdminFrame({
           count: people.data?.length,
           href: "/admin/people",
         },
+        { value: "roles", label: "Roles", href: "/admin/roles" },
         { value: "namespaces", label: "Namespaces", href: "/admin/namespaces" },
         { value: "audit", label: "Audit log", href: "/admin/audit" },
         { value: "health", label: "System health", href: "/admin/health" },

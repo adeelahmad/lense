@@ -23,7 +23,7 @@ def _signed_in(user: CurrentUser) -> None:
 
 
 def _space(acl: Acl, name: str, kind: str) -> int:
-    return acl.namespace(name, "owner") if kind in ("seal", "add") else acl.namespace(name)
+    return acl.namespace(name, "manage") if kind in ("seal", "add") else acl.namespace(name)
 
 
 def _run(fn, *args):
@@ -91,7 +91,7 @@ def add_vault_passkey(name: str, body: VaultAnswer, user: Writer, acl: Acl, db: 
 @router.delete("/{name}/vault/passkeys/{pid}")
 def remove_vault_passkey(name: str, pid: str, user: Writer, acl: Acl, db: Db) -> VaultStatus:
     """Stop a passkey opening the vault; never the last one. Audited as `vault.remove`."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     out = _run(vaults.remove, db, sid, pid)
     auth.audit(db, user.as_audit(), "vault.remove", f"space:{sid}", [pid])
     return VaultStatus(**out)
@@ -100,7 +100,7 @@ def remove_vault_passkey(name: str, pid: str, user: Writer, acl: Acl, db: Db) ->
 @router.post("/{name}/vault/lock")
 def lock_vault(name: str, user: Writer, acl: Acl, db: Db) -> VaultStatus:
     """Close the vault on this server now (owners). Audited as `vault.lock`."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     out = _run(vaults.lock, db, sid)
     auth.audit(db, user.as_audit(), "vault.lock", f"space:{sid}")
     return VaultStatus(**out)
@@ -110,7 +110,7 @@ def lock_vault(name: str, user: Writer, acl: Acl, db: Db) -> VaultStatus:
 def unseal_vault(name: str, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> VaultStatus:
     """Make the vault an ordinary namespace again, which the server can open (it must be unlocked). Audited as
     `vault.unseal`."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     out = _run(vaults.unseal, db, cfg, sid)
     auth.audit(db, user.as_audit(), "vault.unseal", f"space:{sid}")
     return VaultStatus(**out)

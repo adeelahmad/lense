@@ -109,7 +109,7 @@ def _picture(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int, name: s
 @router.patch("/recordings/{rid}/ocr/{span}")
 def fix_screen_text(rid: int, span: str, body: OcrFix, user: Writer, acl: Acl, db: Db) -> Ok:
     """Correct text read off the screen (the machine's reading is kept as `machine_text`)."""
-    acl.recording(rid, "editor")
+    acl.recording(rid, "edit")
     row = db.one("SELECT recording, text FROM $r", r=R("ocr_span", span))
     text = body.text.strip()
     if not row or row["recording"] != rid:
@@ -124,7 +124,7 @@ def fix_screen_text(rid: int, span: str, body: OcrFix, user: Writer, acl: Acl, d
 @router.delete("/recordings/{rid}/faces/{track}")
 def delete_face_track(rid: int, track: str, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
     """Not a face: remove this track (and its crop) from the recording."""
-    acl.recording(rid, "editor")
+    acl.recording(rid, "curate")
     row = db.one("SELECT recording, cover FROM $r", r=R("face_track", track))
     if not row or row["recording"] != rid:
         raise HTTPException(404, "not found")
@@ -176,7 +176,7 @@ def get_namespace_faces(name: str, user: CurrentUser, acl: Acl, db: Db) -> Names
 def set_namespace_faces_mode(name: str, body: FacesMode, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> FacesModeSet:
     """off, detect or recognize (which needs a purpose), and whether faces are pixelated for visitors. Owners only.
     `reprocess` queues the namespace's videos, documents and images (faces on their pages)."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     if body.mode is None and body.pixelate is None:
         raise HTTPException(400, "say the mode, or whether to pixelate faces")
     with domain_errors():
@@ -198,7 +198,7 @@ def set_namespace_faces_mode(name: str, body: FacesMode, user: Writer, acl: Acl,
 @router.delete("/namespaces/{name}/faces")
 def delete_namespace_faces(name: str, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
     """Delete every face, track and crop in the namespace. Owners only."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     facemod.delete_namespace(db, cfg, sid)
     auth.audit(db, user.as_audit(), "faces.delete_all", name)
     return Ok()
@@ -209,7 +209,7 @@ def undo_face_merge(mid: int, user: Writer, acl: Acl, db: Db) -> Ok:
     m = db.one("SELECT space FROM $r", r=R("face_merge", mid))
     if not m:
         raise HTTPException(404, "not found")
-    acl.need(m["space"], "editor")
+    acl.need(m["space"], "curate")
     with domain_errors():
         facemod.undo(db, mid)
     auth.audit(db, user.as_audit(), "face.merge.undo", f"face_merge:{mid}")
@@ -218,7 +218,7 @@ def undo_face_merge(mid: int, user: Writer, acl: Acl, db: Db) -> Ok:
 
 @router.post("/faces/{fid}")
 def rename_face(fid: int, body: FaceRename, user: Writer, acl: Acl, db: Db) -> Ok:
-    _face_space(db, acl, fid, "editor")
+    _face_space(db, acl, fid, "curate")
     facemod.rename(db, fid, body.name)
     auth.audit(db, user.as_audit(), "face.rename", f"face:{fid}")
     return Ok()
@@ -227,8 +227,8 @@ def rename_face(fid: int, body: FaceRename, user: Writer, acl: Acl, db: Db) -> O
 @router.post("/faces/{fid}/merge")
 def merge_face(fid: int, body: FaceMerge, user: Writer, acl: Acl, db: Db) -> FaceMerged:
     """Merge this face into another (the same person)."""
-    _face_space(db, acl, fid, "editor")
-    _face_space(db, acl, body.into, "editor")
+    _face_space(db, acl, fid, "curate")
+    _face_space(db, acl, body.into, "curate")
     try:
         mid = facemod.merge(db, fid, body.into, user.email)
     except (ValueError, KeyError) as e:
@@ -240,7 +240,7 @@ def merge_face(fid: int, body: FaceMerge, user: Writer, acl: Acl, db: Db) -> Fac
 @router.post("/faces/{fid}/speaker")
 def link_face_speaker(fid: int, body: FaceSpeaker, user: Writer, acl: Acl, db: Db) -> Ok:
     """Say whose voice goes with this face (null unlinks)."""
-    _face_space(db, acl, fid, "editor")
+    _face_space(db, acl, fid, "curate")
     with domain_errors():
         facemod.link_speaker(db, fid, body.speaker)
     auth.audit(db, user.as_audit(), "face.speaker", f"face:{fid}", {"speaker": body.speaker})
@@ -250,7 +250,7 @@ def link_face_speaker(fid: int, body: FaceSpeaker, user: Writer, acl: Acl, db: D
 @router.post("/faces/{fid}/dismiss")
 def dismiss_face_suggestion(fid: int, body: FaceDismiss, user: Writer, acl: Acl, db: Db) -> Ok:
     """Drop a suggestion (`kind` face or speaker, with its id)."""
-    _face_space(db, acl, fid, "editor")
+    _face_space(db, acl, fid, "curate")
     facemod.dismiss(db, fid, body.kind or "face", body.id)
     return Ok()
 
