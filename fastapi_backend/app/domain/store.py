@@ -284,6 +284,7 @@ DEFAULTS = {
         "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
         "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
         "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
+        "injection_check": "patterns",  # flag third-party text that reads like instructions to an AI: patterns, model, off
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -374,6 +375,9 @@ DEFAULTS = {
         # approving the assistant's reversible changes (entity merges and edits, new namespaces) by replying in the room,
         # for the people in bridge.users; everything else is approved in the web app (bridge.ROOM_SAFE)
         "approve": "low_risk",
+        # web addresses the answer built itself are broken up (hxxps://evil[.]example), so the room's app doesn't fetch
+        # them to preview: an injection could fill one with what the answer read (bridge.safe_links)
+        "safe_links": True,
         "poll_seconds": 2,
     },
     # Matterbridge run by Lens (matterbridge.py): with `run` on, the matterbridge service in Docker Compose gets its

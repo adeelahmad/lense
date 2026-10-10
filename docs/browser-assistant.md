@@ -55,8 +55,11 @@ the assistant work in that window when you ask it to:
 - **You see each action as it happens**, in the answer it's for: opening, reading, clicking, typing, downloading,
   with ✓ when done and ✗ when not (and why). An app using your browser through the API shows the same way.
 - **Pages are third-party text.** What a page or an email says reaches the assistant marked as material to read, never
-  as instructions; opening an address on a site you haven't allowed asks first, so what it read can't be carried
-  off in a link.
+  as instructions. Opening an address on a site you haven't allowed asks first. Once an answer has read a page or
+  other text from outside Lens, so does opening or downloading an address, or typing text, that you didn't write
+  yourself, on sites you allowed too: the panel shows the address or the text and why. So what it read can't be
+  carried off in a link or a form without your yes. **Ask before sending data out after reading third-party text**
+  (`ai.untrusted_asks`, Settings → AI assistant) turns this off, with the rest of [asking first](assistant.md).
 
 Files the assistant downloads (an attachment, a PDF behind a sign-in, or the page itself as Markdown) are attached to
 the conversation like a file you dropped in, and it puts them in a namespace with `import_files`, which waits for
@@ -105,7 +108,8 @@ Everything the side panel does goes through the API, with an API token or an app
 | `POST /api/v1/browser/sessions/{id}/run` | do one thing in your connected browser and wait for it: `{tool, args}`, the browser tools without `browser_` |
 | `DELETE /api/v1/browser/sessions/{id}` | the side panel closed |
 
-A question sent with `browser` (the session's id) on `POST /api/v1/chats/{id}/messages` can use that browser.
+A question sent with `browser` (the session's id) on `POST /api/v1/chats/{id}/messages` can use that browser. An
+action whose `args` has `confirm` (why, in words) is one to carry out only after the person says yes.
 
 ## Refine later
 
