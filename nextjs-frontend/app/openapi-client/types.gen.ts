@@ -6230,6 +6230,18 @@ export type HttpsCertificate = {
 };
 
 /**
+ * HttpsPorts
+ */
+export type HttpsPorts = {
+  /**
+   * Open
+   *
+   * open the HTTPS ports (true) or close them
+   */
+  open?: boolean;
+};
+
+/**
  * HttpsProvider
  */
 export type HttpsProvider = {
@@ -6323,6 +6335,22 @@ export type HttpsStatus = {
    * the server process with the HTTPS ports
    */
   process?: string | null;
+  /**
+   * Agent
+   *
+   * what can open the ports from here (the upgrade agent: systemd, launchd)
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that opens the ports by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * the last run that opened or closed the ports (as in /admin/updates)
+   */
+  reconfigure?: UpgradeRun | null;
   [key: string]: unknown;
 };
 
@@ -18117,9 +18145,15 @@ export type UpgradeRun = {
   /**
    * Ref
    *
-   * the release tag (or branch) being installed
+   * the release tag (or branch) being installed; empty: the one running, set up again
    */
   ref: string;
+  /**
+   * Https
+   *
+   * the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)
+   */
+  https?: boolean | null;
   /**
    * State
    */
@@ -21247,6 +21281,34 @@ export type HttpsStatusResponses = {
 };
 
 export type HttpsStatusResponse = HttpsStatusResponses[keyof HttpsStatusResponses];
+
+export type HttpsPortsData = {
+  /**
+   * Body
+   */
+  body?: HttpsPorts | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/ports";
+};
+
+export type HttpsPortsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type HttpsPortsError = HttpsPortsErrors[keyof HttpsPortsErrors];
+
+export type HttpsPortsResponses = {
+  /**
+   * Successful Response
+   */
+  202: HttpsStatus;
+};
+
+export type HttpsPortsResponse = HttpsPortsResponses[keyof HttpsPortsResponses];
 
 export type HttpsProvidersData = {
   body?: never;

@@ -6,8 +6,7 @@ Lens can serve itself at `https://lens.example.com` with a certificate it gets a
 renews it about a month before it runs out and passes visitors on to the web app. Passkeys work there, since browsers
 allow them on https:// addresses.
 
-Status: **built** in the API and the installer; the **Settings › HTTPS** page in the web app is in progress (until
-then, `PUT /api/v1/settings/https` sets it). Off by default.
+Status: **built**, set up in **Settings › HTTPS**. Off by default.
 
 For a machine the internet can't reach at all, [Remote access](remote-access.md) (a Cloudflare tunnel) is the
 other way to an https:// address.
@@ -15,8 +14,10 @@ other way to an https:// address.
 ## Turning it on
 
 1. Point the domain's DNS at this machine (an A or AAAA record), unless you use the DNS challenge.
-2. Give Lens the HTTPS ports: run the install line again with `LENS_HTTPS=1`. It publishes ports 443 and 80 to the
-   worker, where Caddy runs, and remembers it in `.env`, so upgrades keep them.
+2. Give Lens the HTTPS ports: **Open the HTTPS ports** in Settings › HTTPS has the machine's upgrade agent
+   ([Updates](updates.md)) run install.sh again for the version running, with `LENS_HTTPS=1`, and Lens restarts. Or
+   run the install line again with it yourself. Either way it publishes ports 443 and 80 to the worker, where Caddy
+   runs, and remembers it in `.env`, so upgrades keep them.
 
    ```sh
    curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | LENS_HTTPS=1 sh
@@ -63,7 +64,7 @@ its fields as JSON. `dns_package` names a plugin outside caddy-dns (`github.com/
 
 ## Settings
 
-All in Settings › HTTPS (the `https` section of `PUT /api/v1/settings/https`):
+All in Settings › HTTPS (`PUT /api/v1/settings/https`; `POST /api/v1/settings/https/ports` opens the ports):
 
 | Key | Default | |
 | --- | --- | --- |
@@ -106,6 +107,6 @@ docker compose -f docker-compose.prod.yml -f docker-compose.https.yml up -d
 
 ## Refine later
 
-- A button in Settings that opens the ports through the upgrade agent, so step 2 needs no terminal.
-- The install wizard asking for the domain.
+- Closing the ports again from Settings (`LENS_HTTPS=0` on the install line does it now).
+- The install wizard asking for the domain (left out on purpose: it asks only what's needed to start).
 - Caddy in the image, for machines that can't download it.

@@ -2583,6 +2583,55 @@
         }
       }
     },
+    "/api/v1/settings/https/ports": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Ports",
+        "description": "Open (or close) the HTTPS ports: this machine's upgrade agent runs install.sh again for the version running,\nwith LENS_HTTPS=1 (or 0), and Lens restarts. Without an agent, `manual` is the line to run there instead.",
+        "operationId": "https_ports",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/HttpsPorts"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpsStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/https/providers": {
       "get": {
         "tags": [
@@ -37324,6 +37373,19 @@
         ],
         "title": "HttpsCertificate"
       },
+      "HttpsPorts": {
+        "properties": {
+          "open": {
+            "type": "boolean",
+            "title": "Open",
+            "description": "open the HTTPS ports (true) or close them",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HttpsPorts"
+      },
       "HttpsProvider": {
         "properties": {
           "name": {
@@ -37447,6 +37509,34 @@
             ],
             "title": "Process",
             "description": "the server process with the HTTPS ports"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what can open the ports from here (the upgrade agent: systemd, launchd)"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that opens the ports by hand, on the machine Lens runs on"
+          },
+          "reconfigure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpgradeRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the last run that opened or closed the ports (as in /admin/updates)"
           }
         },
         "additionalProperties": true,
@@ -37455,7 +37545,8 @@
           "enabled",
           "running",
           "ports_open",
-          "origin"
+          "origin",
+          "manual"
         ],
         "title": "HttpsStatus"
       },
@@ -57811,7 +57902,19 @@
           "ref": {
             "type": "string",
             "title": "Ref",
-            "description": "the release tag (or branch) being installed"
+            "description": "the release tag (or branch) being installed; empty: the one running, set up again"
+          },
+          "https": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Https",
+            "description": "the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)"
           },
           "state": {
             "type": "string",

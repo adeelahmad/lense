@@ -76,6 +76,7 @@ export type SectionId =
   | "components"
   | "access"
   | "remote-access"
+  | "https"
   | "sign-in"
   | "encryption"
   | "notifications"
@@ -227,6 +228,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["tunnel"],
     description:
       "Off unless you turn it on. Reach Lens from anywhere at an https:// address through a Cloudflare Tunnel that Lens runs itself: nothing to open on your router.",
+  },
+  {
+    id: "https",
+    label: "HTTPS",
+    backend: ["https"],
+    description:
+      "Off unless you turn it on. Serve Lens at your own domain over https://, with certificates from Let’s Encrypt or ZeroSSL that Lens gets and renews itself.",
   },
   {
     id: "mail",
@@ -995,6 +1003,131 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "as installed",
     hint: "Where cloudflared reaches the web app from the server. Leave empty unless you moved it.",
   },
+  // HTTPS (Caddy run by Lens, certificates over ACME)
+  { section: "https", key: "enabled", label: "Serve Lens over HTTPS", kind: "switch" },
+  {
+    section: "https",
+    key: "domains",
+    label: "Domains",
+    kind: "lines",
+    mono: true,
+    placeholder: "lens.example.com",
+    hint: "One per line. Each one’s DNS points at this machine; *.example.com needs the DNS challenge.",
+  },
+  {
+    section: "https",
+    key: "email",
+    label: "Email for the certificate authority",
+    kind: "text",
+    placeholder: "you@example.com",
+    hint: "Optional. It warns you before a certificate expires; ZeroSSL needs it.",
+  },
+  {
+    section: "https",
+    key: "challenge",
+    label: "How Lens proves the domain is yours",
+    kind: "cards",
+    options: [
+      { value: "http", label: "HTTP", hint: "Ports 80 or 443 reach this machine from the internet" },
+      { value: "tls-alpn", label: "TLS-ALPN", hint: "Only port 443 reaches this machine" },
+      {
+        value: "dns",
+        label: "DNS",
+        hint: "Lens adds a TXT record with your DNS provider’s API. Nothing has to reach this machine; wildcards work",
+      },
+    ],
+  },
+  {
+    section: "https",
+    key: "ca",
+    label: "Certificate authority",
+    kind: "select",
+    options: [
+      { value: "both", label: "Let’s Encrypt, then ZeroSSL" },
+      { value: "letsencrypt", label: "Let’s Encrypt" },
+      { value: "zerossl", label: "ZeroSSL" },
+      { value: "custom", label: "Another ACME authority" },
+    ],
+  },
+  {
+    section: "https",
+    key: "ca_url",
+    label: "ACME directory",
+    kind: "text",
+    mono: true,
+    placeholder: "https://ca.example.com/acme/directory",
+  },
+  {
+    section: "https",
+    key: "staging",
+    label: "Use Let’s Encrypt’s staging service",
+    kind: "switch",
+    hint: "For trying things out: no rate limits, but browsers don’t trust its certificates.",
+  },
+  {
+    section: "https",
+    key: "eab_key_id",
+    label: "EAB key ID",
+    kind: "text",
+    mono: true,
+    hint: "External account binding, from your account at the authority. ZeroSSL works without it.",
+  },
+  { section: "https", key: "eab_hmac_key", label: "EAB HMAC key", kind: "secret" },
+  {
+    section: "https",
+    key: "dns_provider",
+    label: "DNS provider",
+    kind: "text",
+    mono: true,
+    placeholder: "cloudflare",
+  },
+  {
+    section: "https",
+    key: "dns_package",
+    label: "DNS plugin",
+    kind: "text",
+    mono: true,
+    placeholder: "github.com/caddy-dns/<provider>",
+    hint: "Only for a plugin outside caddy-dns.",
+  },
+  { section: "https", key: "dns_credentials", label: "DNS provider’s fields", kind: "secret" },
+  {
+    section: "https",
+    key: "dns_resolvers",
+    label: "DNS resolvers",
+    kind: "lines",
+    mono: true,
+    placeholder: "1.1.1.1",
+    hint: "Optional: where Lens checks that the TXT record is there.",
+  },
+  {
+    section: "https",
+    key: "propagation",
+    label: "Wait for the DNS record",
+    kind: "text",
+    mono: true,
+    placeholder: "2m",
+    hint: "Optional: how long to wait for the record to spread, like 2m.",
+  },
+  { section: "https", key: "redirect_http", label: "Send http:// to https://", kind: "switch" },
+  {
+    section: "https",
+    key: "hsts",
+    label: "Tell browsers to use https:// only (HSTS)",
+    kind: "switch",
+    hint: "For a year. Turn it on once HTTPS works: if you turn HTTPS off later, browsers can’t reach the http:// address.",
+  },
+  {
+    section: "https",
+    key: "origin",
+    label: "Web app address for HTTPS",
+    kind: "text",
+    mono: true,
+    placeholder: "as installed",
+    hint: "Where Caddy reaches the web app from the server. Leave empty unless you moved it.",
+  },
+  { section: "https", key: "https_port", label: "HTTPS port in the container", kind: "int", min: 1, max: 65535 },
+  { section: "https", key: "http_port", label: "HTTP port in the container", kind: "int", min: 1, max: 65535 },
   // Chat rooms (Matterbridge)
   { section: "bridge", key: "enabled", label: "Answer in chat rooms", kind: "switch" },
   {
@@ -3174,6 +3307,30 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["tunnel.hostname"] = "Enter the public hostname, like lens.example.com";
   const tOrigin = values["tunnel.origin"] as string | undefined;
   if (tOrigin && !URL_RX.test(tOrigin)) e["tunnel.origin"] = "Use an http(s) address, such as http://frontend:3000";
+  const hDomains = values["https.domains"] as string[] | undefined;
+  const badDomain = hDomains?.find((d) => !TUNNEL_HOST_RX.test(d.replace(/^\*\./, "")));
+  if (badDomain) e["https.domains"] = `“${badDomain}” isn’t a domain name like lens.example.com`;
+  else if (values["https.enabled"] === true && hDomains && hDomains.length === 0)
+    e["https.domains"] = "Enter the domain Lens is reached at, like lens.example.com";
+  else if (values["https.challenge"] !== "dns" && hDomains?.some((d) => d.startsWith("*.")))
+    e["https.domains"] = "A wildcard name needs the DNS challenge";
+  const hEmail = values["https.email"] as string | undefined;
+  if (hEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(hEmail)) e["https.email"] = "Enter an email address";
+  const caUrl = values["https.ca_url"] as string | undefined;
+  if (values["https.ca"] === "custom" && !/^https:\/\/[^/\s]+/.test(caUrl ?? ""))
+    e["https.ca_url"] = "Use the authority’s https:// ACME directory";
+  const prov = values["https.dns_provider"] as string | undefined;
+  if (
+    values["https.challenge"] === "dns" &&
+    "https.dns_provider" in values &&
+    !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(prov ?? "")
+  )
+    e["https.dns_provider"] = "Choose the DNS provider that holds the domain";
+  const prop = values["https.propagation"] as string | undefined;
+  if (prop && !/^\d+(ms|s|m|h)$/.test(prop)) e["https.propagation"] = "A duration, like 2m";
+  const hOrigin = values["https.origin"] as string | undefined;
+  if (hOrigin && !/^http:\/\/[^/\s]+/.test(hOrigin))
+    e["https.origin"] = "Use an http:// address, such as http://frontend:3000";
   const otlp = values["telemetry.endpoint"] as string | null | undefined;
   if (otlp && !URL_RX.test(otlp)) e["telemetry.endpoint"] = "Use an http(s) address, such as http://localhost:4318";
   else if (otlp && /\/v1\/(traces|metrics)\/?$/.test(otlp))
