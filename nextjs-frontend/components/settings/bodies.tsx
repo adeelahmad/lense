@@ -388,6 +388,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <FedoraBody ctx={ctx} />;
     case "sensors":
       return <SensorsBody ctx={ctx} />;
+    case "smb":
+      return <SmbBody ctx={ctx} />;
     case "uploads":
       return (
         <>
@@ -901,6 +903,47 @@ function FedoraBody({ ctx }: { ctx: BodyCtx }) {
         </Banner>
       )}
       {sync.isError && <Banner tone="error">{sync.error.message}</Banner>}
+    </>
+  );
+}
+
+function SmbBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const status = useQuery({
+    queryKey: ["smb-status"],
+    queryFn: () => data(Admin.smbStatus({ client })),
+    refetchInterval: 10_000,
+  });
+  const s = status.data;
+  const host = typeof window === "undefined" ? "<lens-machine>" : window.location.hostname;
+  const fill = (x: string) => x.replaceAll("<lens-machine>", host);
+  return (
+    <>
+      {s && s.enabled && (
+        <Banner
+          tone={s.phase === "running" ? "success" : s.phase === "error" ? "error" : "info"}
+          title={s.phase === "running" ? "Sharing" : s.phase === "error" ? "Not sharing" : "Starting"}
+        >
+          {s.phase === "running" ? (
+            <>
+              Open <code className="font-mono">{fill(s.address)}</code> in Finder (Go › Connect to Server) or a Linux
+              file manager, or mount it with <code className="font-mono">{fill(s.mount)}</code>. Sign in with a file
+              access key: its id is the user name, its secret the password.
+            </>
+          ) : (
+            (s.error ??
+            (s.installed ? "A worker starts it within seconds." : "Fetching the SMB server, then a worker starts it."))
+          )}
+        </Banner>
+      )}
+      <F ctx={ctx} id="smb.enabled" />
+      <F ctx={ctx} id="smb.allowed_networks" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        With Docker, the worker container publishes it on port {s?.port ?? 1445} of this machine, reachable from this
+        machine only unless <code className="font-mono">LENS_BIND</code> or{" "}
+        <code className="font-mono">LENS_SHARE_BIND</code> opens it to the network. Windows only connects to port 445:
+        set <code className="font-mono">LENS_SMB_PORT=445</code> in .env for it.
+      </p>
     </>
   );
 }

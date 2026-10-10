@@ -26,6 +26,7 @@ from app.domain import (
     matterbridge,
     semantic,
     settings,
+    smb_share,
     sources,
     speech,
     store,
@@ -50,6 +51,7 @@ from app.schemas.admin import (
     MailTestResult,
     Removed,
     SemanticStatus,
+    SmbStatus,
     SpeechTestResult,
     Started,
     TelemetryStatus,
@@ -169,6 +171,12 @@ def remove_local_model(user: AdminWriter, cfg: Cfg, db: Db, model: str = Query(.
     if removed:
         auth.audit(db, user.as_audit(), "local_llm.remove", None, {"model": model})
     return Removed(removed=removed)
+
+
+@router.get("/settings/smb/status")
+def smb_status(user: AdminReader, cfg: Cfg, db: Db) -> SmbStatus:
+    """The file tree over SMB (Settings › SMB share): whether it's serving, to which networks, and how to connect."""
+    return SmbStatus.model_validate(smb_share.status(db, cfg))
 
 
 @router.get("/settings/tunnel/status")

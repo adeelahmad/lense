@@ -1267,6 +1267,8 @@ import type {
   SkipTopicCandidateData,
   SkipTopicCandidateErrors,
   SkipTopicCandidateResponses,
+  SmbStatusData,
+  SmbStatusResponses,
   SpeakTextData,
   SpeakTextErrors,
   SpeakTextResponses,
@@ -2540,6 +2542,20 @@ export class Admin {
   ): RequestResult<RemoveLocalModelResponses, RemoveLocalModelErrors, ThrowOnError> {
     return (options.client ?? client).delete<RemoveLocalModelResponses, RemoveLocalModelErrors, ThrowOnError>({
       url: "/api/v1/settings/local-llm/models",
+      ...options,
+    });
+  }
+
+  /**
+   * Smb Status
+   *
+   * The file tree over SMB (Settings › SMB share): whether it's serving, to which networks, and how to connect.
+   */
+  public static smbStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SmbStatusData, ThrowOnError>,
+  ): RequestResult<SmbStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SmbStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/smb/status",
       ...options,
     });
   }

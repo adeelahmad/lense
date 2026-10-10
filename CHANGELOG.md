@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The graph as files over SMB.** Settings → SMB share serves the file tree read-only to Finder, Linux and (on port
+  445) Windows: each person signs in with a file access key and sees what the web app shows them, from the networks
+  an admin allows. Off by default; the SMB server (impacket) is fetched when it's turned on ([SMB share](docs/smb.md)).
 - **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
   inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API

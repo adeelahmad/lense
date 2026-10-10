@@ -55,6 +55,8 @@ EDITABLE = {
     "fedora": None,
     "tunnel": None,
     # bind is a startup setting only
+    # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
+    "smb": ("enabled", "allowed_networks"),
     "sensors": (
         "enabled",
         "mqtt",
@@ -421,6 +423,8 @@ def _check(section, key, value, default):
         return _fedora_setting(key, value)
     if section == "sensors":
         return _sensor_setting(key, value)
+    if section == "smb":
+        return _smb_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "mail" and key != "security":
@@ -906,6 +910,22 @@ def _sensor_setting(key, value):
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"sensors.{key} is a whole number from {lo} to {hi}")
     return value
+
+
+def _smb_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("smb.enabled is true or false")
+        return value
+    if not isinstance(value, list) or len(value) > 100:
+        raise ValueError("smb.allowed_networks is a list of networks like 192.168.1.0/24")
+    out = []
+    for v in value:
+        try:
+            out.append(str(ipaddress.ip_network(str(v).strip(), strict=False)))
+        except ValueError:
+            raise ValueError(f"smb.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
+    return list(dict.fromkeys(out))
 
 
 TELEMETRY_RANGES = {"export_seconds": (5, 3600)}
