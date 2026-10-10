@@ -1,8 +1,8 @@
-# Assets as files
+# The graph as files
 
-Lens shows your archive's assets as an ordinary tree of folders and files: namespaces and collections are folders,
-and every asset (a recording, document or image) is a few files in its collection's folder, its metadata in a
-sidecar beside it. Agents and tools that already understand files can read Lens without learning its API.
+Lens shows its graph as an ordinary tree of folders and files: graph nodes (collections, topics, entities) are
+folders, nested along the graph's links, and every asset (a recording, document or image) is a few files inside the
+folders it belongs to, its metadata in a sidecar beside it. Agents and tools that already understand files can read Lens without learning its API.
 
 | Where | Status |
 | --- | --- |
@@ -15,8 +15,14 @@ Every way in serves the same tree, built by `app/domain/filetree.py`.
 ## Layout
 
 ```text
-<namespace>/<collection>/<collection inside it>/…/<asset files>
+<namespace>/
+    Collections/<collection>/<collection inside it>/…   every asset, in its collection's folder
+    Topics/<topic>/<narrower topic>/…                   the assets about each topic (accepted ones)
+    Entities/<type>/<name>/                             the assets that mention each entity
 ```
+
+A folder holds the folders under it and its assets' files side by side. The same asset shows in every folder it
+belongs to, and a topic with several broader topics shows under each of them.
 
 An asset's files are named after it, `<title> [<id>]`, so names are unique and stable:
 
@@ -36,11 +42,12 @@ Names are made safe for every file system: `/ \ : * ? " < > |` and control chara
 ## Who sees what
 
 Exactly what the web app shows them ([Access](access.md)): an admin sees every namespace; others see the namespaces
-they have a role in, and in a namespace where they only have roles on some collections, those collections. Anything else answers "not found". The tree only reads.
+they have a role in, and in a namespace where they only have roles on some collections, those collections and the
+topics and entities of the assets in them (with the topics broader than those). Anything else answers "not found". The tree only reads.
 
 ## The API
 
-`GET /api/v1/tree?path=pods/General` lists a folder: `{path, entries: [{name, folder, modified, size,
+`GET /api/v1/tree?path=pods/Topics/Gene therapy` lists a folder: `{path, entries: [{name, folder, modified, size,
 content_type}]}`. An empty path lists your namespaces. `GET /api/v1/tree/file?path=…` reads a file, with byte ranges
 (`Range: bytes=0-1023`) and an `ETag`. Asking for a file as a folder (or the other way round) answers 400.
 
@@ -51,4 +58,5 @@ The MCP server has `list_files` and `read_file` ([MCP server](mcp.md)): `read_fi
 
 - Show supplementary files (captions, translations, attachments) beside each asset.
 - Cache an asset's text and metadata so large folders list faster.
-- A sidecar for each collection, and a folder of notes.
+- A sidecar for each collection, topic and entity, and a folder of notes.
+- Nest entities by how they relate (people under organisations) once the graph records relations between them.

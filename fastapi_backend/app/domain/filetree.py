@@ -1,16 +1,23 @@
-"""Assets as folders and files (docs/file-tree.md): what the S3, WebDAV, SMB and NFS servers serve, and the API browses.
+"""The graph as folders and files (docs/file-tree.md): what the S3, WebDAV, SMB and NFS servers serve, and the API browses.
 
-    /<namespace>/<collection>/<sub-collection>/…/<asset files>
+Graph nodes are folders, nested along the graph's links, with assets' files inside them:
 
-An asset (a recording, document or image) shows as up to four files in its collection's folder, named after it,
-`<title> [<id>]`: its own file (`.mp3`, `.pdf`, …), `.json` beside it with its metadata (Dublin Core terms, its
-collection, topics and entities, the description saved on it), `.txt` with its text (the transcript, or what was read
-off its pages), and `.pdf` for a document converted to one. An own file that is itself `.txt` or `.json` (an imported
-transcript) is `<title> [<id>].original.txt`.
+    /<namespace>/
+        Collections/<collection>/<collection inside it>/…   every asset in its collection's folder
+        Topics/<topic>/<narrower topic>/…                   the assets about each topic (accepted ones)
+        Entities/<type>/<name>/                             the assets that mention an entity
+
+An asset (a recording, document or image) shows as up to four files named after it, `<title> [<id>]`: its own file
+(`.mp3`, `.pdf`, …), `.json` beside it with its metadata (Dublin Core terms, its collection, topics and entities, the
+description saved on it), `.txt` with its text (the transcript, or what was read off its pages), and `.pdf` for a
+document converted to one. An own file that is itself `.txt` or `.json` (an imported transcript) is
+`<title> [<id>].original.txt`. The same asset shows in every folder it belongs to; a topic with several broader
+topics shows under each.
 
 What someone sees is what the web app shows them: the namespaces they have a role in (admins: all of them), and in a
-namespace where they only have roles on some collections, those collections. The tree only reads; names are made
-safe for every file system (no `/ \\ : * ? " < > |`) and unique in their folder, ignoring case.
+namespace where they only have roles on some collections, those collections and the topics and entities of the
+assets in them. The tree only reads; names are made safe for every file system (no `/ \\ : * ? " < > |`) and unique
+in their folder, ignoring case.
 """
 
 from __future__ import annotations
@@ -31,6 +38,8 @@ R = store.R
 NAME_MAX = 120
 CHUNK = 1 << 16
 ASSET_ID = re.compile(r" \[(\d+)\](?:\.[^.\[\]]+)+$")
+COLLECTIONS, TOPICS, ENTITIES = "Collections", "Topics", "Entities"
+TOPIC_DEPTH = 32  # topics can't loop (topics._would_loop), but a path stops here anyway
 UNSAFE = re.compile(r'[\x00-\x1f\x7f/\\:*?"<>|]')
 REC_FIELDS = (
     "record::id(id) AS id, space, collection, title, path, source, remote, size, media, status, duration_ms, created_at, "
@@ -177,6 +186,8 @@ class Tree:
         self._names = {sid: n for sid, n in store.space_names(db).items() if sid in self._spaces}
         self._cols: dict[int, list[dict[str, Any]]] = {}
         self._only: int | None = None
+        self._seen: dict[int, set[int]] = {}
+        self._topic_rows: dict[int, list[dict[str, Any]]] = {}
 
     # ---------- walking ----------
     @staticmethod
@@ -195,7 +206,26 @@ class Tree:
     def _list(self, parts: list[str]) -> list[Entry]:
         if not parts:
             return [_folder(n) for n in sorted(self._names.values(), key=str.casefold)]
-        return self._list_collection(self._space(parts[0]), parts[1:])
+        sid = self._space(parts[0])
+        rest = parts[1:]
+        if not rest:
+            return [_folder(COLLECTIONS), _folder(ENTITIES), _folder(TOPICS)]
+        head, rest = rest[0], rest[1:]
+        if head == COLLECTIONS:
+            return self._list_collection(sid, rest)
+        if head == TOPICS:
+            return self._list_topic(sid, rest)
+        if head == ENTITIES:
+            types = self._types(sid)
+            if not rest:
+                return [_folder(n) for n in types]
+            if rest[0] in types:
+                ents = self._entities(sid, types[rest[0]])
+                if len(rest) == 1:
+                    return [_folder(n) for n in ents]
+                if len(rest) == 2 and rest[1] in ents:
+                    return self._assets(self._entity_recordings(sid, ents[rest[1]]))
+        raise NotFound("/".join(parts))
 
     def stat(self, path: str) -> Entry:
         """One file or folder; NotFound when there's none (or it isn't this person's to see)."""
@@ -265,6 +295,105 @@ class Tree:
         if cid is not None:
             out += self._assets(self.db.rows(f"SELECT {REC_FIELDS} FROM recording WHERE collection = $c", c=cid))
         return sorted(out, key=lambda e: e.name.casefold())
+
+    def _visible(self, sid: int, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        seen = self._spaces.get(sid)
+        return [r for r in rows if r.get("space") == sid and (seen is None or r.get("collection") in seen)]
+
+    def _recordings(self, sid: int, rids: list[int]) -> list[dict[str, Any]]:
+        if not rids:
+            return []
+        rows = self.db.rows(f"SELECT {REC_FIELDS} FROM recording WHERE id IN $ids", ids=[R("recording", int(r)) for r in set(rids)])
+        return self._visible(sid, rows)
+
+    # ---------- topics and entities ----------
+    def _topics(self, sid: int) -> list[dict[str, Any]]:
+        """The namespace's topics this person sees: all of them, or (seen in part) the topics of the assets they see and
+        the topics broader than those."""
+        if sid not in self._topic_rows:
+            rows = self.db.rows("SELECT record::id(id) AS id, label, broader FROM topic WHERE space = $s", s=sid)
+            if self._spaces[sid] is not None:
+                keep = {
+                    a["topic"]
+                    for a in self.db.rows("SELECT topic, recording FROM topic_about WHERE space = $s AND status = 'accepted'", s=sid)
+                    if a["recording"] in self._seen_recordings(sid)
+                }
+                up = {t["id"]: t.get("broader") or [] for t in rows}
+                todo = list(keep)
+                while todo:
+                    for b in up.get(todo.pop(), []):
+                        if b not in keep:
+                            keep.add(b)
+                            todo.append(b)
+                rows = [t for t in rows if t["id"] in keep]
+            self._topic_rows[sid] = rows
+        return self._topic_rows[sid]
+
+    def _narrower(self, sid: int, parent: int | None) -> dict[str, int]:
+        """The topics just under a topic (None: the ones with no broader topic this person sees), by their names here."""
+        rows = self._topics(sid)
+        known = {t["id"] for t in rows}
+        if parent is None:
+            kids = [t for t in rows if not any(b in known for b in t.get("broader") or [])]
+        else:
+            kids = [t for t in rows if parent in (t.get("broader") or [])]
+        return dict(_unique([(clean(t["label"]), t["id"]) for t in kids]))
+
+    def _list_topic(self, sid: int, names: list[str]) -> list[Entry]:
+        if len(names) > TOPIC_DEPTH:
+            raise NotFound("/".join(names))
+        tid = None
+        for n in names:
+            kids = self._narrower(sid, tid)
+            if n not in kids:
+                raise NotFound(n)
+            tid = kids[n]
+        out = [_folder(n) for n in self._narrower(sid, tid)]
+        if tid is not None:
+            out += self._assets(self._topic_recordings(sid, tid))
+        return sorted(out, key=lambda e: e.name.casefold())
+
+    def _topic_recordings(self, sid: int, tid: int) -> list[dict[str, Any]]:
+        rids = self.db.values("SELECT VALUE recording FROM topic_about WHERE topic = $t AND status = 'accepted'", t=tid)
+        return self._recordings(sid, rids)
+
+    def _seen_recordings(self, sid: int) -> set[int]:
+        if sid not in self._seen:
+            self._seen[sid] = hierarchy.recordings_in(self.db, self._spaces[sid] or [])
+        return self._seen[sid]
+
+    def _entity_rows(self, sid: int) -> list[dict[str, Any]]:
+        from .entities import QUIET
+
+        rows = [
+            e
+            for e in self.db.rows("SELECT record::id(id) AS id, name, type, hidden FROM entity WHERE space = $s", s=sid)
+            if not e.get("hidden") and e.get("type") not in QUIET
+        ]
+        if self._spaces[sid] is not None:
+            seen = self._seen_recordings(sid)
+            have = {
+                m["entity"]
+                for m in self.db.rows("SELECT entity, recording FROM mentions WHERE space = $s GROUP BY entity, recording", s=sid)
+                if m["recording"] in seen
+            }
+            rows = [e for e in rows if e["id"] in have]
+        return rows
+
+    def _types(self, sid: int) -> dict[str, str]:
+        """{folder name: entity type} for the types this namespace's entities have."""
+        from .entities import TYPES
+
+        own = entity_setup.labels(self.db, {sid}).get(sid, {})
+        codes = sorted({e["type"] for e in self._entity_rows(sid)})
+        return dict(_unique([(clean(TYPES.get(c) or own.get(c) or c.title()), c) for c in codes]))
+
+    def _entities(self, sid: int, code: str) -> dict[str, int]:
+        return dict(_unique([(clean(e["name"]), e["id"]) for e in self._entity_rows(sid) if e["type"] == code]))
+
+    def _entity_recordings(self, sid: int, eid: int) -> list[dict[str, Any]]:
+        rids = [m["recording"] for m in self.db.rows("SELECT recording FROM mentions WHERE entity = $e GROUP BY recording", e=eid)]
+        return self._recordings(sid, rids)
 
     # ---------- assets ----------
     def _primary(self, rec: dict[str, Any]) -> Entry | None:

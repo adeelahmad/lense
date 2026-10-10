@@ -4,10 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **Assets as files.** Namespaces and collections are folders, and each asset is its own file with a `.json` sidecar
-  of its metadata and a `.txt` of its text, in its collection's folder; everyone sees what the web app shows them.
-  Browse and read it through the API (`/api/v1/tree`) and the MCP tools `list_files` and `read_file`
-  ([Assets as files](docs/file-tree.md)). S3, WebDAV, SMB and NFS servers that share it are in progress.
+- **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
+  inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
+  metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API
+  (`/api/v1/tree`) and the MCP tools `list_files` and `read_file` ([The graph as files](docs/file-tree.md)).
+  S3, WebDAV, SMB and NFS servers that share it are in progress.
 
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,
   model calls, tokens, cost and failures by model, budgets, workers and disk. Off by default; turned on in Settings →

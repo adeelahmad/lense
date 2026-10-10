@@ -89,7 +89,7 @@ nav:
   - Notes: notes.md
   - Web clipper: web-clipper.md
   - Storage: storage.md
-  - Assets as files: file-tree.md
+  - The graph as files: file-tree.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md
   - API: api.md

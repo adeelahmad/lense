@@ -1,4 +1,4 @@
-"""Assets as folders and files (docs/file-tree.md): browse the tree the S3, WebDAV, SMB and NFS servers serve, and
+"""The graph as folders and files (docs/file-tree.md): browse the tree the S3, WebDAV, SMB and NFS servers serve, and
 read its files. Everyone sees what the web app shows them; the tree only reads."""
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from app.domain.store import DB
 from app.schemas.filetree import TreeEntry, TreeFolder
 
 router = APIRouter(prefix="/tree", tags=["tree"])
-PATH = Query("", max_length=4000, description="a folder or file, from the top: namespace/collection/…")
+PATH = Query("", max_length=4000, description="a folder or file, from the top: namespace/Collections|Topics|Entities/…")
 
 
 def tree_of(db: DB, cfg: dict[str, Any], user: Principal) -> filetree.Tree:

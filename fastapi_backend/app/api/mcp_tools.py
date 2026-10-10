@@ -1358,7 +1358,7 @@ def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
     )
 
 
-# ---------- assets as files ----------
+# ---------- the graph as files ----------
 FILE_CHARS = 100_000  # the most of a file read_file returns at once; offset pages through the rest
 
 
@@ -1369,10 +1369,10 @@ def _tree(ctx: Context) -> filetree.Tree:
 @tool(
     "list_files",
     "List a folder of the file tree",
-    "The archive's assets as folders and files: '' lists your namespaces, then each one's collections and the "
-    "collections inside them. Each asset is files named '<title> [<id>]' in its collection's folder: its own file "
-    "(.mp3, .pdf, …), .json with its metadata, topics and entities, and .txt with its text.",
-    Arg("path", "string", "the folder, from the top (e.g. pods/General)", default="", max_length=4000),
+    "The graph as folders and files: '' lists your namespaces; each has Collections/<collection>/<inside it>/…, "
+    "Topics/<topic>/<narrower topic>/… and Entities/<type>/<name>/, each folder holding its assets' files, named "
+    "'<title> [<id>]': its own file (.mp3, .pdf, …), .json with its metadata, topics and entities, and .txt with its text.",
+    Arg("path", "string", "the folder, from the top (e.g. pods/Topics/Gene therapy)", default="", max_length=4000),
 )
 def list_files(ctx: Context, path: str) -> dict[str, Any]:
     t = _tree(ctx)

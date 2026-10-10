@@ -1,5 +1,5 @@
-"""Assets as folders and files (docs/file-tree.md): namespaces and collections as folders, assets as files with a
-metadata sidecar and their text, seen exactly as the web app shows them to each person."""
+"""The graph as folders and files (docs/file-tree.md): collections, topics and entities as nested folders, assets as
+files with a metadata sidecar and their text, seen exactly as the web app shows them to each person."""
 
 from __future__ import annotations
 
@@ -50,9 +50,10 @@ def test_namespaces_and_collections_are_folders(client, env, db):
     talks = hierarchy.create(db, pods, "Talks")
     hierarchy.create(db, pods, "2024", parent=talks)
     assert _names(client, ha) == ["calls", "pods"]
-    assert _names(client, ha, "pods") == ["General", "Talks"]
-    assert _names(client, ha, "pods/Talks") == ["2024"]
-    assert _names(client, ha, "pods/General") == [
+    assert _names(client, ha, "pods") == ["Collections", "Entities", "Topics"]
+    assert _names(client, ha, "pods/Collections") == ["General", "Talks"]
+    assert _names(client, ha, "pods/Collections/Talks") == ["2024"]
+    assert _names(client, ha, "pods/Collections/General") == [
         "ep1 [1].json",
         "ep1 [1].original.txt",
         "ep1 [1].txt",
@@ -61,15 +62,33 @@ def test_namespaces_and_collections_are_folders(client, env, db):
         "ep2 [2].txt",
     ]
     # a file isn't a folder, nor the other way round; what isn't there is 404
-    assert client.get(URL, headers=ha, params={"path": "pods/General/ep1 [1].txt"}).status_code == 400
-    assert _read(client, ha, "pods/General").status_code == 400
-    assert client.get(URL, headers=ha, params={"path": "pods/Nothing"}).status_code == 404
-    assert _read(client, ha, "pods/General/nope.txt").status_code == 404
+    assert client.get(URL, headers=ha, params={"path": "pods/Collections/General/ep1 [1].txt"}).status_code == 400
+    assert _read(client, ha, "pods/Collections/General").status_code == 400
+    assert _read(client, ha, "pods/Collections").status_code == 400
+    assert client.get(URL, headers=ha, params={"path": "pods/Collections/Nothing"}).status_code == 404
+    assert _read(client, ha, "pods/Collections/General/nope.txt").status_code == 404
+
+
+def test_graph_nodes_are_nested_folders(client, env, db):
+    """Topics nest under their broader topics, entities under their type, each with the assets about it."""
+    ha = env["ha"]
+    pods = store.ns_id(db, "pods")
+    gt = db.one("SELECT record::id(id) AS id FROM topic WHERE label = 'Gene therapy'")["id"]
+    aav = topics.create(db, pods, "AAV vectors", broader=[gt])
+    topics.tag(db, aav, [env["b"]])
+    assert _names(client, ha, "pods/Topics") == ["Gene therapy"]
+    assert _names(client, ha, "pods/Topics/Gene therapy") == ["AAV vectors", "ep1 [1].json", "ep1 [1].original.txt", "ep1 [1].txt"]
+    assert _names(client, ha, "pods/Topics/Gene therapy/AAV vectors") == ["ep2 [2].json", "ep2 [2].original.txt", "ep2 [2].txt"]
+    assert client.get(URL, headers=ha, params={"path": "pods/Topics/AAV vectors"}).status_code == 404
+    assert "Organisation" in _names(client, ha, "pods/Entities")
+    assert "Dyno Therapeutics" in _names(client, ha, "pods/Entities/Organisation")
+    assert "ep2 [2].txt" in _names(client, ha, "pods/Entities/Organisation/Dyno Therapeutics")
+    assert _read(client, ha, "pods/Topics/Gene therapy/AAV vectors/ep2 [2].txt").status_code == 200
 
 
 def test_an_assets_files(client, env, folder):
     ha = env["ha"]
-    base = "pods/General/ep1 [1]"
+    base = "pods/Collections/General/ep1 [1]"
     text = _read(client, ha, f"{base}.txt")
     assert text.status_code == 200 and text.headers["content-type"].startswith("text/plain")
     assert text.text.startswith("Alice: Welcome back.")
@@ -84,16 +103,16 @@ def test_an_assets_files(client, env, folder):
     part = _read(client, ha, f"{base}.original.txt", range="bytes=5-14")
     assert part.status_code == 206 and part.content == own[5:15] and part.headers["content-range"] == f"bytes 5-14/{len(own)}"
     # the size listed is the size read
-    listed = {e["name"]: e["size"] for e in client.get(URL, headers=ha, params={"path": "pods/General"}).json()["entries"]}
+    listed = {e["name"]: e["size"] for e in client.get(URL, headers=ha, params={"path": "pods/Collections/General"}).json()["entries"]}
     for name, size in listed.items():
-        assert len(_read(client, ha, f"pods/General/{name}").content) == size, name
+        assert len(_read(client, ha, f"pods/Collections/General/{name}").content) == size, name
 
 
 def test_people_see_what_the_web_app_shows_them(client, env, db, folder):
     hv, hx = env["hv"], env["hx"]
     assert _names(client, hv) == ["pods"]
     assert client.get(URL, headers=hv, params={"path": "calls"}).status_code == 404
-    assert _read(client, hv, "calls/General/call [3].txt").status_code == 404
+    assert _read(client, hv, "calls/Collections/General/call [3].txt").status_code == 404
     assert _names(client, hx) == []
     assert client.get(URL).status_code == 401
     # a role on one collection: just that collection, and the topics and entities of what's in it
@@ -102,9 +121,11 @@ def test_people_see_what_the_web_app_shows_them(client, env, db, folder):
     db.q("UPDATE $r SET collection = $c", r=store.R("recording", env["b"]), c=talks)
     hierarchy.give(db, talks, _account(db, "out@x.io"), "viewer")
     assert _names(client, hx) == ["pods"]
-    assert _names(client, hx, "pods") == ["Talks"]
-    assert _names(client, hx, "pods/Talks") == ["ep2 [2].json", "ep2 [2].original.txt", "ep2 [2].txt"]
-    assert _read(client, hx, "pods/General/ep1 [1].txt").status_code == 404
+    assert _names(client, hx, "pods/Collections") == ["Talks"]
+    assert _names(client, hx, "pods/Topics") == []  # Gene therapy is about ep1, which they can't see
+    assert _names(client, hx, "pods/Entities/Organisation/Dyno Therapeutics") == ["ep2 [2].json", "ep2 [2].original.txt", "ep2 [2].txt"]
+    assert _names(client, hx, "pods/Collections/Talks") == ["ep2 [2].json", "ep2 [2].original.txt", "ep2 [2].txt"]
+    assert _read(client, hx, "pods/Collections/General/ep1 [1].txt").status_code == 404
 
 
 def _account(db, email):
@@ -116,8 +137,8 @@ def test_names_are_safe_and_unique(db, cfg, env):
     hierarchy.create(db, pods, 'a/b: "c"?')
     db.q("UPDATE $r SET title = $t", r=store.R("recording", env["a"]), t="Q3: plans / ideas?")
     t = filetree.Tree(db, cfg, filetree.Viewer(admin=True, roles={pods: "owner"}))
-    assert [e.name for e in t.list("pods")] == ["a_b_ _c__", "General"]
-    assert "Q3_ plans _ ideas_ [1].txt" in [e.name for e in t.list("pods/General")]
+    assert [e.name for e in t.list("pods/Collections")] == ["a_b_ _c__", "General"]
+    assert "Q3_ plans _ ideas_ [1].txt" in [e.name for e in t.list("pods/Collections/General")]
     assert filetree._unique([("Talks", 1), ("talks", 2)]) == [("Talks", 1), ("talks [2]", 2)]
     assert filetree.clean("..") == "_" and filetree.clean("x. ") == "x" and len(filetree.clean("y" * 500)) == filetree.NAME_MAX
 
@@ -127,9 +148,11 @@ def test_encrypted_files_are_read_plain(client, db, cfg, env, folder):
     own = (folder / "ep1.txt").read_bytes()
     keyring.encrypt_file(db, cfg, store.ns_id(db, "pods"), str(folder / "ep1.txt"), force=True)
     assert keyring.is_encrypted(folder / "ep1.txt")
-    got = _read(client, env["ha"], "pods/General/ep1 [1].original.txt")
+    got = _read(client, env["ha"], "pods/Collections/General/ep1 [1].original.txt")
     assert got.status_code == 200 and got.content == own
-    sizes = {e["name"]: e["size"] for e in client.get(URL, headers=env["ha"], params={"path": "pods/General"}).json()["entries"]}
+    sizes = {
+        e["name"]: e["size"] for e in client.get(URL, headers=env["ha"], params={"path": "pods/Collections/General"}).json()["entries"]
+    }
     assert sizes["ep1 [1].original.txt"] == len(own)
 
 
@@ -137,9 +160,9 @@ def test_agents_browse_it_over_mcp(client, env):
     _, tokens = _grant(client, env["hv"], scope="read")
     h = _bearer(tokens)
     assert [e["name"] for e in tool(client, h, "list_files", path="")["entries"]] == ["pods"]
-    got = tool(client, h, "read_file", path="pods/General/ep1 [1].json")
+    got = tool(client, h, "read_file", path="pods/Collections/General/ep1 [1].json")
     assert json.loads(got["text"])["subject"] == ["Gene therapy"]
-    own = tool(client, h, "read_file", path="pods/General/ep1 [1].original.txt")
+    own = tool(client, h, "read_file", path="pods/Collections/General/ep1 [1].original.txt")
     assert "text" not in own and own["download"].startswith("/api/v1/tree/file?path=")
-    assert "a file" in tool_error(client, h, "list_files", path="pods/General/ep1 [1].txt")
-    assert "not found" in tool_error(client, h, "read_file", path="calls/General/call [3].txt")
+    assert "a file" in tool_error(client, h, "list_files", path="pods/Collections/General/ep1 [1].txt")
+    assert "not found" in tool_error(client, h, "read_file", path="calls/Collections/General/call [3].txt")
