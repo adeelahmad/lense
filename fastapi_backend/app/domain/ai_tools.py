@@ -329,12 +329,30 @@ OWN_RESULTS = {"server_status", "find_model_servers", "read_settings", "file_sto
 }
 
 
+def read_before(history, summary=None):
+    """Whether earlier answers in a conversation read text from outside Lens (excerpts, or tools other than Lens's own),
+    as a Toolbox's `outside`: the model reads those answers again, word for word or in the summary. After /clear it
+    reads only what came since."""
+    since = (summary or {}).get("upto") or 0 if summary is not None and not summary.get("text") else 0
+    for m in history:
+        if m["id"] <= since or m["role"] != "assistant":
+            continue
+        tools = {s.get("tool") for s in m.get("steps") or [] if s} - OWN_RESULTS - {None, "choose_namespace"}
+        if m.get("passages") or tools:
+            return ["earlier answers"]
+    return []
+
+
 class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval."""
 
-    def __init__(self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said=""):
+    def __init__(self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said="", outside=()):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
+        # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
+        # ask first, even where they'd act at once (wary)
+        self.outside = list(dict.fromkeys(outside))
         self.base, self.admin, self.act = base or cfg, admin, act
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
@@ -370,6 +388,8 @@ class Toolbox(ops_tools.OpsTools):
             return ""
         sid, name, p = self.home
         rows = ns_assistant.labelled(self.db, ns_assistant.memories(self.db, sid, ns_assistant.PROMPT_MAX))
+        if rows:
+            self.read_outside("memory")
         spaces = {
             r["id"]: r["space"]
             for r in self.db.rows(
@@ -461,6 +481,19 @@ class Toolbox(ops_tools.OpsTools):
         for the model to read as data."""
         return name not in OWN_RESULTS
 
+    def read_outside(self, source):
+        if source not in self.outside:
+            self.outside.append(source)
+
+    def wary(self):
+        """Whether this answer has read text from outside Lens, so that what could carry its instructions out (a web
+        tool, another server's tool) or change the server asks first (ai.untrusted_asks, on by default)."""
+        return bool(self.outside) and self.cfg["ai"].get("untrusted_asks", True)
+
+    def why(self):
+        """Why something that would have run at once waits for a yes, said with it."""
+        return f" (asked first: this answer read text from outside Lens: {', '.join(self.outside[:4])})"
+
     def call(self, name, args, model=False):
         """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
         marked as data (untrusted), with what hooks add after it, unmarked."""
@@ -478,7 +511,10 @@ class Toolbox(ops_tools.OpsTools):
                     why = extensions.fill(h["spec"]["action"]["reason"], {"said": self.said, "tool": name})
                     return json.dumps({"error": f"blocked: {why}"}), f"{name}: blocked ({why})"
                 extra += self._hook(h, {"said": self.said, "tool": name})
+        asked = len(self.approvals)
         result, summary = self._run(name, fn, args)
+        if self.untrusted(name) and len(self.approvals) == asked:  # it read something, rather than asking for a yes
+            self.read_outside(f"tool {name}")
         if hooks:
             for h in self.ext.matching("after_tool", name, result):
                 extra += self._hook(h, {"said": self.said, "tool": name, "result": result[:4000]})
@@ -505,9 +541,16 @@ class Toolbox(ops_tools.OpsTools):
         def run(**args):
             args = extensions.tool_args(t["spec"], args)
             what = f"{t['name']}(" + ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)[:60]}" for k, v in args.items()) + ")"
-            if t["spec"]["effect"] == "change" and not self.act:
+            change = t["spec"]["effect"] == "change"
+            # a tool that reaches another host carries what the model put in its arguments there: after reading text
+            # from outside Lens, which may have put it there, it asks first
+            asks = change and not self.act
+            wary = not asks and (change or extensions.sends_out(t["spec"])) and self.wary()
+            if asks or wary:  # the reason said only where it asks because of what it read
                 return self._approval(
-                    "extension", {"tool": t["name"], "extension": t["ext"], "version": t["version"], "args": args}, f"Run {what}"
+                    "extension",
+                    {"tool": t["name"], "extension": t["ext"], "version": t["version"], "args": args},
+                    f"Run {what}" + (self.why() if wary else ""),
                 )
             out = extensions.run_tool(self.db, self.cfg, t["spec"], args, toolbox=self)
             return out, f"Ran {what}"

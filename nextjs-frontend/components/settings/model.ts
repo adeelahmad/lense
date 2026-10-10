@@ -751,6 +751,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "untrusted_asks",
+    label: "Ask before sending data out after reading third-party text",
+    kind: "switch",
+    hint: "Once an answer has read a recording, a document, a web page or a chat room, web tools, other servers' tools and changes the setup chat would make at once wait for your approval.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
