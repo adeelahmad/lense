@@ -3828,10 +3828,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "requestBody": {
@@ -3880,10 +3880,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "responses": {
@@ -4012,10 +4012,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "responses": {
@@ -4272,6 +4272,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SetupTelemetry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/budget": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Budget",
+        "description": "The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop\n(docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard\nlimit: no budget.",
+        "operationId": "save_budget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupBudget"
               }
             }
           },
@@ -51048,6 +51090,156 @@
         ],
         "title": "SetupAdmin"
       },
+      "SetupBudget": {
+        "properties": {
+          "hard_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Usd"
+          },
+          "soft_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soft Usd"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period",
+            "default": "month"
+          },
+          "on_over": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "skip"
+            ],
+            "title": "On Over",
+            "default": "ask"
+          },
+          "price_in": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price In"
+          },
+          "price_out": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Out"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupBudget"
+      },
+      "SetupBudgetView": {
+        "properties": {
+          "hard_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Usd"
+          },
+          "soft_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soft Usd"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period",
+            "default": "month"
+          },
+          "on_over": {
+            "type": "string",
+            "title": "On Over",
+            "default": "ask"
+          },
+          "price_in": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price In"
+          },
+          "price_out": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Out"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "SetupBudgetView"
+      },
       "SetupFinish": {
         "properties": {
           "skipped": {
@@ -51460,6 +51652,9 @@
           },
           "oauth": {
             "$ref": "#/components/schemas/SetupOAuthView"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/SetupBudgetView"
           }
         },
         "additionalProperties": true,
@@ -51471,7 +51666,8 @@
           "llm",
           "storage",
           "telemetry",
-          "oauth"
+          "oauth",
+          "budget"
         ],
         "title": "SetupView"
       },
