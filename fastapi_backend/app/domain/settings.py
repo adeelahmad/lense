@@ -371,6 +371,14 @@ def _check(section, key, value, default):
         if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
             raise ValueError("llm.vision_model is a model's name")
         return (value or "").strip() or None
+    if (section, key) == ("ai", "compact_model"):
+        if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError("ai.compact_model is a model's name")
+        return (value or "").strip() or None
+    if (section, key) == ("ai", "context_tokens"):
+        if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1024 <= value <= 2_000_000):
+            raise ValueError("ai.context_tokens is a whole number of tokens from 1024 to 2000000")
+        return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
             raise ValueError("llm.describe_max is a whole number from 1 to 1000")

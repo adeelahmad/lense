@@ -24,8 +24,16 @@ then.
   behind them, they're folded into a running summary kept on the conversation (one model call, after an answer), and
   every answer gets that summary plus the messages it doesn't cover yet. Room conversations (chat-rooms.md) go on for
   good, so they rely on it most. Editing a question the summary covers drops the summary; it's made again from what's
-  left. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with no model,
-  only the last six messages are read.
+  left. A conversation that fills half of the model's context window (**Chat model's context**, `ai.context_tokens`,
+  16000 when empty; about four characters a token) is folded in early, before the next answer, whatever the count.
+  **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
+  the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
+  or with no model, only the last six messages are read.
+- **/clear and /compact:** typed as a message, in the app or in a chat room (`Lens /clear`). `/clear` makes the
+  assistant start afresh: the messages stay to read, but the model no longer sees them or their summary.
+  `/compact` folds the whole conversation into its summary now, and `/compact keep the dates and owners` tells the
+  summary what to keep; the reply shows the summary. Both work with automatic summaries off. Neither command, nor its
+  reply, is read by the model afterwards.
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
 - **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
   server lists); Try another model asks a question again with a different one. Each answer records the model that

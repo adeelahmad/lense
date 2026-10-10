@@ -1242,6 +1242,10 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       </p>
       <F ctx={ctx} id="ai.tools" />
       <F ctx={ctx} id="ai.compact" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="ai.compact_model" />
+        <F ctx={ctx} id="ai.context_tokens" />
+      </div>
       <F ctx={ctx} id="ai.refine_notes" />
       <F ctx={ctx} id="ai.organise_notes" />
       <div className="flex flex-col gap-2">
