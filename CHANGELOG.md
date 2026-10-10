@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Telegram, built in.** Paste a bot token from @BotFather in Settings › Telegram and the assistant answers there:
+  no Matterbridge, no public address. It talks only to people you let in (one click on the settings page), hears
+  voice notes, takes files for the assistant to import, and does everything it does in Matterbridge rooms
+  ([Chat rooms](docs/chat-rooms.md#telegram-built-in)). Chat apps now share one channel layer, so the next one is an
+  adapter.
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and

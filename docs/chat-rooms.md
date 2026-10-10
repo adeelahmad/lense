@@ -4,6 +4,28 @@ Lens's assistant can answer in Slack, Discord, Telegram, Matrix, Mattermost, IRC
 [Matterbridge](https://github.com/42wim/matterbridge) bridges. Say "Lens, what did we decide about the launch?" (or
 "@Lens …") in a bridged room and it answers there, as it would in Chat.
 
+## Telegram, built in
+
+Telegram needs no Matterbridge and no public address: Lens reads its own bot's messages (long polling) and answers.
+
+1. In Telegram, message **@BotFather**, send `/newbot` and copy the token it gives you.
+2. Open **Settings → Telegram**, paste the token and turn on **Answer in Telegram**.
+3. Message your bot. You show on the settings page under **Wrote to the bot, not let in**: click **Let in**.
+
+Anyone can find a bot, so it answers only the people in **People it talks to** (Telegram user ids or usernames);
+anyone else who writes to it is told once that they need to be let in, and shows on the page. A private chat with
+the bot is always for Lens; in a group it answers what names it ("Lens, …"), mentions the bot (`@your_bot`) or
+replies to it. Voice notes are transcribed by the server's speech-to-text (the answer starts with what it heard), and
+files sent to it (up to Telegram's 20 MB for bots) are held for the assistant, which imports them into a namespace as
+a file dropped into Chat is. The page lists the chats it has seen with their ids, so a group can be given to a
+namespace's assistant with **Chats for a namespace's assistant** (`-1001234567890 = pods`). Approving by replying
+"yes", the account it answers as and routing between namespaces work as below.
+
+Give Lens a bot of its own: a bot that Matterbridge also reads answers neither reliably (**Check the bot** says so).
+
+Telegram is one adapter of the chat-channel layer (`app/domain/channels.py`) that Matterbridge is another of; a new
+chat app adds an adapter (reading, sending, files) and gets everything in a room for free.
+
 ## Set it up in the web app
 
 Lens can run Matterbridge for you, so adding Slack or WhatsApp takes no config file:

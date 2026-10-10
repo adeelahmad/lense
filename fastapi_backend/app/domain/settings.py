@@ -44,6 +44,7 @@ EDITABLE = {
     "local_llm": ("enabled", "model", "use_as_provider", "context", "threads", "gpu_layers", "port", "host"),
     "mail": None,
     "bridge": None,
+    "telegram": None,
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
@@ -115,6 +116,7 @@ SECRETS = {
     "speech": ("openai_api_key", "elevenlabs_api_key", "assemblyai_api_key", "deepgram_api_key"),
     "mail": ("password",),
     "bridge": ("token",),
+    "telegram": ("token",),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers",),
     "fedora": ("password",),
@@ -141,6 +143,8 @@ ENUMS = {
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
+    ("telegram", "answer"): {"mention", "all"},
+    ("telegram", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
@@ -410,6 +414,8 @@ def _check(section, key, value, default):
         return _mail_setting(key, value)
     if section == "bridge" and key not in ("answer", "enabled", "approve"):
         return _bridge_setting(key, value)
+    if section == "telegram" and key not in ("answer", "enabled", "approve"):
+        return _telegram_setting(key, value)
     if section == "matterbridge" and key != "run":
         return _matterbridge_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
@@ -609,17 +615,21 @@ def _mail_setting(key, value):
     return value
 
 
-def _bridge_setting(key, value):
+TELEGRAM_TOKEN_RX = re.compile(r"^[0-9]{3,20}:[A-Za-z0-9_-]{30,64}$")
+
+
+def _bridge_setting(key, value, section="bridge"):
+    """bridge's settings, and the room settings every chat channel shares (channels.py: `section`)."""
     if key == "poll_seconds":
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 300):
-            raise ValueError("bridge.poll_seconds is a whole number of seconds from 1 to 300")
+            raise ValueError(f"{section}.poll_seconds is a whole number of seconds from 1 to 300")
         return value
     if key == "users":
         if not (isinstance(value, list) and all(isinstance(v, str) and len(v) <= 200 for v in value) and len(value) <= 500):
-            raise ValueError("bridge.users is a list of chat usernames")
-        return list(dict.fromkeys(v.strip() for v in value if v.strip()))
+            raise ValueError(f"{section}.users is a list of chat usernames")
+        return list(dict.fromkeys(v.strip().lstrip("@") if section != "bridge" else v.strip() for v in value if v.strip()))
     if key == "rooms":
-        bad = "bridge.rooms is a list of rooms and namespaces, like team = pods or team/general = pods"
+        bad = f"{section}.rooms is a list of rooms and namespaces, like team = pods or team/general = pods"
         if not (isinstance(value, list) and len(value) <= 200 and all(isinstance(v, str) and len(v) <= 300 for v in value)):
             raise ValueError(bad)
         out = []
@@ -633,11 +643,11 @@ def _bridge_setting(key, value):
             out.append(f"{where} = {ns}")
         return list(dict.fromkeys(out))
     if key not in ("url", "token", "gateway", "account", "name"):
-        raise ValueError(f"unknown setting bridge.{key}")
+        raise ValueError(f"unknown setting {section}.{key}")
     if value in (None, ""):
         return "Lens" if key == "name" else None
     if not (isinstance(value, str) and len(value.strip()) <= 500):
-        raise ValueError(f"bridge.{key} is text")
+        raise ValueError(f"{section}.{key} is text")
     value = value.strip() if key != "token" else value
     if key == "url":
         u = urllib.parse.urlsplit(value)
@@ -646,11 +656,29 @@ def _bridge_setting(key, value):
         return value.rstrip("/")
     if key == "account":
         if not EMAIL_RX.match(value):
-            raise ValueError("bridge.account is the email of the Lens account it answers as")
+            raise ValueError(f"{section}.account is the email of the Lens account it answers as")
         return value.lower()
     if key == "name" and not re.match(r"^[\w .-]{1,40}$", value):
-        raise ValueError("bridge.name is a short name, such as Lens")
+        raise ValueError(f"{section}.name is a short name, such as Lens")
     return value
+
+
+def _telegram_setting(key, value):
+    if key == "token":
+        value = (value or "").strip()
+        if value and not TELEGRAM_TOKEN_RX.match(value):
+            raise ValueError("telegram.token is the bot's token from @BotFather, like 123456789:AAE…")
+        return value or None
+    if key == "api_url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not u or u.scheme not in ("http", "https") or not u.hostname:
+            raise ValueError("telegram.api_url is the http(s) address of a Bot API server, such as https://api.telegram.org")
+        return value.strip().rstrip("/")
+    if key in ("url", "gateway", "poll_seconds"):  # Matterbridge's own; Telegram waits on getUpdates instead
+        raise ValueError(f"unknown setting telegram.{key}")
+    return _bridge_setting(key, value, "telegram")
 
 
 def _matterbridge_setting(key, value):
@@ -980,7 +1008,7 @@ def save(db, base, section, changes, user=None):
                     telemetry.parse_headers(v)  # ValueError when malformed
                 if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
                     raise ValueError(f"matterbridge.{k} is one line of text")
-                if (section, k) == ("documents", "anytopdf_token"):
+                if (section, k) in (("documents", "anytopdf_token"), ("telegram", "token")):
                     v = _check(section, k, v, None)
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"

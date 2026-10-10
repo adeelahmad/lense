@@ -434,11 +434,12 @@ def _attach(db, cfg, rid, sid, dest, st, fp, by, probed):
     return jobs.add_steps(db, rid, ATTACH_STEPS, by=by)
 
 
-def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=None):
-    """A whole file that arrived some other way (an import webhook), at `path` on the same disk as the uploads folder,
-    uploaded into namespace `ns` in one go: it's checked as start() checks a file, moved into place and finished as if
-    its last chunk had just arrived. The namespace must exist. Returns the finished upload."""
-    row = start(db, cfg, ns, filename, os.path.getsize(path), by, title=title, pipeline=pipeline, collection=collection)
+def take(db, cfg, ns, path, filename, by, title=None, pipeline=None, collection=None, hold=False):
+    """A whole file that arrived some other way (an import webhook, a chat channel), at `path` on the same disk as the
+    uploads folder, uploaded into namespace `ns` in one go: it's checked as start() checks a file, moved into place
+    and finished as if its last chunk had just arrived. The namespace must exist; with `hold` there's none yet (ns ""):
+    it's held for the assistant to place, as a file dropped into a conversation is. Returns the upload."""
+    row = start(db, cfg, ns, filename, os.path.getsize(path), by, title=title, pipeline=pipeline, collection=collection, hold=hold)
     os.replace(path, _part(cfg, row["id"]))
     try:
         return received(db, cfg, row["id"])

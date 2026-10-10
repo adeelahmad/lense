@@ -302,6 +302,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <MailBody ctx={ctx} />;
     case "bridge":
       return <BridgeBody ctx={ctx} />;
+    case "telegram":
+      return <TelegramBody ctx={ctx} />;
     case "remote-access":
       return <TunnelBody ctx={ctx} />;
     case "components":
@@ -1130,6 +1132,123 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
         (test.data.ok ? (
           <Banner tone="success" title="Matterbridge answers.">
             The address, token and account check out.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function TelegramBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const t = ctx.view.telegram;
+  const token = ctx.state("telegram.token");
+  const status = useQuery({
+    queryKey: ["telegram-status", t?.updated_at ?? null],
+    queryFn: () => data(Admin.telegramStatus({ client })),
+    refetchInterval: 5_000, // people who write to the bot show up to let in
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testTelegram({ client })) });
+  const saved = ((t?.values?.users ?? []) as string[]).filter(Boolean);
+  const letIn = useMutation({
+    mutationFn: (id: string) =>
+      data(Admin.updateSettings({ client, path: { section: "telegram" }, body: { users: [...saved, id] } })),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["settings"] });
+      await qc.invalidateQueries({ queryKey: ["telegram-status"] });
+    },
+  });
+  const s = status.data;
+  const waiting = (s?.people ?? []).filter((p) => !p.allowed);
+  return (
+    <>
+      {s?.state === "running" ? (
+        <Banner tone="success" title={s.bot ? `Listening as @${s.bot}.` : "Listening."}>
+          {s.answered ? `Answered ${s.answered} message${s.answered === 1 ? "" : "s"} so far. ` : ""}
+          {saved.length
+            ? "Each person’s conversation is in Chat for the account it answers as."
+            : "Nobody is let in yet: message the bot from Telegram, then let yourself in below."}
+        </Banner>
+      ) : s?.state === "error" ? (
+        <Banner tone="error" title="The last look at Telegram failed.">
+          {s.error}
+        </Banner>
+      ) : s?.state === "incomplete" ? (
+        <Banner tone="error" title="On, but not ready.">
+          It needs {s.error}.
+        </Banner>
+      ) : s?.state === "starting" ? (
+        <Banner title="Starting.">A server process picks it up within a few seconds.</Banner>
+      ) : (
+        <Banner title="Off.">
+          Create a bot with @BotFather in Telegram (/newbot), paste its token below and turn this on.
+        </Banner>
+      )}
+      {waiting.length > 0 && (
+        <div className="grid gap-1.5">
+          <span className="text-[12.5px] font-semibold text-fg-secondary">Wrote to the bot, not let in</span>
+          <ul className="grid gap-1">
+            {waiting.map((p) => (
+              <li key={p.id} className="flex items-center gap-2.5 text-[13px]">
+                <span>{p.name}</span>
+                <span className="font-mono text-[12px] text-fg-muted">{p.id}</span>
+                <Button size="sm" onClick={() => letIn.mutate(p.id)} disabled={letIn.isPending}>
+                  Let in
+                </Button>
+              </li>
+            ))}
+          </ul>
+          {letIn.isError && <Banner tone="error">{letIn.error.message}</Banner>}
+        </div>
+      )}
+      <F ctx={ctx} id="telegram.enabled" />
+      <SecretSetting
+        key={t?.updated_at ?? "none"}
+        label="Bot token"
+        isSet={Boolean(((t?.values?.token ?? {}) as { set?: boolean }).set)}
+        updatedBy={t?.updated_by}
+        updatedAt={t?.updated_at}
+        value={token.value as string | undefined}
+        onChange={(x) => token.onChange(x)}
+      />
+      <F ctx={ctx} id="telegram.users" />
+      <F ctx={ctx} id="telegram.account" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="telegram.name" />
+        <F ctx={ctx} id="telegram.answer" />
+      </div>
+      <F ctx={ctx} id="telegram.approve" />
+      {(s?.chats ?? []).length > 0 && (
+        <div className="grid gap-1">
+          <span className="text-[12.5px] font-semibold text-fg-secondary">Chats it has seen</span>
+          <ul className="grid gap-0.5 text-[13px]">
+            {(s?.chats ?? []).map((c) => (
+              <li key={c.id}>
+                {c.title} <span className="font-mono text-[12px] text-fg-muted">{c.id}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <F ctx={ctx} id="telegram.rooms" />
+      <F ctx={ctx} id="telegram.api_url" />
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check the bot"}
+        </Button>
+        {ctx.dirty && (
+          <span className="text-[12px] text-fg-muted">Uses the saved settings, not your unsaved changes</span>
+        )}
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Telegram knows the bot.">
+            The token and the account it answers as check out.
           </Banner>
         ) : (
           <Banner tone="error" title="Not yet.">
