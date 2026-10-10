@@ -9,6 +9,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Browse and read it through the API (`/api/v1/tree`) and the MCP tools `list_files` and `read_file`
   ([Assets as files](docs/file-tree.md)). S3, WebDAV, SMB and NFS servers that share it are in progress.
 
+- **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,
+  model calls, tokens, cost and failures by model, budgets, workers and disk. Off by default; turned on in Settings →
+  Telemetry (or `LENS_PROMETHEUS=on`), it answers only a scraper with the scrape token, and follows `LENS_BIND`. A
+  sample Grafana dashboard comes with it ([Prometheus](docs/prometheus.md)).
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and

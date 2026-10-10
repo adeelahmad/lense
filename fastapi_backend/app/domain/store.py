@@ -253,6 +253,7 @@ DEFAULTS = {
         "max_attempts": 3,
         "steps": [
             "transcribe",
+            "read",
             "diarize",
             "shots",
             "ocr",
@@ -276,6 +277,8 @@ DEFAULTS = {
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
+        "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
+        "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "disabled_tools": [],
         "max_steps": 6,
@@ -288,7 +291,8 @@ DEFAULTS = {
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
-    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram: the keys in speech)
+    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram, gemini: the keys in speech; say: macOS's
+    # own voices, when Lens runs on a Mac itself); tts_voice: the voice they read in (null: the provider's default)
     "voice": {
         "input": "auto",
         "stt": "same",
@@ -341,6 +345,9 @@ DEFAULTS = {
         "deepgram_base_url": "https://api.deepgram.com",
         "deepgram_model": "nova-3",
         "deepgram_api_key": None,
+        "gemini_base_url": "https://generativelanguage.googleapis.com",
+        "gemini_model": "gemini-2.5-flash-preview-tts",
+        "gemini_api_key": None,
         "sentiment": True,
         "timeout": 1800,
     },
@@ -481,10 +488,16 @@ DEFAULTS = {
         "export_seconds": 60,
         "service_name": "lens",
         "prices": {},
+        # a Prometheus scrape endpoint at /metrics (docs/prometheus.md): off by default; prometheus_token is a secret
+        # the scraper sends as a bearer token, and nothing is served until one is set
+        "prometheus": False,
+        "prometheus_token": None,
     },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
-    "updates": {"check": True, "check_hours": 24, "auto_install": False, "repo": "adeelahmad/lense"},
+    # email: tell admins by email when a new release is seen (once per release; needs Settings › Email). Namespaces'
+    # notification targets can get it too (the lens.release event).
+    "updates": {"check": True, "check_hours": 24, "auto_install": False, "email": True, "repo": "adeelahmad/lense"},
     # Fedora (docs/fedora.md): a copy of the archive in a Fedora 6 repository, off until url is set (enabled: false pauses
     # it). password is a
     # secret; files: send recordings' files too (up to max_file_mb each, 0: any size).
@@ -1066,6 +1079,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS extension SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS extension_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS extension_version_e ON extension_version FIELDS extension",
+    "DEFINE TABLE IF NOT EXISTS marketplace SCHEMALESS",  # where plugins and skills are installed from (marketplace.py)
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Lens clipper options</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      body { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+      #template { height: 260px; }
+      #selectionTemplate { height: 120px; }
+      .dest { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+      .dest .row { flex-wrap: wrap; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0 16px; }
+      code { font-size: 12px; }
+      dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; font-size: 12px; color: var(--muted); }
+      dt { font-family: ui-monospace, Menlo, monospace; color: var(--fg); }
+      dd { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <h1><img src="icons/icon-32.png" alt="" /> Lens clipper</h1>
+
+    <h2>Your Lens</h2>
+    <p class="hint">
+      In Lens, open a namespace's admin page and make an <strong>import webhook</strong>; paste its address and token here. Clips go into that
+      namespace. Add one per namespace you clip into.
+    </p>
+    <div id="destinations"></div>
+    <div class="dest">
+      <div class="row">
+        <div class="grow"><label for="newName">Name</label><input id="newName" type="text" placeholder="Personal" /></div>
+        <div class="grow"><label for="newServer">Lens address</label><input id="newServer" type="url" placeholder="https://lens.example.com" /></div>
+      </div>
+      <label for="newToken">Import webhook token</label>
+      <input id="newToken" type="password" placeholder="lih_…" autocomplete="off" />
+      <p class="row"><button id="add" class="primary">Add and check</button><span id="addStatus" class="status"></span></p>
+    </div>
+
+    <h2>Template</h2>
+    <p class="hint">Variables in braces, with filters after a bar: <code>{title|kebab}</code>, dates with a format: <code>{date:YYYY-MM-DD}</code>.</p>
+    <label for="titleTemplate">Title</label>
+    <input id="titleTemplate" type="text" />
+    <label for="template">Page clips</label>
+    <textarea id="template" spellcheck="false"></textarea>
+    <label for="selectionTemplate">Selection and picked clips <span class="hint">blank: the same as pages</span></label>
+    <textarea id="selectionTemplate" spellcheck="false"></textarea>
+    <p class="row"><button id="resetTemplate">Restore the default template</button></p>
+    <details>
+      <summary>Variables and filters</summary>
+      <dl id="vars"></dl>
+      <p class="hint" id="filters"></p>
+    </details>
+    <label for="tags">Tags for every clip <span class="hint">comma-separated</span></label>
+    <input id="tags" type="text" placeholder="clipped, reading" />
+
+    <h2>Markdown</h2>
+    <div class="grid">
+      <div><label for="md-headingStyle">Headings</label>
+        <select id="md-headingStyle"><option value="atx"># Heading</option><option value="setext">Heading underlined</option></select></div>
+      <div><label for="md-bulletListMarker">Bullets</label>
+        <select id="md-bulletListMarker"><option>-</option><option>*</option><option>+</option></select></div>
+      <div><label for="md-codeBlockStyle">Code blocks</label>
+        <select id="md-codeBlockStyle"><option value="fenced">Fenced</option><option value="indented">Indented</option></select></div>
+      <div><label for="md-fence">Fence</label>
+        <select id="md-fence"><option>```</option><option>~~~</option></select></div>
+      <div><label for="md-emDelimiter">Emphasis</label>
+        <select id="md-emDelimiter"><option>_</option><option>*</option></select></div>
+      <div><label for="md-strongDelimiter">Strong</label>
+        <select id="md-strongDelimiter"><option>**</option><option>__</option></select></div>
+      <div><label for="md-linkStyle">Links</label>
+        <select id="md-linkStyle"><option value="inlined">Inline</option><option value="referenced">References at the end</option></select></div>
+      <div><label for="md-links">Keep links</label>
+        <select id="md-links"><option value="keep">Yes</option><option value="text">Only their text</option></select></div>
+      <div><label for="md-images">Images</label>
+        <select id="md-images"><option value="keep">Keep</option><option value="alt">Only their alt text</option><option value="drop">Drop</option></select></div>
+    </div>
+    <label class="check"><input id="md-tables" type="checkbox" /> Tables, strikethrough and task lists (GitHub style)</label>
+
+    <h2>Clipping</h2>
+    <label class="check"><input id="readability" type="checkbox" /> Full pages keep only the article (no menus, ads or footers)</label>
+    <label class="check"><input id="sendImages" type="checkbox" />
+      <span>Also send the clip's images as files <span class="hint">they become resources in Lens; asks to read images from any site</span></span></label>
+    <label for="maxImages">At most this many images a clip</label>
+    <input id="maxImages" type="number" min="1" max="19" style="width: 90px" />
+    <label class="check"><input id="captureOnServer" type="checkbox" />
+      <span>Also ask Lens to capture the page itself <span class="hint">a PDF snapshot; needs Chromium on your Lens (the full image)</span></span></label>
+    <label class="check"><input id="reviewQuickClips" type="checkbox" /> Right-click and shortcut clips open the popup to look over before sending</label>
+    <p class="hint">Shortcuts: Alt+Shift+L opens the clipper, Alt+Shift+P clips the page, Alt+Shift+S the selection, Alt+Shift+K picks. Change them in
+      your browser's extension shortcuts.</p>
+
+    <p id="saved" class="status" role="status"></p>
+    <script src="options.js"></script>
+  </body>
+</html>
