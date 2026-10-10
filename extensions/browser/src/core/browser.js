@@ -271,7 +271,7 @@ export class Hands {
     return { said: `Looked at ${out.length} tab${out.length === 1 ? "" : "s"}`, tabs: out };
   }
 
-  async t_open({ url, tab_id: tabId, new_tab: newTab }) {
+  async t_open({ url, tab_id: tabId, new_tab: newTab, confirm }) {
     let u;
     try {
       u = new URL(String(url ?? ""));
@@ -280,6 +280,7 @@ export class Hands {
     }
     if (!/^https?:$/.test(u.protocol)) throw new Error("only http and https addresses open");
     // asked before going there: an address can carry what was read elsewhere
+    await this.vouch(confirm, `Open ${u.host}?`, u.href);
     await this.site(u.origin);
     const tab = newTab
       ? await ext.tabs.create({ url: u.href, windowId: this.windowId, active: true })
@@ -298,6 +299,14 @@ export class Hands {
     if (!(await this.ui.ask({ kind: "action", text, detail }, this.action))) throw new Error("the person said no");
   }
 
+  /**
+   * Lens sends `confirm` (why) with an address or text the assistant wrote once its answer has read a page or other
+   * outside text, which may have put what it read there: the person says yes first, on sites they allowed too.
+   */
+  async vouch(confirm, text, detail) {
+    if (confirm) await this.confirm(text, `${detail}\n\nAsked because ${confirm}.`);
+  }
+
   async t_click({ ref, tab_id: tabId, consequential }) {
     const tab = await this.tab(tabId);
     const origin = this.origin(tab);
@@ -310,15 +319,19 @@ export class Hands {
     return this.after(tab.id, `Clicked ${name}`);
   }
 
-  async t_type({ ref, text, submit, tab_id: tabId, consequential }) {
+  async t_type({ ref, text, submit, tab_id: tabId, consequential, confirm }) {
     const tab = await this.tab(tabId);
     const origin = this.origin(tab);
     await this.site(origin);
     const what = await this.call(tab.id, "inspect", ref, submit ? "submit" : "type");
     if (what.refused) throw new Error(what.refused);
     const name = what.name ? `“${shorten(what.name)}”` : `the ${what.role}`;
-    if (submit && (consequential || what.consequential)) {
-      await this.confirm(`Type into ${name} and submit it on ${new URL(origin).host}?`, String(text));
+    const sends = submit && (consequential || what.consequential);
+    if (sends || confirm) {
+      await this.confirm(
+        `Type into ${name}${sends ? " and submit it" : ""} on ${new URL(origin).host}?`,
+        [String(text), confirm && `Asked because ${confirm}.`].filter(Boolean).join("\n\n"),
+      );
     }
     await this.call(tab.id, "type", ref, String(text), Boolean(submit));
     return this.after(tab.id, `Typed “${shorten(String(text), 40)}” into ${name}${submit ? " and pressed Enter" : ""}`);
@@ -336,7 +349,7 @@ export class Hands {
     return this.after(tab.id, said);
   }
 
-  async t_import({ ref, url, tab_id: tabId, page }) {
+  async t_import({ ref, url, tab_id: tabId, page, confirm }) {
     let file;
     if (page) {
       const tab = await this.tab(tabId);
@@ -357,6 +370,7 @@ export class Hands {
         throw new Error("give a link's ref, a file's url, or page: true");
       }
       if (!/^https?:$/.test(u.protocol)) throw new Error("only http and https files download");
+      if (!ref) await this.vouch(confirm, `Download from ${u.host}?`, u.href);
       await this.site(u.origin);
       file = await this.download(u.href);
     }

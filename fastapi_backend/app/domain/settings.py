@@ -148,6 +148,7 @@ ENUMS = {
     ("bridge", "approve"): {"off", "low_risk"},
     ("telegram", "answer"): {"mention", "all"},
     ("telegram", "approve"): {"off", "low_risk"},
+    ("ai", "injection_check"): {"patterns", "model", "off"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},

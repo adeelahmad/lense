@@ -1443,6 +1443,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="ai.tools" />
       <F ctx={ctx} id="ai.untrusted_marking" />
       <F ctx={ctx} id="ai.untrusted_asks" />
+      <F ctx={ctx} id="ai.injection_check" />
       <F ctx={ctx} id="ai.compact" />
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="ai.compact_model" />
