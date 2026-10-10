@@ -56,10 +56,10 @@ what their person may read.
 Everything below is built and merged. Work that is still in a pull request is listed under [In progress](#in-progress).
 
 - **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, read transcripts and notes, cite exact
-  moments, find similar content, explore the graph with Cypher or SPARQL, suggest topics and graph changes, write
-  notes and make podcasts. They sign in with OAuth and see only what their person may read. The web app runs on the
-  same REST API, so an agent can do what a person can. ([MCP](docs/mcp.md), [API](docs/api.md),
-  [authentication](docs/authentication.md))
+  moments, find similar content, explore the graph with Cypher or SPARQL or browse it as folders and files, suggest
+  topics and graph changes, write notes and make podcasts. They sign in with OAuth and see only what their person may
+  read. The web app runs on the same REST API, so an agent can do what a person can. ([MCP](docs/mcp.md),
+  [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
   meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. It reads
   answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine (opt-in), and `/clear` and
@@ -76,9 +76,9 @@ Everything below is built and merged. Work that is still in a pull request is li
   at a time, from a link list or a bookmarks file, by API or by asking the assistant; and import videos and podcasts
   by their address (off by default). ([Sensors](docs/sensors.md), [processing](docs/processing.md),
   [import webhooks](docs/api.md#import-webhooks))
-- **Clip from the browser.** The Lens web clipper for Chrome, Edge and Safari turns a page, a selection or a part you
-  pick into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies through
-  the browser's store or a self-hosted update file. ([Web clipper](docs/web-clipper.md))
+- **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
+  part you pick into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies
+  through the browser's store or a self-hosted update file. ([Web clipper](docs/web-clipper.md))
 - **Understand it.** Transcription and speaker recognition, text on screen and in scans, faces (off by default),
   entities and topics in a knowledge graph you can explore, query with Cypher or SPARQL, and see as it was at any
   version. Find what is most like a passage, a resource, a topic or an entity, and, with anytopdf, photos by what
@@ -105,9 +105,10 @@ Everything below is built and merged. Work that is still in a pull request is li
   [Prometheus](docs/prometheus.md))
 - **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
   namespace, and an audit log. What the assistant reads (recordings, documents, web pages, tool results) reaches the
-  model marked as data, not instructions. Reach Lens from anywhere through a Cloudflare tunnel with nothing opened on
-  your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
-  [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection),
+  model marked as data, not instructions. Serve Lens over HTTPS with certificates from Let's Encrypt or ZeroSSL that
+  renew on their own, or reach it from anywhere through a Cloudflare tunnel with nothing opened on your router.
+  ([Encryption](docs/encryption.md), [access](docs/access.md),
+  [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
   IIIF for publishing, OpenTelemetry and Prometheus for monitoring, and an optional Fedora mirror.
@@ -126,23 +127,33 @@ These are open pull requests, not yet part of Lens:
 
 - **Chat channels:** a built-in Telegram bot on a shared channel layer
   ([#293](https://github.com/adeelahmad/lense/pull/293)) and a Slack app over Socket Mode
-  ([#287](https://github.com/adeelahmad/lense/pull/287)), without Matterbridge.
-- **Budget in setup:** an overall AI budget with soft and hard limits, asked for in setup
-  ([#281](https://github.com/adeelahmad/lense/pull/281)).
-- **Upgrades in the web app:** an upgrade page with live steps that rolls back when the new version doesn't start
-  ([#262](https://github.com/adeelahmad/lense/pull/262)).
-- **Running it:** HTTPS with certificates from Let's Encrypt or ZeroSSL
-  ([#289](https://github.com/adeelahmad/lense/pull/289)), structured logs with a log viewer and syslog output
+  ([#287](https://github.com/adeelahmad/lense/pull/287)), without Matterbridge; and the assistant's own email address,
+  over IMAP and SMTP ([#314](https://github.com/adeelahmad/lense/pull/314)).
+- **The assistant in your browser:** the side panel in the Lens extension where you ask the assistant and it uses your
+  browser ([#322](https://github.com/adeelahmad/lense/pull/322)); the server side is built
+  ([guide](docs/browser-assistant.md)).
+- **Assistant safety:** asking before sending data out once an answer has read third-party text
+  ([#309](https://github.com/adeelahmad/lense/pull/309)), and running MCP servers that are programs (stdio) in a sandbox
+  ([#304](https://github.com/adeelahmad/lense/pull/304)).
+- **Search:** a Similar tab, and similar content for text selected anywhere
+  ([#307](https://github.com/adeelahmad/lense/pull/307)); NSFW pictures classified by a local model, per namespace
+  ([#306](https://github.com/adeelahmad/lense/pull/306)).
+- **Costs and setup:** an overall AI budget with soft and hard limits, asked for in setup
+  ([#281](https://github.com/adeelahmad/lense/pull/281)); fewer clicks in setup, Chat, Search and Notes
+  ([#315](https://github.com/adeelahmad/lense/pull/315)).
+- **Running it:** an upgrade page with live steps that rolls back when the new version doesn't start
+  ([#262](https://github.com/adeelahmad/lense/pull/262)), HTTPS set up in Settings
+  ([#326](https://github.com/adeelahmad/lense/pull/326)), structured logs with a log viewer and syslog output
   ([#284](https://github.com/adeelahmad/lense/pull/284)), built-in usage analytics
   ([#274](https://github.com/adeelahmad/lense/pull/274)), and Prometheus and Grafana as an opt-in service
   ([#297](https://github.com/adeelahmad/lense/pull/297)).
 - **People:** email invitations, and removing someone for good ([#286](https://github.com/adeelahmad/lense/pull/286)).
-- **Lens.app for macOS:** a menu-bar app that carries microsandbox ([#280](https://github.com/adeelahmad/lense/pull/280)).
-- **The web clipper for Firefox** ([#282](https://github.com/adeelahmad/lense/pull/282)).
-- **Files:** assets shown as folders and files by namespace and collection
-  ([#290](https://github.com/adeelahmad/lense/pull/290)) and shared read-only over NFS
-  ([#295](https://github.com/adeelahmad/lense/pull/295)); items called assets unless they are audio or video
-  ([#273](https://github.com/adeelahmad/lense/pull/273)).
+- **Lens.app for macOS:** a menu-bar app that carries microsandbox
+  ([#280](https://github.com/adeelahmad/lense/pull/280)).
+- **The graph as files, shared:** read-only over S3 and WebDAV ([#324](https://github.com/adeelahmad/lense/pull/324)),
+  SMB ([#305](https://github.com/adeelahmad/lense/pull/305)) and NFS
+  ([#295](https://github.com/adeelahmad/lense/pull/295)); assets and people rather than recordings and speakers, unless
+  it is audio ([#273](https://github.com/adeelahmad/lense/pull/273)).
 - **Reading documents** with an Apache Tika server ([#292](https://github.com/adeelahmad/lense/pull/292)).
 
 ## Stack
@@ -161,14 +172,16 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
 
 - **Start:** [Get started](docs/get-started.md), [deployment](docs/deployment.md),
   [microsandbox](docs/microsandbox.md), [configuration](docs/configuration.md), [components](docs/components.md),
-  [updates and backups](docs/updates.md), [remote access](docs/remote-access.md)
+  [updates and backups](docs/updates.md), [remote access](docs/remote-access.md), [HTTPS](docs/https.md)
 - **Agents and apps:** [MCP server](docs/mcp.md), [API](docs/api.md), [authentication](docs/authentication.md),
   [access](docs/access.md)
 - **Use:** [chat and batch runs](docs/assistant.md), [chat rooms](docs/chat-rooms.md), [podcasts](docs/podcasts.md),
-  [notes](docs/notes.md), [web clipper](docs/web-clipper.md), [sensors](docs/sensors.md),
+  [notes](docs/notes.md), [web clipper](docs/web-clipper.md),
+  [the assistant in your browser](docs/browser-assistant.md), [sensors](docs/sensors.md),
   [processing](docs/processing.md), [video](docs/video.md), [notifications](docs/notifications.md)
 - **Knowledge:** [graph and Cypher](docs/graph.md), [graph history](docs/graph-history.md), [topics](docs/topics.md),
-  [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)
+  [the graph as files](docs/file-tree.md), [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md),
+  [Fedora](docs/fedora.md)
 - **Models and cost:** [local models](docs/local-models.md), [speech providers](docs/speech-providers.md),
   [activity and costs](docs/activity.md), [budgets](docs/budgets.md)
 - **Operate:** [encryption](docs/encryption.md), [storage](docs/storage.md), [database](docs/database.md),
