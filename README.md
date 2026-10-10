@@ -92,8 +92,9 @@ Everything below is built and merged. Work that is still in a pull request is li
   notifications to webhooks, Slack, Discord and Matterbridge. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [notifications](docs/notifications.md))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
-  Routine choices go to small decision models, and the LLM only when it adds value.
-  ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md))
+  A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and what
+  cost most. Routine choices go to small decision models, and the LLM only when it adds value.
+  ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#the-meter-and-the-costs-page))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification, and upgrades itself through a small agent on the machine, from the API; nothing installs unless an
   admin says so. Settings › Backups takes, lists, downloads and restores backups, takes them on any schedule, and can
@@ -126,8 +127,7 @@ These are open pull requests, not yet part of Lens:
 - **Chat channels:** a built-in Telegram bot on a shared channel layer
   ([#293](https://github.com/adeelahmad/lense/pull/293)) and a Slack app over Socket Mode
   ([#287](https://github.com/adeelahmad/lense/pull/287)), without Matterbridge.
-- **Costs:** a budget meter in the top bar and a Costs page ([#275](https://github.com/adeelahmad/lense/pull/275)),
-  and an overall AI budget with soft and hard limits asked for in setup
+- **Budget in setup:** an overall AI budget with soft and hard limits, asked for in setup
   ([#281](https://github.com/adeelahmad/lense/pull/281)).
 - **Upgrades in the web app:** an upgrade page with live steps that rolls back when the new version doesn't start
   ([#262](https://github.com/adeelahmad/lense/pull/262)).
