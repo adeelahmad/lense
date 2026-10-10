@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Install in the browser.** On a first install at a terminal, the one-line install opens a web installer: it shows
+  what the computer has and what Lens will install, asks how Lens runs (Docker or microsandbox, full or lean, folder,
+  port, network), the AI model (finding Ollama, LM Studio and other servers on the computer, or a provider and its key,
+  with a test), and optional extras (search by meaning, the decision model, cloud transcription, email, remote access,
+  anytopdf, telemetry), takes the administrator password when installing needs it, then installs with live progress
+  and opens Lens's setup page. Its answers become ordinary settings in Lens, editable there
+  ([Get started](docs/get-started.md#the-web-installer)). `LENS_WIZARD=0` keeps the install in the terminal.
+
 ## 0.6.0 <small>October 10, 2026</small> {id="0.6.0"}
 
 ### Features

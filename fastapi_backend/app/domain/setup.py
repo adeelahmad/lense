@@ -11,6 +11,9 @@ shows those fields locked.
   LENS_NAMESPACE                                           the first namespace, created at startup while there is none
   LENS_LLM_BASE_URL, LENS_LLM_MODEL, LENS_LLM_API_KEY      the model provider (settings.ENV_OVERRIDES)
   LENS_TELEMETRY, LENS_TELEMETRY_ENDPOINT                  opt-in telemetry (off unless set on; docs/telemetry.md)
+  LENS_SETUP_SETTINGS                                      settings to start with, {section: {key: value}} as JSON (or
+                                                           base64url JSON): saved once, as if made in the app, so they
+                                                           stay editable there (the web installer's answers)
   LENS_SETUP_WIZARD=off                                    never show the wizard (everything comes from .env)
 
 The first admin still needs the one-time setup code (or the environment), so a stranger can't claim a public server.
@@ -18,6 +21,8 @@ The first admin still needs the one-time setup code (or the environment), so a s
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import logging
 import os
@@ -29,6 +34,7 @@ from . import auth, settings, sources, store
 
 R = store.R
 WIZARD = ("setup", "wizard")
+SEEDED = ("setup", "settings")  # LENS_SETUP_SETTINGS was applied: once, so changes made in the app later stay
 DEFAULT_NAMESPACE = "archive"  # what the wizard suggests too
 log = logging.getLogger("lens")
 
@@ -75,9 +81,52 @@ def env_namespace():
     return os.environ.get("LENS_NAMESPACE", "").strip().lower() or None
 
 
-def apply_env(db):
+def env_settings():
+    """LENS_SETUP_SETTINGS parsed: {section: {key: value}}, or {} when unset or unreadable."""
+    raw = os.environ.get("LENS_SETUP_SETTINGS", "").strip()
+    if not raw:
+        return {}
+    try:
+        if not raw.startswith("{"):
+            raw = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)).decode()
+        data = json.loads(raw)
+    except (ValueError, binascii.Error, UnicodeDecodeError):
+        log.error("LENS_SETUP_SETTINGS isn't JSON (or base64url JSON); its settings weren't applied")
+        return {}
+    if not isinstance(data, dict):
+        log.error("LENS_SETUP_SETTINGS is {section: {key: value}}; its settings weren't applied")
+        return {}
+    return {k: v for k, v in data.items() if isinstance(v, dict) and v}
+
+
+def apply_settings(db, cfg):
+    """Save LENS_SETUP_SETTINGS once, a section at a time (one that doesn't check out is logged and left out). Returns
+    the sections saved."""
+    wanted = env_settings()
+    if not wanted or db.one("SELECT id FROM $r", r=R(*SEEDED)):
+        return []
+    saved = []
+    for section, values in wanted.items():
+        keep = {k: v for k, v in values.items() if k not in settings.locked(section)}  # the environment wins anyway
+        if not keep:
+            continue
+        try:
+            settings.save(db, cfg, section, keep, user="install")
+        except (ValueError, TypeError) as e:
+            log.error("LENS_SETUP_SETTINGS %s: %s; set it in Settings instead", section, e)
+        else:
+            saved.append(section)
+    db.q("UPSERT $r CONTENT $d", r=R(*SEEDED), d={"applied_at": store.now(), "sections": saved})
+    if saved:
+        log.info("Applied the installer's settings: %s", ", ".join(saved))
+    return saved
+
+
+def apply_env(db, cfg=None):
     """Create what the environment names while the archive has none: the first admin, the first namespace. Only then,
-    so one deleted later doesn't come back on the next start."""
+    so one deleted later doesn't come back on the next start. LENS_SETUP_SETTINGS is saved once too."""
+    if cfg is not None:
+        apply_settings(db, cfg)
     admin = env_admin()
     if admin and auth.account_count(db) == 0:
         try:
