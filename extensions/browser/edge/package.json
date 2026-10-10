@@ -1,0 +1,14 @@
+{
+  "name": "lens-web-clipper-edge-smoke",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Loads the Edge build of the Lens web clipper in Microsoft Edge and clips a page into a stand-in Lens",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "smoke": "node smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0"
+  }
+}
