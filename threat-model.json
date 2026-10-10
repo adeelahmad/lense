@@ -1057,6 +1057,14 @@
       "source": "docs/browser-assistant.md \"Only you\""
     },
     {
+      "property": "P-BROWSER-GUARD",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "the side panel reads and acts only on sites the person allowed, opens addresses only there, asks before a consequential click, submit or Enter (model flag, the control's words, a posting form), never types into or reports password, card or file fields, and shows each action",
+      "provenance": "documented",
+      "source": "docs/browser-assistant.md \"Letting it use your browser\""
+    },
+    {
       "property": "MX-AUTHZ-LIST-CAPS",
       "violation_symptom": "x-cap-exceeded",
       "severity_tier": "correctness",
