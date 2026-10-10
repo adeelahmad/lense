@@ -214,3 +214,14 @@ export function SimilarResultsView({
     </div>
   );
 }
+
+/** "Similar content" in a drawer or panel: the five most alike, with Find more. */
+export function SimilarSection({ basis, title = "Similar content" }: { basis: SimilarBasis | null; title?: string }) {
+  if (!basis) return null;
+  return (
+    <section className="flex flex-col gap-1" aria-label={title}>
+      <h3 className="m-0 text-[13px] font-bold text-fg-strong">{title}</h3>
+      <SimilarResultsView basis={basis} limit={5} compact />
+    </section>
+  );
+}

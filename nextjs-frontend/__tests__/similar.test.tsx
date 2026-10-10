@@ -5,6 +5,8 @@ import "@testing-library/jest-dom";
 import { Search } from "@/app/openapi-client";
 import type { SimilarResults } from "@/app/openapi-client/types.gen";
 import { basisFromParams, basisQuery, citeHref, similarHref, TEXT_MAX } from "@/components/similar/model";
+import { nodeBasis } from "@/components/graph/panel";
+import { resourceOf, selectedText } from "@/components/similar/selection-popover";
 import { SimilarResultsView } from "@/components/similar/similar-list";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -55,12 +57,18 @@ beforeEach(() => jest.clearAllMocks());
 
 describe("similar content", () => {
   it("asks for one basis, and links to the full list and the moments", () => {
-    expect(basisQuery({ text: "x".repeat(TEXT_MAX + 50), exclude: 3 })).toEqual({ text: "x".repeat(TEXT_MAX), exclude: 3 });
+    expect(basisQuery({ text: "x".repeat(TEXT_MAX + 50), exclude: 3 })).toEqual({
+      text: "x".repeat(TEXT_MAX),
+      exclude: 3,
+    });
     expect(basisQuery({ topic: 4 })).toEqual({ topic: 4 });
     expect(similarHref({ text: "gene therapy", exclude: 3 })).toBe("/similar?text=gene+therapy&exclude=3");
     expect(similarHref({ text: "gene therapy" })).toBe("/similar?text=gene+therapy");
     expect(similarHref({ entity: 5 })).toBe("/similar?entity=5");
-    expect(basisFromParams(new URLSearchParams("text=gene+therapy&exclude=3"))).toEqual({ text: "gene therapy", exclude: 3 });
+    expect(basisFromParams(new URLSearchParams("text=gene+therapy&exclude=3"))).toEqual({
+      text: "gene therapy",
+      exclude: 3,
+    });
     expect(basisFromParams(new URLSearchParams("recording=12"))).toEqual({ recording: 12 });
     expect(basisFromParams(new URLSearchParams("topic=x"))).toBeNull();
     expect(basisFromParams(new URLSearchParams(""))).toBeNull();
@@ -91,5 +99,55 @@ describe("similar content", () => {
     findSimilar.mockResolvedValue({ data: { ...RES, items: [], total: 0 }, response: { ok: true, status: 200 } });
     show(<SimilarResultsView basis={{ text: "nothing like it" }} compact />);
     expect(await screen.findByText("Nothing similar found.")).toBeInTheDocument();
+  });
+});
+
+describe("similar content on select", () => {
+  function select(el: Node) {
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    const sel = window.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(r);
+    return sel;
+  }
+
+  it("compares text selected in the page's content, not in fields, menus or elsewhere", () => {
+    document.body.innerHTML = `
+      <header><span id="nav">Library</span></header>
+      <main id="main">
+        <h1 id="title">Capsid   design with
+          machine learning</h1>
+        <p id="short">ok</p><p id="digits">12 34</p>
+        <div contenteditable="true"><p id="editing">being edited now</p></div>
+        <div data-no-similar><p id="opted">left alone here</p></div>
+      </main>`;
+    const main = document.getElementById("main");
+    const at = (id: string) => selectedText(select(document.getElementById(id)!), main);
+    expect(at("title")).toBe("Capsid design with machine learning");
+    expect(at("short")).toBeNull();
+    expect(at("digits")).toBeNull();
+    expect(at("editing")).toBeNull();
+    expect(at("opted")).toBeNull();
+    expect(at("nav")).toBeNull();
+    window.getSelection()!.removeAllRanges();
+    expect(selectedText(window.getSelection(), main)).toBeNull();
+  });
+
+  it("leaves out the resource it was selected in", () => {
+    expect(resourceOf("/resources/12")).toBe(12);
+    expect(resourceOf("/recordings/7/edit")).toBe(7);
+    expect(resourceOf("/topics")).toBeNull();
+    expect(resourceOf(null)).toBeNull();
+  });
+
+  it("finds what's like a graph node: a recording, topic or entity, or a merged entity's name", () => {
+    const n = { label: "Dyno Therapeutics", refs: [5] };
+    expect(nodeBasis({ ...n, kind: "entity" })).toEqual({ entity: 5 });
+    expect(nodeBasis({ ...n, kind: "entity", refs: [5, 9] })).toEqual({ text: "Dyno Therapeutics" });
+    expect(nodeBasis({ ...n, kind: "topic" })).toEqual({ topic: 5 });
+    expect(nodeBasis({ ...n, kind: "recording" })).toEqual({ recording: 5 });
+    expect(nodeBasis({ ...n, kind: "speaker" })).toBeNull();
+    expect(nodeBasis({ ...n, kind: "collection" })).toBeNull();
   });
 });
