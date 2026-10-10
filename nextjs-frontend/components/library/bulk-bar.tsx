@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FolderInput, FolderTree, RefreshCw, Tag, Trash2, X, type LucideIcon } from "lucide-react";
+import { Download, FolderInput, FolderTree, Podcast, RefreshCw, Tag, Trash2, X, type LucideIcon } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { EXPORT_FORMATS, type ExportFormat } from "@/components/library/actions";
@@ -12,6 +12,8 @@ import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/component
 import { Tooltip } from "@/components/ui/tooltip";
 import { count, plural } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+const PODCAST_MAX = 100; // the API's limit on resources picked whole
 
 const actionCls =
   "flex h-[34px] items-center gap-1.5 rounded-pill px-3 text-[13px] font-semibold outline-offset-0 [&_svg]:size-[15px] hover:bg-[color-mix(in_srgb,var(--background)_16%,transparent)]";
@@ -64,6 +66,7 @@ export function BulkBar({
   onPlace,
   placeReason,
   onTag,
+  onPodcast,
   onDelete,
   onClear,
 }: {
@@ -82,6 +85,8 @@ export function BulkBar({
   /** Why they can't be (besides roles): they're from several namespaces. */
   placeReason?: string;
   onTag: () => void;
+  /** Make a podcast about them. */
+  onPodcast?: () => void;
   onDelete: () => void;
   onClear: () => void;
 }) {
@@ -118,6 +123,16 @@ export function BulkBar({
           />
         )}
         <BarButton icon={Tag} label="Tag" onClick={onTag} disabledReason={roleReason} />
+        {onPodcast && (
+          <BarButton
+            icon={Podcast}
+            label="Podcast"
+            onClick={onPodcast}
+            disabledReason={
+              selected > PODCAST_MAX ? `A podcast takes up to ${count(PODCAST_MAX)} at a time.` : undefined
+            }
+          />
+        )}
         <Menu>
           <MenuTrigger className={actionCls}>
             <Download aria-hidden />

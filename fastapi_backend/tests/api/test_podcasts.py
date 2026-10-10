@@ -61,7 +61,7 @@ def test_making_and_reading_an_episode(client, db, cfg, env):
     got = client.get(f"/api/v1/podcasts/{rid}", headers=env["vi"]).json()
     assert got["status"] == "script_only" and got["job"] is None and got["title"] == "Capsids and shipments"
     assert got["lines"][2]["sources"][0]["recording"] == a and "t0" in got["lines"][2]["sources"][0]
-    assert got["checks"] and got["sources"][0]["title"] == "ep1"
+    assert got["checks"] and got["sources"][0]["title"] == "ep1" and got["audio"] is None
     assert [e["id"] for e in client.get("/api/v1/podcasts", headers=env["vi"]).json()] == [rid]
     assert client.get("/api/v1/podcasts", headers=env["ca"]).json() == []
     assert client.get(f"/api/v1/podcasts/{rid}", headers=env["ca"]).status_code == 404

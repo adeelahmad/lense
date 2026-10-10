@@ -108,7 +108,8 @@ class Podcast(ResponseModel):
     outline: dict[str, Any] | None = None
     lines: list[PodcastLine] = []
     checks: list[PodcastCheck] = []
-    audio: dict[str, Any] | None = None
+    audio: str | None = Field(None, description="a signed link to the episode's audio, once it has some")
+    voicing: dict[str, Any] | None = Field(None, description="who read it: the provider, the hosts' voices, its length")
     duration_ms: int | None = None
     job: int | None = Field(None, description="the job making it now, if one is")
     created_at: str | None = None

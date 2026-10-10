@@ -41590,6 +41590,18 @@
           "audio": {
             "anyOf": [
               {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio",
+            "description": "a signed link to the episode's audio, once it has some"
+          },
+          "voicing": {
+            "anyOf": [
+              {
                 "additionalProperties": true,
                 "type": "object"
               },
@@ -41597,7 +41609,8 @@
                 "type": "null"
               }
             ],
-            "title": "Audio"
+            "title": "Voicing",
+            "description": "who read it: the provider, the hosts' voices, its length"
           },
           "duration_ms": {
             "anyOf": [

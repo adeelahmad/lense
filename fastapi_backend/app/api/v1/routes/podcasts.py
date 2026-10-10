@@ -7,6 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
+from app.api.media import sign_urls
 from app.domain import auth, deletion, jobs, podcasts, store
 from app.domain.store import DB
 from app.schemas.common import Ok
@@ -75,7 +76,7 @@ def get_podcast(rid: int, acl: Acl, user: CurrentUser, db: Db) -> Podcast:
     """An episode: what was asked for, how far it has got, the excerpts it drew on, the outline, the script with each
     line's citations and times, and what the fact-check changed. Its audio is /recordings/{id}/audio."""
     _episode(acl, db, rid)
-    ep = podcasts.view(db, rid)
+    ep = sign_urls(podcasts.view(db, rid), full=True)
     live = jobs.list_jobs(db, recording=rid, status=jobs.ACTIVE, limit=1)
     return Podcast.model_validate({**ep, "namespace": store.space_names(db).get(ep.get("space")), "job": live[0]["id"] if live else None})
 

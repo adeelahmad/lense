@@ -24,7 +24,8 @@ Todo:
 - [x] Backend script pipeline: selection (recordings, passages), plan, write, fact-check, publish as a transcript
 - [x] Audio: per-line TTS with two voices, stitch with pauses, loudness, store as the recording's media
 - [x] REST API and MCP `create_podcast` / `get_podcast`
-- [ ] Web: Create podcast dialog, progress, episode page with citations
+- [x] Web: Create podcast dialog (Library selection, resource menu), /podcasts list, episode page with progress,
+  player, citations, sources and fact-check log
 - [ ] Phase 2: cross-page selection tray (search hits, topics, notes, graph), context expansion, connections
 - [ ] Phase 3: episode memory, script editing and re-render, episode→source graph edges, stale citations
 

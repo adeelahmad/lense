@@ -7,6 +7,7 @@ import {
   LibraryBig,
   MessagesSquare,
   NotebookPen,
+  Podcast,
   RadioTower,
   Search,
   Settings,
@@ -47,6 +48,7 @@ export const NAV: NavItem[] = [
   { label: "Entities", href: "/entities", icon: Shapes },
   { label: "Topics", href: "/topics", icon: Tags },
   { label: "Graph", href: "/graph", icon: Waypoints },
+  { label: "Podcasts", href: "/podcasts", icon: Podcast },
   {
     label: "Reports",
     href: "/reports",

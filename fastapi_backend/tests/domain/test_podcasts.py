@@ -376,7 +376,8 @@ def test_episode_gets_two_voices(db, cfg, folder, llm, tts):
     drain(db, cfg)
     assert jobs.get(db, out["job"])["status"] == "succeeded"
     ep = podcasts.view(db, rid)
-    assert ep["status"] == "ready" and ep["audio"]["voices"] == {"a": "af_heart", "b": "onyx"} and "path" not in ep["audio"]
+    assert ep["status"] == "ready" and ep["voicing"]["voices"] == {"a": "af_heart", "b": "onyx"} and "path" not in ep["voicing"]
+    assert ep["audio"] == f"/api/v1/recordings/{rid}/audio"
     # each line is read in its host's voice
     said = {b["input"]: b["voice"] for b in tts.seen}
     assert said["Welcome back to the show."] == "af_heart" and said["So what did Dyno Therapeutics build?"] == "onyx"
