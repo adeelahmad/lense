@@ -17,6 +17,7 @@ archive that only uses cloud models never downloads them, which keeps a small ma
 | Face models | `video.face_engine` is `opencv` (the default) | OpenCV, YuNet and SFace |
 | Face models | `video.face_engine` is `anytopdf` | SFace, for anytopdf to describe faces with (anytopdf too) |
 | Object model | `video.object_engine` is `yolox` (the default) or `anytopdf` | YOLOX-s, and ONNX Runtime for `yolox` |
+| Prompt-injection classifier | `ai.injection_check` is `classifier` | ProtectAI's deberta-v3-base-prompt-injection-v2 (Apache-2.0, about 740 MB), the tokenizers library and ONNX Runtime ([third-party content](assistant.md#third-party-content-and-prompt-injection)) |
 | yt-dlp | `documents.video_urls` is on | the yt-dlp program, release 2026.08.19 (Unlicense), to download videos and podcasts imported by address |
 | Chat model, embedding model | the LLM provider or embeddings server is Ollama | pulled on that server (`/api/pull`) |
 | Outlook .msg emails | listed in `components.also` | extract-msg (GPL-3.0, so only when asked for) |
