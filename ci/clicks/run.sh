@@ -11,7 +11,9 @@ tmp=$(mktemp -d)
 pids=""
 stop() {
   for p in $pids; do kill "$p" 2>/dev/null || true; done
-  rm -rf "$tmp"
+  # wait for them to exit: a server still writing its data folder makes rm fail with "Directory not empty"
+  for p in $pids; do wait "$p" 2>/dev/null || true; done
+  rm -rf "$tmp" 2>/dev/null || { sleep 2; rm -rf "$tmp" || true; }
 }
 trap stop EXIT INT TERM
 
