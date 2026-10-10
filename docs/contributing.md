@@ -20,6 +20,7 @@ Lens is one repository with several projects, and [Nx](https://nx.dev/) runs the
 | `frontend` | `nextjs-frontend/` | `lint`, `typecheck`, `test` (`:ci` with coverage), `build`, `generate-client` |
 | `installer` | `installer/` | `test` |
 | `docs` | `docs/` (with `mkdocs.yml`, `overrides/`, `README.md`, `CHANGELOG.md`) | `build` (strict, as CI), `serve` |
+| `clipper` | `extensions/browser/` | `install` (`npm ci` when the lockfile is newer than `node_modules`), `test`, `build` (every browser target, checked) |
 
 ```bash
 pnpm exec nx run backend:test                          # one target (make test-backend)
@@ -40,8 +41,8 @@ asks Nx for itself (`.github/actions/affected`), so no job waits for another one
 before it starts; a job whose project isn't affected stops there and passes. **FastAPI (embedded SurrealDB)** and
 **FastAPI (SurrealDB server)** test `backend`, each split across two runners (`1/2`, `2/2`); the first embedded one
 also lints, type checks and checks the OpenAPI schema. **Next.js** checks `frontend`, and **Other projects** runs the
-`lint`, `typecheck`, `test` and `build` targets of every other affected project (the docs site, the installer tests)
-and lists the affected projects in its summary. A change to `nx.json`, the root `package.json`, `ci.yml` or
+`lint`, `typecheck`, `test` and `build` targets of every other affected project (the docs site, the installer tests, the
+web clipper) and lists the affected projects in its summary. A change to `nx.json`, the root `package.json`, `ci.yml` or
 `.github/actions/` affects every project. Running the CI workflow by hand (Actions > CI > Run workflow) checks every
 project.
 
@@ -53,12 +54,14 @@ run; on `main`, **Backend coverage** adds them up into the `backend-coverage` ar
 
 Merging or closing a pull request cancels its CI, `pre-commit` and `Install` runs that are still waiting or going, and
 a newer push or title cancels the older ones, so a runner never works on something that no longer counts.
-`pre-commit`, `PR title`, `Install`, `threat model` and the packaging workflows otherwise run as before.
+`pre-commit`, `PR title`, `Install`, `threat model`, the clipper's browser workflows (which also keep the zips with the
+run) and the packaging workflows otherwise run as before.
 
-To add a project (a browser extension, the desktop app), give its folder a `project.json` with a `name` and any of the
-`lint`, `typecheck`, `test` and `build` targets (`nx:run-commands`, with `cwd: "{projectRoot}"`); a target that needs
-its dependencies installed first depends on an `install` target. **Other projects** picks it up without a change to
-CI. Name files outside the folder that it reads in its `inputs`, so changing them counts as affecting it.
+To add a project (the desktop app, say), give its folder a `project.json` with a `name` and any of the `lint`,
+`typecheck`, `test` and `build` targets (`nx:run-commands`, with `cwd: "{projectRoot}"`); a target that needs its
+dependencies installed first depends on an `install` target, as the clipper's do. **Other projects** picks it up
+without a change to CI. Name files outside the folder that it reads in its `inputs`, so changing them counts as
+affecting it.
 
 ## Commit messages and PR titles
 
@@ -124,7 +127,8 @@ With `auto` it picks the version from the PR titles merged since the last releas
 override. It writes the new section (the Unreleased text, then the changes grouped into features, fixes,
 performance, reverts, dependencies and other changes; `docs`, `refactor`, `test`, `build`, `ci`, `chore` and
 `style` are left out, and so is a PR that wrote its own Unreleased entry, unless it's breaking), sets the version in `fastapi_backend/pyproject.toml`, `uv.lock`,
-`nextjs-frontend/package.json` and `CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
+`nextjs-frontend/package.json`, the API schema `nextjs-frontend/openapi.json`, `app/domain/__init__.py` and
+`CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
 it and publishes the GitHub release with that section as its notes. Pushing a `vX.Y.Z` tag yourself publishes it the
 same way, without the commit. `python3 .github/scripts/release.py cut auto` shows locally what it would write.
 An exact version must be newer than the current one, and only the newest version is marked Latest. If a run pushed its
