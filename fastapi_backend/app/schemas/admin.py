@@ -308,6 +308,18 @@ class AnalyticsMetrics(ResponseModel):
     days_since_active: int | None = None
 
 
+class UsageEvent(ResponseModel):
+    """An event Lens counted for a day (docs/analytics.md#events)."""
+
+    at: str
+    # the day it counts
+    day: str
+    name: str
+    params: dict[str, Any] = {}
+    # true: sent to Google Analytics; false: waiting to be sent; null: kept here only (GA off, or the event left out)
+    sent: bool | None = None
+
+
 class FileStoreTry(RequestModel):
     """Where to try keeping files, before saving it (Settings → Storage); nothing given tries what is saved."""
 

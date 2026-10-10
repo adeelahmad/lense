@@ -16496,6 +16496,37 @@ export type UploadStart = {
 };
 
 /**
+ * UsageEvent
+ *
+ * An event Lens counted for a day (docs/analytics.md#events).
+ */
+export type UsageEvent = {
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Day
+   */
+  day: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Sent
+   */
+  sent?: boolean | null;
+  [key: string]: unknown;
+};
+
+/**
  * UserCreate
  */
 export type UserCreate = {
@@ -19524,6 +19555,38 @@ export type UsageMetricsResponses = {
 };
 
 export type UsageMetricsResponse = UsageMetricsResponses[keyof UsageMetricsResponses];
+
+export type UsageEventsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/admin/analytics/events";
+};
+
+export type UsageEventsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UsageEventsError = UsageEventsErrors[keyof UsageEventsErrors];
+
+export type UsageEventsResponses = {
+  /**
+   * Response Admin-Usage Events
+   *
+   * Successful Response
+   */
+  200: Array<UsageEvent>;
+};
+
+export type UsageEventsResponse = UsageEventsResponses[keyof UsageEventsResponses];
 
 export type ListAuditData = {
   body?: never;

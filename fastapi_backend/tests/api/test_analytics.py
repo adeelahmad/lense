@@ -91,15 +91,20 @@ def test_metrics_active_churn_retention(db):
     assert week and week[-1]["retention"][0] == 1.0  # 3 was active in its sign-up week
 
 
-def test_off_by_default_sends_nothing(db, cfg, ga):
+def test_events_kept_locally_with_ga_off(db, cfg, ga):
     act(db, 1, (NOW.date() - dt.timedelta(days=1)).isoformat())
     assert cfg["analytics"]["enabled"] is False
-    assert analytics.tick(db, cfg, NOW) == []
-    routines.run_due(db, cfg, log=None, now=NOW)
+    assert analytics.tick(db, cfg, NOW) == ["lens_install", "lens_daily_active", "lens_feature_used"]
+    routines.run_due(db, cfg, log=None, now=NOW)  # once a day
     assert ga == []
-    # on without a secret isn't set up either
+    kept = analytics.recent_events(db)
+    assert sorted(e["name"] for e in kept) == ["lens_daily_active", "lens_feature_used", "lens_install"]
+    assert all(e["sent"] is None and e["day"] == "2026-10-09" for e in kept)
+    # on without a secret isn't set up either, and turning it on later doesn't send what was kept while off
     cfg["analytics"].update(enabled=True, measurement_id="G-TEST1234")
-    assert analytics.tick(db, cfg, NOW) == []
+    analytics.tick(db, cfg, NOW + dt.timedelta(days=1))
+    on(cfg)
+    analytics.tick(db, cfg, NOW + dt.timedelta(days=1, hours=1))
     assert ga == []
 
 
@@ -151,8 +156,14 @@ def test_events_can_be_left_out_and_failures_retry(db, cfg, ga):
     assert names(ga) == ["lens_install"]
     assert "500" in analytics.status(db, cfg)["last_error"]
     ga.state["status"] = 204
-    analytics.tick(db, cfg, NOW + dt.timedelta(minutes=5))  # the failed day is tried again
+    analytics.tick(db, cfg, NOW + dt.timedelta(minutes=5))  # waits a while after a failure
+    assert names(ga) == ["lens_install"]
+    analytics.tick(db, cfg, NOW + dt.timedelta(minutes=11))  # then tries again
     assert names(ga) == ["lens_install", "lens_install"]
+    analytics.tick(db, cfg, NOW + dt.timedelta(minutes=20))  # and sends each once
+    assert len(ga) == 2
+    kept = {e["name"]: e["sent"] for e in analytics.recent_events(db)}
+    assert kept == {"lens_install": True, "lens_daily_active": None, "lens_feature_used": None}
     st = analytics.status(db, cfg)
     assert st["last_error"] is None and st["last_sent"] == ["lens_install"]
 
@@ -180,6 +191,9 @@ def test_settings_api_status_and_test(client, db, ga):
     s = client.get("/api/v1/settings/analytics/status", headers=h).json()
     assert s["enabled"] is False and s["configured"] is False and len(s["events"]) == len(analytics.EVENTS)
     assert all(e["on"] for e in s["events"])
+    analytics.tick(db, client.app.state.settings.current())
+    ev = client.get("/api/v1/admin/analytics/events", headers=h).json()
+    assert [e["name"] for e in ev] == ["lens_install"] and ev[0]["sent"] is None
     m = client.get("/api/v1/admin/analytics?days=7", headers=h).json()
     assert m["days"] == 7 and m["accounts"] == 1 and m["dau"] == 1  # the sign-in above
     make_user(db, "ed@x.io", "ed password 12")

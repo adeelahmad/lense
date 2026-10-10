@@ -59,6 +59,7 @@ from app.schemas.admin import (
     TelemetryStatus,
     TelemetryTestResult,
     TunnelStatus,
+    UsageEvent,
 )
 from app.schemas.auth import AccountToken
 from app.schemas.common import Ok
@@ -301,6 +302,13 @@ def usage_metrics(user: AdminReader, db: Db, days: int = Query(30, ge=1, le=180)
     """Daily, weekly and monthly active people, churn, retention by sign-up week and feature use over the last `days`
     days, worked out here from the activity ledger and sign-ins; nothing is sent anywhere."""
     return AnalyticsMetrics.model_validate(analytics.metrics(db, days))
+
+
+@router.get("/admin/analytics/events")
+def usage_events(user: AdminReader, db: Db, limit: int = Query(200, ge=1, le=1000)) -> list[UsageEvent]:
+    """The events Lens counted each day (install, daily active, feature used, upgrade, inactive...), newest first, and
+    whether each went to Google Analytics. Kept here whether or not Google Analytics is on."""
+    return [UsageEvent.model_validate(r) for r in analytics.recent_events(db, limit)]
 
 
 @router.get("/audit")

@@ -5,10 +5,12 @@ handful of counted events sent to a Google Analytics 4 property the admin owns.
 (activity.py) and sign-ins in the audit log. Nothing new is collected for them and nothing leaves the machine: daily,
 weekly and monthly active people, stickiness, churn and retention by sign-up week, and which features get used.
 
+**The events** in EVENTS are worked out once a day and kept here (`usage_event`), so the Analytics page shows them
+with Google Analytics off.
+
 **Google Analytics** is off by default (analytics.enabled), and needs a GA4 measurement id and a Measurement Protocol
 API secret, set in Settings → Usage analytics, the setup wizard, or .env (LENS_ANALYTICS, LENS_GA_MEASUREMENT_ID,
-LENS_GA_API_SECRET). Turned on, one process sends once a day the events in EVENTS that analytics.events names, for this
-install as a whole: the install's random id (made here, never a person, host or address), the Lens version and
+LENS_GA_API_SECRET). Turned on, the kept events that analytics.events names also go to GA, for this install as a whole: the install's random id (made here, never a person, host or address), the Lens version and
 platform, and counts. Never a name, email, title, file name, namespace, prompt or text. Churn across installs is then
 GA's retention report over lens_daily_active; lens_inactive marks an install nobody has used for
 analytics.inactive_days, which is how a self-hosted install that quietly stopped shows up.
@@ -31,6 +33,7 @@ R = store.R
 ROW = R("app_service", "analytics")
 HOSTS = {"global": "www.google-analytics.com", "eu": "region1.google-analytics.com"}  # tests point it at a fake
 BATCH = 25  # GA4 takes up to 25 events a request
+RETRY_SECONDS = 600
 MEASUREMENT_RX = re.compile(r"^G-[A-Z0-9]{4,20}$")
 
 # The events Lens can send, and what each carries. Names are prefixed so none clashes with GA's reserved ones.
@@ -271,35 +274,59 @@ def _claim(db, day):
 
 
 def tick(db, cfg, now=None):
-    """Once a day, while analytics is on and set up: send what happened since the last time (docs/analytics.md)."""
-    if not configured(cfg):
-        return []
+    """Once a day: work out the day before's events and keep them here (`usage_event`, docs/analytics.md#events),
+    whether or not Google Analytics is on; with it on and set up, send them too. Every tick sends what is still unsent
+    (a send that failed is tried again a few minutes later). Returns the names of the events made this time."""
     from . import __version__
 
     now = now or dt.datetime.now(dt.timezone.utc)
     today = now.date()
-    if not _claim(db, today.isoformat()):
-        return []
+    made = []
+    if _claim(db, today.isoformat()):
+        events, marks = _today(db, cfg, today, __version__)
+        a = _section(cfg)
+        wanted = configured(cfg) and set(a.get("events") or EVENTS)
+        yesterday = (today - dt.timedelta(days=1)).isoformat()
+        at = store.now()
+        for n, (name, params) in enumerate(events):
+            db.q(
+                "CREATE usage_event CONTENT $d",
+                d={
+                    "at": at,
+                    "n": n,
+                    "day": yesterday,
+                    "name": name,
+                    "params": params,
+                    "sent": False if wanted and name in wanted else None,
+                },
+            )
+        _put(db, **marks)
+        keep = int(((cfg or {}).get("activity") or {}).get("keep_days") or 365)
+        db.q("DELETE usage_event WHERE day < $d", d=(today - dt.timedelta(days=keep)).isoformat())
+        made = [n for n, _ in events]
+    if configured(cfg):
+        flush_unsent(db, cfg, now)
+    return made
+
+
+def _today(db, cfg, today, version):
+    """The events for the day before `today`, and what to remember so none is made twice."""
     st, events = _state(db), []
     if not st.get("installed"):
-        events.append(("lens_install", {"version": __version__, "platform": _platform()}))
+        events.append(("lens_install", {"version": version, "platform": _platform()}))
     wiz = db.one("SELECT done_at, skipped FROM $r", r=R("setup", "wizard")) or {}
     if wiz.get("done_at") and not st.get("setup_done"):
         events.append(("lens_setup_done", {"skipped": 1 if wiz.get("skipped") else 0}))
-    if st.get("version") and st["version"] != __version__:
-        events.append(("lens_upgrade", {"from_version": st["version"], "to_version": __version__}))
+    if st.get("version") and st["version"] != version:
+        events.append(("lens_upgrade", {"from_version": st["version"], "to_version": version}))
     yesterday = today - dt.timedelta(days=1)
     seen = _days(db, yesterday)
     users = {w for (w, d) in seen if d == yesterday.isoformat()}
     inactive_days = int(_section(cfg).get("inactive_days") or 30)
-    marks = {"installed": True, "setup_done": bool(wiz.get("done_at")), "version": __version__}
+    marks = {"installed": True, "setup_done": bool(wiz.get("done_at")), "version": version}
     if users:
-        events.append(
-            (
-                "lens_daily_active",
-                {"active_users": len(users), "actions": sum(n for (_, d), n in seen.items() if d == yesterday.isoformat())},
-            )
-        )
+        actions = sum(n for (_, d), n in seen.items() if d == yesterday.isoformat())
+        events.append(("lens_daily_active", {"active_users": len(users), "actions": actions}))
         start = dt.datetime.combine(yesterday, dt.time(), dt.timezone.utc)
         for f in _features(db, start, start + dt.timedelta(days=1))[:20]:
             events.append(("lens_feature_used", f))
@@ -314,13 +341,37 @@ def tick(db, cfg, now=None):
         if since and (today - since).days >= inactive_days:
             events.append(("lens_inactive", {"days": (today - since).days}))
             marks["inactive_since"] = since.isoformat()
-    ok, error, _ = send(db, cfg, events, day=yesterday)
-    if ok:
-        _put(db, **marks)
-    else:
-        log.info("analytics: %s", error)
-        db.q("UPDATE $r SET day = NONE", r=ROW)  # try again on the next tick
-    return [n for n, _ in events]
+    return events, marks
+
+
+def flush_unsent(db, cfg, now=None):
+    """Send the kept events still waiting for Google Analytics, a day at a time; after a failure, wait RETRY_SECONDS."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    st = _state(db)
+    if st.get("last_error_at") and st.get("last_error"):
+        try:
+            if (now - dt.datetime.fromisoformat(st["last_error_at"])).total_seconds() < RETRY_SECONDS:
+                return False
+        except ValueError:
+            pass
+    rows = db.rows("SELECT record::id(id) AS id, at, n, day, name, params FROM usage_event WHERE sent = false ORDER BY at, n LIMIT 500")
+    for day in sorted({r["day"] for r in rows}):
+        batch = [r for r in rows if r["day"] == day]
+        ok, error, _ = send(db, cfg, [(r["name"], r["params"] or {}) for r in batch], day=dt.date.fromisoformat(day))
+        if not ok:
+            log.info("analytics: %s", error)
+            _put(db, last_error_at=now.isoformat())
+            return False
+        db.q("UPDATE usage_event SET sent = true, sent_at = $t WHERE record::id(id) IN $ids", t=store.now(), ids=[r["id"] for r in batch])
+    return True
+
+
+def recent_events(db, limit=200):
+    """The kept events, newest first: what Lens counted each day, and whether each went to Google Analytics."""
+    return db.rows(
+        "SELECT at, n, day, name, params, sent FROM usage_event ORDER BY at DESC, n LIMIT $n",
+        n=max(1, min(int(limit), 1000)),
+    )
 
 
 def test(db, cfg):

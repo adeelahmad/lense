@@ -1,6 +1,7 @@
 import {
   Blocks,
   CalendarClock,
+  ChartLine,
   ChartNoAxesColumn,
   HardDriveDownload,
   House,
@@ -61,6 +62,7 @@ export const NAV: NavItem[] = [
   // Admins see every source as a sensor; members see the watched folders feeding their namespaces.
   { label: "Sensors", href: "/sensors", icon: RadioTower, adminOnly: true },
   { label: "Sources", href: "/sources", icon: HardDriveDownload, membersOnly: true },
+  { label: "Analytics", href: "/analytics", icon: ChartLine, adminOnly: true },
   // Everyone has Settings: members find Speakers there, admins the archive's settings too.
   { label: "Settings", href: "/settings", icon: Settings, countKey: "reviews" },
   { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },

@@ -1,10 +1,12 @@
 # Usage analytics
 
-Lens works out how it is being used (active people, churn, retention, which features get used) on your own machine,
-and can also send a few counted events to a **Google Analytics 4** property you own, to see the same across every
-install you run.
+Lens has built-in analytics: the **Analytics** page (admins) shows how Lens is being used, with active people, churn,
+retention, which features get used and the events it counts each day. All of it is worked out and kept on your own
+machine. Optionally, the same daily events also go to a **Google Analytics 4** property you own, to see them across
+every install you run.
 
-Status: **built**: the numbers, Settings → Usage analytics, the wizard toggle and the Google Analytics events.
+Status: **built**: the Analytics page, the daily events, the Google Analytics export, its settings and the wizard
+toggle.
 
 ## The numbers
 
@@ -26,6 +28,13 @@ collected for them and nothing leaves the machine.
 A person is active on a day when they changed something through the API or signed in. With `activity.reads` on,
 reads count too. The ledger keeps `activity.keep_days` (365), which is as far back as the numbers can go.
 
+## Events
+
+Once a day, a worker (or `lens watch`) counts the day before and keeps the result in the `usage_event` table, with
+Google Analytics on or off. The Analytics page lists them, and so does `GET /api/v1/admin/analytics/events`. Each one
+shows whether it was sent to Google Analytics, is waiting to be sent, or is kept here only. Events are kept for
+`activity.keep_days`.
+
 ## Google Analytics
 
 **Off unless you turn it on.** It needs a GA4 property of your own: its **measurement id** (`G-…`) and a
@@ -37,7 +46,8 @@ reads count too. The ledger keeps `activity.keep_days` (365), which is as far ba
 - **.env**: `LENS_ANALYTICS=on`, `LENS_GA_MEASUREMENT_ID=G-…`, `LENS_GA_API_SECRET=…`. What .env sets wins over
   Settings, which show those fields locked.
 
-Turned on, one process (a worker, or `lens watch`) sends once a day, for the install as a whole:
+Turned on, the daily events are also sent, for the install as a whole. A send that fails is tried again 10 minutes
+later. Events kept while Google Analytics was off are never sent later. These are the events:
 
 | Event | When | Parameters |
 | --- | --- | --- |

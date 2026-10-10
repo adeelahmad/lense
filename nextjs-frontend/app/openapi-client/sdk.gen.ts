@@ -1409,6 +1409,9 @@ import type {
   UpdateWorkflowResponses,
   UploadLimitsData,
   UploadLimitsResponses,
+  UsageEventsData,
+  UsageEventsErrors,
+  UsageEventsResponses,
   UsageMetricsData,
   UsageMetricsErrors,
   UsageMetricsResponses,
@@ -2667,6 +2670,21 @@ export class Admin {
   ): RequestResult<UsageMetricsResponses, UsageMetricsErrors, ThrowOnError> {
     return (options?.client ?? client).get<UsageMetricsResponses, UsageMetricsErrors, ThrowOnError>({
       url: "/api/v1/admin/analytics",
+      ...options,
+    });
+  }
+
+  /**
+   * Usage Events
+   *
+   * The events Lens counted each day (install, daily active, feature used, upgrade, inactive...), newest first, and
+   * whether each went to Google Analytics. Kept here whether or not Google Analytics is on.
+   */
+  public static usageEvents<ThrowOnError extends boolean = false>(
+    options?: Options<UsageEventsData, ThrowOnError>,
+  ): RequestResult<UsageEventsResponses, UsageEventsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<UsageEventsResponses, UsageEventsErrors, ThrowOnError>({
+      url: "/api/v1/admin/analytics/events",
       ...options,
     });
   }

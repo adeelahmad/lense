@@ -2822,6 +2822,56 @@
         }
       }
     },
+    "/api/v1/admin/analytics/events": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Usage Events",
+        "description": "The events Lens counted each day (install, daily active, feature used, upgrade, inactive...), newest first, and\nwhether each went to Google Analytics. Kept here whether or not Google Analytics is on.",
+        "operationId": "usage_events",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsageEvent"
+                  },
+                  "title": "Response Admin-Usage Events"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audit": {
       "get": {
         "tags": [
@@ -52907,6 +52957,48 @@
           "size"
         ],
         "title": "UploadStart"
+      },
+      "UsageEvent": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "at",
+          "day",
+          "name"
+        ],
+        "title": "UsageEvent",
+        "description": "An event Lens counted for a day (docs/analytics.md#events)."
       },
       "UserCreate": {
         "properties": {

@@ -14,7 +14,6 @@ import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
-import { UsageNumbers } from "@/components/settings/usage-analytics";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import {
@@ -631,7 +630,14 @@ function AnalyticsBody({ ctx }: { ctx: BodyCtx }) {
   const id = (saved.measurement_id as string | null | undefined) ?? null;
   return (
     <>
-      <UsageNumbers />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        Active people, churn, retention and feature use are on the{" "}
+        <Link href="/analytics" className="font-semibold text-fg-accent hover:underline">
+          Analytics
+        </Link>{" "}
+        page, worked out on this server whether or not Google Analytics is on. This section only chooses whether the
+        daily events also go to your Google Analytics property.
+      </p>
       {on && s?.configured ? (
         <Banner tone={s.last_error ? "error" : "success"} title={`On: sending to ${id}`}>
           {s.last_error
