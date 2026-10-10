@@ -613,8 +613,8 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
       <p className="-mt-2 text-[12.5px] leading-[1.45] text-fg-secondary">
         For Grafana and other Prometheus tools: jobs, imports, model calls, cost, budgets, workers and disk, served at{" "}
         <code className="font-mono">/metrics</code> on this address with the same privacy as telemetry. A scraper sends
-        the token as <code className="font-mono">Authorization: Bearer</code>; see docs/prometheus.md for a scrape
-        config and a sample dashboard.
+        the token as <code className="font-mono">Authorization: Bearer</code>. The monitoring profile runs Prometheus
+        and Grafana next to Lens, ready made, with charts of Lens and this machine (docs/prometheus.md).
       </p>
       {Boolean(saved.prometheus) && !promSecret.set && !promToken.value && (
         <Banner tone="error" title="On, but there is no scrape token.">
@@ -634,6 +634,7 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
         value={promToken.value as string | undefined}
         onChange={(x) => promToken.onChange(x)}
       />
+      <F ctx={ctx} id="telemetry.grafana_url" />
     </>
   );
 }

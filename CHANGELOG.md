@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Charts of Lens and its server in Grafana.** A `monitoring` profile runs Prometheus, node-exporter and Grafana next to
+  Lens, connected and with the Lens dashboard (now with the machine's CPU, memory, disk and network) as Grafana's home.
+  Admin → System health shows CPU, memory, load and uptime now and links to Grafana for history
+  ([Prometheus](docs/prometheus.md#prometheus-and-grafana-ready-made)).
+
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,
   model calls, tokens, cost and failures by model, budgets, workers and disk. Off by default; turned on in Settings →
   Telemetry (or `LENS_PROMETHEUS=on`), it answers only a scraper with the scrape token, and follows `LENS_BIND`. A

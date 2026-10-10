@@ -275,6 +275,19 @@ class HealthCounts(ResponseModel):
     accounts: int
 
 
+class HealthMachine(ResponseModel):
+    cpu_pct: float | None = Field(default=None, description="busy share of all CPUs, 0-100; null where /proc isn't there")
+    cpus: int | None = None
+    mem_used: int | None = Field(default=None, description="bytes")
+    mem_total: int | None = Field(default=None, description="bytes")
+    load1: float | None = None
+    load5: float | None = None
+    load15: float | None = None
+    rss: int | None = Field(default=None, description="the API process's memory, bytes")
+    uptime: int = Field(description="seconds since the API started")
+    host_uptime: int | None = Field(default=None, description="seconds since the machine started")
+
+
 class Health(ResponseModel):
     database: HealthDatabase
     queue: dict[str, int] = Field(description="jobs by status")
@@ -282,3 +295,4 @@ class Health(ResponseModel):
     sources: list[HealthSource]
     disk: HealthDisk
     counts: HealthCounts
+    machine: HealthMachine | None = Field(default=None, description="CPU, memory, load and uptime now")

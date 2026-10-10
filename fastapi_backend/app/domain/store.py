@@ -492,6 +492,8 @@ DEFAULTS = {
         # the scraper sends as a bearer token, and nothing is served until one is set
         "prometheus": False,
         "prometheus_token": None,
+        # where Grafana shows Lens's charts (docs/prometheus.md), for a link on Admin → System health; none: no link
+        "grafana_url": None,
     },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)

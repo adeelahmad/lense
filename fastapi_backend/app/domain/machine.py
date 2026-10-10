@@ -8,6 +8,8 @@ import os
 import platform
 import shutil
 import subprocess
+import threading
+import time
 
 
 def _memory_gb():
@@ -89,3 +91,80 @@ def probe(data_dir=None):
         out["disk_free_gb"] = None
     out["cuda"] = bool(out["gpus"])
     return out
+
+
+# ---------- right now, for Admin → System health (history lives in Prometheus and Grafana: docs/prometheus.md) ----------
+STARTED = time.time()  # this process's start, for its uptime
+_cpu = {"last": None}
+_cpu_lock = threading.Lock()
+
+
+def _cpu_times():
+    try:
+        with open("/proc/stat", encoding="ascii") as f:
+            parts = [int(x) for x in f.readline().split()[1:]]
+    except (OSError, ValueError):
+        return None
+    return sum(parts), parts[3] + (parts[4] if len(parts) > 4 else 0)  # all, idle + iowait
+
+
+def cpu_pct():
+    """Busy share of all CPUs since the last call (over a moment the first time), 0-100; None without /proc/stat."""
+    now = _cpu_times()
+    if now is None:
+        return None
+    with _cpu_lock:
+        last, _cpu["last"] = _cpu["last"], now
+    if last is None:
+        time.sleep(0.2)
+        last, now = now, _cpu_times() or now
+        with _cpu_lock:
+            _cpu["last"] = now
+    total, idle = now[0] - last[0], now[1] - last[1]
+    return round(100.0 * (total - idle) / total, 1) if total > 0 else 0.0
+
+
+def _meminfo():
+    info = {}
+    try:
+        with open("/proc/meminfo", encoding="ascii") as f:
+            for line in f:
+                k, _, v = line.partition(":")
+                info[k] = int(v.split()[0]) * 1024
+    except (OSError, ValueError, IndexError):
+        return None, None
+    total, avail = info.get("MemTotal"), info.get("MemAvailable", info.get("MemFree"))
+    return (total - avail, total) if total and avail is not None else (None, None)
+
+
+def _first_number(path, prefix=None, scale=1):
+    try:
+        with open(path, encoding="ascii") as f:
+            for line in f:
+                if prefix is None or line.startswith(prefix):
+                    return int(float(line.split()[1 if prefix else 0]) * scale)
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def live():
+    """The machine and this process now: CPU, memory, load, the API's memory and uptimes. Fields a system doesn't
+    report (no /proc outside Linux and Docker) are None."""
+    used, total = _meminfo()
+    try:
+        load = [round(x, 2) for x in os.getloadavg()]
+    except (AttributeError, OSError):
+        load = [None, None, None]
+    return {
+        "cpu_pct": cpu_pct(),
+        "cpus": os.cpu_count(),
+        "mem_used": used,
+        "mem_total": total,
+        "load1": load[0],
+        "load5": load[1],
+        "load15": load[2],
+        "rss": _first_number("/proc/self/status", "VmRSS:", 1024),
+        "uptime": int(time.time() - STARTED),
+        "host_uptime": _first_number("/proc/uptime"),
+    }

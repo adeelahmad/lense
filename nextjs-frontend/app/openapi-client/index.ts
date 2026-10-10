@@ -1222,6 +1222,7 @@ export type {
   HealthCounts,
   HealthDatabase,
   HealthDisk,
+  HealthMachine,
   HealthSource,
   Heard,
   HeldRunDecision,
