@@ -49,7 +49,36 @@ network and the terminal prints its link, which carries a one-time key. Only som
 
 `LENS_WIZARD=0` asks in the terminal as before, and `LENS_WIZARD=1` opens the installer for an existing install too
 (to change how it runs; its data, secrets and accounts stay). Runs without a terminal (scripts, CI) and runs with
-`LENS_YES=1` or `LENS_BACKEND` set never open it. Windows isn't supported by the installer yet.
+`LENS_YES=1` or `LENS_BACKEND` set never open it.
+
+### Double-click instead
+
+Each release carries launchers that do the same without a terminal; download the one for your system from the
+[latest release](https://github.com/adeelahmad/lense/releases/latest):
+
+| System | File | First time |
+|---|---|---|
+| macOS | `Install-Lens-macOS.zip` (unzip it: **Install Lens.app**) | it isn't notarized yet, so right-click it and choose **Open**, then **Open** again |
+| Windows | `Install-Lens-Windows.cmd` | if SmartScreen warns, **More info**, then **Run anyway** |
+| Linux | `Install-Lens-Linux.desktop` | right-click it and choose **Allow Launching** (it needs `curl` and Python 3) |
+
+They open the web installer in the browser; if something stops them before it opens (no internet, no Python), they
+say so in a window. On a Mac without Apple's Command Line Tools (which bring Python), it asks macOS to install them
+first, then you open it again.
+
+### Windows
+
+```powershell
+irm https://raw.githubusercontent.com/adeelahmad/lense/main/install.ps1 | iex
+```
+
+or the Windows launcher above. It installs Python 3 for your account if it's missing (winget, else python.org's
+installer), then opens the same web installer. On Windows Lens runs in Docker Desktop: the installer installs it with
+winget if it's missing (Windows asks for permission), turns on WSL when Docker needs it (Windows may then need a
+restart; open the installer again afterwards and it carries on), gets the code into `%USERPROFILE%\lens`, writes the
+secrets once, builds and starts Lens and opens its setup page. Running it again updates in place. Lens starts again
+whenever Docker Desktop does. microsandbox isn't available on Windows. Windows support is new: CI checks it with a
+stand-in Docker, not yet with a real Docker Desktop install.
 
 ## With Docker and make
 

@@ -454,6 +454,13 @@ def incoming(cfg):
     return folder
 
 
+def held_bytes(cfg, row, most):
+    """The first `most` bytes of a held upload (all of it here), read where it waits: e.g. a list of links attached
+    to a conversation. It stays held."""
+    with open(_part(cfg, row["id"]), "rb") as f:
+        return f.read(most)
+
+
 def cancel(db, cfg, row):
     """Stop an upload; its partial file goes. A finished one is only forgotten: it's a recording now."""
     if row.get("state") != "done":

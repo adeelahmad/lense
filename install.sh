@@ -19,6 +19,7 @@
 #   GITHUB_TOKEN   a GitHub token to use when downloading (not needed; avoids GitHub's rate limits)
 #   LENS_NO_OPEN   1: don't open a browser
 #   LENS_YES       1: install what Lens needs without asking (it only asks at a terminal)
+#   LENS_UPGRADE_AGENT  0: don't set up the agent that lets the web app install new releases (docs/updates.md)
 #   LENS_WIZARD    1: answer everything in the web installer, in the browser (the default for a first install at a
 #                  terminal, where Python 3 is there); 0: here in the terminal
 set -eu
@@ -74,6 +75,23 @@ if [ -z "$WIZARD" ]; then
   WIZARD=0
   [ ! -f "$DIR/.env" ] && [ -z "${LENS_BACKEND:-}" ] && tty_ok && WIZARD=1
 fi
+# Started from a launcher (Install Lens.app, the .desktop file) there is no terminal to fall back to: say why in a
+# window instead.
+gui_fail() {
+  printf '%s\n' "$1" >&2
+  if ! (: </dev/tty) 2>/dev/null; then
+    if [ "$os" = Darwin ]; then
+      osascript -e "display dialog \"$1\" buttons {\"OK\"} default button 1 with title \"Install Lens\" with icon caution" >/dev/null 2>&1
+    elif have zenity; then
+      zenity --error --title "Install Lens" --text "$1" 2>/dev/null
+    elif have kdialog; then
+      kdialog --title "Install Lens" --error "$1" 2>/dev/null
+    elif have notify-send; then
+      notify-send "Install Lens" "$1" 2>/dev/null
+    fi
+    exit 1
+  fi
+}
 if [ "$WIZARD" = 1 ] && py_ok && have curl; then
   wiz="$(mktemp -d)"
   trap 'rm -rf "$wiz"' EXIT
@@ -83,8 +101,15 @@ if [ "$WIZARD" = 1 ] && py_ok && have curl; then
     LENS_INSTALLER_FETCH=1 python3 "$wiz/lens_installer.py" --dir "$DIR" --repo "$REPO" --ref "$REF"
     exit $?
   fi
+  gui_fail "Couldn't download Lens's installer. Check the internet connection, and try again."
   echo "Couldn't download the web installer; asking here instead."
 elif [ "$WIZARD" = 1 ]; then
+  have curl || gui_fail "Lens needs curl to download itself. Install curl (on Ubuntu: sudo apt install curl), then try again."
+  if [ "$os" = Darwin ] && ! xcode-select -p >/dev/null 2>&1; then
+    xcode-select --install 2>/dev/null || true
+    gui_fail "Lens's installer needs Apple's Command Line Tools. Install them in the window that opened, then open Install Lens again."
+  fi
+  gui_fail "Lens's installer needs Python 3.8 or later. Install Python 3 with your software center, then try again."
   echo "The web installer needs Python 3.8 or later; asking here instead."
 fi
 BACKEND="${LENS_BACKEND:-}"
@@ -304,12 +329,21 @@ setenv LENS_TARGET "$TARGET"
 setenv LENS_BIND "$bind"
 setenv LENS_PORT "$PORT"
 setenv FRONTEND_URL "http://$host:$PORT"
+setenv LENS_REPO "$REPO"
+setenv LENS_DIR "$DIR"
 # from the web installer (docs/configuration.md): the first namespace, and settings Lens saves once at its first start
 for k in LENS_NAMESPACE LENS_SETUP_SETTINGS; do
   eval "v=\${$k:-}"
   [ -z "$v" ] || setenv "$k" "$v"
 done
 setup_code="$(grep '^LENS_SETUP_CODE=' .env | cut -d= -f2-)"
+
+# --- The control folder: the web app asks for upgrades here, and reads how they went (docs/updates.md) -----------
+# The containers write as their own user (uid 1000), so the inbox is open to them; the agent only ever installs a
+# release tag or this install's branch, whoever writes the request.
+mkdir -p .lens-control/inbox
+chmod 755 .lens-control
+chmod 777 .lens-control/inbox
 
 # --- Build and start ----------------------------------------------------------------------------------------------
 if [ "$BACKEND" = microsandbox ]; then
@@ -340,7 +374,7 @@ if [ "$BACKEND" = microsandbox ]; then
     -p "$bind:$PORT:3000" \
     -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
     -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
-    -v "$PWD:/lens:ro" --mount-named lens-data:/data \
+    -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named lens-data:/data \
     --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
   say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
   # The command that starts it, kept for a restart of the machine: a sandbox started again (msb start) boots without
@@ -383,6 +417,51 @@ else
   LOGS="$COMPOSE -f docker-compose.prod.yml logs"
   STOP="$COMPOSE -f docker-compose.prod.yml down"
   WAIT=300
+fi
+
+# --- The upgrade agent: runs packaging/host/lens-upgrade.sh when the web app asks for a new release ---------------
+# systemd on Linux, launchd on a Mac; not set up again by an upgrade it runs (LENS_AGENT_RUN)
+if [ "${LENS_UPGRADE_AGENT:-1}" != 0 ] && [ "${LENS_AGENT_RUN:-0}" != 1 ]; then
+  agent=""
+  if [ "$os" = Linux ] && have systemctl && [ -d /run/systemd/system ]; then
+    # the user who installed it, unless only root can use Docker here
+    run_as="$(id -un)"
+    case "${DOCKER:-docker}" in sudo*) run_as=root ;; esac
+    unit=/etc/systemd/system/lens-upgrade
+    if printf '%s\n' "[Unit]" "Description=Lens upgrade agent: installs the release the web app asks for" "" \
+      "[Path]" "PathExistsGlob=$PWD/.lens-control/inbox/upgrade" "" "[Install]" "WantedBy=multi-user.target" |
+      $(sudo_ok) tee "$unit.path" >/dev/null 2>&1 &&
+      printf '%s\n' "[Unit]" "Description=Lens upgrade (docs/updates.md)" "After=network-online.target" "" \
+        "[Service]" "Type=oneshot" "User=$run_as" "Environment=HOME=$HOME" \
+        "Environment=PATH=$HOME/.local/bin:$HOME/.microsandbox/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+        "ExecStart=/bin/sh $PWD/packaging/host/lens-upgrade.sh $PWD" |
+      $(sudo_ok) tee "$unit.service" >/dev/null 2>&1 &&
+      $(sudo_ok) systemctl daemon-reload >/dev/null 2>&1 &&
+      $(sudo_ok) systemctl enable --now lens-upgrade.path >/dev/null 2>&1; then
+      agent=systemd
+    fi
+  elif [ "$os" = Darwin ] && have launchctl; then
+    plist="$HOME/Library/LaunchAgents/dev.lens.upgrade.plist"
+    mkdir -p "$(dirname "$plist")"
+    cat >"$plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>dev.lens.upgrade</string>
+  <key>ProgramArguments</key><array><string>/bin/sh</string><string>$PWD/packaging/host/lens-upgrade.sh</string><string>$PWD</string></array>
+  <key>WatchPaths</key><array><string>$PWD/.lens-control/inbox</string></array>
+  <key>EnvironmentVariables</key><dict><key>PATH</key><string>$HOME/.orbstack/bin:$HOME/.microsandbox/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+</dict></plist>
+PLIST
+    launchctl bootout "gui/$(id -u)" "$plist" >/dev/null 2>&1 || true
+    launchctl bootstrap "gui/$(id -u)" "$plist" >/dev/null 2>&1 && agent=launchd
+  fi
+  if [ -n "$agent" ]; then
+    echo "kind=$agent" >.lens-control/agent
+    chmod 644 .lens-control/agent # the containers read it (a first install writes with umask 077, for .env)
+  else
+    rm -f .lens-control/agent # the web app shows the line to run instead
+  fi
 fi
 
 say "Waiting for the web app..."

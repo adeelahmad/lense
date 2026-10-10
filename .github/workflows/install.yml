@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - install.sh
+      - install.ps1
       - installer/**
       - docker-compose.prod.yml
       - fastapi_backend/Dockerfile
@@ -17,14 +18,17 @@ on:
       - nextjs-frontend/Dockerfile
       - nextjs-frontend/package.json
       - nextjs-frontend/pnpm-lock.yaml
+      - packaging/host/**
       - .github/workflows/install.yml
   push:
     branches: [main]
     paths:
       - install.sh
+      - install.ps1
       - installer/**
       - docker-compose.prod.yml
       - microsandbox/**
+      - packaging/host/**
       - .github/workflows/install.yml
   schedule:
     - cron: "17 4 * * 1"
@@ -39,19 +43,31 @@ permissions:
 
 jobs:
   installer-tests:
-    name: Web installer tests (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    name: Web installer tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
-        # the oldest Python it supports (a Mac's own, older Linux) and a current one
-        python: ["3.8", "3.12"]
+        # the oldest Python it supports (a Mac's own, older Linux) and a current one; Windows and macOS run it too
+        include:
+          - { os: ubuntu-latest, python: "3.8" }
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: windows-latest, python: "3.12" }
+          - { os: macos-latest, python: "3.12" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -v installer
+      - name: install.ps1 parses in Windows PowerShell 5.1, what Windows has
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
 
   web-installer:
     name: Install from the web installer
@@ -157,6 +173,24 @@ jobs:
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
 
+      - name: An upgrade asked for in the web app is installed by the machine's agent
+        run: |
+          ctl="$LENS_DIR/.lens-control"
+          grep -qx 'kind=systemd' "$ctl/agent" || { echo "install.sh set up no upgrade agent"; exit 1; }
+          # what the web app writes (docs/updates.md): the branch this install follows, as a release tag would be
+          printf 'id=ci\nref=%s\n' "$LENS_REF" > "$ctl/inbox/.upgrade.ci" && mv "$ctl/inbox/.upgrade.ci" "$ctl/inbox/upgrade"
+          i=0
+          until grep -qE '^state=(done|failed)$' "$ctl/upgrade-status" 2>/dev/null; do
+            i=$((i + 1)); [ $i -gt 450 ] && { echo "the agent didn't finish within 15 minutes"; break; }
+            sleep 2
+          done
+          cat "$ctl/upgrade-status" || true
+          tail -20 "$ctl/upgrade.log" || true
+          grep -qx 'id=ci' "$ctl/upgrade-status" && grep -qx 'state=done' "$ctl/upgrade-status"
+          curl -fsS -o /dev/null "$(cat setup-url)"
+          # and the containers see the folder, to ask for the next one
+          cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml exec -T backend sh -c 'test -w /control/inbox && cat /control/agent'
+
       - name: What the containers said
         if: failure()
         run: cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml ps -a && docker compose -f docker-compose.prod.yml logs --tail 200
@@ -164,6 +198,7 @@ jobs:
       - name: Stop
         if: always()
         run: |
+          sudo systemctl disable --now lens-upgrade.path 2>/dev/null || true
           if [ -d "$LENS_DIR" ]; then
             cd "$LENS_DIR"
             docker compose -f docker-compose.prod.yml down -v || true

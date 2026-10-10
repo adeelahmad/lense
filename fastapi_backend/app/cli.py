@@ -260,7 +260,7 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, bridge, jobs, local_llm, notify, passkeys, routines, sensors, settings, sources, telemetry, tunnel
+    from .domain import auth, bridge, jobs, local_llm, notify, passkeys, routines, sensors, settings, sources, telemetry, tunnel, updates
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -367,6 +367,7 @@ def platform_main(argv, config):
                     bridge.start(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat-room bridge, while it's on
                     tunnel.start(db, C, stop, name=wk.name, log=print)  # and the Cloudflare tunnel, while it's on
                     local_llm.start(db, C, stop, name=wk.name, log=print)  # and the local chat model, while it's on
+                    updates.start(db, C, stop, log=print)  # and the daily check for a new release (docs/updates.md)
                 _stop_on_term()
                 try:
                     wk.loop(stop)

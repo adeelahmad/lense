@@ -1,0 +1,12 @@
+#!/bin/sh
+# Install Lens.app: opens Lens's installer in the browser (install.sh with LENS_WIZARD=1). Anything that goes wrong
+# shows in a window; the full output is in ~/Library/Logs/Lens/install.log.
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+osascript -e 'display notification "Opening the installer in your browser..." with title "Install Lens"' 2>/dev/null
+mkdir -p "$HOME/Library/Logs/Lens"
+log="$HOME/Library/Logs/Lens/install.log"
+if ! curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh -o "$TMPDIR/lens-install.sh"; then
+  osascript -e 'display dialog "Couldn'"'"'t download Lens. Check the internet connection, and try again." buttons {"OK"} default button 1 with title "Install Lens" with icon caution'
+  exit 1
+fi
+LENS_WIZARD=1 sh "$TMPDIR/lens-install.sh" >"$log" 2>&1

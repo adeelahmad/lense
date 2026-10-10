@@ -1,4 +1,4 @@
-"""Outgoing email (password reset, sign-in links, access requests), sent through the SMTP server in Settings → Email (or MAIL_* in
+"""Outgoing email (password reset, sign-in links, access requests, new releases), sent through the SMTP server in Settings → Email (or MAIL_* in
 .env, which win and show locked). Without one, links are logged instead."""
 
 from __future__ import annotations
@@ -122,3 +122,20 @@ async def send_access_request_email(
         subtype=MessageType.html,
     )
     await _mailer(cfg).send_message(message_, template_name="access_request.html")
+
+
+async def send_release_email(cfg: dict[str, Any], admins: list[str], tag: str, current: str, notes_url: str | None) -> None:
+    """Tell the admins that a new Lens release is out (docs/updates.md)."""
+    link = f"{app_url(cfg)}/settings/updates"
+    if not admins or not mail_enabled(cfg):
+        return
+    from fastapi_mail import MessageSchema, MessageType
+    from pydantic import NameEmail
+
+    message = MessageSchema(
+        subject=f"Lens {tag} is out",
+        recipients=[NameEmail(a, a) for a in admins],
+        template_body={"tag": tag, "current": current, "link": link, "notes_url": notes_url},
+        subtype=MessageType.html,
+    )
+    await _mailer(cfg).send_message(message, template_name="release.html")

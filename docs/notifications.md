@@ -91,6 +91,7 @@ check that the timestamp is recent too, to refuse replays.
 | `job.cancelled` | a run was cancelled | the same |
 | `batch.finished` | a batch run finished, or its sample did; each namespace it ran in gets its own counts | `batch`, `label`, `status`, `counts`, `sample` |
 | `recording.added` | an asset (a recording, document, image or web page) was added, however it came | `recording`, `title`, `source`, `created_at` |
+| `lens.release` | a new Lens release is out, once per release ([Updates](updates.md)) | `tag`, `name`, `current`, `published_at`, `notes_url` |
 
 New targets get `job.failed` and `batch.finished`. A batch run's own runs aren't sent one by one: the batch run is,
 when it finishes. More than five things added to a namespace at once (a watched folder's new files, an import) are one

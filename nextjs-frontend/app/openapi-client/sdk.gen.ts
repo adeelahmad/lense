@@ -82,6 +82,8 @@ import type {
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
+  CheckUpdatesData,
+  CheckUpdatesResponses,
   ClearEntitySetupData,
   ClearEntitySetupErrors,
   ClearEntitySetupResponses,
@@ -231,6 +233,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteBackupData,
+  DeleteBackupErrors,
+  DeleteBackupResponses,
   DeleteChatData,
   DeleteChatErrors,
   DeleteChatResponses,
@@ -338,6 +343,9 @@ import type {
   DismissGraphChangeData,
   DismissGraphChangeErrors,
   DismissGraphChangeResponses,
+  DownloadBackupData,
+  DownloadBackupErrors,
+  DownloadBackupResponses,
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
@@ -555,6 +563,8 @@ import type {
   GetTopicData,
   GetTopicErrors,
   GetTopicResponses,
+  GetUpdatesData,
+  GetUpdatesResponses,
   GetUploadData,
   GetUploadErrors,
   GetUploadResponses,
@@ -668,6 +678,8 @@ import type {
   ListAuditResponses,
   ListBackendsData,
   ListBackendsResponses,
+  ListBackupsData,
+  ListBackupsResponses,
   ListBatchesData,
   ListBatchesResponses,
   ListBudgetsData,
@@ -839,6 +851,9 @@ import type {
   ListUsersResponses,
   ListViewsData,
   ListViewsResponses,
+  ListVoicesData,
+  ListVoicesErrors,
+  ListVoicesResponses,
   ListWatchesData,
   ListWatchesResponses,
   ListWorkersData,
@@ -1183,6 +1198,9 @@ import type {
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
+  StartUpgradeData,
+  StartUpgradeErrors,
+  StartUpgradeResponses,
   StartUploadData,
   StartUploadErrors,
   StartUploadResponses,
@@ -1202,6 +1220,8 @@ import type {
   TagRecordingsData,
   TagRecordingsErrors,
   TagRecordingsResponses,
+  TakeBackupData,
+  TakeBackupResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestBridgeData,
@@ -2699,6 +2719,111 @@ export class Admin {
   ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
       url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Updates {
+  /**
+   * Get Updates
+   *
+   * The version running, the latest release, and how the last upgrade went.
+   */
+  public static getUpdates<ThrowOnError extends boolean = false>(
+    options?: Options<GetUpdatesData, ThrowOnError>,
+  ): RequestResult<GetUpdatesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetUpdatesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/updates",
+      ...options,
+    });
+  }
+
+  /**
+   * Check Updates
+   *
+   * Ask GitHub for the latest release now.
+   */
+  public static checkUpdates<ThrowOnError extends boolean = false>(
+    options?: Options<CheckUpdatesData, ThrowOnError>,
+  ): RequestResult<CheckUpdatesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<CheckUpdatesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/updates/check",
+      ...options,
+    });
+  }
+
+  /**
+   * Start Upgrade
+   *
+   * Back the database up, then have this machine install the release (the latest unless one is named). Lens
+   * restarts on the new version; GET /admin/updates follows along.
+   */
+  public static startUpgrade<ThrowOnError extends boolean = false>(
+    options?: Options<StartUpgradeData, ThrowOnError>,
+  ): RequestResult<StartUpgradeResponses, StartUpgradeErrors, ThrowOnError> {
+    return (options?.client ?? client).post<StartUpgradeResponses, StartUpgradeErrors, ThrowOnError>({
+      url: "/api/v1/admin/updates/upgrade",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+  }
+
+  /**
+   * List Backups
+   *
+   * The database backups in <data_dir>/backups, newest first.
+   */
+  public static listBackups<ThrowOnError extends boolean = false>(
+    options?: Options<ListBackupsData, ThrowOnError>,
+  ): RequestResult<ListBackupsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListBackupsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/backups",
+      ...options,
+    });
+  }
+
+  /**
+   * Take Backup
+   *
+   * Back the database up now (it can take a while on a big archive).
+   */
+  public static takeBackup<ThrowOnError extends boolean = false>(
+    options?: Options<TakeBackupData, ThrowOnError>,
+  ): RequestResult<TakeBackupResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TakeBackupResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/backups",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Backup
+   *
+   * Delete a backup.
+   */
+  public static deleteBackup<ThrowOnError extends boolean = false>(
+    options: Options<DeleteBackupData, ThrowOnError>,
+  ): RequestResult<DeleteBackupResponses, DeleteBackupErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteBackupResponses, DeleteBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Download Backup
+   *
+   * Download a backup (exports only: an embedded database's folder is copied from the data folder).
+   */
+  public static downloadBackup<ThrowOnError extends boolean = false>(
+    options: Options<DownloadBackupData, ThrowOnError>,
+  ): RequestResult<DownloadBackupResponses, DownloadBackupErrors, ThrowOnError> {
+    return (options.client ?? client).get<DownloadBackupResponses, DownloadBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}",
       ...options,
     });
   }
@@ -4806,8 +4931,8 @@ export class Imports {
   /**
    * Import Web Links
    *
-   * Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a
-   * file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
+   * Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per
+   * line, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
    * a page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in
    * (`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that
    * can't be is skipped, saying why. Audited as `import.web` once, with how many were queued.
@@ -7756,6 +7881,9 @@ export class Chats {
    * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
    * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
    * from (where, and the highlighted text; not the page's text, which isn't kept).
+   *
+   * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
+   * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
@@ -8987,6 +9115,21 @@ export class Voice {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Voices
+   *
+   * The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it
+   * lists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have.
+   */
+  public static listVoices<ThrowOnError extends boolean = false>(
+    options?: Options<ListVoicesData, ThrowOnError>,
+  ): RequestResult<ListVoicesResponses, ListVoicesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListVoicesResponses, ListVoicesErrors, ThrowOnError>({
+      url: "/api/v1/voice/voices",
+      ...options,
     });
   }
 }

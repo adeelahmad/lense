@@ -79,6 +79,7 @@ nav:
   - Chat rooms: chat-rooms.md
   - Sensors: sensors.md
   - Telemetry: telemetry.md
+  - Prometheus: prometheus.md
   - Activity and costs: activity.md
   - Budgets: budgets.md
   - IIIF: iiif.md
@@ -86,6 +87,7 @@ nav:
   - Graph history: graph-history.md
   - Topics: topics.md
   - Notes: notes.md
+  - Web clipper: web-clipper.md
   - Storage: storage.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md
@@ -95,6 +97,7 @@ nav:
   - Encryption: encryption.md
   - Remote access: remote-access.md
   - Deployment: deployment.md
+  - Updates and backups: updates.md
   - microsandbox: microsandbox.md
   - Technology: technology-selection.md
   - Contributing: contributing.md

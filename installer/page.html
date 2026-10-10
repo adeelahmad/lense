@@ -195,8 +195,8 @@ function viewComputer() {
     !d.installed ? el("small", {}, " · Lens installs it (or uses microsandbox)") : null));
   if (f.msb_ok) items.push(el("li", {}, "This computer can also run microsandbox virtual machines"));
   if (!f.git) items.push(el("li", { class: "todo" }, "git isn't here, so Lens downloads its code as an archive"));
-  if (!f.curl) items.push(el("li", { class: "bad" }, "curl is missing: install it first (it downloads Lens)"));
-  if (!f.supported) items.push(el("li", { class: "bad" }, "This installer runs Lens on Linux and macOS. Windows support is planned."));
+  if (!f.curl && !f.windows) items.push(el("li", { class: "bad" }, "curl is missing: install it first (it downloads Lens)"));
+  if (!f.supported) items.push(el("li", { class: "bad" }, "This installer runs Lens on Linux, macOS and Windows."));
   const ex = f.existing;
   return el("div", {},
     el("h2", {}, ex ? "Lens is already installed here" : "Let's set Lens up on this computer"),
@@ -208,7 +208,7 @@ function viewComputer() {
     f.actions.length ? el("div", {}, el("h3", {}, "Other things to do"),
       f.actions.map((a) => el("button", { class: "small", title: a.detail, onclick: () => runAction(a) }, a.label))) : null,
     el("div", { id: "msg", class: "msg" }),
-    nav(() => go(1), { disabled: !f.supported || !f.curl }));
+    nav(() => go(1), { disabled: !f.supported || (!f.curl && !f.windows) }));
 }
 async function runAction(a) {
   try { await api("/api/action", { id: a.id }); S.step = 5; render(); poll(); } catch (e) { msg("err", e.message); }
@@ -225,6 +225,7 @@ function viewRun() {
       radio("backend", "docker", S.a.backend, "Docker (recommended)", "A container for each part of Lens, the usual way.", (v) => { S.a.backend = v; render(); }),
       radio("backend", "microsandbox", S.a.backend, "microsandbox", f.msb_ok
         ? "One lightweight virtual machine, no Docker needed. Newer; the first start takes longer."
+        : f.windows ? "Not on Windows: Lens runs in Docker Desktop here."
         : "Needs KVM on 64-bit Linux, or a Mac with Apple silicon: not available on this computer.",
         (v) => { S.a.backend = v; render(); }, !f.msb_ok)),
     el("h3", {}, "Edition"),

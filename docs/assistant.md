@@ -24,8 +24,16 @@ then.
   behind them, they're folded into a running summary kept on the conversation (one model call, after an answer), and
   every answer gets that summary plus the messages it doesn't cover yet. Room conversations (chat-rooms.md) go on for
   good, so they rely on it most. Editing a question the summary covers drops the summary; it's made again from what's
-  left. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off, or with no model,
-  only the last six messages are read.
+  left. A conversation that fills half of the model's context window (**Chat model's context**, `ai.context_tokens`,
+  16000 when empty; about four characters a token) is folded in early, before the next answer, whatever the count.
+  **Model for summaries** (`ai.compact_model`) writes them with a smaller, cheaper model on the same provider; empty,
+  the chat's model does. Settings › AI assistant › Summarise long conversations (`ai.compact`, on) turns it off; off,
+  or with no model, only the last six messages are read.
+- **/clear and /compact:** typed as a message, in the app or in a chat room (`Lens /clear`). `/clear` makes the
+  assistant start afresh: the messages stay to read, but the model no longer sees them or their summary.
+  `/compact` folds the whole conversation into its summary now, and `/compact keep the dates and owners` tells the
+  summary what to keep; the reply shows the summary. Both work with automatic summaries off. Neither command, nor its
+  reply, is read by the model afterwards.
 - **Changed access:** old citations are filtered by the person's current access when a conversation is reopened.
 - **Choosing the model:** a conversation can use any model an admin offers (`llm.chat_models`, else whatever the model
   server lists); Try another model asks a question again with a different one. Each answer records the model that
@@ -71,12 +79,13 @@ Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`li
   listening. Without a server engine, or with `voice.input: browser`, the browser's own recognition listens (Chrome,
   Edge and Safari; Chrome sends the audio to its own speech service).
 - **Speaking.** Answers are read by a speech model when one is set (`voice.tts_model`: any OpenAI-compatible
-  `/audio/speech`, such as Kokoro-FastAPI, LocalAI or OpenAI's `tts-1`, on `voice.tts_base_url` or the LLM provider);
-  else by the browser.
+  `/audio/speech`, such as Kokoro-FastAPI, LocalAI or OpenAI's `tts-1`, on `voice.tts_base_url` or the LLM provider),
+  or by ElevenLabs, Deepgram, Google Gemini or macOS `say` ([Speech providers](speech-providers.md#voices)); else by
+  the browser.
 
 Settings → AI assistant → Voice holds these. The API: `GET /voice` (what the server does; it also starts loading the
-engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text}`; 204 when
-the browser should read it).
+engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text, voice?}`;
+204 when the browser should read it), `GET /voice/voices` (the voices a provider reads in).
 
 ## The assistant's tools
 
@@ -99,6 +108,9 @@ When the configured model supports function calling, chat becomes an agent.
 - **Files:** attach files to a message with the clip, or by dropping or pasting them on the box. They upload as you
   type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
   with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
+- **Web pages:** give it one address, several, or a list of links (pasted, or attached as a text file or a browser's
+  bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
+  `import_files`, it picks the namespace when you don't name one, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 
 ## A namespace's own assistant

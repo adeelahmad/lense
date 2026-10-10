@@ -9,6 +9,8 @@ never sends telemetry to the Lens project or anyone else. Turned on, it sends on
 a collector on the same machine or network, which can pass it on to Jaeger, Grafana Tempo and Prometheus, SigNoz,
 Honeycomb, or whatever you use.
 
+To have Prometheus scrape Lens instead, see [Prometheus](prometheus.md).
+
 ## Turning it on
 
 Any of these:

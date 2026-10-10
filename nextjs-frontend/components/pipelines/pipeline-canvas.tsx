@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 
 const ICON: Record<string, LucideIcon> = {
   transcribe: Captions,
+  read: ScanText,
   diarize: AudioLines,
   shots: Clapperboard,
   ocr: ScanText,

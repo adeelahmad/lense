@@ -213,7 +213,7 @@ export function ConnectionDialog({
           ? `Edit “${source?.name}”`
           : TYPE_NAME[type] === "S3 / compatible"
             ? "S3 or S3-compatible"
-            : spec?.oauth
+            : spec?.oauth && type !== "drive"
               ? `${TYPE_NAME[type]} · paste a token`
               : (spec?.label ?? TYPE_NAME[type])
         : step === "test"

@@ -20,7 +20,9 @@ curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | 
 
 That one line is all: it opens an installer in your browser that checks the computer, asks how Lens should run, the AI
 model and its key and any extras, then installs what's missing (Docker included), starts Lens and opens its setup page
-([details](docs/get-started.md#the-web-installer)). Run it again to update.
+([details](docs/get-started.md#the-web-installer)). Run it again to update. On Windows, run
+`irm https://raw.githubusercontent.com/adeelahmad/lense/main/install.ps1 | iex` in PowerShell; or skip the terminal and
+double-click the launcher for your system from the [latest release](https://github.com/adeelahmad/lense/releases/latest).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
 [Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
 

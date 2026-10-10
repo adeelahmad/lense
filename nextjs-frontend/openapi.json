@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.3.0"
+    "version": "0.6.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -2591,7 +2591,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^(openai|elevenlabs|assemblyai|deepgram)$",
+              "pattern": "^(openai|elevenlabs|assemblyai|deepgram|gemini)$",
               "title": "Provider"
             }
           }
@@ -2888,6 +2888,221 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Started"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Updates",
+        "description": "The version running, the latest release, and how the last upgrade went.",
+        "operationId": "get_updates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates/check": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Check Updates",
+        "description": "Ask GitHub for the latest release now.",
+        "operationId": "check_updates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates/upgrade": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Start Upgrade",
+        "description": "Back the database up, then have this machine install the release (the latest unless one is named). Lens\nrestarts on the new version; GET /admin/updates follows along.",
+        "operationId": "start_upgrade",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UpgradeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "List Backups",
+        "description": "The database backups in <data_dir>/backups, newest first.",
+        "operationId": "list_backups",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Backups"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Take Backup",
+        "description": "Back the database up now (it can take a while on a big archive).",
+        "operationId": "take_backup",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Backup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Download Backup",
+        "description": "Download a backup (exports only: an embedded database's folder is copied from the data folder).",
+        "operationId": "download_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/gzip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Delete Backup",
+        "description": "Delete a backup.",
+        "operationId": "delete_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -9964,7 +10179,7 @@
           "imports"
         ],
         "summary": "Import Web Links",
-        "description": "Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a\nfile: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
+        "description": "Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per\nline, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
         "operationId": "import_web_links",
         "requestBody": {
           "content": {
@@ -19484,7 +19699,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.",
         "operationId": "send_message",
         "parameters": [
           {
@@ -23429,6 +23644,57 @@
         }
       }
     },
+    "/api/v1/voice/voices": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "List Voices",
+        "description": "The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it\nlists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have.",
+        "operationId": "list_voices",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/vault": {
       "get": {
         "tags": [
@@ -25153,6 +25419,68 @@
           "secrets"
         ],
         "title": "Backend"
+      },
+      "Backup": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "manual, or before-upgrade"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "export",
+              "folder"
+            ],
+            "title": "Kind",
+            "description": "export: a SurrealDB export (.surql.gz); folder: an embedded database's copy"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "taken_at": {
+            "type": "string",
+            "title": "Taken At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "kind",
+          "bytes",
+          "taken_at"
+        ],
+        "title": "Backup"
+      },
+      "Backups": {
+        "properties": {
+          "folder": {
+            "type": "string",
+            "title": "Folder"
+          },
+          "backups": {
+            "items": {
+              "$ref": "#/components/schemas/Backup"
+            },
+            "type": "array",
+            "title": "Backups"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "folder",
+          "backups"
+        ],
+        "title": "Backups"
       },
       "Batch": {
         "properties": {
@@ -30874,7 +31202,8 @@
               "job.failed",
               "job.cancelled",
               "batch.finished",
-              "recording.added"
+              "recording.added",
+              "lens.release"
             ],
             "title": "Type"
           },
@@ -35667,6 +35996,22 @@
             "title": "Text",
             "description": "addresses, one per line"
           },
+          "urls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urls",
+            "description": "addresses, as a list"
+          },
           "filename": {
             "anyOf": [
               {
@@ -35727,7 +36072,7 @@
           "namespace"
         ],
         "title": "LinksImportRequest",
-        "description": "Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a\nbrowser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."
+        "description": "Links pasted as ``text`` (one per line), listed in ``urls``, or a file (``filename`` + base64 ``data``): a list of addresses, a\nbrowser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."
       },
       "LlmEstimate": {
         "properties": {
@@ -39305,7 +39650,8 @@
                 "job.failed",
                 "job.cancelled",
                 "batch.finished",
-                "recording.added"
+                "recording.added",
+                "lens.release"
               ]
             },
             "type": "array",
@@ -39453,7 +39799,8 @@
                     "job.failed",
                     "job.cancelled",
                     "batch.finished",
-                    "recording.added"
+                    "recording.added",
+                    "lens.release"
                   ]
                 },
                 "type": "array"
@@ -39582,7 +39929,8 @@
                     "job.failed",
                     "job.cancelled",
                     "batch.finished",
-                    "recording.added"
+                    "recording.added",
+                    "lens.release"
                   ]
                 },
                 "type": "array"
@@ -44806,6 +45154,49 @@
         ],
         "title": "RefreshRequest"
       },
+      "Release": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "title": "Tag",
+            "description": "vX.Y.Z"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the release's page on GitHub"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "description": "what changed, in Markdown",
+            "default": ""
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "tag",
+          "name",
+          "url"
+        ],
+        "title": "Release"
+      },
       "Removed": {
         "properties": {
           "removed": {
@@ -49047,6 +49438,19 @@
             "type": "string",
             "maxLength": 8000,
             "title": "Text"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice",
+            "description": "read in this voice (an id from GET /voice/voices); else the settings'"
           }
         },
         "additionalProperties": false,
@@ -51536,6 +51940,256 @@
         ],
         "title": "Undone"
       },
+      "UpdateStatus": {
+        "properties": {
+          "current": {
+            "type": "string",
+            "title": "Current",
+            "description": "the version running"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Release"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "latest is newer than current"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the last check failed"
+          },
+          "check": {
+            "type": "boolean",
+            "title": "Check",
+            "description": "updates.check: the daily check is on"
+          },
+          "auto_install": {
+            "type": "boolean",
+            "title": "Auto Install"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what upgrades this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that upgrades it by hand, on the machine Lens runs on"
+          },
+          "upgrade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpgradeRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the last upgrade asked for"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "current",
+          "available",
+          "check",
+          "auto_install",
+          "manual"
+        ],
+        "title": "UpdateStatus"
+      },
+      "UpgradeRequest": {
+        "properties": {
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref",
+            "description": "a release tag; default: the latest release"
+          },
+          "backup": {
+            "type": "boolean",
+            "title": "Backup",
+            "description": "back the database up first",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UpgradeRequest"
+      },
+      "UpgradeRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref",
+            "description": "the release tag (or branch) being installed"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "backing-up",
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "State"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "queued_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "backup": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backup",
+            "description": "the backup taken first, in Backups"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the version installed, once done"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "the last lines install.sh printed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "ref",
+          "state"
+        ],
+        "title": "UpgradeRun"
+      },
       "Upload": {
         "properties": {
           "id": {
@@ -52630,6 +53284,84 @@
           "speak"
         ],
         "title": "VoiceInfo"
+      },
+      "VoiceList": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current",
+            "description": "the voice answers are read in now (null: the provider's default)"
+          },
+          "voices": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceOption"
+            },
+            "type": "array",
+            "title": "Voices"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the provider's voices couldn't be listed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "provider",
+          "voices"
+        ],
+        "title": "VoiceList"
+      },
+      "VoiceOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "what voice.tts_voice is set to"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what the provider says about it: accent, gender, style, language"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "VoiceOption"
       },
       "Watch": {
         "properties": {
