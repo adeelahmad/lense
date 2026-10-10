@@ -91,8 +91,9 @@ def revoke_key(db, kid, account=None):
 
 
 def key_account(db, cfg, kid):
-    """(secret, active account) for a key id, or None."""
-    if not KEY_RX.match(kid or ""):
+    """(secret, active account) for a key id (any case: SMB lowercases user names), or None."""
+    kid = str(kid or "").upper()
+    if not KEY_RX.match(kid):
         return None
     row = db.one("SELECT account, sealed, expires_at FROM $r", r=R("file_key", kid))
     if not row or (row.get("expires_at") and row["expires_at"] < store.now()):
@@ -105,6 +106,56 @@ def key_account(db, cfg, kid):
     except Exception:  # noqa: BLE001 - the server's key changed since: the key is dead
         return None
     return secret, acct
+
+
+def lookup_key(db, cfg, kid):
+    """{account: id, secret} for a live key id (any case), or None: for servers that check the secret themselves
+    (SMB's NTLM)."""
+    found = key_account(db, cfg, kid)
+    return {"account": found[1]["id"], "secret": found[0]} if found else None
+
+
+def touch(db, kid):
+    """Note that a key was just used."""
+    kid = str(kid or "").upper()
+    if KEY_RX.match(kid):
+        db.q("UPDATE $r SET last_used_at = $t", r=R("file_key", kid), t=store.now())
+
+
+def service_key(db, cfg, account, label):
+    """(in-network S3 endpoint, key id, secret) for a service acting as an account (NFS: label "nfs"), made once per
+    (account, label) and reused after; it doesn't expire. Revoke it with revoke_service_key."""
+    from . import shares
+
+    port = int(shares.settings_of(cfg)["s3_port"])
+    endpoint = f"http://worker:{port}"
+    for row in db.rows("SELECT record::id(id) AS id FROM file_key WHERE account = $a AND service = $l", a=int(account), l=str(label)):
+        found = key_account(db, cfg, row["id"])
+        if found:
+            return endpoint, row["id"], found[0]
+        db.q("DELETE $r", r=R("file_key", row["id"]))
+    kid = "LK" + "".join(secrets.choice(ALPHABET) for _ in range(18))
+    secret = secrets.token_urlsafe(30)
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("file_key", kid),
+        d={
+            "account": int(account),
+            "name": f"{label} (service)"[:NAME_MAX],
+            "service": str(label),
+            "sealed": settings.seal(cfg, secret, _context(kid)),
+            "created_at": store.now(),
+        },
+    )
+    return endpoint, kid, secret
+
+
+def revoke_service_key(db, account, label):
+    """Revoke a service's key for an account; whether there was one."""
+    rows = db.rows("SELECT record::id(id) AS id FROM file_key WHERE account = $a AND service = $l", a=int(account), l=str(label))
+    for row in rows:
+        db.q("DELETE $r", r=R("file_key", row["id"]))
+    return bool(rows)
 
 
 # ---------- Signature Version 4 ----------

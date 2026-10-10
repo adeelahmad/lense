@@ -124,6 +124,19 @@ def test_keys_are_made_while_signed_in(client, db, env):
     assert client.get("/api/v1/shares/s3/keys", headers=env["hv"]).status_code == 403  # everyone's: admins
 
 
+def test_other_servers_use_the_same_keys(client, db, cfg, env):
+    """SMB checks a key's secret itself (any case: NTLM lowercases user names); NFS signs in with a service key."""
+    uid = db.one("SELECT record::id(id) AS id FROM account WHERE email = 'vi@x.io'")["id"]
+    k = _key(client, env["hv"])
+    assert s3.lookup_key(db, cfg, k["id"].lower()) == {"account": uid, "secret": k["secret"]}
+    assert s3.lookup_key(db, cfg, "LKNOTAKEY") is None
+    endpoint, kid, secret = s3.service_key(db, cfg, uid, "nfs")
+    assert endpoint == "http://worker:9555" and s3.service_key(db, cfg, uid, "nfs") == (endpoint, kid, secret)
+    c = _s3(env["port"], kid, secret)
+    assert [b["Name"] for b in c.list_buckets()["Buckets"]] == ["pods"]
+    assert s3.revoke_service_key(db, uid, "nfs") and s3.lookup_key(db, cfg, kid) is None
+
+
 def test_the_servers_follow_the_settings(db, cfg):
     conf = {"enabled": False, "s3": True, "s3_port": 0, "webdav": True, "webdav_port": 0, "bind": "127.0.0.1"}
     svc = shares.Service(db, lambda: {**cfg, "shares": conf}, name="t")
