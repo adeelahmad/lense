@@ -148,7 +148,8 @@ apart from what the person asks:
   other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
   open to anyone, or an earlier answer in the conversation that read any of these), anything that could carry what
   it read out of Lens waits for your approval, even where it would otherwise run at once: your own `read` web tools,
-  other servers' MCP tools and Python tools with the network, and the changes a setup conversation makes itself. The
+  other servers' MCP tools and Python tools with the network, the changes a setup conversation makes itself, and, in
+  [your browser](browser-assistant.md), opening or downloading an address or typing text you didn't write. The
   approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
   memories are still written at once: they stay in Lens, and are marked as data when read back.
 
