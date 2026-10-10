@@ -91,7 +91,8 @@ jobs:
       - name: Answer it and install
         run: |
           jq -n --arg dir "$LENS_DIR" --arg ref "$LENS_REF" '{backend: "docker", target: "lean", dir: $dir, ref: $ref,
-            settings: {llm: {base_url: "http://localhost:11434/v1", model: "llama3", api_key: "sk-ci"}}}' >answers.json
+            settings: {llm: {base_url: "http://localhost:11434/v1", model: "llama3", api_key: "sk-ci"},
+            budget: {hard_usd: 25, period: "month", price_in: 3, price_out: 15}}}' >answers.json
           curl -fsS -b jar -H 'X-Lens-Installer: 1' -H 'Content-Type: application/json' -d @answers.json \
             http://127.0.0.1:3990/api/install
           since=0
@@ -114,7 +115,7 @@ jobs:
           curl -fsS -o /dev/null "$url"
           curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
           cd "$LENS_DIR"
-          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm"
+          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm, budget"
           # saved in Lens: the key doesn't stay in .env
           ! grep -q '^LENS_SETUP_SETTINGS=' .env
 

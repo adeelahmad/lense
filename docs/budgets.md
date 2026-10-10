@@ -22,6 +22,26 @@ PUT /api/v1/budgets?resource=routine:3
 (also for a resource without a budget, with its estimated next run), and `DELETE /api/v1/budgets?resource=…`
 removes one.
 
+## One budget for everything
+
+Besides budgets for single resources, `all` caps everything Lens spends: every model call, run and job, whatever it
+is for. The setup wizard asks for it (and so does the web installer for a cloud provider), as a scale for the hard
+limit with the soft limit at 80% of it; Settings › Budgets changes it.
+
+```http
+PUT /api/v1/setup/budget
+{"hard_usd": 25, "soft_usd": 20, "period": "month", "on_over": "ask", "price_in": 3, "price_out": 15}
+```
+
+- **Soft limit**: past it, the budget is `near` and warns, as `warn_at` does (it is saved as `warn_at` = soft ÷ hard).
+- **Hard limit**: at it, routines and jobs are held (or skipped, with `on_over: "skip"`) as any budget's are, and model
+  calls that cost money stop with the reason until the limit goes up or the period turns. Models without a price
+  (one on your own computer) keep working, unless the budget also caps `tokens`.
+- `price_in`, `price_out`: the chat model's price in USD per million tokens (`ai.price_in`, `ai.price_out`), so
+  what it spends is counted. Without a price a budget in USD counts nothing for that model.
+- `hard_usd: null` removes the budget. `GET /api/v1/setup` shows it under `budget`. `PUT /api/v1/budgets?resource=all`
+  sets it like any other budget, with `tokens` too.
+
 ## Before a run
 
 Before a routine runs and before a job's first step, Lens looks at the budgets of everything the run counts for: the

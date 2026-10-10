@@ -13664,6 +13664,71 @@ export type SetupAdmin = {
 };
 
 /**
+ * SetupBudget
+ */
+export type SetupBudget = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: "day" | "week" | "month";
+  /**
+   * On Over
+   */
+  on_over?: "ask" | "skip";
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+};
+
+/**
+ * SetupBudgetView
+ */
+export type SetupBudgetView = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: string;
+  /**
+   * On Over
+   */
+  on_over?: string;
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * SetupFinish
  */
 export type SetupFinish = {
@@ -13911,6 +13976,7 @@ export type SetupView = {
   storage: SetupStorageView;
   telemetry: SetupTelemetryView;
   oauth: SetupOAuthView;
+  budget: SetupBudgetView;
   [key: string]: unknown;
 };
 
@@ -19256,7 +19322,7 @@ export type RemoveBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -19306,7 +19372,7 @@ export type SetBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -19338,7 +19404,7 @@ export type BudgetStatusData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -19528,6 +19594,31 @@ export type SaveTelemetryResponses = {
 };
 
 export type SaveTelemetryResponse = SaveTelemetryResponses[keyof SaveTelemetryResponses];
+
+export type SaveBudgetData = {
+  body: SetupBudget;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/budget";
+};
+
+export type SaveBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveBudgetError = SaveBudgetErrors[keyof SaveBudgetErrors];
+
+export type SaveBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveBudgetResponse = SaveBudgetResponses[keyof SaveBudgetResponses];
 
 export type SaveOauthData = {
   body: SetupOAuth;

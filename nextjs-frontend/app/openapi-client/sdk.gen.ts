@@ -1091,6 +1091,9 @@ import type {
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
+  SaveBudgetData,
+  SaveBudgetErrors,
+  SaveBudgetResponses,
   SaveCollectionFieldsData,
   SaveCollectionFieldsErrors,
   SaveCollectionFieldsResponses,
@@ -2945,6 +2948,26 @@ export class Setup {
   ): RequestResult<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError> {
     return (options.client ?? client).put<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError>({
       url: "/api/v1/setup/telemetry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Budget
+   *
+   * The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop
+   * (docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard
+   * limit: no budget.
+   */
+  public static saveBudget<ThrowOnError extends boolean = false>(
+    options: Options<SaveBudgetData, ThrowOnError>,
+  ): RequestResult<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/setup/budget",
       ...options,
       headers: {
         "Content-Type": "application/json",

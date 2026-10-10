@@ -101,7 +101,10 @@
 </div>
 <script>
 "use strict";
-const STEPS = ["This computer", "How it runs", "AI model", "Extras", "Review", "Install"];
+const STEPS = ["This computer", "How it runs", "AI model", "Review", "Install"];
+const REVIEW = 3, INSTALL = 4;
+// the overall AI budget's hard limit per month, in USD (0: no limit); the soft limit is 80% of it unless set
+const LIMITS = [0, 5, 10, 25, 50, 100, 250, 500];
 const PRESETS = [
   { id: "openai", name: "OpenAI", base_url: "https://api.openai.com/v1", key: true },
   { id: "anthropic", name: "Anthropic", base_url: "https://api.anthropic.com/v1", key: true, model: "claude-sonnet-5-5" },
@@ -119,6 +122,8 @@ const S = {
        stt: "local", stt_key: "", mail_server: "", mail_port: "587", mail_user: "", mail_password: "", mail_from: "",
        mail_security: "starttls", tunnel: "off", tunnel_token: "", anytopdf_url: "", anytopdf_token: "",
        telemetry: "", },
+  b: { level: 0, soft: "", period: "month", price_in: "", price_out: "" },
+  open: {},
   since: 0, log: [],
 };
 const $ = (s) => document.querySelector(s);
@@ -130,7 +135,7 @@ const el = (tag, attrs = {}, ...kids) => {
     else if (v === true) n.setAttribute(k, "");
     else if (v !== false && v != null) n.setAttribute(k, v);
   }
-  for (const k of kids.flat()) if (k != null && k !== false) n.append(k.nodeType ? k : String(k));
+  for (const k of kids.flat(Infinity)) if (k != null && k !== false) n.append(k.nodeType ? k : String(k));
   return n;
 };
 async function api(path, body) {
@@ -143,7 +148,7 @@ async function api(path, body) {
 }
 function bind(obj, key, attrs = {}) {
   const input = el("input", { type: "text", ...attrs, value: obj[key] ?? "" });
-  input.addEventListener("input", () => { obj[key] = input.type === "number" ? Number(input.value) : input.value; });
+  input.addEventListener("input", () => { obj[key] = input.type === "number" && input.value !== "" ? Number(input.value) : input.value; });
   return input;
 }
 function field(label, input, hint) {
@@ -160,6 +165,13 @@ function select(obj, key, options) {
   const s = el("select", {}, options.map(([v, t]) => el("option", { value: v, selected: obj[key] === v }, t)));
   s.addEventListener("change", () => { obj[key] = s.value; render(); });
   return s;
+}
+function more(id, title, sub, ...kids) {
+  // kept across renders (a select in it renders the page again); click is at once, toggle comes later
+  const d = el("details", { open: !!S.open[id] },
+    el("summary", { onclick: () => { S.open[id] = !d.open; } }, title, sub ? el("small", {}, " · " + sub) : null), ...kids);
+  d.addEventListener("toggle", () => { S.open[id] = d.open; });
+  return d;
 }
 function nav(next, opts = {}) {
   return el("div", { class: "nav" },
@@ -211,7 +223,7 @@ function viewComputer() {
     nav(() => go(1), { disabled: !f.supported || (!f.curl && !f.windows) }));
 }
 async function runAction(a) {
-  try { await api("/api/action", { id: a.id }); S.step = 5; render(); poll(); } catch (e) { msg("err", e.message); }
+  try { await api("/api/action", { id: a.id }); S.step = INSTALL; render(); poll(); } catch (e) { msg("err", e.message); }
 }
 
 // 2. How it runs ------------------------------------------------------------------------------------------------
@@ -244,16 +256,17 @@ function viewRun() {
       "to install the above as administrator; kept in memory for this install, never saved"));
   }
   box.append(
-    el("div", { class: "row" },
-      field("Folder", bind(S.a, "dir"), "where Lens and its settings live"),
-      field("Port", bind(S.a, "port", { type: "number", min: 1024, max: 65535 }), "the web app's address ends with it")),
-    (() => {
-      const c = el("input", { type: "checkbox", checked: S.a.public });
-      c.addEventListener("change", () => { S.a.public = c.checked; });
-      return el("label", { class: "switch" }, c, el("span", {}, "Reachable from other devices on this network",
-        el("small", { class: "hint" }, f.desktop ? " (off: this computer only)" : " (on: this looks like a server)")));
-    })(),
-    el("details", {}, el("summary", {}, "Advanced"), field("Version", bind(S.a, "ref"), "a branch or release tag")),
+    more("advanced", "Advanced", `${S.a.dir}, port ${S.a.port}`,
+      el("div", { class: "row" },
+        field("Folder", bind(S.a, "dir"), "where Lens and its settings live"),
+        field("Port", bind(S.a, "port", { type: "number", min: 1024, max: 65535 }), "the web app's address ends with it")),
+      (() => {
+        const c = el("input", { type: "checkbox", checked: S.a.public });
+        c.addEventListener("change", () => { S.a.public = c.checked; });
+        return el("label", { class: "switch" }, c, el("span", {}, "Reachable from other devices on this network",
+          el("small", { class: "hint" }, f.desktop ? " (off: this computer only)" : " (on: this looks like a server)")));
+      })(),
+      field("Version", bind(S.a, "ref"), "a branch or release tag")),
     el("div", { id: "msg", class: "msg" }),
     nav(async () => {
       const needs = needsPassword();
@@ -318,44 +331,80 @@ function viewModel() {
     box.append(el("div", { class: "row" }, field("Model", model),
       el("div", { style: "align-self:end" }, el("button", { onclick: testModel }, "Test"))));
     if (local) box.append(el("p", { class: "hint" }, "Lens reaches it from its container as host.docker.internal; the installer takes care of that."));
+    else box.append(viewBudget());
   }
   box.append(el("div", { id: "msg", class: "msg" }),
-    nav(() => go(3), { label: L.preset ? "Continue" : "Skip for now" }));
+    nav(() => {
+      const why = budgetProblem();
+      if (why) return msg("err", why);
+      go(REVIEW);
+    }, { label: L.preset ? "Continue" : "Skip for now" }));
   return box;
 }
 
-// 4. Extras -----------------------------------------------------------------------------------------------------
-function viewExtras() {
+function money(n) { return "$" + (Number.isInteger(n) ? n : n.toFixed(2)); }
+function hardLimit() { return LIMITS[S.b.level] || 0; }
+function viewBudget() {
+  const B = S.b, hard = hardLimit();
+  const slider = el("input", { type: "range", min: 0, max: LIMITS.length - 1, step: 1, value: B.level, style: "width:100%" });
+  const said = el("b", {}, hard ? `${money(hard)} a month` : "No limit");
+  slider.addEventListener("input", () => {
+    const was = B.level; B.level = Number(slider.value);
+    if (!was !== !B.level) render(); else said.textContent = hardLimit() ? `${money(hardLimit())} a month` : "No limit";
+  });
+  const kids = [el("h3", {}, "Spending limit"),
+    el("p", { class: "hint" }, "How much Lens may spend on this provider. Past 80% it warns you; at the limit, runs wait for you and paid model calls stop until you raise it."),
+    el("label", { class: "switch" }, said), slider];
+  if (hard) {
+    kids.push(el("div", { class: "row" },
+      field("Input price", bind(B, "price_in", { type: "number", min: 0, step: "any", placeholder: "3" }), "USD per million tokens"),
+      field("Output price", bind(B, "price_out", { type: "number", min: 0, step: "any", placeholder: "15" }), "USD per million tokens")),
+      el("p", { class: "hint" }, "Your provider lists the model's price; Lens counts what it spends with it."),
+      more("budget", "More", "a soft limit, a different period",
+        el("div", { class: "row" },
+          field("Soft limit (USD)", bind(B, "soft", { type: "number", min: 0, step: "any", placeholder: String(Math.round(hard * 0.8 * 100) / 100) }), "warns past it"),
+          field("Per", select(B, "period", [["month", "Month"], ["week", "Week"], ["day", "Day"]])))));
+  }
+  return el("div", {}, ...kids);
+}
+function budgetProblem() {
+  const B = S.b, hard = hardLimit();
+  if (!hard || !S.llm.preset || S.llm.preset.startsWith("local:")) return null;
+  if (B.price_in === "" || B.price_out === "" || !(Number(B.price_in) >= 0) || !(Number(B.price_out) >= 0))
+    return "Give the model's input and output price, so Lens can count what it spends against the limit.";
+  if (B.soft !== "" && !(Number(B.soft) >= 0 && Number(B.soft) <= hard)) return `The soft limit is between $0 and ${money(hard)}.`;
+  return null;
+}
+
+function moreOptions() {
   const X = S.x;
   const pw = (key, ph) => bind(X, key, { type: "password", autocomplete: "off", placeholder: ph || "" });
-  return el("div", {},
-    el("h2", {}, "Extras"),
-    el("p", { class: "lead" }, "All optional, and all of it can be set later in Lens's Settings."),
-    el("details", {}, el("summary", {}, "First namespace ", el("small", {}, "· where your first files go")),
+  return [
+    more("ns", "First namespace", "where your first files go",
       field("Name", bind(S.a, "namespace", { placeholder: "archive" }), "lowercase letters, digits, - and _")),
-    el("details", {}, el("summary", {}, "Search by meaning ", el("small", {}, "· an embeddings model")),
+    more("embed", "Search by meaning", "an embeddings model",
       field("Embeddings", select(X, "embeddings", [["same", "From the AI model's server (default)"], ["other", "Another server"], ["off", "Off"]])),
       X.embeddings === "other" ? el("div", {},
         field("Address", bind(X, "embed_base_url", { placeholder: "http://localhost:11434/v1" })),
         el("div", { class: "row" }, field("Model", bind(X, "embed_model", { placeholder: "nomic-embed-text" })), field("API key", pw("embed_key")))) : null),
-    el("details", {}, el("summary", {}, "Decision model ", el("small", {}, "· typesafe.ai Jev, for cheap routine decisions")),
+    more("decisions", "Decision model", "typesafe.ai Jev, for cheap routine decisions",
       field("typesafe.ai API key", pw("decisions_key"))),
-    el("details", {}, el("summary", {}, "Transcription ", el("small", {}, "· on this computer, or a cloud service")),
+    more("stt", "Transcription", "on this computer, or a cloud service",
       field("Engine", select(X, "stt", [["local", "On this computer (SenseVoice, default)"], ["openai", "OpenAI"], ["elevenlabs", "ElevenLabs"], ["assemblyai", "AssemblyAI"], ["deepgram", "Deepgram"]])),
       X.stt !== "local" ? field("API key", pw("stt_key")) : null),
-    el("details", {}, el("summary", {}, "Email ", el("small", {}, "· for sign-in links and notices")),
+    more("mail", "Email", "for sign-in links and notices",
       el("div", { class: "row" }, field("Server", bind(X, "mail_server", { placeholder: "smtp.example.com" })), field("Port", bind(X, "mail_port"))),
       el("div", { class: "row" }, field("Username", bind(X, "mail_user")), field("Password", pw("mail_password"))),
       el("div", { class: "row" }, field("From address", bind(X, "mail_from", { type: "email" })),
         field("Security", select(X, "mail_security", [["starttls", "STARTTLS"], ["ssl", "SSL"], ["none", "None"]])))),
-    el("details", {}, el("summary", {}, "Remote access ", el("small", {}, "· reach Lens from anywhere with a Cloudflare tunnel")),
+    more("tunnel", "Remote access", "reach Lens from anywhere with a Cloudflare tunnel",
       field("Tunnel", select(X, "tunnel", [["off", "Off"], ["quick", "A quick random address (trycloudflare.com)"], ["token", "My tunnel (a token from Cloudflare)"]])),
       X.tunnel === "token" ? field("Tunnel token", pw("tunnel_token")) : null),
-    el("details", {}, el("summary", {}, "anytopdf ", el("small", {}, "· convert documents and media on another machine")),
+    more("anytopdf", "anytopdf", "convert documents and media on another machine",
       el("div", { class: "row" }, field("Address", bind(X, "anytopdf_url", { placeholder: "http://anytopdf:8080" })), field("Token", pw("anytopdf_token")))),
-    el("details", {}, el("summary", {}, "Telemetry ", el("small", {}, "· off unless you name a collector")),
+    more("telemetry", "Telemetry", "off unless you name a collector",
       field("OpenTelemetry endpoint", bind(X, "telemetry", { placeholder: "http://localhost:4318" }))),
-    nav(() => go(4)));
+  ];
 }
 function settings() {
   const L = S.llm, X = S.x, out = {};
@@ -372,21 +421,29 @@ function settings() {
   if (X.tunnel !== "off") { put("tunnel", "mode", X.tunnel); if (X.tunnel === "token") put("tunnel", "token", X.tunnel_token); }
   put("documents", "anytopdf_url", X.anytopdf_url); put("documents", "anytopdf_token", X.anytopdf_token);
   if (X.telemetry) { put("telemetry", "enabled", true); put("telemetry", "endpoint", X.telemetry); }
+  if (L.preset && !L.preset.startsWith("local:") && hardLimit()) {
+    const B = S.b;
+    put("budget", "hard_usd", hardLimit()); put("budget", "period", B.period);
+    put("budget", "price_in", Number(B.price_in)); put("budget", "price_out", Number(B.price_out));
+    if (B.soft !== "") put("budget", "soft_usd", Number(B.soft));
+  }
   return out;
 }
 
-// 5. Review -----------------------------------------------------------------------------------------------------
+// 4. Review -----------------------------------------------------------------------------------------------------
 function viewReview() {
   const a = S.a, L = S.llm, set = settings();
-  const extras = Object.keys(set).filter((k) => k !== "llm");
+  const extras = Object.keys(set).filter((k) => k !== "llm" && k !== "budget");
+  const b = set.budget;
   const rows = [
     ["Runs with", a.backend === "docker" ? "Docker" : "microsandbox"],
     ["Edition", a.target === "full" ? "Full" : "Lean"],
     ["Folder", a.dir],
     ["Address", `http://${a.public ? "this computer's address" : "localhost"}:${a.port}`],
     ["AI model", L.preset ? `${L.model || "(choose in Lens)"} at ${L.base_url}` : "set it in Lens later"],
-    ["Extras", extras.length ? extras.join(", ") : "none"],
   ];
+  if (L.preset && !L.preset.startsWith("local:")) rows.push(["Spending limit", b ? `${money(b.hard_usd)} a ${b.period}, warns at ${money(b.soft_usd ?? Math.round(b.hard_usd * 80) / 100)}` : "none"]);
+  if (extras.length) rows.push(["Also set", extras.join(", ")]);
   if (a.namespace) rows.push(["First namespace", a.namespace]);
   if (a.ref !== S.facts.ref) rows.push(["Version", a.ref]);
   return el("div", {},
@@ -395,6 +452,9 @@ function viewReview() {
       ? "Lens installs what's missing, gets its code, builds and starts. The first build takes a few minutes (longer on a Raspberry Pi)."
       : "Lens gets its code, builds and starts. The first build takes a few minutes (longer on a Raspberry Pi)."),
     el("dl", { class: "review" }, rows.map(([k, v]) => [el("dt", {}, k), el("dd", {}, v)])),
+    el("h3", {}, "More options"),
+    el("p", { class: "hint" }, "All optional, with good defaults; everything here and more is in Lens's Settings later."),
+    ...moreOptions(),
     el("div", { id: "msg", class: "msg" }),
     nav(install, { label: "Install Lens" }));
 }
@@ -403,17 +463,17 @@ async function install() {
   try {
     await api("/api/install", { ...S.a, port: Number(S.a.port), settings: settings() });
   } catch (e) { $("#next").disabled = false; return msg("err", e.message); }
-  S.since = 0; S.log = []; go(5); poll();
+  S.since = 0; S.log = []; go(INSTALL); poll();
 }
 
-// 6. Install ----------------------------------------------------------------------------------------------------
+// 5. Install ----------------------------------------------------------------------------------------------------
 let P = { state: "running", steps: [], url: null, error: null };
 async function poll() {
   try {
     const r = await api("/api/progress?since=" + S.since);
     S.since = r.next; S.log.push(...r.lines); P = r;
   } catch (e) { P.error = e.message; }
-  if (S.step === 5) render();
+  if (S.step === INSTALL) render();
   if (P.state === "running") setTimeout(poll, 1000);
 }
 function viewInstall() {
@@ -432,7 +492,7 @@ function viewInstall() {
     api("/api/quit", {}).catch(() => {});
     location.href = P.url;
   } }, "Open Lens")));
-  if (failed) box.append(el("div", { class: "nav" }, el("button", { onclick: () => go(4) }, "Back to review"),
+  if (failed) box.append(el("div", { class: "nav" }, el("button", { onclick: () => go(REVIEW) }, "Back to review"),
     el("button", { class: "primary", onclick: install }, "Try again")));
   requestAnimationFrame(() => { pre.scrollTop = pre.scrollHeight; });
   return box;
@@ -440,7 +500,7 @@ function viewInstall() {
 
 function render() {
   drawSteps();
-  const views = [viewComputer, viewRun, viewModel, viewExtras, viewReview, viewInstall];
+  const views = [viewComputer, viewRun, viewModel, viewReview, viewInstall];
   $("#card").replaceChildren(views[S.step]());
 }
 
@@ -458,7 +518,7 @@ function render() {
     target: ex.LENS_TARGET || (f.memory_mb && f.memory_mb < 4096 ? "lean" : "full") });
   $("#where").textContent = f.os_name;
   const p = await api("/api/progress").catch(() => null);
-  if (p && p.state !== "idle") { S.step = 5; P = p; S.since = 0; poll(); }
+  if (p && p.state !== "idle") { S.step = INSTALL; P = p; S.since = 0; poll(); }
   render();
 })();
 </script>

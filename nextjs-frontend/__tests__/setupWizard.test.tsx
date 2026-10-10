@@ -16,6 +16,7 @@ jest.mock("@/app/openapi-client", () => ({
     saveStorage: jest.fn(),
     saveTelemetry: jest.fn(),
     saveOauth: jest.fn(),
+    saveBudget: jest.fn(),
     finish: jest.fn(),
   },
   Admin: { testLlm: jest.fn(), testTelemetry: jest.fn() },
@@ -43,6 +44,15 @@ const VIEW = (over: Partial<SetupView> = {}): SetupView => ({
   },
   telemetry: { enabled: false, endpoint: null, locked: [] },
   oauth: { enabled: true, access_minutes: 60, refresh_days: 30 },
+  budget: {
+    hard_usd: null,
+    soft_usd: null,
+    period: "month",
+    on_over: "ask",
+    price_in: null,
+    price_out: null,
+    model: null,
+  },
   ...over,
 });
 
@@ -91,7 +101,7 @@ describe("SetupWizard", () => {
     );
   });
 
-  it("walks through namespace, model provider, storage, apps and telemetry, then finishes", async () => {
+  it("walks through namespace, model provider, budget, storage, apps and telemetry, then finishes", async () => {
     m(Setup.getSetup).mockImplementation(() => ok(VIEW()));
     m(Setup.saveNamespace).mockImplementation(() => ok({ ok: true }));
     m(Setup.saveLlm).mockImplementation(() => ok({ ok: true }));
@@ -99,6 +109,7 @@ describe("SetupWizard", () => {
     m(Setup.saveStorage).mockImplementation(() => ok({ ok: true }));
     m(Setup.saveTelemetry).mockImplementation(() => ok({ ok: true }));
     m(Setup.saveOauth).mockImplementation(() => ok({ ok: true }));
+    m(Setup.saveBudget).mockImplementation(() => ok(["budget"]));
     m(Setup.finish).mockImplementation(() => ok({ ok: true }));
     wrap(<SetupWizard />);
 
@@ -123,6 +134,25 @@ describe("SetupWizard", () => {
       base_url: "http://localhost:11434/v1",
       model: "llama3",
       api_key: null,
+    });
+
+    // the budget: one scale for the hard limit, the soft limit 80% of it unless set
+    const limit = await screen.findByLabelText("Hard limit");
+    expect(screen.getByText("No limit")).toBeInTheDocument();
+    fireEvent.change(limit, { target: { value: "3" } });
+    expect(screen.getByText("$25 a month")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Input price"), { target: { value: "3" } });
+    expect(screen.getByRole("button", { name: "Save and continue" })).toBeDisabled(); // both prices or none
+    fireEvent.change(screen.getByLabelText("Output price"), { target: { value: "15" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(Setup.saveBudget).toHaveBeenCalled());
+    expect(m(Setup.saveBudget).mock.calls[0][0].body).toEqual({
+      hard_usd: 25,
+      soft_usd: null,
+      period: "month",
+      on_over: "ask",
+      price_in: 3,
+      price_out: 15,
     });
 
     fireEvent.change(await screen.findByLabelText(/Largest upload/), { target: { value: "2048" } });

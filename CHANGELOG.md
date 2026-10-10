@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A spending limit from the start.** The setup wizard has a Budget step, and the web installer asks for one with a
+  cloud provider: a scale for a hard limit on everything Lens spends on AI, with a soft limit at 80% that warns. At
+  the hard limit runs wait (or are skipped) and paid model calls stop until it goes up; models on your own computer
+  keep working. The model's price comes with it, so the spending is counted. It's the new `all` budget, changeable in
+  Settings › Budgets ([Budgets](docs/budgets.md#one-budget-for-everything)). The web installer now asks only the
+  essentials: the folder, port and network under **Advanced**, the optional extras under **More options** on the
+  review.
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and

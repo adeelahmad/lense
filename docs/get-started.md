@@ -27,19 +27,23 @@ above opens an installer in your browser instead of asking anything in the termi
 
 1. **This computer**: the system, memory, free disk, whether Docker is there and running, and whether microsandbox can
    run.
-2. **How it runs**: Docker or [microsandbox](microsandbox.md), the full or lean edition (lean is picked on a computer
-   with less than 4 GB of memory, such as a Raspberry Pi), the folder, the port, and whether other devices on the
-   network may reach it. It lists what it will install; when that needs administrator rights, it asks for your
-   password here, keeps it in memory for the install and hands it to `sudo` (it is never written down).
+2. **How it runs**: Docker or [microsandbox](microsandbox.md) and the full or lean edition (lean is picked on a computer
+   with less than 4 GB of memory, such as a Raspberry Pi). It lists what it will install; when that needs
+   administrator rights, it asks for your password here, keeps it in memory for the install and hands it to `sudo` (it
+   is never written down). The folder, the port, whether other devices on the network may reach it and the version
+   wait under **Advanced**.
 3. **AI model**: model servers already running on the computer (Ollama, LM Studio, llama.cpp, vLLM, LocalAI) with their
    models, or a provider (OpenAI, Anthropic, Google Gemini, OpenRouter, Groq, Mistral or any OpenAI-compatible server)
-   with its API key; **Test** lists the models. It can be skipped and set in Lens later.
-4. **Extras**, all optional: the first namespace, search by meaning (an embeddings server), the typesafe.ai decision
-   model's key, cloud transcription and its key, email (SMTP), remote access through a Cloudflare tunnel, anytopdf,
-   and telemetry.
-5. **Review**, then **Install**: it runs `install.sh` with those answers and shows its progress (and the full output
-   under **Details**). If something fails, it says what, and **Try again** runs it again (what's done stays done).
-6. **Open Lens** goes to the setup page with the setup code filled in, where you create the admin account with a
+   with its API key; **Test** lists the models. For a provider, a scale sets a monthly spending limit (none unless you
+   pick one) with the model's price, so Lens can count what it spends; **More** sets a soft limit (80% unless changed)
+   and a day or week instead ([One budget for everything](budgets.md#one-budget-for-everything)). It can all be
+   skipped and set in Lens later.
+4. **Review**, then **Install**: **More options** under the review holds what's optional, each with its default: the
+   first namespace, search by meaning (an embeddings server), the typesafe.ai decision model's key, cloud
+   transcription and its key, email (SMTP), remote access through a Cloudflare tunnel, anytopdf, and telemetry.
+   **Install** runs `install.sh` with those answers and shows its progress (and the full output under **Details**). If
+   something fails, it says what, and **Try again** runs it again (what's done stays done).
+5. **Open Lens** goes to the setup page with the setup code filled in, where you create the admin account with a
    passkey.
 
 The answers that are settings go to Lens as `LENS_SETUP_SETTINGS`, which it saves once at its first start as if they
@@ -119,10 +123,10 @@ On first start the API log prints a setup code, and a link that fills it in (`ma
 ```
 No accounts yet. Create the first admin in the web app with setup code: … (or open http://localhost:3000/setup?code=…, which fills it in)
 ```
- Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
-namespace, the model provider, storage, apps and AI, and telemetry. Once a model is set, **Finish with defaults** skips
-the rest; change any of it later in Settings ([Configuration](configuration.md#first-run-setup) lists the `.env` values
-that answer it instead).
+Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
+namespace, the model provider, a [budget](budgets.md#one-budget-for-everything), storage, apps and AI, and telemetry.
+Once a model is set, **Finish with defaults** skips the rest; change any of it later in Settings
+([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it instead).
 
 After the first sign-in, a short welcome card points to the two places most people come back for: the assistant, which
 you can ask straight from the card, and **Reports**, with the charts of what is in the archive. Asking, opening
