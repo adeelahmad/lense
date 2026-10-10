@@ -14,6 +14,7 @@ import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
+import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import {
@@ -379,6 +380,20 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <StorageBody ctx={ctx} />;
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
+    case "updates":
+      return (
+        <>
+          <UpdatesPanel />
+          <Sub>Checking</Sub>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="updates.check" />
+            {/* shown once the server has the setting (updates.email, from the release notices) */}
+            {ctx.view.updates?.values && "email" in ctx.view.updates.values && <F ctx={ctx} id="updates.email" />}
+            <F ctx={ctx} id="updates.auto_install" />
+          </div>
+          <F ctx={ctx} id="updates.check_hours" />
+        </>
+      );
     case "fedora":
       return <FedoraBody ctx={ctx} />;
     case "sensors":

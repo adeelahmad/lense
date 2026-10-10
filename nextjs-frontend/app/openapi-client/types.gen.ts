@@ -16007,8 +16007,22 @@ export type UpgradeRun = {
   ref: string;
   /**
    * State
+   *
+   * rolling-back / rolled-back: the new version didn't start, so the agent went back to the one before
    */
-  state: "backing-up" | "queued" | "running" | "done" | "failed";
+  state: "backing-up" | "queued" | "running" | "rolling-back" | "done" | "failed" | "rolled-back";
+  /**
+   * Step
+   *
+   * while running: what the agent is on (the backup comes before)
+   */
+  step?: "download" | "build" | "start" | "check" | null;
+  /**
+   * Restore
+   *
+   * after a rollback: whether the backup was put back, and why
+   */
+  restore?: string | null;
   /**
    * By
    */

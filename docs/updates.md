@@ -1,8 +1,8 @@
 # Updates and backups
 
 Lens tells admins when a new release is out, backs the database up, and installs the release from the web app, so
-upgrading never needs a terminal. Status: **built** (the check, backups and upgrades from the API and the agent);
-the web app's banner and Settings page come in their own change.
+upgrading never needs a terminal. Status: **built**: the check, backups, one-click upgrades with their progress and a
+rollback when the new version doesn't start, in Settings → Updates and a banner for admins.
 
 ## The check
 
@@ -31,7 +31,21 @@ The containers see the control folder as `/control` (`LENS_CONTROL_DIR`). `POST 
 3. the agent (`packaging/host/lens-upgrade.sh`) runs install.sh again for that release, exactly as running the install
    line by hand does: the secrets, the database, the archive, the port and the address are kept;
 4. it writes `upgrade-status` and `upgrade.log` next to the inbox, which the API reads back while Lens restarts on the
-   new version. The database upgrades itself on start ([Database](database.md#upgrades)).
+   new version, with the step it is on (download, build, start, check), which Settings → Updates shows. The database
+   upgrades itself on start ([Database](database.md#upgrades)).
+
+### When the new version doesn't start
+
+If install.sh fails for the new version (it didn't build, or didn't answer in time), the agent goes back by itself:
+
+1. it checks out the code that ran before and runs install.sh on it again (`LENS_KEEP_CODE=1`: no download), so the
+   previous version runs again (`rolling-back`, then `rolled-back`);
+2. it leaves `inbox/restore` naming the backup taken first. As the previous version starts, it looks at the database:
+   if the new version had changed its shape (ran upgrade steps the previous version doesn't know), the backup is put
+   back; otherwise the database is kept as it is, so nothing written since is lost. What it did is shown with the run.
+
+Only the API restores the backup; a worker running meanwhile may write to the database as it is put back, so its work
+from those seconds can be lost. If going back fails too, the run ends `failed` and says to run the install line.
 
 The agent installs only a release tag (`vX.Y.Z`) or the branch the install already follows, whoever writes the
 request, and the API refuses a release older than the one running (restore a backup instead).

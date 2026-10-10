@@ -51993,10 +51993,43 @@
               "backing-up",
               "queued",
               "running",
+              "rolling-back",
               "done",
-              "failed"
+              "failed",
+              "rolled-back"
             ],
-            "title": "State"
+            "title": "State",
+            "description": "rolling-back / rolled-back: the new version didn't start, so the agent went back to the one before"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "download",
+                  "build",
+                  "start",
+                  "check"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step",
+            "description": "while running: what the agent is on (the backup comes before)"
+          },
+          "restore": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restore",
+            "description": "after a rollback: whether the backup was put back, and why"
           },
           "by": {
             "anyOf": [

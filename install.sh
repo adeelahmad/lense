@@ -22,6 +22,7 @@
 #   LENS_UPGRADE_AGENT  0: don't set up the agent that lets the web app install new releases (docs/updates.md)
 #   LENS_WIZARD    1: answer everything in the web installer, in the browser (the default for a first install at a
 #                  terminal, where Python 3 is there); 0: here in the terminal
+#   LENS_KEEP_CODE 1: build and start the code already in LENS_DIR, without getting it (the upgrade agent's rollback)
 set -eu
 
 # All in a function, so nothing runs until the whole script has arrived (curl | sh streams it).
@@ -256,7 +257,9 @@ fi
 # --- The code -----------------------------------------------------------------------------------------------------
 auth_url="https://github.com/$REPO.git"
 [ -n "${GITHUB_TOKEN:-}" ] && auth_url="https://x-access-token:$GITHUB_TOKEN@github.com/$REPO.git"
-if [ -d "$DIR/.git" ]; then
+if [ "${LENS_KEEP_CODE:-0}" = 1 ]; then
+  [ -f "$DIR/install.sh" ] || fail "LENS_KEEP_CODE=1, but there is no Lens in $DIR."
+elif [ -d "$DIR/.git" ]; then
   say "Updating Lens in $DIR..."
   git -C "$DIR" fetch -q --depth 1 "$auth_url" "$REF" && git -C "$DIR" checkout -q -B "$REF" FETCH_HEAD
 elif have git; then

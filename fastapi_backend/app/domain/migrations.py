@@ -156,6 +156,62 @@ def backup(db, label="manual"):
     return dst
 
 
+def restore(db, src):
+    """Put a backup taken by backup() back: the database becomes what it was then, and what was written since is lost.
+    Used to go back to the previous version after a failed upgrade (upgrade.restore_if_needed)."""
+    src = pathlib.Path(src)
+    scheme, _, rest = db.url.partition("://")
+    if scheme in ("mem", "memory"):
+        raise ValueError("an in-memory database has no backups to restore")
+    if db.embedded:
+        with db.closed():
+            shutil.rmtree(rest, ignore_errors=True)
+            shutil.copytree(src, rest)
+        return
+    # what the backup doesn't hold mustn't survive it: every table goes first (their indexes and events with them)
+    for table in (db.one("INFO FOR DB") or {}).get("tables") or {}:
+        db.q(f"REMOVE TABLE IF EXISTS `{table}`")
+    _import(db, src)
+
+
+def _import(db, src):
+    """Run a server export (from _export) on this database, as `surreal import` does."""
+    import tempfile
+    import urllib.error
+    import urllib.request
+
+    base = db.url.split("://", 1)
+    scheme = {"ws": "http", "wss": "https"}.get(base[0], base[0])
+    host = base[1].split("/", 1)[0]
+    ns, name = db._target
+    auth = base64.b64encode(f"{db._creds['username']}:{db._creds['password']}".encode()).decode()
+    with tempfile.TemporaryFile() as sql:
+        with gzip.open(src, "rb") as f:
+            shutil.copyfileobj(f, sql, 1 << 20)
+        size = sql.tell()
+        sql.seek(0)
+        req = urllib.request.Request(
+            f"{scheme}://{host}/import",
+            data=sql,
+            method="POST",
+            headers={
+                "Surreal-NS": ns,
+                "Surreal-DB": name,
+                "Authorization": f"Basic {auth}",
+                "Accept": "application/json",
+                "Content-Length": str(size),
+            },
+        )
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        try:
+            with opener.open(req, timeout=3600) as r:
+                body = r.read().decode(errors="replace")
+        except urllib.error.HTTPError as e:
+            raise RuntimeError(f"the database refused the backup: {e.read().decode(errors='replace')[:500]}") from e
+    if '"ERR"' in body:
+        raise RuntimeError(f"the database refused part of the backup: {body[:500]}")
+
+
 def _prune(folder, label):
     for old in sorted(folder.glob(f"{label}-*"), reverse=True)[KEEP:]:
         with contextlib.suppress(OSError):
