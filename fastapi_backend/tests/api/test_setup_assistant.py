@@ -182,3 +182,44 @@ def test_the_assistant_manages_people_with_approval(app, db, cfg, folder, new_cl
     assert appr["summary"] == "sam@x.io: no role in pods, disable the account"
     assert c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()["status"] == "done"
     assert auth.roles(db, sam) == {} and auth.get_account(db, sam["id"])["disabled"]
+
+
+def test_the_assistant_captures_web_pages(app, db, cfg, folder, new_client, llm, monkeypatch):
+    from app.domain import convert
+
+    monkeypatch.setattr(convert, "chromium", lambda cfg: "/usr/bin/chromium")  # nothing is captured: no job runs here
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+    listed = held(c, h, b"# reading\nhttps://8.8.8.8/tides Tide tables\nhttps://1.1.1.1/lamps\n", "links.txt")
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "import_urls", {"urls": ["https://8.8.8.8/harbour"], "namespace": "pods"})]},
+        {"content": "", "tool_calls": [call(2, "import_urls", {"upload_id": listed["id"], "namespace": "pods"})]},
+        {"content": "I asked to capture them."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "keep these", "attachments": [listed["id"]]}).text)
+    offered = {t["function"]["name"] for t in llm.seen[-3]["tools"]}
+    assert "import_urls" in offered
+    appr = ev["approval"]
+    assert [a["summary"] for a in appr] == ["Capture https://8.8.8.8/harbour into pods", "Capture 2 web pages into pods"]
+    assert not db.values("SELECT VALUE id FROM recording WHERE web != NONE")  # nothing until approved
+    for a in appr:
+        r = c.post(f"/api/v1/approvals/{a['id']}", headers=h, json={"decision": "approve"})
+        assert r.json()["status"] == "done", r.text
+    got = db.rows("SELECT id, title, web, space FROM recording WHERE web != NONE ORDER BY id")
+    assert [(x["web"]["url"], x["space"]) for x in got] == [
+        ("https://8.8.8.8/harbour", s.pods),
+        ("https://8.8.8.8/tides", s.pods),
+        ("https://1.1.1.1/lamps", s.pods),
+    ]
+    assert got[1]["title"] == "Tide tables"
+    assert c.get(f"/api/v1/uploads/{listed['id']}", headers=h).json()["state"] == "held"  # the list itself isn't imported
+    # a viewer can't add pages to the namespace
+    cv, hv = s.cl["viewer"]
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "import_urls", {"urls": ["https://8.8.8.8/x"], "namespace": "pods"})]},
+        {"content": "No."},
+    ]
+    vid = cv.post("/api/v1/chats", headers=hv, json={}).json()["id"]
+    ev = sse(cv.post(f"/api/v1/chats/{vid}/messages", headers=hv, json={"content": "keep https://8.8.8.8/x"}).text)
+    assert "approval" not in ev

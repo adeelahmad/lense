@@ -278,6 +278,10 @@ def answer(db, cfg, base, account, cid, q):
     roles = auth.roles(db, account)
     readable = set(roles)
     editable = {s for s in roles if auth.allows(roles, s, "editor")}
+    try:  # a conversation that fills the model's context is folded into its summary before it's answered
+        chat.compact(db, cfg, cid, full_only=True)
+    except Exception:  # noqa: BLE001 - answered with what fits; tried again after the answer
+        log.warning("bridge: couldn't update the summary of chat %s", cid, exc_info=True)
     past = chat.history(db, cid)
     summary = chat.memory(db, cfg, cid)
     scope = (db.one("SELECT scope FROM $r", r=R("chat", cid)) or {}).get("scope") or None
@@ -415,6 +419,15 @@ def handle(db, cfg, base, m):
     account = _account(db, cfg)
     cid = conversation(db, account, m, ns if sid is not None else None)
     note = None
+    cmd = chat.command(q)
+    if cmd:  # /clear or /compact, for this room's conversation
+        try:
+            said = chat.run_command(db, cfg, cid, *cmd)[0]
+        except Exception:  # noqa: BLE001 - still say something in the room
+            log.exception("bridge: /%s failed", cmd[0])
+            said = f"Couldn't {cmd[0]} this conversation. Try again."
+        post(cfg, m.get("gateway"), said, m.get("channel"))
+        return True
     try:
         decided = decide_in_room(db, cfg, base, account, cid, m, q)
         if decided:

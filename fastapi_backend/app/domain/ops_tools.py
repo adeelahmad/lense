@@ -1,7 +1,8 @@
 """The assistant's tools for running the server: what's set up and what isn't, the settings, namespaces, and files
 dropped into the conversation.
 
-Admins get the server tools; anyone gets `import_files` for their own attachments, into namespaces they edit. A change
+Admins get the server tools; anyone gets `import_files` for their own attachments and `import_urls` for web pages,
+into namespaces they edit. A change
 waits for the person's approval, unless the conversation lets the assistant act (a setup conversation does: the admin
 asked it to set things up): then it's made at once, audited, and said in the answer. Telemetry, which sends data
 elsewhere, always waits for approval.
@@ -9,7 +10,7 @@ elsewhere, always waits for approval.
 
 from __future__ import annotations
 
-from . import auth, blobs, decide, feeds, jobs, llm, metadata, settings, setup, sources, store, uploads
+from . import auth, blobs, convert, decide, feeds, jobs, links, llm, metadata, settings, setup, sources, store, uploads
 
 R = store.R
 _S = {"type": "string"}
@@ -132,7 +133,24 @@ FILE_TOOLS = [
         ["upload_ids"],
         True,
     ),
+    (
+        "import_urls",
+        "Capture web pages as documents in a namespace, each kept as a PDF of the page as it is now and read like any "
+        "document: one address, several, or a whole list. Give urls, or text holding them (a pasted list, one per line), "
+        "or upload_id: an attached file listing them (a text list, a browser's bookmark export, Chrome's Bookmarks). "
+        "Leave namespace out unless the person named one: it's chosen for them, and you're told when it's unclear and to ask.",
+        {
+            "urls": {"type": "array", "items": _S},
+            "text": _S,
+            "upload_id": _S,
+            "namespace": _S,
+            "collection_id": {"type": "integer"},
+        },
+        [],
+        True,
+    ),
 ]
+LIST_BYTES = 5 * 2**20  # an attached list of links is read up to this
 
 
 def status(db, cfg, base):
@@ -210,6 +228,22 @@ def apply(db, cfg, base, tool, args, user, editable, admin):
         if not admin:
             raise PermissionError("only admins manage people")
         return _people(db, cfg, tool, args, user)
+    if tool == "import_urls":
+        ns = args["namespace"].strip().lower()
+        try:
+            sid = store.ns_id(db, ns, create=False)
+        except KeyError:
+            if not admin:
+                raise PermissionError(f"there's no namespace {ns}") from None
+            sid = store.ns_id(db, ns)
+        if not admin and sid not in editable:
+            raise PermissionError(f"you can't add to {ns}")
+        if args.get("collection_id") is not None:
+            store.home(db, sid, args["collection_id"])
+        out = links.queue(db, cfg, sid, args["links"], user["email"], args.get("collection_id"))
+        queued = sum(r["status"] == "queued" for r in out)
+        auth.audit(db, user, "import.web", f"space:{sid}", {"links": queued, "namespace": ns, "assistant": True})
+        return {"namespace": ns, "pages": out}
     raise ValueError(f"no tool {tool}")
 
 
@@ -430,6 +464,50 @@ class OpsTools:
         if chosen and chosen.get("by") != "only option":
             summary += f" (chosen, {round(100 * chosen['confidence'])}% sure)"
         out, said = self._change("import_files", store.clean(args), summary)
+        if chosen:
+            out = {**out, "namespace_chosen": {"by": chosen["by"], "confidence": chosen["confidence"]}}
+        return out, said
+
+    def t_import_urls(self, urls=None, text=None, upload_id=None, namespace=None, collection_id=None):
+        if isinstance(urls, str):
+            urls = [urls]
+        given = [bool(urls), bool((text or "").strip()), bool(upload_id)]
+        if sum(given) != 1:
+            raise ValueError("give the addresses as urls, as text, or as an attached file's upload_id: one of them")
+        if not convert.chromium(self.cfg):
+            raise ValueError("capturing web pages needs Chromium on the server (the lens:full image)")
+        if upload_id:
+            try:
+                up = uploads.get(self.db, str(upload_id))
+            except KeyError:
+                raise ValueError(f"no attachment {upload_id}") from None
+            if up.get("account") != self.user["id"] or up.get("state") != "held":
+                raise ValueError(f"{upload_id} isn't a file attached here")
+            raw = uploads.held_bytes(self.cfg, up, LIST_BYTES)
+        else:
+            raw = "\n".join(str(u) for u in urls) if urls else text
+        found = links.read(raw)
+        if not found:
+            raise ValueError("there are no http:// or https:// links in it")
+        if len(found) > links.MAX:
+            raise ValueError(f"import {links.MAX} links at most at once; this has {len(found)}")
+        shown = found[0]["url"] if len(found) == 1 else f"{len(found)} web pages"
+        chosen = None
+        if not (namespace or "").strip():
+            pages = [{"url": f["url"], "title": f["title"] or ""} for f in found[:20]]
+            namespace, chosen = self._where_to(pages)
+            if namespace is None:
+                ranked = chosen.get("ranked") or [{"option": o} for o in chosen["options"]]
+                return (
+                    {"status": "ask", "note": "It isn't clear where these go: ask the person, suggesting the first.", "namespaces": ranked},
+                    f"Not sure where to put {shown}",
+                )
+        namespace = namespace.strip().lower()
+        args = {"links": found, "namespace": namespace, "collection_id": collection_id}
+        summary = f"Capture {shown} into {namespace}"
+        if chosen and chosen.get("by") != "only option":
+            summary += f" (chosen, {round(100 * chosen['confidence'])}% sure)"
+        out, said = self._change("import_urls", store.clean(args), summary)
         if chosen:
             out = {**out, "namespace_chosen": {"by": chosen["by"], "confidence": chosen["confidence"]}}
         return out, said
