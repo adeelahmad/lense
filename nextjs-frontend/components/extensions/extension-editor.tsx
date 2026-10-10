@@ -78,6 +78,13 @@ run:
     def run(text):
         return {"words": len(text.split()), "lines": len(text.splitlines())}
 `,
+  mcp: `name: tracker
+kind: mcp
+description: Our issue tracker's MCP server (Streamable HTTP); its tools are listed when it's saved.
+url: https://mcp.example.com/mcp
+headers:
+  Authorization: Bearer your-token
+`,
 };
 
 type Item = { kind: string; name: string; spec: { effect?: string } };

@@ -20,3 +20,17 @@ class Heard(ResponseModel):
 
 class SpeakRequest(RequestModel):
     text: str = Field(max_length=8000)
+    voice: str | None = Field(None, max_length=200, description="read in this voice (an id from GET /voice/voices); else the settings'")
+
+
+class VoiceOption(ResponseModel):
+    id: str = Field(description="what voice.tts_voice is set to")
+    name: str
+    detail: str | None = Field(None, description="what the provider says about it: accent, gender, style, language")
+
+
+class VoiceList(ResponseModel):
+    provider: str
+    current: str | None = Field(None, description="the voice answers are read in now (null: the provider's default)")
+    voices: list[VoiceOption]
+    error: str | None = Field(None, description="why the provider's voices couldn't be listed")

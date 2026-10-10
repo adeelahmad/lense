@@ -12,6 +12,7 @@ import {
   type ConnForm,
   type SourceType,
   imapHost,
+  parseServiceAccountKey,
 } from "@/components/sources/source-model";
 import { TokenPaste } from "@/components/sources/token-paste";
 import { Button } from "@/components/ui/button";
@@ -180,10 +181,48 @@ export function ConnectionFields({
       );
     case "dropbox":
       return token;
-    case "drive":
+    case "drive": {
+      const keyText = form.secrets.service_account_credentials;
+      const key = keyText ? parseServiceAccountKey(keyText) : null;
+      const serviceAccount = (
+        <Field
+          label={FIELD_LABEL.service_account_credentials}
+          hint={
+            key?.ok
+              ? `Signs in as ${key.email}. Share the folders Lens should read with that address.`
+              : editing && isSet("service_account_credentials") && keyText === undefined
+                ? "A key is saved (never shown again). Choose a file to replace it."
+                : "The .json key file from Google Cloud (IAM › Service accounts › Keys). Never shown again after saving"
+          }
+          error={errors.service_account_credentials}
+        >
+          {({ id, describedBy }) => (
+            <input
+              id={id}
+              aria-describedby={describedBy}
+              type="file"
+              accept=".json,application/json"
+              className="text-[13px]"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                setSecret("service_account_credentials", f ? await f.text() : undefined);
+              }}
+            />
+          )}
+        </Field>
+      );
       return (
         <div className="flex flex-col gap-3">
-          {token}
+          <Segmented
+            className="w-full [&>button]:flex-1 [&>button]:justify-center"
+            value={form.driveAuth}
+            onChange={(v) => onChange({ ...form, driveAuth: v as ConnForm["driveAuth"] })}
+            items={[
+              { value: "token", label: "Google account" },
+              { value: "service_account", label: "Service account" },
+            ]}
+          />
+          {form.driveAuth === "service_account" ? serviceAccount : token}
           {select("scope", DRIVE_SCOPES)}
           {text("root_folder_id", {
             mono: true,
@@ -191,8 +230,23 @@ export function ConnectionFields({
             optional: true,
             hint: "From the folder’s URL; limits the connection to that folder",
           })}
+          {form.driveAuth === "service_account" && (
+            <div className="grid grid-cols-2 gap-2.5">
+              {text("team_drive", {
+                mono: true,
+                optional: true,
+                hint: "Read a shared drive the account is a member of",
+              })}
+              {text("impersonate", {
+                optional: true,
+                placeholder: "you@company.com",
+                hint: "Workspace only: needs domain-wide delegation",
+              })}
+            </div>
+          )}
         </div>
       );
+    }
     case "onedrive":
       return (
         <div className="flex flex-col gap-3">

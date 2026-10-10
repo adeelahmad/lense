@@ -143,3 +143,17 @@ def test_what_is_refused(client, env, monkeypatch):
     monkeypatch.setattr(convert, "chromium", lambda cfg: None)
     r = client.post(url, headers=he, json={"namespace": "pods", "text": "https://8.8.8.8/1"})
     assert r.status_code == 400 and "Chromium" in r.json()["detail"]
+
+
+def test_one_or_several_addresses_as_a_list(client, env, db):
+    he = env["he"]
+    url = "/api/v1/import/web/links"
+    r = client.post(url, headers=he, json={"namespace": "pods", "urls": ["https://8.8.8.8/one"]})
+    assert [(x["url"], x["status"]) for x in r.json()["results"]] == [("https://8.8.8.8/one", "queued")]
+    r = client.post(url, headers=he, json={"namespace": "pods", "urls": ["https://8.8.8.8/one", "https://8.8.4.4/two", "ftp://x/3"]})
+    assert [(x["url"], x["status"]) for x in r.json()["results"]] == [
+        ("https://8.8.8.8/one", "already"),
+        ("https://8.8.4.4/two", "queued"),
+    ]
+    r = client.post(url, headers=he, json={"namespace": "pods", "urls": ["https://8.8.8.8/1"], "text": "https://8.8.8.8/2"})
+    assert r.status_code == 400 and "one of them" in r.json()["detail"]
