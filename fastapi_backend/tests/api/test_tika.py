@@ -123,7 +123,7 @@ def test_tika_describes_what_lens_reads_itself(server, client, env, db, cfg):
     plain = _upload(client, he, text_pdf([["nothing about itself"]]), "plain.pdf")
     drain(db, settings.effective(db, cfg))
     rec = _rec(db, up["recording"])
-    assert (rec["status"], rec["engine"]) == ("analyzed", "pdf"), rec.get("error")
+    assert rec["status"] == "analyzed" and rec["engine"].startswith("pdf"), rec.get("error")  # +ocr where tesseract is
     assert rec["described"]["title"] == "Tide tables" and rec["title"] == "Harbour report"  # named by someone: kept
     assert "Harbour report" in _text(db, up["recording"])  # its text is still Lens's own reading
     rec = _rec(db, plain["recording"])
