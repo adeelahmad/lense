@@ -79,12 +79,13 @@ Voice goes through one hook, `useVoice()` in `nextjs-frontend/lib/voice.ts` (`li
   listening. Without a server engine, or with `voice.input: browser`, the browser's own recognition listens (Chrome,
   Edge and Safari; Chrome sends the audio to its own speech service).
 - **Speaking.** Answers are read by a speech model when one is set (`voice.tts_model`: any OpenAI-compatible
-  `/audio/speech`, such as Kokoro-FastAPI, LocalAI or OpenAI's `tts-1`, on `voice.tts_base_url` or the LLM provider);
-  else by the browser.
+  `/audio/speech`, such as Kokoro-FastAPI, LocalAI or OpenAI's `tts-1`, on `voice.tts_base_url` or the LLM provider),
+  or by ElevenLabs, Deepgram, Google Gemini or macOS `say` ([Speech providers](speech-providers.md#voices)); else by
+  the browser.
 
 Settings → AI assistant → Voice holds these. The API: `GET /voice` (what the server does; it also starts loading the
-engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text}`; 204 when
-the browser should read it).
+engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `POST /voice/speak` (`{text, voice?}`;
+204 when the browser should read it), `GET /voice/voices` (the voices a provider reads in).
 
 ## The assistant's tools
 

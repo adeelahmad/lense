@@ -14,6 +14,7 @@ import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
+import { VoicePicker } from "@/components/settings/voice-picker";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import {
@@ -1288,27 +1289,26 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="voice.input" />
           <F ctx={ctx} id="voice.stt" />
           <F ctx={ctx} id="voice.tts_provider" />
-          <F
-            ctx={ctx}
-            id="voice.tts_model"
-            hint={
-              tts === "elevenlabs"
-                ? "Empty: eleven_multilingual_v2"
-                : tts === "deepgram"
-                  ? "The Aura voice, e.g. aura-2-thalia-en (the default)"
-                  : undefined
-            }
-          />
-          {tts !== "deepgram" && (
+          {(tts === "openai" || tts === "elevenlabs") && (
             <F
               ctx={ctx}
-              id="voice.tts_voice"
-              hint={tts === "elevenlabs" ? "An ElevenLabs voice ID; empty: a premade voice" : undefined}
+              id="voice.tts_model"
+              hint={tts === "elevenlabs" ? "Empty: eleven_multilingual_v2" : undefined}
             />
           )}
+          <VoicePicker
+            provider={tts}
+            savedProvider={String(ctx.values["voice.tts_provider"] ?? "openai")}
+            state={ctx.state("voice.tts_voice")}
+          />
           {tts === "openai" && <F ctx={ctx} id="voice.tts_base_url" />}
         </div>
-        {tts === "openai" ? (
+        {tts === "say" ? (
+          <p className="text-[12.5px] text-fg-secondary">
+            Uses the voices installed on the Mac Lens runs on (System Settings → Accessibility → Spoken Content adds
+            more). Not available when Lens runs in Docker.
+          </p>
+        ) : tts === "openai" ? (
           <SecretSetting
             key={ctx.view.voice?.updated_at ?? "none"}
             label="Speech server API key"
