@@ -195,3 +195,63 @@ def wrap(text, source, cfg=None, why=None):
 def rules(cfg=None):
     """What the system prompt says about marked text (nothing when marking is off)."""
     return RULES if cfg is None or enabled(cfg) else ""
+
+
+# ---------- links in what's posted where a chat app previews them ----------
+# web addresses, with a scheme or as a bare host with a path (which chat apps link and preview too)
+_URL = re.compile(
+    r"\b(?:(https?)://([^\s/?#<>()\[\]\"'`|]+)|(?<![\w@/.:-])((?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?)(?=/))"
+    r"([^\s<>\"'`|]*)",
+    re.I,
+)
+_IMAGE = re.compile(r"!\[([^\]\n]*)\]\(\s*([^)\s]+)[^)\n]*\)")
+_LINK = re.compile(r"(?<!!)\[([^\]\n]+)\]\(\s*([^)\s]+)[^)\n]*\)")
+_TRAIL = ".,;:!?)]}*_~'\""
+
+
+def _trim(url):
+    """A web address without the full stop or closing bracket of the sentence it ends."""
+    while url and url[-1] in _TRAIL:
+        if url[-1] == ")" and url.count("(") >= url.count(")"):
+            break
+        url = url[:-1]
+    return url
+
+
+def links(text):
+    """The web addresses in `text`, as written."""
+    return {_trim(m.group(0)) for m in _URL.finditer(text or "")}
+
+
+def _broken(url):
+    m = _URL.match(url)
+    if not m:
+        return url
+    if m.group(1):
+        return f"{m.group(1).lower().replace('t', 'x')}://{m.group(2).replace('.', '[.]')}{m.group(4)}"
+    return f"{m.group(3).replace('.', '[.]')}{m.group(4)}"
+
+
+def defang(text, keep=(), own=()):
+    """`text` with each web address it didn't get as it is (`keep`: those the person or what was read wrote, and
+    Lens's own, `own`) broken up (hxxps://evil[.]example/...), and images turned into their address: a chat app
+    fetches what it links and previews, so an address built from what the answer read would carry it out before
+    anyone clicks. It stays readable, to copy by hand."""
+    keep, own = set(keep), [o.rstrip("/") for o in own if o]
+
+    def kept(url):
+        return url in keep or any(url == o or url.startswith(o + "/") for o in own)
+
+    def image(m):
+        url = _trim(m.group(2))
+        return f"{m.group(1) or 'image'} ({url if kept(url) else _broken(url)})"
+
+    def link(m):
+        url = _trim(m.group(2))
+        return m.group(0) if kept(url) else f"{m.group(1)} ({_broken(url)})"
+
+    def bare(m):
+        url = _trim(m.group(0))
+        return m.group(0) if kept(url) else _broken(url) + m.group(0)[len(url) :]
+
+    return _URL.sub(bare, _LINK.sub(link, _IMAGE.sub(image, text or "")))

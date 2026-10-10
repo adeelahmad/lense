@@ -359,6 +359,7 @@ class Toolbox(ops_tools.OpsTools):
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
         # ask first, even where they'd act at once (wary)
         self.outside = list(dict.fromkeys(outside))
+        self.links = set()  # web addresses the tools gave back, as written (untrusted.defang)
         self.base, self.admin, self.act = base or cfg, admin, act
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
@@ -524,6 +525,7 @@ class Toolbox(ops_tools.OpsTools):
                 extra += self._hook(h, {"said": self.said, "tool": name})
         asked = len(self.approvals)
         result, summary = self._run(name, fn, args)
+        self.links |= untrusted.links(result)
         if self.untrusted(name) and len(self.approvals) == asked:  # it read something, rather than asking for a yes
             self.read_outside(f"tool {name}")
         if hooks:
