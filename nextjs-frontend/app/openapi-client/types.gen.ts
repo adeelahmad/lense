@@ -6720,7 +6720,7 @@ export type LinksImport = {
 /**
  * LinksImportRequest
  *
- * Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a
+ * Links pasted as ``text`` (one per line), listed in ``urls``, or a file (``filename`` + base64 ``data``): a list of addresses, a
  * browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON).
  */
 export type LinksImportRequest = {
@@ -6736,6 +6736,12 @@ export type LinksImportRequest = {
    * addresses, one per line
    */
   text?: string | null;
+  /**
+   * Urls
+   *
+   * addresses, as a list
+   */
+  urls?: Array<string> | null;
   /**
    * Filename
    */

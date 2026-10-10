@@ -494,8 +494,9 @@ def attached_note(files):
     if not files:
         return ""
     lines = [f"- {f['filename']} ({round(f['size'] / 1e6, 1)} MB, attachment id {f['id']})" for f in files]
-    return "\n\nAttached files, not in the archive yet (import_files puts them in a namespace, choosing one when not named):\n" + "\n".join(
-        lines
+    return (
+        "\n\nAttached files, not in the archive yet (import_files puts them in a namespace, choosing one when not named; a list of links is captured as web pages with import_urls upload_id):\n"
+        + "\n".join(lines)
     )
 
 
