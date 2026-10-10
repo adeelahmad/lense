@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -3090,6 +3090,324 @@
         }
       }
     },
+    "/api/v1/admin/backups/remote": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Remote Backups",
+        "description": "The copies on backups.connection, how copying the last backup there went, and a copy running now.",
+        "operationId": "remote_backups",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteBackups"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/send": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Send Backup",
+        "description": "Copy this backup to backups.connection now, in the background.",
+        "operationId": "send_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/fetch": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Fetch Backup",
+        "description": "Bring the copy of this backup back from backups.connection, in the background, to restore or download it.",
+        "operationId": "fetch_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/remote": {
+      "delete": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Delete Remote Backup",
+        "description": "Delete the copy of this backup on backups.connection.",
+        "operationId": "delete_remote_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/restore": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Restore Backup",
+        "description": "Replace the whole database with this backup, in the background (GET /admin/backups follows it). What it held\nis backed up first (before-restore), and put back if the restore fails. Sign-ins made since the backup end.",
+        "operationId": "restore_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/link": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Backup Link",
+        "description": "A link that downloads the backup for the next couple of minutes, for the browser to open.",
+        "operationId": "backup_link",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/file": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Backup File",
+        "description": "The backup itself, through a link from POST /admin/backups/{name}/link.",
+        "operationId": "backup_file",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exp"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sig"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the backup (an embedded one as a .tar.gz)",
+            "content": {
+              "application/gzip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/updates": {
       "get": {
         "tags": [
@@ -3189,7 +3507,7 @@
           "updates"
         ],
         "summary": "List Backups",
-        "description": "The database backups in <data_dir>/backups, newest first.",
+        "description": "The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or\nthe last one); and the backup schedule.",
         "operationId": "list_backups",
         "responses": {
           "200": {
@@ -3209,7 +3527,7 @@
           "updates"
         ],
         "summary": "Take Backup",
-        "description": "Back the database up now (it can take a while on a big archive).",
+        "description": "Back the database up now (it can take a while on a big archive). With backups.connection set, it is then\ncopied there in the background (GET /admin/backups/remote follows it).",
         "operationId": "take_backup",
         "responses": {
           "201": {
@@ -10972,6 +11290,154 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PhotoResults"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/similar": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Find Similar",
+        "description": "The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you\ncan read and the collections you were given a role on, each with why: its closest passages by meaning (when\nsearch by meaning is set up), the lines with the key words it shares, and the topics and entities in common.\nEach cited moment can be opened. A resource is never listed as like itself.",
+        "operationId": "find_similar",
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "what was selected: a sentence, a passage, a title",
+              "title": "Text"
+            },
+            "description": "what was selected: a sentence, a passage, a title"
+          },
+          {
+            "name": "recording",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a resource: the others most like it",
+              "title": "Recording"
+            },
+            "description": "a resource: the others most like it"
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a topic: the resources most like its labels and definition, and about it",
+              "title": "Topic"
+            },
+            "description": "a topic: the resources most like its labels and definition, and about it"
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "an entity: the resources most like its name and description, and mentioning it",
+              "title": "Entity"
+            },
+            "description": "an entity: the resources most like its name and description, and mentioning it"
+          },
+          {
+            "name": "exclude",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "leave out this resource too (the one the text was selected in)",
+              "title": "Exclude"
+            },
+            "description": "leave out this resource too (the one the text was selected in)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilarResults"
                 }
               }
             }
@@ -24284,7 +24750,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say)$"
+                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say|styletts2)$"
                 },
                 {
                   "type": "null"
@@ -26083,6 +26549,101 @@
         ],
         "title": "Backup"
       },
+      "BackupLink": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "opens the download, without signing in, until it expires"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "seconds"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "expires_in"
+        ],
+        "title": "BackupLink"
+      },
+      "BackupSchedule": {
+        "properties": {
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule",
+            "description": "backups.schedule: a cron expression, or none"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
+          },
+          "keep": {
+            "type": "integer",
+            "title": "Keep",
+            "description": "how many scheduled backups are kept",
+            "default": 7
+          },
+          "next_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next At"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "BackupSchedule"
+      },
       "Backups": {
         "properties": {
           "folder": {
@@ -26095,6 +26656,52 @@
             },
             "type": "array",
             "title": "Backups"
+          },
+          "database": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "server",
+                  "embedded",
+                  "memory"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database",
+            "description": "the database this Lens uses: a restore needs a backup of the same kind (export or folder)"
+          },
+          "in_progress": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "In Progress",
+            "description": "backups being written now, by any Lens process"
+          },
+          "restore": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RestoreWork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the restore running on this server, or the last one"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BackupSchedule"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -29931,6 +30538,62 @@
         "title": "Converters",
         "description": "What this server can make into PDFs to read as documents (docs/api.md#documents-and-images)."
       },
+      "CopyWork": {
+        "properties": {
+          "running": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "send",
+                  "fetch"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running",
+            "description": "copying a backup to (send) or from (fetch) the connection"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "CopyWork"
+      },
       "Created": {
         "properties": {
           "ok": {
@@ -33678,6 +34341,18 @@
               }
             ],
             "title": "Error"
+          },
+          "limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited",
+            "description": "the connection is rate limiting: reads work, new files are kept here"
           }
         },
         "additionalProperties": true,
@@ -46416,6 +47091,97 @@
         ],
         "title": "Release"
       },
+      "RemoteBackups": {
+        "properties": {
+          "connection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection",
+            "description": "backups.connection: where copies go, or none"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "backups": {
+            "items": {
+              "$ref": "#/components/schemas/Backup"
+            },
+            "type": "array",
+            "title": "Backups",
+            "description": "the copies there, newest first"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the connection couldn't be listed"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At",
+            "description": "when the last backup was copied there (or tried)"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error",
+            "description": "why copying the last backup failed"
+          },
+          "copying": {
+            "$ref": "#/components/schemas/CopyWork"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "copying"
+        ],
+        "title": "RemoteBackups"
+      },
       "Removed": {
         "properties": {
           "removed": {
@@ -46791,6 +47557,81 @@
           "estimate"
         ],
         "title": "ResourceSpend"
+      },
+      "RestoreStart": {
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "title": "Confirm",
+            "description": "the backup's name again, to show this is meant: restoring replaces everything"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "title": "RestoreStart"
+      },
+      "RestoreWork": {
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "a restore is running on this server now",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the backup being (or last) restored"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the last restore here failed (what was there was put back)"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "the before-restore backup of what the database held"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RestoreWork"
       },
       "Reviewed": {
         "properties": {
@@ -50205,6 +51046,341 @@
         ],
         "title": "SigninLinkToken"
       },
+      "SimilarCite": {
+        "properties": {
+          "match": {
+            "type": "string",
+            "enum": [
+              "meaning",
+              "words"
+            ],
+            "title": "Match",
+            "description": "found by meaning (a close passage) or by the shared words"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "said",
+              "page",
+              "described"
+            ],
+            "title": "Source",
+            "description": "\"said\" (the transcript), \"page\" (text on a page of a document or an image) or \"described\" (what a shot or a page shows)"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "description": "HTML: escaped text with <mark> around the key words"
+          },
+          "idx": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idx",
+            "description": "the line it starts at (from 0)"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "ms; None on a page"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "on a document or an image: which page (from 0)"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "found by meaning: how alike it is (cosine, up to 1)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "match",
+          "source",
+          "snippet"
+        ],
+        "title": "SimilarCite",
+        "description": "A moment that shows why a resource is alike: one of its passages closest in meaning, or a line with shared words."
+      },
+      "SimilarEntity": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SimilarEntity"
+      },
+      "SimilarItem": {
+        "properties": {
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "media_kind": {
+            "type": "string",
+            "title": "Media Kind",
+            "description": "audio, video, transcript, document or image"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "reciprocal-rank fusion of the lists it's in; only for ordering"
+          },
+          "match": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "meaning",
+                "words",
+                "topics",
+                "entities"
+              ]
+            },
+            "type": "array",
+            "title": "Match",
+            "description": "why it's alike: close in meaning, shares key words, about the same topics, mentions the same entities"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "by meaning: how alike its closest passage is (cosine, up to 1)"
+          },
+          "cites": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarCite"
+            },
+            "type": "array",
+            "title": "Cites",
+            "description": "up to 3 moments that show it, to open"
+          },
+          "words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words",
+            "description": "the key words it says"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarTopic"
+            },
+            "type": "array",
+            "title": "Topics",
+            "description": "topics both are about"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarEntity"
+            },
+            "type": "array",
+            "title": "Entities",
+            "description": "entities both mention"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording_id",
+          "media_kind",
+          "score",
+          "match"
+        ],
+        "title": "SimilarItem"
+      },
+      "SimilarResults": {
+        "properties": {
+          "basis": {
+            "type": "string",
+            "enum": [
+              "text",
+              "recording",
+              "topic",
+              "entity"
+            ],
+            "title": "Basis",
+            "description": "what the results are like"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "the text's start, or the resource's title, the topic's label, the entity's name"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the text compared by meaning (a topic's labels and definition, an entity's name and description)"
+          },
+          "terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Terms",
+            "description": "the key words looked for"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "meaning",
+              "words"
+            ],
+            "title": "Mode",
+            "description": "\"meaning\": an embedding model compared it too; \"words\": only by key words, topics and entities"
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning",
+            "description": "why it wasn't compared by meaning, when search by meaning is set up"
+          },
+          "semantic": {
+            "type": "boolean",
+            "title": "Semantic",
+            "description": "search by meaning is set up and indexed",
+            "default": false
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "basis",
+          "mode",
+          "total",
+          "items"
+        ],
+        "title": "SimilarResults"
+      },
+      "SimilarTopic": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "SimilarTopic"
+      },
       "Source": {
         "properties": {
           "id": {
@@ -50418,6 +51594,18 @@
               }
             ],
             "title": "Error"
+          },
+          "limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited",
+            "description": "the service is rate limiting the account; it still works"
           }
         },
         "additionalProperties": true,

@@ -705,6 +705,64 @@ export type Backup = {
 };
 
 /**
+ * BackupLink
+ */
+export type BackupLink = {
+  /**
+   * Url
+   *
+   * opens the download, without signing in, until it expires
+   */
+  url: string;
+  /**
+   * Expires In
+   *
+   * seconds
+   */
+  expires_in: number;
+  [key: string]: unknown;
+};
+
+/**
+ * BackupSchedule
+ */
+export type BackupSchedule = {
+  /**
+   * Schedule
+   *
+   * backups.schedule: a cron expression, or none
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Keep
+   *
+   * how many scheduled backups are kept
+   */
+  keep?: number;
+  /**
+   * Next At
+   */
+  next_at?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Backups
  */
 export type Backups = {
@@ -716,6 +774,23 @@ export type Backups = {
    * Backups
    */
   backups: Array<Backup>;
+  /**
+   * Database
+   *
+   * the database this Lens uses: a restore needs a backup of the same kind (export or folder)
+   */
+  database?: "server" | "embedded" | "memory" | null;
+  /**
+   * In Progress
+   *
+   * backups being written now, by any Lens process
+   */
+  in_progress?: Array<string>;
+  /**
+   * the restore running on this server, or the last one
+   */
+  restore?: RestoreWork | null;
+  schedule?: BackupSchedule | null;
   [key: string]: unknown;
 };
 
@@ -2830,6 +2905,31 @@ export type Converters = {
    * web pages captured from their address (Chromium; POST /import/web)
    */
   web?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * CopyWork
+ */
+export type CopyWork = {
+  /**
+   * Running
+   *
+   * copying a backup to (send) or from (fetch) the connection
+   */
+  running?: "send" | "fetch" | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -5045,6 +5145,12 @@ export type FileStoreTestResult = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the connection is rate limiting: reads work, new files are kept here
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -12433,6 +12539,52 @@ export type Release = {
 };
 
 /**
+ * RemoteBackups
+ */
+export type RemoteBackups = {
+  /**
+   * Connection
+   *
+   * backups.connection: where copies go, or none
+   */
+  connection?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Backups
+   *
+   * the copies there, newest first
+   */
+  backups?: Array<Backup>;
+  /**
+   * Error
+   *
+   * why the connection couldn't be listed
+   */
+  error?: string | null;
+  /**
+   * Last At
+   *
+   * when the last backup was copied there (or tried)
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   *
+   * why copying the last backup failed
+   */
+  last_error?: string | null;
+  copying: CopyWork;
+  [key: string]: unknown;
+};
+
+/**
  * Removed
  */
 export type Removed = {
@@ -12668,6 +12820,53 @@ export type ResourceSpend = {
    * true: cost_usd is a floor (unpriced calls); show it as an estimate
    */
   estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * RestoreStart
+ */
+export type RestoreStart = {
+  /**
+   * Confirm
+   *
+   * the backup's name again, to show this is meant: restoring replaces everything
+   */
+  confirm: string;
+};
+
+/**
+ * RestoreWork
+ */
+export type RestoreWork = {
+  /**
+   * Running
+   *
+   * a restore is running on this server now
+   */
+  running?: boolean;
+  /**
+   * Name
+   *
+   * the backup being (or last) restored
+   */
+  name?: string | null;
+  /**
+   * Error
+   *
+   * why the last restore here failed (what was there was put back)
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Before
+   *
+   * the before-restore backup of what the database held
+   */
+  before?: string | null;
   [key: string]: unknown;
 };
 
@@ -14599,6 +14798,215 @@ export type SigninLinkToken = {
 };
 
 /**
+ * SimilarCite
+ *
+ * A moment that shows why a resource is alike: one of its passages closest in meaning, or a line with shared words.
+ */
+export type SimilarCite = {
+  /**
+   * Match
+   *
+   * found by meaning (a close passage) or by the shared words
+   */
+  match: "meaning" | "words";
+  /**
+   * Source
+   *
+   * "said" (the transcript), "page" (text on a page of a document or an image) or "described" (what a shot or a page shows)
+   */
+  source: "said" | "page" | "described";
+  /**
+   * Snippet
+   *
+   * HTML: escaped text with <mark> around the key words
+   */
+  snippet: string;
+  /**
+   * Idx
+   *
+   * the line it starts at (from 0)
+   */
+  idx?: number | null;
+  /**
+   * T0
+   *
+   * ms; None on a page
+   */
+  t0?: number | null;
+  /**
+   * Page
+   *
+   * on a document or an image: which page (from 0)
+   */
+  page?: number | null;
+  /**
+   * Similarity
+   *
+   * found by meaning: how alike it is (cosine, up to 1)
+   */
+  similarity?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarEntity
+ */
+export type SimilarEntity = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarItem
+ */
+export type SimilarItem = {
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Media Kind
+   *
+   * audio, video, transcript, document or image
+   */
+  media_kind: string;
+  /**
+   * Score
+   *
+   * reciprocal-rank fusion of the lists it's in; only for ordering
+   */
+  score: number;
+  /**
+   * Match
+   *
+   * why it's alike: close in meaning, shares key words, about the same topics, mentions the same entities
+   */
+  match: Array<"meaning" | "words" | "topics" | "entities">;
+  /**
+   * Similarity
+   *
+   * by meaning: how alike its closest passage is (cosine, up to 1)
+   */
+  similarity?: number | null;
+  /**
+   * Cites
+   *
+   * up to 3 moments that show it, to open
+   */
+  cites?: Array<SimilarCite>;
+  /**
+   * Words
+   *
+   * the key words it says
+   */
+  words?: Array<string>;
+  /**
+   * Topics
+   *
+   * topics both are about
+   */
+  topics?: Array<SimilarTopic>;
+  /**
+   * Entities
+   *
+   * entities both mention
+   */
+  entities?: Array<SimilarEntity>;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarResults
+ */
+export type SimilarResults = {
+  /**
+   * Basis
+   *
+   * what the results are like
+   */
+  basis: "text" | "recording" | "topic" | "entity";
+  /**
+   * Label
+   *
+   * the text's start, or the resource's title, the topic's label, the entity's name
+   */
+  label?: string | null;
+  /**
+   * Text
+   *
+   * the text compared by meaning (a topic's labels and definition, an entity's name and description)
+   */
+  text?: string | null;
+  /**
+   * Terms
+   *
+   * the key words looked for
+   */
+  terms?: Array<string>;
+  /**
+   * Mode
+   *
+   * "meaning": an embedding model compared it too; "words": only by key words, topics and entities
+   */
+  mode: "meaning" | "words";
+  /**
+   * Meaning
+   *
+   * why it wasn't compared by meaning, when search by meaning is set up
+   */
+  meaning?: string | null;
+  /**
+   * Semantic
+   *
+   * search by meaning is set up and indexed
+   */
+  semantic?: boolean;
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<SimilarItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarTopic
+ */
+export type SimilarTopic = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -14706,6 +15114,12 @@ export type SourceHealth = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the service is rate limiting the account; it still works
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -19834,6 +20248,211 @@ export type ReindexSearchResponses = {
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
 
+export type RemoteBackupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups/remote";
+};
+
+export type RemoteBackupsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RemoteBackups;
+};
+
+export type RemoteBackupsResponse = RemoteBackupsResponses[keyof RemoteBackupsResponses];
+
+export type SendBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/send";
+};
+
+export type SendBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendBackupError = SendBackupErrors[keyof SendBackupErrors];
+
+export type SendBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type SendBackupResponse = SendBackupResponses[keyof SendBackupResponses];
+
+export type FetchBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/fetch";
+};
+
+export type FetchBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FetchBackupError = FetchBackupErrors[keyof FetchBackupErrors];
+
+export type FetchBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type FetchBackupResponse = FetchBackupResponses[keyof FetchBackupResponses];
+
+export type DeleteRemoteBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/remote";
+};
+
+export type DeleteRemoteBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRemoteBackupError = DeleteRemoteBackupErrors[keyof DeleteRemoteBackupErrors];
+
+export type DeleteRemoteBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRemoteBackupResponse = DeleteRemoteBackupResponses[keyof DeleteRemoteBackupResponses];
+
+export type RestoreBackupData = {
+  body: RestoreStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/restore";
+};
+
+export type RestoreBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreBackupError = RestoreBackupErrors[keyof RestoreBackupErrors];
+
+export type RestoreBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type RestoreBackupResponse = RestoreBackupResponses[keyof RestoreBackupResponses];
+
+export type BackupLinkData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/link";
+};
+
+export type BackupLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupLinkError = BackupLinkErrors[keyof BackupLinkErrors];
+
+export type BackupLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: BackupLink;
+};
+
+export type BackupLinkResponse = BackupLinkResponses[keyof BackupLinkResponses];
+
+export type BackupFileData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Exp
+     */
+    exp?: string | null;
+    /**
+     * Sig
+     */
+    sig?: string | null;
+  };
+  url: "/api/v1/admin/backups/{name}/file";
+};
+
+export type BackupFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupFileError = BackupFileErrors[keyof BackupFileErrors];
+
+export type BackupFileResponses = {
+  /**
+   * the backup (an embedded one as a .tar.gz)
+   */
+  200: Blob | File;
+};
+
+export type BackupFileResponse = BackupFileResponses[keyof BackupFileResponses];
+
 export type GetUpdatesData = {
   body?: never;
   path?: never;
@@ -24585,6 +25204,70 @@ export type SearchPhotosResponses = {
 };
 
 export type SearchPhotosResponse = SearchPhotosResponses[keyof SearchPhotosResponses];
+
+export type FindSimilarData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Text
+     *
+     * what was selected: a sentence, a passage, a title
+     */
+    text?: string | null;
+    /**
+     * Recording
+     *
+     * a resource: the others most like it
+     */
+    recording?: number | null;
+    /**
+     * Topic
+     *
+     * a topic: the resources most like its labels and definition, and about it
+     */
+    topic?: number | null;
+    /**
+     * Entity
+     *
+     * an entity: the resources most like its name and description, and mentioning it
+     */
+    entity?: number | null;
+    /**
+     * Exclude
+     *
+     * leave out this resource too (the one the text was selected in)
+     */
+    exclude?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/similar";
+};
+
+export type FindSimilarErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindSimilarError = FindSimilarErrors[keyof FindSimilarErrors];
+
+export type FindSimilarResponses = {
+  /**
+   * Successful Response
+   */
+  200: SimilarResults;
+};
+
+export type FindSimilarResponse = FindSimilarResponses[keyof FindSimilarResponses];
 
 export type SuggestTermsData = {
   body?: never;
