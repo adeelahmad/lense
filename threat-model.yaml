@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:42d9bc92f48ce93ea2d58412a61b086dde8ab4522af95f628304d1b33919832f"
+prose_version: "threat-model.md@sha256:94906ac9249700e5601f897fc83225e45c0620e1f2e5ef66359163344eb6f8e0"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -389,6 +389,16 @@ entry_points:
         obligation_id: enable-and-firewall-sensors
         caller_must_enforce: "admin enables; operator firewalls"
         provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: "SMB share (port 1445 on the host, 4445 in the worker)"
+    component: optional
+    parameters:
+      - name: "SMB2 requests, NTLM sign-in with a file access key, client address"
+        attacker_controllable: true
+        x-condition: "once enabled, from smb.allowed_networks"
+        control_kinds: [data, x-credential, x-network-source]
+        obligation_id: enable-and-limit-smb
+        caller_must_enforce: "admin enables; operator firewalls"
+        provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -523,6 +533,7 @@ contract_dimensions:
   - {component: optional, dimension: serialization-reconstruction, status: not-applicable, conditions: "readings stored as data; no object reconstruction", provenance: {kind: inferred, question_id: Q34}}
   - {component: optional, dimension: callback-execution, status: claimed, property_id: P-CHILD-SECRETS, conditions: "tunnel token and llama-server key stay off command lines", provenance: {kind: documented, source: 'docs/remote-access.md "in its environment, not on its command line"'}}
   - {component: optional, dimension: reference-lifecycle, status: claimed, property_id: P-SENSORS, conditions: "each service off until an admin turns it on", provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}}
+  - {component: optional, dimension: confidentiality, status: claimed, property_id: P-SMB, conditions: "SMB share off until an admin turns it on; read-only; each key sees its owner's view; allowed networks only", provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {component: optional, dimension: concurrency-reentrancy, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
   - {component: optional, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
 
@@ -1384,6 +1395,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "sensors.mqtt_anonymous (domain/sensors.py:984); sensors.syslog_networks, sensors.bind"
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: P-SMB
+    kind: confidentiality
+    components: [optional]
+    tier: security-critical
+    conditions: "the SMB share is off until an admin turns it on; read-only; per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only"
+    violation_symptoms: [info-leak]
+    x-voided-by: "smb.allowed_networks set wide; SMB 2.0 has no encryption on the wire (domain/smb_share.py)"
+    provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
   - id: P-CHILD-SECRETS
     kind: confidentiality
     components: [optional]
@@ -1516,6 +1535,7 @@ downstream_responsibilities:
   - {id: dr-revoke-after-password-change, component: identity, statement: "After a password change or suspected theft, revoke API tokens and app grants, or disable the account", enforces: [N-REVOKE-TOKENS], provenance: {kind: inferred, question_id: Q3}}
   - {id: dr-private-networks-on-purpose, component: outbound, statement: "List private networks in documents.web_networks or notifications.networks only on purpose", enforces: [P-SSRF-GUARD, P-ADMIN-GUARD], provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: dr-firewall-sensor-ports, component: optional, statement: "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address", enforces: [P-SENSORS, N-MQTT-SUBSCRIBE, enable-and-firewall-sensors], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
+  - {id: dr-limit-smb-share, component: optional, statement: "When the SMB share is on, list only your own networks, keep its port off the internet, and revoke file access keys you no longer use", enforces: [P-SMB, enable-and-limit-smb], provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {id: dr-bridge-own-account, component: outbound, statement: "Give the chat-room bridge its own low-role account", enforces: [N-BRIDGE], provenance: {kind: documented, source: 'docs/chat-rooms.md "it reads only what that account can read"'}}
   - {id: dr-trusted-worker-hosts, component: authz, statement: "Run workers only on trusted hosts; they hold the DB credential", enforces: [N-APP-LAYER, trusted-peer-hosts], provenance: {kind: inferred, question_id: Q9}}
   - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with transcripts and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}

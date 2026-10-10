@@ -63,7 +63,7 @@ class Entry:
 class Keys:
     """File access keys, looked up when someone signs in and again every KEY_SECONDS while they stay connected.
 
-    `lookup(key_id)` answers {account, secret} or None (file_tree.lookup_key by default)."""
+    `lookup(key_id)` answers {account, secret} or None (s3.lookup_key: the S3 share's keys)."""
 
     def __init__(self, lookup, touch=None):
         self.lookup, self.touch = lookup, touch or (lambda key_id: None)
@@ -84,6 +84,11 @@ class Keys:
             row = None
         with self.lock:
             self.cache[key_id] = (time.monotonic(), row)
+        if row is not None:
+            try:
+                self.touch(key_id)  # last used: at sign-in, then every KEY_SECONDS while connected
+            except Exception:  # noqa: BLE001
+                pass
         return row
 
 
@@ -191,7 +196,12 @@ class VirtualOS(types.ModuleType):
         f = self._fd(fd)
         if f[0] is None:
             raise IsADirectoryError(errno.EISDIR, "is a folder")
-        data = f[0].read(f[2], int(n)) or b""
+        try:
+            data = f[0].read(f[2], int(n)) or b""
+        except OSError:
+            raise
+        except Exception as e:  # a locked vault, a storage connection that's away: the client sees "access denied"
+            raise PermissionError(errno.EACCES, f"can't be read now: {type(e).__name__}") from None
         f[2] += len(data)
         return data
 
@@ -466,6 +476,8 @@ class Server:
         self.extras = [smbserver.SRVSServer(), smbserver.WKSTServer()]  # share lists for Explorer and Finder
         for x in self.extras:
             x.daemon = True
+        self.extras[0].setServerConfig(cfg)  # the shares it lists
+        self.extras[0].processConfigFile()
         self.server.registerNamedPipe("srvsvc", ("127.0.0.1", self.extras[0].getListenPort()))
         self.server.registerNamedPipe("wkssvc", ("127.0.0.1", self.extras[1].getListenPort()))
         self.thread = None
@@ -503,9 +515,9 @@ def conf(cfg):
 
 
 def _keys(db, cfg_fn):
-    from . import file_tree
+    from . import s3
 
-    return Keys(lambda key_id: file_tree.lookup_key(db, cfg_fn(), key_id), lambda key_id: file_tree.touch_key(db, key_id))
+    return Keys(lambda key_id: s3.lookup_key(db, cfg_fn(), key_id), lambda key_id: s3.touch(db, key_id))
 
 
 class Runner:

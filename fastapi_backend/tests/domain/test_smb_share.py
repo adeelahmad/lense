@@ -166,3 +166,71 @@ def test_reader_streams_on_and_restarts_on_a_jump():
 
 def test_nt_hash_matches_the_known_vector():
     assert smb_share.nt_hash("password").hex() == "8846f7eaee8fb117ad06bdd830b7586c"
+
+
+def test_serves_the_real_file_tree_per_person(db, cfg, folder):
+    """With filetree.py behind it: an admin sees every namespace, a viewer of 'pods' only that one, an outsider none."""
+    from tests.helpers import make_user, seed
+
+    a, _, _ = seed(db, cfg, folder)
+    admin = make_user(db, "admin@x.io", "admin password 1", admin=True)
+    viewer = make_user(db, "vi@x.io", "viewer password 1", roles={"pods": "viewer"})
+    outsider = make_user(db, "out@x.io", "outsider password 1")
+    keys = {"lkadmin": admin, "lkviewer": viewer, "lkout": outsider}
+    k = smb_share.Keys(lambda kid: {"account": keys[kid], "secret": f"{kid}-secret"} if kid in keys else None)
+    s = smb_share.Server("127.0.0.1", 0, smb_share.FileTree(db, lambda: cfg), k, ["127.0.0.0/8"]).start()
+    try:
+
+        def names(user, path="*"):
+            c = connect(s.port, user, f"{user}-secret")
+            return sorted(f.get_longname() for f in c.listPath(smb_share.SHARE, path) if f.get_longname() not in (".", ".."))
+
+        assert names("lkadmin") == ["calls", "pods"]
+        assert names("lkviewer") == ["pods"]
+        assert names("lkout") == []
+        files = names("lkviewer", "pods\\Collections\\General\\*")
+        assert f"ep1 [{a}].txt" in files
+        out = io.BytesIO()
+        connect(s.port, "lkviewer", "lkviewer-secret").getFile(smb_share.SHARE, f"pods\\Collections\\General\\ep1 [{a}].txt", out.write)
+        assert out.getvalue().decode().startswith("Alice: Welcome back.")
+        with pytest.raises(SessionError):
+            connect(s.port, "lkviewer", "lkviewer-secret").listPath(smb_share.SHARE, "calls\\*")
+    finally:
+        s.stop()
+
+
+def test_the_worker_follows_the_settings(db, cfg):
+    """Off: nothing listens. On: it serves, and says so in status. Off again: it stops and ends open sessions."""
+    live = {**cfg, "smb": {**cfg.get("smb", {}), "enabled": False, "bind": "127.0.0.1", "port": 0}}
+    r = smb_share.Runner(db, lambda: live, "w1", tree=FakeTree(), keys=smb_share.Keys(lambda k: KEYS.get(k)))
+    r.apply()
+    r.heartbeat()
+    assert r.server is None and smb_share.status(db, live)["phase"] == "off"
+    live["smb"]["enabled"] = True
+    r.apply()
+    r.heartbeat()
+    st = smb_share.status(db, live)
+    assert r.server is not None and st["phase"] == "running" and st["process"] == "w1" and st["share"] == "LENS"
+    c = connect(r.server.port, "lk_ada", "ada-secret-1")
+    assert [f.get_longname() for f in c.listPath(smb_share.SHARE, "*") if f.get_longname() not in (".", "..")] == ["Pods"]
+    live["smb"]["allowed_networks"] = ["10.0.0.0/8"]  # applies to new connections without a restart
+    r.apply()
+    with pytest.raises(Exception):  # noqa: B017
+        connect(r.server.port, "lk_ada", "ada-secret-1")
+    live["smb"]["enabled"] = False
+    r.apply()
+    r.heartbeat()
+    assert r.server is None and smb_share.status(db, live)["phase"] == "off"
+    with pytest.raises(Exception):  # noqa: B017 - the open session was ended
+        c.listPath(smb_share.SHARE, "*")
+
+
+def test_smb_settings_are_checked():
+    from app.domain import settings
+
+    assert settings._smb_setting("allowed_networks", [" 192.168.1.7/24 ", "::1"]) == ["192.168.1.0/24", "::1/128"]
+    for bad in ("nope", ["not a network"]):
+        with pytest.raises(ValueError):
+            settings._smb_setting("allowed_networks", bad)
+    with pytest.raises(ValueError):
+        settings._smb_setting("enabled", "yes")
