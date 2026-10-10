@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 const GLYPH = {
   ok: ["✓", "text-green-dark"],
+  limited: ["◆", "text-gold-dark"],
   bad: ["✕", "text-red-dark"],
   unknown: ["–", "text-fg-muted"],
 } as const;

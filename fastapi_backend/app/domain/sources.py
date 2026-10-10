@@ -75,6 +75,26 @@ WATCH = {
 }
 
 
+# what Google Drive (and others) say when they throttle: the connection works, it is only slowed or refusing new files
+RATE_LIMIT = re.compile(r"rate ?limit|quota exceeded|exceeded .*quota|too many requests|\b429\b|upload limit", re.I)
+
+
+class RateLimited(RuntimeError):
+    """The service is throttling this account: reading usually still works, more slowly; new files may be refused."""
+
+
+def failure(text):
+    """The error to raise for what rclone printed on failing: RateLimited when the service is only throttling."""
+    msg = _clean_err(text)
+    return RateLimited(msg) if RATE_LIMIT.search(text or "") else RuntimeError(msg)
+
+
+def retries(src):
+    """rclone's retry flags for a source. Drive throttles in bursts: rclone backs off between low-level retries, so
+    Drive gets its default 10 rather than giving up on the first burst."""
+    return ["--retries", "1", "--low-level-retries", "10" if src["type"] == "drive" else "2"]
+
+
 def _bin(cfg):
     b = os.environ.get("RCLONE_BINARY") or cfg["sources"].get("rclone") or shutil.which("rclone")
     if not b:
@@ -147,14 +167,14 @@ def run(db, cfg, src, argv, timeout=300):
     name, d, conf = _private_conf(cfg, src)
     try:
         out = subprocess.run(
-            [_bin(cfg), "--config", conf, "--retries", "1", "--low-level-retries", "2", *argv(name)],
+            [_bin(cfg), "--config", conf, *retries(src), *argv(name)],
             capture_output=True,
             text=True,
             timeout=timeout,
         )
         _writeback(db, cfg, src, conf)
         if out.returncode:
-            raise RuntimeError(_clean_err(out.stderr) or f"rclone exited with {out.returncode}")
+            raise failure(out.stderr) if out.stderr.strip() else RuntimeError(f"rclone exited with {out.returncode}")
         return out.stdout
     finally:
         shutil.rmtree(d, ignore_errors=True)
@@ -253,6 +273,12 @@ def test(db, cfg, sid):
         if not feeds.handles(src):
             run(db, cfg, src, lambda n: ["lsjson", "--max-depth", "1", "--dirs-only", f"{n}:{target}"], timeout=60)
         health = {"ok": True, "checked_at": store.now()}
+    except RateLimited as e:  # it signed in: the service is only slowing it down, and rclone keeps retrying
+        health = {
+            "ok": True,
+            "checked_at": store.now(),
+            "limited": f"{BACKENDS[src['type']]['label']} is rate limiting this account: {e}"[:300],
+        }
     except (RuntimeError, ValueError, subprocess.TimeoutExpired) as e:
         health = {"ok": False, "checked_at": store.now(), "error": str(e)[:300]}
     db.q("UPDATE $r SET health = $h", r=R("storage_source", sid), h=health)
@@ -630,7 +656,7 @@ def poll_watch(db, cfg, wid, log=print):
     spaces = set(store.space_names(db)) if routes else set()
     if routes:
         stats["routed"] = 0
-    files, held = list_files(db, cfg, src, w["path"], w.get("cursor")), set()
+    files, held, limited = list_files(db, cfg, src, w["path"], w.get("cursor")), set(), None
     for f in files:
         kind = kind_of(cfg, w, f)
         if not kind:
@@ -649,8 +675,8 @@ def poll_watch(db, cfg, wid, log=print):
         if space is None or (first and not w.get("backfill")) or (src["id"], f["path"]) in gone[space]:
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "skipped"})
             stats["skipped"] += 1
-        elif (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
-            db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "waiting"})
+        elif limited or (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
+            db.q("UPSERT $k CONTENT $d", k=key, d=store.clean({**row, "status": "waiting", "error": limited}))
             stats["waiting"] += 1
             held.add(f["path"])
         else:
@@ -660,6 +686,12 @@ def poll_watch(db, cfg, wid, log=print):
                 stats["new"] += 1
                 if space != w["space"]:
                     stats["routed"] += 1
+            except RateLimited as e:  # throttled, not broken: this file and the rest wait for the next scan
+                limited = f"rate limited: {e}"[:300]
+                db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "waiting", "error": limited})
+                stats["waiting"] += 1
+                held.add(f["path"])
+                log(f"  {f['path']}: {limited}")
             except Exception as e:  # noqa: BLE001 - one bad file must not stop the scan
                 db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "error", "error": f"{type(e).__name__}: {e}"[:300]})
                 stats["errors"] += 1

@@ -76,6 +76,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
             )
         if self.path.startswith("/gm/v1beta/models"):
             return self._send({"models": [{"name": "models/gemini-2.5-flash-preview-tts"}, {"name": "models/gemini-2.5-pro"}]})
+        if self.path == "/st/v1/audio/voices":
+            return self._send({"voices": ["default", "grandpa"]})
         if self.path == "/oai/v1/audio/voices":
             return self._send({"voices": ["af_heart", "am_adam"]})
         if self.path.endswith("/models") or self.path.endswith("/v1/models"):
@@ -138,6 +140,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
                     }
                 }
             )
+        if p == "/st/v1/audio/speech":
+            return self._send(speech.wav(b"\x00\x00" * 24, 24000), "audio/wav")
         if p.startswith("/gm/v1beta/models/"):
             pcm = base64.b64encode(b"\x00\x01" * 2400).decode()
             return self._send(
@@ -347,6 +351,39 @@ def test_each_provider_lists_its_voices(db, cfg, fake):
     assert found == [] and err.startswith("can't reach 127.0.0.1:9")
     with pytest.raises(ValueError):
         speech.voices(eff, "nope")
+
+
+def test_styletts2_reads_aloud_from_its_own_service(db, cfg, fake):
+    settings.save(db, cfg, "voice", {"tts_provider": "styletts2"}, "t")
+    eff = settings.effective(db, cfg)
+    assert eff["voice"]["styletts2_url"] == "http://styletts2:8880" and voice.can_speak(eff)  # the compose service
+    settings.save(db, cfg, "voice", {"styletts2_url": fake + "/st/"}, "t")
+    eff = settings.effective(db, cfg)
+    data, ctype = voice.speak(eff, "Hello", voice="grandpa")
+    assert ctype == "audio/wav" and data[:4] == b"RIFF"
+    method, path, headers, body = Fake.seen[-1]
+    assert path == "/st/v1/audio/speech" and json.loads(body) == {
+        "model": "styletts2",
+        "input": "Hello",
+        "voice": "grandpa",
+        "response_format": "wav",
+    }
+    voice.speak(eff, "Hi")
+    assert json.loads(Fake.seen[-1][3])["voice"] == "default"
+    assert speech.voices(eff) == (
+        [
+            {"id": "default", "name": "default", "detail": "its own reader"},
+            {"id": "grandpa", "name": "grandpa", "detail": "from your clip"},
+        ],
+        None,
+    )
+    settings.save(db, cfg, "voice", {"styletts2_url": "http://127.0.0.1:9"}, "t")
+    eff = settings.effective(db, cfg)
+    found, err = speech.voices(eff)
+    assert found == [] and err.startswith("StyleTTS2 isn't running") and "--profile styletts2" in err
+    assert voice.speak(eff, "Hello") is None  # not running: the browser reads it
+    with pytest.raises(ValueError):
+        settings.save(db, cfg, "voice", {"styletts2_url": "styletts2:8880"}, "t")
 
 
 SAY_VOICES = """Albert              en_US    # Hello! My name is Albert.

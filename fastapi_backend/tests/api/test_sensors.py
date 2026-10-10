@@ -188,6 +188,25 @@ def test_broker_is_an_ordinary_local_broker():
         b.stop()
 
 
+def test_a_retained_message_is_kept_before_its_sender_hears_it_arrived():
+    b = mqtt.Broker("127.0.0.1", 0, lambda *a: {"ok": 1}, lambda *a: None).start()
+    keep = b.publish
+
+    def slow(*a, **kw):  # a busy hub: the acknowledgement must still wait for the message to be kept
+        time.sleep(0.3)
+        keep(*a, **kw)
+
+    b.publish = slow
+    try:
+        Device(b.port, "pub", "u", "p").publish("home/kitchen/temp", "21.5", qos=1, retain=True)
+        sub = Device(b.port, "sub", "u", "p")
+        assert sub.subscribe("home/#") == [0]
+        assert sub.receive() == ("home/kitchen/temp", b"21.5", True)
+        sub.close()
+    finally:
+        b.stop()
+
+
 def test_bridge_client_reads_another_broker():
     b = mqtt.Broker("127.0.0.1", 0, lambda *a: {"ok": 1}, lambda *a: None).start()
     try:

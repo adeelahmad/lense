@@ -17,6 +17,7 @@ const DEFAULT_LABEL: Record<string, string> = {
   deepgram: "aura-2-thalia-en",
   gemini: "Kore",
   say: "the Mac’s own voice",
+  styletts2: "its own reader",
 };
 
 /** voice.tts_voice: a voice from the list the provider gives (its id is kept), with a button to hear it. */

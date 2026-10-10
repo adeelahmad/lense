@@ -1,0 +1,49 @@
+name: Web clipper (Edge)
+
+# Loads the Edge build of the web clipper (extensions/browser/targets/edge.json) into Microsoft Edge and clips a page
+# into a stand-in Lens (extensions/browser/edge/smoke.mjs). The Edge zip itself, lens-clipper-edge.zip, comes from the
+# Browser extension workflow with the other browsers'.
+on:
+  push:
+    branches: [main]
+    paths:
+      - extensions/browser/**
+      - .github/workflows/clipper-edge.yml
+  pull_request:
+    paths:
+      - extensions/browser/**
+      - .github/workflows/clipper-edge.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  edge:
+    name: Clip a page in Edge
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    defaults:
+      run:
+        working-directory: ./extensions/browser
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            extensions/browser/package-lock.json
+            extensions/browser/edge/package-lock.json
+      - run: npm ci
+      - run: npm run build -- --target edge
+      - run: npm ci
+        working-directory: ./extensions/browser/edge
+      - name: Install Edge and a display if the runner lacks them
+        working-directory: ./extensions/browser/edge
+        run: |
+          if [ -x /opt/microsoft/msedge/msedge ]; then /opt/microsoft/msedge/msedge --version
+          else npx playwright-core install --with-deps msedge; fi
+          command -v xvfb-run || (sudo apt-get update && sudo apt-get install -y xvfb)
+      - name: Smoke test in Edge
+        working-directory: ./extensions/browser/edge
+        run: xvfb-run -a npm run smoke
