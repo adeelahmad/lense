@@ -281,6 +281,8 @@ DEFAULTS = {
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
+        "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
+        "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -1172,6 +1174,11 @@ SCHEMA = [
     # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
     "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",
+    # browsers connected for the assistant to use (browser.py): a side panel's session, and the actions asked of it
+    "DEFINE TABLE IF NOT EXISTS browser_session SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS browser_session_account ON browser_session FIELDS account",
+    "DEFINE TABLE IF NOT EXISTS browser_action SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization

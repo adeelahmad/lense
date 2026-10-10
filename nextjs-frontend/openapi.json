@@ -4057,6 +4057,93 @@
         }
       }
     },
+    "/api/v1/budgets/meter": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Budget Meter",
+        "description": "What a namespace (or all of Lens) spent this day, week or month, against its budget when it has one: the top\nbar's meter, and with `detail` the costs page. Anyone who can read a namespace sees its meter; admins see all of\nLens's.",
+        "operationId": "budget_meter",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a namespace; none for all of Lens (admins)",
+              "title": "Ns"
+            },
+            "description": "a namespace; none for all of Lens (admins)"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "day",
+                    "week",
+                    "month"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "none: the budget's own period, else month",
+              "title": "Period"
+            },
+            "description": "none: the budget's own period, else month"
+          },
+          {
+            "name": "detail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "also by day, by model and what cost most",
+              "default": false,
+              "title": "Detail"
+            },
+            "description": "also by day, by model and what cost most"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetMeter"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/budgets/status": {
       "get": {
         "tags": [
@@ -20788,7 +20875,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -21016,6 +21103,277 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApprovalOutcome"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions": {
+      "get": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "List Sessions",
+        "description": "Your browsers whose side panel is connected now, the latest first.",
+        "operationId": "list_sessions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BrowserSession"
+                  },
+                  "type": "array",
+                  "title": "Response Browser-List Sessions"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Connect",
+        "description": "Connect a browser's Lens side panel: then open its action stream. Audited as `browser.connect`.",
+        "operationId": "connect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BrowserConnect"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserSession"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}": {
+      "delete": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Disconnect",
+        "description": "The side panel closed: the assistant can't use that browser any more, and actions waiting on it fail.",
+        "operationId": "disconnect",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}/actions": {
+      "get": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Actions",
+        "description": "The actions the assistant (or an agent) asks of this browser, as server-sent `action` events {id, tool, args,\nchat}: carry each one out and answer it with POST /browser/actions/{id}. The session stays connected while this\nstream is open; a comment line every 15 seconds keeps it so through proxies. `once=true` sends the actions waiting\nnow and closes, for a client that asks again and again instead (each time keeps it connected for a while).",
+        "operationId": "actions",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "once",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Once"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`event: action` with {id, tool, args, chat}",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/actions/{aid}": {
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Answer Action",
+        "description": "What the browser did with an action: its result, or why it didn't (the person said no, the site isn't allowed...).\n404 for an action that isn't one of your browser's, or that's been answered or given up on.",
+        "operationId": "answer_action",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}/run": {
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Run",
+        "description": "Do one thing in your connected browser, as the assistant's browser_ tools do, and wait for it: for agents and\nscripts. The side panel shows it and asks you first, as it does for the assistant. Audited as `browser.run`.",
+        "operationId": "run",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserRun"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserResult"
                 }
               }
             }
@@ -27689,6 +28047,171 @@
         ],
         "title": "BrowseEntry"
       },
+      "BrowserAnswer": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "description": "whether the browser did it"
+          },
+          "result": {
+            "title": "Result",
+            "description": "what it found or did (the page, the tabs, the file it attached...)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why not, when it didn't (the person said no, no such ref...)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BrowserAnswer"
+      },
+      "BrowserConnect": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "what to call this browser, e.g. 'Chrome on the laptop'"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BrowserConnect"
+      },
+      "BrowserResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "result": {
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BrowserResult"
+      },
+      "BrowserRun": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": [
+              "tabs",
+              "open",
+              "read",
+              "click",
+              "type",
+              "press",
+              "import"
+            ],
+            "title": "Tool",
+            "description": "the action: one of the assistant's browser_ tools, without browser_"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args",
+            "description": "its arguments, as the browser_ tool takes them"
+          },
+          "wait": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Wait",
+            "description": "seconds to wait for the browser",
+            "default": 60
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "BrowserRun"
+      },
+      "BrowserSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen At"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live",
+            "description": "its side panel is connected now"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "live"
+        ],
+        "title": "BrowserSession"
+      },
       "Budget": {
         "properties": {
           "resource": {
@@ -27785,6 +28308,135 @@
           "warn_at"
         ],
         "title": "Budget"
+      },
+      "BudgetMeter": {
+        "properties": {
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource",
+            "description": "space:<id>, or none for all of Lens"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/Spent"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the budget it is measured against stands; none without one"
+          },
+          "by_day": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DaySpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Day"
+          },
+          "by_model": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Model"
+          },
+          "top": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top"
+          },
+          "by_namespace": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "spent",
+          "calls"
+        ],
+        "title": "BudgetMeter"
       },
       "BudgetSet": {
         "properties": {
@@ -30977,6 +31629,36 @@
           "graph"
         ],
         "title": "CustomNodeVersionCreate"
+      },
+      "DaySpend": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day",
+            "description": "YYYY-MM-DD (UTC)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "DaySpend"
       },
       "DecisionStatus": {
         "properties": {
@@ -38993,6 +39675,19 @@
             ],
             "title": "Edit",
             "description": "edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer"
+          },
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser",
+            "description": "asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)"
           }
         },
         "additionalProperties": false,
@@ -39142,6 +39837,47 @@
           "after"
         ],
         "title": "MetadataEdit"
+      },
+      "ModelSpend": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "none: calls with no model (webhooks, web tools)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "cost_usd",
+          "tokens",
+          "calls",
+          "estimate"
+        ],
+        "title": "ModelSpend"
       },
       "MonthStats": {
         "properties": {
@@ -53718,6 +54454,47 @@
           "tool"
         ],
         "title": "ToolStep"
+      },
+      "TopSpend": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "what the resource is called, when it has a name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "TopSpend"
       },
       "TopicAbout": {
         "properties": {

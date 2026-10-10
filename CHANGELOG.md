@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
+  left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
+  month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
+  ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
+
 - **Logs in the web app, and to a syslog server.** The API and every worker now write structured log lines with a
   level set in **Settings → Logs** (and per logger, like `httpx warning`), to the console as text or JSON and to a file
   per process under `data_dir/logs`. The same page shows the latest lines from all of them, with search and filters.

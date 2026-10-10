@@ -1326,6 +1326,116 @@ export type BrowseEntry = {
 };
 
 /**
+ * BrowserAnswer
+ */
+export type BrowserAnswer = {
+  /**
+   * Ok
+   *
+   * whether the browser did it
+   */
+  ok: boolean;
+  /**
+   * Result
+   *
+   * what it found or did (the page, the tabs, the file it attached...)
+   */
+  result?: unknown;
+  /**
+   * Error
+   *
+   * why not, when it didn't (the person said no, no such ref...)
+   */
+  error?: string | null;
+};
+
+/**
+ * BrowserConnect
+ */
+export type BrowserConnect = {
+  /**
+   * Label
+   *
+   * what to call this browser, e.g. 'Chrome on the laptop'
+   */
+  label?: string | null;
+};
+
+/**
+ * BrowserResult
+ */
+export type BrowserResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Result
+   */
+  result?: unknown;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BrowserRun
+ */
+export type BrowserRun = {
+  /**
+   * Tool
+   *
+   * the action: one of the assistant's browser_ tools, without browser_
+   */
+  tool: "tabs" | "open" | "read" | "click" | "type" | "press" | "import";
+  /**
+   * Args
+   *
+   * its arguments, as the browser_ tool takes them
+   */
+  args?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Wait
+   *
+   * seconds to wait for the browser
+   */
+  wait?: number;
+};
+
+/**
+ * BrowserSession
+ */
+export type BrowserSession = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Seen At
+   */
+  seen_at?: string | null;
+  /**
+   * Live
+   *
+   * its side panel is connected now
+   */
+  live: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Budget
  */
 export type Budget = {
@@ -1373,6 +1483,56 @@ export type Budget = {
   alert?: {
     [key: string]: unknown;
   } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BudgetMeter
+ */
+export type BudgetMeter = {
+  /**
+   * Resource
+   *
+   * space:<id>, or none for all of Lens
+   */
+  resource?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Period
+   */
+  period: "day" | "week" | "month";
+  /**
+   * Since
+   */
+  since?: string | null;
+  spent: Spent;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * where the budget it is measured against stands; none without one
+   */
+  budget?: BudgetStatus | null;
+  /**
+   * By Day
+   */
+  by_day?: Array<DaySpend> | null;
+  /**
+   * By Model
+   */
+  by_model?: Array<ModelSpend> | null;
+  /**
+   * Top
+   */
+  top?: Array<TopSpend> | null;
+  /**
+   * By Namespace
+   */
+  by_namespace?: Array<TopSpend> | null;
   [key: string]: unknown;
 };
 
@@ -3128,6 +3288,31 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DaySpend
+ */
+export type DaySpend = {
+  /**
+   * Day
+   *
+   * YYYY-MM-DD (UTC)
+   */
+  day: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -7865,6 +8050,12 @@ export type MessageCreate = {
    * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
    */
   edit?: number | null;
+  /**
+   * Browser
+   *
+   * asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)
+   */
+  browser?: string | null;
 };
 
 /**
@@ -7954,6 +8145,35 @@ export type MetadataEdit = {
   after: {
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+};
+
+/**
+ * ModelSpend
+ */
+export type ModelSpend = {
+  /**
+   * Model
+   *
+   * none: calls with no model (webhooks, web tools)
+   */
+  model?: string | null;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Estimate
+   */
+  estimate: boolean;
   [key: string]: unknown;
 };
 
@@ -16361,6 +16581,35 @@ export type ToolStep = {
 };
 
 /**
+ * TopSpend
+ */
+export type TopSpend = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Name
+   *
+   * what the resource is called, when it has a name
+   */
+  name?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * TopicAbout
  */
 export type TopicAbout = {
@@ -20846,6 +21095,50 @@ export type SetBudgetResponses = {
 };
 
 export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
+
+export type BudgetMeterData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * a namespace; none for all of Lens (admins)
+     */
+    ns?: string | null;
+    /**
+     * Period
+     *
+     * none: the budget's own period, else month
+     */
+    period?: "day" | "week" | "month" | null;
+    /**
+     * Detail
+     *
+     * also by day, by model and what cost most
+     */
+    detail?: boolean;
+  };
+  url: "/api/v1/budgets/meter";
+};
+
+export type BudgetMeterErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BudgetMeterError = BudgetMeterErrors[keyof BudgetMeterErrors];
+
+export type BudgetMeterResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetMeter;
+};
+
+export type BudgetMeterResponse = BudgetMeterResponses[keyof BudgetMeterResponses];
 
 export type BudgetStatusData = {
   body?: never;
@@ -31128,6 +31421,175 @@ export type DecideApprovalResponses = {
 };
 
 export type DecideApprovalResponse = DecideApprovalResponses[keyof DecideApprovalResponses];
+
+export type ListSessionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/browser/sessions";
+};
+
+export type ListSessionsResponses = {
+  /**
+   * Response Browser-List Sessions
+   *
+   * Successful Response
+   */
+  200: Array<BrowserSession>;
+};
+
+export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type ConnectData = {
+  /**
+   * Body
+   */
+  body?: BrowserConnect | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/browser/sessions";
+};
+
+export type ConnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ConnectError = ConnectErrors[keyof ConnectErrors];
+
+export type ConnectResponses = {
+  /**
+   * Successful Response
+   */
+  201: BrowserSession;
+};
+
+export type ConnectResponse = ConnectResponses[keyof ConnectResponses];
+
+export type DisconnectData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/sessions/{sid}";
+};
+
+export type DisconnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DisconnectError = DisconnectErrors[keyof DisconnectErrors];
+
+export type DisconnectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DisconnectResponse = DisconnectResponses[keyof DisconnectResponses];
+
+export type ActionsData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: {
+    /**
+     * Once
+     */
+    once?: boolean;
+  };
+  url: "/api/v1/browser/sessions/{sid}/actions";
+};
+
+export type ActionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ActionsError = ActionsErrors[keyof ActionsErrors];
+
+export type ActionsResponses = {
+  /**
+   * `event: action` with {id, tool, args, chat}
+   */
+  200: unknown;
+};
+
+export type AnswerActionData = {
+  body: BrowserAnswer;
+  path: {
+    /**
+     * Aid
+     */
+    aid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/actions/{aid}";
+};
+
+export type AnswerActionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AnswerActionError = AnswerActionErrors[keyof AnswerActionErrors];
+
+export type AnswerActionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type AnswerActionResponse = AnswerActionResponses[keyof AnswerActionResponses];
+
+export type RunData = {
+  body: BrowserRun;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/sessions/{sid}/run";
+};
+
+export type RunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunError = RunErrors[keyof RunErrors];
+
+export type RunResponses = {
+  /**
+   * Successful Response
+   */
+  200: BrowserResult;
+};
+
+export type RunResponse = RunResponses[keyof RunResponses];
 
 export type ListCollectionsData = {
   body?: never;
