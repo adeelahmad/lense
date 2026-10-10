@@ -1,12 +1,11 @@
 name: docs
 
-# Builds the documentation site on every change to docs, and publishes it to GitHub Pages once Pages is turned on
-# (Settings → Pages → Source: GitHub Actions). Until then it only builds.
+# Builds the documentation site on every change to docs on main, and publishes it to GitHub Pages once Pages is turned
+# on (Settings → Pages → Source: GitHub Actions). Until then it only builds. On a pull request the site is built by CI
+# (ci.yml, Other projects: the docs project's build target in docs/project.json), when the change affects it.
 on:
   push:
     branches: [main]
-    paths: [docs/**, mkdocs.yml, overrides/**, README.md, CHANGELOG.md, .github/workflows/docs.yml]
-  pull_request:
     paths: [docs/**, mkdocs.yml, overrides/**, README.md, CHANGELOG.md, .github/workflows/docs.yml]
   workflow_dispatch:
 

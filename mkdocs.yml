@@ -111,6 +111,7 @@ hooks:
 
 exclude_docs: |
   brand/README.md
+  project.json
 
 extra_css:
   - stylesheets/extra.css
