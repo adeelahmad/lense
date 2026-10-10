@@ -284,6 +284,7 @@ DEFAULTS = {
         "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
         "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
         "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
+        "injection_check": "patterns",  # flag third-party text that reads like instructions to an AI: patterns, model, off
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
