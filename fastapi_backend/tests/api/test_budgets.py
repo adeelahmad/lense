@@ -169,3 +169,35 @@ def test_the_periodic_check_warns_once_per_period(db, cfg):
     assert [a["state"] for a in budgets.sweep(db, cfg)] == ["over"]
     assert budgets.sweep(db, cfg) == []
     assert [r["action"] for r in activity.history(db, "workflow:1", kind="run")] == ["budget.over", "budget.near"]
+
+
+def test_the_meter_follows_the_namespace_and_its_budget(client, db, h):
+    sid = store.ns_id(db, "pods")
+    other = store.ns_id(db, "news")
+    rid = routine(client, h, "Digest")
+    activity.record("out", "model.chat", [f"space:{sid}", f"routine:{rid}"], db=db, model="gpt", cost_usd=0.3, tokens_in=100, tokens_out=20)
+    activity.record("out", "model.chat", [f"space:{sid}"], db=db, model="local", tokens_in=50)
+    activity.record("out", "model.chat", [f"space:{other}"], db=db, model="gpt", cost_usd=2.0, tokens_in=10)
+
+    m = client.get("/api/v1/budgets/meter", headers=h, params={"ns": "pods"}).json()
+    assert (m["resource"], m["period"], m["spent"]["usd"], m["spent"]["tokens"], m["calls"]) == (f"space:{sid}", "month", 0.3, 170, 2)
+    assert m["budget"] is None and m["by_day"] is None
+
+    budgets.put(db, f"space:{sid}", usd=0.5, period="week")
+    m = client.get("/api/v1/budgets/meter", headers=h, params={"ns": "pods", "detail": True}).json()
+    assert m["period"] == "week" and m["budget"]["state"] == "ok" and m["budget"]["left"]["usd"] == 0.2
+    assert [x["model"] for x in m["by_model"]] == ["gpt", "local"] and len(m["by_day"]) == 1
+    assert m["top"] == [{"resource": f"routine:{rid}", "cost_usd": 0.3, "tokens": 120, "calls": 1, "name": "Digest"}]
+    assert client.get("/api/v1/budgets/meter", headers=h, params={"ns": "pods", "period": "day"}).json()["period"] == "day"
+
+    # all of Lens: admins, against the one budget for everything
+    m = client.get("/api/v1/budgets/meter", headers=h, params={"detail": True}).json()
+    assert m["resource"] is None and m["spent"]["usd"] == 2.3 and m["budget"] is None
+    assert [x["resource"] for x in m["by_namespace"]] == [f"space:{other}", f"space:{sid}"]
+    assert m["by_namespace"][0]["name"] == "news"
+
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    e = login(client, "ed@x.io", "editor password 1")
+    assert client.get("/api/v1/budgets/meter", headers=e, params={"ns": "pods"}).json()["spent"]["usd"] == 0.3
+    assert client.get("/api/v1/budgets/meter", headers=e).status_code == 403
+    assert client.get("/api/v1/budgets/meter", headers=e, params={"ns": "news"}).status_code == 404
