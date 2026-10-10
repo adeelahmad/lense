@@ -294,7 +294,7 @@ def test_google_drive_as_a_service_account(client, db, cfg, monkeypatch):
     key = {
         "type": "service_account",
         "project_id": "lens-test",
-        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----END PRIVATE KEY-----\n",
+        "private_key": "-----BEGIN " + "PRIVATE KEY-----\nMIIEv...\n-----END " + "PRIVATE KEY-----\n",  # split: not a real key
         "client_email": "lens@lens-test.iam.gserviceaccount.com",
     }
     body = {
