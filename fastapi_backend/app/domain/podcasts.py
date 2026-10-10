@@ -22,14 +22,25 @@ Citations point at runs of segments ({recording, idx0, idx1}), which exist with 
 from __future__ import annotations
 
 import hashlib
+import pathlib
 
 from . import chat, jobs, llm, render, store, templates
 
 R = store.R
-STAGES = ("gather", "plan", "write", "check", "publish")
-STAGE_NAMES = {"gather": "gathering", "plan": "planning", "write": "writing", "check": "fact-checking", "publish": "publishing"}
+STAGES = ("gather", "plan", "write", "check", "audio", "publish")
+STAGE_NAMES = {
+    "gather": "gathering",
+    "plan": "planning",
+    "write": "writing",
+    "check": "fact-checking",
+    "audio": "recording the voices",
+    "publish": "publishing",
+}
 AFTER = ["analyze", "embed", "summarize"]  # what any new transcript gets
-STATUS = {"gather": "gathering", "plan": "planning", "write": "writing", "check": "checking", "publish": "publishing"}
+STATUS = {"gather": "gathering", "plan": "planning", "write": "writing", "check": "checking", "audio": "rendering", "publish": "publishing"}
+# the second host's voice when podcasts.voice_b isn't set, per text-to-speech provider (the first's is voice.tts_voice)
+SECOND_VOICE = {"openai": "onyx", "elevenlabs": "EXAVITQu4vr4xnSDxMKL", "deepgram": "aura-2-orion-en"}
+PAUSE_MS = {"turn": 450, "same": 250}  # silence before a line: when the other host speaks, and when the same one goes on
 LENGTHS = (5, 10, 20)  # minutes offered; anything from 1 to podcasts.max_minutes goes
 STYLES = {
     "deep-dive": "A deep dive: build understanding step by step, with concrete examples and one or two analogies.",
@@ -67,7 +78,7 @@ def selected_recordings(sel):
 
 
 # ---------- options ----------
-def options(cfg, length=None, style=None, prompt=None):
+def options(cfg, length=None, style=None, prompt=None, voices=None):
     p = cfg.get("podcasts") or {}
     length = 10 if length is None else int(length)
     if not 1 <= length <= int(p.get("max_minutes") or 30):
@@ -78,7 +89,13 @@ def options(cfg, length=None, style=None, prompt=None):
     prompt = (prompt or "").strip()
     if len(prompt) > 2000:
         raise Problem("keep the prompt under 2000 characters")
-    return {"length": length, "style": style, "prompt": prompt or None}
+    picked = {}
+    for k, v in (voices or {}).items():
+        if k not in ("a", "b") or not isinstance(v, str) or len(v.strip()) > 100:
+            raise Problem("voices are {a, b}: a voice's name or id for each host")
+        if v.strip():
+            picked[k] = v.strip()
+    return store.clean({"length": length, "style": style, "prompt": prompt or None, "voices": picked or None})
 
 
 def hosts(cfg):
@@ -127,13 +144,15 @@ def target(db, cfg, source_spaces, roles, admin):
 
 
 # ---------- starting ----------
-def create(db, cfg, selection, by=None, roles=None, admin=False, readable=None, prompt=None, length=None, style=None, title=None):
+def create(
+    db, cfg, selection, by=None, roles=None, admin=False, readable=None, prompt=None, length=None, style=None, title=None, voices=None
+):
     """A new episode about what was picked, queued to be made. Returns {episode, job, namespace, placed}.
 
     `roles` ({space: role}) and `admin` decide where it may go; `readable` (None: everything) bounds the sources it may
     read, and is kept for the job. Callers check the person may read every picked recording first."""
     sel = clean_selection(selection)
-    opts = options(cfg, length, style, prompt)
+    opts = options(cfg, length, style, prompt, voices)
     rids = selected_recordings(sel)
     rows = db.rows("SELECT record::id(id) AS id, space, title FROM recording WHERE id IN $ids", ids=[R("recording", r) for r in rids])
     if len(rows) != len(rids):
@@ -224,11 +243,13 @@ def step(db, cfg, rid, say, spec=None):
         raise ValueError(f"a podcast step's stage is one of {', '.join(STAGES)}")
     if not db.one("SELECT id FROM $r", r=R("podcast", rid)):
         raise jobs.Skip("this resource isn't a podcast episode")
-    if stage != "gather" and stage != "publish" and not llm.configured(cfg):
+    if stage in ("plan", "write", "check") and not llm.configured(cfg):
         raise Problem("no LLM is configured (Settings → Models)")
     _save(db, rid, status=STATUS[stage], error=None)
     try:
-        {"gather": gather, "plan": plan, "write": write, "check": check, "publish": publish}[stage](db, cfg, rid, say)
+        {"gather": gather, "plan": plan, "write": write, "check": check, "audio": audio, "publish": publish}[stage](db, cfg, rid, say)
+    except jobs.Skip:
+        raise
     except Exception as e:
         _save(db, rid, status="failed", error=f"{STAGE_NAMES[stage]}: {e}"[:500])
         raise
@@ -351,7 +372,7 @@ def gather(db, cfg, rid, say):
     req = p["request"]
     readable = set(p["readable"]) if p.get("readable") is not None else None
     sources = resolve(db, cfg, req["selection"], req.get("prompt"), readable)
-    _save(db, rid, sources=sources, outline=None, lines=None, checks=None)
+    _save(db, rid, sources=sources, outline=None, lines=None, checks=None, audio=None)
     say(f"gathered {len(sources)} excerpt(s) from {len({s['ref']['recording'] for s in sources})} source(s)")
 
 
@@ -680,8 +701,81 @@ def timed(lines, wpm=150, pause_ms=400):
     return out
 
 
+def voices(cfg, req=None):
+    """{a, b}: the hosts' voices for the text-to-speech provider: what the episode asked for, else podcasts.voice_a /
+    voice_b, else voice.tts_voice and a second voice of the provider's."""
+    from . import speech
+
+    v, p = cfg.get("voice") or {}, cfg.get("podcasts") or {}
+    provider = v.get("tts_provider") or "openai"
+    first = {"openai": v.get("tts_voice") or "alloy", "elevenlabs": v.get("tts_voice") or speech.ELEVENLABS_VOICE}.get(
+        provider, v.get("tts_model") or speech.DEEPGRAM_TTS_MODEL
+    )
+    asked = (req or {}).get("voices") or {}
+    return {"a": asked.get("a") or p.get("voice_a") or first, "b": asked.get("b") or p.get("voice_b") or SECOND_VOICE.get(provider, first)}
+
+
+def folder(cfg, rid):
+    """Where an episode's audio and the clips it's made of are kept."""
+    return pathlib.Path(cfg["data_dir"]) / "podcasts" / str(int(rid))
+
+
+def audio(db, cfg, rid, say):
+    """Each line read aloud in its host's voice (clips are kept, so lines that didn't change aren't read again), joined
+    with short pauses, its loudness evened out, and kept as the episode's audio. Without text to speech it stays a
+    script."""
+    from . import audio_mix, keyring, speech
+
+    if not speech.tts_ready(cfg):
+        raise jobs.Skip("no text to speech is set up (Settings → Voice), so the episode stays a script")
+    p = get_row(db, rid)
+    lines = p.get("lines") or []
+    if not lines:
+        raise Problem("there's no script to read")
+    v = cfg.get("voice") or {}
+    provider = v.get("tts_provider") or "openai"
+    who = voices(cfg, p["request"])
+    sid = p["space"]
+    clips_dir = folder(cfg, rid) / "clips"
+    clips, made = [], 0
+    for k, l in enumerate(lines):
+        voice = who[l["speaker"]]
+        key = _hash(f"{provider}|{v.get('tts_model')}|{voice}|{l['text']}")
+        clip = clips_dir / f"{key}.mp3"
+        if clip.is_file():
+            data = keyring.read_plain(db, cfg, clip)
+        else:
+            try:
+                data, _ = speech.speak(cfg, l["text"], voice=voice)
+            except speech.ProviderError as e:
+                raise Problem(f"text to speech failed on line {k + 1}: {e}") from None
+            keyring.keep(db, cfg, sid, clip, data)
+            made += 1
+        clips.append(audio_mix.decode(data))
+        l["audio"] = key
+        if (k + 1) % 10 == 0:
+            say(f"read {k + 1} of {len(lines)} lines aloud")
+    pauses = [0] + [PAUSE_MS["same" if lines[k]["speaker"] == lines[k - 1]["speaker"] else "turn"] for k in range(1, len(lines))]
+    samples, spans = audio_mix.join(clips, pauses)
+    data, ext, ctype = audio_mix.encode(samples)
+    out = folder(cfg, rid) / f"episode.{ext}"
+    for old in folder(cfg, rid).glob("episode.*"):
+        if old != out:
+            old.unlink(missing_ok=True)
+    keyring.keep(db, cfg, sid, out, data)
+    for l, (t0, t1) in zip(lines, spans):
+        l["t0"], l["t1"] = t0, t1
+    keep = {l["audio"] for l in lines}
+    for f in clips_dir.glob("*.mp3"):  # clips of lines the script no longer has
+        if f.stem not in keep:
+            f.unlink(missing_ok=True)
+    meta = {"path": str(out), "type": ctype, "duration_ms": spans[-1][1], "provider": provider, "voices": who}
+    _save(db, rid, lines=lines, audio=meta)
+    say(f"recorded {len(lines)} line(s) ({made} new) in {store.tc(spans[-1][1])}")
+
+
 def publish(db, cfg, rid, say):
-    from . import ingest, speakers as spk
+    from . import ingest, keyring, speakers as spk
 
     p = get_row(db, rid)
     lines = p.get("lines") or []
@@ -689,27 +783,28 @@ def publish(db, cfg, rid, say):
         raise Problem("there's no script to publish")
     names = p["request"].get("hosts") or hosts(cfg)
     wpm = int((cfg.get("podcasts") or {}).get("words_per_minute") or 150)
-    segs = [{"t0": t0, "t1": t1, "text": l["text"], "speaker": names[l["speaker"]]} for l, (t0, t1) in zip(lines, timed(lines, wpm))]
+    sound = p.get("audio") if (p.get("audio") or {}).get("path") and all("t0" in l for l in lines) else None
+    spans = [(l["t0"], l["t1"]) for l in lines] if sound else timed(lines, wpm)
+    segs = [{"t0": t0, "t1": t1, "text": l["text"], "speaker": names[l["speaker"]]} for l, (t0, t1) in zip(lines, spans)]
     rec = db.one("SELECT space, title FROM $r", r=R("recording", rid))
     title = ((p.get("outline") or {}).get("title") or "").strip()
-    ingest.write_transcript(
-        db,
-        rid,
-        rec["space"],
-        segs,
-        store.clean(
-            {
-                "title": title[:200] if title else rec.get("title"),
-                "duration_ms": segs[-1]["t1"],
-                "language": None,
-                "status": "transcribed",
-                "transcribed_at": store.now(),
-            }
-        ),
-    )
+    patch = {
+        "title": title[:200] if title else rec.get("title"),
+        "duration_ms": segs[-1]["t1"],
+        "status": "transcribed",
+        "transcribed_at": store.now(),
+        "source": "audio" if sound else "transcript",
+        "path": sound["path"] if sound else f"podcast:{rid}",
+    }
+    if sound:
+        patch["channels"] = 1
+        patch["envelope"] = ingest.envelope(ingest.decode(keyring.working_copy(db, cfg, sound["path"])))
+    ingest.write_transcript(db, rid, rec["space"], segs, store.clean(patch))
+    if not sound:  # an episode made again without voices: no waveform of the old audio
+        db.q("UPDATE $r SET envelope = NONE, channels = NONE", r=R("recording", rid))
     spk.assign_labels(db, rec["space"], rid, {v: v for v in {s["speaker"] for s in segs}})
-    _save(db, rid, status="script_only")
-    say(f"published {len(segs)} line(s) as the episode's transcript")
+    _save(db, rid, status="ready" if sound else "script_only")
+    say(f"published {len(segs)} line(s) as the episode's transcript" + (" with its audio" if sound else ""))
 
 
 # ---------- views ----------
@@ -733,6 +828,7 @@ def view(db, rid):
             "lines": lines,
             "checks": p.get("checks") or [],
             "templates": p.get("templates"),
+            "audio": {k: v for k, v in (p.get("audio") or {}).items() if k != "path"} or None,
             "duration_ms": rec.get("duration_ms"),
             "created_at": p.get("created_at"),
             "updated_at": p.get("updated_at"),

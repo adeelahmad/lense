@@ -181,6 +181,7 @@ def delete(db, cfg, rid, by=None):
     notebook.release(db, f"recording:{rid}")
     shutil.rmtree(video.frames_dir(cfg, rid), ignore_errors=True)
     shutil.rmtree(filemod.folder(cfg, rid), ignore_errors=True)
+    shutil.rmtree(pathlib.Path(cfg["data_dir"]) / "podcasts" / str(int(rid)), ignore_errors=True)  # an episode's audio
     for f in files:
         f.unlink(missing_ok=True)
     orphans(db, speakers, faces)

@@ -3,9 +3,16 @@ fact-check rewrites or drops what they don't support, and the episode is a recor
 
 from __future__ import annotations
 
+import http.server
+import io
+import json
+import threading
+import wave
+
+import numpy as np
 import pytest
 
-from app.domain import auth, jobs, podcasts, search, settings, store, templates
+from app.domain import audio_mix, auth, jobs, keyring, podcasts, search, settings, store, templates
 from tests import fake_llm
 from tests.helpers import drain, make_user, seed
 
@@ -40,9 +47,10 @@ def test_selection_is_cleaned():
 
 
 def test_options_are_checked(cfg):
-    assert podcasts.options(cfg) == {"length": 10, "style": "deep-dive", "prompt": None}
+    assert podcasts.options(cfg) == {"length": 10, "style": "deep-dive"}
+    assert podcasts.options(cfg, voices={"a": " af_heart ", "b": ""})["voices"] == {"a": "af_heart"}
     assert podcasts.options(cfg, 5, "beginner", "  explain it simply ")["prompt"] == "explain it simply"
-    for bad in ({"length": 0}, {"length": 31}, {"style": "opera"}, {"prompt": "x" * 2001}):
+    for bad in ({"length": 0}, {"length": 31}, {"style": "opera"}, {"prompt": "x" * 2001}, {"voices": {"c": "x"}}, {"voices": {"a": 3}}):
         with pytest.raises(podcasts.Problem):
             podcasts.options(cfg, **bad)
 
@@ -188,6 +196,7 @@ def test_episode_is_made_by_a_job(db, cfg, folder, llm):
         "planning",
         "writing",
         "fact-checking",
+        "recording the voices",
         "publishing",
         "analyze",
         "embed",
@@ -312,3 +321,99 @@ def test_settings(db, cfg):
     for bad in ({"context_chars": 10}, {"namespace": "Bad Name"}, {"host_a": ""}, {"max_minutes": 0}, {"voices": 1}):
         with pytest.raises(ValueError):
             settings.save(db, cfg, "podcasts", bad, "test")
+
+
+# ---------- audio ----------
+class Tts(http.server.BaseHTTPRequestHandler):
+    """An OpenAI-compatible /audio/speech that answers with a WAV of 10 ms per character."""
+
+    seen: list = []
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        Tts.seen.append(body)
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(16000)
+            n = 160 * len(body["input"])
+            w.writeframes((0.2 * np.sin(np.arange(n) / 8) * 32767).astype(np.int16).tobytes())
+        data = buf.getvalue()
+        self.send_response(200)
+        self.send_header("Content-Type", "audio/wav")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, *a):
+        pass
+
+
+@pytest.fixture
+def tts(cfg):
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Tts)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    Tts.seen = []
+    cfg["voice"].update(tts_base_url=f"http://127.0.0.1:{srv.server_address[1]}/v1", tts_model="kokoro", tts_voice="af_heart")
+    yield Tts
+    srv.shutdown()
+
+
+def test_joining_clips_times_each_one():
+    sr = audio_mix.SR
+    samples, spans = audio_mix.join([np.ones(sr), np.ones(sr // 2), np.ones(sr)], [0, 500, 250])
+    assert len(samples) == sr + sr // 2 + sr // 2 + sr // 4 + sr
+    assert spans == [(0, 1000), (1500, 2000), (2250, 3250)]
+    assert samples[sr + 10] == 0 and samples[-1] == 1
+
+
+def test_episode_gets_two_voices(db, cfg, folder, llm, tts):
+    a, _b, _c = seed(db, cfg, folder)
+    _uid, roles = _admin(db)
+    out = podcasts.create(db, cfg, {"recordings": [a]}, roles=roles, admin=True)
+    rid = out["episode"]
+    drain(db, cfg)
+    assert jobs.get(db, out["job"])["status"] == "succeeded"
+    ep = podcasts.view(db, rid)
+    assert ep["status"] == "ready" and ep["audio"]["voices"] == {"a": "af_heart", "b": "onyx"} and "path" not in ep["audio"]
+    # each line is read in its host's voice
+    said = {b["input"]: b["voice"] for b in tts.seen}
+    assert said["Welcome back to the show."] == "af_heart" and said["So what did Dyno Therapeutics build?"] == "onyx"
+    assert len(tts.seen) == len(ep["lines"])
+    # the transcript's times are where each line is in the audio, with a pause between lines
+    segs = db.rows("SELECT idx, t0, t1, text FROM segment WHERE recording = $r ORDER BY idx", r=rid)
+    assert [(s["t0"], s["t1"]) for s in segs] == [(line["t0"], line["t1"]) for line in ep["lines"]]
+    assert segs[0]["t0"] == 0 and segs[1]["t0"] - segs[0]["t1"] == podcasts.PAUSE_MS["turn"]
+    assert abs((segs[0]["t1"] - segs[0]["t0"]) - 10 * len(segs[0]["text"])) <= 2
+    rec = db.one("SELECT source, path, duration_ms, envelope, channels FROM $r", r=R("recording", rid))
+    assert rec["source"] == "audio" and rec["channels"] == 1 and rec["envelope"] and rec["duration_ms"] == segs[-1]["t1"]
+    assert rec["path"].startswith(str(podcasts.folder(cfg, rid))) and rec["path"].endswith(".mp3")
+    played = audio_mix.decode(keyring.read_plain(db, cfg, rec["path"]))
+    assert abs(len(played) / audio_mix.SR * 1000 - rec["duration_ms"]) < 150
+    # made again with the same script: the clips are reused, not read aloud again
+    tts.seen.clear()
+    podcasts.regenerate(db, rid)
+    drain(db, cfg)
+    assert tts.seen == [] and podcasts.view(db, rid)["status"] == "ready"
+    # without text to speech it's a script again, timed at a speaking pace
+    cfg["voice"].update(tts_model=None)
+    podcasts.regenerate(db, rid)
+    drain(db, cfg)
+    rec = db.one("SELECT source, path, envelope FROM $r", r=R("recording", rid))
+    assert podcasts.view(db, rid)["status"] == "script_only" and rec["source"] == "transcript" and rec.get("envelope") is None
+    # deleting the episode deletes its audio
+    from app.domain import deletion
+
+    deletion.delete(db, cfg, rid)
+    assert not podcasts.folder(cfg, rid).exists()
+
+
+def test_tts_failure_fails_the_job(db, cfg, folder, llm):
+    a, _b, _c = seed(db, cfg, folder)
+    _uid, roles = _admin(db)
+    cfg["voice"].update(tts_base_url="http://127.0.0.1:9/v1", tts_model="kokoro")
+    out = podcasts.create(db, cfg, {"recordings": [a]}, roles=roles, admin=True)
+    drain(db, cfg)
+    assert "text to speech failed on line 1" in jobs.get(db, out["job"])["error"]
+    assert podcasts.view(db, out["episode"])["error"].startswith("recording the voices: ")

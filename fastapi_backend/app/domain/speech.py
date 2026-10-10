@@ -450,18 +450,19 @@ def tts_ready(cfg):
     return p in TTS_PROVIDERS and bool(_key(cfg, p))
 
 
-def speak(cfg, text):
-    """The text read aloud as (bytes, media type), by the voice settings' provider. Raises ProviderError."""
+def speak(cfg, text, voice=None):
+    """The text read aloud as (bytes, media type), by the voice settings' provider, in `voice` (else voice.tts_voice;
+    for Deepgram the voice is its model). Raises ProviderError."""
     v = cfg.get("voice") or {}
     p = v.get("tts_provider") or "openai"
     text = text[:4000]
     if p == "elevenlabs":
         m = v.get("tts_model") or ELEVENLABS_TTS_MODEL
-        url = f"{base_url(cfg, 'elevenlabs')}/v1/text-to-speech/{urllib.parse.quote(v.get('tts_voice') or ELEVENLABS_VOICE, safe='')}?output_format=mp3_44100_128"
+        url = f"{base_url(cfg, 'elevenlabs')}/v1/text-to-speech/{urllib.parse.quote(voice or v.get('tts_voice') or ELEVENLABS_VOICE, safe='')}?output_format=mp3_44100_128"
         headers = {"Content-Type": "application/json", "xi-api-key": _key(cfg, "elevenlabs"), "Accept": "audio/mpeg"}
         body = {"text": text, "model_id": m}
     elif p == "deepgram":
-        m = v.get("tts_model") or DEEPGRAM_TTS_MODEL
+        m = voice or v.get("tts_model") or DEEPGRAM_TTS_MODEL
         url = f"{base_url(cfg, 'deepgram')}/v1/speak?" + urllib.parse.urlencode({"model": m, "encoding": "mp3"})
         headers = {"Content-Type": "application/json", "Authorization": f"Token {_key(cfg, 'deepgram')}"}
         body = {"text": text}
@@ -471,7 +472,7 @@ def speak(cfg, text):
         key = v.get("tts_api_key") or (cfg["llm"].get("api_key") if not v.get("tts_base_url") else None)
         url = base + "/audio/speech"
         headers = {"Content-Type": "application/json", **({"Authorization": f"Bearer {key}"} if key else {})}
-        body = {"model": m, "input": text, "voice": v.get("tts_voice") or "alloy", "response_format": "mp3"}
+        body = {"model": m, "input": text, "voice": voice or v.get("tts_voice") or "alloy", "response_format": "mp3"}
     with _ledger("model.speech", cfg, f"{p}:{m}", {"chars": len(text)}):
         data, ctype = _request(url, data=json.dumps(body).encode(), headers=headers, timeout=60)
     return data, ctype if ctype and ctype.startswith("audio/") else "audio/mpeg"

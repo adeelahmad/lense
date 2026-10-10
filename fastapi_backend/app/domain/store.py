@@ -300,11 +300,14 @@ DEFAULTS = {
     },
     # podcast episodes made from what someone picked (domain/podcasts.py): where they go, the hosts' names, how much
     # source text the model reads (characters), the longest episode (minutes), the speaking pace, and a model for
-    # its LLM calls (null: llm.model)
+    # its LLM calls (null: llm.model). voice_a and voice_b are the hosts' text-to-speech voices (null: voice.tts_voice,
+    # and a second voice of the provider's)
     "podcasts": {
         "namespace": "podcasts",
         "host_a": "Alex",
         "host_b": "Sam",
+        "voice_a": None,
+        "voice_b": None,
         "context_chars": 24000,
         "max_minutes": 30,
         "words_per_minute": 150,

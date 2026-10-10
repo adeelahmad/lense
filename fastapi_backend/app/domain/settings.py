@@ -562,11 +562,11 @@ def _podcast_setting(key, value):
         if not (isinstance(value, str) and 0 < len(value.strip()) <= 40):
             raise ValueError(f"podcasts.{key} is a name of up to 40 characters")
         return value.strip()
-    if key == "model":
+    if key in ("model", "voice_a", "voice_b"):
         if value in (None, ""):
             return None
         if not (isinstance(value, str) and len(value.strip()) <= 200):
-            raise ValueError("podcasts.model is a model's name")
+            raise ValueError(f"podcasts.{key} is a name")
         return value.strip()
     raise ValueError(f"unknown setting podcasts.{key}")
 

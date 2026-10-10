@@ -22,7 +22,7 @@ default; stale citations are marked, never auto-regenerated.
 Todo:
 
 - [x] Backend script pipeline: selection (recordings, passages), plan, write, fact-check, publish as a transcript
-- [ ] Audio: per-line TTS with two voices, stitch with pauses, loudness, store as the recording's media
+- [x] Audio: per-line TTS with two voices, stitch with pauses, loudness, store as the recording's media
 - [ ] REST API and MCP `create_podcast`
 - [ ] Web: Create podcast dialog, progress, episode page with citations
 - [ ] Phase 2: cross-page selection tray (search hits, topics, notes, graph), context expansion, connections

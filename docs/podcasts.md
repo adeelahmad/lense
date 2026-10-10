@@ -1,7 +1,7 @@
 # Podcasts
 
-**Status: in progress.** The backend that writes a cited, fact-checked script is built. Audio, the API, MCP tools and
-the web app's dialog and episode page are planned (see the [dev log](https://github.com/adeelahmad/lense/blob/main/DEVLOG.md)).
+**Status: in progress.** The backend that writes a cited, fact-checked script and records it in two voices is built.
+The API, MCP tools and the web app's dialog and episode page are planned (see the [dev log](https://github.com/adeelahmad/lense/blob/main/DEVLOG.md)).
 
 Pick resources (and passages in them) and Lens makes a two-host learning episode about them: one host explains, the
 other asks the questions a smart learner would ask, with analogies and a recap. Every claim in the script cites the
@@ -29,7 +29,8 @@ One job on the episode's recording, one step per stage, visible in Activity and 
 | planning | The model outlines the episode: key ideas, learner questions, 2 to 4 connections between excerpts and a recap, each tied to excerpt numbers. |
 | writing | The model writes the script as lines of `{speaker, kind, text, citations}`. Citations to excerpts it wasn't given are dropped. |
 | fact-checking | Every claim and recap line is checked against the excerpts it cites. A partly supported line takes the checker's correction; an unsupported one is rewritten once and checked again, or dropped, as is a claim with no citation. Every change is recorded. |
-| publishing | The lines become the recording's transcript, timed at `podcasts.words_per_minute`. |
+| recording the voices | Each line is read aloud in its host's voice by the [text-to-speech provider](speech-providers.md) (Settings › Voice: an OpenAI-compatible server such as a local Kokoro, ElevenLabs or Deepgram), the clips are joined with short pauses, and the loudness is evened out (-16 LUFS) into one MP3. Clips are kept, so making an episode again only reads changed lines. Without text to speech this stage is skipped and the episode stays a script. |
+| publishing | The lines become the recording's transcript, timed where each line is in the audio (or at `podcasts.words_per_minute` without audio), and the audio becomes the recording's media. |
 
 Then the usual analyze, embed and summarize steps run. Workers run podcast steps when their `workers.steps` list has
 `podcast` (or `llm`).
@@ -50,10 +51,13 @@ change what every later episode is asked; each episode records which versions ma
 | `podcasts.max_minutes` | 30 | The longest episode someone can ask for |
 | `podcasts.words_per_minute` | 150 | Speaking pace, for the script's length and its timing |
 | `podcasts.model` | none | A model for the podcast's LLM calls (none: `llm.model`) |
+| `podcasts.voice_a`, `podcasts.voice_b` | none | The hosts' voices (none: `voice.tts_voice` for A, and onyx, ElevenLabs' Sarah or Deepgram's aura-2-orion-en for B) |
 
 ## Privacy and cost
 
-The LLM calls go to the configured model (`llm`), so nothing leaves the machine unless that is a cloud model. Their
+The LLM calls go to the configured model (`llm`) and the voices to the text-to-speech provider, so nothing leaves the
+machine unless one of them is a cloud service. The audio and its clips are kept under `data_dir/podcasts/<id>`,
+encrypted with the namespace's key when encryption at rest is on. Their
 cost lands in the activity ledger against the episode and its namespace, and a namespace's [budget](budgets.md) holds
 the job when it's over.
 
