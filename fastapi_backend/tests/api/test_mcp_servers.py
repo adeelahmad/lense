@@ -159,3 +159,81 @@ def test_a_plugins_mcp_servers_come_with_an_admin_install(app, db, cfg, folder, 
     # someone else: the servers are left out, and with nothing else in it, nothing to install
     no = c.post("/api/v1/extensions/import", headers=h, json={"url": "acme/kit", "preview": True})
     assert no.status_code == 400 and "only admins add MCP servers" in no.json()["detail"]
+
+
+FAKE_STDIO = r"""
+import json, sys
+for line in sys.stdin:
+    m = json.loads(line)
+    if "id" not in m:
+        continue
+    if m["method"] == "initialize":
+        r = {"protocolVersion": "2025-06-18", "capabilities": {"tools": {}}, "serverInfo": {"name": "fake"}}
+    elif m["method"] == "tools/list":
+        r = {"tools": [{"name": "echo", "description": "Say it back", "inputSchema": {"type": "object"}, "annotations": {"readOnlyHint": True}}]}
+    elif m["method"] == "tools/call":
+        if m["params"]["arguments"].get("die"):
+            sys.exit(3)
+        r = {"content": [{"type": "text", "text": "echo " + json.dumps(m["params"]["arguments"]) + " " + sys.argv[1]}]}
+    else:
+        print(json.dumps({"jsonrpc": "2.0", "id": m["id"], "error": {"code": -32601, "message": "no"}}), flush=True)
+        continue
+    print(json.dumps({"jsonrpc": "2.0", "id": m["id"], "result": r}), flush=True)
+"""
+
+
+@pytest.fixture
+def runner(tmp_path, monkeypatch):
+    """The MCP runner (mcp-runner/runner.py) on a free port, and Lens told where it is."""
+    import importlib.util
+    import pathlib
+    import sys
+    import threading
+
+    path = pathlib.Path(__file__).resolve().parents[3] / "mcp-runner" / "runner.py"
+    spec = importlib.util.spec_from_file_location("lens_mcp_runner", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.HOME = str(tmp_path / "home")
+    srv = mod.serve(0, token="secret-token")
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    (tmp_path / "token").write_text("secret-token")
+    monkeypatch.setenv("LENS_MCP_RUNNER_URL", f"http://127.0.0.1:{srv.server_address[1]}")
+    monkeypatch.setenv("LENS_MCP_TOKEN_FILE", str(tmp_path / "token"))
+    script = tmp_path / "fake_mcp.py"
+    script.write_text(FAKE_STDIO)
+    yield {"mod": mod, "command": sys.executable, "args": ["-I", str(script), "hi"]}
+    for s in mod.SERVERS.values():
+        s.stop()
+    mod.SERVERS.clear()
+    srv.shutdown()
+
+
+def test_a_server_that_runs_as_a_program_runs_in_the_runner(app, db, cfg, folder, new_client, runner, monkeypatch):
+    s = Assist(app, db, cfg, folder, new_client)
+    ca, ha = s.cl["admin"]
+    manifest = {"name": "echoer", "kind": "mcp", "command": runner["command"], "args": runner["args"], "env": {"X": "1"}}
+    eid = ca.post("/api/v1/extensions", headers=ha, json={"manifest": manifest}).json()["id"]
+    got = ca.get(f"/api/v1/extensions/{eid}", headers=ha).json()
+    assert [t["name"] for t in got["spec"]["tools"]] == ["echo"] and got["spec"]["command"] == runner["command"]
+    run = lambda args: ca.post(f"/api/v1/extensions/{eid}/test", headers=ha, json={"tool": "echoer__echo", "args": args})  # noqa: E731
+    assert run({"a": 1}).json()["output"] == {"text": 'echo {"a": 1} hi'}
+    # one process, initialized once, kept between uses
+    (server,) = runner["mod"].SERVERS.values()
+    pid = server.proc.pid
+    assert run({"b": 2}).json()["output"]["text"].startswith('echo {"b": 2}') and server.proc.pid == pid
+    # it stops: the answer says so, and the next use starts it again
+    assert "stopped" in run({"die": True}).json()["detail"]
+    assert run({"c": 3}).json()["output"]["text"].startswith('echo {"c": 3}') and server.proc.pid != pid
+
+    # the runner wants its token
+    import urllib.request
+
+    req = urllib.request.Request(f"{runner['mod'].os.environ['LENS_MCP_RUNNER_URL']}/servers/x", data=b"{}", method="PUT")
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(req, timeout=5)
+    assert e.value.code == 401
+    # without the runner, such a server can't be added
+    monkeypatch.delenv("LENS_MCP_RUNNER_URL")
+    no = ca.post("/api/v1/extensions", headers=ha, json={"manifest": {**manifest, "name": "other"}})
+    assert no.status_code == 400 and "COMPOSE_PROFILES=mcp" in no.json()["detail"]

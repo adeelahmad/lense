@@ -159,8 +159,9 @@ shared with namespaces (admins can share with everyone), and switched on or off 
 - **MCP server** (admins add them): a server that speaks the Model Context Protocol over Streamable HTTP, at the
   address an admin gives (this machine and the local network included, as for the model's address), with the headers
   it needs (a token). Lens lists its tools when it's saved, and the assistant calls them as `<server>__<tool>`: one the
-  server marks read-only answers at once, the others ask for approval. Servers that run as a program (stdio) aren't
-  run.
+  server marks read-only answers at once, the others ask for approval. A server that runs as a program (stdio:
+  `command`, `args` and `env` instead of an address, as in Claude's `.mcp.json`, usually `npx` or `uvx`) runs in the
+  MCP runner, below.
 - **Plugin**: a bundle of tools, skills, hooks and MCP servers, shared and switched off as one.
 
 Make one however suits you:
@@ -206,8 +207,21 @@ version. A skill (a folder with SKILL.md) is a skill, and the assistant reads it
 scripts) when the instructions point at them; nothing in them runs. A command (`commands/*.md`) is a skill the
 assistant follows when someone asks for it, and an agent (`agents/*.md`) is a prompt tool with the agent's instructions
 as its system prompt. Claude Code's hooks run commands on the computer, so they're left out. A plugin's MCP servers on
-the network (`.mcp.json`) come along when an admin installs it; those that run as a program are left out. Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
+the network (`.mcp.json`) come along when an admin installs it, and those that run as a program too when the MCP
+runner is on (ones that run a program shipped inside the plugin are left out). Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
 tools: public addresses only.
+
+### The MCP runner
+
+MCP servers that run as a program run in a container of their own, the MCP runner
+([`mcp-runner/`](https://github.com/adeelahmad/lense/tree/main/mcp-runner)), never next to Lens. It's off until you
+turn it on: add `COMPOSE_PROFILES=mcp` to Lens's `.env` and run the install command again (or
+`docker compose --profile mcp up -d`). The container is the sandbox: it has none of Lens's data, keys or database, runs
+as an unprivileged user with every capability dropped, a read-only image and memory and process limits, and shares a
+network only with Lens's backend (and the internet, which `npx` and `uvx` need to fetch the servers). Each server gets
+an empty folder as its home and only the environment its extension gives it; Lens talks to the runner over HTTP with
+a token the runner writes to a volume only the two share. A server starts on first use, stays up while it's used,
+and stops after 15 idle minutes. Installs that don't run on Docker don't have the runner yet.
 
 `ai.extensions: false` turns every extension off.
 

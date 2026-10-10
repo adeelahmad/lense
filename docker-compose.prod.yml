@@ -60,6 +60,9 @@ x-backend: &backend
     LENS_TELEMETRY_HEADERS: ${LENS_TELEMETRY_HEADERS:-}
     # the volume shared with the matterbridge service (its config, written from Settings → Chat rooms)
     LENS_MATTERBRIDGE_DIR: /matterbridge
+    # the MCP runner (the optional `mcp` service, docs/assistant.md): MCP servers that run as a program, sandboxed there
+    LENS_MCP_RUNNER_URL: http://mcp:8090
+    LENS_MCP_TOKEN_FILE: /mcp-key/token
     # upgrading from the web app (docs/updates.md): the folder install.sh's upgrade agent watches, and the install folder
     LENS_CONTROL_DIR: /control
     LENS_HOST_DIR: ${LENS_DIR:-}
@@ -68,11 +71,12 @@ x-backend: &backend
     - ./.lens-control:/control
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
     - matterbridge-data:/matterbridge
+    - mcp-key:/mcp-key:ro
   depends_on:
     surrealdb:
       condition: service_healthy
   restart: unless-stopped
-  networks: [lens]
+  networks: [lens, mcp]
 
 services:
   surrealdb:
@@ -139,6 +143,26 @@ services:
     restart: unless-stopped
     networks: [lens]
 
+  # The MCP runner (mcp-runner/runner.py, docs/assistant.md): MCP servers that run as a program (stdio, usually npx or
+  # uvx), which admins add as extensions. Opt-in: `docker compose --profile mcp up -d`, or COMPOSE_PROFILES=mcp in .env.
+  # The sandbox: none of Lens's data or keys, no capabilities, a read-only image, and a network shared only with the
+  # backend (and the internet).
+  mcp:
+    image: lens-mcp:${LENS_VERSION:-prod}
+    build: ./mcp-runner
+    profiles: [mcp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 2g
+    pids_limit: 512
+    volumes:
+      - mcp-data:/data
+      - mcp-key:/key
+    restart: unless-stopped
+    networks: [mcp]
+
   # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
   # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
   # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
@@ -172,10 +196,14 @@ services:
 volumes:
   surreal-data:
   matterbridge-data:
+  mcp-data:
+  mcp-key:
   archive-data:
   fedora-data:
   opensearch-data:
 
 networks:
   lens:
+    driver: bridge
+  mcp:
     driver: bridge
