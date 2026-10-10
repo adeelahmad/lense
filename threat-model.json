@@ -1039,6 +1039,14 @@
       "source": "domain/flow.py docstring \"Graphs never loop back\""
     },
     {
+      "property": "P-BROWSER",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "the assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected; only they see and answer that session's actions; ai.browser off turns it off",
+      "provenance": "documented",
+      "source": "docs/browser-assistant.md \"Only you\""
+    },
+    {
       "property": "MX-AUTHZ-LIST-CAPS",
       "violation_symptom": "x-cap-exceeded",
       "severity_tier": "correctness",

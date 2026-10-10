@@ -56,6 +56,7 @@ EDITABLE = {
     "encryption": None,
     "fedora": None,
     "tunnel": None,
+    "https": None,
     # bind is a startup setting only
     "sensors": (
         "enabled",
@@ -125,6 +126,7 @@ SECRETS = {
     "telemetry": ("headers", "prometheus_token"),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
+    "https": ("dns_credentials", "eab_hmac_key"),
     "documents": ("anytopdf_token",),
 }
 ENUMS = {
@@ -155,6 +157,8 @@ ENUMS = {
     ("mailbox", "check"): {"authenticated", "off"},
     ("mailbox", "imports"): {"auto", "ask"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
+    ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
+    ("https", "challenge"): {"http", "tls-alpn", "dns"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
 }
@@ -393,6 +397,10 @@ def _check(section, key, value, default):
     if (section, key) == ("ai", "context_tokens"):
         if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1024 <= value <= 2_000_000):
             raise ValueError("ai.context_tokens is a whole number of tokens from 1024 to 2000000")
+        return value
+    if (section, key) == ("ai", "browser_steps"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
+            raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
         return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
@@ -1145,6 +1153,10 @@ def save(db, base, section, changes, user=None):
                     raise ValueError(f"matterbridge.{k} is one line of text")
                 if (section, k) in (("documents", "anytopdf_token"), ("telemetry", "prometheus_token"), ("telegram", "token")):
                     v = _check(section, k, v, None)
+                if (section, k) == ("https", "dns_credentials"):
+                    from . import https
+
+                    https.parse_credentials(v)
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"
                 raise ValueError(f"{section}.{k} must be text")
@@ -1192,6 +1204,12 @@ def save(db, base, section, changes, user=None):
 
         merged = {**(base.get("tunnel") or {}), **data, **{k: "set" for k in sealed}}
         tunnel.check({"tunnel": merged})
+    if section == "https":
+        from . import https
+
+        merged = {**(base.get("https") or {}), **data, **{k: "set" for k in sealed}}
+        merged.pop("dns_credentials", None)  # its fields aren't needed to check the rest
+        https.check({"https": merged})
     if (
         section == "server"
         and "allowed_hosts" in data

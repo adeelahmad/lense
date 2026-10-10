@@ -16,6 +16,7 @@ from app.domain import (
     channels,
     components,
     content_types,
+    https,
     jobs,
     local_llm,
     notify,
@@ -92,6 +93,7 @@ class Archive:
         sensors.start(self.db, self.current, self.stop, log=log.info, name=f"api-{os.getpid()}")
         channels.start_all(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
         tunnel.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
+        https.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         local_llm.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         updates.start(self.db, self.current, self.stop, log=log.info)
 

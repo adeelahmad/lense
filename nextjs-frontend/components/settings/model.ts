@@ -798,6 +798,21 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "browser",
+    label: "Let the assistant use a connected browser",
+    kind: "switch",
+    hint: "From the Lens extension's side panel, the assistant can open, read and click in that browser, only on sites the person allows, asking before anything that sends, deletes or buys.",
+  },
+  {
+    section: "ai",
+    key: "browser_steps",
+    label: "Tool steps when using the browser",
+    kind: "int",
+    min: 1,
+    max: 100,
+  },
+  {
+    section: "ai",
     key: "max_transcript_reads",
     label: "Transcripts read per question",
     kind: "int",

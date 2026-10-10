@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:e354393d464830259b200ebca65639b772da8a6551b593c93c18601b033fdbed"
+prose_version: "threat-model.md@sha256:990dbd7a5f9e41901b1669a577b881731ff589acbb94d807842047ef4e98d760"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1024,6 +1024,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SENSORS, effect: narrows}
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - name: "https.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "Caddy, fetched at run time, terminates TLS on 443/80 in the worker (install.sh LENS_HTTPS=1 publishes them) and proxies to the web app; DNS provider credentials go to data_dir/https/caddy.json (mode 600), not a command line"
+    affects_properties:
+      - {property_id: P-CHILD-SECRETS, effect: preserves}
+    provenance: {kind: documented, source: 'docs/https.md "Off by default"'}
   - name: "tunnel.mode, local_llm.enabled, telemetry"
     default: "off"
     security_relevant: true
@@ -1426,6 +1434,14 @@ properties_claimed:
     violation_symptoms: [hang]
     x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
     provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}
+  - id: P-BROWSER
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "the assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected; only they see and answer that session's actions; ai.browser off turns it off"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the side panel carries out what it's asked (which sites, what it asks first: the extension's); an agent with the person's write token can ask too (api/v1/routes/browser.py)"
+    provenance: {kind: documented, source: 'docs/browser-assistant.md "Only you"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]

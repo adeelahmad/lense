@@ -166,6 +166,12 @@ class MessageCreate(RequestModel):
         description="edit one of your earlier questions (its message id): it and everything after it are replaced by this "
         "question and a new answer",
     )
+    browser: str | None = Field(
+        None,
+        max_length=64,
+        description="asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the "
+        "assistant can use that browser (docs/browser-assistant.md)",
+    )
 
 
 class Approval(ResponseModel):
