@@ -59,6 +59,13 @@ affected: node_modules/.bin/nx ## Lint, type check, test and build only the proj
 
 # Run it (Docker)
 PROD_COMPOSE=$(DOCKER_COMPOSE) -f docker-compose.prod.yml
+.PHONY: clicks
+clicks: env ## Count the clicks and keystrokes each journey takes on a fresh Lens (ci/clicks), compared with the baseline
+	cd $(BACKEND_DIR) && uv sync
+	cd $(FRONTEND_DIR) && pnpm install && pnpm run build
+	cd ci/clicks && npm ci
+	ci/clicks/run.sh --compare ci/clicks/baseline.json
+
 .PHONY: run dev stop setup-code logs
 
 run: .env ## Build once and run the whole stack, no hot reload (the fast way to use it): http://localhost:3000
