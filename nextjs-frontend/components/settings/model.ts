@@ -74,6 +74,7 @@ export type SectionId =
   | "mail"
   | "bridge"
   | "telemetry"
+  | "analytics"
   | "fedora"
   | "sensors"
   | "uploads"
@@ -238,6 +239,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telemetry"],
     description:
       "Off unless you turn it on. Traces and metrics from the server and its workers, sent only to an OpenTelemetry collector you run or choose; nothing goes anywhere else.",
+  },
+  {
+    id: "analytics",
+    label: "Usage analytics",
+    backend: ["analytics"],
+    description:
+      "Active people, churn, retention and feature use, worked out on this server. Optionally, counted events for this install sent to your own Google Analytics property; off unless you turn it on.",
   },
   {
     id: "fedora",
@@ -1866,6 +1874,59 @@ export const FIELDS: FieldSpec[] = [
     max: 20,
     hint: "A failed send waits 30 seconds, then four times longer each time, up to 6 hours",
   },
+  // Usage analytics (Google Analytics opt-in)
+  {
+    section: "analytics",
+    key: "enabled",
+    label: "Send usage events to Google Analytics",
+    kind: "switch",
+    hint: "Off by default; needs the measurement id and API secret below",
+  },
+  {
+    section: "analytics",
+    key: "measurement_id",
+    label: "Measurement id",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "G-ABC123XYZ",
+    hint: "Your GA4 property’s web data stream id",
+  },
+  { section: "analytics", key: "api_secret", label: "Measurement Protocol API secret", kind: "secret" },
+  {
+    section: "analytics",
+    key: "region",
+    label: "Collection",
+    kind: "select",
+    options: [
+      { value: "global", label: "Global" },
+      { value: "eu", label: "EU only (region1.google-analytics.com)" },
+    ],
+  },
+  {
+    section: "analytics",
+    key: "events",
+    label: "Events sent",
+    kind: "checks",
+    options: [
+      { value: "lens_install", label: "Install", hint: "Analytics first runs here" },
+      { value: "lens_setup_done", label: "Setup done", hint: "The setup wizard was finished" },
+      { value: "lens_daily_active", label: "Daily active", hint: "People and actions the day before" },
+      { value: "lens_feature_used", label: "Feature used", hint: "Each feature used the day before, with counts" },
+      { value: "lens_upgrade", label: "Upgrade", hint: "From and to which version" },
+      { value: "lens_inactive", label: "Inactive", hint: "Nobody used Lens for the days below" },
+      { value: "lens_return", label: "Return", hint: "Used again after going inactive" },
+    ],
+  },
+  {
+    section: "analytics",
+    key: "inactive_days",
+    label: "Inactive after (days)",
+    kind: "int",
+    min: 1,
+    max: 365,
+    hint: "Days without anyone using Lens before it counts as churned",
+  },
   // Telemetry (opt-in)
   {
     section: "telemetry",
@@ -2397,6 +2458,9 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["tunnel.hostname"] = "Enter the public hostname, like lens.example.com";
   const tOrigin = values["tunnel.origin"] as string | undefined;
   if (tOrigin && !URL_RX.test(tOrigin)) e["tunnel.origin"] = "Use an http(s) address, such as http://frontend:3000";
+  const gaId = values["analytics.measurement_id"] as string | null | undefined;
+  if (gaId && !/^G-[A-Z0-9]{4,20}$/i.test(gaId))
+    e["analytics.measurement_id"] = "A GA4 measurement id, like G-ABC123XYZ";
   const otlp = values["telemetry.endpoint"] as string | null | undefined;
   if (otlp && !URL_RX.test(otlp)) e["telemetry.endpoint"] = "Use an http(s) address, such as http://localhost:4318";
   else if (otlp && /\/v1\/(traces|metrics)\/?$/.test(otlp))
@@ -2479,6 +2543,12 @@ export function why(c: Change): string | null {
   if (id === "transcribe.engine" || id === "transcribe.language")
     return "Applies to new transcriptions; existing transcripts stay until reprocessed.";
   if (id === "workers.inline") return "Takes effect when the server restarts.";
+  if (id === "analytics.enabled")
+    return c.after
+      ? "Once a day, counted events for this install go to your Google Analytics property."
+      : "Nothing more is sent; what was sent stays in Google Analytics.";
+  if (id === "analytics.api_secret")
+    return c.after === "" ? "The secret is removed; nothing is sent until a new one is set." : "Stored encrypted.";
   if (id === "telemetry.enabled")
     return c.after
       ? "The server and its workers start sending traces and metrics to the endpoint within a few seconds."

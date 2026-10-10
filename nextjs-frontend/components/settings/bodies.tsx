@@ -14,6 +14,7 @@ import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
+import { UsageNumbers } from "@/components/settings/usage-analytics";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import {
@@ -379,6 +380,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <StorageBody ctx={ctx} />;
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
+    case "analytics":
+      return <AnalyticsBody ctx={ctx} />;
     case "fedora":
       return <FedoraBody ctx={ctx} />;
     case "sensors":
@@ -603,6 +606,93 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
         ) : (
           <Banner tone="error" title="The test failed.">
             {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function AnalyticsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const a = ctx.view.analytics;
+  const saved = a?.values ?? {};
+  const secret = (saved.api_secret ?? {}) as { set?: boolean };
+  const apiSecret = ctx.state("analytics.api_secret");
+  const locked = a?.locked ?? [];
+  const status = useQuery({
+    queryKey: ["analytics-status", a?.updated_at ?? null],
+    queryFn: () => data(Admin.analyticsStatus({ client })),
+    refetchInterval: 60_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testAnalytics({ client })) });
+  const s = status.data;
+  const on = Boolean(saved.enabled);
+  const id = (saved.measurement_id as string | null | undefined) ?? null;
+  return (
+    <>
+      <UsageNumbers />
+      {on && s?.configured ? (
+        <Banner tone={s.last_error ? "error" : "success"} title={`On: sending to ${id}`}>
+          {s.last_error
+            ? s.last_error
+            : s.last_sent_at
+              ? `Last sent ${new Date(s.last_sent_at).toLocaleString()}: ${(s.last_sent ?? []).join(", ")}`
+              : "Nothing sent yet; the first events go with the next daily check."}
+        </Banner>
+      ) : on ? (
+        <Banner tone="error" title="On, but not set up.">
+          Set the measurement id and the API secret below; until then nothing is sent.
+        </Banner>
+      ) : (
+        <Banner title="Google Analytics is off: nothing is sent.">
+          Turn it on here, in the setup wizard or with <code className="font-mono">LENS_ANALYTICS=on</code> in .env.
+          Events go only to the GA4 property whose id and secret you set.
+        </Banner>
+      )}
+      <F ctx={ctx} id="analytics.enabled" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="analytics.measurement_id" />
+        <F ctx={ctx} id="analytics.region" />
+      </div>
+      <SecretSetting
+        key={a?.updated_at ?? "none"}
+        label={
+          locked.includes("api_secret")
+            ? "Measurement Protocol API secret (set by LENS_GA_API_SECRET in .env)"
+            : "Measurement Protocol API secret"
+        }
+        placeholder="From GA: Admin → Data streams → your stream → Measurement Protocol API secrets"
+        isSet={Boolean(secret.set)}
+        updatedBy={a?.updated_by}
+        updatedAt={a?.updated_at}
+        value={apiSecret.value as string | undefined}
+        onChange={(x) => apiSecret.onChange(x)}
+      />
+      <F ctx={ctx} id="analytics.events" />
+      <F ctx={ctx} id="analytics.inactive_days" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        What is sent, once a day: a random id for this install{s?.client_id ? ` (${s.client_id})` : ""}, the Lens
+        version and platform, and counts. Never names, emails, account ids, titles, file names, namespaces, prompts or
+        any text. In GA, the Retention report and a cohort exploration on lens_daily_active give churn across your
+        installs.
+      </p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending || !id}>
+          {test.isPending ? "Sending…" : "Send a test event"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Uses the saved settings, not your unsaved changes"
+            : "GA’s validation server checks one lens_test event without recording it"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Google Analytics accepted the test event." />
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {test.data.error ?? (test.data.messages ?? []).join(" · ")}
           </Banner>
         ))}
       {test.isError && <Banner tone="error">{test.error.message}</Banner>}
