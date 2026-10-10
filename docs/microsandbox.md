@@ -28,7 +28,8 @@ It needs hardware virtualization:
 ## How it runs
 
 microsandbox runs images but can't build them, and its sandboxes can't reach each other by name, so Lens runs as one
-sandbox named `lens`, started from the stock `python:3.12-slim-bookworm` image. Inside it,
+sandbox named `lens`, started from the stock `python:3.12-slim-bookworm` image (from Google's or Amazon's mirror of
+Docker Hub, which need no sign-in; Docker Hub itself last). Inside it,
 [`microsandbox/run.sh`](https://github.com/adeelahmad/lense/blob/main/microsandbox/run.sh) does what the Docker images
 do:
 
