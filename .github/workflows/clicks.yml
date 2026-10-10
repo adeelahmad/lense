@@ -1,0 +1,60 @@
+name: Clicks
+
+# Drives a fresh Lens through setup and its main features and counts the clicks and keystrokes each takes
+# (ci/clicks). A journey that takes more than ci/clicks/baseline.json says, or fails, turns this red; a change that
+# takes fewer updates the baseline in the same pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "nextjs-frontend/**"
+      - "fastapi_backend/app/**"
+      - "installer/**"
+      - "ci/clicks/**"
+      - ".github/workflows/clicks.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  clicks:
+    name: Clicks and keystrokes per feature
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
+          python-version: "3.12"
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: nextjs-frontend/package.json
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          cache-dependency-path: nextjs-frontend/pnpm-lock.yaml
+      - name: Install
+        run: |
+          make env
+          (cd fastapi_backend && uv sync --frozen)
+          (cd nextjs-frontend && pnpm install --frozen-lockfile && pnpm build)
+          (cd ci/clicks && npm ci && npx playwright install --with-deps chromium)
+      - name: Survey
+        run: ci/clicks/run.sh --compare ci/clicks/baseline.json --fail-on-regression
+      - name: Summary
+        if: always()
+        run: test -f ci/clicks/results/clicks.md && sed -n '1,/^## Per page/p' ci/clicks/results/clicks.md >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: clicks
+          path: ci/clicks/results/
