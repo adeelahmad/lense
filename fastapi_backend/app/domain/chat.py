@@ -265,10 +265,11 @@ def with_context(question, ctx):
 def past_turns(history, n=6, summary=None):
     """The conversation's last messages for the model, with the files sent with each; a question asked about
     highlighted text keeps (the start of) that text, so a follow-up still knows what "it" was. With a `summary`
-    (compaction is on), every message it doesn't cover yet, up to RECENT + COMPACT_AFTER of them."""
+    (compaction is on, or /clear or /compact was used), every message it doesn't cover yet, up to RECENT + COMPACT_AFTER of
+    them (its "window" when automatic compaction is off)."""
     if summary is not None:
         history = [m for m in history if m["id"] > (summary.get("upto") or 0)]
-        n = RECENT + COMPACT_AFTER
+        n = summary.get("window") or RECENT + COMPACT_AFTER
     out = []
     for m in list(history)[-n:]:
         sel = ((m.get("context") or {}).get("selection") or "")[:500] if m["role"] == "user" else ""
@@ -383,6 +384,8 @@ def rewind(db, cid, mid):
 RECENT = 6  # the latest messages, always given word for word
 COMPACT_AFTER = 8  # how many more build up before they're folded into the summary (one model call per that many)
 TURN_CHARS = 1500  # of each message, for the summary
+CONTEXT_TOKENS = 16000  # the model's context window when ai.context_tokens isn't set
+FULL = 0.5  # the share of it the conversation may take before it's folded in early (the rest: excerpts, tools, answer)
 COMPACT_SYSTEM = (
     "You keep the running summary of a conversation between a person and their assistant, so the assistant still "
     "knows what was said once the messages themselves are out of view. Fold the new messages into the summary so far: "
@@ -393,12 +396,20 @@ COMPACT_SYSTEM = (
 )
 
 
+def _stored(db, cid):
+    return (db.one("SELECT summary FROM $r", r=R("chat", cid)) or {}).get("summary") or {"text": "", "upto": 0}
+
+
 def memory(db, cfg, cid):
     """What compaction knows of a conversation: {"text", "upto": the last message it covers, "at"}, empty before the
-    first summary; None when compaction is off (the model then sees the last 6 messages only, as before)."""
-    if not cfg["ai"].get("compact", True) or not llm.configured(cfg):
+    first summary; None when compaction is off and neither /clear nor /compact was used (the model then sees the last 6
+    messages only, as before)."""
+    if not llm.configured(cfg):
         return None
-    return (db.one("SELECT summary FROM $r", r=R("chat", cid)) or {}).get("summary") or {"text": "", "upto": 0}
+    had = _stored(db, cid)
+    if cfg["ai"].get("compact", True):
+        return had
+    return {**had, "window": RECENT} if had.get("upto") else None
 
 
 def summary_note(summary):
@@ -414,23 +425,85 @@ def _said(m):
     return f"{who}: {text}" + (f"\n(What it did: {did[:500]})" if did else "")
 
 
-def compact(db, cfg, cid):
+def tokens(messages):
+    """About how many tokens the messages take (four characters each), with the files noted on them."""
+    return sum(len(m.get("content") or "") + len(attached_note(m.get("attachments"))) for m in messages) // 4
+
+
+def full(cfg, messages):
+    """True when the messages fill more than FULL of the model's context window (ai.context_tokens)."""
+    return tokens(messages) > (cfg["ai"].get("context_tokens") or CONTEXT_TOKENS) * FULL
+
+
+def compact(db, cfg, cid, force=False, focus=None, full_only=False):
     """Fold the messages older than the latest RECENT into the conversation's summary, once COMPACT_AFTER of them have
-    built up (ai.compact, on by default; needs a model). Returns the new summary, or None when nothing changed."""
-    had = memory(db, cfg, cid)
-    if had is None:
+    built up or they fill FULL of the model's context window (`full_only`: only then; ai.compact, on by default; needs a
+    model). `force` (/compact) folds every message in now, whatever the setting, with the person's `focus` (what to
+    keep) if any. The summary is written by ai.compact_model when set, a cheaper model than the chat's. Returns the new
+    summary (with "folded": how many messages), or None when nothing changed."""
+    if not llm.configured(cfg) or not (force or cfg["ai"].get("compact", True)):
         return None
+    had = _stored(db, cid)
     fresh = [m for m in history(db, cid) if m["id"] > (had.get("upto") or 0)]
-    if len(fresh) < RECENT + COMPACT_AFTER:
+    old = fresh if force else fresh[:-RECENT]
+    if not old:
         return None
-    old = fresh[:-RECENT]
+    if not force and not full(cfg, fresh) and (full_only or len(fresh) < RECENT + COMPACT_AFTER):
+        return None
     ask = f"Summary so far:\n{had.get('text') or '(none yet)'}\n\nNew messages:\n\n" + "\n\n".join(_said(m) for m in old)
-    text = llm.chat(cfg, [{"role": "system", "content": COMPACT_SYSTEM}, {"role": "user", "content": ask}], max_tokens=800).strip()
+    if focus:
+        ask += f"\n\nThe person asked the summary to keep: {focus[:500]}"
+    msgs = [{"role": "system", "content": COMPACT_SYSTEM}, {"role": "user", "content": ask}]
+    text = llm.chat(cfg, msgs, model=cfg["ai"].get("compact_model") or None, max_tokens=800).strip()
     if not text:
         return None
     out = {"text": text, "upto": old[-1]["id"], "at": store.now()}
     db.q("UPDATE $r SET summary = $s", r=R("chat", cid), s=out)
-    return out
+    return {**out, "folded": len(old)}
+
+
+# ---------- commands: /clear and /compact, typed in the app or in a chat room ----------
+COMMAND = re.compile(r"^/(clear|compact)(?:\s+(.*))?$", re.S | re.I)
+
+
+def command(text):
+    """(name, the rest) when the message is /clear or /compact [what to keep], else None."""
+    m = COMMAND.match((text or "").strip())
+    return (m.group(1).lower(), (m.group(2) or "").strip()) if m else None
+
+
+def run_command(db, cfg, cid, name, rest=""):
+    """Do a chat command and save it with its reply, which the model won't see afterwards. /clear: the model starts
+    afresh (the messages stay to read); /compact: everything so far is folded into the summary now. Returns (reply,
+    the reply's message id)."""
+    if name == "clear":
+        reply = "Cleared. I'll start afresh from here; the messages above stay for you to read, but I won't use them."
+        keep = None
+    elif not llm.configured(cfg):
+        reply = "There's no language model to write a summary with. /clear starts afresh instead."
+        keep = None
+    else:
+        try:
+            done, failed = compact(db, cfg, cid, force=True, focus=rest or None), None
+        except llm.LLMError as e:
+            done, failed = None, str(e)
+        keep = _stored(db, cid)
+        if failed:
+            reply, keep = f"I couldn't write the summary, so nothing changed: {failed}", None
+        elif done:
+            n = done["folded"]
+            reply = f"Compacted {n} message{'s' if n != 1 else ''} into a summary; from here on I read it instead:\n\n{done['text']}"
+        elif any(m["id"] > (keep.get("upto") or 0) for m in history(db, cid)):
+            reply, keep = "The model didn't write a summary, so nothing changed. Try again, or /clear to start afresh.", None
+        else:
+            reply = "Nothing new to compact yet."
+    add(db, cid, "user", f"/{name}" + (f" {rest}" if rest else ""))
+    mid = add(db, cid, "assistant", reply, [])
+    if name == "clear":
+        keep = {"text": "", "upto": mid, "at": store.now()}
+    if keep is not None:  # the command and its reply are covered too, so the model doesn't read them
+        db.q("UPDATE $r SET summary = $s", r=R("chat", cid), s={**keep, "upto": mid})
+    return reply, mid
 
 
 def model_choices(cfg):

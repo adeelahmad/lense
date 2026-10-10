@@ -424,6 +424,15 @@ export const SPEECH_PROVIDERS = [
     urlHint: "https://api.deepgram.com, or your self-hosted Deepgram",
     modelHint: "nova-3",
   },
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    about:
+      "Gemini text to speech for spoken answers and podcasts, in 30 prebuilt voices. Get a key at aistudio.google.com.",
+    urlHint: "https://generativelanguage.googleapis.com",
+    modelHint: "gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts",
+    modelLabel: "Text-to-speech model",
+  },
 ] as const;
 
 export const FIELDS: FieldSpec[] = [
@@ -708,7 +717,29 @@ export const FIELDS: FieldSpec[] = [
     key: "compact",
     label: "Summarise long conversations",
     kind: "switch",
-    hint: "The model always reads the latest messages word for word; older ones are folded into a running summary, so long chats and chat rooms remember what was said.",
+    hint: "The model always reads the latest messages word for word; older ones are folded into a running summary, so long chats and chat rooms remember what was said. Type /compact to summarise now, or /clear to start afresh.",
+  },
+  {
+    section: "ai",
+    key: "compact_model",
+    label: "Model for summaries",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "the chat's model",
+    hint: "A smaller, cheaper model on the same provider to write them.",
+  },
+  {
+    section: "ai",
+    key: "context_tokens",
+    label: "Chat model's context",
+    kind: "int",
+    min: 1024,
+    max: 2000000,
+    nullable: true,
+    unit: "tokens",
+    placeholder: "16000",
+    hint: "A conversation is summarised early before it fills half of this.",
   },
   {
     section: "ai",
@@ -1030,6 +1061,8 @@ export const FIELDS: FieldSpec[] = [
       { value: "openai", label: "An OpenAI-compatible speech server" },
       { value: "elevenlabs", label: "ElevenLabs (provider)" },
       { value: "deepgram", label: "Deepgram Aura (provider)" },
+      { value: "gemini", label: "Google Gemini (provider)" },
+      { value: "say", label: "macOS say (Lens running on a Mac)" },
     ],
   },
   {
@@ -1123,7 +1156,7 @@ export const FIELDS: FieldSpec[] = [
     {
       section: "speech",
       key: `${p.id}_model`,
-      label: "Speech-to-text model",
+      label: ("modelLabel" in p && p.modelLabel) || "Speech-to-text model",
       kind: "text",
       mono: true,
       hint: p.modelHint,

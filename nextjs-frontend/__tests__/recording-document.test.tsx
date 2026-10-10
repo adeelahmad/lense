@@ -151,7 +151,9 @@ function show(
   );
 }
 
-const shown = () => screen.getByRole("img", { name: /^Page / });
+// every page is there, one under another: the one being read
+const reading = () => document.querySelector<HTMLElement>("[data-page-at][aria-current=page]")!;
+const shown = () => within(reading()).getByRole("img", { name: /^Page / });
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = jest.fn();
@@ -208,6 +210,19 @@ describe("a document's page", () => {
     // the other panels are a tab away
     fireEvent.click(screen.getByRole("tab", { name: "Summary" }));
     expect(screen.getByText("The summary panel")).toBeInTheDocument();
+  });
+
+  it("shows every page one under another, and scrolling turns the page being read", async () => {
+    show();
+    const pages = [...document.querySelectorAll<HTMLElement>("[data-page-at]")];
+    expect(pages).toHaveLength(3);
+    pages.forEach((el, i) => Object.defineProperty(el, "offsetTop", { value: i * 1000, configurable: true }));
+    const stage = pages[0].parentElement!;
+    Object.defineProperty(stage, "clientHeight", { value: 600, configurable: true });
+    stage.scrollTop = 2100;
+    fireEvent.scroll(stage);
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Page, of 3" })).toHaveValue("3"));
+    expect(shown()).toHaveAttribute("alt", "Page iii");
   });
 
   it("says what a page shows where it was described: to screen readers on the page, and above its text", () => {
@@ -308,15 +323,15 @@ describe("a document's page", () => {
         ),
       ],
     } as unknown as PlayerModel;
-    const { container } = show({ model });
-    expect(container.querySelectorAll("[data-face]")).toHaveLength(0); // none on page 1
+    show({ model });
+    expect(reading().querySelectorAll("[data-face]")).toHaveLength(0); // none on page 1
     fireEvent.click(screen.getByRole("tab", { name: "People" }));
     const people = screen.getByRole("list", { name: "People on its pages" });
     expect(within(people).getByText("On p. 2–iii")).toBeInTheDocument();
     expect(screen.getByText(/boxes and pages, no names/)).toBeInTheDocument();
     fireEvent.click(within(people).getByRole("button", { name: "Turn to Face 1's first page, p. 2" }));
     expect(shown()).toHaveAttribute("alt", "Page 2");
-    const box = container.querySelector<HTMLElement>("[data-face='1']");
+    const box = reading().querySelector<HTMLElement>("[data-face='1']");
     expect(box?.style.left).toBe("40%");
     expect(box).toHaveTextContent("Face 1");
   });
@@ -357,16 +372,16 @@ describe("a document's page", () => {
     expect(within(list).getByText("on 2 pages · found 3 times")).toBeInTheDocument();
     fireEvent.click(within(list).getByRole("button", { name: "Dog: show its boxes, first seen p. iii" }));
     expect(shown()).toHaveAttribute("alt", "Page iii");
-    const dog = container.querySelectorAll<HTMLElement>("[data-object='dog']");
+    const dog = reading().querySelectorAll<HTMLElement>("[data-object='dog']");
     expect(dog).toHaveLength(1);
     expect([dog[0].style.left, dog[0].style.top]).toEqual(["50%", "60%"]);
     expect(dog[0]).toHaveTextContent("Dog");
     fireEvent.click(within(list).getByRole("button", { name: "Person: show its boxes, first seen p. 1" }));
     expect(shown()).toHaveAttribute("alt", "Page 1");
-    expect(container.querySelectorAll("[data-object='person']")).toHaveLength(1);
-    expect(container.querySelectorAll("[data-object='dog']")).toHaveLength(0);
+    expect(reading().querySelectorAll("[data-object='person']")).toHaveLength(1);
+    expect(reading().querySelectorAll("[data-object='dog']")).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(container.querySelectorAll("[data-object='person']")).toHaveLength(2); // two people on p. 2
+    expect(reading().querySelectorAll("[data-object='person']")).toHaveLength(2); // two people on p. 2
     fireEvent.click(within(list).getByRole("button", { name: "Person: stop showing its boxes" }));
     expect(container.querySelectorAll("[data-object]")).toHaveLength(0);
   });

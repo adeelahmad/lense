@@ -80,6 +80,14 @@ def test_answers_are_read_aloud_by_a_speech_model(client, signed_in, cfg, db):
         path, headers, body = Tts.seen[-1]
         assert path == "/v1/audio/speech" and headers["Authorization"] == "Bearer sk-1"
         assert body == {"model": "kokoro", "input": "The shipment leaves on Friday.", "voice": "af_heart", "response_format": "mp3"}
+        client.post("/api/v1/voice/speak", headers=h, json={"text": "Hi", "voice": "am_adam"})  # a voice tried in Settings
+        assert Tts.seen[-1][2]["voice"] == "am_adam"
+        r = client.get("/api/v1/voice/voices", headers=h).json()
+        assert r["provider"] == "openai" and r["current"] == "af_heart" and r["error"] is None
+        assert {"id": "alloy", "name": "alloy", "detail": None} in r["voices"]  # this server doesn't list its own
+        r = client.get("/api/v1/voice/voices?provider=gemini", headers=h).json()
+        assert r["current"] is None and len(r["voices"]) == 30
+        assert client.get("/api/v1/voice/voices?provider=nope", headers=h).status_code == 422
     finally:
         srv.shutdown()
     settings.save(db, cfg, "llm", {"base_url": "http://127.0.0.1:9/v1"}, "t")  # gone: the browser reads it

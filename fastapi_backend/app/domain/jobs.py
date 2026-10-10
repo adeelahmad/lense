@@ -41,12 +41,20 @@ def _spec(s):
     return {"type": s} if isinstance(s, str) else dict(s)
 
 
+def _read(db, cfg, rid, say, spec=None):
+    """A document's or an image's step: draw its pages and read their text (documents.py). It needs no speech model,
+    so a document never waits for one to be fetched."""
+    if _source(db, rid) not in ("document", "image"):
+        raise Skip("only documents and images are read; audio and video are transcribed")
+    from . import documents
+
+    return documents.transcribe(db, cfg, rid, say)
+
+
 def _transcribe(db, cfg, rid, say, spec=None):
     rec = db.one("SELECT source, engine, status, envelope, web, path, space, title FROM $r", r=R("recording", rid)) or {}
-    if rec.get("source") in ("document", "image"):
-        from . import documents
-
-        return documents.transcribe(db, cfg, rid, say)
+    if rec.get("source") in ("document", "image"):  # a run queued before documents had a step of their own
+        return _read(db, cfg, rid, say, spec)
     if rec.get("source") != "audio":
         raise Skip("an imported transcript has nothing to transcribe")
     if str(rec.get("engine") or "").startswith("import:") and rec.get("status") != "new" and not (spec or {}).get("force"):
@@ -170,6 +178,7 @@ def _describe(db, cfg, rid, say, spec=None):
 VIDEO_STEPS = {"shots", "ocr", "faces", "objects", "describe"}  # added after workers.steps lists were first written
 STEPS = {
     "transcribe": _transcribe,
+    "read": _read,
     "diarize": _diarize,
     "shots": _shots,
     "ocr": _ocr,
@@ -187,9 +196,24 @@ STEPS = {
 }
 
 
+def for_source(steps, source):
+    """A pipeline's steps as they run on a resource of this source: a document or an image is read, not transcribed,
+    and has no voices to tell apart, so a speech or voice model is never fetched for it."""
+    if source not in ("document", "image"):
+        return steps
+    out = []
+    for s in steps:
+        if s.get("type") == "transcribe":
+            s = {**s, "type": "read"}
+        if s.get("type") == "diarize" or (s.get("type") == "read" and any(o.get("type") == "read" for o in out)):
+            continue
+        out.append(s)
+    return out
+
+
 def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None):
     """Queue a recording for these steps (default: its namespace's pipeline); one already queued or running keeps its job."""
-    rec = db.one("SELECT space FROM $r", r=R("recording", rid))
+    rec = db.one("SELECT space, source FROM $r", r=R("recording", rid))
     if not rec:
         raise KeyError(rid)
     ref = None
@@ -197,7 +221,7 @@ def enqueue(db, rid, steps=None, by=None, priority=0, pipeline=None, batch=None)
         from . import content_types
 
         steps, ref = pipelines.resolve(db, rec["space"], pipeline, None if pipeline else content_types.of_recording(db, rid)[0])
-    steps = [_spec(s) for s in steps]
+    steps = for_source([_spec(s) for s in steps], rec.get("source"))
     if not steps or any(s.get("type") not in STEPS for s in steps):
         raise ValueError(f"steps are {', '.join(STEPS)}")
     live = db.values("SELECT VALUE record::id(id) FROM job WHERE recording = $r AND status IN $a", r=rid, a=ACTIVE)
@@ -233,7 +257,7 @@ def add_steps(db, rid, steps, by=None):
     """Run these steps on a recording after what its queued or running job still has to do, or as a new job when it
     has none. Workers read a job's steps again before each step, and only finish a job whose steps are all done, so
     steps added while it runs aren't missed."""
-    specs = [_spec(s) for s in steps]
+    specs = for_source([_spec(s) for s in steps], _source(db, rid))
     for jid in db.values("SELECT VALUE record::id(id) FROM job WHERE recording = $r AND status IN $a", r=rid, a=ACTIVE):
         if db.rows(
             "UPDATE $j SET steps = array::concat(steps, $m), updated_at = $t WHERE status IN $a RETURN AFTER",
@@ -839,6 +863,8 @@ class Worker:
         cfg_fn()  # reads the saved settings now, so telemetry (if on) is set up before the first job's span
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
+        if not steps and "transcribe" in self.can:  # reading documents moved out of transcribe; older lists run it too
+            self.can.add("read")
         if "llm" in self.can:  # a workflow or a podcast needs what an llm step needs; older lists run them too
             self.can |= {"workflow", "podcast"}
         if not steps and "transcribe" in self.can and not self.can & VIDEO_STEPS:

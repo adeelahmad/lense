@@ -268,24 +268,57 @@ def _hand_over(db, run, backup):
 
 
 # ---------- the background check ----------
+def _once(db, name):
+    """True for the one process (and the one time) that claims `name`."""
+    try:
+        db.q("CREATE $r CONTENT $d", r=R("app_service", name), d={"at": _ts()})
+        return True
+    except Exception as e:  # noqa: BLE001
+        if "already exists" in str(e):
+            return False
+        raise
+
+
+def announce(db, cfg, log_fn=None):
+    """Tell people about a newer release, once per release: the namespaces' notification targets that want
+    lens.release, and the admins by email (updates.email). True when this call told them."""
+    rel = _row(db).get("latest") or {}
+    tag = rel.get("tag")
+    if not (tag and newer(tag, current()) and _once(db, f"release-notice-{tag}")):
+        return False
+    if log_fn:
+        log_fn(f"Lens {tag} is out (this is {current()})")
+    from . import notify
+
+    try:
+        notify.release(db, cfg, rel, current())
+    except Exception:  # noqa: BLE001 - the email still goes
+        log.exception("couldn't queue the release notifications")
+    if cfg["updates"].get("email", True):
+        admins = db.values("SELECT VALUE email FROM account WHERE admin = true AND disabled != true")
+        try:
+            import asyncio
+
+            from app.email import send_release_email
+
+            asyncio.run(send_release_email(cfg, [a for a in admins if a], tag, current(), rel.get("url")))
+        except Exception:  # noqa: BLE001 - the banner still shows it
+            log.exception("couldn't email the admins about %s", tag)
+    return True
+
+
 def tick(db, cfg, log_fn=None):
-    """Check when due; with auto_install, start the upgrade to a new release once."""
+    """Check when due and tell people about a new release; with auto_install, start the upgrade to it once."""
     if due(db, cfg):
-        got = check(db, cfg)
-        tag = (got.get("latest") or {}).get("tag")
-        if tag and newer(tag, current()) and log_fn:
-            log_fn(f"Lens {tag} is out (this is {current()})")
+        check(db, cfg)
+    announce(db, cfg, log_fn)
     if not cfg["updates"].get("auto_install"):
         return
     tag = ((_row(db).get("latest") or {}).get("tag")) or ""
     if not (newer(tag, current()) and agent()):
         return
-    try:  # once per release, across every process
-        db.q("CREATE $r CONTENT $d", r=R("app_service", f"auto-upgrade-{tag}"), d={"at": _ts()})
-    except Exception as e:  # noqa: BLE001
-        if "already exists" in str(e):
-            return
-        raise
+    if not _once(db, f"auto-upgrade-{tag}"):  # once per release, across every process
+        return
     try:
         upgrade(db, cfg, tag, by="auto_install")
     except UpdateError as e:

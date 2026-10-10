@@ -34,8 +34,8 @@ BACKENDS = {
     "dropbox": {"label": "Dropbox", "fields": {}, "secrets": ["token"], "oauth": "rclone authorize dropbox"},
     "drive": {
         "label": "Google Drive",
-        "fields": {"scope": "drive.readonly", "root_folder_id": ""},
-        "secrets": ["token"],
+        "fields": {"scope": "drive.readonly", "root_folder_id": "", "team_drive": "", "impersonate": ""},
+        "secrets": ["token", "service_account_credentials"],  # signs in with a token, or as a service account
         "oauth": "rclone authorize drive",
     },
     "onedrive": {
@@ -314,10 +314,24 @@ def _check_params(typ, params, secret_values):
     return spec
 
 
+def _secret(k, v):
+    """A secret as it's stored: a service account's key file is checked and kept on one line, as rclone reads it."""
+    if k != "service_account_credentials":
+        return str(v)
+    try:
+        key = json.loads(v)
+    except ValueError:
+        raise ValueError("the service account key isn't JSON: upload the .json key file Google Cloud gave you") from None
+    if not isinstance(key, dict) or key.get("type") != "service_account" or not key.get("client_email") or not key.get("private_key"):
+        raise ValueError("that isn't a service account key: it needs type service_account, client_email and private_key")
+    return json.dumps(key, separators=(",", ":"))
+
+
 def create(db, cfg, name, typ, params=None, secret_values=None, user=None):
     spec = _check_params(typ, params, secret_values)
+    plain = {k: _secret(k, v) for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
     sid = db.next_id("storage_source")
-    sealed = {k: settings.seal(cfg, str(v), f"source:{sid}:{k}") for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
+    sealed = {k: settings.seal(cfg, v, f"source:{sid}:{k}") for k, v in plain.items()}
     db.q(
         "CREATE $r CONTENT $d",
         r=R("storage_source", sid),
@@ -343,7 +357,7 @@ def update(db, cfg, sid, name=None, params=None, secret_values=None):
         if v is None or v == "":
             sealed.pop(k, None)
         elif isinstance(v, str):
-            sealed[k] = settings.seal(cfg, v, f"source:{sid}:{k}")
+            sealed[k] = settings.seal(cfg, _secret(k, v), f"source:{sid}:{k}")
     db.q(
         "UPDATE $r MERGE $d",
         r=R("storage_source", sid),
