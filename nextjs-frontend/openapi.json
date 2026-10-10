@@ -2591,7 +2591,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^(openai|elevenlabs|assemblyai|deepgram)$",
+              "pattern": "^(openai|elevenlabs|assemblyai|deepgram|gemini)$",
               "title": "Provider"
             }
           }
@@ -23415,6 +23415,57 @@
           },
           "204": {
             "description": "the browser reads it"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/voices": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "List Voices",
+        "description": "The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it\nlists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have.",
+        "operationId": "list_voices",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceList"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -49047,6 +49098,19 @@
             "type": "string",
             "maxLength": 8000,
             "title": "Text"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice",
+            "description": "read in this voice (an id from GET /voice/voices); else the settings'"
           }
         },
         "additionalProperties": false,
@@ -52630,6 +52694,84 @@
           "speak"
         ],
         "title": "VoiceInfo"
+      },
+      "VoiceList": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current",
+            "description": "the voice answers are read in now (null: the provider's default)"
+          },
+          "voices": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceOption"
+            },
+            "type": "array",
+            "title": "Voices"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the provider's voices couldn't be listed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "provider",
+          "voices"
+        ],
+        "title": "VoiceList"
+      },
+      "VoiceOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "what voice.tts_voice is set to"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what the provider says about it: accent, gender, style, language"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "VoiceOption"
       },
       "Watch": {
         "properties": {

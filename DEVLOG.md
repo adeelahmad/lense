@@ -2,6 +2,22 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-10 · More voices for spoken answers
+
+Goal (Adeel): read answers and podcasts aloud with ElevenLabs, macOS `say`, Google Gemini TTS or StyleTTS2, with
+the voice picked in Settings. ElevenLabs and Deepgram were already there (#116); the providers stay shared with
+podcasts through `speech.speak()`.
+
+Todo:
+
+- [x] Gemini TTS and macOS `say` as text-to-speech providers; `GET /voice/voices` lists each provider's voices;
+      `POST /voice/speak` takes a voice to try
+- [ ] StyleTTS2 as an opt-in local service (off by default; heavy)
+- [ ] Settings → AI assistant → Voice: pick a voice from the list and hear it
+
+Refine later: pick a second `say` voice for podcast hosts from what the Mac has; Gemini's multi-speaker mode for a
+whole podcast in one call; ElevenLabs voice settings (stability, style); cache the voice lists.
+
 ## 2026-10-10 · Podcasts from picked knowledge
 
 Goal (Adeel): pick documents, search results, topics, notes or graph concepts and get a two-host, Recast-style

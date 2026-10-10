@@ -839,6 +839,9 @@ import type {
   ListUsersResponses,
   ListViewsData,
   ListViewsResponses,
+  ListVoicesData,
+  ListVoicesErrors,
+  ListVoicesResponses,
   ListWatchesData,
   ListWatchesResponses,
   ListWorkersData,
@@ -8987,6 +8990,21 @@ export class Voice {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Voices
+   *
+   * The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it
+   * lists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have.
+   */
+  public static listVoices<ThrowOnError extends boolean = false>(
+    options?: Options<ListVoicesData, ThrowOnError>,
+  ): RequestResult<ListVoicesResponses, ListVoicesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListVoicesResponses, ListVoicesErrors, ThrowOnError>({
+      url: "/api/v1/voice/voices",
+      ...options,
     });
   }
 }
