@@ -105,7 +105,7 @@ optional listeners (MQTT, syslog, tunnel, local model server) run inside workers
 | Ingest & processing (Ingest) | `routes/{uploads,files,imports}.py`, `domain/{ingest,documents,convert,video,uploads}.py`, `templates.py`, `render.py` | child processes (ffmpeg, LibreOffice, Chromium, poppler, Tesseract), files | In |
 | Query engines (Query) | `domain/cypher.py`, `domain/rdf.py` (SPARQL), `domain/rdf_import.py`, `domain/search.py` | DB | In |
 | Assistant & extensions (Assistant) | `domain/{chat,ai_tools,ops_tools,extensions,tool_nodes,flow,custom_nodes,code_tools}.py`, MCP write tools | network (model servers), child process (code tools) | In |
-| Optional services, off by default (Optional) | `domain/{sensors,mqtt,syslog}.py`, `tunnel.py`, `local_llm.py`, `components.py`, `telemetry.py` | listening sockets, downloads, child processes | In |
+| Optional services, off by default (Optional) | `domain/{sensors,mqtt,syslog}.py`, `tunnel.py`, `https.py`, `local_llm.py`, `components.py`, `telemetry.py` | listening sockets, downloads, child processes | In |
 | Packaging variants | `docker-compose.prod.yml`, `install.sh`, `cloudron/`, `packaging/{synology,qnap}`, `proxmox/` | host | §1.6 |
 | Dev and CI tooling, samples | `docker-compose.yml`, `make dev`, `.github/`, `ci/`, `examples/`, `overrides/`, `prod-frontend-deploy.yml`, `watcher.py`, `commands/`, `fastapi_backend/tests/` | host | Out (§1.3) |
 
@@ -240,6 +240,7 @@ machine requires HTTPS, and a changed DB credential when SurrealDB runs as its o
 | Chromium sandbox | off as root or without user namespaces | the `netguard` proxy is the only barrier | Yes | *(documented, docs/configuration.md "runs with its sandbox where it can")* |
 | `sensors.enabled`, `sensors.mqtt_anonymous` | off (`bind` `0.0.0.0`); off | opens MQTT and syslog listeners; anonymous MQTT publish | Yes; anonymous is the admin's choice | *(documented, docs/sensors.md "Sensors are off until an admin turns them on")* |
 | `tunnel.mode`, `local_llm.enabled`, `telemetry` | off | outbound tunnel (Cloudflare terminates TLS, Q30); local model server; OTLP export | Yes | *(documented, docs/remote-access.md "It's off until an admin turns it on")* |
+| `https.enabled` (and install.sh's `LENS_HTTPS=1`) | off | Caddy, fetched at run time, terminates TLS on ports 443/80 in the worker and proxies to the web app; the DNS provider's credentials are written to `data_dir/https/caddy.json` (mode 600), not a command line | Yes | *(documented, docs/https.md "Off by default")* |
 | `components.auto` | on | unpinned-hash pip installs at runtime | Yes | *(maintainer, 2026-10)* |
 | `encryption.files` | on for new archives | file encryption at rest | Yes | *(documented, docs/encryption.md "A new archive turns this on at its first start")* |
 | `ai.extensions`, `ai.disabled_tools` | on, none | turn assistant extensions or named tools off | Yes | *(documented, docs/assistant.md "Extending the assistant")* |
@@ -504,6 +505,7 @@ Paths in the Voided by column are relative to `fastapi_backend/app/`. Searches c
 | P-NOTIFY | Each notification event is claimed once across processes and retried with backoff. | wrong-output | correctness-only | *(documented, docs/notifications.md "claimed once")* | Voided by: none identified (not required for this symptom; no exhaustive search) |
 | P-HIERARCHY | Collections nest at most 8 deep, without cycles, 5000 per namespace. | bad-data-accepted | correctness-only | *(documented, docs/api.md "at most 8 deep")* | Voided by: Checks only in `_check_parent` — `domain/hierarchy.py:132`, `:142-143`. `grep -rln '"parent"\]' fastapi_backend/app/domain` — only `domain/hierarchy.py` writes it (Q34 covers unread movers). |
 | P-FLOW | Flow and tool graphs never loop back and run within a step budget. | hang | correctness-only | *(documented, domain/flow.py docstring "Graphs never loop back")* | Voided by: none identified (not required for this symptom; no exhaustive search) |
+| P-BROWSER | The assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected (seen in the last 20 seconds, not closed). Only that person sees the session's actions and answers them, once each. `ai.browser` off refuses new sessions and offers no browser tools. | integrity-bypass | security-critical | *(documented, docs/browser-assistant.md "Only you")* | Voided by: The side panel carries out what it's asked: which sites it acts on, and what it asks the person first, is the extension's (docs/browser-assistant.md); an agent holding the person's write token can ask too — `api/v1/routes/browser.py`. |
 
 
 ### Worked routing examples

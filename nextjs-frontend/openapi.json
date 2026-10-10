@@ -2466,6 +2466,54 @@
         }
       }
     },
+    "/api/v1/settings/https/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Status",
+        "description": "How HTTPS (Settings \u203a HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it\nholds and when they run out, and Caddy's last lines.",
+        "operationId": "https_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/https/providers": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Providers",
+        "description": "The DNS providers Settings \u203a HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns\nplugin works too, by name.",
+        "operationId": "https_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HttpsProvider"
+                  },
+                  "type": "array",
+                  "title": "Response Admin-Https Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/bridge/test": {
       "post": {
         "tags": [
@@ -9860,6 +9908,99 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tree": {
+      "get": {
+        "tags": [
+          "tree"
+        ],
+        "summary": "List Folder",
+        "description": "A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'\nfiles. A file answers 400 (read it at /tree/file).",
+        "operationId": "list_folder",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026",
+              "default": "",
+              "title": "Path"
+            },
+            "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreeFolder"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tree/file": {
+      "get": {
+        "tags": [
+          "tree"
+        ],
+        "summary": "Read File",
+        "description": "A file of the tree, with byte ranges.",
+        "operationId": "read_file",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026",
+              "default": "",
+              "title": "Path"
+            },
+            "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "206": {
+            "description": "a byte range"
           },
           "422": {
             "description": "Validation Error",
@@ -20680,7 +20821,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -20908,6 +21049,277 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApprovalOutcome"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions": {
+      "get": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "List Sessions",
+        "description": "Your browsers whose side panel is connected now, the latest first.",
+        "operationId": "list_sessions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BrowserSession"
+                  },
+                  "type": "array",
+                  "title": "Response Browser-List Sessions"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Connect",
+        "description": "Connect a browser's Lens side panel: then open its action stream. Audited as `browser.connect`.",
+        "operationId": "connect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BrowserConnect"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserSession"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}": {
+      "delete": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Disconnect",
+        "description": "The side panel closed: the assistant can't use that browser any more, and actions waiting on it fail.",
+        "operationId": "disconnect",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}/actions": {
+      "get": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Actions",
+        "description": "The actions the assistant (or an agent) asks of this browser, as server-sent `action` events {id, tool, args,\nchat}: carry each one out and answer it with POST /browser/actions/{id}. The session stays connected while this\nstream is open; a comment line every 15 seconds keeps it so through proxies. `once=true` sends the actions waiting\nnow and closes, for a client that asks again and again instead (each time keeps it connected for a while).",
+        "operationId": "actions",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "once",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Once"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`event: action` with {id, tool, args, chat}",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/actions/{aid}": {
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Answer Action",
+        "description": "What the browser did with an action: its result, or why it didn't (the person said no, the site isn't allowed...).\n404 for an action that isn't one of your browser's, or that's been answered or given up on.",
+        "operationId": "answer_action",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}/run": {
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Run",
+        "description": "Do one thing in your connected browser, as the assistant's browser_ tools do, and wait for it: for agents and\nscripts. The side panel shows it and asks you first, as it does for the assistant. Audited as `browser.run`.",
+        "operationId": "run",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserRun"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserResult"
                 }
               }
             }
@@ -27580,6 +27992,171 @@
           "dir"
         ],
         "title": "BrowseEntry"
+      },
+      "BrowserAnswer": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "description": "whether the browser did it"
+          },
+          "result": {
+            "title": "Result",
+            "description": "what it found or did (the page, the tabs, the file it attached...)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why not, when it didn't (the person said no, no such ref...)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BrowserAnswer"
+      },
+      "BrowserConnect": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "what to call this browser, e.g. 'Chrome on the laptop'"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BrowserConnect"
+      },
+      "BrowserResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "result": {
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BrowserResult"
+      },
+      "BrowserRun": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": [
+              "tabs",
+              "open",
+              "read",
+              "click",
+              "type",
+              "press",
+              "import"
+            ],
+            "title": "Tool",
+            "description": "the action: one of the assistant's browser_ tools, without browser_"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args",
+            "description": "its arguments, as the browser_ tool takes them"
+          },
+          "wait": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Wait",
+            "description": "seconds to wait for the browser",
+            "default": 60
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "BrowserRun"
+      },
+      "BrowserSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen At"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live",
+            "description": "its side panel is connected now"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "live"
+        ],
+        "title": "BrowserSession"
       },
       "Budget": {
         "properties": {
@@ -35715,6 +36292,171 @@
         ],
         "title": "HookPushed"
       },
+      "HttpsCertificate": {
+        "properties": {
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Names",
+            "description": "the domain names it's for"
+          },
+          "expires": {
+            "type": "string",
+            "title": "Expires",
+            "description": "when it runs out (Caddy renews it about a month before)"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer",
+            "description": "the certificate authority that issued it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "names",
+          "expires",
+          "issuer"
+        ],
+        "title": "HttpsCertificate"
+      },
+      "HttpsProvider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the caddy-dns plugin's name, like cloudflare"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/HttpsProviderField"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "fields"
+        ],
+        "title": "HttpsProvider"
+      },
+      "HttpsProviderField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "secret": {
+            "type": "boolean",
+            "title": "Secret"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "secret"
+        ],
+        "title": "HttpsProviderField"
+      },
+      "HttpsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "Caddy is running in a server process"
+          },
+          "ports_open": {
+            "type": "boolean",
+            "title": "Ports Open",
+            "description": "a server process has the HTTPS ports (install.sh opened them)"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "the https:// address people open Lens at"
+          },
+          "certificates": {
+            "items": {
+              "$ref": "#/components/schemas/HttpsCertificate"
+            },
+            "type": "array",
+            "title": "Certificates"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why there's no certificate yet, when there isn't"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "Caddy's last lines"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "description": "where Caddy sends visitors: the web app, as the server reaches it"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the server process with the HTTPS ports"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "running",
+          "ports_open",
+          "origin"
+        ],
+        "title": "HttpsStatus"
+      },
       "HubLogin": {
         "properties": {
           "id": {
@@ -38964,6 +39706,19 @@
             ],
             "title": "Edit",
             "description": "edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer"
+          },
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser",
+            "description": "asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)"
           }
         },
         "additionalProperties": false,
@@ -54297,6 +55052,82 @@
         "additionalProperties": false,
         "type": "object",
         "title": "TopicUpdate"
+      },
+      "TreeEntry": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "folder": {
+            "type": "boolean",
+            "title": "Folder"
+          },
+          "modified": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "a file's size in bytes"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "folder"
+        ],
+        "title": "TreeEntry"
+      },
+      "TreeFolder": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "the folder, from the top: '' for the namespaces"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TreeEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path",
+          "entries"
+        ],
+        "title": "TreeFolder"
       },
       "TunnelStatus": {
         "properties": {
