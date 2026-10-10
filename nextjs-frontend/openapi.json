@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -2518,6 +2518,50 @@
         "summary": "Test Telegram",
         "description": "Check that Telegram knows the bot's token, and that the account to answer as exists.",
         "operationId": "test_telegram",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/mailbox": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Mailbox Status",
+        "description": "How the assistant's mailbox is doing, and who has written to it (whether each is let in, and their mail vouched\nfor by their provider).",
+        "operationId": "mailbox_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/mailbox/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Mailbox",
+        "description": "Check that Lens can sign in to read the mailbox (IMAP) and to send from it (SMTP), and that the account to\nanswer as exists. Nothing is read or sent.",
+        "operationId": "test_mailbox",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -37402,6 +37446,163 @@
           "ok"
         ],
         "title": "MailTestResult"
+      },
+      "MailboxPerson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "their email address, for mailbox.users"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed",
+            "description": "in mailbox.users: Lens answers their mail"
+          },
+          "vouched": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vouched",
+            "description": "how their last message was known to be theirs (DMARC, DKIM, SPF, or From with mailbox.check off); none: it wasn't"
+          },
+          "waiting": {
+            "type": "integer",
+            "title": "Waiting",
+            "description": "their messages held, answered once they're let in",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "allowed"
+        ],
+        "title": "MailboxPerson"
+      },
+      "MailboxStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at the mailbox failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process reading the mailbox"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last looked"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "the assistant's address"
+          },
+          "imap": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imap",
+            "description": "the server it reads mail from (host:port and security), set or guessed"
+          },
+          "smtp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp",
+            "description": "the server it sends from (host:port and security), set or guessed"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/MailboxPerson"
+            },
+            "type": "array",
+            "title": "People",
+            "description": "who has written to it, latest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "MailboxStatus"
       },
       "ManifestCheck": {
         "properties": {

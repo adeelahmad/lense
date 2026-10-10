@@ -729,7 +729,9 @@ def _mailbox_setting(key, value):
             raise ValueError(f"mailbox.users is a list of email addresses: {bad} isn't one")
         return list(dict.fromkeys(out))
     if key == "routes":
-        if not (isinstance(value, list) and len(value) <= mail_routes.MAX_RULES and all(isinstance(v, str) and len(v) <= 2000 for v in value)):
+        if not (
+            isinstance(value, list) and len(value) <= mail_routes.MAX_RULES and all(isinstance(v, str) and len(v) <= 2000 for v in value)
+        ):
             raise ValueError(f"mailbox.routes is a list of up to {mail_routes.MAX_RULES} rules, like from: *@acme.com = acme")
         out = []
         for v in value:

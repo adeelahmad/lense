@@ -405,7 +405,7 @@ DEFAULTS = {
         "account": None,
         "name": "Lens",
         "users": [],
-        # "from: *@acme.com = acme", "list: * = skip" (mail_routes.py's conditions): the namespace mail is for
+        # "from: *@acme.com = acme", "subject: newsletter = skip" (mail_routes.py's conditions): the namespace mail is for
         "routes": [],
         "approve": "low_risk",
         "imports": "auto",  # what's attached is imported without waiting for approval ("ask": it waits)

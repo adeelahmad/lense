@@ -422,6 +422,23 @@ def reply_text(cfg, text, approvals, cid, db=None):
     return out
 
 
+def sources(db, cfg, cid):
+    """The excerpts the conversation's last answer cites, a line each with its link into the web app, for a channel
+    that shows them under the answer (Channel.sources); "" when it cites none."""
+    from app.email import app_url
+
+    row = db.one("SELECT id, passages FROM chat_message WHERE chat = $c AND role = 'assistant' ORDER BY id DESC LIMIT 1", c=cid) or {}
+    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and p.get("recording_id")]
+    if not used:
+        return ""
+    base, lines = app_url(cfg, db), []
+    for p in used:
+        at = f"?page={p['page'] + 1}" if p.get("page") is not None else f"?t={int((p.get('t0') or 0) // 1000)}"
+        where = ", ".join(str(x) for x in (p.get("title") or "Untitled", p.get("time")) if x)
+        lines.append(f"[{p['n']}] {where}: {base}/resources/{p['recording_id']}{at}")
+    return "Sources:\n" + "\n".join(lines)
+
+
 def _media(db, cfg, ch, m):
     """A message's voice note as its text (when it has none and is for Lens), and a note when there's nothing to say
     but files: the message as handle() reads it, and what to say instead of answering (or None)."""
@@ -502,7 +519,8 @@ def handle(db, cfg, base, m, ch=None):
     if m.get("heard"):  # what the voice note was heard as, so a mishearing shows
         out = f"(Heard: “{q}”)\n\n{out}"
     out = "\n".join([*failed, out]) if failed else out
-    ch.send(cfg, m, out + (f"\n\n{note}" if note else ""))
+    cites = sources(db, cfg, cid) if ch.sources else ""
+    ch.send(cfg, m, out + (f"\n\n{cites}" if cites else "") + (f"\n\n{note}" if note else ""))
     try:  # a room conversation goes on for good: older messages are folded into its summary
         chat.compact(db, cfg, cid)
     except Exception:  # noqa: BLE001 - tried again after the next answer

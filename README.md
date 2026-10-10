@@ -63,8 +63,9 @@ Everything below is built and merged. Work that is still in a pull request is li
   meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. It reads
   answers aloud with your speech provider, and `/clear` and `/compact` keep long conversations short. Each namespace
   can have its own assistant with its own name, instructions and memory, answering in Slack, Discord, Telegram,
-  Matrix, WhatsApp and other chat rooms through Matterbridge. ([Chat](docs/assistant.md),
-  [chat rooms](docs/chat-rooms.md), [speech providers](docs/speech-providers.md))
+  Matrix, WhatsApp and other chat rooms through Matterbridge, and by email at an address of its own that you email or
+  forward things to. ([Chat](docs/assistant.md), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md),
+  [speech providers](docs/speech-providers.md))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and remote MCP servers, by code, on the canvas or just by asking. Install skills and plugins from
   marketplaces in the open plugin format, or from a repository or an archive.

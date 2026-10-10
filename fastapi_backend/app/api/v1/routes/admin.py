@@ -23,6 +23,7 @@ from app.domain import (
     keyring,
     llm,
     local_llm,
+    mailbox,
     matterbridge,
     semantic,
     settings,
@@ -48,6 +49,7 @@ from app.schemas.admin import (
     IndexQueued,
     LlmTestResult,
     LocalLlmStatus,
+    MailboxStatus,
     MailTestResult,
     Removed,
     SemanticStatus,
@@ -80,7 +82,7 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
         if "*" not in hosts and here not in hosts:
             raise HTTPException(400, f"that list leaves out {here}, the address you're using, and would lock you out")
     if (
-        section in ("bridge", "telegram")
+        section in ("bridge", "telegram", "mailbox")
         and body.get("enabled")
         and "account" not in body
         and not (request.app.state.archive.current().get(section) or {}).get("account")
@@ -197,6 +199,21 @@ def telegram_status(user: AdminReader, cfg: Cfg, db: Db) -> TelegramStatus:
 def test_telegram(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
     """Check that Telegram knows the bot's token, and that the account to answer as exists."""
     error = telegram.TELEGRAM.check(db, cfg)
+    return BridgeTestResult(ok=error is None, error=error)
+
+
+@router.get("/settings/mailbox")
+def mailbox_status(user: AdminReader, cfg: Cfg, db: Db) -> MailboxStatus:
+    """How the assistant's mailbox is doing, and who has written to it (whether each is let in, and their mail vouched
+    for by their provider)."""
+    return MailboxStatus(**mailbox.status(db, cfg))
+
+
+@router.post("/settings/mailbox/test")
+def test_mailbox(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
+    """Check that Lens can sign in to read the mailbox (IMAP) and to send from it (SMTP), and that the account to
+    answer as exists. Nothing is read or sent."""
+    error = mailbox.MAILBOX.check(db, cfg)
     return BridgeTestResult(ok=error is None, error=error)
 
 

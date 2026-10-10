@@ -74,6 +74,7 @@ export type SectionId =
   | "mail"
   | "bridge"
   | "telegram"
+  | "mailbox"
   | "telemetry"
   | "fedora"
   | "sensors"
@@ -232,6 +233,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telegram"],
     description:
       "The assistant in Telegram through a bot of your own: paste its token from @BotFather. No Matterbridge and no public address needed.",
+  },
+  {
+    id: "mailbox",
+    label: "Assistant email",
+    backend: ["mailbox"],
+    description:
+      "An email address for the assistant: people you let in email or forward things to it, and it answers by email and imports what’s attached.",
   },
   {
     id: "notifications",
@@ -1026,6 +1034,165 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     placeholder: "https://api.telegram.org",
     hint: "Leave empty unless you run your own telegram-bot-api server.",
+  },
+  // The assistant's mailbox (mailbox.py)
+  { section: "mailbox", key: "enabled", label: "Answer email", kind: "switch" },
+  {
+    section: "mailbox",
+    key: "address",
+    label: "Its email address",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "lens@example.org",
+    hint: "A mailbox of its own, at any provider. It reads new mail there and answers from it.",
+  },
+  {
+    section: "mailbox",
+    key: "users",
+    label: "People it answers",
+    kind: "lines",
+    mono: true,
+    hint: "Email addresses, one per line. Anyone can send email, so it answers nobody else; people who write to it show above, to let in with one click.",
+  },
+  {
+    section: "mailbox",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  {
+    section: "mailbox",
+    key: "imports",
+    label: "What’s attached",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Imported at once, into a namespace that exists" },
+      { value: "ask", label: "Imported once approved" },
+    ],
+    hint: "A forwarded email is imported whole, with its attachments.",
+  },
+  {
+    section: "mailbox",
+    key: "approve",
+    label: "Approving by email",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these. Settings, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "mailbox",
+    key: "routes",
+    label: "Where mail goes",
+    kind: "lines",
+    mono: true,
+    hint: "One rule per line, the first that matches wins: from: *@acme.com = acme, subject: invoice; from: billing@x.com = finance, subject: newsletter = skip. Conditions are on from, to, subject, list and mailbox. Mail to lens+pods@… goes to pods. Anything else: Lens picks the namespace for each question.",
+  },
+  {
+    section: "mailbox",
+    key: "username",
+    label: "Sign-in name",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "the address, when left empty",
+  },
+  {
+    section: "mailbox",
+    key: "imap_host",
+    label: "IMAP server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "guessed from the address",
+  },
+  {
+    section: "mailbox",
+    key: "imap_port",
+    label: "Port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    nullable: true,
+    placeholder: "993",
+  },
+  {
+    section: "mailbox",
+    key: "imap_security",
+    label: "Connection",
+    kind: "select",
+    options: [
+      { value: "ssl", label: "SSL/TLS (usually port 993)" },
+      { value: "starttls", label: "STARTTLS (usually port 143)" },
+      { value: "none", label: "Unencrypted (usually port 143)" },
+    ],
+  },
+  {
+    section: "mailbox",
+    key: "smtp_host",
+    label: "SMTP server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "guessed from the address",
+  },
+  {
+    section: "mailbox",
+    key: "smtp_port",
+    label: "Port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    nullable: true,
+    placeholder: "587",
+  },
+  {
+    section: "mailbox",
+    key: "smtp_security",
+    label: "Connection",
+    kind: "select",
+    options: [
+      { value: "starttls", label: "STARTTLS (usually port 587)" },
+      { value: "ssl", label: "SSL/TLS (usually port 465)" },
+      { value: "none", label: "Unencrypted (usually port 25)" },
+    ],
+  },
+  { section: "mailbox", key: "folder", label: "Folder it reads", kind: "text", mono: true },
+  {
+    section: "mailbox",
+    key: "check",
+    label: "Whose mail counts",
+    kind: "select",
+    options: [
+      { value: "authenticated", label: "Only mail the sender’s provider signed (DMARC, DKIM or SPF passed)" },
+      { value: "off", label: "Trust the From address (only for a server of your own that refuses forged mail)" },
+    ],
+  },
+  {
+    section: "mailbox",
+    key: "auth_server",
+    label: "Trust checks by",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "the server that received it",
+    hint: "The name your mail server signs its Authentication-Results with (like mx.google.com), when it doesn’t remove forged ones.",
+  },
+  { section: "mailbox", key: "name", label: "Its name", kind: "text" },
+  {
+    section: "mailbox",
+    key: "poll_seconds",
+    label: "Looks for new mail every",
+    kind: "int",
+    min: 10,
+    max: 3600,
+    unit: "s",
   },
   // Matterbridge run by Lens (Chat rooms)
   { section: "matterbridge", key: "run", label: "Run Matterbridge here", kind: "switch" },

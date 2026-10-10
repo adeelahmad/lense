@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The assistant by email.** Give it an address of its own in Settings › Assistant email (the address and an app
+  password; the servers are guessed) and the people you let in can email or forward things to it: it answers by
+  email in the same thread, lists the excerpts it cites with links, and imports what's attached, a forwarded email
+  whole. It answers only mail their provider vouched for (DMARC, DKIM or SPF), never automatic mail, and holds a
+  stranger's mail until you let them in. `lens+pods@…` or a routing rule sends mail to a namespace's assistant
+  ([The assistant by email](docs/assistant-email.md)).
+
 - **Telegram, built in.** Paste a bot token from @BotFather in Settings › Telegram and the assistant answers there:
   no Matterbridge, no public address. It talks only to people you let in (one click on the settings page), hears
   voice notes, takes files for the assistant to import, and does everything it does in Matterbridge rooms

@@ -24,7 +24,8 @@ namespace's assistant with **Chats for a namespace's assistant** (`-100123456789
 Give Lens a bot of its own: a bot that Matterbridge also reads answers neither reliably (**Check the bot** says so).
 
 Telegram is one adapter of the chat-channel layer (`app/domain/channels.py`) that Matterbridge is another of; a new
-chat app adds an adapter (reading, sending, files) and gets everything in a room for free.
+chat app adds an adapter (reading, sending, files) and gets everything in a room for free. The assistant's own email
+address is one too ([The assistant by email](assistant-email.md)).
 
 ## Set it up in the web app
 

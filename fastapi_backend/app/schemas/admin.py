@@ -126,6 +126,32 @@ class TelegramStatus(ResponseModel):
     people: list[TelegramPerson] = Field(default_factory=list, description="who has written to it, latest first")
 
 
+class MailboxPerson(ResponseModel):
+    id: str = Field(description="their email address, for mailbox.users")
+    name: str
+    allowed: bool = Field(description="in mailbox.users: Lens answers their mail")
+    vouched: str | None = Field(
+        None,
+        description="how their last message was known to be theirs (DMARC, DKIM, SPF, or From with mailbox.check off); none: it wasn't",
+    )
+    waiting: int = Field(0, description="their messages held, answered once they're let in")
+
+
+class MailboxStatus(ResponseModel):
+    state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
+        description="off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); "
+        "running; error (the last look at the mailbox failed, `error` says why)"
+    )
+    error: str | None = None
+    holder: str | None = Field(None, description="the server process reading the mailbox")
+    at: str | None = Field(None, description="when it last looked")
+    answered: int | None = Field(None, description="messages it answered")
+    address: str | None = Field(None, description="the assistant's address")
+    imap: str | None = Field(None, description="the server it reads mail from (host:port and security), set or guessed")
+    smtp: str | None = Field(None, description="the server it sends from (host:port and security), set or guessed")
+    people: list[MailboxPerson] = Field(default_factory=list, description="who has written to it, latest first")
+
+
 class BridgeTestResult(ResponseModel):
     ok: bool
     error: str | None = None

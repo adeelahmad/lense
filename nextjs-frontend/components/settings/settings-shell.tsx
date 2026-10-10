@@ -33,6 +33,7 @@ import {
   Mail,
   MessagesSquare,
   Send,
+  AtSign,
   PackageCheck,
   RadioTower,
 } from "lucide-react";
@@ -81,6 +82,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   mail: Mail,
   bridge: MessagesSquare,
   telegram: Send,
+  mailbox: AtSign,
   telemetry: Activity,
   fedora: Archive,
   sensors: RadioTower,

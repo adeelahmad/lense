@@ -42,6 +42,7 @@ class Channel:
     key = "bridge"
     label = "Chat"
     lease = "lease"
+    sources = False  # whether answers list the excerpts they cite, with links (bridge.sources)
 
     def ready(self, cfg):
         """Why it can't run, or None when it can ("off" while it's turned off)."""
