@@ -108,6 +108,9 @@ When the configured model supports function calling, chat becomes an agent.
 - **Files:** attach files to a message with the clip, or by dropping or pasting them on the box. They upload as you
   type (`POST /api/v1/uploads` with `hold`), stay out of the archive, and the assistant puts them in a namespace
   with `import_files` (`attachments` on `POST /api/v1/chats/<id>/messages`).
+- **Web pages:** give it one address, several, or a list of links (pasted, or attached as a text file or a browser's
+  bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
+  `import_files`, it picks the namespace when you don't name one, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 
 ## A namespace's own assistant

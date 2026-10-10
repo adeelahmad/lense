@@ -386,6 +386,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     acts: true,
   },
   { name: "import_files", label: "Import files sent in a conversation", acts: true },
+  { name: "import_urls", label: "Capture web pages from addresses or a list of links", acts: true },
   { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
   { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
   { name: "read_settings", label: "Read settings (admins)", acts: false },

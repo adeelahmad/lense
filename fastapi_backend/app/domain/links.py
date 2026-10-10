@@ -2,7 +2,8 @@
 export (the HTML file every browser writes), or Chrome's own Bookmarks file (JSON). Each link becomes a web page
 captured as a document (webcapture.py); the bookmark folders it was in can become its tags.
 
-Only what a link says is read here: nothing is fetched. Addresses are checked when each is imported.
+Only what a link says is read here: nothing is fetched. Addresses are checked when each is imported (`queue`), by the
+API, the web app and the assistant's import_urls alike.
 """
 
 from __future__ import annotations
@@ -11,6 +12,8 @@ import html
 import json
 import re
 from html.parser import HTMLParser
+
+from . import jobs, library, webcapture
 
 MAX = 500  # links in one import, at most
 URL = re.compile(r"https?://[^\s<>\"']+", re.I)
@@ -101,3 +104,33 @@ def read(raw):
 def tags(folders, most=5, width=40):
     """A link's bookmark folders as tags: the innermost few, each cut to a tag's length."""
     return [" ".join(f.split())[:width].strip() for f in folders[-most:] if f.strip()]
+
+
+def queue(db, cfg, sid, found, by, collection=None, pipeline=None, folders_as_tags=True):
+    """Capture each of `found` (from `read`) in namespace `sid` as a web page document: [{url, status, recording, job,
+    detail}], status queued, already (captured in the namespace before) or skipped (detail says why). The caller
+    checks the person may add to the namespace and the collection is one of its own."""
+    have = {
+        (r.get("web") or {}).get("url"): r["id"]
+        for r in db.rows("SELECT record::id(id) AS id, web FROM recording WHERE space = $s AND web != NONE", s=sid)
+    }
+    out = []
+    for link in found:
+        try:
+            url = webcapture.check_url(cfg, link["url"])
+        except ValueError as e:
+            out.append({"url": link["url"], "status": "skipped", "detail": str(e)})
+            continue
+        if url in have:
+            out.append({"url": url, "status": "already", "recording": have[url]})
+            continue
+        rid = webcapture.create(db, sid, url, link.get("title"), collection, by=by)
+        have[url] = rid
+        if folders_as_tags and link.get("folders"):
+            try:
+                library.set_tags(db, rid, tags(link["folders"]))
+            except ValueError:
+                pass  # tags are a nicety: the page is captured without them
+        job = jobs.enqueue(db, rid, None, by=by, pipeline=pipeline)
+        out.append({"url": url, "status": "queued", "recording": rid, "job": job})
+    return out

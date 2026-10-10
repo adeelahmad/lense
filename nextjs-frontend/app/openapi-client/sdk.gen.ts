@@ -4931,8 +4931,8 @@ export class Imports {
   /**
    * Import Web Links
    *
-   * Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a
-   * file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
+   * Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per
+   * line, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
    * a page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in
    * (`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that
    * can't be is skipped, saying why. Audited as `import.web` once, with how many were queued.
