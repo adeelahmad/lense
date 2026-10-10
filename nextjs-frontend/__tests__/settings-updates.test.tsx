@@ -69,7 +69,7 @@ describe("updates", () => {
   it("offers the new release and installs it after a backup", async () => {
     show();
     expect(await screen.findByText("Lens v0.7.0 is out. This is 0.6.0.")).toBeInTheDocument();
-    expect(await screen.findByText(/taken by hand · 2.0 KB/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Settings → Backups" })).toHaveAttribute("href", "/settings/backups");
     fireEvent.click(screen.getByRole("button", { name: "Back up and install v0.7.0" }));
     await waitFor(() =>
       expect(Updates.startUpgrade).toHaveBeenCalledWith(

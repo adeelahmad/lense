@@ -52,19 +52,19 @@ def _upgraded_then_rolled_back(kept, cfg, control, newer_steps):
 
 def test_the_backup_comes_back_when_the_new_version_changed_the_database(kept, cfg, control):
     _upgraded_then_rolled_back(kept, cfg, control, ["a-step-from-the-future"])
-    said = updates.restore_on_start(kept, cfg["data_dir"])
+    said = updates.restore_on_start(kept, cfg)
     assert said.startswith("the database was put back"), said
     assert kept.values("SELECT VALUE title FROM recording") == ["before"]
     assert "a-step-from-the-future" not in kept.values("SELECT VALUE name FROM migration")
     assert not (control / "inbox" / "restore").exists()
     run = updates.run_state(kept)
     assert run["state"] == "rolled-back" and run["step"] == "check" and run["restore"] == said
-    assert updates.restore_on_start(kept, cfg["data_dir"]) is None  # once
+    assert updates.restore_on_start(kept, cfg) is None  # once
 
 
 def test_the_data_is_kept_when_the_new_version_left_the_database_alone(kept, cfg, control):
     _upgraded_then_rolled_back(kept, cfg, control, [])
-    said = updates.restore_on_start(kept, cfg["data_dir"])
+    said = updates.restore_on_start(kept, cfg)
     assert "kept as it is" in said
     assert sorted(kept.values("SELECT VALUE title FROM recording")) == ["after", "new"]
 
@@ -72,10 +72,10 @@ def test_the_data_is_kept_when_the_new_version_left_the_database_alone(kept, cfg
 def test_a_missing_backup_is_said(kept, cfg, control):
     run = _upgraded_then_rolled_back(kept, cfg, control, ["a-step-from-the-future"])
     (control / "inbox" / "restore").write_text(f"id={run['id']}\nbackup=../../etc/passwd\n")
-    assert "missing" in updates.restore_on_start(kept, cfg["data_dir"])
+    assert "can't be used" in updates.restore_on_start(kept, cfg)
     assert sorted(kept.values("SELECT VALUE title FROM recording")) == ["after", "new"]
 
 
 def test_no_control_folder_nothing_to_do(db, cfg, monkeypatch):
     monkeypatch.delenv("LENS_CONTROL_DIR", raising=False)
-    assert updates.restore_on_start(db, cfg["data_dir"]) is None
+    assert updates.restore_on_start(db, cfg) is None

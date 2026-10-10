@@ -48,6 +48,7 @@ EVENTS = {
     "job.cancelled": "A run was cancelled",
     "batch.finished": "A batch run finished",
     "recording.added": "Something was added",
+    "lens.release": "A new Lens release is out",
 }
 DEFAULT_EVENTS = ["job.failed", "batch.finished"]
 KINDS = {
@@ -779,6 +780,30 @@ def scan(db, cfg):
             last = max(page, key=lambda r: (r[col], r["id"]))
             pos[source] = max([last[col], last["id"]], list(pos[source]))
     db.q("UPDATE $s SET pos = $p", s=R("notify_state", "scan"), p=pos)
+    return n
+
+
+def release(db, cfg, rel, current):
+    """Tell the targets that want it that a new Lens release is out (domain/updates.py calls this once per release).
+    How many deliveries were queued."""
+    if not (cfg.get("notifications") or {}).get("enabled", True):
+        return 0
+    live = [t for t in db.rows(f"SELECT {FIELDS} FROM notify_target WHERE enabled = true") if "lens.release" in (t.get("events") or [])]
+    names = {r["id"]: r["name"] for r in db.rows("SELECT record::id(id) AS id, name FROM space")}
+    tag, n = rel["tag"], 0
+    for space in sorted({t["space"] for t in live}):
+        key = f"release-{tag}-{space}"
+        text = f"Lens {tag} is out (this server runs {current})."
+        data = {
+            "tag": tag,
+            "name": rel.get("name"),
+            "current": current,
+            "published_at": rel.get("published_at"),
+            "notes_url": rel.get("url"),
+        }
+        e = _event("lens.release", key, space, names.get(space), text, rel.get("url"), data)
+        if _unclaimed(db, [key]) == {key}:
+            n += _emit(db, [key], e, [t for t in live if t["space"] == space])
     return n
 
 

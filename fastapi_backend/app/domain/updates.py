@@ -274,7 +274,7 @@ def _hand_over(db, run, backup):
 
 
 # ---------- after a rollback ----------
-def restore_on_start(db, data_dir):
+def restore_on_start(db, cfg):
     """Called as Lens starts. When the agent went back to this version after a new one didn't start, it leaves
     inbox/restore naming the backup taken before the upgrade. If the new version had changed the database (ran steps
     this version doesn't know, migrations.status "unknown"), that backup is put back; otherwise the database is kept as
@@ -293,14 +293,17 @@ def restore_on_start(db, data_dir):
     newer_steps = [m["name"] for m in migrations.status(db) if m["state"] == "unknown"]
     if not newer_steps:
         said = "the new version hadn't changed the database, so it was kept as it is"
-    elif not re.match(r"^[A-Za-z0-9._-]+$", name) or not (pathlib.Path(data_dir) / "backups" / name).exists():
-        said = f"the new version had changed the database ({', '.join(newer_steps)}), but its backup {name!r} is missing"
-        log.error("couldn't restore after the rollback: %s", said)
     else:
+        from . import backups
+
         try:
-            migrations.restore(db, pathlib.Path(data_dir) / "backups" / name)
+            backups.usable(db, name)
+            backups.restore(db, cfg, name)
             said = f"the database was put back as it was before the upgrade ({name})"
             log.warning("rolled back: %s; the new version had run %s", said, ", ".join(newer_steps))
+        except (ValueError, backups.BackupError) as e:
+            said = f"the new version had changed the database ({', '.join(newer_steps)}), but its backup {name!r} can't be used: {e}"[:500]
+            log.error("couldn't restore after the rollback: %s", said)
         except Exception as e:  # noqa: BLE001 - the admin reads why
             said = f"restoring {name} failed: {e}"[:500]
             log.exception("couldn't restore after the rollback")
@@ -311,24 +314,57 @@ def restore_on_start(db, data_dir):
 
 
 # ---------- the background check ----------
+def _once(db, name):
+    """True for the one process (and the one time) that claims `name`."""
+    try:
+        db.q("CREATE $r CONTENT $d", r=R("app_service", name), d={"at": _ts()})
+        return True
+    except Exception as e:  # noqa: BLE001
+        if "already exists" in str(e):
+            return False
+        raise
+
+
+def announce(db, cfg, log_fn=None):
+    """Tell people about a newer release, once per release: the namespaces' notification targets that want
+    lens.release, and the admins by email (updates.email). True when this call told them."""
+    rel = _row(db).get("latest") or {}
+    tag = rel.get("tag")
+    if not (tag and newer(tag, current()) and _once(db, f"release-notice-{tag}")):
+        return False
+    if log_fn:
+        log_fn(f"Lens {tag} is out (this is {current()})")
+    from . import notify
+
+    try:
+        notify.release(db, cfg, rel, current())
+    except Exception:  # noqa: BLE001 - the email still goes
+        log.exception("couldn't queue the release notifications")
+    if cfg["updates"].get("email", True):
+        admins = db.values("SELECT VALUE email FROM account WHERE admin = true AND disabled != true")
+        try:
+            import asyncio
+
+            from app.email import send_release_email
+
+            asyncio.run(send_release_email(cfg, [a for a in admins if a], tag, current(), rel.get("url")))
+        except Exception:  # noqa: BLE001 - the banner still shows it
+            log.exception("couldn't email the admins about %s", tag)
+    return True
+
+
 def tick(db, cfg, log_fn=None):
-    """Check when due; with auto_install, start the upgrade to a new release once."""
+    """Check when due and tell people about a new release; with auto_install, start the upgrade to it once."""
     if due(db, cfg):
-        got = check(db, cfg)
-        tag = (got.get("latest") or {}).get("tag")
-        if tag and newer(tag, current()) and log_fn:
-            log_fn(f"Lens {tag} is out (this is {current()})")
+        check(db, cfg)
+    announce(db, cfg, log_fn)
     if not cfg["updates"].get("auto_install"):
         return
     tag = ((_row(db).get("latest") or {}).get("tag")) or ""
     if not (newer(tag, current()) and agent()):
         return
-    try:  # once per release, across every process
-        db.q("CREATE $r CONTENT $d", r=R("app_service", f"auto-upgrade-{tag}"), d={"at": _ts()})
-    except Exception as e:  # noqa: BLE001
-        if "already exists" in str(e):
-            return
-        raise
+    if not _once(db, f"auto-upgrade-{tag}"):  # once per release, across every process
+        return
     try:
         upgrade(db, cfg, tag, by="auto_install")
     except UpdateError as e:

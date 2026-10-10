@@ -6,6 +6,7 @@ from app.api.v1.routes import (
     activity,
     admin,
     auth,
+    backups,
     batches,
     budgets,
     chats,
@@ -28,6 +29,7 @@ from app.api.v1.routes import (
     import_hooks,
     imports,
     jobs,
+    marketplaces,
     metadata,
     namespaces,
     notebook,
@@ -71,6 +73,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    backups,  # before updates: its /admin/backups/remote would otherwise be read as a backup's name
     updates,
     activity,
     budgets,
@@ -108,6 +111,7 @@ for module in (
     workflows,
     custom_nodes,
     extensions,
+    marketplaces,
     chats,
     collections,
     batches,

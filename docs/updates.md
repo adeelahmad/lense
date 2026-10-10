@@ -14,6 +14,15 @@ still check by hand (`POST /api/v1/admin/updates/check`).
 `GET /api/v1/admin/updates` says which version is running, the latest release and its notes, whether it is newer, and
 how the last upgrade went.
 
+## Being told
+
+When a check finds a release newer than the one running, Lens says so once per release:
+
+* **by email** to every admin (`updates.email`, on by default; needs an email server in Settings › Email);
+* **to notification targets** (webhooks, Matterbridge, Slack, Discord) whose namespace owners chose the
+  **A new Lens release is out** event (`lens.release`, [Notifications](notifications.md));
+* in the server log.
+
 ## Upgrading
 
 Lens can't replace its own containers (or its microsandbox) from inside them, so a small agent on the machine does it.

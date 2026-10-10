@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
+
+- **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,
+  model calls, tokens, cost and failures by model, budgets, workers and disk. Off by default; turned on in Settings →
+  Telemetry (or `LENS_PROMETHEUS=on`), it answers only a scraper with the scrape token, and follows `LENS_BIND`. A
+  sample Grafana dashboard comes with it ([Prometheus](docs/prometheus.md)).
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and
@@ -17,6 +24,36 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   anytopdf, telemetry), takes the administrator password when installing needs it, then installs with live progress
   and opens Lens's setup page. Its answers become ordinary settings in Lens, editable there
   ([Get started](docs/get-started.md#the-web-installer)). `LENS_WIZARD=0` keeps the install in the terminal.
+
+### Features
+
+- **updates:** release check, backups and one-click upgrade through a machine agent ([#260](https://github.com/adeelahmad/lense/pull/260))
+- **documents:** scroll through every page of a document in one view ([#267](https://github.com/adeelahmad/lense/pull/267))
+- **updates:** tell admins and notification targets when a new release is out ([#270](https://github.com/adeelahmad/lense/pull/270))
+- **chat:** /clear and /compact commands, and early compaction near the context limit ([#269](https://github.com/adeelahmad/lense/pull/269))
+- **voice:** read aloud with Gemini TTS or macOS say, and pick the voice in Settings ([#268](https://github.com/adeelahmad/lense/pull/268))
+- **clipper:** Lens web clipper browser extension, Chrome first ([#277](https://github.com/adeelahmad/lense/pull/277))
+- **import:** capture one URL, several or a list from the API and the assistant ([#272](https://github.com/adeelahmad/lense/pull/272))
+- **extensions:** install skills, plugins and MCP servers from Anthropic-format marketplaces ([#276](https://github.com/adeelahmad/lense/pull/276))
+- **clipper:** publish browser extension releases for auto-updates ([#294](https://github.com/adeelahmad/lense/pull/294))
+- **voice:** read aloud with StyleTTS2 on this machine, as an opt-in service ([#291](https://github.com/adeelahmad/lense/pull/291))
+- **clipper:** Edge build, Edge Add-ons package and Edge smoke test ([#285](https://github.com/adeelahmad/lense/pull/285))
+- **search:** find content similar to a text, a resource, a topic or an entity ([#296](https://github.com/adeelahmad/lense/pull/296))
+- **clipper:** Safari build of the web clipper ([#283](https://github.com/adeelahmad/lense/pull/283))
+
+### Fixes
+
+- **jobs:** read documents and images instead of transcribing them ([#265](https://github.com/adeelahmad/lense/pull/265))
+- **sources:** let Google Drive sign in with a service account key file ([#266](https://github.com/adeelahmad/lense/pull/266))
+- **migrations:** read documents already waiting to be transcribed ([#278](https://github.com/adeelahmad/lense/pull/278))
+- **sources:** keep working when Google Drive rate limits ([#288](https://github.com/adeelahmad/lense/pull/288))
+- **sensors:** keep a retained MQTT message before acknowledging it ([#299](https://github.com/adeelahmad/lense/pull/299))
+
+### Dependencies
+
+- bump @tanstack/react-query ([#249](https://github.com/adeelahmad/lense/pull/249))
+- bump dotenv from 16.4.5 to 18.0.5 in /nextjs-frontend ([#252](https://github.com/adeelahmad/lense/pull/252))
+- close the frontend's open security alerts ([#300](https://github.com/adeelahmad/lense/pull/300))
 
 ## 0.6.0 <small>October 10, 2026</small> {id="0.6.0"}
 

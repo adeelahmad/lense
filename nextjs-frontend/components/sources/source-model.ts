@@ -58,6 +58,9 @@ export const FIELD_LABEL: Record<string, string> = {
   token: "Token",
   scope: "Scope",
   root_folder_id: "Root folder ID",
+  team_drive: "Shared drive ID",
+  impersonate: "Act as user",
+  service_account_credentials: "Service account key",
   drive_id: "Drive ID",
   drive_type: "Drive type",
   host: "Host",
@@ -151,11 +154,13 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
   }
 }
 
-export type Health = { tone: "ok" | "bad" | "unknown"; text: string };
+export type Health = { tone: "ok" | "limited" | "bad" | "unknown"; text: string };
 
 /** "OK · checked 14:02" or the backend's own error text, word for word. */
 export function healthOf(h: Source["health"], now = new Date()): Health {
   if (!h) return { tone: "unknown", text: "Not tested yet" };
+  if (h.ok && h.limited)
+    return { tone: "limited", text: `Works, slowly · ${h.limited.trim()} · checked ${checkedAt(h.checked_at, now)}` };
   if (h.ok) return { tone: "ok", text: `OK · checked ${checkedAt(h.checked_at, now)}` };
   return {
     tone: "bad",
@@ -410,7 +415,33 @@ export type ConnForm = {
   sftpAuth: "pass" | "key_pem";
   /** What was pasted from `rclone authorize` (OAuth types). */
   tokenText: string;
+  /** Google Drive signs in with a token, or as a service account (its JSON key file). */
+  driveAuth: "token" | "service_account";
 };
+
+export type ServiceAccountKey = { ok: true; email: string } | { ok: false; error: string };
+
+/** A Google Cloud service account key file: what it signs in as, or why it isn't one. */
+export function parseServiceAccountKey(text: string): ServiceAccountKey {
+  let o: { type?: unknown; client_email?: unknown; private_key?: unknown } | null;
+  try {
+    o = JSON.parse(text);
+  } catch {
+    return { ok: false, error: "That file isn’t JSON. Choose the .json key file Google Cloud gave you." };
+  }
+  if (
+    !o ||
+    typeof o !== "object" ||
+    o.type !== "service_account" ||
+    typeof o.client_email !== "string" ||
+    !o.private_key
+  )
+    return {
+      ok: false,
+      error: "That isn’t a service account key. In Google Cloud: IAM › Service accounts › Keys › Add key › JSON.",
+    };
+  return { ok: true, email: o.client_email };
+}
 
 export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "params" | "secrets"> | null): ConnForm {
   const params: Record<string, string> = {};
@@ -423,6 +454,8 @@ export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "par
     secrets: {},
     sftpAuth: keySet && !source?.secrets?.pass?.set ? "key_pem" : "pass",
     tokenText: "",
+    driveAuth:
+      source?.secrets?.service_account_credentials?.set && !source?.secrets?.token?.set ? "service_account" : "token",
   };
 }
 
@@ -451,7 +484,14 @@ export function validateForm(
     if (!str(form.params[k])) e[k] = msg;
   };
   const secret = (k: string) => (form.secrets[k] === undefined ? editing && isSet(k) : Boolean(form.secrets[k]));
-  if (spec.oauth) {
+  const serviceAccount = type === "drive" && form.driveAuth === "service_account";
+  if (serviceAccount) {
+    const k = form.secrets.service_account_credentials;
+    const key = k ? parseServiceAccountKey(k) : null;
+    if (key?.ok === false) e.service_account_credentials = key.error;
+    else if (!secret("service_account_credentials"))
+      e.service_account_credentials = "Choose the service account’s JSON key file.";
+  } else if (spec.oauth) {
     const t = parseRcloneToken(form.tokenText);
     if (t.ok === false) e.token = t.error;
     else if (t.ok === null && !(editing && isSet("token"))) e.token = "Paste the token rclone printed.";
@@ -499,7 +539,10 @@ export function buildPayload(
   for (const k of spec.secrets) {
     if (k === "token") continue;
     const v = form.secrets[k];
-    if (type === "sftp" && k !== form.sftpAuth) {
+    const other =
+      (type === "sftp" && k !== form.sftpAuth) ||
+      (type === "drive" && k === "service_account_credentials" && form.driveAuth !== "service_account");
+    if (other) {
       // Signing in one way drops the other secret only when it was explicitly cleared.
       if (v === "") secrets[k] = null;
       continue;
@@ -507,9 +550,14 @@ export function buildPayload(
     if (v === undefined) continue;
     secrets[k] = v === "" ? null : type === "sftp" && k === "key_pem" ? v.replace(/\r\n/g, "\n") : v;
   }
-  if (spec.oauth) {
+  if (type === "drive" && form.driveAuth === "service_account") {
+    if (secrets.service_account_credentials) secrets.token = null; // rclone would sign in as the account anyway
+  } else if (spec.oauth) {
     const t = parseRcloneToken(form.tokenText);
-    if (t.ok) secrets.token = t.token;
+    if (t.ok) {
+      secrets.token = t.token;
+      if (type === "drive") secrets.service_account_credentials = null; // or rclone keeps using the account
+    }
   }
   return { params, secrets };
 }

@@ -1,12 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Circle, Copy, Download, LoaderCircle, RefreshCw, Trash2, X } from "lucide-react";
+import { Check, Circle, Copy, LoaderCircle, RefreshCw, X } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import { Updates } from "@/app/openapi-client";
-import type { Backup, UpdateStatus, UpgradeRun } from "@/app/openapi-client/types.gen";
-import { saveBlob } from "@/components/recording/hooks";
+import type { UpdateStatus, UpgradeRun } from "@/app/openapi-client/types.gen";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -71,18 +71,6 @@ export function useUpdates(enabled = true) {
       return s?.upgrade && ACTIVE.includes(s.upgrade.state) && !s.upgrade.error ? 3_000 : 10 * 60_000;
     },
   });
-}
-
-export function bytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  const u = ["KB", "MB", "GB", "TB"];
-  let v = n / 1024;
-  let i = 0;
-  while (v >= 1024 && i < u.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(v < 10 ? 1 : 0)} ${u[i]}`;
 }
 
 function when(iso?: string | null): string {
@@ -180,7 +168,13 @@ export function UpdatesPanel() {
           <pre className="mt-2 whitespace-pre-wrap font-sans text-[12.5px] text-fg-muted">{s.latest.notes}</pre>
         </details>
       )}
-      <Backups />
+      <p className="border-t border-border pt-4 text-[13px] text-fg-muted">
+        Lens backs the database up before each upgrade. Backups, and restoring one, are in{" "}
+        <Link href="/settings/backups" className="text-fg-accent underline">
+          Settings → Backups
+        </Link>
+        .
+      </p>
     </div>
   );
 }
@@ -226,79 +220,5 @@ function RunView({ run }: { run: UpgradeRun }) {
         </pre>
       )}
     </div>
-  );
-}
-
-function Backups() {
-  const client = useApiClient();
-  const qc = useQueryClient();
-  const list = useQuery({ queryKey: ["admin-backups"], queryFn: () => data(Updates.listBackups({ client })) });
-  const reload = () => qc.invalidateQueries({ queryKey: ["admin-backups"] });
-  const take = useMutation({ mutationFn: () => data(Updates.takeBackup({ client })), onSuccess: reload });
-  const remove = useMutation({
-    mutationFn: (name: string) => data(Updates.deleteBackup({ client, path: { name } })),
-    onSuccess: reload,
-  });
-  const download = useMutation({
-    mutationFn: async (b: Backup) => {
-      const blob = (await data(
-        Updates.downloadBackup({ client, path: { name: b.name }, parseAs: "blob" }),
-      )) as unknown as Blob;
-      saveBlob(blob, b.name);
-    },
-  });
-  const err = take.error ?? remove.error ?? download.error;
-  return (
-    <section className="flex flex-col gap-2 border-t border-border pt-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[15px] font-bold text-fg">Backups</h3>
-        <Button variant="secondary" size="sm" onClick={() => take.mutate()} disabled={take.isPending}>
-          {take.isPending ? "Backing up…" : "Back up now"}
-        </Button>
-      </div>
-      <p className="text-[12.5px] text-fg-muted">
-        The database, kept in {list.data?.folder ?? "the data folder"}. Lens also backs up before each upgrade and keeps
-        the last three of those.
-      </p>
-      {err && <p className="text-[12.5px] text-red-dark">{errText(err)}</p>}
-      {list.isPending ? (
-        <Skeleton className="h-12 w-full" />
-      ) : !list.data?.backups.length ? (
-        <p className="text-[13px] text-fg-muted">No backups yet.</p>
-      ) : (
-        <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
-          {list.data.backups.map((b) => (
-            <li key={b.name} className="flex items-center gap-2 px-3 py-2 text-[13px]">
-              <span className="flex-1 truncate" title={b.name}>
-                {when(b.taken_at)}
-                <span className="ml-2 text-fg-muted">
-                  {b.label === "before-upgrade" ? "before an upgrade" : "taken by hand"} · {bytes(b.bytes)}
-                </span>
-              </span>
-              {b.kind === "export" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  aria-label={`Download ${b.name}`}
-                  onClick={() => download.mutate(b)}
-                  disabled={download.isPending}
-                >
-                  <Download aria-hidden />
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={`Delete ${b.name}`}
-                onClick={() => remove.mutate(b.name)}
-                disabled={remove.isPending}
-              >
-                <Trash2 aria-hidden />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }

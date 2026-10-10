@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.domain import auth, backups, updates
+from app.schemas.backups import BackupSchedule, RestoreWork
 from app.schemas.common import Ok
 from app.schemas.updates import Backup, Backups, UpdateStatus, UpgradeRequest
 
@@ -24,6 +27,7 @@ def check_updates(user: AdminWriter, db: Db, cfg: Cfg) -> UpdateStatus:
     """Ask GitHub for the latest release now."""
     try:
         updates.check(db, cfg)
+        updates.announce(db, cfg)
     except updates.UpdateError as e:
         raise HTTPException(400, str(e)) from None
     return UpdateStatus.model_validate(updates.view(db, cfg))
@@ -43,18 +47,40 @@ def start_upgrade(user: AdminWriter, db: Db, cfg: Cfg, body: UpgradeRequest | No
 
 
 @router.get("/admin/backups")
-def list_backups(user: AdminReader, db: Db) -> Backups:
-    """The database backups in <data_dir>/backups, newest first."""
-    return Backups(folder=str(backups.folder(db)), backups=[Backup(**b) for b in backups.listing(db)])
+def list_backups(user: AdminReader, db: Db, cfg: Cfg) -> Backups:
+    """The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or
+    the last one); and the backup schedule."""
+    b, st = cfg["backups"], backups.schedule_state(db)
+    scheme = db.url.split(":", 1)[0]
+    return Backups(
+        folder=str(backups.folder(db)),
+        backups=[Backup(**x) for x in backups.listing(db)],
+        database="memory" if scheme in ("mem", "memory") else "embedded" if db.embedded else "server",
+        in_progress=backups.in_progress(db),
+        restore=RestoreWork(**backups.work),
+        schedule=BackupSchedule(
+            schedule=b.get("schedule"),
+            timezone=b.get("timezone") or "UTC",
+            keep=b.get("keep") or 7,
+            next_at=st.get("at") if st.get("plan") == backups.plan(cfg) else backups.next_at(cfg),
+            last_at=st.get("last_at"),
+            last_name=st.get("last_name"),
+            last_error=st.get("last_error"),
+        ),
+    )
 
 
 @router.post("/admin/backups", status_code=201)
-def take_backup(user: AdminWriter, db: Db) -> Backup:
-    """Back the database up now (it can take a while on a big archive)."""
+def take_backup(user: AdminWriter, db: Db, cfg: Cfg) -> Backup:
+    """Back the database up now (it can take a while on a big archive). With backups.connection set, it is then
+    copied there in the background (GET /admin/backups/remote follows it)."""
     got = backups.take(db)
     if got is None:
         raise HTTPException(400, "an in-memory database can't be backed up")
     auth.audit(db, user.as_audit(), "backup.create", None, {"name": got["name"]})
+    if backups.remote(cfg):
+        with contextlib.suppress(backups.Busy):  # another copy is running: this one waits for the next backup
+            backups.start_copy(db, cfg, "send", got["name"])
     return Backup(**got)
 
 

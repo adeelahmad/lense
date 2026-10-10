@@ -438,7 +438,13 @@ def nearest(db, cfg, q, where_f, params, kinds, k):
     text = query_text(q)
     if not text or not kinds:
         return []
-    vec = query_vector(cfg, text)
+    return nearest_to(db, cfg, query_vector(cfg, text), where_f, params, kinds, k)
+
+
+def nearest_to(db, cfg, vec, where_f, params, kinds, k):
+    """nearest() for a vector: a query's, or the centre of a recording's passages (`centre`)."""
+    if not kinds:
+        return []
     dim = (state(db) or {}).get("dimension")
     if dim and len(vec) != dim:
         raise EmbedError(f"the model's vectors now have {len(vec)} dimensions, the index {dim}: index again (lens embed --force)")
@@ -469,3 +475,16 @@ def nearest(db, cfg, q, where_f, params, kinds, k):
     rows = [r for r in rows if r.get("similarity") is not None]
     least = max([floor(cfg)] + [r["similarity"] - SPREAD for r in rows[:1]])
     return [r for r in rows if r["similarity"] >= least]
+
+
+def centre(db, cfg, rid, kinds=("said", "page", "described")):
+    """The mean of a recording's passage vectors (what it is about as a whole), or None when it has none from the
+    configured model yet."""
+    if not available(db, cfg):
+        return None
+    rows = db.rows("SELECT embedding FROM passage WHERE recording = $r AND kind IN $k AND embedding != NONE", r=int(rid), k=list(kinds))
+    vecs = [r["embedding"] for r in rows if r.get("embedding")]
+    if not vecs or len({len(v) for v in vecs}) != 1:
+        return None
+    n = len(vecs)
+    return [sum(col) / n for col in zip(*vecs)]

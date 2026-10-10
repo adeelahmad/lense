@@ -59,7 +59,7 @@ class Archive:
 
     def prepare(self) -> None:
         # first: after a rollback to this version, the database as it was before the upgrade (docs/updates.md)
-        updates.restore_on_start(self.db, self.base["data_dir"])
+        updates.restore_on_start(self.db, self.base)
         templates.seed(self.db)
         content_types.seed(self.db)
         routines.seed(self.db)
