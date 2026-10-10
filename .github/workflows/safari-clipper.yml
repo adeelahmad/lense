@@ -1,0 +1,62 @@
+name: Safari clipper
+
+# The web clipper wrapped as a Safari Web Extension (a macOS app carrying it), built on macOS with Xcode. On a pull
+# request that changes the extension it's built and kept with the run; on a release, or a workflow_dispatch with
+# `tag`, it's attached to the release and, when the App Store Connect secrets are set (APPLE_TEAM_ID, APPLE_API_KEY_ID,
+# APPLE_API_ISSUER, APPLE_API_KEY_P8), signed and uploaded there, which is how Safari users get updates. The zip is
+# unsigned; without the secrets the upload is skipped.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the Safari clipper to; blank: build this ref"
+        default: ""
+  pull_request:
+    paths:
+      - extensions/browser/**
+      - .github/workflows/safari-clipper.yml
+
+permissions:
+  contents: read
+
+jobs:
+  safari:
+    name: Build the Safari clipper
+    runs-on: macos-latest
+    permissions:
+      contents: write # to attach it to the release
+    env:
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extensions/browser/package-lock.json
+      - name: Build
+        env:
+          EXT_VERSION: ${{ github.event.release.tag_name || inputs.tag }}
+        run: extensions/browser/safari/build.sh "$RUNNER_TEMP/safari"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lens-clipper-safari
+          path: ${{ runner.temp }}/safari/lens-clipper-safari-app.zip
+      - name: Attach to the release
+        if: github.event_name == 'release' || inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$TAG" "$RUNNER_TEMP/safari/lens-clipper-safari-app.zip" --clobber --repo "${{ github.repository }}"
+      - name: Upload to App Store Connect
+        if: (github.event_name == 'release' || inputs.tag != '') && env.APPLE_API_KEY_ID != ''
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+        run: extensions/browser/safari/app-store.sh "$RUNNER_TEMP/safari"

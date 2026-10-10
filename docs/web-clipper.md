@@ -116,7 +116,7 @@ are set, and is skipped otherwise:
 | Edge | Microsoft Edge Add-ons: each release is uploaded and submitted | `EDGE_PRODUCT_ID`, `EDGE_CLIENT_ID`, `EDGE_API_KEY` |
 | Chrome, Edge (self-hosted) | `lens-clipper-<browser>.crx`, which checks `lens-clipper-<browser>-updates.xml` on the newest release | `CRX_PRIVATE_KEY` |
 | Firefox | the Mozilla-signed `lens-clipper-firefox.xpi`, which checks `lens-clipper-firefox-updates.json` on the newest release | `AMO_JWT_ISSUER`, `AMO_JWT_SECRET` |
-| Safari | the App Store, from the Safari build | see the Safari section |
+| Safari | the App Store, from the Safari build | `APPLE_*`, see [Safari](#safari) |
 
 - Chrome and Edge only install a `.crx` from outside their stores through policy (`ExtensionInstallForcelist`
   with the update XML's address) or on Linux. For everyone else the stores are the way to get updates.
@@ -124,3 +124,26 @@ are set, and is skipped otherwise:
   key makes a different extension.
 - The self-hosted builds are `dist/<browser>-selfhosted`. They are built when `EXT_UPDATE_BASE` is set, which a release
   sets to its `releases/latest/download` address, so every installed copy finds the newest version.
+
+## Safari
+
+Safari runs the same clipper, carried inside a small macOS app (**Lens Clipper.app**). Each release has
+`lens-clipper-safari-app.zip` attached; to build it yourself on a Mac with Xcode, run `extensions/browser/safari/build.sh`.
+
+To install the zip: unzip it, move **Lens Clipper.app** to Applications and open it once. In Safari, turn on
+**Settings > Advanced > Show features for web developers** and **Develop > Allow Unsigned Extensions**, then enable
+Lens Clipper in **Settings > Extensions**. The zip is unsigned, so Safari forgets that allowance each time it restarts.
+Safari asks before the clipper reads a site; allow your Lens server and the pages you clip.
+
+**Updates:** Safari extensions update only through the App Store. When the repository has the App Store Connect
+secrets, the Safari clipper workflow signs each release and uploads it there:
+
+| Secret | What it is |
+| --- | --- |
+| `APPLE_TEAM_ID` | Your Apple Developer team id |
+| `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` | An App Store Connect API key with the Admin role (Users and Access > Integrations), and its issuer id |
+| `APPLE_API_KEY_P8` | The contents of that key's `AuthKey_….p8` file |
+
+Create the app's record in App Store Connect once, with the bundle id `dev.lens.clipper`. Each upload then shows up in
+TestFlight, which keeps testers up to date; submit a build for review to release it on the Mac App Store, where Safari
+updates it for everyone. Without the secrets the upload is skipped and only the zip is attached.
