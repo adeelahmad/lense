@@ -277,6 +277,22 @@ try {
   check(a.ok && a.result.text.includes("New message"), `Lens reads a page once the person allows its site${a.ok ? "" : `: ${a.error}`}`);
   const refOf = (name) => new RegExp(`\\[(e\\d+)\\] [a-z ]+"${name}"`).exec(a.result?.text ?? "")?.[1];
   const [to, pw, send, file] = ["To", "Password", "Send", "report.pdf"].map(refOf);
+  // once the answer has read outside text, an address or text the assistant wrote asks first, on allowed sites too
+  const confirm = "this answer read text from outside Lens: tool browser_read";
+  const leaking = act("open", { tab_id, url: `${origin}/compose?d=the-renewal-notes`, confirm });
+  const card = panel.locator(".ask.action").last();
+  await card.waitFor({ timeout: 10000 });
+  const shown = await card.textContent();
+  await card.getByRole("button", { name: "No" }).click();
+  a = await leaking;
+  check(
+    !a.ok && /said no/.test(a.error) && shown.includes("?d=the-renewal-notes") && shown.includes(`Asked because ${confirm}`) && !compose.url().includes("?d="),
+    "after reading outside text, opening an address the assistant wrote asks first, and No keeps it from opening",
+  );
+  const typing = act("type", { tab_id, ref: to, text: "bob@example.com", confirm });
+  await panel.locator(".ask.action").last().getByRole("button", { name: "Yes, do it" }).click({ timeout: 10000 });
+  a = await typing;
+  check(a.ok && (await compose.inputValue("#to")) === "bob@example.com", `and typing text it wrote asks too${a.ok ? "" : `: ${a.error}`}`);
   a = await act("type", { tab_id, ref: to, text: "ada@example.com" });
   check(a.ok && (await compose.inputValue("#to")) === "ada@example.com", `it types into a field${a.ok ? "" : `: ${a.error}`}`);
   a = await act("type", { tab_id, ref: pw, text: "hunter2" });

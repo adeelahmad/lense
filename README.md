@@ -19,12 +19,13 @@ cost-aware.
 curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
 ```
 
-That one line is all: it opens an installer in your browser that checks the computer, asks how Lens should run (in
-Docker or a [microsandbox](docs/microsandbox.md) microVM), the AI model and its key and any extras, then installs
-what's missing (Docker included), starts Lens and opens its setup page
-([details](docs/get-started.md#the-web-installer)). Run it again to update. On Windows, run
-`irm https://raw.githubusercontent.com/adeelahmad/lense/main/install.ps1 | iex` in PowerShell; or skip the terminal and
-double-click the launcher for your system from the [latest release](https://github.com/adeelahmad/lense/releases/latest).
+That one line is all: it opens an installer in your browser that checks the computer, then either installs with the
+defaults in one click (with a model server it finds on the computer) or asks how Lens should run (in Docker or a
+[microsandbox](docs/microsandbox.md) microVM), the AI model and its key and any extras. Either way it installs what's
+missing (Docker included), starts Lens and opens its setup page ([details](docs/get-started.md#the-web-installer)).
+Run it again to update. On Windows, run `irm https://raw.githubusercontent.com/adeelahmad/lense/main/install.ps1 | iex`
+in PowerShell; or skip the terminal and double-click the launcher for your system from the
+[latest release](https://github.com/adeelahmad/lense/releases/latest).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
 [Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
 
@@ -135,7 +136,10 @@ These are open pull requests, not yet part of Lens:
   ([#287](https://github.com/adeelahmad/lense/pull/287)), without Matterbridge; and the assistant's own email address,
   over IMAP and SMTP ([#314](https://github.com/adeelahmad/lense/pull/314)).
 - **Assistant safety:** running MCP servers that are programs (stdio) in a sandbox
-  ([#304](https://github.com/adeelahmad/lense/pull/304)).
+  ([#304](https://github.com/adeelahmad/lense/pull/304)); flagging third-party text that reads like instructions to an
+  AI ([#329](https://github.com/adeelahmad/lense/pull/329)); and asking before the browser opens or types what the
+  assistant wrote after reading a page ([#333](https://github.com/adeelahmad/lense/pull/333)).
+- **Cloud model presets** in Settings and the setup wizard ([#334](https://github.com/adeelahmad/lense/pull/334)).
 - **Search:** a Similar tab, and similar content for text selected anywhere
   ([#307](https://github.com/adeelahmad/lense/pull/307)); NSFW pictures classified by a local model, per namespace
   ([#306](https://github.com/adeelahmad/lense/pull/306)).

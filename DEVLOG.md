@@ -21,12 +21,14 @@ PRs:
 - [x] Extension: side panel chat, OAuth sign-in (the Edge smoke test signs in through a stand-in consent page)
 - [x] Extension: browser control (read with refs, click, type, keys, download into the conversation), site
       permissions, asking first, the action log (the Edge smoke test drives each against a stand-in Lens)
+- [x] After reading outside text (#309's `wary()`): addresses to open or download and text to type that the person
+      didn't write go with `confirm`, and the side panel asks first, on allowed sites too
 
 Refine later: the browser from WhatsApp/Slack while the side panel is open (a setting, off); keep-alives in the chat
 stream while an action waits; browser tools over MCP; real input events (Chrome's debugger) for sites that ignore
 synthetic ones; asking about the page or selection from the right-click menu; the model and namespaces picker in the
 side panel; webmail attachments behind a download button, and files redirected to another site; frames; Safari's
-default tab.
+default tab; Lens checking that the extension asked (an extension older than `confirm` doesn't).
 
 ## 2026-10-10 · Similar content
 
