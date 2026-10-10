@@ -4,7 +4,7 @@ Lens works out how it is being used (active people, churn, retention, which feat
 and can also send a few counted events to a **Google Analytics 4** property you own, to see the same across every
 install you run.
 
-Status: **built** (backend and API). The Settings page and the wizard toggle are **in progress**.
+Status: **built**: the numbers, Settings → Usage analytics, the wizard toggle and the Google Analytics events.
 
 ## The numbers
 
@@ -85,6 +85,6 @@ telemetry does.
 
 ## Refine later
 
-- A Settings page with charts of the numbers, and the wizard toggle (in progress).
+- Choose the period in Settings (it shows the last 30 days).
 - Per-namespace numbers.
 - Optional per-person pseudonymous ids in GA, for multi-person installs.
