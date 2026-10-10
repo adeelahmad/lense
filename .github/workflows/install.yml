@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - install.sh
+      - installer/**
       - docker-compose.prod.yml
       - fastapi_backend/Dockerfile
       - fastapi_backend/pyproject.toml
@@ -21,6 +22,7 @@ on:
     branches: [main]
     paths:
       - install.sh
+      - installer/**
       - docker-compose.prod.yml
       - microsandbox/**
       - .github/workflows/install.yml
@@ -36,6 +38,84 @@ permissions:
   contents: read
 
 jobs:
+  installer-tests:
+    name: Web installer tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        # the oldest Python it supports (a Mac's own, older Linux) and a current one
+        python: ["3.8", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -v installer
+
+  web-installer:
+    name: Install from the web installer
+    # a runner of its own: the one-line install job builds the same images
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LENS_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      LENS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      LENS_DIR: /tmp/lens-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the installer, as install.sh does on a first install
+        run: |
+          LENS_INSTALLER_TOKEN=ci-token python3 installer/lens_installer.py --no-browser --port 3990 >installer.log 2>&1 &
+          timeout 30 sh -c 'until curl -s -o /dev/null http://127.0.0.1:3990/; do sleep 1; done'
+          cat installer.log
+          # its link sets the cookie that every other call needs
+          curl -fsS -c jar -o /dev/null "http://127.0.0.1:3990/?t=ci-token"
+          curl -fsS -b jar http://127.0.0.1:3990/api/system | jq '{os_name, docker, plan, port}'
+
+      - name: Answer it and install
+        run: |
+          jq -n --arg dir "$LENS_DIR" --arg ref "$LENS_REF" '{backend: "docker", target: "lean", dir: $dir, ref: $ref,
+            settings: {llm: {base_url: "http://localhost:11434/v1", model: "llama3", api_key: "sk-ci"}}}' >answers.json
+          curl -fsS -b jar -H 'X-Lens-Installer: 1' -H 'Content-Type: application/json' -d @answers.json \
+            http://127.0.0.1:3990/api/install
+          since=0
+          while :; do
+            p="$(curl -fsS -b jar "http://127.0.0.1:3990/api/progress?since=$since")"
+            echo "$p" | jq -r '.lines[]'
+            since="$(echo "$p" | jq .next)"
+            state="$(echo "$p" | jq -r .state)"
+            [ "$state" = running ] || break
+            sleep 5
+          done
+          echo "$p" | jq '{state, url, error}'
+          [ "$state" = done ] || exit 1
+          echo "$p" | jq -r .url >setup-url
+
+      - name: Lens answers, waits for its first admin, and has the installer's settings
+        run: |
+          url="$(cat setup-url)"
+          base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          curl -fsS -o /dev/null "$url"
+          curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
+          cd "$LENS_DIR"
+          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm"
+          # saved in Lens: the key doesn't stay in .env
+          ! grep -q '^LENS_SETUP_SETTINGS=' .env
+
+      - name: What the installer and the containers said
+        if: failure()
+        run: |
+          cat installer.log || true
+          cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml ps -a && docker compose -f docker-compose.prod.yml logs --tail 200
+
+      - name: Stop
+        if: always()
+        run: |
+          curl -fsS -b jar -H 'X-Lens-Installer: 1' -X POST -d '{}' http://127.0.0.1:3990/api/quit || true
+          if [ -d "$LENS_DIR" ]; then cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml down -v || true; fi
+
   install:
     name: One-line install
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}

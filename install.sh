@@ -19,6 +19,8 @@
 #   GITHUB_TOKEN   a GitHub token to use when downloading (not needed; avoids GitHub's rate limits)
 #   LENS_NO_OPEN   1: don't open a browser
 #   LENS_YES       1: install what Lens needs without asking (it only asks at a terminal)
+#   LENS_WIZARD    1: answer everything in the web installer, in the browser (the default for a first install at a
+#                  terminal, where Python 3 is there); 0: here in the terminal
 set -eu
 
 # All in a function, so nothing runs until the whole script has arrived (curl | sh streams it).
@@ -42,7 +44,9 @@ code() { LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 12; }
 
 os="$(uname -s)"
 
-sudo_ok() { [ "$(id -u)" = 0 ] && echo "" || echo sudo; }
+sudo_ok() { # the web installer hands sudo your password through SUDO_ASKPASS
+  if [ "$(id -u)" = 0 ]; then echo ""; elif [ -n "${SUDO_ASKPASS:-}" ]; then echo "sudo -A"; else echo sudo; fi
+}
 
 # --- What runs it: Docker, or a microsandbox microVM ----------------------------------------------------------------
 # microsandbox needs hardware virtualization: KVM on 64-bit Linux (or a CPU that has it, whose module isn't loaded
@@ -56,6 +60,33 @@ msb_ok() {
   esac
 }
 tty_ok() { [ "${LENS_YES:-0}" != 1 ] && (: </dev/tty) 2>/dev/null; }
+
+# --- The web installer: a first install at a terminal continues in the browser ----------------------------------------
+# It asks everything there (what to install, how Lens runs, the AI model and its key, the extras), then runs this
+# script again with the answers (LENS_WIZARD=0) and shows its progress. Python 3.8+ runs it; without it, the
+# questions are asked here.
+py_ok() {
+  have python3 && python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' 2>/dev/null || return 1
+  [ "$os" != Darwin ] || xcode-select -p >/dev/null 2>&1 # else python3 is a stub that pops up an install dialog
+}
+WIZARD="${LENS_WIZARD:-}"
+if [ -z "$WIZARD" ]; then
+  WIZARD=0
+  [ ! -f "$DIR/.env" ] && [ -z "${LENS_BACKEND:-}" ] && tty_ok && WIZARD=1
+fi
+if [ "$WIZARD" = 1 ] && py_ok && have curl; then
+  wiz="$(mktemp -d)"
+  trap 'rm -rf "$wiz"' EXIT
+  base="${LENS_INSTALLER_URL:-https://raw.githubusercontent.com/$REPO/$REF/installer}"
+  if curl -fsSL "$base/lens_installer.py" -o "$wiz/lens_installer.py" && curl -fsSL "$base/page.html" -o "$wiz/page.html"; then
+    say "Opening the installer in your browser..."
+    LENS_INSTALLER_FETCH=1 python3 "$wiz/lens_installer.py" --dir "$DIR" --repo "$REPO" --ref "$REF"
+    exit $?
+  fi
+  echo "Couldn't download the web installer; asking here instead."
+elif [ "$WIZARD" = 1 ]; then
+  echo "The web installer needs Python 3.8 or later; asking here instead."
+fi
 BACKEND="${LENS_BACKEND:-}"
 if [ -z "$BACKEND" ] && [ -f "$DIR/.env" ]; then # an existing install keeps what it runs on (its data is there)
   BACKEND="$(grep '^LENS_BACKEND=' "$DIR/.env" | cut -d= -f2- || true)"
@@ -147,9 +178,14 @@ if ! have docker; then
       $(sudo_ok) systemctl enable --now docker 2>/dev/null || true
       ;;
     Darwin)
-      if ! have brew && tty_ok; then
+      if ! have brew && { tty_ok || [ -n "${SUDO_ASKPASS:-}" ]; }; then
         say "Installing Homebrew (brew.sh)..."
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/tty
+        brew_sh="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        if tty_ok; then
+          /bin/bash -c "$brew_sh" </dev/tty
+        else # from the web installer: no questions, and sudo asks the installer for the password
+          NONINTERACTIVE=1 /bin/bash -c "$brew_sh" </dev/null
+        fi
         for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && eval "$("$b" shellenv)" && break; done
       fi
       if have brew; then
@@ -268,6 +304,11 @@ setenv LENS_TARGET "$TARGET"
 setenv LENS_BIND "$bind"
 setenv LENS_PORT "$PORT"
 setenv FRONTEND_URL "http://$host:$PORT"
+# from the web installer (docs/configuration.md): the first namespace, and settings Lens saves once at its first start
+for k in LENS_NAMESPACE LENS_SETUP_SETTINGS; do
+  eval "v=\${$k:-}"
+  [ -z "$v" ] || setenv "$k" "$v"
+done
 setup_code="$(grep '^LENS_SETUP_CODE=' .env | cut -d= -f2-)"
 
 # --- Build and start ----------------------------------------------------------------------------------------------

@@ -13,7 +13,7 @@ from app.domain import settings as app_settings
 from tests.conftest import TEST_URL
 from tests.helpers import login, make_user
 
-ENV = ("LENS_ADMIN_EMAIL", "LENS_ADMIN_PASSWORD", "LENS_ADMIN_NAME", "LENS_NAMESPACE", "LENS_SETUP_WIZARD")
+ENV = ("LENS_ADMIN_EMAIL", "LENS_ADMIN_PASSWORD", "LENS_ADMIN_NAME", "LENS_NAMESPACE", "LENS_SETUP_WIZARD", "LENS_SETUP_SETTINGS")
 LLM_ENV = ("LENS_LLM_BASE_URL", "LENS_LLM_MODEL", "LENS_LLM_API_KEY", "LENS_LLM_VISION_MODEL")
 
 
@@ -190,6 +190,47 @@ def test_env_namespace_only_while_there_is_none(fresh, monkeypatch):
     monkeypatch.setenv("LENS_NAMESPACE", "media")
     setup.apply_env(db)  # the next start: a namespace exists, so LENS_NAMESPACE adds nothing
     assert sorted(store.space_names(db).values()) == ["family"]
+
+
+def test_installer_settings_are_saved_once_and_stay_editable(fresh, monkeypatch, caplog):
+    """LENS_SETUP_SETTINGS (the web installer's answers): saved like settings made in the app, not locked, once."""
+    import base64
+    import json
+
+    from app.domain import setup
+
+    seed = {
+        "llm": {"base_url": "http://ollama:11434/v1", "model": "llama3", "api_key": "sk-seed"},
+        "decisions": {"api_key": "ts-seed"},
+        "nope": {"x": 1},  # not a section: logged and left out, the rest still applies
+    }
+    monkeypatch.setenv("LENS_SETUP_SETTINGS", base64.urlsafe_b64encode(json.dumps(seed).encode()).decode().rstrip("="))
+    monkeypatch.setenv("LENS_ADMIN_EMAIL", "ops@x.io")
+    monkeypatch.setenv("LENS_ADMIN_PASSWORD", "ops password 123")
+    with caplog.at_level("ERROR", logger="lens"):
+        app, client = fresh()
+    assert "LENS_SETUP_SETTINGS nope" in caplog.text
+    cfg = app.state.settings.current()
+    assert (cfg["llm"]["base_url"], cfg["llm"]["model"], cfg["llm"]["api_key"]) == ("http://ollama:11434/v1", "llama3", "sk-seed")
+    assert cfg["decisions"]["api_key"] == "ts-seed"
+    h = login(client, "ops@x.io", "ops password 123")
+    view = client.get("/api/v1/setup", headers=h).json()
+    assert view["llm"]["locked"] == [] and view["llm"]["values"]["api_key"] == {"secret": True, "set": True}
+    assert "sk-seed" not in client.get("/api/v1/settings", headers=h).text
+
+    # changed in the app, then the next start: the installer's value doesn't come back
+    client.put("/api/v1/setup/llm", json={"model": "qwen3"}, headers=h)
+    assert setup.apply_settings(app.state.db, app.state.archive.base) == []
+    assert app.state.settings.current()["llm"]["model"] == "qwen3"
+
+
+def test_installer_settings_as_plain_json(monkeypatch):
+    from app.domain import setup
+
+    monkeypatch.setenv("LENS_SETUP_SETTINGS", '{"llm": {"model": "m"}, "bad": 3}')
+    assert setup.env_settings() == {"llm": {"model": "m"}}
+    monkeypatch.setenv("LENS_SETUP_SETTINGS", "%%%")
+    assert setup.env_settings() == {}
 
 
 def test_wizard_off(fresh, monkeypatch):
