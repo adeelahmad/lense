@@ -245,6 +245,7 @@ export function PipelineEditor({ id }: { id?: number }) {
   const readOnly = !admin;
   const latest = base ? Math.max(base.current, ...(base.history ?? []).map((h) => h.version)) : 0;
   const dirty = creating ? true : base ? !sameSteps(base.steps, steps) : false;
+  // A new pipeline is named for you unless you type one, so Enter creates it straight away
   const guess = suggestedPipelineName(
     steps,
     (catalog.data?.pipelines ?? []).map((p) => p.name),
@@ -417,6 +418,9 @@ export function PipelineEditor({ id }: { id?: number }) {
             placeholder={guess}
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !publishReason && !save.isPending) save.mutate(true);
+            }}
             className="h-9 w-[280px] text-[16px] font-bold"
             autoFocus
           />

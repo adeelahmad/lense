@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, KeyRound, Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Tokens } from "@/app/openapi-client";
 import type { ApiToken } from "@/app/openapi-client/types.gen";
@@ -38,8 +38,15 @@ export function TokensPage() {
     queryKey: ["tokens"],
     queryFn: () => data(Tokens.listTokens({ client })),
   });
-  // ?new=1 (the account menu, when there are no tokens yet): the new token's form is open on arrival
+  // ?new=1 (the account menu, when there are no tokens yet): the new token's form is open on arrival; it also opens
+  // once the list comes back empty, for a menu clicked before it knew
   const [creating, setCreating] = useState(useSearchParams().get("new") === "1");
+  const offered = useRef(false);
+  useEffect(() => {
+    if (offered.current || !tokens.data) return;
+    offered.current = true;
+    if (!tokens.data.length) setCreating(true);
+  }, [tokens.data]);
   const [created, setCreated] = useState<Created | null>(null);
   const [revoking, setRevoking] = useState<ApiToken | null>(null);
 

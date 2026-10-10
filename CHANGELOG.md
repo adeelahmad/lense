@@ -6,7 +6,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 - **New pipelines, workflows, templates and API tokens come with a name.** The web app guesses one from what you're
   making ("Transcribe to report", "Recording workflow", "Prompt template 2", "Read only token"), as it already did for
-  routines, so making one takes no typing; type over it to choose your own. The pencil next to the name renames it
+  routines, so making one takes no typing; type a name to choose your own. The pencil next to the name renames it
   later, and `PATCH /api/v1/pipelines/{id}`, `/templates/{id}` and `/tokens/{id}` rename them through the API.
 
 - **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
@@ -31,7 +31,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   copy), and the conversations are the same ones Lens's chat shows, with cited answers, the steps taken and approvals.
   While the panel is open, the assistant can use that browser: open, read, click, type and download files into the
   conversation, only on sites you allow, asking before anything that sends, deletes, buys or posts, never typing
-  passwords or card numbers, and showing each action as it happens ([The assistant in your browser](docs/browser-assistant.md)).
+  passwords or card numbers, and showing each action as it happens. Once it has read a page, opening an address or
+  typing text you didn't write asks you first too ([The assistant in your browser](docs/browser-assistant.md)).
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 

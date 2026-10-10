@@ -1197,6 +1197,7 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="bridge.gateway" />
       <F ctx={ctx} id="bridge.users" />
       <F ctx={ctx} id="bridge.approve" />
+      <F ctx={ctx} id="bridge.safe_links" />
       <F ctx={ctx} id="bridge.rooms" />
       <F ctx={ctx} id="bridge.poll_seconds" />
       <div className="flex flex-wrap items-center gap-2.5">
@@ -1324,6 +1325,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="ai.tools" />
       <F ctx={ctx} id="ai.untrusted_marking" />
       <F ctx={ctx} id="ai.untrusted_asks" />
+      <F ctx={ctx} id="ai.injection_check" />
       <F ctx={ctx} id="ai.compact" />
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="ai.compact_model" />

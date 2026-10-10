@@ -190,8 +190,9 @@ export const JOURNEYS = [
       await page.waitForURL(/\/notes\/\d+/);
       const title = page.getByRole("textbox", { name: "Title" });
       await meter.replace(title, "Pi setup", "title");
-      const body = page.locator("main affine-page-root [contenteditable=true]").first();
-      const editor = (await body.count()) ? body : page.locator("main .inline-editor").last();
+      const editor = page.locator("main affine-page-root .inline-editor").first();
+      await editor.waitFor(); // the page has loaded its editor
+      await meter.press("Enter", "Enter to go to the first line");
       await meter.type(editor, "Use cloud models on the Pi.", "first line");
       await page.getByText("Saved").first().waitFor();
     },
@@ -218,7 +219,9 @@ export const JOURNEYS = [
     async run({ page, meter }) {
       await meter.click(nav(page, "Pipelines"), "Pipelines");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New pipeline" }), "New pipeline");
-      await meter.click(page.getByRole("button", { name: "Create pipeline" }), "Create pipeline");
+      await page.getByRole("textbox", { name: "Pipeline name" }).waitFor(); // named for you
+      await page.waitForFunction(() => document.activeElement?.tagName === "INPUT");
+      await meter.press("Enter", "Enter to create");
       await page.waitForURL(/\/pipelines\/\d+/);
     },
   },
@@ -231,7 +234,9 @@ export const JOURNEYS = [
     async run({ page, meter }) {
       await meter.click(nav(page, "Routines"), "Routines");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New routine" }), "New routine");
-      await meter.click(page.getByRole("button", { name: "Create routine" }), "Create routine");
+      await page.getByRole("textbox", { name: "Name" }).waitFor(); // named for you
+      await page.waitForFunction(() => document.activeElement?.tagName === "INPUT");
+      await meter.press("Enter", "Enter to create");
       await page.waitForURL(/\/routines\/\d+/);
     },
   },

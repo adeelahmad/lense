@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T22:57:02.610Z",
+  "surveyed": "2026-10-10T23:22:28.946Z",
   "commit": "",
   "viewport": "1400x900",
   "journeys": [
@@ -45,7 +45,7 @@
         }
       ],
       "id": "install",
-      "ms": 2028,
+      "ms": 1928,
       "ok": true
     },
     {
@@ -82,7 +82,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 524,
+      "ms": 519,
       "ok": true
     },
     {
@@ -127,7 +127,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 666,
+      "ms": 660,
       "ok": true
     },
     {
@@ -156,7 +156,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2344,
+      "ms": 1279,
       "ok": true
     },
     {
@@ -201,7 +201,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4151,
+      "ms": 3758,
       "ok": true
     },
     {
@@ -230,7 +230,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2691,
+      "ms": 2600,
       "ok": true
     },
     {
@@ -267,7 +267,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3241,
+      "ms": 3189,
       "ok": true
     },
     {
@@ -304,7 +304,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2356,
+      "ms": 2308,
       "ok": true
     },
     {
@@ -341,15 +341,15 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3410,
+      "ms": 3485,
       "ok": true
     },
     {
       "module": "Notes",
       "feature": "Write a note",
       "note": "",
-      "clicks": 3,
-      "keys": 35,
+      "clicks": 2,
+      "keys": 36,
       "prompts": 0,
       "steps": [
         {
@@ -378,15 +378,23 @@
         },
         {
           "page": "/notes/:id",
+          "kind": "key",
+          "what": "Enter to go to the first line",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/notes/:id",
           "kind": "type",
           "what": "first line",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 27,
           "prompts": 0
         }
       ],
       "id": "note-create",
-      "ms": 3338,
+      "ms": 3561,
       "ok": true
     },
     {
@@ -431,15 +439,15 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3322,
+      "ms": 3427,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a pipeline from the standard steps",
       "note": "Lens guesses the name from the steps; it can be renamed on the pipeline's page.",
-      "clicks": 3,
-      "keys": 0,
+      "clicks": 2,
+      "keys": 1,
       "prompts": 0,
       "steps": [
         {
@@ -460,23 +468,23 @@
         },
         {
           "page": "/pipelines/new",
-          "kind": "click",
-          "what": "Create pipeline",
-          "clicks": 1,
-          "keys": 0,
+          "kind": "key",
+          "what": "Enter to create",
+          "clicks": 0,
+          "keys": 1,
           "prompts": 0
         }
       ],
       "id": "pipeline-create",
-      "ms": 2649,
+      "ms": 2610,
       "ok": true
     },
     {
       "module": "Routines",
       "feature": "Make a nightly routine (sync sources, the default action)",
       "note": "Lens guesses the name from when it runs and what it does; it can be renamed later.",
-      "clicks": 3,
-      "keys": 0,
+      "clicks": 2,
+      "keys": 1,
       "prompts": 0,
       "steps": [
         {
@@ -497,15 +505,15 @@
         },
         {
           "page": "/routines/new",
-          "kind": "click",
-          "what": "Create routine",
-          "clicks": 1,
-          "keys": 0,
+          "kind": "key",
+          "what": "Enter to create",
+          "clicks": 0,
+          "keys": 1,
           "prompts": 0
         }
       ],
       "id": "routine-create",
-      "ms": 2844,
+      "ms": 2598,
       "ok": true
     },
     {
@@ -542,7 +550,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2639,
+      "ms": 2628,
       "ok": true
     },
     {
@@ -579,7 +587,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2845,
+      "ms": 2953,
       "ok": true
     },
     {
@@ -624,7 +632,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3510,
+      "ms": 3320,
       "ok": true
     },
     {
@@ -685,7 +693,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3081,
+      "ms": 3269,
       "ok": true
     },
     {
@@ -722,7 +730,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3031,
+      "ms": 3179,
       "ok": true
     },
     {
@@ -751,7 +759,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2256,
+      "ms": 2360,
       "ok": true
     }
   ],
@@ -868,7 +876,7 @@
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 2,
-      "controls": 6
+      "controls": 3
     },
     {
       "page": "/extensions",
@@ -946,7 +954,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 2,
-      "controls": 56
+      "controls": 57
     },
     {
       "page": "/settings/search",
@@ -1012,7 +1020,7 @@
       "page": "/settings/bridge",
       "label": "Settings › Chat rooms",
       "reach": 2,
-      "controls": 13
+      "controls": 14
     },
     {
       "page": "/settings/notifications",
