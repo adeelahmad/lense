@@ -221,7 +221,11 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Chat");
-      await meter.type(page.getByRole("textbox", { name: "Your question" }), "Who said what about Raspberry Pi?", "question");
+      const question = page.getByRole("textbox", { name: "Your question" });
+      // A phone's Chat opens on the list of conversations once there is one
+      if (!(await question.waitFor({ timeout: 3000 }).then(() => true, () => false)))
+        await meter.click(page.getByRole("button", { name: "New conversation" }), "New conversation");
+      await meter.type(question, "Who said what about Raspberry Pi?", "question");
       await meter.press("Enter", "Enter to send");
       await page.getByText(ANSWER).first().waitFor({ timeout: 60000 });
     },
