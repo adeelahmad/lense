@@ -30,11 +30,22 @@ class SetupStorageView(ResponseModel):
     watches: int
 
 
+class SetupAnalyticsView(ResponseModel):
+    enabled: bool
+    measurement_id: str | None = None
+    # an API secret is saved (it is never shown)
+    secret_set: bool
+    # what .env sets (LENS_ANALYTICS, LENS_GA_MEASUREMENT_ID, LENS_GA_API_SECRET): shown locked
+    locked: list[str]
+
+
 class SetupTelemetryView(ResponseModel):
     enabled: bool
     endpoint: str | None = None
     # what .env sets (LENS_TELEMETRY, LENS_TELEMETRY_ENDPOINT): shown locked
     locked: list[str]
+    # usage statistics sent to the admin's own Google Analytics property (docs/analytics.md); off by default
+    analytics: SetupAnalyticsView
 
 
 class SetupOAuthView(ResponseModel):
@@ -85,6 +96,11 @@ class SetupTelemetry(RequestModel):
     enabled: bool = False
     # the OTLP/HTTP address of a collector, like http://localhost:4318; needed to turn telemetry on
     endpoint: str | None = Field(default=None, max_length=500)
+    # Google Analytics (docs/analytics.md): left out, unchanged
+    analytics: bool | None = None
+    measurement_id: str | None = Field(default=None, max_length=40)
+    # empty: leave the saved secret as it is
+    api_secret: str | None = Field(default=None, max_length=200)
 
 
 class SetupOAuth(RequestModel):

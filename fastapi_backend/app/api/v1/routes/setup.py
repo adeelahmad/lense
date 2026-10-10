@@ -86,14 +86,23 @@ def save_storage(body: SetupStorage, user: AdminWriter, request: Request, db: Db
 
 @router.put("/telemetry")
 def save_telemetry(body: SetupTelemetry, user: AdminWriter, request: Request, db: Db) -> SetupSaved:
-    """Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector). Off unless chosen."""
+    """Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector), and usage statistics
+    to your own Google Analytics property when `analytics` is true. Each is off unless chosen."""
     try:
-        saved = setup.save_telemetry(db, request.app.state.archive.base, body.enabled, body.endpoint, user.email)
+        base = request.app.state.archive.base
+        saved = setup.save_telemetry(db, base, body.enabled, body.endpoint, user.email)
+        shared = (
+            setup.save_analytics(db, base, body.analytics, body.measurement_id, body.api_secret, user.email)
+            if body.analytics is not None
+            else []
+        )
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
     if saved:
         auth.audit(db, user.as_audit(), "settings.save", "telemetry", saved)
-    return SetupSaved(saved=saved)
+    if shared:
+        auth.audit(db, user.as_audit(), "settings.save", "analytics", shared)
+    return SetupSaved(saved=saved + [f"analytics.{k}" for k in shared])
 
 
 @router.put("/oauth")

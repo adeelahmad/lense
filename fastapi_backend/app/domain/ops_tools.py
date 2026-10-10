@@ -38,9 +38,11 @@ SECTIONS = (
     "bridge",
     "matterbridge",
     "telemetry",
+    "analytics",
     "sensors",
 )
-ALWAYS_ASK = {"telemetry", "sensors", "files"}  # sensors open ports on the network; files moves where new files go
+# telemetry and analytics send data elsewhere; sensors open ports on the network; files moves where new files go
+ALWAYS_ASK = {"telemetry", "analytics", "sensors", "files"}
 
 ADMIN_TOOLS = [
     (
@@ -138,6 +140,7 @@ def status(db, cfg, base):
         "max_upload_mb": view["storage"]["max_upload_mb"],
         "jobs": q,
         "telemetry_on": view["telemetry"]["enabled"],
+        "google_analytics_on": view["telemetry"]["analytics"]["enabled"],
         # engines and models the workers are still fetching for themselves, or couldn't (Settings → Components)
         "components_not_ready": fetching,
     }

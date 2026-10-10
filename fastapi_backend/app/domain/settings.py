@@ -47,6 +47,7 @@ EDITABLE = {
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
+    "analytics": None,
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
     "updates": ("check", "check_hours", "auto_install"),
     "activity": None,
@@ -117,6 +118,7 @@ SECRETS = {
     "bridge": ("token",),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers",),
+    "analytics": ("api_secret",),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
     "documents": ("anytopdf_token",),
@@ -144,6 +146,7 @@ ENUMS = {
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
+    ("analytics", "region"): {"global", "eu"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -167,6 +170,9 @@ ENV_OVERRIDES = {
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
+    ("analytics", "enabled"): "LENS_ANALYTICS",
+    ("analytics", "measurement_id"): "LENS_GA_MEASUREMENT_ID",
+    ("analytics", "api_secret"): "LENS_GA_API_SECRET",
     ("fedora", "enabled"): "LENS_FEDORA",
     ("fedora", "url"): "LENS_FEDORA_URL",
     ("fedora", "user"): "LENS_FEDORA_USER",
@@ -396,6 +402,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "analytics" and key != "region":
+        return _analytics_setting(key, value)
     if section == "updates":
         return _updates_setting(key, value)
     if section == "activity":
@@ -896,6 +904,31 @@ def _telemetry_setting(key, value):
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"telemetry.{key} is a whole number from {lo} to {hi}")
     return value
+
+
+def _analytics_setting(key, value):
+    from . import analytics
+
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("analytics.enabled is true or false")
+        return value
+    if key == "measurement_id":
+        if value in (None, ""):
+            return None
+        v = value.strip().upper() if isinstance(value, str) else ""
+        if not analytics.MEASUREMENT_RX.match(v):
+            raise ValueError("analytics.measurement_id is a GA4 measurement id, like G-ABC123XYZ")
+        return v
+    if key == "events":
+        if not (isinstance(value, list) and all(isinstance(x, str) for x in value)) or set(value) - set(analytics.EVENTS):
+            raise ValueError(f"analytics.events is a list of: {', '.join(analytics.EVENTS)}")
+        return [e for e in analytics.EVENTS if e in value]
+    if key == "inactive_days":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("analytics.inactive_days is a whole number of days from 1 to 365")
+        return value
+    raise ValueError(f"unknown setting analytics.{key}")
 
 
 def _origin(url):

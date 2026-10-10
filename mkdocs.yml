@@ -79,6 +79,7 @@ nav:
   - Chat rooms: chat-rooms.md
   - Sensors: sensors.md
   - Telemetry: telemetry.md
+  - Usage analytics: analytics.md
   - Activity and costs: activity.md
   - Budgets: budgets.md
   - IIIF: iiif.md

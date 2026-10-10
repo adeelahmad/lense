@@ -223,6 +223,91 @@ class TelemetryTestResult(ResponseModel):
     ms: int | None = None
 
 
+class AnalyticsEvent(ResponseModel):
+    name: str
+    description: str
+    # analytics.events names it
+    on: bool
+
+
+class AnalyticsStatus(ResponseModel):
+    """Whether usage statistics go to Google Analytics, and how the last send went (docs/analytics.md)."""
+
+    enabled: bool
+    # on, with a measurement id and an API secret
+    configured: bool
+    measurement_id: str | None = None
+    # this install's random id in Google Analytics
+    client_id: str | None = None
+    last_sent_at: str | None = None
+    last_sent: list[str] = []
+    last_error: str | None = None
+    events: list[AnalyticsEvent]
+
+
+class AnalyticsTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    # what Google Analytics' validation server said about the test event
+    messages: list[str] = []
+
+
+class AnalyticsDay(ResponseModel):
+    day: str
+    active_users: int
+    actions: int
+
+
+class AnalyticsChurn(ResponseModel):
+    # people active in the period before this one
+    previous_active: int
+    # of those, active again in this one
+    retained: int
+    # of those, not active in this one
+    churned: int
+    # churned / previous_active; null with no one before
+    rate: float | None = None
+    # active now, not in the period before
+    returning: int
+
+
+class AnalyticsCohort(ResponseModel):
+    # the Monday of the week these accounts were made
+    week: str
+    users: int
+    # the share of them active in that week and each week after
+    retention: list[float | None]
+
+
+class AnalyticsFeature(ResponseModel):
+    feature: str
+    actions: int
+    users: int
+
+
+class AnalyticsMetrics(ResponseModel):
+    """Active people, churn, retention and feature use, worked out on this machine from the activity ledger and
+    sign-ins (docs/analytics.md#the-numbers)."""
+
+    days: int
+    since: str
+    until: str
+    daily: list[AnalyticsDay]
+    dau: int
+    wau: int
+    mau: int
+    # average daily active / monthly active
+    stickiness: float | None = None
+    accounts: int
+    active_users: int
+    new_users: int
+    churn: AnalyticsChurn
+    retention: list[AnalyticsCohort]
+    features: list[AnalyticsFeature]
+    last_active_day: str | None = None
+    days_since_active: int | None = None
+
+
 class FileStoreTry(RequestModel):
     """Where to try keeping files, before saving it (Settings → Storage); nothing given tries what is saved."""
 

@@ -41,7 +41,12 @@ const VIEW = (over: Partial<SetupView> = {}): SetupView => ({
     max_upload_mb: 4096,
     watches: 0,
   },
-  telemetry: { enabled: false, endpoint: null, locked: [] },
+  telemetry: {
+    enabled: false,
+    endpoint: null,
+    locked: [],
+    analytics: { enabled: false, measurement_id: null, secret_set: false, locked: [] },
+  },
   oauth: { enabled: true, access_minutes: 60, refresh_days: 30 },
   ...over,
 });

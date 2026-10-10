@@ -482,6 +482,24 @@ DEFAULTS = {
         "service_name": "lens",
         "prices": {},
     },
+    # usage analytics (docs/analytics.md): the numbers are worked out locally from the activity ledger; Google Analytics
+    # is off unless an admin turns it on with a GA4 measurement id and a Measurement Protocol API secret (sealed)
+    "analytics": {
+        "enabled": False,
+        "measurement_id": None,
+        "api_secret": None,
+        "region": "global",
+        "events": [
+            "lens_install",
+            "lens_setup_done",
+            "lens_daily_active",
+            "lens_feature_used",
+            "lens_upgrade",
+            "lens_inactive",
+            "lens_return",
+        ],
+        "inactive_days": 30,
+    },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
     "updates": {"check": True, "check_hours": 24, "auto_install": False, "repo": "adeelahmad/lense"},

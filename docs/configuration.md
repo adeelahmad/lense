@@ -34,6 +34,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
 | `LENS_TELEMETRY` / `LENS_TELEMETRY_ENDPOINT` / `LENS_TELEMETRY_HEADERS` | off | opt-in OpenTelemetry traces and metrics, sent only to this OTLP/HTTP endpoint ([Telemetry](telemetry.md)); `LENS_TELEMETRY=off` keeps it off whatever Settings say |
+| `LENS_ANALYTICS` / `LENS_GA_MEASUREMENT_ID` / `LENS_GA_API_SECRET` | off | opt-in usage events sent to your own Google Analytics 4 property ([Usage analytics](analytics.md)) |
 | `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |
@@ -57,7 +58,7 @@ A fresh install (no accounts when the API first starts) walks its first admin th
 5. **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
    with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
    the MCP server's address to add to an assistant.
-6. **Telemetry**: off unless chosen ([Telemetry](telemetry.md)).
+6. **Telemetry**: off unless chosen ([Telemetry](telemetry.md)), and Google Analytics usage events, off unless chosen ([Usage analytics](analytics.md)).
 
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,

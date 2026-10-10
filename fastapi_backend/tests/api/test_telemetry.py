@@ -212,16 +212,31 @@ def test_environment_turns_it_on_or_keeps_it_off(client, db, collector, monkeypa
 def test_setup_wizard_opt_in(client, db, collector):
     h = admin(client, db)
     v = client.get("/api/v1/setup", headers=h).json()["telemetry"]
-    assert v == {"enabled": False, "endpoint": None, "locked": []}
+    assert v == {
+        "enabled": False,
+        "endpoint": None,
+        "locked": [],
+        "analytics": {"enabled": False, "measurement_id": None, "secret_set": False, "locked": []},
+    }
     r = client.put("/api/v1/setup/telemetry", json={"enabled": True}, headers=h)
     assert r.status_code == 400 and "endpoint" in r.json()["detail"]
     assert client.put("/api/v1/setup/telemetry", json={"enabled": True, "endpoint": "nope"}, headers=h).status_code == 400
     r = client.put("/api/v1/setup/telemetry", json={"enabled": True, "endpoint": collector}, headers=h)
     assert r.json()["saved"] == ["enabled", "endpoint"]
-    assert client.get("/api/v1/setup", headers=h).json()["telemetry"] == {"enabled": True, "endpoint": collector, "locked": []}
+    assert client.get("/api/v1/setup", headers=h).json()["telemetry"] == {
+        "enabled": True,
+        "endpoint": collector,
+        "locked": [],
+        "analytics": {"enabled": False, "measurement_id": None, "secret_set": False, "locked": []},
+    }
     # off keeps the address for later
     client.put("/api/v1/setup/telemetry", json={"enabled": False}, headers=h)
-    assert client.get("/api/v1/setup", headers=h).json()["telemetry"] == {"enabled": False, "endpoint": collector, "locked": []}
+    assert client.get("/api/v1/setup", headers=h).json()["telemetry"] == {
+        "enabled": False,
+        "endpoint": collector,
+        "locked": [],
+        "analytics": {"enabled": False, "measurement_id": None, "secret_set": False, "locked": []},
+    }
     audit = client.get("/api/v1/audit", headers=h).json()
     assert any(a["action"] == "settings.save" and a["target"] == "telemetry" for a in audit)
 

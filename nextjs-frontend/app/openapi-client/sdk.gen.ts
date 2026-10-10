@@ -34,6 +34,8 @@ import type {
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
+  AnalyticsStatusData,
+  AnalyticsStatusResponses,
   AnswerData,
   AnswerErrors,
   AnswerResponses,
@@ -1221,6 +1223,8 @@ import type {
   TakeBackupResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
+  TestAnalyticsData,
+  TestAnalyticsResponses,
   TestBridgeData,
   TestBridgeResponses,
   TestConversionNodeData,
@@ -1405,6 +1409,9 @@ import type {
   UpdateWorkflowResponses,
   UploadLimitsData,
   UploadLimitsResponses,
+  UsageMetricsData,
+  UsageMetricsErrors,
+  UsageMetricsResponses,
   VaultOptionsData,
   VaultOptionsErrors,
   VaultOptionsResponses,
@@ -2622,6 +2629,49 @@ export class Admin {
   }
 
   /**
+   * Analytics Status
+   *
+   * Whether usage statistics go to Google Analytics, which events, and how the last send went. Off by default.
+   */
+  public static analyticsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<AnalyticsStatusData, ThrowOnError>,
+  ): RequestResult<AnalyticsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<AnalyticsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/analytics/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Analytics
+   *
+   * Send one lens_test event to Google Analytics' validation server (checked there, not recorded), on or off.
+   */
+  public static testAnalytics<ThrowOnError extends boolean = false>(
+    options?: Options<TestAnalyticsData, ThrowOnError>,
+  ): RequestResult<TestAnalyticsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestAnalyticsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/analytics/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Usage Metrics
+   *
+   * Daily, weekly and monthly active people, churn, retention by sign-up week and feature use over the last `days`
+   * days, worked out here from the activity ledger and sign-ins; nothing is sent anywhere.
+   */
+  public static usageMetrics<ThrowOnError extends boolean = false>(
+    options?: Options<UsageMetricsData, ThrowOnError>,
+  ): RequestResult<UsageMetricsResponses, UsageMetricsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<UsageMetricsResponses, UsageMetricsErrors, ThrowOnError>({
+      url: "/api/v1/admin/analytics",
+      ...options,
+    });
+  }
+
+  /**
    * List Audit
    *
    * Who changed what, newest first.
@@ -3060,7 +3110,8 @@ export class Setup {
   /**
    * Save Telemetry
    *
-   * Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector). Off unless chosen.
+   * Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector), and usage statistics
+   * to your own Google Analytics property when `analytics` is true. Each is off unless chosen.
    */
   public static saveTelemetry<ThrowOnError extends boolean = false>(
     options: Options<SaveTelemetryData, ThrowOnError>,
