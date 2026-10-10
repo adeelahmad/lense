@@ -131,15 +131,40 @@ single statements and for `run()` transactions (which roll back as a whole, so r
 
 ## Backups
 
-`lens backup` writes one into `<data_dir>/backups`, as does Back up now in the web app ([Updates and backups](updates.md));
-Lens also takes one before upgrading the database or installing a release:
+**Settings › Backups** in the web app takes a backup now, lists them, downloads one, restores one and takes them on a
+schedule (the API: `/api/v1/admin/backups`); `lens backup` takes one from the command line, and an upgrade takes one
+first ([Updates and backups](updates.md)). Each is one entry in `<data_dir>/backups`, named
+`<kind>-<time>`:
 
-* With a server, `manual-<time>.surql.gz`: SurrealDB's export of the database, gzipped. Restore it into an empty
-  database with `gunzip -k` and `surreal import --conn http://host:8000 --user root --pass … --ns archive --db main
-  <file>.surql`. Taking one by hand: `surreal export --conn http://host:8000 --user root --pass … --ns archive --db main
-  backup.surql`.
-* Embedded, `manual-<time>.surrealkv`: a copy of the database folder, taken with it closed. Restore it by stopping Lens
-  and putting the copy in place of `<data_dir>/surrealdb`.
+| Kind | Taken | Kept |
+| --- | --- | --- |
+| `manual` | from Settings › Backups, `POST /api/v1/admin/backups` or `lens backup` | until you delete it |
+| `scheduled` | on `backups.schedule` (any cron expression in `backups.timezone`, typed or picked in one click; none by default) | the newest `backups.keep` (7), here and on the connection |
+| `before-upgrade` | before the database is upgraded, and before a release is installed | the newest three taken before database upgrades |
+| `before-restore` | what the database held just before a restore replaced it | the newest three |
 
-Also back up `data_dir` (reports, frames, caches, and `secret.key` unless `ARCHIVE_SECRET_KEY` is set; without that
-key, stored credentials can't be decrypted).
+* With a server, `<kind>-<time>.surql.gz`: SurrealDB's export of the database, gzipped.
+* Embedded, `<kind>-<time>.surrealkv`: a copy of the database folder, taken with it closed (downloaded as a
+  `.tar.gz`).
+
+**Restoring** replaces the whole database with the backup's. What it held is backed up first (`before-restore`) and
+put back if the restore fails; a backup from an older Lens is brought up to date (schema and upgrade steps) afterwards.
+People signed in since the backup was taken sign in again. Only an admin signed in with a passkey can download or
+restore a backup from Settings (a download there is a link that works for two minutes); an admin API token can take,
+list and delete them. `backups.restore(db, cfg, name)` in `app/domain/backups.py` is the one restore everything uses.
+
+**A copy somewhere else.** Choose a storage connection under *Also copy each backup to* (S3 or S3-compatible,
+Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV or a folder; added under Sources, through rclone), and every new
+backup, by hand or scheduled, is copied there under `backups.folder` as `<name>.lensbk`, with the scheduled ones
+kept to `backups.keep` there as well. A copy is encrypted (AES-256-GCM) with a key derived from `secret.key` (or
+`ARCHIVE_SECRET_KEY`), not with a key kept in the database, so it can be opened after the database is lost. Keep that
+key away from the connection. *Copy there* sends one again, and *Bring back* fetches a copy that only the connection
+has, so you can then restore or download it. If copying fails, the backup here is still kept, and Settings shows why.
+
+By hand, with a server: `gunzip -k` the file, then `surreal import --conn http://host:8000 --user root --pass … --ns
+archive --db main <file>.surql` into an empty database. Embedded: stop Lens and put the copy in place of
+`<data_dir>/surrealdb`.
+
+Backups hold the database only. Also back up `data_dir` (uploads, reports, frames, caches), and keep `secret.key`
+(unless `ARCHIVE_SECRET_KEY` is set) apart from the backups: without it, stored credentials and server-held file keys
+can't be decrypted, and with it a backup opens them ([encryption](encryption.md)).

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.6.0"
+    "version": "0.7.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -2895,6 +2895,324 @@
         }
       }
     },
+    "/api/v1/admin/backups/remote": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Remote Backups",
+        "description": "The copies on backups.connection, how copying the last backup there went, and a copy running now.",
+        "operationId": "remote_backups",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteBackups"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/send": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Send Backup",
+        "description": "Copy this backup to backups.connection now, in the background.",
+        "operationId": "send_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/fetch": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Fetch Backup",
+        "description": "Bring the copy of this backup back from backups.connection, in the background, to restore or download it.",
+        "operationId": "fetch_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/remote": {
+      "delete": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Delete Remote Backup",
+        "description": "Delete the copy of this backup on backups.connection.",
+        "operationId": "delete_remote_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/restore": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Restore Backup",
+        "description": "Replace the whole database with this backup, in the background (GET /admin/backups follows it). What it held\nis backed up first (before-restore), and put back if the restore fails. Sign-ins made since the backup end.",
+        "operationId": "restore_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/link": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Backup Link",
+        "description": "A link that downloads the backup for the next couple of minutes, for the browser to open.",
+        "operationId": "backup_link",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/file": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Backup File",
+        "description": "The backup itself, through a link from POST /admin/backups/{name}/link.",
+        "operationId": "backup_file",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exp"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sig"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the backup (an embedded one as a .tar.gz)",
+            "content": {
+              "application/gzip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/updates": {
       "get": {
         "tags": [
@@ -2994,7 +3312,7 @@
           "updates"
         ],
         "summary": "List Backups",
-        "description": "The database backups in <data_dir>/backups, newest first.",
+        "description": "The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or\nthe last one); and the backup schedule.",
         "operationId": "list_backups",
         "responses": {
           "200": {
@@ -3014,7 +3332,7 @@
           "updates"
         ],
         "summary": "Take Backup",
-        "description": "Back the database up now (it can take a while on a big archive).",
+        "description": "Back the database up now (it can take a while on a big archive). With backups.connection set, it is then\ncopied there in the background (GET /admin/backups/remote follows it).",
         "operationId": "take_backup",
         "responses": {
           "201": {
@@ -3527,6 +3845,93 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/budgets/meter": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Budget Meter",
+        "description": "What a namespace (or all of Lens) spent this day, week or month, against its budget when it has one: the top\nbar's meter, and with `detail` the costs page. Anyone who can read a namespace sees its meter; admins see all of\nLens's.",
+        "operationId": "budget_meter",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a namespace; none for all of Lens (admins)",
+              "title": "Ns"
+            },
+            "description": "a namespace; none for all of Lens (admins)"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "day",
+                    "week",
+                    "month"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "none: the budget's own period, else month",
+              "title": "Period"
+            },
+            "description": "none: the budget's own period, else month"
+          },
+          {
+            "name": "detail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "also by day, by model and what cost most",
+              "default": false,
+              "title": "Detail"
+            },
+            "description": "also by day, by model and what cost most"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetMeter"
                 }
               }
             }
@@ -9455,6 +9860,99 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tree": {
+      "get": {
+        "tags": [
+          "tree"
+        ],
+        "summary": "List Folder",
+        "description": "A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'\nfiles. A file answers 400 (read it at /tree/file).",
+        "operationId": "list_folder",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026",
+              "default": "",
+              "title": "Path"
+            },
+            "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreeFolder"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tree/file": {
+      "get": {
+        "tags": [
+          "tree"
+        ],
+        "summary": "Read File",
+        "description": "A file of the tree, with byte ranges.",
+        "operationId": "read_file",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026",
+              "default": "",
+              "title": "Path"
+            },
+            "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "206": {
+            "description": "a byte range"
           },
           "422": {
             "description": "Validation Error",
@@ -20275,7 +20773,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -20503,6 +21001,277 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApprovalOutcome"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions": {
+      "get": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "List Sessions",
+        "description": "Your browsers whose side panel is connected now, the latest first.",
+        "operationId": "list_sessions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BrowserSession"
+                  },
+                  "type": "array",
+                  "title": "Response Browser-List Sessions"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Connect",
+        "description": "Connect a browser's Lens side panel: then open its action stream. Audited as `browser.connect`.",
+        "operationId": "connect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BrowserConnect"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserSession"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}": {
+      "delete": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Disconnect",
+        "description": "The side panel closed: the assistant can't use that browser any more, and actions waiting on it fail.",
+        "operationId": "disconnect",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}/actions": {
+      "get": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Actions",
+        "description": "The actions the assistant (or an agent) asks of this browser, as server-sent `action` events {id, tool, args,\nchat}: carry each one out and answer it with POST /browser/actions/{id}. The session stays connected while this\nstream is open; a comment line every 15 seconds keeps it so through proxies. `once=true` sends the actions waiting\nnow and closes, for a client that asks again and again instead (each time keeps it connected for a while).",
+        "operationId": "actions",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "once",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Once"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`event: action` with {id, tool, args, chat}",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/actions/{aid}": {
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Answer Action",
+        "description": "What the browser did with an action: its result, or why it didn't (the person said no, the site isn't allowed...).\n404 for an action that isn't one of your browser's, or that's been answered or given up on.",
+        "operationId": "answer_action",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}/run": {
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Run",
+        "description": "Do one thing in your connected browser, as the assistant's browser_ tools do, and wait for it: for agents and\nscripts. The side panel shows it and asks you first, as it does for the assistant. Audited as `browser.run`.",
+        "operationId": "run",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserRun"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserResult"
                 }
               }
             }
@@ -26036,6 +26805,101 @@
         ],
         "title": "Backup"
       },
+      "BackupLink": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "opens the download, without signing in, until it expires"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "seconds"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "expires_in"
+        ],
+        "title": "BackupLink"
+      },
+      "BackupSchedule": {
+        "properties": {
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule",
+            "description": "backups.schedule: a cron expression, or none"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
+          },
+          "keep": {
+            "type": "integer",
+            "title": "Keep",
+            "description": "how many scheduled backups are kept",
+            "default": 7
+          },
+          "next_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next At"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "BackupSchedule"
+      },
       "Backups": {
         "properties": {
           "folder": {
@@ -26048,6 +26912,52 @@
             },
             "type": "array",
             "title": "Backups"
+          },
+          "database": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "server",
+                  "embedded",
+                  "memory"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database",
+            "description": "the database this Lens uses: a restore needs a backup of the same kind (export or folder)"
+          },
+          "in_progress": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "In Progress",
+            "description": "backups being written now, by any Lens process"
+          },
+          "restore": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RestoreWork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the restore running on this server, or the last one"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BackupSchedule"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -27035,6 +27945,171 @@
         ],
         "title": "BrowseEntry"
       },
+      "BrowserAnswer": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "description": "whether the browser did it"
+          },
+          "result": {
+            "title": "Result",
+            "description": "what it found or did (the page, the tabs, the file it attached...)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why not, when it didn't (the person said no, no such ref...)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BrowserAnswer"
+      },
+      "BrowserConnect": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "what to call this browser, e.g. 'Chrome on the laptop'"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BrowserConnect"
+      },
+      "BrowserResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "result": {
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BrowserResult"
+      },
+      "BrowserRun": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": [
+              "tabs",
+              "open",
+              "read",
+              "click",
+              "type",
+              "press",
+              "import"
+            ],
+            "title": "Tool",
+            "description": "the action: one of the assistant's browser_ tools, without browser_"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args",
+            "description": "its arguments, as the browser_ tool takes them"
+          },
+          "wait": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Wait",
+            "description": "seconds to wait for the browser",
+            "default": 60
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "BrowserRun"
+      },
+      "BrowserSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen At"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live",
+            "description": "its side panel is connected now"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "live"
+        ],
+        "title": "BrowserSession"
+      },
       "Budget": {
         "properties": {
           "resource": {
@@ -27131,6 +28206,135 @@
           "warn_at"
         ],
         "title": "Budget"
+      },
+      "BudgetMeter": {
+        "properties": {
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource",
+            "description": "space:<id>, or none for all of Lens"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/Spent"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the budget it is measured against stands; none without one"
+          },
+          "by_day": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DaySpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Day"
+          },
+          "by_model": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Model"
+          },
+          "top": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top"
+          },
+          "by_namespace": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "spent",
+          "calls"
+        ],
+        "title": "BudgetMeter"
       },
       "BudgetSet": {
         "properties": {
@@ -29884,6 +31088,62 @@
         "title": "Converters",
         "description": "What this server can make into PDFs to read as documents (docs/api.md#documents-and-images)."
       },
+      "CopyWork": {
+        "properties": {
+          "running": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "send",
+                  "fetch"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running",
+            "description": "copying a backup to (send) or from (fetch) the connection"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "CopyWork"
+      },
       "Created": {
         "properties": {
           "ok": {
@@ -30267,6 +31527,36 @@
           "graph"
         ],
         "title": "CustomNodeVersionCreate"
+      },
+      "DaySpend": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day",
+            "description": "YYYY-MM-DD (UTC)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "DaySpend"
       },
       "DecisionStatus": {
         "properties": {
@@ -38073,6 +39363,19 @@
             ],
             "title": "Edit",
             "description": "edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer"
+          },
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser",
+            "description": "asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)"
           }
         },
         "additionalProperties": false,
@@ -38222,6 +39525,47 @@
           "after"
         ],
         "title": "MetadataEdit"
+      },
+      "ModelSpend": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "none: calls with no model (webhooks, web tools)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "cost_usd",
+          "tokens",
+          "calls",
+          "estimate"
+        ],
+        "title": "ModelSpend"
       },
       "MonthStats": {
         "properties": {
@@ -46171,6 +47515,97 @@
         ],
         "title": "Release"
       },
+      "RemoteBackups": {
+        "properties": {
+          "connection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection",
+            "description": "backups.connection: where copies go, or none"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "backups": {
+            "items": {
+              "$ref": "#/components/schemas/Backup"
+            },
+            "type": "array",
+            "title": "Backups",
+            "description": "the copies there, newest first"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the connection couldn't be listed"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At",
+            "description": "when the last backup was copied there (or tried)"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error",
+            "description": "why copying the last backup failed"
+          },
+          "copying": {
+            "$ref": "#/components/schemas/CopyWork"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "copying"
+        ],
+        "title": "RemoteBackups"
+      },
       "Removed": {
         "properties": {
           "removed": {
@@ -46546,6 +47981,81 @@
           "estimate"
         ],
         "title": "ResourceSpend"
+      },
+      "RestoreStart": {
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "title": "Confirm",
+            "description": "the backup's name again, to show this is meant: restoring replaces everything"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "title": "RestoreStart"
+      },
+      "RestoreWork": {
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "a restore is running on this server now",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the backup being (or last) restored"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the last restore here failed (what was there was put back)"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "the before-restore backup of what the database held"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RestoreWork"
       },
       "Reviewed": {
         "properties": {
@@ -52633,6 +54143,47 @@
         ],
         "title": "ToolStep"
       },
+      "TopSpend": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "what the resource is called, when it has a name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "TopSpend"
+      },
       "TopicAbout": {
         "properties": {
           "recording": {
@@ -53158,6 +54709,82 @@
         "additionalProperties": false,
         "type": "object",
         "title": "TopicUpdate"
+      },
+      "TreeEntry": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "folder": {
+            "type": "boolean",
+            "title": "Folder"
+          },
+          "modified": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "a file's size in bytes"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "folder"
+        ],
+        "title": "TreeEntry"
+      },
+      "TreeFolder": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "the folder, from the top: '' for the namespaces"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TreeEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path",
+          "entries"
+        ],
+        "title": "TreeFolder"
       },
       "TunnelStatus": {
         "properties": {

@@ -594,6 +594,16 @@ page was before each change, and `restore` puts an earlier version back (what it
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.
 
+## the graph as files
+
+```
+GET    /api/v1/tree?path=
+GET    /api/v1/tree/file?path=
+```
+
+The archive as folders and files ([The graph as files](file-tree.md)): `tree` lists a folder (an empty path lists your
+namespaces; in each, `Collections`, `Topics` and `Entities`), `tree/file` reads a file with byte ranges. Read-only; everyone sees what they can read in the web app.
+
 ## comments
 
 ```
@@ -1179,6 +1189,21 @@ answers, so a filter collection's new recordings count, and a deleted collection
 `GET /chats/{cid}` returns each answer with the `steps` the assistant took (`{tool, args, summary}`), its `notice` and
 `error`, and its latest source `check` (`{claims, supported, verdicts, uncited}`), as they were when it was written
 or checked.
+
+### browser
+
+```
+POST   /api/v1/browser/sessions
+GET    /api/v1/browser/sessions
+DELETE /api/v1/browser/sessions/{sid}
+GET    /api/v1/browser/sessions/{sid}/actions
+POST   /api/v1/browser/actions/{aid}
+POST   /api/v1/browser/sessions/{sid}/run
+```
+
+A browser's Lens side panel connects a session and carries out the actions the assistant asks of it; a question sent
+with `browser` (`POST /chats/{cid}/messages {content, browser}`) can use that browser while it's connected. See
+[The assistant in your browser](browser-assistant.md).
 
 ## collections
 

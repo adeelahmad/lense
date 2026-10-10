@@ -14,7 +14,8 @@ Thanks for helping. The full guide, with the backend and frontend conventions, i
 ## Make the change
 
 - Backend: `make test-backend` and `make lint-backend` (ruff, mypy). Frontend: `make test-frontend` and
-  `make lint-frontend`.
+  `make lint-frontend`. `make affected` checks every project your change touches. [Nx](https://nx.dev/) runs them,
+  the same way CI does; see [Monorepo and CI](docs/contributing.md#monorepo-and-ci-nx).
 - Add tests with the change, and update `docs/` when behaviour or configuration changes.
 - Changing the shape of stored data? Existing installs have real data: add an upgrade step
   (docs/database.md, Upgrades) rather than expecting a fresh database.
