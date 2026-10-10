@@ -283,3 +283,40 @@ def test_importing_chosen_files_of_a_source(client, new_client, db, cfg, folder,
     later = client.post(url, json={**body, "paths": [str(inbox / "later.txt")], "collection": shelf}, headers=h).json()["results"]
     assert later[0]["status"] == "queued", later
     assert db.one("SELECT collection FROM $r", r=R("recording", later[0]["recording"]))["collection"] == shelf
+
+
+def test_google_drive_as_a_service_account(client, db, cfg, monkeypatch):
+    """A Drive connection signs in with a service account's key file: checked, sealed, and handed to rclone on one line."""
+    monkeypatch.setattr(sources, "test", lambda *a, **k: {"ok": True})  # no Google to reach in tests
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    h = login(client, "root@x.io", "root password 1")
+    assert "service_account_credentials" in client.get("/api/v1/sources/backends", headers=h).json()["drive"]["secrets"]
+    key = {
+        "type": "service_account",
+        "project_id": "lens-test",
+        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----END PRIVATE KEY-----\n",
+        "client_email": "lens@lens-test.iam.gserviceaccount.com",
+    }
+    body = {
+        "name": "Drive",
+        "type": "drive",
+        "params": {"team_drive": "0ABC"},
+        "secrets": {"service_account_credentials": json.dumps(key, indent=2)},
+    }
+    r = client.post("/api/v1/sources", json=body, headers=h)
+    assert r.status_code == 200, r.text
+    sid = r.json()["id"]
+    drive = next(s for s in client.get("/api/v1/sources", headers=h).json() if s["id"] == sid)
+    assert drive["secrets"]["service_account_credentials"]["set"] and not drive["secrets"]["token"]["set"]
+    assert "lens-test.iam" not in str(db.rows("SELECT * FROM storage_source"))
+
+    _, conf = sources._config(cfg, sources.get(db, sid))
+    line = next(l for l in conf.splitlines() if l.startswith("service_account_credentials = "))
+    assert json.loads(line.split(" = ", 1)[1]) == key  # one line rclone can read back, the key's own \n kept
+    assert "team_drive = 0ABC" in conf and "token" not in conf
+
+    for bad in ("not json", json.dumps({"type": "authorized_user", "client_email": "x", "private_key": "y"})):
+        r = client.post("/api/v1/sources", json={**body, "secrets": {"service_account_credentials": bad}}, headers=h)
+        assert r.status_code == 400 and "service account" in r.text
+    r = client.patch(f"/api/v1/sources/{sid}", json={"secrets": {"service_account_credentials": "{}"}}, headers=h)
+    assert r.status_code == 400
