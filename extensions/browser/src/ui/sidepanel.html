@@ -28,12 +28,19 @@
       a.cite { font-size: 11px; text-decoration: none; vertical-align: super; }
       .steps { list-style: none; margin: 0 0 6px; padding: 0; font-size: 12px; color: var(--muted); }
       .steps li::before { content: "✓ "; color: var(--ok); }
+      .steps li.running { color: var(--fg); }
+      .steps li.running::before { content: "◌ "; color: var(--accent); }
+      .steps li.bad::before { content: "✗ "; color: var(--bad); }
       .note { font-size: 12px; color: var(--muted); margin: 4px 0 0; }
       .note.bad { color: var(--bad); }
       .thinking { font-size: 12px; color: var(--muted); }
       .approval { border: 1px solid var(--accent); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
       .approval p { margin: 0 0 6px; }
       .approval .row { flex-wrap: wrap; }
+      .approval .detail { white-space: pre-wrap; background: var(--field); border-radius: 6px; padding: 4px 8px; max-height: 120px; overflow-y: auto; }
+      .browser { display: flex; align-items: center; gap: 6px; margin: 0 10px 8px; font-size: 12px; }
+      .browser input { margin: 0; }
+      .browser .hint.bad { color: var(--bad); }
       #ask { display: flex; gap: 6px; align-items: flex-end; padding: 8px 10px 4px; border-top: 1px solid var(--line); }
       #q { flex: 1; resize: none; max-height: 160px; font-family: inherit; font-size: 13px; }
       .keys { margin: 0 10px 8px; }
@@ -68,6 +75,9 @@
           <button id="send" class="primary" type="submit">Send</button>
         </form>
         <p class="hint keys">Enter sends, Shift+Enter starts a new line, Esc stops the answer.</p>
+        <label class="browser" title="While this panel is open, the assistant can open, read and act on pages in this window: only on sites you allow, asking you before anything that sends, deletes, buys or posts">
+          <input id="useBrowser" type="checkbox" /> Let Lens use this browser <span id="browserState" class="hint"></span>
+        </label>
       </section>
     </main>
     <script src="sidepanel.js"></script>

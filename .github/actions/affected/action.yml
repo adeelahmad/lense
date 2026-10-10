@@ -1,0 +1,67 @@
+name: Affected
+description: >-
+  Sets up pnpm, Node and Nx, and asks Nx whether the change affects a project. A pull request is compared with the main
+  it merges into, a push to main with main's last green CI run; a run by hand affects every project. Each CI job asks
+  for itself, so none of them waits for another job (and for a free runner a second time) before it starts.
+inputs:
+  project:
+    description: The project to ask about; empty asks about every project but backend and frontend
+    required: false
+    default: ""
+  cache-dependency-path:
+    description: The lockfiles that key the pnpm cache
+    required: false
+    default: pnpm-lock.yaml
+outputs:
+  run:
+    description: "'true' when the project (or, with no project, any other project) is affected, or Nx couldn't say"
+    value: ${{ steps.affected.outputs.run }}
+  projects:
+    description: The affected projects, as a JSON list; empty when Nx couldn't say
+    value: ${{ steps.affected.outputs.projects }}
+  others:
+    description: The affected projects but backend and frontend, as a JSON list; empty when Nx couldn't say
+    value: ${{ steps.affected.outputs.others }}
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v6
+      with:
+        # the pnpm version comes from packageManager in package.json (the same in the frontend's)
+        run_install: false
+    - uses: actions/setup-node@v7
+      with:
+        node-version: "22"
+        # on a self-hosted runner pnpm's store stays on disk; saving it to GitHub's cache took minutes
+        cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+        cache-dependency-path: ${{ inputs.cache-dependency-path }}
+    - name: Install Nx
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: pnpm install --frozen-lockfile
+    - name: The commits to compare
+      if: github.event_name != 'workflow_dispatch'
+      uses: nrwl/nx-set-shas@v5
+    - name: Is it affected?
+      id: affected
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      env:
+        PROJECT: ${{ inputs.project }}
+      run: |
+        # when Nx can't say, the job runs: a wrong answer here must never skip a check
+        set -o pipefail
+        if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then which=(); else which=(--affected); fi
+        if ! projects=$(pnpm exec nx show projects "${which[@]}" --json | jq -ce 'arrays'); then
+          echo "::warning::Nx couldn't list the affected projects, so this job runs"
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        others=$(jq -c 'map(select(. != "backend" and . != "frontend"))' <<<"$projects")
+        if [ -n "$PROJECT" ]; then
+          run=$(jq --arg p "$PROJECT" 'any(.[]; . == $p)' <<<"$projects")
+        else
+          run=$(jq 'length > 0' <<<"$others")
+        fi
+        echo "Affected: $projects"
+        { echo "run=$run"; echo "projects=$projects"; echo "others=$others"; } >> "$GITHUB_OUTPUT"

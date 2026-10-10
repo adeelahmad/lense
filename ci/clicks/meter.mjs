@@ -21,6 +21,14 @@ export function pageKey(url) {
   return (port ? `${port}:` : "") + (path || "/");
 }
 
+/** Typing goes into `el` without a click: it has the focus, or (rich text) the caret is in it. */
+function hasFocus(el) {
+  const active = document.activeElement;
+  if (el === active || el.contains(active)) return true;
+  const caret = getSelection()?.anchorNode;
+  return Boolean(el.isContentEditable && active?.contains(el) && caret && el.contains(caret));
+}
+
 export class Meter {
   /** `touch`: a phone, where clicks are taps and bringing a control into view takes a swipe. */
   constructor(page, { touch = false } = {}) {
@@ -110,7 +118,7 @@ export class Meter {
   /** Types `text` into a field, adding the click that focuses it when it isn't focused already. */
   async type(locator, text, what) {
     await locator.waitFor();
-    const focused = await locator.evaluate((el) => el === document.activeElement || el.contains(document.activeElement));
+    const focused = await locator.evaluate(hasFocus);
     this.record("type", what, focused ? 0 : 1, text.length, 0, focused ? 0 : await this.swipesTo(locator));
     if (!focused) await this.tapOrClick(locator);
     await locator.pressSequentially(text);
@@ -119,7 +127,7 @@ export class Meter {
   /** Pastes `text` into a field: the focusing click when needed, and the paste shortcut. */
   async paste(locator, text, what) {
     await locator.waitFor();
-    const focused = await locator.evaluate((el) => el === document.activeElement || el.contains(document.activeElement));
+    const focused = await locator.evaluate(hasFocus);
     this.record("paste", what, focused ? 0 : 1, 1, 0, focused ? 0 : await this.swipesTo(locator));
     await locator.fill(text);
   }

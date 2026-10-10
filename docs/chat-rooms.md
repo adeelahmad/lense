@@ -77,6 +77,13 @@ That's all. Without an account given, it answers as the admin who turned it on.
   said yes. Without a list, anyone in the room may be someone the account doesn't vouch for, so their messages count
   as text from outside Lens: web tools and other servers' tools wait for approval in the web app too
   ([third-party content](assistant.md#third-party-content-and-prompt-injection)).
+- **Links it can't be made to send.** Slack, Telegram, WhatsApp and most chat apps open the links in a message to
+  show a preview, so a web address the model built from what it read (`https://evil.example/c?d=` and the notes, as
+  a poisoned document might ask) would carry that out before anyone clicks. So a web address in an answer stays as it
+  is only when the person, the archive or a tool wrote it, or it is Lens's own; any other is broken up
+  (`hxxps://evil[.]example/c?d=...`) and an image becomes its address, still readable to copy by hand.
+  **Break up links the answer made itself** (`bridge.safe_links`, on) turns it off. The web app needs none of this:
+  its answers show no links or images that load by themselves.
 - **Conversations.** Each person in each room is a conversation of that account's, titled
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)). `Lens /clear` starts
@@ -101,7 +108,7 @@ Settings (`matterbridge`): `run`, `slack_token`, `slack_channels`, `discord_toke
 `matrix_rooms`, `whatsapp_number`, `whatsapp_groups` (the tokens and the password are secrets).
 
 Settings (`bridge`): `enabled`, `url`, `token` (a secret), `account`, `name` (default Lens), `answer` (`mention` or
-`all`), `gateway`, `users`, `approve` (`low_risk` or `off`), `rooms`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to
+`all`), `gateway`, `users`, `approve` (`low_risk` or `off`), `safe_links` (default on), `rooms`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to
 Matterbridge at …").
 
 Refine later: voice notes and files posted in rooms, one Lens account per chat user.

@@ -35,7 +35,7 @@ import threading
 import urllib.error
 import urllib.request
 
-from . import ai_tools, auth, auto_scope, chat, graph_history, llm, matterbridge, ns_assistant, store
+from . import ai_tools, auth, auto_scope, chat, graph_history, llm, matterbridge, ns_assistant, store, untrusted
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -274,7 +274,23 @@ def route(db, cfg, account, cid, q, ns=None):
 # ---------- answering ----------
 def answer(db, cfg, base, account, cid, q):
     """Answer a question in a conversation as the account would be answered in the web app (without streaming).
-    Returns (text, approvals)."""
+    Returns (text, approvals): the text as the room gets it, its links safe to preview (`safe_links`)."""
+    text, approvals, keep = _answer(db, cfg, base, account, cid, q)
+    return safe_links(cfg, db, text, keep), approvals
+
+
+def safe_links(cfg, db, text, keep=()):
+    """`text` with the web addresses the answer built itself broken up (untrusted.defang), when bridge.safe_links is
+    on (the default): chat apps preview what's linked, so an address an injection had the model fill with what it
+    read would send it out unclicked. Addresses the person, the archive or a tool wrote, and Lens's own, stay."""
+    if not cfg["bridge"].get("safe_links", True):
+        return text
+    from app.email import app_url
+
+    return untrusted.defang(text, keep, [app_url(cfg, db)])
+
+
+def _answer(db, cfg, base, account, cid, q):
     roles = auth.roles(db, account)
     readable = set(roles)
     editable = {s for s in roles if auth.allows(roles, s, "editor")}
@@ -287,6 +303,8 @@ def answer(db, cfg, base, account, cid, q):
     scope = (db.one("SELECT scope FROM $r", r=R("chat", cid)) or {}).get("scope") or None
     chat.add(db, cid, "user", q)
     passages = chat.retrieve(db, q, readable, scope, cfg=cfg)
+    # the web addresses written by someone other than the model: the person, now and before, and the archive
+    keep = untrusted.links("\n".join([q] + [m["content"] or "" for m in past if m["role"] == "user"] + [p["text"] for p in passages]))
     steps, approvals, notice = [], [], None
     wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
     if llm.configured(cfg) and cfg["ai"].get("tools"):
@@ -317,19 +335,19 @@ def answer(db, cfg, base, account, cid, q):
             if text is not None:
                 box.after_answer(text)
                 chat.add(db, cid, "assistant", text or "(no answer)", box.cited(text), steps=steps, model=wrote)
-                return text, box.approvals
+                return text, box.approvals, keep | box.links
         except llm.ToolsUnsupported:
             notice = "This model can't use tools, so the answer comes from a search instead."
         except llm.LLMError as e:
             chat.add(db, cid, "assistant", "(no answer)", [], steps=steps, error=str(e), model=wrote)
-            return "I couldn't answer that: " + str(e), box.approvals
+            return "I couldn't answer that: " + str(e), box.approvals, keep | box.links
     error = None
     try:
         text = llm.chat(cfg, chat.messages_for(q, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
     except llm.LLMError as e:
         text, error = "I couldn't answer that: " + str(e), str(e)
     chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages), steps=steps, notice=notice, error=error, model=wrote)
-    return text, approvals
+    return text, approvals, keep
 
 
 # ---------- approving in the room ----------
