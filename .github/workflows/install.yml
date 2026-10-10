@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - install.sh
+      - install.ps1
       - installer/**
       - docker-compose.prod.yml
       - fastapi_backend/Dockerfile
@@ -22,6 +23,7 @@ on:
     branches: [main]
     paths:
       - install.sh
+      - install.ps1
       - installer/**
       - docker-compose.prod.yml
       - microsandbox/**
@@ -39,19 +41,31 @@ permissions:
 
 jobs:
   installer-tests:
-    name: Web installer tests (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    name: Web installer tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
-        # the oldest Python it supports (a Mac's own, older Linux) and a current one
-        python: ["3.8", "3.12"]
+        # the oldest Python it supports (a Mac's own, older Linux) and a current one; Windows and macOS run it too
+        include:
+          - { os: ubuntu-latest, python: "3.8" }
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: windows-latest, python: "3.12" }
+          - { os: macos-latest, python: "3.12" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -v installer
+      - name: install.ps1 parses in Windows PowerShell 5.1, what Windows has
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
 
   web-installer:
     name: Install from the web installer
