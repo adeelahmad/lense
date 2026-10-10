@@ -4,8 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+    # closed: a pull request that's merged or closed cancels its runs that are still waiting or going (the job skips)
+    types: [opened, synchronize, reopened, closed]
 
-# Pushes to a pull request cancel its older runs
+# Pushes to a pull request cancel its older runs, and so does closing it
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -15,6 +17,7 @@ permissions:
 
 jobs:
   pre-commit:
+    if: github.event.action != 'closed'
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
 
     env:

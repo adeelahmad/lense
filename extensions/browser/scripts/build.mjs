@@ -50,6 +50,7 @@ for (const target of targets) {
     entryPoints: {
       background: join(root, "src/background.js"),
       content: join(root, "src/content.js"),
+      agent: join(root, "src/agent.js"),
       popup: join(root, "src/ui/popup.js"),
       options: join(root, "src/ui/options.js"),
       sidepanel: join(root, "src/ui/sidepanel.js"),

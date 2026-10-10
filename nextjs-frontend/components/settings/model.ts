@@ -774,6 +774,18 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "injection_check",
+    label: "Flag text that reads like instructions to an AI",
+    kind: "select",
+    options: [
+      { value: "patterns", label: "Patterns (free)" },
+      { value: "model", label: "Patterns, then the decision model" },
+      { value: "off", label: "Off" },
+    ],
+    hint: "Flagged tool results carry a warning to the model and on the step you see. The decision model also checks what the patterns let through, one call per tool result.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
@@ -2066,6 +2078,16 @@ export const FIELDS: FieldSpec[] = [
     hint: "Serve /metrics for a Prometheus scraper; off by default, and answered only with the scrape token",
   },
   { section: "telemetry", key: "prometheus_token", label: "Scrape token", kind: "secret" },
+  {
+    section: "telemetry",
+    key: "grafana_url",
+    label: "Grafana address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://localhost:3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. The monitoring profile runs one at :3001",
+  },
   {
     section: "telemetry",
     key: "prices",
