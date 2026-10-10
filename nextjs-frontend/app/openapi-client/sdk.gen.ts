@@ -23,6 +23,9 @@ import type {
   AddLoginProviderData,
   AddLoginProviderErrors,
   AddLoginProviderResponses,
+  AddMarketplaceData,
+  AddMarketplaceErrors,
+  AddMarketplaceResponses,
   AddPasskeyData,
   AddPasskeyErrors,
   AddPasskeyOptionsData,
@@ -284,6 +287,9 @@ import type {
   DeleteLoginData,
   DeleteLoginErrors,
   DeleteLoginResponses,
+  DeleteMarketplaceData,
+  DeleteMarketplaceErrors,
+  DeleteMarketplaceResponses,
   DeleteNamespaceCollectionData,
   DeleteNamespaceCollectionErrors,
   DeleteNamespaceCollectionResponses,
@@ -623,12 +629,18 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  ImportArchiveData,
+  ImportArchiveErrors,
+  ImportArchiveResponses,
   ImportFromSourceData,
   ImportFromSourceErrors,
   ImportFromSourceResponses,
   ImportIiifData,
   ImportIiifErrors,
   ImportIiifResponses,
+  ImportLinkData,
+  ImportLinkErrors,
+  ImportLinkResponses,
   ImportNamespaceRdfData,
   ImportNamespaceRdfErrors,
   ImportNamespaceRdfResponses,
@@ -647,6 +659,9 @@ import type {
   IndexSemanticData,
   IndexSemanticErrors,
   IndexSemanticResponses,
+  InstallMarketplacePluginData,
+  InstallMarketplacePluginErrors,
+  InstallMarketplacePluginResponses,
   LinkEntityData,
   LinkEntityErrors,
   LinkEntityResponses,
@@ -753,6 +768,11 @@ import type {
   ListLoginProvidersResponses,
   ListLoginsData,
   ListLoginsResponses,
+  ListMarketplacePluginsData,
+  ListMarketplacePluginsErrors,
+  ListMarketplacePluginsResponses,
+  ListMarketplacesData,
+  ListMarketplacesResponses,
   ListMembersData,
   ListMembersErrors,
   ListMembersResponses,
@@ -953,6 +973,9 @@ import type {
   PreviewImportData,
   PreviewImportErrors,
   PreviewImportResponses,
+  PreviewMarketplacePluginData,
+  PreviewMarketplacePluginErrors,
+  PreviewMarketplacePluginResponses,
   PreviewRoutesData,
   PreviewRoutesErrors,
   PreviewRoutesResponses,
@@ -999,6 +1022,9 @@ import type {
   RedeemTicketResponses,
   RefreshData,
   RefreshErrors,
+  RefreshMarketplaceData,
+  RefreshMarketplaceErrors,
+  RefreshMarketplaceResponses,
   RefreshResponses,
   RegeneratePodcastData,
   RegeneratePodcastErrors,
@@ -1212,6 +1238,8 @@ import type {
   StreamEventsData,
   StreamEventsErrors,
   StreamEventsResponses,
+  SuggestedMarketplacesData,
+  SuggestedMarketplacesResponses,
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
@@ -7697,6 +7725,43 @@ export class Extensions {
   }
 
   /**
+   * Import Link
+   *
+   * A plugin or skill in Anthropic's format from a link: a GitHub or GitLab repository or folder, or a .zip. With
+   * `preview`, what it would add and leave out; else installed as your own (importing it again: a new version).
+   */
+  public static importLink<ThrowOnError extends boolean = false>(
+    options: Options<ImportLinkData, ThrowOnError>,
+  ): RequestResult<ImportLinkResponses, ImportLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportLinkResponses, ImportLinkErrors, ThrowOnError>({
+      url: "/api/v1/extensions/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Import Archive
+   *
+   * A plugin or skill from a .zip, .skill or .tar.gz you send (as base64).
+   */
+  public static importArchive<ThrowOnError extends boolean = false>(
+    options: Options<ImportArchiveData, ThrowOnError>,
+  ): RequestResult<ImportArchiveResponses, ImportArchiveErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportArchiveResponses, ImportArchiveErrors, ThrowOnError>({
+      url: "/api/v1/extensions/import/archive",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Delete Extension
    *
    * Takes it out of the assistant at once.
@@ -7777,6 +7842,120 @@ export class Extensions {
         ...options.headers,
       },
     });
+  }
+
+  /**
+   * List Marketplaces
+   */
+  public static listMarketplaces<ThrowOnError extends boolean = false>(
+    options?: Options<ListMarketplacesData, ThrowOnError>,
+  ): RequestResult<ListMarketplacesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListMarketplacesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/marketplaces",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Marketplace
+   *
+   * Add a marketplace by its address; its list of plugins is read now.
+   */
+  public static addMarketplace<ThrowOnError extends boolean = false>(
+    options: Options<AddMarketplaceData, ThrowOnError>,
+  ): RequestResult<AddMarketplaceResponses, AddMarketplaceErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddMarketplaceResponses, AddMarketplaceErrors, ThrowOnError>({
+      url: "/api/v1/marketplaces",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Suggested Marketplaces
+   *
+   * Anthropic's marketplaces, when they aren't added yet.
+   */
+  public static suggestedMarketplaces<ThrowOnError extends boolean = false>(
+    options?: Options<SuggestedMarketplacesData, ThrowOnError>,
+  ): RequestResult<SuggestedMarketplacesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SuggestedMarketplacesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/marketplaces/suggested",
+      ...options,
+    });
+  }
+
+  /**
+   * Refresh Marketplace
+   *
+   * Read its list of plugins again.
+   */
+  public static refreshMarketplace<ThrowOnError extends boolean = false>(
+    options: Options<RefreshMarketplaceData, ThrowOnError>,
+  ): RequestResult<RefreshMarketplaceResponses, RefreshMarketplaceErrors, ThrowOnError> {
+    return (options.client ?? client).post<RefreshMarketplaceResponses, RefreshMarketplaceErrors, ThrowOnError>({
+      url: "/api/v1/marketplaces/{mid}/refresh",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Marketplace
+   *
+   * Takes it away; what was installed from it stays.
+   */
+  public static deleteMarketplace<ThrowOnError extends boolean = false>(
+    options: Options<DeleteMarketplaceData, ThrowOnError>,
+  ): RequestResult<DeleteMarketplaceResponses, DeleteMarketplaceErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteMarketplaceResponses, DeleteMarketplaceErrors, ThrowOnError>({
+      url: "/api/v1/marketplaces/{mid}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Marketplace Plugins
+   */
+  public static listMarketplacePlugins<ThrowOnError extends boolean = false>(
+    options: Options<ListMarketplacePluginsData, ThrowOnError>,
+  ): RequestResult<ListMarketplacePluginsResponses, ListMarketplacePluginsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListMarketplacePluginsResponses, ListMarketplacePluginsErrors, ThrowOnError>({
+      url: "/api/v1/marketplaces/{mid}/plugins",
+      ...options,
+    });
+  }
+
+  /**
+   * Preview Marketplace Plugin
+   *
+   * What installing it would add to the assistant, and what Lens leaves out.
+   */
+  public static previewMarketplacePlugin<ThrowOnError extends boolean = false>(
+    options: Options<PreviewMarketplacePluginData, ThrowOnError>,
+  ): RequestResult<PreviewMarketplacePluginResponses, PreviewMarketplacePluginErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      PreviewMarketplacePluginResponses,
+      PreviewMarketplacePluginErrors,
+      ThrowOnError
+    >({ url: "/api/v1/marketplaces/{mid}/plugins/{name}/preview", ...options });
+  }
+
+  /**
+   * Install Marketplace Plugin
+   *
+   * Install it as your own plugin, private until you share it; installing it again brings its new version.
+   */
+  public static installMarketplacePlugin<ThrowOnError extends boolean = false>(
+    options: Options<InstallMarketplacePluginData, ThrowOnError>,
+  ): RequestResult<InstallMarketplacePluginResponses, InstallMarketplacePluginErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      InstallMarketplacePluginResponses,
+      InstallMarketplacePluginErrors,
+      ThrowOnError
+    >({ url: "/api/v1/marketplaces/{mid}/plugins/{name}/install", ...options });
   }
 }
 
