@@ -112,6 +112,13 @@ class ConversionNodeTestResult(ResponseModel):
     ms: int | None = None
 
 
+class TikaTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    version: str | None = Field(None, description="what the Tika server says it is: Apache Tika 4.0.0")
+    ms: int | None = None
+
+
 class EncryptionProgress(ResponseModel):
     """Converting the files already kept after encryption.files changed: `to` "encrypted" or "plain" (vaults stay
     encrypted), how many changed and how many were skipped (a locked vault, a damaged file), and why a run stopped

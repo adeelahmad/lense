@@ -2510,6 +2510,28 @@
         }
       }
     },
+    "/api/v1/settings/documents/tika/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Tika",
+        "description": "Check that a Tika server answers at documents.tika_url, and say which version it is.",
+        "operationId": "test_tika",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TikaTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/decisions/status": {
       "get": {
         "tags": [
@@ -29245,6 +29267,12 @@
             "title": "Web",
             "description": "web pages captured from their address (Chromium; POST /import/web)",
             "default": false
+          },
+          "tika": {
+            "type": "boolean",
+            "title": "Tika",
+            "description": "a Tika server reads, as text, the documents nothing else here can (documents.tika_url)",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -29756,6 +29784,142 @@
           "ok"
         ],
         "title": "DecisionTestResult"
+      },
+      "Described": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "dc:title"
+          },
+          "creators": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Creators",
+            "description": "dc:creator: its authors"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject",
+            "description": "dc:subject"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "dc:description"
+          },
+          "publisher": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publisher",
+            "description": "dc:publisher"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "dc:language, a code such as en"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created",
+            "description": "dcterms:created (ISO 8601)"
+          },
+          "modified": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified",
+            "description": "dcterms:modified (ISO 8601)"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages",
+            "description": "how many pages it says it has"
+          },
+          "words": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Words",
+            "description": "how many words it says it has"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format",
+            "description": "dc:format: its media type, as Tika found it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Described",
+        "description": "What a document says about itself, read by a Tika server (documents.tika_metadata), as Dublin Core terms."
       },
       "Description": {
         "properties": {
@@ -44205,6 +44369,17 @@
             ],
             "description": "a document that isn't a PDF: how the PDF it's read from was made"
           },
+          "described": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Described"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a document: what it says about itself (title, authors, dates), read by Tika"
+          },
           "attached_to": {
             "anyOf": [
               {
@@ -51141,6 +51316,54 @@
           "ticket"
         ],
         "title": "TicketRequest"
+      },
+      "TikaTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "what the Tika server says it is: Apache Tika 4.0.0"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "TikaTestResult"
       },
       "TokenLimits": {
         "properties": {

@@ -2830,6 +2830,12 @@ export type Converters = {
    * web pages captured from their address (Chromium; POST /import/web)
    */
   web?: boolean;
+  /**
+   * Tika
+   *
+   * a Tika server reads, as text, the documents nothing else here can (documents.tika_url)
+   */
+  tika?: boolean;
   [key: string]: unknown;
 };
 
@@ -3092,6 +3098,81 @@ export type DecisionTestResult = {
    * Ms
    */
   ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Described
+ *
+ * What a document says about itself, read by a Tika server (documents.tika_metadata), as Dublin Core terms.
+ */
+export type Described = {
+  /**
+   * Title
+   *
+   * dc:title
+   */
+  title?: string | null;
+  /**
+   * Creators
+   *
+   * dc:creator: its authors
+   */
+  creators?: Array<string>;
+  /**
+   * Subject
+   *
+   * dc:subject
+   */
+  subject?: string | null;
+  /**
+   * Description
+   *
+   * dc:description
+   */
+  description?: string | null;
+  /**
+   * Publisher
+   *
+   * dc:publisher
+   */
+  publisher?: string | null;
+  /**
+   * Language
+   *
+   * dc:language, a code such as en
+   */
+  language?: string | null;
+  /**
+   * Created
+   *
+   * dcterms:created (ISO 8601)
+   */
+  created?: string | null;
+  /**
+   * Modified
+   *
+   * dcterms:modified (ISO 8601)
+   */
+  modified?: string | null;
+  /**
+   * Pages
+   *
+   * how many pages it says it has
+   */
+  pages?: number | null;
+  /**
+   * Words
+   *
+   * how many words it says it has
+   */
+  words?: number | null;
+  /**
+   * Format
+   *
+   * dc:format: its media type, as Tika found it
+   */
+  format?: string | null;
   [key: string]: unknown;
 };
 
@@ -11500,6 +11581,10 @@ export type Recording = {
    */
   rendition?: Rendition | null;
   /**
+   * a document: what it says about itself (title, authors, dates), read by Tika
+   */
+  described?: Described | null;
+  /**
    * an email's attachment made a resource of its own: that email
    */
   attached_to?: AttachedTo | null;
@@ -15492,6 +15577,31 @@ export type TicketRequest = {
 };
 
 /**
+ * TikaTestResult
+ */
+export type TikaTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Version
+   *
+   * what the Tika server says it is: Apache Tika 4.0.0
+   */
+  version?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * TokenLimits
  *
  * How long API keys may last, set by admins (the tokens settings).
@@ -19036,6 +19146,22 @@ export type TestConversionNodeResponses = {
 };
 
 export type TestConversionNodeResponse = TestConversionNodeResponses[keyof TestConversionNodeResponses];
+
+export type TestTikaData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/documents/tika/test";
+};
+
+export type TestTikaResponses = {
+  /**
+   * Successful Response
+   */
+  200: TikaTestResult;
+};
+
+export type TestTikaResponse = TestTikaResponses[keyof TestTikaResponses];
 
 export type DecisionStatusData = {
   body?: never;

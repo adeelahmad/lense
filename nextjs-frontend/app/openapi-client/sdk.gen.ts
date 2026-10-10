@@ -1250,6 +1250,8 @@ import type {
   TestSpeechResponses,
   TestTelemetryData,
   TestTelemetryResponses,
+  TestTikaData,
+  TestTikaResponses,
   TokenData,
   TokenErrors,
   TokenLimitsData,
@@ -2503,6 +2505,20 @@ export class Admin {
   ): RequestResult<TestConversionNodeResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestConversionNodeResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/documents/node/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Tika
+   *
+   * Check that a Tika server answers at documents.tika_url, and say which version it is.
+   */
+  public static testTika<ThrowOnError extends boolean = false>(
+    options?: Options<TestTikaData, ThrowOnError>,
+  ): RequestResult<TestTikaResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestTikaResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/documents/tika/test",
       ...options,
     });
   }

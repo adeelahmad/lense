@@ -149,7 +149,41 @@ export function emailRows(e: EmailInfo | null | undefined, when: (iso: string) =
 /** How a document that isn't a PDF was made into one: "made into a PDF by LibreOffice". */
 export function renditionNote(r: { by?: string | null } | null | undefined): string | null {
   if (!r?.by) return null;
-  return `made into a PDF by ${r.by === "libreoffice" ? "LibreOffice" : "Chromium"}`;
+  const by: Record<string, string> = { libreoffice: "LibreOffice", chromium: "Chromium", anytopdf: "anytopdf" };
+  return `made into a PDF by ${by[r.by] ?? r.by}`;
+}
+
+export type DescribedInfo = {
+  title?: string | null;
+  creators?: string[];
+  subject?: string | null;
+  description?: string | null;
+  publisher?: string | null;
+  language?: string | null;
+  created?: string | null;
+  modified?: string | null;
+  pages?: number | null;
+  words?: number | null;
+  format?: string | null;
+};
+
+/** What a document says about itself (read by Tika) as rows for the Details tab (only the ones it says). */
+export function describedRows(d: DescribedInfo | null | undefined, when: (iso: string) => string): [string, string][] {
+  if (!d) return [];
+  const rows: [string, string | null | undefined][] = [
+    ["Title", d.title],
+    [d.creators && d.creators.length > 1 ? "Authors" : "Author", d.creators?.join("; ")],
+    ["Subject", d.subject],
+    ["Description", d.description],
+    ["Publisher", d.publisher],
+    ["Language", d.language],
+    ["Created", d.created ? when(d.created) : null],
+    ["Modified", d.modified ? when(d.modified) : null],
+    ["Pages", d.pages != null ? String(d.pages) : null],
+    ["Words", d.words != null ? String(d.words) : null],
+    ["Format", d.format],
+  ];
+  return rows.filter((r): r is [string, string] => Boolean(r[1]));
 }
 
 export type WebPageInfo = { url: string; final?: string | null; captured_at?: string | null; how?: string | null };

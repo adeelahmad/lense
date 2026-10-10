@@ -415,6 +415,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="documents.anytopdf_url" />
           <F ctx={ctx} id="documents.anytopdf_token" />
           <ConversionNodeCheck ctx={ctx} />
+          <TikaSettings ctx={ctx} />
           <Converters view={ctx.view} />
         </>
       );
@@ -502,6 +503,57 @@ function ConversionNodeCheck({ ctx }: { ctx: BodyCtx }) {
         (test.data.ok ? (
           <Banner tone="success" title="The conversion node answers.">
             Its address and token check out ({test.data.ms} ms).
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+/** The compose files' `tika` service, as Lens's containers reach it. */
+const TIKA_SERVICE = "http://tika:9998";
+
+function TikaSettings({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const url = ctx.state("documents.tika_url");
+  const test = useMutation({ mutationFn: () => data(Admin.testTika({ client })) });
+  const saved = Boolean(ctx.view.documents?.values?.tika_url);
+  return (
+    <>
+      <F ctx={ctx} id="documents.tika_url" />
+      {!url.value && (
+        <div>
+          <Button size="sm" onClick={() => url.onChange(TIKA_SERVICE)}>
+            Use the Tika service next to Lens
+          </Button>
+        </div>
+      )}
+      {(saved || url.value) && (
+        <>
+          <F ctx={ctx} id="documents.tika_text" />
+          <F ctx={ctx} id="documents.tika_metadata" />
+        </>
+      )}
+      {saved && (
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+            {test.isPending ? "Checking…" : "Test"}
+          </Button>
+          <span className="text-[12px] text-fg-muted">
+            {ctx.dirty
+              ? "Uses the saved settings, not your unsaved changes"
+              : "Asks the Tika server which version it is"}
+          </span>
+        </div>
+      )}
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="The Tika server answers.">
+            {test.data.version} ({test.data.ms} ms)
           </Banner>
         ) : (
           <Banner tone="error" title="Not yet.">

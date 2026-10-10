@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Apache Tika.** Lens can use an Apache Tika server (`--profile tika` in the compose files, or one of your own, set
+  in Settings → Documents). Documents nothing here can make into a PDF, such as Word files on a lean server or a
+  Raspberry Pi, are read by Tika as text, and every document's own title, authors, language and dates are read as
+  Dublin Core terms. Off until a Tika server is set ([Configuration](docs/configuration.md#apache-tika)).
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and

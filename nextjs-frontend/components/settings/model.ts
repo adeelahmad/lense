@@ -2112,6 +2112,30 @@ export const FIELDS: FieldSpec[] = [
     hint: "Another machine running anytopdf queue serve: it converts instead, Office files too",
   },
   { section: "documents", key: "anytopdf_token", label: "Conversion node token", kind: "secret" },
+  {
+    section: "documents",
+    key: "tika_url",
+    label: "Tika server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "http://tika:9998",
+    hint: "Apache Tika, such as the compose files’ tika profile: off while empty. Every document is sent to it",
+  },
+  {
+    section: "documents",
+    key: "tika_text",
+    label: "Read with Tika what nothing else here can",
+    kind: "switch",
+    hint: "Office files on a lean server, say: their text, without pages to look at",
+  },
+  {
+    section: "documents",
+    key: "tika_metadata",
+    label: "Read what each document says about itself with Tika",
+    kind: "switch",
+    hint: "Its title, authors, language and dates, as Dublin Core",
+  },
   // IIIF & metadata
   {
     section: "iiif",

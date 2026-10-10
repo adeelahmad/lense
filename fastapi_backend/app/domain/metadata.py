@@ -403,7 +403,7 @@ def _write(db, rid, meta):
 
 def defaults(db, cfg, rid):
     """What a recording says about itself before anyone edits its metadata."""
-    rec = db.one("SELECT title, recorded_at, language, summary, space FROM $r", r=R("recording", rid)) or {}
+    rec = db.one("SELECT title, recorded_at, language, summary, space, described FROM $r", r=R("recording", rid)) or {}
     ns = namespace(db, rec.get("space"))
     lang = cfg["iiif"].get("default_language") or "none"
     level, open_ = acc.namespace_defaults(db, [rec["space"]]).get(rec.get("space"), ("private", list(acc.PARTS)))
@@ -415,6 +415,11 @@ def defaults(db, cfg, rid):
             pass
     if rec.get("language") and LANG_RX.match(rec["language"]) and rec["language"] not in ("none", "nospeech"):
         d["language"] = [rec["language"]]
+    told = rec.get("described") or {}  # what a document says about itself (tika.py)
+    if "language" not in d and told.get("language") and LANG_RX.match(told["language"]):
+        d["language"] = [told["language"]]
+    if told.get("creators"):
+        d["creators"] = [{"name": n, "role": "author"} for n in told["creators"]]
     apps = db.rows("SELECT speaker FROM appearance WHERE recording = $r", r=rid)
     names = render.speaker_names(db, [a["speaker"] for a in apps])
     if names:

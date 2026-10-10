@@ -32,7 +32,7 @@ import time
 from email.utils import getaddresses, parsedate_to_datetime
 from html.parser import HTMLParser
 
-from . import anytopdf, netguard, store
+from . import anytopdf, netguard, store, tika
 
 R = store.R
 OFFICE = {
@@ -140,18 +140,35 @@ def _has_msg():
     return True
 
 
+def _can(cfg):
+    """What this server can make into PDFs itself, or with anytopdf: {office, pages, msg}."""
+    by = None if anytopdf.mode(cfg) == "lens" else anytopdf.available(cfg)
+    office, pages = bool(soffice(cfg) or by == "node"), bool(chromium(cfg) or soffice(cfg) or by)
+    return {"office": office, "pages": pages, "msg": pages and _has_msg()}
+
+
 def capabilities(cfg):
     """What this server can make into PDFs: Office files (LibreOffice), text, Markdown, saved web pages and emails
     (Chromium or LibreOffice), Outlook .msg emails (those, and the extract-msg package), and web pages captured from
     their address (Chromium). anytopdf does the same where Lens can't (anytopdf.py): emails, text and pages here, and
-    Office files too on a conversion node."""
-    by = None if anytopdf.mode(cfg) == "lens" else anytopdf.available(cfg)
-    office, pages = bool(soffice(cfg) or by == "node"), bool(chromium(cfg) or soffice(cfg) or by)
-    return {"office": office, "pages": pages, "msg": pages and _has_msg(), "web": bool(chromium(cfg))}
+    Office files too on a conversion node. A Tika server reads all of those as text where nothing here can (tika.py)."""
+    got = {**_can(cfg), "web": bool(chromium(cfg)), "tika": tika.reads_text(cfg)}
+    if got["tika"]:
+        got.update(office=True, pages=True, msg=True)
+    return got
 
 
 def unavailable(cfg, name):
-    """Why this server can't read this document (None when it can): what it would need."""
+    """Why this server can't read this document (None when it can): what it would need. A Tika server reads, as text,
+    any document Lens can't make into a PDF here."""
+    why = unconvertible(cfg, name)
+    if why and tika.reads_text(cfg) and ext_of(name) in store.DOCUMENT_EXT:
+        return None
+    return why
+
+
+def unconvertible(cfg, name):
+    """Why this server can't make this document into a PDF (None when it can): what it would need."""
     ext = ext_of(name)
     if ext in store.CAMERA_EXT:
         if anytopdf.mode(cfg) == "lens" or not anytopdf.available(cfg):
@@ -160,11 +177,13 @@ def unavailable(cfg, name):
         return None
     if ext not in store.DOCUMENT_EXT or ext == ".pdf":
         return None
-    can = capabilities(cfg)
+    can = _can(cfg)
     if ext in OFFICE and not can["office"]:
-        return f"converting {word(name)}s needs LibreOffice on the server (the lens:full image) or an anytopdf conversion node"
+        return (
+            f"converting {word(name)}s needs LibreOffice on the server (the lens:full image), an anytopdf conversion node or a Tika server"
+        )
     if ext not in OFFICE and not can["pages"]:
-        return f"converting {word(name)}s needs Chromium or LibreOffice on the server (the lens:full image)"
+        return f"converting {word(name)}s needs Chromium or LibreOffice on the server (the lens:full image), or a Tika server"
     if ext == ".msg" and not can["msg"]:
         return "reading Outlook .msg emails needs the extract-msg package on the server (pip install -e '.[msg]')"
     return None
@@ -222,7 +241,7 @@ def office_pdf(cfg, src, out):
     """An Office, OpenDocument or RTF file made into a PDF by LibreOffice, offline and with a profile of its own."""
     exe = soffice(cfg)
     if not exe:
-        raise Unavailable(unavailable(cfg, src) or "LibreOffice isn't installed")
+        raise Unavailable(unconvertible(cfg, src) or "LibreOffice isn't installed")
     with tempfile.TemporaryDirectory(prefix="lens-office-") as tmp:
         doc = pathlib.Path(tmp) / f"document{ext_of(src)}"
         shutil.copyfile(src, doc)
@@ -765,7 +784,7 @@ def page_pdf(cfg, page, out, via_anytopdf):
 def to_pdf(cfg, src, out):
     """Make `out`, the PDF of the document at `src`. Returns what was learnt on the way: {by, title?, email?,
     attachments?}. Unavailable when the server can't; ValueError when the file can't be read."""
-    why = unavailable(cfg, src)
+    why = unconvertible(cfg, src)
     if why:
         raise Unavailable(why)
     ext, path, via = ext_of(src), pathlib.Path(src), by_anytopdf(cfg, src)

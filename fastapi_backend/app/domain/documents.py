@@ -19,7 +19,7 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-from . import anytopdf, convert, ingest, keyring, store, video, webcapture
+from . import anytopdf, convert, ingest, keyring, store, tika, video, webcapture
 
 R = store.R
 TYPES = {
@@ -417,7 +417,7 @@ def read_image(path, d, opts, engine, say, why="no OCR engine is available"):
 
 
 # ---------- the transcribe step for documents and images ----------
-BY = {"libreoffice": "LibreOffice", "chromium": "Chromium", "anytopdf": "anytopdf"}  # who made its PDF, for people
+BY = {"libreoffice": "LibreOffice", "chromium": "Chromium", "anytopdf": "anytopdf", "tika": "Tika"}  # who made its PDF, for people
 
 
 def segments_of(blocks):
@@ -433,14 +433,35 @@ def segments_of(blocks):
 
 def _named(rec, path, learnt):
     """An email's subject as its title and its date as when it was made, unless someone named or dated it otherwise:
-    an upload is titled after its file and dated by it until then."""
+    an upload is titled after its file and dated by it until then. A document's own title and date (Tika's) the same,
+    where it says them."""
     out = {}
     stem = pathlib.PurePosixPath(str(path)).stem
-    if learnt.get("title") and (not rec.get("title") or rec["title"] == stem):
-        out["title"] = learnt["title"][:200]
-    if learnt["email"].get("date"):
-        out["recorded_at"] = learnt["email"]["date"]
+    told, email = learnt.get("described") or {}, learnt.get("email")
+    title = (learnt.get("title") if email else None) or told.get("title")
+    if title and (not rec.get("title") or rec["title"] == stem):
+        out["title"] = title[:200]
+    when = (email or {}).get("date") or told.get("created")
+    if when:
+        out["recorded_at"] = when
     return out
+
+
+def _tika_text(cfg, path, say):
+    """A document read by Tika as text alone, with no pages: (pages, blocks by page, notes, OCRed, learnt)."""
+    got = tika.read(cfg, path)
+    blocks = plain_blocks(got["text"])
+    say(f"read by Tika as text ({len(blocks)} block(s), no pages to look at)")
+    return [], {0: blocks} if blocks else {}, [], 0, {"by": "tika", "described": got["described"]}
+
+
+def _tika_described(cfg, path, say):
+    """What a document says about itself, read by Tika (documents.tika_metadata), or {} when it can't."""
+    try:
+        return tika.read(cfg, path)["described"]
+    except ValueError as e:
+        say(f"Tika couldn't say what it is: {e}")
+        return {}
 
 
 def _clear(d):
@@ -464,14 +485,19 @@ def transcribe(db, cfg, rid, say):
     if not path or not os.path.exists(path):
         raise FileNotFoundError(f"its file isn't there ({rec.get('path')})")
     opts, (engine, why) = cfg["documents"], video.ocr_engine_why(cfg)
-    learnt, pdf, source = {}, path, rec["source"]
+    learnt, pdf, source, read = {}, path, rec["source"], None
     if source == "document" and convert.needs(path):
         pdf = convert.rendition_path(cfg, rid)
         try:
             learnt = convert.to_pdf(cfg, path, pdf)
-        except convert.Unavailable as e:
-            raise ValueError(f"this {convert.word(path)} can't be read here: {e}") from None
-        say(f"made into a PDF by {BY[learnt['by']]}")
+            say(f"made into a PDF by {BY[learnt['by']]}")
+        except (convert.Unavailable, ValueError) as e:
+            if not tika.reads_text(cfg):  # nothing else can read it
+                if isinstance(e, convert.Unavailable):
+                    raise ValueError(f"this {convert.word(path)} can't be read here: {e}") from None
+                raise
+            say(f"not made into a PDF ({e}): Tika reads it instead")
+            *read, learnt = _tika_text(cfg, path, say)
     elif source == "image" and convert.ext_of(path) in store.CAMERA_EXT:
         # a camera RAW or HEIC photo: Lens can't open it, anytopdf can; its PDF is the photo's rendition
         why = convert.unavailable(cfg, path)
@@ -495,13 +521,17 @@ def transcribe(db, cfg, rid, say):
     known = anytopdf.page_words(pdf) if learnt.get("by") == "anytopdf" else {}
     try:
         with keyring.sealing(db, cfg, rec["space"], d):  # the pages drawn: encrypted, even if this fails part way
-            if source == "image" and not learnt:
+            if read:  # Tika's text: there are no pages
+                pages, blocks, notes, ocred = read
+            elif source == "image" and not learnt:
                 pages, blocks, notes, ocred = read_image(pdf, d, opts, engine, say, why)
             else:
                 pages, blocks, notes, ocred = read_pdf(pdf, d, opts, engine, say, why, known)
     finally:
-        if learnt:  # the rendition, read: kept encrypted from here on, like the file it was made from
+        if learnt and not read:  # the rendition, read: kept encrypted from here on, like the file it was made from
             keyring.protect(db, cfg, rec["space"], pdf)
+    if source == "document" and not read and tika.describes(cfg):
+        learnt["described"] = _tika_described(cfg, path, say)
     segs = segments_of(blocks)
     rows = [{**p, "id": R("page", f"{rid}-{p['idx']}"), "recording": rid, "space": rec["space"]} for p in pages]
     db.run(
@@ -514,15 +544,17 @@ def transcribe(db, cfg, rid, say):
     media = store.clean({"kind": rec["source"], "pages": len(pages), "width": first.get("width"), "height": first.get("height")})
     theirs = sum(1 for p in pages if p["idx"] in known and known[p["idx"]]["ocr"])  # pages anytopdf's OCR read
     ocr_by = engine.name if ocred and engine else "anytopdf" if theirs else None
-    how = ("pdf" if rec["source"] == "document" else "image") + (f"+ocr:{ocr_by}" if ocr_by else "")
+    how = ("text:tika" if read else "pdf" if rec["source"] == "document" else "image") + (f"+ocr:{ocr_by}" if ocr_by else "")
     patch = {"status": "transcribed", "engine": how, "media": media, "transcribed_at": store.now()}
-    if learnt:
-        patch["rendition"] = {"from": convert.ext_of(path), "by": learnt["by"]}
+    if learnt.get("by"):
+        patch["rendition"] = None if read else {"from": convert.ext_of(path), "by": learnt["by"]}
+    if source == "document":
+        patch["described"] = learnt.get("described") or None  # what it says about itself (Tika), else nothing kept
+        patch.update(_named(rec, path, learnt))
     if learnt.get("archive"):
         patch["archive"] = learnt["archive"]  # {files, left_out}
     if learnt.get("email"):
         patch["email"] = learnt["email"]
-        patch.update(_named(rec, path, learnt))
     ingest.write_transcript(db, rid, rec["space"], segs, patch)
     for note in notes:
         say(note)
