@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:c967c66629827d692bf760cc49d929494430dcd778a3dc96cc5b2d27a8078807"
+prose_version: "threat-model.md@sha256:96398fee54d8a0ff2efcfe809becf5307438e15538c79b4baffc56a3f78ecee8"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -359,6 +359,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — P-RETRIEVAL"
         provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
+  - id: "Lens extension side panel"
+    component: assistant
+    parameters:
+      - name: "answers shown there (model text that can repeat third-party text), the sign-in coming back"
+        attacker_controllable: true
+        x-condition: "indirectly through content"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none; answers render as Markdown cleaned by DOMPurify (no scripts, images or forms; only http and https links), and the sign-in checks its state and PKCE"
+        provenance: {kind: documented, source: 'extensions/browser/src/core/assistant.js answerHtml docstring "cleaned of anything that could run or fetch on its own"'}
   - id: "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes"
     component: assistant
     parameters:
