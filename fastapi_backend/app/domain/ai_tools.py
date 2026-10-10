@@ -483,13 +483,20 @@ class Toolbox(ops_tools.OpsTools):
 
         return run
 
-    def t_use_skill(self, name):
+    def t_use_skill(self, name, file=None):
         s = (self.ext.skills if self.ext else {}).get(name)
         if not s:
             raise ValueError(f"no skill {name}")
+        files = s["spec"].get("files") or {}
+        if file:
+            if file not in files:
+                raise ValueError(f"the skill {name} has no file {file}; it has: {', '.join(files) or 'none'}")
+            return {"skill": name, "file": file, "text": files[file]}, f"Read {file} from the skill {name}"
         out = {"skill": name, "instructions": s["spec"]["instructions"]}
         if s["spec"].get("tools"):
             out["tools"] = s["spec"]["tools"]
+        if files:
+            out["files"] = list(files)
         return out, f"Read the skill {name}"
 
     # ---- extensions, from chat ----

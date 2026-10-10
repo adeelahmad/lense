@@ -172,6 +172,26 @@ when: someone asks for a recap of a meeting
 Find the meeting, read it, and answer with three bullets: decisions, owners, dates.
 ```
 
+### Skills and plugins from marketplaces
+
+Lens reads Anthropic's open plugin and skill formats as they are, so what's made for Claude installs here unchanged:
+
+- **Marketplaces** (`/api/v1/marketplaces`): a repository with `.claude-plugin/marketplace.json`. Admins add them,
+  which is the approval: Anthropic's own (`anthropics/skills`, `anthropics/claude-plugins-official`) are suggested,
+  and any other is added by its address (`owner/repo`, a GitHub or GitLab link, or a link to its marketplace.json),
+  which is how a team runs a custom one. Everyone who can edit browses them, previews a plugin (what it adds and what
+  Lens leaves out) and installs it.
+- **Links and files** (`POST /api/v1/extensions/import`, `/import/archive`): a plugin or a skill from a GitHub or
+  GitLab repository or folder, or a `.zip`, `.skill` or `.tar.gz`.
+
+An installed plugin is one Lens plugin, yours and private until you share it; installing it again saves its new
+version. A skill (a folder with SKILL.md) is a skill, and the assistant reads its text files (references, examples,
+scripts) when the instructions point at them; nothing in them runs. A command (`commands/*.md`) is a skill the
+assistant follows when someone asks for it, and an agent (`agents/*.md`) is a prompt tool with the agent's instructions
+as its system prompt. Claude Code's hooks run commands on the computer, so they're left out, and so are a plugin's MCP
+servers for now. Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
+tools: public addresses only.
+
 `ai.extensions: false` turns every extension off.
 
 ## Setting up and running the server by chat

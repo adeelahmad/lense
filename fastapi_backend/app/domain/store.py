@@ -1063,6 +1063,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS extension SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS extension_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS extension_version_e ON extension_version FIELDS extension",
+    "DEFINE TABLE IF NOT EXISTS marketplace SCHEMALESS",  # where plugins and skills are installed from (marketplace.py)
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",

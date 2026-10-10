@@ -9,12 +9,16 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import ai_tools, auth, extensions
+from app.domain import ai_tools, auth, extensions, marketplace
 from app.schemas.common import Created, Ok
 from app.schemas.extensions import (
     Extension,
     ExtensionCreate,
     ExtensionDetail,
+    ExtensionImportArchive,
+    ExtensionImported,
+    ExtensionImportLink,
+    ExtensionImportPreview,
     ExtensionTest,
     ExtensionTestResult,
     ExtensionUpdate,
@@ -66,6 +70,27 @@ def create_extension(body: ExtensionCreate, user: Writer, db: Db) -> Created:
         eid = extensions.create(db, me(user), _manifest(body), body.enabled, body.origin)
     auth.audit(db, user.as_audit(), "extension.create", f"extension:{eid}", {"origin": body.origin})
     return Created(id=eid)
+
+
+@router.post("/import")
+def import_link(body: ExtensionImportLink, user: Writer, db: Db, cfg: Cfg) -> ExtensionImportPreview | ExtensionImported:
+    """A plugin or skill in Anthropic's format from a link: a GitHub or GitLab repository or folder, or a .zip. With
+    `preview`, what it would add and leave out; else installed as your own (importing it again: a new version)."""
+    with _errors():
+        out = marketplace.import_link(db, cfg, me(user), body.url, dry=body.preview)
+    if not body.preview:
+        auth.audit(db, user.as_audit(), "extension.import", f"extension:{out['id']}", {"url": body.url, "version": out["version"]})
+    return ExtensionImportPreview(**out) if body.preview else ExtensionImported(**out)
+
+
+@router.post("/import/archive")
+def import_archive(body: ExtensionImportArchive, user: Writer, db: Db) -> ExtensionImportPreview | ExtensionImported:
+    """A plugin or skill from a .zip, .skill or .tar.gz you send (as base64)."""
+    with _errors():
+        out = marketplace.import_archive(db, me(user), body.filename, body.data, dry=body.preview)
+    if not body.preview:
+        auth.audit(db, user.as_audit(), "extension.import", f"extension:{out['id']}", {"file": body.filename, "version": out["version"]})
+    return ExtensionImportPreview(**out) if body.preview else ExtensionImported(**out)
 
 
 @router.get("/{eid}")

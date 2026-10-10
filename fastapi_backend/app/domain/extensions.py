@@ -53,6 +53,10 @@ ACTIONS = {
 HOOK_VARS = {"message": {"said"}, "before_tool": {"said", "tool"}, "after_tool": {"said", "tool", "result"}, "answer": {"said", "answer"}}
 VAR_RX = re.compile(r"\{\{\s*([a-z][a-z0-9_]*)\s*\}\}")
 MAX_TEXT = 20000
+MAX_SKILL = 200_000  # a skill's instructions: Anthropic's own run to 100,000 characters
+MAX_FILES = 100  # files a skill carries besides its instructions (references, examples, scripts to read)
+MAX_FILES_CHARS = 500_000
+FILE_RX = re.compile(r"^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[^\x00-\x1f\\]{1,200}$")
 MAX_PARAMS = 20
 MAX_ITEMS = 50
 MAX_REPLY = 200_000  # the most of a web reply that is read
@@ -180,18 +184,34 @@ def _check_tool(spec, me, db=None):
 
 
 def _check_skill(spec, me, db=None):
-    if set(spec) - {"when", "instructions", "tools"}:
-        raise ValueError("a skill is {when, instructions, tools}")
+    if set(spec) - {"when", "instructions", "tools", "files"}:
+        raise ValueError("a skill is {when, instructions, tools, files}")
     tools = spec.get("tools") or []
     if not isinstance(tools, list) or not all(isinstance(t, str) for t in tools):
         raise ValueError("a skill's tools are a list of tool names")
     return store.clean(
         {
-            "when": _text(spec.get("when"), "when to use the skill", 500, required=True),
-            "instructions": _text(spec.get("instructions"), "the skill's instructions", MAX_TEXT, required=True),
+            "when": _text(spec.get("when"), "when to use the skill", 1024, required=True),
+            "instructions": _text(spec.get("instructions"), "the skill's instructions", MAX_SKILL, required=True),
             "tools": tools[:30] or None,
+            "files": _check_files(spec.get("files")),
         }
     )
+
+
+def _check_files(files):
+    """A skill's other files, {path: text}, as a skill folder has them next to its SKILL.md: the assistant reads one
+    when the instructions point at it (use_skill with the file)."""
+    if not files:
+        return None
+    if not isinstance(files, dict) or len(files) > MAX_FILES:
+        raise ValueError(f"a skill's files are at most {MAX_FILES}, each a path and its text")
+    for path, text in files.items():
+        if not isinstance(path, str) or not FILE_RX.match(path) or not isinstance(text, str):
+            raise ValueError(f"a skill's file is a path inside its folder and the file's text: {str(path)[:80]}")
+    if sum(len(t) for t in files.values()) > MAX_FILES_CHARS:
+        raise ValueError(f"a skill's files come to at most {MAX_FILES_CHARS} characters")
+    return dict(sorted(files.items()))
 
 
 def _check_hook(spec, me, db=None):
@@ -291,7 +311,7 @@ def check_manifest(m, me, db=None):
             "name": name,
             "kind": head["kind"],
             "title": _text(head["title"], "the title", 80),
-            "description": _text(head["description"], "the description", 1000, required=head["kind"] != "hook"),
+            "description": _text(head["description"], "the description", 1024, required=head["kind"] != "hook"),
             "visibility": head["visibility"],
             "namespaces": head["namespaces"],
             "spec": check_spec(head["kind"], spec, me, db),
@@ -409,8 +429,9 @@ def _check_share(db, me, visibility, namespaces):
     return vis, sorted(set(sids))
 
 
-def create(db, me, manifest, enabled=True, origin="code"):
-    """A new extension from a manifest; its id. `origin` says how it was made: code, canvas or chat."""
+def create(db, me, manifest, enabled=True, origin="code", source=None):
+    """A new extension from a manifest; its id. `origin` says how it was made: code, canvas or chat (or import, from a
+    marketplace or a link, when `source` says where from: marketplace.py)."""
     m = check_manifest(manifest, me, db)
     _check_names(db, m["kind"], m["name"], m["spec"])
     vis, sids = _check_share(db, me, m.get("visibility"), m.get("namespaces"))
@@ -427,6 +448,7 @@ def create(db, me, manifest, enabled=True, origin="code"):
                 "visibility": vis,
                 "namespaces": sids,
                 "enabled": bool(enabled),
+                "source": source,
                 "owner": me["id"],
                 "owner_email": me["email"],
                 "current": 1,
@@ -460,7 +482,7 @@ def _save(db, me, eid, n, spec, notes, origin):
 def _row(db, eid):
     d = db.one(
         "SELECT record::id(id) AS id, name, kind, title, description, visibility, namespaces, enabled, owner, owner_email, "
-        "current, created_at, updated_at, deleted_at FROM $r",
+        "current, source, created_at, updated_at, deleted_at FROM $r",
         r=R("extension", int(eid)),
     )
     if not d:
@@ -514,7 +536,7 @@ def update(db, me, eid, **meta):
     if "title" in meta:
         out["title"] = _text(meta["title"], "the title", 80)
     if "description" in meta and meta["description"] is not None:
-        out["description"] = _text(meta["description"], "the description", 1000)
+        out["description"] = _text(meta["description"], "the description", 1024)
     if meta.get("enabled") is not None:
         out["enabled"] = bool(meta["enabled"])
     if meta.get("visibility") is not None or meta.get("namespaces") is not None:
@@ -637,12 +659,15 @@ class Active:
             desc = (t["description"] or name) + (" Needs the person's approval." if t["spec"]["effect"] == "change" else "")
             out.append((name, desc, props, req, t["spec"]["effect"] == "change"))
         if self.skills:
+            props = {"name": {"type": "string", "enum": list(self.skills)}}
+            if any(s["spec"].get("files") for s in self.skills.values()):
+                props["file"] = {"type": "string", "description": "one of the skill's files, when its instructions point at one"}
             out.append(
                 (
                     "use_skill",
                     "Read a skill's instructions before doing what it's for. Skills: "
                     + "; ".join(f"{n} ({s['spec']['when']})" for n, s in self.skills.items()),
-                    {"name": {"type": "string", "enum": list(self.skills)}},
+                    props,
                     ["name"],
                     False,
                 )
