@@ -2591,7 +2591,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^(openai|elevenlabs|assemblyai|deepgram)$",
+              "pattern": "^(openai|elevenlabs|assemblyai|deepgram|gemini)$",
               "title": "Provider"
             }
           }
@@ -10374,7 +10374,7 @@
           "imports"
         ],
         "summary": "Import Web Links",
-        "description": "Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a\nfile: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
+        "description": "Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per\nline, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
         "operationId": "import_web_links",
         "requestBody": {
           "content": {
@@ -19283,7 +19283,8 @@
                     "tool",
                     "skill",
                     "hook",
-                    "plugin"
+                    "plugin",
+                    "mcp"
                   ],
                   "type": "string"
                 },
@@ -19387,6 +19388,106 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ManifestChecked"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/import": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Import Link",
+        "description": "A plugin or skill in Anthropic's format from a link: a GitHub or GitLab repository or folder, or a .zip. With\n`preview`, what it would add and leave out; else installed as your own (importing it again: a new version).",
+        "operationId": "import_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionImportLink"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ExtensionImportPreview"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ExtensionImported"
+                    }
+                  ],
+                  "title": "Response Extensions-Import Link"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/import/archive": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Import Archive",
+        "description": "A plugin or skill from a .zip, .skill or .tar.gz you send (as base64).",
+        "operationId": "import_archive",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionImportArchive"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ExtensionImportPreview"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ExtensionImported"
+                    }
+                  ],
+                  "title": "Response Extensions-Import Archive"
                 }
               }
             }
@@ -19660,6 +19761,333 @@
         }
       }
     },
+    "/api/v1/marketplaces": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "List Marketplaces",
+        "operationId": "list_marketplaces",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Marketplace"
+                  },
+                  "type": "array",
+                  "title": "Response Extensions-List Marketplaces"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Add Marketplace",
+        "description": "Add a marketplace by its address; its list of plugins is read now.",
+        "operationId": "add_marketplace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarketplaceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/suggested": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Suggested Marketplaces",
+        "description": "Anthropic's marketplaces, when they aren't added yet.",
+        "operationId": "suggested_marketplaces",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MarketplaceSuggestion"
+                  },
+                  "type": "array",
+                  "title": "Response Extensions-Suggested Marketplaces"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}/refresh": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Refresh Marketplace",
+        "description": "Read its list of plugins again.",
+        "operationId": "refresh_marketplace",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}": {
+      "delete": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Delete Marketplace",
+        "description": "Takes it away; what was installed from it stays.",
+        "operationId": "delete_marketplace",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}/plugins": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "List Marketplace Plugins",
+        "operationId": "list_marketplace_plugins",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MarketplacePlugin"
+                  },
+                  "title": "Response Extensions-List Marketplace Plugins"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}/plugins/{name}/preview": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Preview Marketplace Plugin",
+        "description": "What installing it would add to the assistant, and what Lens leaves out.",
+        "operationId": "preview_marketplace_plugin",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionImportPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}/plugins/{name}/install": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Install Marketplace Plugin",
+        "description": "Install it as your own plugin, private until you share it; installing it again brings its new version.",
+        "operationId": "install_marketplace_plugin",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionImported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats": {
       "get": {
         "tags": [
@@ -19894,7 +20322,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.",
         "operationId": "send_message",
         "parameters": [
           {
@@ -23825,6 +24253,57 @@
           },
           "204": {
             "description": "the browser reads it"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/voices": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "List Voices",
+        "description": "The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it\nlists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have.",
+        "operationId": "list_voices",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceList"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -31346,7 +31825,8 @@
               "job.failed",
               "job.cancelled",
               "batch.finished",
-              "recording.added"
+              "recording.added",
+              "lens.release"
             ],
             "title": "Type"
           },
@@ -31380,7 +31860,8 @@
               "tool",
               "skill",
               "hook",
-              "plugin"
+              "plugin",
+              "mcp"
             ],
             "title": "Kind"
           },
@@ -31469,7 +31950,20 @@
               }
             ],
             "title": "Origin",
-            "description": "how this version was made: code, canvas or chat"
+            "description": "how this version was made: code, canvas, chat or import"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "where it was imported from: a marketplace's plugin, a link or a file"
           },
           "updated_at": {
             "anyOf": [
@@ -31560,7 +32054,8 @@
               "tool",
               "skill",
               "hook",
-              "plugin"
+              "plugin",
+              "mcp"
             ],
             "title": "Kind"
           },
@@ -31649,7 +32144,20 @@
               }
             ],
             "title": "Origin",
-            "description": "how this version was made: code, canvas or chat"
+            "description": "how this version was made: code, canvas, chat or import"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "where it was imported from: a marketplace's plugin, a link or a file"
           },
           "updated_at": {
             "anyOf": [
@@ -31689,6 +32197,140 @@
           "manifest"
         ],
         "title": "ExtensionDetail"
+      },
+      "ExtensionImportArchive": {
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "data": {
+            "type": "string",
+            "maxLength": 28000000,
+            "title": "Data",
+            "description": "a .zip, .skill or .tar.gz with a plugin or a skill, as base64 (20 MB at most)"
+          },
+          "preview": {
+            "type": "boolean",
+            "title": "Preview",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ExtensionImportArchive"
+      },
+      "ExtensionImportLink": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "a plugin or skill: a GitHub or GitLab repository or folder, or a .zip or .tar.gz link"
+          },
+          "preview": {
+            "type": "boolean",
+            "title": "Preview",
+            "description": "say what it would install, without installing it",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ExtensionImportLink"
+      },
+      "ExtensionImportPreview": {
+        "properties": {
+          "manifest": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Manifest",
+            "description": "the plugin as Lens would install it"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/ExtensionSkipped"
+            },
+            "type": "array",
+            "title": "Skipped",
+            "default": []
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "manifest",
+          "source"
+        ],
+        "title": "ExtensionImportPreview"
+      },
+      "ExtensionImported": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/ExtensionSkipped"
+            },
+            "type": "array",
+            "title": "Skipped",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "version"
+        ],
+        "title": "ExtensionImported"
+      },
+      "ExtensionSkipped": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "what was left out: hooks, mcp, skill, command, agent or file"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "why"
+        ],
+        "title": "ExtensionSkipped"
       },
       "ExtensionTest": {
         "properties": {
@@ -36139,6 +36781,22 @@
             "title": "Text",
             "description": "addresses, one per line"
           },
+          "urls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urls",
+            "description": "addresses, as a list"
+          },
           "filename": {
             "anyOf": [
               {
@@ -36199,7 +36857,7 @@
           "namespace"
         ],
         "title": "LinksImportRequest",
-        "description": "Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a\nbrowser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."
+        "description": "Links pasted as ``text`` (one per line), listed in ``urls``, or a file (``filename`` + base64 ``data``): a list of addresses, a\nbrowser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."
       },
       "LlmEstimate": {
         "properties": {
@@ -36975,6 +37633,230 @@
           "manifest"
         ],
         "title": "ManifestChecked"
+      },
+      "Marketplace": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the name its marketplace.json gives it"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "where it is: a repository, or a link to its marketplace.json"
+          },
+          "plugins": {
+            "type": "integer",
+            "title": "Plugins",
+            "description": "how many plugins it lists"
+          },
+          "added_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added By"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "source",
+          "plugins"
+        ],
+        "title": "Marketplace"
+      },
+      "MarketplaceCreate": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "owner/repo on GitHub, a GitHub or GitLab link, or a link to a marketplace.json"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "MarketplaceCreate"
+      },
+      "MarketplacePlugin": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "homepage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage"
+          },
+          "installable": {
+            "type": "boolean",
+            "title": "Installable",
+            "description": "whether Lens can read it (why_not says why when it can't)"
+          },
+          "why_not": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why Not"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed",
+            "description": "your extension installed from it, if you installed it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "installable"
+        ],
+        "title": "MarketplacePlugin"
+      },
+      "MarketplaceSuggestion": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "title",
+          "source"
+        ],
+        "title": "MarketplaceSuggestion"
       },
       "MatterbridgeRoom": {
         "properties": {
@@ -39987,7 +40869,8 @@
                 "job.failed",
                 "job.cancelled",
                 "batch.finished",
-                "recording.added"
+                "recording.added",
+                "lens.release"
               ]
             },
             "type": "array",
@@ -40135,7 +41018,8 @@
                     "job.failed",
                     "job.cancelled",
                     "batch.finished",
-                    "recording.added"
+                    "recording.added",
+                    "lens.release"
                   ]
                 },
                 "type": "array"
@@ -40264,7 +41148,8 @@
                     "job.failed",
                     "job.cancelled",
                     "batch.finished",
-                    "recording.added"
+                    "recording.added",
+                    "lens.release"
                   ]
                 },
                 "type": "array"
@@ -49772,6 +50657,19 @@
             "type": "string",
             "maxLength": 8000,
             "title": "Text"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice",
+            "description": "read in this voice (an id from GET /voice/voices); else the settings'"
           }
         },
         "additionalProperties": false,
@@ -53605,6 +54503,84 @@
           "speak"
         ],
         "title": "VoiceInfo"
+      },
+      "VoiceList": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current",
+            "description": "the voice answers are read in now (null: the provider's default)"
+          },
+          "voices": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceOption"
+            },
+            "type": "array",
+            "title": "Voices"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the provider's voices couldn't be listed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "provider",
+          "voices"
+        ],
+        "title": "VoiceList"
+      },
+      "VoiceOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "what voice.tts_voice is set to"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what the provider says about it: accent, gender, style, language"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "VoiceOption"
       },
       "Watch": {
         "properties": {

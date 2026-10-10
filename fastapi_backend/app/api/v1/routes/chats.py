@@ -180,7 +180,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
     its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
-    from (where, and the highlighted text; not the page's text, which isn't kept)."""
+    from (where, and the highlighted text; not the page's text, which isn't kept).
+
+    `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
+    conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
     q = body.content.strip()[:4000]
     files = await run_in_threadpool(_attachments, db, body.attachments, user)
@@ -188,6 +191,17 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         q = "I attached " + ("this file." if len(files) == 1 else "these files.")
     if not q:
         raise HTTPException(400, "ask something")
+    cmd = chat.command(q) if not files and body.edit is None else None
+    if cmd:  # /clear or /compact: done here, answered like a question, without asking the model anything else
+
+        def run() -> Iterator[str]:
+            reply, mid = chat.run_command(db, cfg, cid, *cmd)
+            yield _ev({"clear": "cleared", "compact": "compacted"}[cmd[0]], {"message": mid})
+            yield _ev("passages", [])
+            yield _ev("token", {"text": reply})
+            yield _ev("done", {"message": mid})
+
+        return StreamingResponse(run(), media_type="text/event-stream", headers=SSE_HEADERS)
     # this answer's model: the one asked for (400 if it isn't offered), else the conversation's while it's still offered
     model = await run_in_threadpool(_model, cfg, body.model) if body.model else c.get("model")
     if model and not body.model and model not in await run_in_threadpool(chat.model_choices, cfg):
@@ -211,6 +225,10 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
 
     def prepare() -> tuple[list[dict[str, Any]], list[dict[str, Any]], Any]:
         nonlocal summary
+        try:  # a conversation that fills the model's context is folded into its summary before it's answered
+            chat.compact(db, cfg, cid, full_only=True)
+        except Exception:  # noqa: BLE001 - answered with what fits; tried again after the answer
+            log.warning("chat %s: couldn't update the summary", cid, exc_info=True)
         past = chat.history(db, cid)
         summary = chat.memory(db, cfg, cid)
         chat.add(db, cid, "user", q, attachments=files, context=kept)

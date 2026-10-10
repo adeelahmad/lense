@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
  */
 export const STEP_TONE: Record<string, Tone> = {
   transcribe: "intent",
+  read: "intent",
   shots: "intent",
   diarize: "red",
   ocr: "red",
@@ -27,6 +28,7 @@ export const STEP_TONE: Record<string, Tone> = {
 
 export const STEP_LABEL: Record<string, string> = {
   transcribe: "Transcribe",
+  read: "Read pages",
   diarize: "Diarize",
   shots: "Shots",
   ocr: "Text on screen",

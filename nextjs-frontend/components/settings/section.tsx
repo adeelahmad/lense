@@ -47,6 +47,8 @@ const ENV: Record<string, string> = {
   "telemetry.headers": "LENS_TELEMETRY_HEADERS",
   "logs.level": "LENS_LOG_LEVEL",
   "logs.format": "LENS_LOG_FORMAT",
+  "telemetry.prometheus": "LENS_PROMETHEUS",
+  "telemetry.prometheus_token": "LENS_PROMETHEUS_TOKEN",
   "fedora.enabled": "LENS_FEDORA",
   "fedora.url": "LENS_FEDORA_URL",
   "fedora.user": "LENS_FEDORA_USER",

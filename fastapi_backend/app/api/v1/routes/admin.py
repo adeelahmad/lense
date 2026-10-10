@@ -242,7 +242,7 @@ def test_embeddings(user: AdminWriter, cfg: Cfg, db: Db) -> EmbedTestResult:
 
 @router.post("/settings/speech/test")
 def test_speech(
-    user: AdminWriter, cfg: Cfg, provider: str = Query(..., pattern="^(openai|elevenlabs|assemblyai|deepgram)$")
+    user: AdminWriter, cfg: Cfg, provider: str = Query(..., pattern="^(openai|elevenlabs|assemblyai|deepgram|gemini)$")
 ) -> SpeechTestResult:
     """Check a speech provider's address and key with the saved settings (lists its models; nothing is billed)."""
     t0 = time.time()
