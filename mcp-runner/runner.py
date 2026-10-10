@@ -44,7 +44,11 @@ IDLE = 900
 MAX_SERVERS = 30
 MAX_BODY = 4_000_000
 KEY_RX = re.compile(r"^[a-z0-9_-]{1,64}$")
-BASE_ENV = {"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"), "LANG": "C.UTF-8", "NODE_ENV": "production"}
+BASE_ENV = {
+    "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+    "LANG": "C.UTF-8",
+    "NODE_ENV": "production",
+}
 
 
 class Server:
@@ -64,21 +68,42 @@ class Server:
     def _start(self):
         home = os.path.join(HOME, self.key)
         os.makedirs(home, exist_ok=True)
-        env = {**BASE_ENV, "HOME": home, "TMPDIR": home, **{k: str(v) for k, v in (self.conf.get("env") or {}).items()}}
+        env = {
+            **BASE_ENV,
+            "HOME": home,
+            "TMPDIR": home,
+            **{k: str(v) for k, v in (self.conf.get("env") or {}).items()},
+        }
         cmd = [self.conf["command"], *[str(a) for a in self.conf.get("args") or []]]
         if not shutil.which(cmd[0], path=env["PATH"]):
-            raise RuntimeError(f"{cmd[0]} isn't installed in the MCP runner (it has node, npx, python3, uv and uvx)")
+            raise RuntimeError(
+                f"{cmd[0]} isn't installed in the MCP runner (it has node, npx, python3, uv and uvx)"
+            )
         self.err.clear()
         self.proc = subprocess.Popen(
-            cmd, cwd=home, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True
+            cmd,
+            cwd=home,
+            env=env,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
         )
         threading.Thread(target=self._read, args=(self.proc,), daemon=True).start()
         threading.Thread(target=self._errors, args=(self.proc,), daemon=True).start()
         got = self._request(
-            "initialize", {"protocolVersion": VERSION, "capabilities": {}, "clientInfo": {"name": "lens", "version": "1"}}, START_SECONDS
+            "initialize",
+            {
+                "protocolVersion": VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "lens", "version": "1"},
+            },
+            START_SECONDS,
         )
         if "error" in got:
-            raise RuntimeError(f"the server didn't start: {got['error'].get('message')}")
+            raise RuntimeError(
+                f"the server didn't start: {got['error'].get('message')}"
+            )
         self.init = got["result"]
         self._write({"jsonrpc": "2.0", "method": "notifications/initialized"})
 
@@ -95,7 +120,9 @@ class Server:
                 continue
             if not isinstance(msg, dict):
                 continue
-            if "method" in msg and "id" in msg:  # the server asks something of the client: ping, roots, sampling
+            if (
+                "method" in msg and "id" in msg
+            ):  # the server asks something of the client: ping, roots, sampling
                 answer = (
                     {"result": {}}
                     if msg["method"] == "ping"
@@ -108,7 +135,11 @@ class Server:
                 except OSError:
                     pass
                 continue
-            hit = self.waiting.pop(msg.get("id"), None) if isinstance(msg.get("id"), int) else None
+            hit = (
+                self.waiting.pop(msg.get("id"), None)
+                if isinstance(msg.get("id"), int)
+                else None
+            )
             if hit:
                 hit[1].append(msg)
                 hit[0].set()
@@ -123,10 +154,19 @@ class Server:
         rid = next(self.ids)
         ev, box = threading.Event(), []
         self.waiting[rid] = (ev, box)
-        self._write({"jsonrpc": "2.0", "id": rid, "method": method, **({"params": params} if params is not None else {})})
+        self._write(
+            {
+                "jsonrpc": "2.0",
+                "id": rid,
+                "method": method,
+                **({"params": params} if params is not None else {}),
+            }
+        )
         if not ev.wait(seconds):
             self.waiting.pop(rid, None)
-            raise RuntimeError(f"the server didn't answer {method} within {seconds} seconds")
+            raise RuntimeError(
+                f"the server didn't answer {method} within {seconds} seconds"
+            )
         if not box:
             tail = " / ".join(list(self.err)[-5:])
             raise RuntimeError("the server stopped" + (f": {tail}" if tail else ""))
@@ -154,7 +194,11 @@ class Server:
             return {"jsonrpc": "2.0", "id": msg["id"], "result": self.init}
         got = self._request(msg.get("method"), msg.get("params"))
         self.used = time.monotonic()
-        return {"jsonrpc": "2.0", "id": msg["id"], **{k: got[k] for k in ("result", "error") if k in got}}
+        return {
+            "jsonrpc": "2.0",
+            "id": msg["id"],
+            **{k: got[k] for k in ("result", "error") if k in got},
+        }
 
     def stop(self):
         p, self.proc, self.init = self.proc, None, None
@@ -174,12 +218,18 @@ LOCK = threading.Lock()
 
 
 def check_conf(conf):
-    if not isinstance(conf, dict) or not isinstance(conf.get("command"), str) or not conf["command"].strip():
+    if (
+        not isinstance(conf, dict)
+        or not isinstance(conf.get("command"), str)
+        or not conf["command"].strip()
+    ):
         raise ValueError("a server is {command, args, env}")
     args, env = conf.get("args") or [], conf.get("env") or {}
     if not isinstance(args, list) or not all(isinstance(a, str) for a in args):
         raise ValueError("args are a list of words")
-    if not isinstance(env, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in env.items()):
+    if not isinstance(env, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in env.items()
+    ):
         raise ValueError("env is names and text values")
     return {"command": conf["command"].strip(), "args": args, "env": env}
 
@@ -213,7 +263,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _allowed(self):
         given = self.headers.get("Authorization", "")
-        return hmac.compare_digest(given.encode(), f"Bearer {self.server.token}".encode())
+        return hmac.compare_digest(
+            given.encode(), f"Bearer {self.server.token}".encode()
+        )
 
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)
@@ -241,9 +293,14 @@ class Handler(BaseHTTPRequestHandler):
             if s and s.conf == conf:
                 return self._send(200, {"ok": True})
             if not s and len(SERVERS) >= MAX_SERVERS:
-                idle = sorted((x for x in SERVERS.values() if not x.proc), key=lambda x: x.used)
+                idle = sorted(
+                    (x for x in SERVERS.values() if not x.proc), key=lambda x: x.used
+                )
                 if not idle:
-                    return self._send(409, {"error": f"the runner keeps at most {MAX_SERVERS} servers"})
+                    return self._send(
+                        409,
+                        {"error": f"the runner keeps at most {MAX_SERVERS} servers"},
+                    )
                 del SERVERS[idle[0].key]
             if s:
                 with s.lock:
@@ -261,13 +318,39 @@ class Handler(BaseHTTPRequestHandler):
         try:
             msg = self._body()
         except ValueError:
-            return self._send(400, {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "not JSON"}})
+            return self._send(
+                400,
+                {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32700, "message": "not JSON"},
+                },
+            )
         if not isinstance(msg, dict):
-            return self._send(400, {"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "one message at a time"}})
+            return self._send(
+                400,
+                {
+                    "jsonrpc": "2.0",
+                    "id": None,
+                    "error": {"code": -32600, "message": "one message at a time"},
+                },
+            )
         try:
             out = s.handle(msg)
-        except (RuntimeError, OSError, ValueError, KeyError) as e:  # it wouldn't start or answer: say why, as MCP does
-            return self._send(200, {"jsonrpc": "2.0", "id": msg.get("id"), "error": {"code": -32603, "message": str(e)[:2000]}})
+        except (
+            RuntimeError,
+            OSError,
+            ValueError,
+            KeyError,
+        ) as e:  # it wouldn't start or answer: say why, as MCP does
+            return self._send(
+                200,
+                {
+                    "jsonrpc": "2.0",
+                    "id": msg.get("id"),
+                    "error": {"code": -32603, "message": str(e)[:2000]},
+                },
+            )
         if out is None:
             return self._send(202)
         self._send(200, out, {"Mcp-Session-Id": s.key})
