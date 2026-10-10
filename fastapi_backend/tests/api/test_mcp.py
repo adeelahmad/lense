@@ -77,6 +77,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "write_note",
         "create_podcast",
         "set_file_storage",
+        "set_monitoring",
     ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
@@ -456,3 +457,13 @@ def test_file_storage_tools(client, db, env, folder):
     assert out["saved"] == {"store": "local"} and out["check"]["ok"]
     assert client.app.state.archive.current()["files"]["store"] == "local"
     assert "only admins" in tool_error(client, env["h"], "set_file_storage", store="local")
+
+
+def test_monitoring_tools(client, db, env, monkeypatch):
+    monkeypatch.delenv("LENS_CONTROL_DIR", raising=False)
+    assert "only admins" in tool_error(client, env["h"], "monitoring")
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    ha = login(client, "root@x.io", "root password 1")
+    got = tool(client, ha, "monitoring")
+    assert (got["on"], got["agent"]) == (False, None) and got["settings"].endswith("/settings/telemetry")
+    assert "no upgrade agent" in tool_error(client, ha, "set_monitoring", on=True)

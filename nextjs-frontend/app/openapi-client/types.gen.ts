@@ -8240,6 +8240,67 @@ export type ModelSpend = {
 };
 
 /**
+ * Monitoring
+ */
+export type Monitoring = {
+  /**
+   * On
+   *
+   * the monitoring profile (Prometheus, node-exporter, Grafana) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Grafana Port
+   *
+   * the port Grafana listens on, where the web app does
+   */
+  grafana_port?: number;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that turns it on by hand, on the machine Lens runs on
+   */
+  manual: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MonitoringRequest
+ */
+export type MonitoringRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) Prometheus, node-exporter and Grafana
+   */
+  on: boolean;
+};
+
+/**
  * MonthStats
  */
 export type MonthStats = {
@@ -20809,6 +20870,47 @@ export type StartUpgradeResponses = {
 };
 
 export type StartUpgradeResponse = StartUpgradeResponses[keyof StartUpgradeResponses];
+
+export type GetMonitoringData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/monitoring";
+};
+
+export type GetMonitoringResponses = {
+  /**
+   * Successful Response
+   */
+  200: Monitoring;
+};
+
+export type GetMonitoringResponse = GetMonitoringResponses[keyof GetMonitoringResponses];
+
+export type SetMonitoringData = {
+  body: MonitoringRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/monitoring";
+};
+
+export type SetMonitoringErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetMonitoringError = SetMonitoringErrors[keyof SetMonitoringErrors];
+
+export type SetMonitoringResponses = {
+  /**
+   * Successful Response
+   */
+  202: Monitoring;
+};
+
+export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
 
 export type ListBackupsData = {
   body?: never;
