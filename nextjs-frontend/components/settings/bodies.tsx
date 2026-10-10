@@ -37,7 +37,7 @@ import {
 } from "@/components/settings/model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Switch } from "@/components/ui/field";
+import { Field, Input, Select, Switch, Textarea } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
@@ -1443,6 +1443,8 @@ function HttpsBody({ ctx }: { ctx: BodyCtx }) {
   const provider = ctx.state("https.dns_provider");
   const creds = ctx.state("https.dns_credentials");
   const eab = ctx.state("https.eab_hmac_key");
+  const clientCa = ctx.state("https.client_ca");
+  const clientAuth = (ctx.state("https.client_auth").value as string | undefined) ?? "off";
   const [fields, setFields] = useState<Record<string, string>>({});
   const [other, setOther] = useState(false);
   const status = useQuery({
@@ -1581,6 +1583,36 @@ function HttpsBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       )}
+      <Sub>Who gets in</Sub>
+      <F ctx={ctx} id="https.strict_sni" />
+      <F ctx={ctx} id="https.client_auth" />
+      {clientAuth !== "off" && (
+        <Field
+          label="CA that signs client certificates"
+          error={ctx.state("https.client_ca").error}
+          hint="PEM, one certificate or more. Only browsers and devices with a certificate it signed get in."
+        >
+          {({ id, describedBy, invalid }) => (
+            <Textarea
+              id={id}
+              aria-describedby={describedBy}
+              invalid={invalid}
+              rows={5}
+              className="font-mono text-[12px]"
+              placeholder="-----BEGIN CERTIFICATE-----"
+              value={(clientCa.value as string | undefined) ?? ""}
+              onChange={(e) => clientCa.onChange(e.target.value)}
+            />
+          )}
+        </Field>
+      )}
+      {clientAuth === "required" && (
+        <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+          The web app’s own port (3000) doesn’t ask for a certificate: keep it to this machine (install with
+          LENS_PUBLIC=0) so the only way in from elsewhere is HTTPS.
+        </p>
+      )}
+      <F ctx={ctx} id="https.min_tls" />
       <details className="text-[13px]">
         <summary className="cursor-pointer font-semibold text-fg-secondary">More options</summary>
         <div className="mt-3 flex flex-col gap-4">
