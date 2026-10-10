@@ -21,9 +21,9 @@ dependencies = [
     "markdown>=3.5",
     "cryptography>=50",
     "rdflib>=7.1,<8",  # the archive as RDF (Dublin Core): export, import, SPARQL
-    "opentelemetry-api>=1.27,<2",
+    "opentelemetry-api>=1.45.1,<2",
     "opentelemetry-sdk>=1.27,<2",
-    "opentelemetry-exporter-otlp-proto-http>=1.27,<2",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.1,<2",
     "webauthn>=3.0.1,<4",
 ]
 
@@ -72,7 +72,7 @@ dev = [
     "mkdocs-material>=9.6.9",
     "mkdocs-material[imaging]>=9.7.7",
     "onnxruntime>=1.18",  # the objects tests run a small YOLOX-shaped model
-    "onnx>=1.16",  # ... which they build
+    "onnx>=1.23.2",  # ... which they build
     "mcp>=2.3.0",  # the official MCP client, to test the MCP server with
 ]
 

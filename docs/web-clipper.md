@@ -1,7 +1,7 @@
 # Web clipper
 
-**Status: built (Chrome, Firefox).** Firefox, Edge and Safari builds come from the same code; each gets a target in
-`extensions/browser/targets/`.
+**Status: built (Chrome, Edge and Firefox); Safari in progress.** Every browser's build comes from the same code;
+each gets a target in `extensions/browser/targets/`.
 
 The Lens web clipper is a browser extension that turns what you're reading into Markdown and sends it to your Lens,
 where it's imported like pasted text and runs through the namespace's pipeline. It works like MarkDownload: you
@@ -95,6 +95,10 @@ npm ci
 npm test            # templates, metadata, Markdown, sending (jsdom)
 npm run build       # dist/<target>/ for every target; --target chrome for one
 ```
+
+From the repository root, `pnpm exec nx run-many -t test build -p clipper` does the same (installing first when the
+lockfile changed), and CI runs it in **Other projects** when a change affects the clipper
+([Monorepo and CI](contributing.md#monorepo-and-ci-nx)).
 
 Load `dist/chrome` with **Load unpacked** on `chrome://extensions` (Developer mode on). The Browser extension workflow
 builds every target on each pull request that changes the clipper and keeps `lens-clipper-<target>.zip` with the run;
