@@ -124,8 +124,8 @@ On first start the API log prints a setup code, and a link that fills it in (`ma
 No accounts yet. Create the first admin in the web app with setup code: … (or open http://localhost:3000/setup?code=…, which fills it in)
 ```
 Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
-namespace, the model provider, a [budget](budgets.md#one-budget-for-everything), storage, apps and AI, and telemetry.
-Once a model is set, **Finish with defaults** skips the rest; change any of it later in Settings
+namespace, the model provider, a [budget](budgets.md#one-budget-for-everything) (for a cloud model), storage, apps and
+AI, and telemetry. Once a model is set, **Finish with defaults** skips the rest; change any of it later in Settings
 ([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it instead).
 
 After the first sign-in, a short welcome card points to the two places most people come back for: the assistant, which

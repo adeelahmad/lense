@@ -24,9 +24,9 @@ removes one.
 
 ## One budget for everything
 
-Besides budgets for single resources, `all` caps everything Lens spends: every model call, run and job, whatever it
-is for. The setup wizard asks for it (and so does the web installer for a cloud provider), as a scale for the hard
-limit with the soft limit at 80% of it; Settings › Budgets changes it.
+Besides budgets for single resources, `all` caps everything Lens spends: every model call, run and job, whatever it is
+for. The setup wizard and the web installer ask for it after a cloud model (one on your own machine costs nothing), as a
+scale for the hard limit with the soft limit at 80% of it; Settings › Budgets changes it.
 
 ```http
 PUT /api/v1/setup/budget
