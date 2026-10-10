@@ -26,6 +26,7 @@ from app.domain import (
     store,
     templates,
     tunnel,
+    updates,
 )
 
 log = logging.getLogger("lens")
@@ -67,7 +68,7 @@ class Archive:
             threading.Thread(target=self._index_text, name="textindex", daemon=True).start()
         if auth.account_count(self.db) == 0:
             setup.mark_fresh(self.db, self.base)  # a fresh install: the web app walks the first admin through setup
-        setup.apply_env(self.db)
+        setup.apply_env(self.db, self.base)
         if settings.keep_passwords(self.db, self.base):
             log.info("People here sign in with passwords, so passwords stay on; an admin can turn them off in Settings > Sign-in")
         if auth.account_count(self.db) == 0:
@@ -92,6 +93,7 @@ class Archive:
         bridge.start(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
         tunnel.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         local_llm.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
+        updates.start(self.db, self.current, self.stop, log=log.info)
 
     def close(self) -> None:
         self.stop.set()

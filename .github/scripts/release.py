@@ -35,6 +35,8 @@ VERSION_FILES = {
     "fastapi_backend/uv.lock": r'(^name = "lens"\nversion = ")([^"]+)(")',
     "nextjs-frontend/package.json": r'(^  "version": ")([^"]+)(")',
     "CloudronManifest.json": r'(^  "version": ")([^"]+)(")',
+    # what a running Lens says it is (the API, MCP, telemetry, and the update check in docs/updates.md)
+    "fastapi_backend/app/domain/__init__.py": r'(^__version__ = ")([^"]+)(")',
 }
 
 TYPES = {

@@ -61,18 +61,19 @@ export const NEEDS: Record<string, string[]> = {
   faces: ["shots"],
   objects: ["shots"],
   describe: ["shots"],
-  analyze: ["transcribe", "diarize"],
-  embed: ["transcribe", "describe"],
+  analyze: ["transcribe", "read", "diarize"],
+  embed: ["transcribe", "read", "describe"],
   summarize: ["analyze"],
-  llm: ["transcribe", "diarize", "analyze"],
+  llm: ["transcribe", "read", "diarize", "analyze"],
   report: ["analyze", "summarize", "llm"],
   export: ["analyze", "summarize", "llm"],
-  workflow: ["transcribe", "diarize"],
+  workflow: ["transcribe", "read", "diarize"],
 };
 
 /** What a step makes available to later steps and templates. */
 export const PROVIDES: Record<string, string> = {
   transcribe: "transcript · segments[] · language",
+  read: "pages[] · segments[]",
   diarize: "speakers[] · turns",
   shots: "shots[] · frames",
   ocr: "text on screen",
@@ -90,6 +91,7 @@ export const PROVIDES: Record<string, string> = {
 
 export const DESCRIBE: Record<string, string> = {
   transcribe: "Speech to text with word timings (Settings → Transcription)",
+  read: "Draws a document’s or an image’s pages and reads their text (Settings → Documents)",
   diarize: "Who spoke when (Settings → Diarization)",
   shots: "Cuts a video into shots and keyframes",
   ocr: "Reads text on screen (Settings → Video)",

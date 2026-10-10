@@ -1,5 +1,5 @@
 """Documents and images as resources (docs/api.md, Documents and images): uploaded like audio and video, their pages
-drawn and read by the transcribe step (a PDF's own text, OCR for scans and images), then shown, listed, searched and
+drawn and read by the read step (a PDF's own text, OCR for scans and images), then shown, listed, searched and
 summarised by page."""
 
 from __future__ import annotations
@@ -89,10 +89,10 @@ def test_a_pdf_becomes_a_document_with_its_pages_and_text(client, env, db, cfg):
     assert (rec["status"], rec["engine"], rec.get("duration_ms")) == ("analyzed", "pdf", None)
     assert rec["media"]["kind"] == "document" and rec["media"]["pages"] == 2 and rec["media"]["height"] == 2000
     runs = _runs(client, he, up["job"])
-    assert runs["transcribe"] == ("done", "2 page(s), 3 block(s) of text")
-    assert runs["diarize"] == ("skipped", "a document has no voices")
+    assert runs["read"] == ("done", "2 page(s), 3 block(s) of text")
+    assert "transcribe" not in runs and "diarize" not in runs  # read, not transcribed: no speech model is fetched
     assert runs["shots"] == ("skipped", "it isn't a video")
-    assert runs["ocr"] == ("skipped", "its pages were read when it was transcribed")
+    assert runs["ocr"] == ("skipped", "its pages were read by the read step")
     # summaries cite pages: the first point is on page 1, the follow-up on page 2
     assert rec["summary"]["key_points"][0]["page"] == 0 and rec["summary"]["action_items"][0]["page"] == 1
 
@@ -192,7 +192,7 @@ def test_without_poppler_or_an_ocr_engine(client, env, db, cfg, monkeypatch):
     assert [x["image"] for x in documents.pages(db, img["recording"])] == ["page-0001.jpg"]
     assert db.rows("SELECT * FROM segment WHERE recording = $r", r=img["recording"]) == []
     runs = _runs(client, he, img["job"])
-    assert runs["transcribe"] == ("done", "1 page(s), 0 block(s) of text")
+    assert runs["read"] == ("done", "1 page(s), 0 block(s) of text")
     assert runs["summarize"] == ("skipped", "there's no text to summarise")
     log = client.get(f"/api/v1/jobs/{img['job']}/log", headers=he).json()["lines"]
     assert any("its text wasn't read: OCR is off (video.ocr_engine)" in x for x in log)
@@ -435,3 +435,13 @@ def test_documents_and_images_from_a_source(client, env, db, cfg, folder, monkey
     assert watch("old", kinds="both") == [("call", "transcript"), ("ep1", "audio"), ("harbour", "transcript")]
     assert watch("new") == [("call", "document"), ("ep1", "audio"), ("harbour", "document"), ("photo", "image")]
     assert client.get("/api/v1/watches", headers=ha).json()[-1]["kinds"] == "all"  # the default now
+
+
+@POPPLER
+def test_a_document_adds_to_the_graph(client, env, db, cfg):
+    """A document's text is analysed like a transcript's: the people and places in it become entities in the graph."""
+    pdf = text_pdf([["Alice Johnson met Bob Smith at the harbour.", "Alice Johnson wrote to Microsoft."]])
+    up = _upload(client, env["he"], pdf, "minutes.pdf")
+    drain(db, cfg)
+    said = {m["text"] for m in db.rows("SELECT text FROM mentions WHERE recording = $r", r=up["recording"])}
+    assert {"Alice Johnson", "Bob Smith", "Microsoft"} <= said

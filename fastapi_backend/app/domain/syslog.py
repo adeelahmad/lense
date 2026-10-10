@@ -131,13 +131,18 @@ class Listener:
 
         if ":" in host:
             UdpServer.address_family = TcpServer.address_family = socket.AF_INET6
-        self.udp = UdpServer((host, port), Udp)
-        self.port = self.udp.server_address[1]
-        try:
-            self.tcp = TcpServer((host, self.port), Tcp) if tcp else None
-        except OSError:
-            self.udp.server_close()
-            raise
+        # Port 0 (any free one): UDP picks it, and TCP needs the same number free too; when something else holds it
+        # on TCP, try another rather than fail
+        for attempt in range(1 if port else 20):
+            self.udp = UdpServer((host, port), Udp)
+            self.port = self.udp.server_address[1]
+            try:
+                self.tcp = TcpServer((host, self.port), Tcp) if tcp else None
+                break
+            except OSError:
+                self.udp.server_close()
+                if port or attempt == 19:
+                    raise
         self.threads = []
 
     def start(self):

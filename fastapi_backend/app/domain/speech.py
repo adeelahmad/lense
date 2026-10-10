@@ -9,6 +9,10 @@ a base URL (a proxy or a compatible server works too), a model and an API key, s
 * elevenlabs: Scribe speech to text (speakers, audio events) and text to speech.
 * assemblyai: transcripts with speaker labels, language detection and sentiment.
 * deepgram: Nova speech to text (speakers, language, sentiment) and Aura text to speech.
+* gemini: Google Gemini text to speech (its prebuilt voices).
+
+Text to speech can also come from macOS `say` when Lens runs on a Mac itself (not in Docker): nothing to set up, the
+Mac's own voices. voices() lists what each one can read in, for Settings and podcast hosts.
 
 A provider's transcript is the same list of segments a local engine returns, plus `provider_speaker`: the speaker
 separation step uses those labels (diarize.engine provider, or auto), and voice IDs still come from local voiceprints.
@@ -16,16 +20,23 @@ separation step uses those labels (diarize.engine provider, or auto), and voice 
 
 from __future__ import annotations
 
+import base64
 import contextlib
+import io
 import json
 import logging
+import pathlib
 import re
+import shutil
 import subprocess
+import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+import wave
 
 import numpy as np
 
@@ -34,8 +45,16 @@ from . import store
 log = logging.getLogger("lens")
 SR = 16000
 PROVIDERS = ("openai", "elevenlabs", "assemblyai", "deepgram")
-LABELS = {"openai": "OpenAI-compatible", "elevenlabs": "ElevenLabs", "assemblyai": "AssemblyAI", "deepgram": "Deepgram"}
-TTS_PROVIDERS = ("openai", "elevenlabs", "deepgram")
+SERVICES = (*PROVIDERS, "gemini")  # with an address, model and key in the speech settings; gemini only reads aloud
+LABELS = {
+    "openai": "OpenAI-compatible",
+    "elevenlabs": "ElevenLabs",
+    "assemblyai": "AssemblyAI",
+    "deepgram": "Deepgram",
+    "gemini": "Google Gemini",
+    "say": "macOS say",
+}
+TTS_PROVIDERS = ("openai", "elevenlabs", "deepgram", "gemini", "say")
 CHUNK_SECONDS = 600  # OpenAI-compatible servers take up to 25 MB a request; ten minutes of Opus is a few MB
 POLL_SECONDS = 3
 MAX_WORDS = 40
@@ -47,6 +66,20 @@ EVENTS = {"laughter": "Laughter", "laughs": "Laughter", "laughing": "Laughter", 
 ELEVENLABS_VOICE = "JBFqnCBsd6RMkjVDRZzb"  # a premade voice every account has
 ELEVENLABS_TTS_MODEL = "eleven_multilingual_v2"
 DEEPGRAM_TTS_MODEL = "aura-2-thalia-en"
+GEMINI_VOICE = "Kore"
+# what each provider reads in when nothing is picked (say: the Mac's own voice)
+DEFAULT_VOICE = {"openai": "alloy", "elevenlabs": ELEVENLABS_VOICE, "deepgram": DEEPGRAM_TTS_MODEL, "gemini": GEMINI_VOICE, "say": None}
+OPENAI_VOICES = ("alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse")
+# Gemini's prebuilt voices and how Google describes each
+GEMINI_VOICES = {
+    "Zephyr": "Bright", "Puck": "Upbeat", "Charon": "Informative", "Kore": "Firm", "Fenrir": "Excitable",
+    "Leda": "Youthful", "Orus": "Firm", "Aoede": "Breezy", "Callirrhoe": "Easy-going", "Autonoe": "Bright",
+    "Enceladus": "Breathy", "Iapetus": "Clear", "Umbriel": "Easy-going", "Algieba": "Smooth", "Despina": "Smooth",
+    "Erinome": "Clear", "Algenib": "Gravelly", "Rasalgethi": "Informative", "Laomedeia": "Upbeat", "Achernar": "Soft",
+    "Alnilam": "Firm", "Schedar": "Even", "Gacrux": "Mature", "Pulcherrima": "Forward", "Achird": "Friendly",
+    "Zubenelgenubi": "Casual", "Vindemiatrix": "Gentle", "Sadachbia": "Lively", "Sadaltager": "Knowledgeable",
+    "Sulafat": "Warm",
+}  # fmt: skip
 
 
 class ProviderError(RuntimeError):
@@ -73,7 +106,7 @@ def model(cfg, p):
 
 def ready(cfg, p):
     """Whether a provider can be called: it has a key, or (OpenAI-compatible) a server of its own that may need none."""
-    if p not in PROVIDERS:
+    if p not in SERVICES:
         return False
     if _key(cfg, p):
         return True
@@ -442,45 +475,209 @@ class Engine:
 
 
 # ---------- text to speech ----------
+def tts_provider(cfg):
+    return (cfg.get("voice") or {}).get("tts_provider") or "openai"
+
+
+def say_available():
+    """macOS `say` is there: Lens runs on a Mac itself, not in a container."""
+    return sys.platform == "darwin" and shutil.which("say") is not None
+
+
 def tts_ready(cfg):
     v = cfg.get("voice") or {}
-    p = v.get("tts_provider") or "openai"
+    p = tts_provider(cfg)
     if p == "openai":
         return bool(v.get("tts_model") and (v.get("tts_base_url") or (cfg.get("llm") or {}).get("base_url")))
+    if p == "say":
+        return say_available()
     return p in TTS_PROVIDERS and bool(_key(cfg, p))
 
 
-def speak(cfg, text):
-    """The text read aloud as (bytes, media type), by the voice settings' provider. Raises ProviderError."""
+def tts_voice(cfg):
+    """The voice answers are read in: voice.tts_voice, else the provider's default (for Deepgram, voice.tts_model too,
+    where its voice was set before it had a voice of its own)."""
     v = cfg.get("voice") or {}
-    p = v.get("tts_provider") or "openai"
+    p = tts_provider(cfg)
+    if p == "deepgram":
+        return v.get("tts_voice") or v.get("tts_model") or DEEPGRAM_TTS_MODEL
+    return v.get("tts_voice") or DEFAULT_VOICE.get(p)
+
+
+def wav(pcm, rate, channels=1):
+    """16-bit PCM as a WAV file."""
+    out = io.BytesIO()
+    with wave.open(out, "wb") as w:
+        w.setnchannels(channels)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(pcm)
+    return out.getvalue()
+
+
+def _speak_elevenlabs(cfg, text, voice):
+    m = (cfg.get("voice") or {}).get("tts_model") or ELEVENLABS_TTS_MODEL
+    url = f"{base_url(cfg, 'elevenlabs')}/v1/text-to-speech/{urllib.parse.quote(voice, safe='')}?output_format=mp3_44100_128"
+    headers = {"Content-Type": "application/json", "xi-api-key": _key(cfg, "elevenlabs"), "Accept": "audio/mpeg"}
+    return m, lambda: _request(url, data=json.dumps({"text": text, "model_id": m}).encode(), headers=headers, timeout=60)
+
+
+def _speak_deepgram(cfg, text, voice):
+    url = f"{base_url(cfg, 'deepgram')}/v1/speak?" + urllib.parse.urlencode({"model": voice, "encoding": "mp3"})
+    headers = {"Content-Type": "application/json", "Authorization": f"Token {_key(cfg, 'deepgram')}"}
+    return voice, lambda: _request(url, data=json.dumps({"text": text}).encode(), headers=headers, timeout=60)
+
+
+def _speak_gemini(cfg, text, voice):
+    m = model(cfg, "gemini")
+    url = f"{base_url(cfg, 'gemini')}/v1beta/models/{urllib.parse.quote(m, safe='')}:generateContent"
+    headers = {"Content-Type": "application/json", "x-goog-api-key": _key(cfg, "gemini")}
+    body = {
+        "contents": [{"parts": [{"text": text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice}}},
+        },
+    }
+
+    def call():
+        j = _json(url, data=json.dumps(body).encode(), headers=headers, timeout=120)
+        parts = (((j.get("candidates") or [{}])[0].get("content") or {}).get("parts")) or []
+        blob = next((p["inlineData"] for p in parts if isinstance(p, dict) and p.get("inlineData")), None)
+        if not blob or not blob.get("data"):
+            raise ProviderError("Gemini answered without audio: " + json.dumps(j)[:200])
+        rate = re.search(r"rate=(\d+)", blob.get("mimeType") or "")  # raw 16-bit PCM, audio/L16;codec=pcm;rate=24000
+        return wav(base64.b64decode(blob["data"]), int(rate.group(1)) if rate else 24000), "audio/wav"
+
+    return m, call
+
+
+def _speak_say(cfg, text, voice):
+    if not say_available():
+        raise ProviderError("macOS say reads aloud only when Lens runs on a Mac itself, not in Docker")
+    if voice and (voice.startswith("-") or len(voice) > 100):
+        raise ProviderError(f"{voice!r} isn't a voice of say's")
+
+    def call():
+        with tempfile.TemporaryDirectory(prefix="lens-say-") as d:
+            out = pathlib.Path(d) / "speech.wav"
+            cmd = ["say", "-o", str(out), "--file-format=WAVE", "--data-format=LEI16@22050", *(["-v", voice] if voice else [])]
+            try:  # the text goes in on stdin, so nothing in it is read as an option
+                r = subprocess.run(cmd, input=text.encode(), capture_output=True, timeout=120)
+            except subprocess.TimeoutExpired:
+                raise ProviderError("say took longer than 120 s") from None
+            if r.returncode or not out.is_file():
+                raise ProviderError("say couldn't read it: " + (r.stderr.decode(errors="replace").strip()[-200:] or "no audio"))
+            return out.read_bytes(), "audio/wav"
+
+    return voice or "default", call
+
+
+def _speak_openai(cfg, text, voice):
+    v = cfg.get("voice") or {}
+    m = v["tts_model"]
+    base = (v.get("tts_base_url") or cfg["llm"]["base_url"]).rstrip("/")
+    key = v.get("tts_api_key") or (cfg["llm"].get("api_key") if not v.get("tts_base_url") else None)
+    headers = {"Content-Type": "application/json", **({"Authorization": f"Bearer {key}"} if key else {})}
+    body = {"model": m, "input": text, "voice": voice, "response_format": "mp3"}
+    return m, lambda: _request(base + "/audio/speech", data=json.dumps(body).encode(), headers=headers, timeout=60)
+
+
+SPEAK = {"openai": _speak_openai, "elevenlabs": _speak_elevenlabs, "deepgram": _speak_deepgram, "gemini": _speak_gemini, "say": _speak_say}
+
+
+def speak(cfg, text, voice=None):
+    """The text read aloud as (bytes, media type), by the voice settings' provider, in `voice` (else tts_voice()).
+    Raises ProviderError."""
+    p = tts_provider(cfg)
+    if p not in SPEAK:
+        raise ProviderError(f"unknown text-to-speech provider {p!r}")
     text = text[:4000]
-    if p == "elevenlabs":
-        m = v.get("tts_model") or ELEVENLABS_TTS_MODEL
-        url = f"{base_url(cfg, 'elevenlabs')}/v1/text-to-speech/{urllib.parse.quote(v.get('tts_voice') or ELEVENLABS_VOICE, safe='')}?output_format=mp3_44100_128"
-        headers = {"Content-Type": "application/json", "xi-api-key": _key(cfg, "elevenlabs"), "Accept": "audio/mpeg"}
-        body = {"text": text, "model_id": m}
-    elif p == "deepgram":
-        m = v.get("tts_model") or DEEPGRAM_TTS_MODEL
-        url = f"{base_url(cfg, 'deepgram')}/v1/speak?" + urllib.parse.urlencode({"model": m, "encoding": "mp3"})
-        headers = {"Content-Type": "application/json", "Authorization": f"Token {_key(cfg, 'deepgram')}"}
-        body = {"text": text}
-    else:
-        m = v["tts_model"]
-        base = (v.get("tts_base_url") or cfg["llm"]["base_url"]).rstrip("/")
-        key = v.get("tts_api_key") or (cfg["llm"].get("api_key") if not v.get("tts_base_url") else None)
-        url = base + "/audio/speech"
-        headers = {"Content-Type": "application/json", **({"Authorization": f"Bearer {key}"} if key else {})}
-        body = {"model": m, "input": text, "voice": v.get("tts_voice") or "alloy", "response_format": "mp3"}
+    m, call = SPEAK[p](cfg, text, voice or tts_voice(cfg))
     with _ledger("model.speech", cfg, f"{p}:{m}", {"chars": len(text)}):
-        data, ctype = _request(url, data=json.dumps(body).encode(), headers=headers, timeout=60)
+        data, ctype = call()
     return data, ctype if ctype and ctype.startswith("audio/") else "audio/mpeg"
+
+
+# ---------- the voices a provider reads in ----------
+def _voice(id, name=None, detail=None):
+    return {"id": id, "name": name or id, "detail": detail or None}
+
+
+def _say_voices():
+    """`say -v ?` lines: "Name (maybe with spaces)   en_US    # A sample sentence"."""
+    out = subprocess.run(["say", "-v", "?"], capture_output=True, timeout=30).stdout.decode(errors="replace")
+    found = []
+    for line in out.splitlines():
+        m = re.match(r"^(.+?)\s+([a-z]{2,3}[_-][A-Za-z0-9]+)\s+#", line)
+        if m:
+            found.append(_voice(m.group(1).strip(), detail=m.group(2)))
+    return found
+
+
+def _openai_voices(cfg):
+    v = cfg.get("voice") or {}
+    base = (v.get("tts_base_url") or (cfg.get("llm") or {}).get("base_url") or "").rstrip("/")
+    key = v.get("tts_api_key") or ((cfg.get("llm") or {}).get("api_key") if not v.get("tts_base_url") else None)
+    if base and "api.openai.com" not in base:  # Kokoro-FastAPI, speaches and others list their own
+        with contextlib.suppress(ProviderError, AttributeError, TypeError):
+            j = _json(base + "/audio/voices", headers={"Authorization": f"Bearer {key}"} if key else {}, timeout=15)
+            got = j.get("voices") if isinstance(j, dict) else j
+            names = [x if isinstance(x, str) else (x.get("id") or x.get("name")) for x in got or []]
+            if any(names):
+                return [_voice(n) for n in names if n]
+    return [_voice(n) for n in OPENAI_VOICES]
+
+
+def _elevenlabs_voices(cfg):
+    j = _json(f"{base_url(cfg, 'elevenlabs')}/v1/voices", headers={"xi-api-key": _key(cfg, "elevenlabs")}, timeout=20)
+    out = []
+    for x in j.get("voices") or []:
+        labels = x.get("labels") or {}
+        detail = ", ".join(str(labels[k]) for k in ("gender", "accent", "age", "description", "use_case") if labels.get(k))
+        out.append(_voice(x["voice_id"], x.get("name"), detail or x.get("category")))
+    return out
+
+
+def _deepgram_voices(cfg):
+    j = _json(f"{base_url(cfg, 'deepgram')}/v1/models", headers={"Authorization": f"Token {_key(cfg, 'deepgram')}"}, timeout=20)
+    out = []
+    for x in j.get("tts") or []:
+        meta = x.get("metadata") or {}
+        detail = ", ".join(str(d) for d in (meta.get("accent"), *(x.get("languages") or [])[:1]) if d)
+        out.append(_voice(x.get("canonical_name") or x["name"], (x.get("name") or "").title() or None, detail))
+    return out
+
+
+def voices(cfg, provider=None):
+    """The voices a text-to-speech provider (else the voice settings') reads in: ([{id, name, detail}], error or None).
+    Providers that list them are asked; Gemini's and OpenAI's own are known."""
+    p = provider or tts_provider(cfg)
+    if p not in TTS_PROVIDERS:
+        raise ValueError(f"unknown text-to-speech provider {p!r}")
+    if p == "gemini":
+        return [_voice(n, detail=d) for n, d in GEMINI_VOICES.items()], None
+    if p == "openai":
+        return _openai_voices(cfg), None
+    if p == "say":
+        if not say_available():
+            return [], "macOS say reads aloud only when Lens runs on a Mac itself, not in Docker"
+        try:
+            return _say_voices(), None
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return [], f"say didn't list its voices: {e}"
+    if not _key(cfg, p):
+        return [], f"{LABELS[p]} has no API key yet: add it in Settings → Speech providers"
+    try:
+        return {"elevenlabs": _elevenlabs_voices, "deepgram": _deepgram_voices}[p](cfg), None
+    except (ProviderError, KeyError, AttributeError, TypeError) as e:
+        return [], str(e) if isinstance(e, ProviderError) else f"{LABELS[p]} answered in a way Lens doesn't read"
 
 
 # ---------- checking a provider from Settings ----------
 def check(cfg, provider):
     """Whether the provider answers with these settings: (ok, what it said). Lists models; nothing is billed."""
-    if provider not in PROVIDERS:
+    if provider not in SERVICES:
         raise ValueError(f"unknown speech provider {provider!r}")
     if not ready(cfg, provider):
         return False, f"{LABELS[provider]} has no API key yet"
@@ -493,6 +690,10 @@ def check(cfg, provider):
         if provider == "elevenlabs":
             j = _json(base + "/v1/models", headers={"xi-api-key": key}, timeout=15)
             return True, f"signed in; {len(j) if isinstance(j, list) else 0} model(s)"
+        if provider == "gemini":
+            j = _json(base + "/v1beta/models?pageSize=1000", headers={"x-goog-api-key": key}, timeout=15)
+            tts = [m for m in j.get("models") or [] if "tts" in (m.get("name") or "")]
+            return True, f"signed in; {len(tts)} speech model(s)"
         if provider == "assemblyai":
             _json(base + "/v2/transcript?limit=1", headers={"Authorization": key}, timeout=15)
             return True, "signed in"

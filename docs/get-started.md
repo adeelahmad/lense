@@ -6,13 +6,79 @@
 curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
 ```
 
-On Linux or a Mac, this installs Docker if it's missing (get.docker.com on Linux; OrbStack with Homebrew on a Mac),
+On Linux or a Mac, this installs Docker if it's missing (get.docker.com on Linux; OrbStack with Homebrew on a Mac,
+and Homebrew too if needed), after listing what it will install and asking (only at a terminal; `LENS_YES=1` skips
+the question),
 gets Lens into `~/lens`, writes the secrets once, builds and starts the stack, and opens the setup page with the setup
 code already filled in. On a server without a desktop, Lens is reachable from the network and the link uses the
 server's address. Run the same line again to update: the secrets, the database and the archive are kept. Settings go
 before `sh`: `LENS_DIR`, `LENS_PORT`, `LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET`
 (`lean` for the smaller image) and `LENS_REF` (a branch or tag) change the defaults; the top of `install.sh` lists
 them.
+
+Where it can (Linux with KVM, or a Mac with Apple silicon), a first install asks whether to run Lens in Docker (the
+default) or in a [microsandbox](microsandbox.md) microVM, which needs no Docker; `LENS_BACKEND=microsandbox` chooses
+it without asking.
+
+## The web installer
+
+On a first install run at a terminal (on Linux or a Mac with Python 3.8 or later, which nearly all have), the line
+above opens an installer in your browser instead of asking anything in the terminal:
+
+1. **This computer**: the system, memory, free disk, whether Docker is there and running, and whether microsandbox can
+   run.
+2. **How it runs**: Docker or [microsandbox](microsandbox.md), the full or lean edition (lean is picked on a computer
+   with less than 4 GB of memory, such as a Raspberry Pi), the folder, the port, and whether other devices on the
+   network may reach it. It lists what it will install; when that needs administrator rights, it asks for your
+   password here, keeps it in memory for the install and hands it to `sudo` (it is never written down).
+3. **AI model**: model servers already running on the computer (Ollama, LM Studio, llama.cpp, vLLM, LocalAI) with their
+   models, or a provider (OpenAI, Anthropic, Google Gemini, OpenRouter, Groq, Mistral or any OpenAI-compatible server)
+   with its API key; **Test** lists the models. It can be skipped and set in Lens later.
+4. **Extras**, all optional: the first namespace, search by meaning (an embeddings server), the typesafe.ai decision
+   model's key, cloud transcription and its key, email (SMTP), remote access through a Cloudflare tunnel, anytopdf,
+   and telemetry.
+5. **Review**, then **Install**: it runs `install.sh` with those answers and shows its progress (and the full output
+   under **Details**). If something fails, it says what, and **Try again** runs it again (what's done stays done).
+6. **Open Lens** goes to the setup page with the setup code filled in, where you create the admin account with a
+   passkey.
+
+The answers that are settings go to Lens as `LENS_SETUP_SETTINGS`, which it saves once at its first start as if they
+were made in the app, so they stay editable in Settings (unlike the `LENS_LLM_*` variables, which lock them); the line
+is taken out of `.env` again once Lens is running. On a server without a desktop, the installer answers on the
+network and the terminal prints its link, which carries a one-time key. Only someone with the link can use it.
+
+`LENS_WIZARD=0` asks in the terminal as before, and `LENS_WIZARD=1` opens the installer for an existing install too
+(to change how it runs; its data, secrets and accounts stay). Runs without a terminal (scripts, CI) and runs with
+`LENS_YES=1` or `LENS_BACKEND` set never open it.
+
+### Double-click instead
+
+Each release carries launchers that do the same without a terminal; download the one for your system from the
+[latest release](https://github.com/adeelahmad/lense/releases/latest):
+
+| System | File | First time |
+|---|---|---|
+| macOS | `Install-Lens-macOS.zip` (unzip it: **Install Lens.app**) | it isn't notarized yet, so right-click it and choose **Open**, then **Open** again |
+| Windows | `Install-Lens-Windows.cmd` | if SmartScreen warns, **More info**, then **Run anyway** |
+| Linux | `Install-Lens-Linux.desktop` | right-click it and choose **Allow Launching** (it needs `curl` and Python 3) |
+
+They open the web installer in the browser; if something stops them before it opens (no internet, no Python), they
+say so in a window. On a Mac without Apple's Command Line Tools (which bring Python), it asks macOS to install them
+first, then you open it again.
+
+### Windows
+
+```powershell
+irm https://raw.githubusercontent.com/adeelahmad/lense/main/install.ps1 | iex
+```
+
+or the Windows launcher above. It installs Python 3 for your account if it's missing (winget, else python.org's
+installer), then opens the same web installer. On Windows Lens runs in Docker Desktop: the installer installs it with
+winget if it's missing (Windows asks for permission), turns on WSL when Docker needs it (Windows may then need a
+restart; open the installer again afterwards and it carries on), gets the code into `%USERPROFILE%\lens`, writes the
+secrets once, builds and starts Lens and opens its setup page. Running it again updates in place. Lens starts again
+whenever Docker Desktop does. microsandbox isn't available on Windows. Windows support is new: CI checks it with a
+stand-in Docker, not yet with a real Docker Desktop install.
 
 ## With Docker and make
 

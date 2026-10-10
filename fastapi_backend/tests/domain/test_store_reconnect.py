@@ -89,3 +89,14 @@ def test_an_unreachable_server_keeps_the_old_connection_until_it_is_back(monkeyp
     assert d._all == [dead]
     monkeypatch.setattr(d, "_open", lambda: fresh)
     assert d.values("SELECT 1") == [7]
+
+
+def test_a_wrong_server_password_says_which_setting_to_fix(monkeypatch):
+    def refused(self):
+        raise Exception("There was a problem with authentication")
+
+    monkeypatch.setattr(store.DB, "_open", refused)
+    cfg = {"data_dir": "/tmp", "database": {"url": "ws://test", "namespace": "n", "database": "d"}}
+    monkeypatch.delenv("SURREAL_URL", raising=False)
+    with pytest.raises(SystemExit, match="SURREAL_PASS don't match the user this database was created with"):
+        store.DB(cfg)

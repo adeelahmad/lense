@@ -15,6 +15,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     names = None  # namespace names suggested for a question (auto_scope.py)
     decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
     cypher_script = []  # Cypher to answer graph questions with (graph_ask.py), in order
+    podcast_script = None  # the lines a podcast script comes back with (podcasts.write), else a built-in one
     usage = None  # token counts to report with each answer (and as a streamed answer's last chunk), like OpenAI
 
     def _json(self, obj):
@@ -85,6 +86,78 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     "importance": 9,
                 }
             )
+        elif "connections" in schema.get("properties", {}):
+            # a podcast's outline (podcasts.plan): ideas from the first excerpt, a connection between the first and last
+            nums = [int(n) for n in re.findall(r"^\[(\d+)\] ", body["messages"][-1]["content"], re.M)] or [1]
+            content = json.dumps(
+                {
+                    "title": "Capsids and shipments",
+                    "summary": "How the capsid work and the shipment fit together.",
+                    "ideas": [{"point": "The capsid model beat the benchmark", "sources": [nums[0], 999]}],
+                    "questions": ["Why does a designed capsid matter?"],
+                    "connections": [
+                        {"claim": "Both are about Dyno Therapeutics", "sources": [nums[0], nums[-1]]},
+                        {"claim": "Unsourced", "sources": [999]},
+                    ],
+                    "recap": ["Designed capsids", "Friday shipment"],
+                }
+            )
+        elif "lines" in schema.get("properties", {}):
+            # a podcast's script (podcasts.write): Handler.podcast_script, else lines citing the first and last excerpts
+            nums = [int(n) for n in re.findall(r"^\[(\d+)\] ", body["messages"][-1]["content"], re.M)] or [1]
+            content = json.dumps(
+                {
+                    "lines": Handler.podcast_script
+                    or [
+                        {"speaker": "a", "kind": "banter", "text": "Welcome back to the show.", "citations": []},
+                        {"speaker": "b", "kind": "question", "text": "So what did Dyno Therapeutics build?", "citations": []},
+                        {
+                            "speaker": "a",
+                            "kind": "claim",
+                            "text": "They trained a model that designs the capsid itself.",
+                            "citations": [nums[0]],
+                        },
+                        {"speaker": "a", "kind": "claim", "text": "It beat the benchmark by a factor of ten.", "citations": [nums[0]]},
+                        {"speaker": "b", "kind": "claim", "text": "And they shipped it to Mars.", "citations": [nums[-1], 999]},
+                        {"speaker": "a", "kind": "claim", "text": "Nobody knows who funded it.", "citations": []},
+                        {
+                            "speaker": "b",
+                            "kind": "recap",
+                            "text": "So: designed capsids, and samples leave Friday.",
+                            "citations": [nums[-1]],
+                        },
+                    ]
+                }
+            )
+        elif "checks" in schema.get("properties", {}):
+            # a podcast's fact-check (podcasts.check): "benchmark" claims are partly right, "Mars" is wrong (and its
+            # rewrite holds), anything else holds
+            checks = []
+            for k, text, cites in re.findall(r"^(\d+)\. (.*) \(cites (.*)\)$", body["messages"][-1]["content"], re.M):
+                first = [int(c) for c in cites.split(", ") if c.isdigit()][:1]
+                if "benchmark" in text:
+                    checks.append(
+                        {
+                            "line": int(k),
+                            "verdict": "partial",
+                            "why": "no factor is given",
+                            "text": "It beat the benchmark.",
+                            "citations": first,
+                        }
+                    )
+                elif "Mars" in text:
+                    checks.append(
+                        {
+                            "line": int(k),
+                            "verdict": "unsupported",
+                            "why": "not in the excerpt",
+                            "text": "The samples ship on Friday.",
+                            "citations": first,
+                        }
+                    )
+                else:
+                    checks.append({"line": int(k), "verdict": "supported"})
+            content = json.dumps({"checks": checks})
         elif "cypher" in schema.get("properties", {}):
             # graph questions: the scripted queries in order, else one that finds organisations
             q = Handler.cypher_script.pop(0) if Handler.cypher_script else "MATCH (e:Organisation) RETURN e, e.name LIMIT 50"

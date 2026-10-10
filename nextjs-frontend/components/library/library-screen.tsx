@@ -48,6 +48,7 @@ import {
 import { useCollectionTree } from "@/components/library/use-collections";
 import { useIsNarrow } from "@/components/library/use-media";
 import { fromView, viewState } from "@/components/library/views-model";
+import { CreatePodcastDialog } from "@/components/podcasts/create-dialog";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -120,6 +121,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
+  const [podcastOpen, setPodcastOpen] = useState(false);
   const [placeOpen, setPlaceOpen] = useState(false);
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const tree = useCollectionTree(namespace);
@@ -655,6 +657,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
           onPlace={() => setPlaceOpen(true)}
           placeReason={placeReason}
           onTag={() => setTagOpen(true)}
+          onPodcast={() => setPodcastOpen(true)}
           onDelete={() => setDeleteOpen(true)}
           onClear={() => setSelected(new Set())}
         />
@@ -666,6 +669,15 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
         n={selected.size}
         withoutAudio={selectedRows.filter((r) => r.media_kind === "transcript").length}
         onConfirm={(steps) => actions.reprocess([...selected], steps)}
+      />
+      <CreatePodcastDialog
+        open={podcastOpen}
+        onOpenChange={setPodcastOpen}
+        recordings={[...selected]}
+        what={
+          selectedRows.length === 1 ? `“${selectedRows[0].title || "Untitled"}”` : plural(selected.size, "recording")
+        }
+        onCreated={() => setSelected(new Set())}
       />
       <TagDialog
         open={tagOpen}

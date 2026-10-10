@@ -7,20 +7,28 @@ on:
   pull_request:
     paths:
       - install.sh
+      - install.ps1
+      - installer/**
       - docker-compose.prod.yml
       - fastapi_backend/Dockerfile
       - fastapi_backend/pyproject.toml
       - fastapi_backend/uv.lock
       - fastapi_backend/start.sh
+      - microsandbox/**
       - nextjs-frontend/Dockerfile
       - nextjs-frontend/package.json
       - nextjs-frontend/pnpm-lock.yaml
+      - packaging/host/**
       - .github/workflows/install.yml
   push:
     branches: [main]
     paths:
       - install.sh
+      - install.ps1
+      - installer/**
       - docker-compose.prod.yml
+      - microsandbox/**
+      - packaging/host/**
       - .github/workflows/install.yml
   schedule:
     - cron: "17 4 * * 1"
@@ -34,6 +42,99 @@ permissions:
   contents: read
 
 jobs:
+  installer-tests:
+    name: Web installer tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # the oldest Python it supports (a Mac's own, older Linux) and a current one; Windows and macOS run it too
+        include:
+          - { os: ubuntu-latest, python: "3.8" }
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: windows-latest, python: "3.12" }
+          - { os: macos-latest, python: "3.12" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m unittest discover -v installer
+      - name: install.ps1 parses in Windows PowerShell 5.1, what Windows has
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile("$PWD\install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_.Message }; exit 1 }
+
+  web-installer:
+    name: Install from the web installer
+    # a runner of its own: the one-line install job builds the same images
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LENS_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      LENS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      LENS_DIR: /tmp/lens-web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the installer, as install.sh does on a first install
+        run: |
+          LENS_INSTALLER_TOKEN=ci-token python3 installer/lens_installer.py --no-browser --port 3990 >installer.log 2>&1 &
+          timeout 30 sh -c 'until curl -s -o /dev/null http://127.0.0.1:3990/; do sleep 1; done'
+          cat installer.log
+          # its link sets the cookie that every other call needs
+          curl -fsS -c jar -o /dev/null "http://127.0.0.1:3990/?t=ci-token"
+          curl -fsS -b jar http://127.0.0.1:3990/api/system | jq '{os_name, docker, plan, port}'
+
+      - name: Answer it and install
+        run: |
+          jq -n --arg dir "$LENS_DIR" --arg ref "$LENS_REF" '{backend: "docker", target: "lean", dir: $dir, ref: $ref,
+            settings: {llm: {base_url: "http://localhost:11434/v1", model: "llama3", api_key: "sk-ci"}}}' >answers.json
+          curl -fsS -b jar -H 'X-Lens-Installer: 1' -H 'Content-Type: application/json' -d @answers.json \
+            http://127.0.0.1:3990/api/install
+          since=0
+          while :; do
+            p="$(curl -fsS -b jar "http://127.0.0.1:3990/api/progress?since=$since")"
+            echo "$p" | jq -r '.lines[]'
+            since="$(echo "$p" | jq .next)"
+            state="$(echo "$p" | jq -r .state)"
+            [ "$state" = running ] || break
+            sleep 5
+          done
+          echo "$p" | jq '{state, url, error}'
+          [ "$state" = "done" ] || exit 1
+          echo "$p" | jq -r .url >setup-url
+
+      - name: Lens answers, waits for its first admin, and has the installer's settings
+        run: |
+          url="$(cat setup-url)"
+          base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          curl -fsS -o /dev/null "$url"
+          curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
+          cd "$LENS_DIR"
+          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm"
+          # saved in Lens: the key doesn't stay in .env
+          ! grep -q '^LENS_SETUP_SETTINGS=' .env
+
+      - name: What the installer and the containers said
+        if: failure()
+        run: |
+          cat installer.log || true
+          cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml ps -a && docker compose -f docker-compose.prod.yml logs --tail 200
+
+      - name: Stop
+        if: always()
+        run: |
+          curl -fsS -b jar -H 'X-Lens-Installer: 1' -X POST -d '{}' http://127.0.0.1:3990/api/quit || true
+          if [ -d "$LENS_DIR" ]; then
+            cd "$LENS_DIR"
+            docker compose -f docker-compose.prod.yml down -v || true
+          fi
+
   install:
     name: One-line install
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
@@ -72,6 +173,24 @@ jobs:
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
 
+      - name: An upgrade asked for in the web app is installed by the machine's agent
+        run: |
+          ctl="$LENS_DIR/.lens-control"
+          grep -qx 'kind=systemd' "$ctl/agent" || { echo "install.sh set up no upgrade agent"; exit 1; }
+          # what the web app writes (docs/updates.md): the branch this install follows, as a release tag would be
+          printf 'id=ci\nref=%s\n' "$LENS_REF" > "$ctl/inbox/.upgrade.ci" && mv "$ctl/inbox/.upgrade.ci" "$ctl/inbox/upgrade"
+          i=0
+          until grep -qE '^state=(done|failed)$' "$ctl/upgrade-status" 2>/dev/null; do
+            i=$((i + 1)); [ $i -gt 450 ] && { echo "the agent didn't finish within 15 minutes"; break; }
+            sleep 2
+          done
+          cat "$ctl/upgrade-status" || true
+          tail -20 "$ctl/upgrade.log" || true
+          grep -qx 'id=ci' "$ctl/upgrade-status" && grep -qx 'state=done' "$ctl/upgrade-status"
+          curl -fsS -o /dev/null "$(cat setup-url)"
+          # and the containers see the folder, to ask for the next one
+          cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml exec -T backend sh -c 'test -w /control/inbox && cat /control/agent'
+
       - name: What the containers said
         if: failure()
         run: cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml ps -a && docker compose -f docker-compose.prod.yml logs --tail 200
@@ -79,7 +198,68 @@ jobs:
       - name: Stop
         if: always()
         run: |
+          sudo systemctl disable --now lens-upgrade.path 2>/dev/null || true
           if [ -d "$LENS_DIR" ]; then
             cd "$LENS_DIR"
             docker compose -f docker-compose.prod.yml down -v || true
           fi
+
+  microsandbox:
+    name: One-line install in a microsandbox
+    # GitHub's own Linux runners: they have KVM, which microsandbox needs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LENS_REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+      LENS_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      LENS_DIR: /tmp/lens-install
+      LENS_NO_OPEN: "1"
+      LENS_BACKEND: microsandbox
+      LENS_TARGET: lean
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: KVM for the runner's user
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
+      - name: Install (as a user would, piped into sh)
+        run: |
+          sh < install.sh | tee install.log
+          grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' install.log | head -1 > setup-url
+          test -s setup-url || { echo "install.sh didn't hand over a setup address"; exit 1; }
+
+      - name: The setup address answers, and Lens waits for its first admin
+        run: |
+          url="$(cat setup-url)"
+          base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          curl -fsS -o /dev/null "$url"
+          status="$(curl -fsS "$base/api/v1/auth/status")"
+          echo "$status"
+          echo "$status" | grep -q '"setup_required":true'
+          grep -q '^LENS_BACKEND=microsandbox$' "$LENS_DIR/.env"
+
+      - name: Running it again updates in place and keeps the secrets
+        run: |
+          before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
+          LENS_BACKEND='' sh < install.sh
+          after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
+          test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: What the sandbox said
+        if: failure()
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          msb doctor || true
+          msb ls || true
+          msb logs lens --tail 300 || true
+
+      - name: Stop
+        if: always()
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          msb rm -f lens || true

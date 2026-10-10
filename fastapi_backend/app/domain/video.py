@@ -537,7 +537,7 @@ def _norm(text):
 def step_ocr(db, cfg, rid, say):
     rec = db.one("SELECT space, source, media, samples, sample_ms FROM $r", r=R("recording", rid)) or {}
     if rec.get("source") in ("document", "image"):
-        raise jobs.Skip("its pages were read when it was transcribed")
+        raise jobs.Skip("its pages were read by the read step")
     if (rec.get("media") or {}).get("kind") != "video":
         raise jobs.Skip("it isn't a video")
     engine, why = ocr_engine_why(cfg)

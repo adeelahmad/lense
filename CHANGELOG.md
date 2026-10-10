@@ -4,6 +4,52 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,
+  model calls, tokens, cost and failures by model, budgets, workers and disk. Off by default; turned on in Settings →
+  Telemetry (or `LENS_PROMETHEUS=on`), it answers only a scraper with the scrape token, and follows `LENS_BIND`. A
+  sample Grafana dashboard comes with it ([Prometheus](docs/prometheus.md)).
+
+- **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
+  opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
+  launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and
+  **Install Lens.desktop** for Linux, each opening the web installer
+  ([Get started](docs/get-started.md#double-click-instead)).
+
+- **Install in the browser.** On a first install at a terminal, the one-line install opens a web installer: it shows
+  what the computer has and what Lens will install, asks how Lens runs (Docker or microsandbox, full or lean, folder,
+  port, network), the AI model (finding Ollama, LM Studio and other servers on the computer, or a provider and its key,
+  with a test), and optional extras (search by meaning, the decision model, cloud transcription, email, remote access,
+  anytopdf, telemetry), takes the administrator password when installing needs it, then installs with live progress
+  and opens Lens's setup page. Its answers become ordinary settings in Lens, editable there
+  ([Get started](docs/get-started.md#the-web-installer)). `LENS_WIZARD=0` keeps the install in the terminal.
+
+## 0.6.0 <small>October 10, 2026</small> {id="0.6.0"}
+
+### Features
+
+- **install:** list the prerequisites and ask before installing them ([#258](https://github.com/adeelahmad/lense/pull/258))
+
+### Fixes
+
+- **install:** pull the microsandbox base image from mirrors that need no sign-in ([#259](https://github.com/adeelahmad/lense/pull/259))
+
+## 0.5.0 <small>October 10, 2026</small> {id="0.5.0"}
+
+- **Podcasts from what you pick.** Lens makes a two-host learning episode about resources and passages: one host
+  explains, the other asks what a learner would ask, every claim is cited to the passage it comes from and checked
+  against it before it's kept, and the script is read aloud in two voices by your text-to-speech provider (a local
+  OpenAI-compatible server works). Episodes are recordings in a `podcasts` namespace, so they're searchable and on the
+  graph. Start one from the Library's selection bar or a resource's menu, with `POST /api/v1/podcasts`, or with the MCP
+  tool `create_podcast`; each episode's page plays it beside its cited script ([Podcasts](docs/podcasts.md)).
+
+### Features
+
+- **install:** run Lens in a microsandbox microVM as an alternative to Docker ([#255](https://github.com/adeelahmad/lense/pull/255))
+
+### Fixes
+
+- **store:** say which setting to fix when SurrealDB refuses the password ([#254](https://github.com/adeelahmad/lense/pull/254))
+
 ## 0.4.2 <small>October 9, 2026</small> {id="0.4.2"}
 
 ### Dependencies

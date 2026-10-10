@@ -23,6 +23,9 @@ import type {
   AddLoginProviderData,
   AddLoginProviderErrors,
   AddLoginProviderResponses,
+  AddMarketplaceData,
+  AddMarketplaceErrors,
+  AddMarketplaceResponses,
   AddPasskeyData,
   AddPasskeyErrors,
   AddPasskeyOptionsData,
@@ -82,6 +85,8 @@ import type {
   CheckMessageData,
   CheckMessageErrors,
   CheckMessageResponses,
+  CheckUpdatesData,
+  CheckUpdatesResponses,
   ClearEntitySetupData,
   ClearEntitySetupErrors,
   ClearEntitySetupResponses,
@@ -172,6 +177,9 @@ import type {
   CreatePipelineVersionData,
   CreatePipelineVersionErrors,
   CreatePipelineVersionResponses,
+  CreatePodcastData,
+  CreatePodcastErrors,
+  CreatePodcastResponses,
   CreateRoutineData,
   CreateRoutineErrors,
   CreateRoutineResponses,
@@ -228,6 +236,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteBackupData,
+  DeleteBackupErrors,
+  DeleteBackupResponses,
   DeleteChatData,
   DeleteChatErrors,
   DeleteChatResponses,
@@ -276,6 +287,9 @@ import type {
   DeleteLoginData,
   DeleteLoginErrors,
   DeleteLoginResponses,
+  DeleteMarketplaceData,
+  DeleteMarketplaceErrors,
+  DeleteMarketplaceResponses,
   DeleteNamespaceCollectionData,
   DeleteNamespaceCollectionErrors,
   DeleteNamespaceCollectionResponses,
@@ -294,6 +308,9 @@ import type {
   DeletePageFileErrors,
   DeletePageFileResponses,
   DeletePageResponses,
+  DeletePodcastData,
+  DeletePodcastErrors,
+  DeletePodcastResponses,
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
@@ -332,6 +349,9 @@ import type {
   DismissGraphChangeData,
   DismissGraphChangeErrors,
   DismissGraphChangeResponses,
+  DownloadBackupData,
+  DownloadBackupErrors,
+  DownloadBackupResponses,
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
@@ -492,6 +512,9 @@ import type {
   GetPlayerData,
   GetPlayerErrors,
   GetPlayerResponses,
+  GetPodcastData,
+  GetPodcastErrors,
+  GetPodcastResponses,
   GetPublicCollectionData,
   GetPublicCollectionErrors,
   GetPublicCollectionResponses,
@@ -546,6 +569,8 @@ import type {
   GetTopicData,
   GetTopicErrors,
   GetTopicResponses,
+  GetUpdatesData,
+  GetUpdatesResponses,
   GetUploadData,
   GetUploadErrors,
   GetUploadResponses,
@@ -604,12 +629,18 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  ImportArchiveData,
+  ImportArchiveErrors,
+  ImportArchiveResponses,
   ImportFromSourceData,
   ImportFromSourceErrors,
   ImportFromSourceResponses,
   ImportIiifData,
   ImportIiifErrors,
   ImportIiifResponses,
+  ImportLinkData,
+  ImportLinkErrors,
+  ImportLinkResponses,
   ImportNamespaceRdfData,
   ImportNamespaceRdfErrors,
   ImportNamespaceRdfResponses,
@@ -628,6 +659,9 @@ import type {
   IndexSemanticData,
   IndexSemanticErrors,
   IndexSemanticResponses,
+  InstallMarketplacePluginData,
+  InstallMarketplacePluginErrors,
+  InstallMarketplacePluginResponses,
   LinkEntityData,
   LinkEntityErrors,
   LinkEntityResponses,
@@ -659,6 +693,8 @@ import type {
   ListAuditResponses,
   ListBackendsData,
   ListBackendsResponses,
+  ListBackupsData,
+  ListBackupsResponses,
   ListBatchesData,
   ListBatchesResponses,
   ListBudgetsData,
@@ -732,6 +768,11 @@ import type {
   ListLoginProvidersResponses,
   ListLoginsData,
   ListLoginsResponses,
+  ListMarketplacePluginsData,
+  ListMarketplacePluginsErrors,
+  ListMarketplacePluginsResponses,
+  ListMarketplacesData,
+  ListMarketplacesResponses,
   ListMembersData,
   ListMembersErrors,
   ListMembersResponses,
@@ -773,6 +814,9 @@ import type {
   ListPendingAccessRequestsResponses,
   ListPipelinesData,
   ListPipelinesResponses,
+  ListPodcastsData,
+  ListPodcastsErrors,
+  ListPodcastsResponses,
   ListReadingsData,
   ListReadingsErrors,
   ListReadingsResponses,
@@ -827,6 +871,9 @@ import type {
   ListUsersResponses,
   ListViewsData,
   ListViewsResponses,
+  ListVoicesData,
+  ListVoicesErrors,
+  ListVoicesResponses,
   ListWatchesData,
   ListWatchesResponses,
   ListWorkersData,
@@ -926,6 +973,9 @@ import type {
   PreviewImportData,
   PreviewImportErrors,
   PreviewImportResponses,
+  PreviewMarketplacePluginData,
+  PreviewMarketplacePluginErrors,
+  PreviewMarketplacePluginResponses,
   PreviewRoutesData,
   PreviewRoutesErrors,
   PreviewRoutesResponses,
@@ -972,7 +1022,13 @@ import type {
   RedeemTicketResponses,
   RefreshData,
   RefreshErrors,
+  RefreshMarketplaceData,
+  RefreshMarketplaceErrors,
+  RefreshMarketplaceResponses,
   RefreshResponses,
+  RegeneratePodcastData,
+  RegeneratePodcastErrors,
+  RegeneratePodcastResponses,
   RegisterData,
   RegisterErrors,
   RegisterResponses,
@@ -1168,6 +1224,9 @@ import type {
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
+  StartUpgradeData,
+  StartUpgradeErrors,
+  StartUpgradeResponses,
   StartUploadData,
   StartUploadErrors,
   StartUploadResponses,
@@ -1179,6 +1238,8 @@ import type {
   StreamEventsData,
   StreamEventsErrors,
   StreamEventsResponses,
+  SuggestedMarketplacesData,
+  SuggestedMarketplacesResponses,
   SuggestTermsData,
   SuggestTermsErrors,
   SuggestTermsResponses,
@@ -1187,6 +1248,8 @@ import type {
   TagRecordingsData,
   TagRecordingsErrors,
   TagRecordingsResponses,
+  TakeBackupData,
+  TakeBackupResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestBridgeData,
@@ -2684,6 +2747,111 @@ export class Admin {
   ): RequestResult<CheckComponentsResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<CheckComponentsResponses, unknown, ThrowOnError>({
       url: "/api/v1/components/check",
+      ...options,
+    });
+  }
+}
+
+export class Updates {
+  /**
+   * Get Updates
+   *
+   * The version running, the latest release, and how the last upgrade went.
+   */
+  public static getUpdates<ThrowOnError extends boolean = false>(
+    options?: Options<GetUpdatesData, ThrowOnError>,
+  ): RequestResult<GetUpdatesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetUpdatesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/updates",
+      ...options,
+    });
+  }
+
+  /**
+   * Check Updates
+   *
+   * Ask GitHub for the latest release now.
+   */
+  public static checkUpdates<ThrowOnError extends boolean = false>(
+    options?: Options<CheckUpdatesData, ThrowOnError>,
+  ): RequestResult<CheckUpdatesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<CheckUpdatesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/updates/check",
+      ...options,
+    });
+  }
+
+  /**
+   * Start Upgrade
+   *
+   * Back the database up, then have this machine install the release (the latest unless one is named). Lens
+   * restarts on the new version; GET /admin/updates follows along.
+   */
+  public static startUpgrade<ThrowOnError extends boolean = false>(
+    options?: Options<StartUpgradeData, ThrowOnError>,
+  ): RequestResult<StartUpgradeResponses, StartUpgradeErrors, ThrowOnError> {
+    return (options?.client ?? client).post<StartUpgradeResponses, StartUpgradeErrors, ThrowOnError>({
+      url: "/api/v1/admin/updates/upgrade",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+  }
+
+  /**
+   * List Backups
+   *
+   * The database backups in <data_dir>/backups, newest first.
+   */
+  public static listBackups<ThrowOnError extends boolean = false>(
+    options?: Options<ListBackupsData, ThrowOnError>,
+  ): RequestResult<ListBackupsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListBackupsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/backups",
+      ...options,
+    });
+  }
+
+  /**
+   * Take Backup
+   *
+   * Back the database up now (it can take a while on a big archive).
+   */
+  public static takeBackup<ThrowOnError extends boolean = false>(
+    options?: Options<TakeBackupData, ThrowOnError>,
+  ): RequestResult<TakeBackupResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TakeBackupResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/backups",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Backup
+   *
+   * Delete a backup.
+   */
+  public static deleteBackup<ThrowOnError extends boolean = false>(
+    options: Options<DeleteBackupData, ThrowOnError>,
+  ): RequestResult<DeleteBackupResponses, DeleteBackupErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteBackupResponses, DeleteBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Download Backup
+   *
+   * Download a backup (exports only: an embedded database's folder is copied from the data folder).
+   */
+  public static downloadBackup<ThrowOnError extends boolean = false>(
+    options: Options<DownloadBackupData, ThrowOnError>,
+  ): RequestResult<DownloadBackupResponses, DownloadBackupErrors, ThrowOnError> {
+    return (options.client ?? client).get<DownloadBackupResponses, DownloadBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}",
       ...options,
     });
   }
@@ -4791,8 +4959,8 @@ export class Imports {
   /**
    * Import Web Links
    *
-   * Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a
-   * file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
+   * Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per
+   * line, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
    * a page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in
    * (`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that
    * can't be is skipped, saying why. Audited as `import.web` once, with how many were queued.
@@ -7557,6 +7725,43 @@ export class Extensions {
   }
 
   /**
+   * Import Link
+   *
+   * A plugin or skill in Anthropic's format from a link: a GitHub or GitLab repository or folder, or a .zip. With
+   * `preview`, what it would add and leave out; else installed as your own (importing it again: a new version).
+   */
+  public static importLink<ThrowOnError extends boolean = false>(
+    options: Options<ImportLinkData, ThrowOnError>,
+  ): RequestResult<ImportLinkResponses, ImportLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportLinkResponses, ImportLinkErrors, ThrowOnError>({
+      url: "/api/v1/extensions/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Import Archive
+   *
+   * A plugin or skill from a .zip, .skill or .tar.gz you send (as base64).
+   */
+  public static importArchive<ThrowOnError extends boolean = false>(
+    options: Options<ImportArchiveData, ThrowOnError>,
+  ): RequestResult<ImportArchiveResponses, ImportArchiveErrors, ThrowOnError> {
+    return (options.client ?? client).post<ImportArchiveResponses, ImportArchiveErrors, ThrowOnError>({
+      url: "/api/v1/extensions/import/archive",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Delete Extension
    *
    * Takes it out of the assistant at once.
@@ -7637,6 +7842,120 @@ export class Extensions {
         ...options.headers,
       },
     });
+  }
+
+  /**
+   * List Marketplaces
+   */
+  public static listMarketplaces<ThrowOnError extends boolean = false>(
+    options?: Options<ListMarketplacesData, ThrowOnError>,
+  ): RequestResult<ListMarketplacesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListMarketplacesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/marketplaces",
+      ...options,
+    });
+  }
+
+  /**
+   * Add Marketplace
+   *
+   * Add a marketplace by its address; its list of plugins is read now.
+   */
+  public static addMarketplace<ThrowOnError extends boolean = false>(
+    options: Options<AddMarketplaceData, ThrowOnError>,
+  ): RequestResult<AddMarketplaceResponses, AddMarketplaceErrors, ThrowOnError> {
+    return (options.client ?? client).post<AddMarketplaceResponses, AddMarketplaceErrors, ThrowOnError>({
+      url: "/api/v1/marketplaces",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Suggested Marketplaces
+   *
+   * Anthropic's marketplaces, when they aren't added yet.
+   */
+  public static suggestedMarketplaces<ThrowOnError extends boolean = false>(
+    options?: Options<SuggestedMarketplacesData, ThrowOnError>,
+  ): RequestResult<SuggestedMarketplacesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SuggestedMarketplacesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/marketplaces/suggested",
+      ...options,
+    });
+  }
+
+  /**
+   * Refresh Marketplace
+   *
+   * Read its list of plugins again.
+   */
+  public static refreshMarketplace<ThrowOnError extends boolean = false>(
+    options: Options<RefreshMarketplaceData, ThrowOnError>,
+  ): RequestResult<RefreshMarketplaceResponses, RefreshMarketplaceErrors, ThrowOnError> {
+    return (options.client ?? client).post<RefreshMarketplaceResponses, RefreshMarketplaceErrors, ThrowOnError>({
+      url: "/api/v1/marketplaces/{mid}/refresh",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Marketplace
+   *
+   * Takes it away; what was installed from it stays.
+   */
+  public static deleteMarketplace<ThrowOnError extends boolean = false>(
+    options: Options<DeleteMarketplaceData, ThrowOnError>,
+  ): RequestResult<DeleteMarketplaceResponses, DeleteMarketplaceErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteMarketplaceResponses, DeleteMarketplaceErrors, ThrowOnError>({
+      url: "/api/v1/marketplaces/{mid}",
+      ...options,
+    });
+  }
+
+  /**
+   * List Marketplace Plugins
+   */
+  public static listMarketplacePlugins<ThrowOnError extends boolean = false>(
+    options: Options<ListMarketplacePluginsData, ThrowOnError>,
+  ): RequestResult<ListMarketplacePluginsResponses, ListMarketplacePluginsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListMarketplacePluginsResponses, ListMarketplacePluginsErrors, ThrowOnError>({
+      url: "/api/v1/marketplaces/{mid}/plugins",
+      ...options,
+    });
+  }
+
+  /**
+   * Preview Marketplace Plugin
+   *
+   * What installing it would add to the assistant, and what Lens leaves out.
+   */
+  public static previewMarketplacePlugin<ThrowOnError extends boolean = false>(
+    options: Options<PreviewMarketplacePluginData, ThrowOnError>,
+  ): RequestResult<PreviewMarketplacePluginResponses, PreviewMarketplacePluginErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      PreviewMarketplacePluginResponses,
+      PreviewMarketplacePluginErrors,
+      ThrowOnError
+    >({ url: "/api/v1/marketplaces/{mid}/plugins/{name}/preview", ...options });
+  }
+
+  /**
+   * Install Marketplace Plugin
+   *
+   * Install it as your own plugin, private until you share it; installing it again brings its new version.
+   */
+  public static installMarketplacePlugin<ThrowOnError extends boolean = false>(
+    options: Options<InstallMarketplacePluginData, ThrowOnError>,
+  ): RequestResult<InstallMarketplacePluginResponses, InstallMarketplacePluginErrors, ThrowOnError> {
+    return (options.client ?? client).post<
+      InstallMarketplacePluginResponses,
+      InstallMarketplacePluginErrors,
+      ThrowOnError
+    >({ url: "/api/v1/marketplaces/{mid}/plugins/{name}/install", ...options });
   }
 }
 
@@ -7741,6 +8060,9 @@ export class Chats {
    * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
    * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
    * from (where, and the highlighted text; not the page's text, which isn't kept).
+   *
+   * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
+   * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
@@ -8974,6 +9296,21 @@ export class Voice {
       },
     });
   }
+
+  /**
+   * List Voices
+   *
+   * The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it
+   * lists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have.
+   */
+  public static listVoices<ThrowOnError extends boolean = false>(
+    options?: Options<ListVoicesData, ThrowOnError>,
+  ): RequestResult<ListVoicesResponses, ListVoicesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListVoicesResponses, ListVoicesErrors, ThrowOnError>({
+      url: "/api/v1/voice/voices",
+      ...options,
+    });
+  }
 }
 
 export class Vaults {
@@ -9104,6 +9441,87 @@ export class Vaults {
   ): RequestResult<LockVaultResponses, LockVaultErrors, ThrowOnError> {
     return (options.client ?? client).post<LockVaultResponses, LockVaultErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/vault/lock",
+      ...options,
+    });
+  }
+}
+
+export class Podcasts {
+  /**
+   * List Podcasts
+   *
+   * Episodes in the namespaces you can read, newest first.
+   */
+  public static listPodcasts<ThrowOnError extends boolean = false>(
+    options?: Options<ListPodcastsData, ThrowOnError>,
+  ): RequestResult<ListPodcastsResponses, ListPodcastsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListPodcastsResponses, ListPodcastsErrors, ThrowOnError>({
+      url: "/api/v1/podcasts",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Podcast
+   *
+   * Make an episode about these resources and lines, in the background (watch its job on /events). It goes in the
+   * podcasts namespace when everyone there can read every source, else in the sources' own namespace (400 when they
+   * span several); you need editor access where it goes. Audited as `podcast.create`.
+   */
+  public static createPodcast<ThrowOnError extends boolean = false>(
+    options: Options<CreatePodcastData, ThrowOnError>,
+  ): RequestResult<CreatePodcastResponses, CreatePodcastErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreatePodcastResponses, CreatePodcastErrors, ThrowOnError>({
+      url: "/api/v1/podcasts",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Podcast
+   *
+   * Delete an episode with its audio (editors of its namespace, unlike other recordings: Lens made it). 409 while a
+   * job is working on it.
+   */
+  public static deletePodcast<ThrowOnError extends boolean = false>(
+    options: Options<DeletePodcastData, ThrowOnError>,
+  ): RequestResult<DeletePodcastResponses, DeletePodcastErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeletePodcastResponses, DeletePodcastErrors, ThrowOnError>({
+      url: "/api/v1/podcasts/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Podcast
+   *
+   * An episode: what was asked for, how far it has got, the excerpts it drew on, the outline, the script with each
+   * line's citations and times, and what the fact-check changed. Its audio is /recordings/{id}/audio.
+   */
+  public static getPodcast<ThrowOnError extends boolean = false>(
+    options: Options<GetPodcastData, ThrowOnError>,
+  ): RequestResult<GetPodcastResponses, GetPodcastErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetPodcastResponses, GetPodcastErrors, ThrowOnError>({
+      url: "/api/v1/podcasts/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Regenerate Podcast
+   *
+   * Make the episode again from what was asked for, reading its sources afresh (editors). A job already making it
+   * is returned instead.
+   */
+  public static regeneratePodcast<ThrowOnError extends boolean = false>(
+    options: Options<RegeneratePodcastData, ThrowOnError>,
+  ): RequestResult<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError> {
+    return (options.client ?? client).post<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError>({
+      url: "/api/v1/podcasts/{rid}/regenerate",
       ...options,
     });
   }

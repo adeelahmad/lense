@@ -57,9 +57,9 @@ describe("speech providers", () => {
 
   it("shows each provider with its own address, and tests one", async () => {
     show();
-    for (const name of ["OpenAI-compatible", "ElevenLabs", "AssemblyAI", "Deepgram"])
+    for (const name of ["OpenAI-compatible", "ElevenLabs", "AssemblyAI", "Deepgram", "Google Gemini"])
       expect(screen.getByRole("heading", { name })).toBeInTheDocument();
-    expect(screen.getAllByLabelText("Address")).toHaveLength(4);
+    expect(screen.getAllByLabelText("Address")).toHaveLength(5);
     fireEvent.click(screen.getAllByRole("button", { name: "Test" })[3]);
     await waitFor(() => expect(Admin.testSpeech).toHaveBeenCalledTimes(1));
     expect((Admin.testSpeech as jest.Mock).mock.calls[0][0]).toMatchObject({ query: { provider: "deepgram" } });
