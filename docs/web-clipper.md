@@ -115,4 +115,26 @@ The Browser extension (Firefox) workflow runs Mozilla's linter, `web-ext lint` (
 on every pull request that changes the clipper, and keeps `lens-clipper-firefox.zip` (ready to upload to
 addons.mozilla.org) with the run. On a release, if the `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` secrets hold an
 [addons.mozilla.org API key](https://addons.mozilla.org/developers/addon/api/key/), Mozilla signs it as an unlisted
-add-on and the release gets `lens-clipper-firefox.xpi`, which any Firefox installs by opening it.
+add-on and the release gets `lens-clipper-firefox.xpi`, which any Firefox installs by opening it. That copy is built
+from `dist/firefox-selfhosted`, so it updates itself from the newest release (see below).
+
+## Releases and updates
+
+Every Lens release builds the clipper for each browser and attaches `lens-clipper-<browser>.zip` to it. How a copy
+keeps itself up to date depends on where it came from. Each publishing step runs only when its repository secrets
+are set, and is skipped otherwise:
+
+| Browser | Updates through | Secrets |
+| --- | --- | --- |
+| Chrome | the Chrome Web Store: each release is uploaded and published | `CWS_EXTENSION_ID`, `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` |
+| Edge | Microsoft Edge Add-ons: each release is uploaded and submitted | `EDGE_PRODUCT_ID`, `EDGE_CLIENT_ID`, `EDGE_API_KEY` |
+| Chrome, Edge (self-hosted) | `lens-clipper-<browser>.crx`, which checks `lens-clipper-<browser>-updates.xml` on the newest release | `CRX_PRIVATE_KEY` |
+| Firefox | the Mozilla-signed `lens-clipper-firefox.xpi`, which checks `lens-clipper-firefox-updates.json` on the newest release | `AMO_JWT_ISSUER`, `AMO_JWT_SECRET` |
+| Safari | the App Store, from the Safari build | see the Safari section |
+
+- Chrome and Edge only install a `.crx` from outside their stores through policy (`ExtensionInstallForcelist`
+  with the update XML's address) or on Linux. For everyone else the stores are the way to get updates.
+- `CRX_PRIVATE_KEY` is a PEM RSA key (`openssl genrsa 2048`), and it fixes the extension's ID: keep it, because a new
+  key makes a different extension.
+- The self-hosted builds are `dist/<browser>-selfhosted`. They are built when `EXT_UPDATE_BASE` is set, which a release
+  sets to its `releases/latest/download` address, so every installed copy finds the newest version.

@@ -2,7 +2,8 @@ name: Browser extension (Firefox)
 
 # The Firefox build of the Lens web clipper (extensions/browser, target firefox): Mozilla's own linter (web-ext lint,
 # the checks addons.mozilla.org runs) on dist/firefox, then web-ext build for an upload-ready zip. A release also gets
-# it signed by Mozilla (unlisted, so it installs from the release page) as lens-clipper-firefox.xpi when the
+# it signed by Mozilla (unlisted, so it installs from the release page, and updates itself through the
+# lens-clipper-firefox-updates.json the Browser extension workflow attaches) as lens-clipper-firefox.xpi when the
 # AMO_JWT_ISSUER and AMO_JWT_SECRET secrets hold an addons.mozilla.org API key; the unsigned zip reaches the release
 # through the Browser extension workflow either way.
 on:
@@ -60,8 +61,13 @@ jobs:
         run: npx --yes "$WEB_EXT" build --source-dir dist/firefox --artifacts-dir ../../dist/firefox --filename lens-clipper-firefox.zip --overwrite-dest
       - name: Sign for self-distribution
         if: (github.event_name == 'release' || inputs.tag != '') && env.AMO_JWT_ISSUER != ''
+        env:
+          EXT_VERSION: ${{ github.event.release.tag_name || inputs.tag }}
+          EXT_UPDATE_BASE: ${{ github.server_url }}/${{ github.repository }}/releases/latest/download
         run: |
-          npx --yes "$WEB_EXT" sign --source-dir dist/firefox --artifacts-dir ../../dist/firefox/signed \
+          # the self-hosted copy carries an update_url, so the signed .xpi updates itself from the newest release
+          npm run build -- --target firefox
+          npx --yes "$WEB_EXT" sign --source-dir dist/firefox-selfhosted --artifacts-dir ../../dist/firefox/signed \
             --channel unlisted --api-key "$AMO_JWT_ISSUER" --api-secret "$AMO_JWT_SECRET"
           for f in ../../dist/firefox/signed/*.xpi; do mv "$f" ../../dist/firefox/lens-clipper-firefox.xpi; done
       - uses: actions/upload-artifact@v7
