@@ -45,6 +45,8 @@ const ENV: Record<string, string> = {
   "telemetry.enabled": "LENS_TELEMETRY",
   "telemetry.endpoint": "LENS_TELEMETRY_ENDPOINT",
   "telemetry.headers": "LENS_TELEMETRY_HEADERS",
+  "logs.level": "LENS_LOG_LEVEL",
+  "logs.format": "LENS_LOG_FORMAT",
   "fedora.enabled": "LENS_FEDORA",
   "fedora.url": "LENS_FEDORA_URL",
   "fedora.user": "LENS_FEDORA_USER",

@@ -7,7 +7,6 @@ OpenAPI schema, needs no database). Tests pass an open database and configuratio
 from __future__ import annotations
 
 import contextlib
-import logging
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -26,11 +25,11 @@ from app.api.v1.routes.oauth import well_known as oauth_well_known
 from app.config import settings
 from app.core import middleware
 from app.core.runtime import Archive
-from app.domain import __version__, activity, store, telemetry
+from app.domain import __version__, activity, logs, store, telemetry
 from app.domain.render import WEB_DIR
 from app.utils import simple_generate_unique_route_id
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logs.setup("api")  # the console now; the level, the log file and syslog follow the settings once they're read
 
 
 def _attach(app: FastAPI, archive: Archive) -> None:
@@ -59,6 +58,7 @@ def create_app(cfg: dict[str, Any] | None = None, db: store.DB | None = None, ba
         finally:
             archive.close()
             telemetry.shutdown()
+            logs.shutdown()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,
