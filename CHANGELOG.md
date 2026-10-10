@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Similar content.** Every resource has a **Similar** tab, and selecting text anywhere (a transcript, a page, a
+  title, a graph label) shows the resources most like it, each citing the passages, words, topics and entities they
+  share, with **Find more** for the full list. Topics, entities and graph nodes list similar content too, and the
+  assistant and the MCP server can ask for it (`find_similar`). It works without search by meaning, by key words,
+  topics and entities ([Processing](docs/processing.md#similar-content)).
+
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,
   model calls, tokens, cost and failures by model, budgets, workers and disk. Off by default; turned on in Settings →
   Telemetry (or `LENS_PROMETHEUS=on`), it answers only a scraper with the scrape token, and follows `LENS_BIND`. A
