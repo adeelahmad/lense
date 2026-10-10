@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import Cfg, CurrentUser
-from app.domain import voice
-from app.schemas.voice import Heard, SpeakRequest, VoiceInfo
+from app.domain import speech, voice
+from app.schemas.voice import Heard, SpeakRequest, VoiceInfo, VoiceList
 
 router = APIRouter(prefix="/voice", tags=["voice"])
 CLIP = {"requestBody": {"required": True, "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}}}}
@@ -47,8 +47,19 @@ async def transcribe_clip(request: Request, user: CurrentUser, cfg: Cfg) -> Hear
 async def speak_text(body: SpeakRequest, user: CurrentUser, cfg: Cfg) -> Response:
     """The text read aloud by the text-to-speech model (Settings → AI assistant → Voice). 204 when there's none, or it
     failed: the browser reads it instead."""
-    out = await run_in_threadpool(voice.speak, cfg, body.text)
+    out = await run_in_threadpool(voice.speak, cfg, body.text, body.voice)
     if out is None:
         return Response(status_code=204)
     audio, media = out
     return Response(content=audio, media_type=media, headers={"Cache-Control": "no-store"})
+
+
+@router.get("/voices")
+async def list_voices(
+    user: CurrentUser, cfg: Cfg, provider: str | None = Query(None, pattern="^(" + "|".join(speech.TTS_PROVIDERS) + ")$")
+) -> VoiceList:
+    """The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it
+    lists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have."""
+    p = provider or speech.tts_provider(cfg)
+    found, error = await run_in_threadpool(speech.voices, cfg, p)
+    return VoiceList(provider=p, current=speech.tts_voice(cfg) if p == speech.tts_provider(cfg) else None, voices=found, error=error)

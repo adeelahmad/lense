@@ -79,6 +79,7 @@ nav:
   - Chat rooms: chat-rooms.md
   - Sensors: sensors.md
   - Telemetry: telemetry.md
+  - Prometheus: prometheus.md
   - Usage analytics: analytics.md
   - Activity and costs: activity.md
   - Budgets: budgets.md
@@ -87,6 +88,7 @@ nav:
   - Graph history: graph-history.md
   - Topics: topics.md
   - Notes: notes.md
+  - Web clipper: web-clipper.md
   - Storage: storage.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md

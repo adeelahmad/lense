@@ -1,0 +1,56 @@
+name: StyleTTS2
+
+# The StyleTTS2 service Lens can read aloud with (the optional styletts2 service, styletts2/): it builds, lists its
+# voices, and reads a sentence aloud as WAV (fetching the model on the way).
+on:
+  pull_request:
+    paths:
+      - styletts2/**
+      - .github/workflows/styletts2.yml
+  push:
+    branches: [main]
+    paths:
+      - styletts2/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  styletts2:
+    name: Build and read aloud
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -t lens-styletts2:ci styletts2
+
+      - name: Start
+        run: |
+          docker run -d --name st -p 127.0.0.1:8880:8880 lens-styletts2:ci
+          for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:8880/health && break; sleep 2; done
+          curl -fsS http://127.0.0.1:8880/v1/audio/voices | tee /dev/stderr | grep -q '"default"'
+
+      - name: Read a sentence aloud
+        run: |
+          code=$(curl -sS -o speech.wav -w '%{http_code}' --max-time 1500 \
+            -H 'Content-Type: application/json' \
+            -d '{"model":"styletts2","input":"Lens reads this sentence aloud.","voice":"default"}' \
+            http://127.0.0.1:8880/v1/audio/speech)
+          echo "HTTP $code, $(stat -c %s speech.wav) bytes"
+          test "$code" = 200
+          head -c 4 speech.wav | grep -q RIFF
+          test "$(stat -c %s speech.wav)" -gt 20000
+          code=$(curl -sS -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' \
+            -d '{"input":"Hi","voice":"nobody"}' http://127.0.0.1:8880/v1/audio/speech)
+          test "$code" = 404
+
+      - name: Logs
+        if: always()
+        run: docker logs st 2>&1 | tail -50

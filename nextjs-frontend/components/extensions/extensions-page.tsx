@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Blocks, MessagesSquare, Mic, Plus, Workflow } from "lucide-react";
+import { Blocks, MessagesSquare, Mic, Plus, Store, Workflow } from "lucide-react";
 import Link from "next/link";
 
 import { Extensions } from "@/app/openapi-client";
@@ -16,14 +16,26 @@ import { VISIBILITY } from "@/components/workflows/save-custom-dialog";
 import { data, useApiClient } from "@/lib/api/browser";
 import { relative } from "@/lib/format";
 
-export const KIND_LABEL: Record<string, string> = { tool: "Tool", skill: "Skill", hook: "Hook", plugin: "Plugin" };
+export const KIND_LABEL: Record<string, string> = {
+  tool: "Tool",
+  skill: "Skill",
+  hook: "Hook",
+  plugin: "Plugin",
+  mcp: "MCP server",
+};
 // the starters on a new extension: one per kind, and a Python tool (admins only)
 export const STARTER_LABEL: Record<string, string> = { ...KIND_LABEL, python: "Python tool" };
-export const ORIGIN_LABEL: Record<string, string> = { code: "code", canvas: "the canvas", chat: "chat" };
+export const ORIGIN_LABEL: Record<string, string> = {
+  code: "code",
+  canvas: "the canvas",
+  chat: "chat",
+  import: "an import",
+};
 
 /** What a tool's body is, in a word. */
 export function bodyLabel(e: Pick<Extension, "kind" | "spec">): string | null {
   if (e.kind === "plugin") return `${((e.spec.items as unknown[]) ?? []).length} items`;
+  if (e.kind === "mcp") return `${((e.spec.tools as unknown[]) ?? []).length} tools`;
   if (e.kind === "hook") return `on ${String(e.spec.event ?? "")}`.replace("_", " ");
   if (e.kind !== "tool") return null;
   const run = (e.spec.run ?? {}) as { type?: string };
@@ -52,7 +64,7 @@ export function ExtensionsPage() {
     <div className="flex flex-col gap-4 px-4 pb-10 pt-[18px] md:px-6">
       <PageHeader
         title="Extensions"
-        meta="Tools, skills, hooks and plugins for the assistant"
+        meta="Tools, skills, hooks, plugins and MCP servers for the assistant"
         actions={
           <>
             <Button asChild variant="ghost">
@@ -65,6 +77,12 @@ export function ExtensionsPage() {
               <Link href={`/chat?q=${ask}`}>
                 <MessagesSquare aria-hidden />
                 Ask the assistant
+              </Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/extensions/marketplace">
+                <Store aria-hidden />
+                Marketplace
               </Link>
             </Button>
             <Button asChild variant="secondary">
