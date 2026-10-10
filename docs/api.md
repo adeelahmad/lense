@@ -118,6 +118,8 @@ server itself is at `/mcp`, outside `/api/v1` ([MCP server](mcp.md)).
 GET    /api/v1/users
 POST   /api/v1/users
 PATCH  /api/v1/users/{uid}
+DELETE /api/v1/users/{uid}                 remove for good (authentication.md#removing-someone)
+POST   /api/v1/users/{uid}/signin-link     ?email=true also emails it
 GET    /api/v1/namespaces/{name}/members
 PUT    /api/v1/namespaces/{name}/members
 ```

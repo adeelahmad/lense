@@ -107,7 +107,9 @@ def public(u):
 
 
 def get_account(db, uid):
-    return db.one("SELECT record::id(id) AS id, email, name, admin, disabled, created_at, last_login_at, pw FROM $r", r=R("account", uid))
+    return db.one(
+        "SELECT record::id(id) AS id, email, name, admin, disabled, created_at, last_login_at, pw, removed_at FROM $r", r=R("account", uid)
+    )
 
 
 def find_account(db, email):
@@ -152,6 +154,58 @@ def update_account(db, uid, name=None, admin=None, disabled=None, password=None)
         db.q("DELETE login_session WHERE account = $a", a=uid)
     if disabled:
         db.q("DELETE signin_link WHERE account = $a", a=uid)
+
+
+def remove_account(db, uid, lose_vaults=False):
+    """Remove someone for good: every way they sign in (sessions, passkeys, sign-in links, connected accounts, API
+    tokens, apps they gave access to), every role and permission they had, and what only they could see (their chats,
+    their own notes, highlights, saved views and collections, unfinished uploads). What they shared stays (notes and
+    views for everyone, comments), under their name: the account is kept as a marker without an email, so their
+    address can be invited again. Refused (ValueError) when their passkeys are the only way into a vault, unless
+    `lose_vaults`."""
+    from . import passkeys
+
+    u = get_account(db, uid)
+    if not u or u.get("removed_at"):
+        raise KeyError(uid)
+    passkeys.remove_all(db, uid, lose_vaults)
+    for g in db.values("SELECT VALUE record::id(id) FROM oauth_grant WHERE account = $a", a=uid):
+        db.run(["DELETE oauth_token WHERE gid = $g", "DELETE $r"], g=g, r=R("oauth_grant", g))
+    chats = db.values("SELECT VALUE record::id(id) FROM chat WHERE account = $a", a=uid)
+    db.run(
+        [
+            "DELETE chat_message WHERE chat IN $chats",
+            "DELETE chat WHERE account = $a",
+            *(
+                f"DELETE {t} WHERE account = $a"
+                for t in (
+                    "membership",
+                    "collection_role",
+                    "permission",
+                    "access_request",
+                    "login_session",
+                    "password_reset",
+                    "signin_link",
+                    "login_ticket",
+                    "external_identity",
+                    "api_token",
+                    "iiif_token",
+                    "iiif_cookie",
+                    "highlight",
+                )
+            ),
+            "DELETE note WHERE account = $a AND (shared ?? false) = false",
+            "DELETE saved_view WHERE account = $a AND (shared ?? false) = false",
+            "DELETE saved_collection WHERE account = $a AND (shared ?? false) = false",
+            "DELETE upload WHERE account = $a AND state = 'receiving'",
+            "UPDATE $r SET email = $gone, admin = false, disabled = true, removed_at = $t, pw = NONE",
+        ],
+        a=uid,
+        chats=chats,
+        r=R("account", uid),
+        gone=f"removed-{uid}@removed.invalid",
+        t=store.now(),
+    )
 
 
 def change_password(db, uid, current, new, keep_sid=None, key=""):

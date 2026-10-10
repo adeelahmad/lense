@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Invite and remove people.** Making an account in Admin → People now emails the sign-in link as an invitation when
+  mail is set up, and the link is still shown to share yourself. **Remove for good** ends every way someone signs in,
+  takes their roles and their private chats, notes and views, and keeps what they shared under their name; their email
+  can be invited again ([Authentication](docs/authentication.md#removing-someone)). The assistant gets `list_people`,
+  `invite_person` and `change_person`, which always wait for an admin's approval.
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and

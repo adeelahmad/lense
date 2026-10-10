@@ -1088,7 +1088,7 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = run_extension(db, cfg, args, user, admin, box.readable, box)
     elif a["tool"] in ("save_extension", "switch_extension"):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
-    elif a["tool"] in ("change_settings", "create_namespace", "import_files"):
+    elif a["tool"] in ("change_settings", "create_namespace", "import_files", "invite_person", "change_person"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "forget_memory":
         sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])

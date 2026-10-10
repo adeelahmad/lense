@@ -147,3 +147,38 @@ def test_a_held_upload_stays_out_until_placed(app, db, cfg, folder, new_client, 
         uploads.place(
             db, cfg, up["id"], "pods", db.values("SELECT VALUE record::id(id) FROM account WHERE email = 'ed@x.io'")[0], collection=12345
         )
+
+
+def test_the_assistant_manages_people_with_approval(app, db, cfg, folder, new_client, llm):
+    from app.domain import auth
+
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["admin"]
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "list_people", {})]},
+        {"content": "", "tool_calls": [call(2, "invite_person", {"email": "Sam@x.io", "namespace": "pods", "role": "editor"})]},
+        {"content": "I asked to invite Sam."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={"kind": "setup"}).json()["id"]  # even in setup, people wait for approval
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "invite sam@x.io to pods as an editor"}).text)
+    listed = json.loads(llm.seen[-2]["messages"][-1]["content"])["people"]
+    assert any(p["admin"] for p in listed) and all("roles" in p and "signed_in_yet" in p for p in listed)
+    appr = ev["approval"][0]
+    assert appr["summary"] == "Invite sam@x.io as editor of pods" and not auth.find_account(db, "sam@x.io")
+    r = c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()
+    assert r["status"] == "done" and r["invited"] == "sam@x.io" and r["emailed"] is False
+    sam = auth.find_account(db, "sam@x.io")
+    assert auth.roles(db, sam) == {store.ns_id(db, "pods"): "editor"}
+
+    llm.tool_script = [
+        {
+            "content": "",
+            "tool_calls": [call(3, "change_person", {"email": "sam@x.io", "namespace": "pods", "role": "none", "disabled": True})],
+        },
+        {"content": "Asked."},
+    ]
+    ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "take sam out"}).text)
+    appr = ev["approval"][0]
+    assert appr["summary"] == "sam@x.io: no role in pods, disable the account"
+    assert c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()["status"] == "done"
+    assert auth.roles(db, sam) == {} and auth.get_account(db, sam["id"])["disabled"]

@@ -41,6 +41,7 @@ SECTIONS = (
     "sensors",
 )
 ALWAYS_ASK = {"telemetry", "sensors", "files"}  # sensors open ports on the network; files moves where new files go
+ASK_TOOLS = {"invite_person", "change_person"}  # who gets in always waits for the admin's approval
 
 ADMIN_TOOLS = [
     (
@@ -89,6 +90,35 @@ ADMIN_TOOLS = [
         "Name: lowercase letters, digits, - and _. graph: shared (people and places joined across namespaces) or isolated.",
         {"name": _S, "graph": {"type": "string", "enum": ["shared", "isolated"]}},
         ["name"],
+        True,
+    ),
+    (
+        "list_people",
+        "The people with an account here: email, name, admin, disabled, whether they have signed in yet, and their role in each namespace.",
+        {},
+        [],
+        False,
+    ),
+    (
+        "invite_person",
+        "Add someone by email, optionally with a role in one namespace (viewer, editor or owner). Lens emails them a "
+        "sign-in link when mail is set up; otherwise an admin sends one from Admin → People. No passwords.",
+        {"email": _S, "name": _S, "namespace": _S, "role": {"type": "string", "enum": ["viewer", "editor", "owner"]}},
+        ["email"],
+        True,
+    ),
+    (
+        "change_person",
+        "Change someone's access: their role in one namespace (role none takes it away), or disable or enable their "
+        "account (disabling signs them out everywhere and can be undone). Removing an account for good is for the web "
+        "app or the API.",
+        {
+            "email": _S,
+            "namespace": _S,
+            "role": {"type": "string", "enum": ["viewer", "editor", "owner", "none"]},
+            "disabled": {"type": "boolean"},
+        },
+        ["email"],
         True,
     ),
 ]
@@ -176,7 +206,84 @@ def apply(db, cfg, base, tool, args, user, editable, admin):
             auth.audit(db, user, "upload", f"recording:{up['recording']}", {"file": up["filename"], "namespace": ns, "assistant": True})
             placed.append({"file": up["filename"], "recording": up["recording"], "duplicate": bool(up.get("duplicate"))})
         return {"namespace": ns, "imported": placed}
+    if tool in ("invite_person", "change_person"):
+        if not admin:
+            raise PermissionError("only admins manage people")
+        return _people(db, cfg, tool, args, user)
     raise ValueError(f"no tool {tool}")
+
+
+def people(db):
+    """Everyone with an account, for the assistant."""
+    names = store.space_names(db)
+    roles = {}
+    for m in db.rows("SELECT account, space, role FROM membership"):
+        roles.setdefault(m["account"], {})[names.get(m["space"], str(m["space"]))] = m["role"]
+    rows = db.rows(
+        "SELECT record::id(id) AS id, email, name, admin, disabled, last_login_at FROM account WHERE removed_at = NONE ORDER BY id"
+    )
+    return [
+        {
+            "email": r["email"],
+            "name": r.get("name"),
+            "admin": bool(r.get("admin")),
+            "disabled": bool(r.get("disabled")),
+            "signed_in_yet": bool(r.get("last_login_at")),
+            "roles": roles.get(r["id"], {}),
+        }
+        for r in rows
+    ]
+
+
+def _space(db, ns):
+    try:
+        return store.ns_id(db, (ns or "").strip().lower(), create=False)
+    except KeyError:
+        raise ValueError(f"there's no namespace {ns}") from None
+
+
+def _people(db, cfg, tool, args, user):
+    """Invite someone or change their access (approved)."""
+    from app import email
+    from . import passkeys
+
+    out = {}
+    if tool == "invite_person":
+        sid = _space(db, args["namespace"]) if args.get("namespace") else None
+        uid = auth.create_account(db, args["email"], None, args.get("name"))
+        auth.audit(db, user, "user.create", f"account:{uid}", ["assistant"])
+        out = {"invited": args["email"].strip().lower()}
+        if sid is not None and args.get("role"):
+            auth.set_role(db, uid, sid, args["role"])
+            auth.audit(db, user, "member.set", f"space:{sid}", {"account": uid, "role": args["role"], "assistant": True})
+        if email.mail_enabled(cfg):
+            raw = passkeys.create_link(db, uid, by=user["email"])
+            link = passkeys.link_url(raw, email.app_url(cfg))
+            email.send_soon(
+                email.send_invite_email, cfg, out["invited"], args.get("name"), user.get("name") or user["email"], link, passkeys.LINK_HOURS
+            )
+            auth.audit(db, user, "user.signin_link", f"account:{uid}", ["assistant", "emailed"])
+            out["emailed"] = True
+        else:
+            out["emailed"] = False
+            out["note"] = "Email isn't set up: send them a sign-in link from Admin → People."
+        return out
+    u = auth.find_account(db, args["email"])
+    if not u or u.get("removed_at"):
+        raise ValueError(f"there's no account {args['email']}")
+    if u["id"] == user["id"] and args.get("disabled"):
+        raise ValueError("you can't disable yourself")
+    if args.get("namespace") and args.get("role"):
+        sid = _space(db, args["namespace"])
+        role = None if args["role"] == "none" else args["role"]
+        auth.set_role(db, u["id"], sid, role)
+        auth.audit(db, user, "member.set", f"space:{sid}", {"account": u["id"], "role": role, "assistant": True})
+        out["role"] = {args["namespace"]: role}
+    if args.get("disabled") is not None:
+        auth.update_account(db, u["id"], disabled=bool(args["disabled"]))
+        auth.audit(db, user, "user.update", f"account:{u['id']}", {"disabled": bool(args["disabled"]), "assistant": True})
+        out["disabled"] = bool(args["disabled"])
+    return out
 
 
 def describe_namespace(db, sid, name):
@@ -195,7 +302,7 @@ class OpsTools:
     """Mixed into the chat Toolbox: needs db, cfg, base, user, editable, admin, act and _approval."""
 
     def _change(self, tool, args, summary):
-        if self.act and not (tool == "change_settings" and args.get("section") in ALWAYS_ASK):
+        if self.act and tool not in ASK_TOOLS and not (tool == "change_settings" and args.get("section") in ALWAYS_ASK):
             out = apply(self.db, self.cfg, self.base, tool, args, self.user, self.editable, self.admin)
             return {"status": "done", **out}, f"{summary}: done"
         return self._approval(tool, args, summary)
@@ -244,6 +351,36 @@ class OpsTools:
         if name in store.space_names(self.db).values():
             raise ValueError(f"there's already a namespace called {name}")
         return self._change("create_namespace", {"name": name, "graph": graph}, f"Create the namespace {name} ({graph} graph)")
+
+    def t_list_people(self):
+        found = people(self.db)
+        return {"people": found}, f"Listed {len(found)} people"
+
+    def t_invite_person(self, email, name=None, namespace=None, role=None):
+        email = (email or "").strip().lower()
+        if not auth.EMAIL.match(email):
+            raise ValueError("that isn't an email address")
+        if auth.find_account(self.db, email):
+            raise ValueError(f"{email} already has an account: change_person gives them a role")
+        if namespace:
+            _space(self.db, namespace)
+        where = f" as {role or 'viewer'} of {namespace}" if namespace else ""
+        args = store.clean({"email": email, "name": name, "namespace": namespace, "role": (role or "viewer") if namespace else None})
+        return self._change("invite_person", args, f"Invite {email}{where}")
+
+    def t_change_person(self, email, namespace=None, role=None, disabled=None):
+        u = auth.find_account(self.db, email)
+        if not u:
+            raise ValueError(f"there's no account {email}")
+        if (namespace is None) != (role is None) and disabled is None:
+            raise ValueError("give a namespace and a role, or disabled")
+        if namespace:
+            _space(self.db, namespace)
+        parts = [f"{'no role' if role == 'none' else role} in {namespace}"] if namespace and role else []
+        if disabled is not None:
+            parts.append("disable the account" if disabled else "enable the account")
+        args = store.clean({"email": u["email"], "namespace": namespace, "role": role, "disabled": disabled})
+        return self._change("change_person", args, f"{u['email']}: {', '.join(parts)}")
 
     def _where_to(self, files):
         """The namespace these files go in, chosen for the person, or (None, why) when it's for them to say."""

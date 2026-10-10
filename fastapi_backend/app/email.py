@@ -14,6 +14,20 @@ from app.config import settings
 log = logging.getLogger("lens.email")
 
 
+def send_soon(send: Any, *args: Any) -> None:
+    """Send an email from code that isn't async (an approved assistant action), on a thread of its own."""
+    import asyncio
+    import threading
+
+    def run() -> None:
+        try:
+            asyncio.run(send(*args))
+        except Exception:  # noqa: BLE001 - the mail server failed; the link can still be sent from Admin → People
+            log.exception("couldn't send the email")
+
+    threading.Thread(target=run, daemon=True, name="lens-email").start()
+
+
 def mail_enabled(cfg: dict[str, Any]) -> bool:
     m = cfg.get("mail") or {}
     return bool(m.get("server") and m.get("from_address"))
@@ -100,6 +114,23 @@ async def send_signin_link_email(cfg: dict[str, Any], email: str, name: str | No
         subtype=MessageType.html,
     )
     await _mailer(cfg).send_message(message, template_name="signin_link.html")
+
+
+async def send_invite_email(cfg: dict[str, Any], email: str, name: str | None, inviter: str, link: str, hours: int) -> None:
+    """An admin's sign-in link for someone they added (or who lost their passkey): it adds a passkey and signs them in."""
+    if not mail_enabled(cfg):
+        log.warning("no email server is set up (Settings → Email); sign-in link for %s: %s", email, link)
+        return
+    from fastapi_mail import MessageSchema, MessageType
+    from pydantic import NameEmail
+
+    message = MessageSchema(
+        subject="You're invited to Lens",
+        recipients=[NameEmail(name or email, email)],
+        template_body={"username": name or email, "inviter": inviter, "link": link, "days": max(1, hours // 24)},
+        subtype=MessageType.html,
+    )
+    await _mailer(cfg).send_message(message, template_name="invite.html")
 
 
 async def send_access_request_email(

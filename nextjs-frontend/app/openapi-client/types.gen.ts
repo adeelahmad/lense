@@ -14163,6 +14163,12 @@ export type SigninLink = {
    * Expires At
    */
   expires_at: string;
+  /**
+   * Emailed
+   *
+   * whether Lens emailed it to them (email=true, with mail set up)
+   */
+  emailed?: boolean;
   [key: string]: unknown;
 };
 
@@ -18390,7 +18396,12 @@ export type MakeSigninLinkData = {
      */
     uid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Email
+     */
+    email?: boolean;
+  };
   url: "/api/v1/users/{uid}/signin-link";
 };
 
@@ -18703,6 +18714,41 @@ export type CreateUserResponses = {
 };
 
 export type CreateUserResponse = CreateUserResponses[keyof CreateUserResponses];
+
+export type RemoveUserData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: number;
+  };
+  query?: {
+    /**
+     * Lose Vaults
+     */
+    lose_vaults?: boolean;
+  };
+  url: "/api/v1/users/{uid}";
+};
+
+export type RemoveUserErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveUserError = RemoveUserErrors[keyof RemoveUserErrors];
+
+export type RemoveUserResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveUserResponse = RemoveUserResponses[keyof RemoveUserResponses];
 
 export type UpdateUserData = {
   body: UserUpdate;
