@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "Lens", template: "%s · Lens" },
-  description: "Your life. Your AI.",
+  description: "Intelligence for your agent. Safe, secure and cost-effective.",
   // Setting icons here replaces Next's app/icon.svg and app/apple-icon.png links, so all of them are listed.
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],

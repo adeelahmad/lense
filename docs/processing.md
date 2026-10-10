@@ -216,6 +216,25 @@ Settings → Search shows how far it has got and can queue more now; `lens embed
 embeddings server can't be reached, the step is skipped (the routine tries again later) and searches go by the words,
 saying why.
 
+### Similar content
+
+The API (`GET /similar`), the assistant and the MCP server (`find_similar`) list the resources most like a text (a
+sentence, a passage, a title), a resource, a topic or an entity.
+
+Four lists are fused by reciprocal rank, so a resource alike in several ways comes first:
+
+* **meaning**, when search by meaning is set up: the passages closest to the text (a topic's labels and definition,
+  an entity's name and description), or for a resource to the centre of its own passages, so no model call is needed;
+* **key words**: the text's words that the archive says in fewest recordings (from the analysis step's term counts),
+  or a resource's keywords, any of them, through the word index: resources saying more of them first;
+* **topics**: resources about the same topics, a topic fewer resources are about counting for more;
+* **entities**: resources mentioning the same people, organisations, places and terms, the rarer counting for more.
+
+Each result cites why: its closest passages and the lines with the shared words (each opens at that moment or page),
+the words, and the topics and entities in common. Without an embeddings server (the default) the last three still
+answer, and no language model is called; with one, a selected text costs one embedding request, logged in the
+activity ledger.
+
 ## Background work
 
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs
@@ -265,6 +284,9 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.
+- A rate-limited connection (Google Drive throttling an account) still works: its check shows it working, slowly;
+  rclone backs off and retries (Drive gets 10 low-level retries); and a file a scan couldn't fetch waits for the next
+  scan, as do the rest of that scan's files, rather than failing for good.
 - Folders on this machine can only be watched inside `sources.local_roots`, and the rclone binary can only be set in
   archive.yaml: the web app can neither open up the server's disk nor choose what runs.
 
