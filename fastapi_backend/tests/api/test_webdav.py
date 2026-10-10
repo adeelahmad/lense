@@ -50,18 +50,18 @@ def test_mount_and_read(env):
     assert status == 200 and h["DAV"] == "1" and "PROPFIND" in h["Allow"]
     status, _, body = _call(env, "PROPFIND", "/", {"Depth": "1"})
     assert status == 207 and [(x[0], x[1]) for x in _listing(body)] == [("/", True), ("/pods/", True)]
-    status, _, body = _call(env, "PROPFIND", "/pods/General/", {"Depth": "1"})
+    status, _, body = _call(env, "PROPFIND", "/pods/Collections/General/", {"Depth": "1"})
     hrefs = [x[0] for x in _listing(body)]
-    assert hrefs[0] == "/pods/General/" and "/pods/General/ep1%20%5B1%5D.txt" in hrefs
+    assert hrefs[0] == "/pods/Collections/General/" and "/pods/Collections/General/ep1%20%5B1%5D.txt" in hrefs
     size = next(int(x[2]) for x in _listing(body) if x[0].endswith("ep1%20%5B1%5D.txt"))
-    status, _, body = _call(env, "PROPFIND", "/pods/General/ep1%20%5B1%5D.txt", {"Depth": "0"})
+    status, _, body = _call(env, "PROPFIND", "/pods/Collections/General/ep1%20%5B1%5D.txt", {"Depth": "0"})
     assert status == 207 and len(_listing(body)) == 1
-    status, h, body = _call(env, "GET", "/pods/General/ep1%20%5B1%5D.txt")
+    status, h, body = _call(env, "GET", "/pods/Collections/General/ep1%20%5B1%5D.txt")
     assert status == 200 and len(body) == size and body.startswith(b"Alice: Welcome back.")
     own = (env["folder"] / "ep1.txt").read_bytes()
-    status, h, body = _call(env, "GET", "/pods/General/ep1%20%5B1%5D.original.txt", {"Range": "bytes=2-5"})
+    status, h, body = _call(env, "GET", "/pods/Collections/General/ep1%20%5B1%5D.original.txt", {"Range": "bytes=2-5"})
     assert status == 206 and body == own[2:6] and h["Content-Range"] == f"bytes 2-5/{len(own)}"
-    status, h, body = _call(env, "HEAD", "/pods/General/ep1%20%5B1%5D.txt")
+    status, h, body = _call(env, "HEAD", "/pods/Collections/General/ep1%20%5B1%5D.txt")
     assert status == 200 and h["Content-Length"] == str(size) and body == b""
 
 
@@ -69,9 +69,9 @@ def test_what_webdav_refuses(env):
     assert _call(env, "PROPFIND", "/", {"Depth": "1"}, auth_header=False)[0] == 401
     assert _call(env, "PROPFIND", "/calls/", {"Depth": "1"})[0] == 404  # not theirs
     assert _call(env, "PROPFIND", "/", {"Depth": "infinity"})[0] == 403
-    assert _call(env, "GET", "/pods/General/nope.txt")[0] == 404
-    assert _call(env, "PUT", "/pods/General/x.txt", body=b"hi")[0] == 403
-    assert _call(env, "DELETE", "/pods/General/ep1%20%5B1%5D.txt")[0] == 403
+    assert _call(env, "GET", "/pods/Collections/General/nope.txt")[0] == 404
+    assert _call(env, "PUT", "/pods/Collections/General/x.txt", body=b"hi")[0] == 403
+    assert _call(env, "DELETE", "/pods/Collections/General/ep1%20%5B1%5D.txt")[0] == 403
     assert _call(env, "MKCOL", "/pods/New/")[0] == 403
     wrong = "Basic " + base64.b64encode(f"{env['k']['id']}:nope".encode()).decode()
     for _ in range(8):

@@ -51,10 +51,16 @@ def test_people_read_their_namespaces_over_s3(client, env):
     c = _s3(env["port"], k["id"], k["secret"])
     assert [b["Name"] for b in c.list_buckets()["Buckets"]] == ["pods"]
     top = c.list_objects_v2(Bucket="pods", Delimiter="/")
-    assert [p["Prefix"] for p in top["CommonPrefixes"]] == ["General/", "Talks/"] and "Contents" not in top
-    talks = c.list_objects_v2(Bucket="pods", Prefix="Talks/", Delimiter="/")
-    assert [o["Key"] for o in talks["Contents"]] == ["Talks/ep2 [2].json", "Talks/ep2 [2].original.txt", "Talks/ep2 [2].txt"]
-    assert [o["Key"] for o in c.list_objects_v2(Bucket="pods", Prefix="Talks/ep2 [2].t")["Contents"]] == ["Talks/ep2 [2].txt"]
+    assert [p["Prefix"] for p in top["CommonPrefixes"]] == ["Collections/", "Entities/", "Topics/"] and "Contents" not in top
+    talks = c.list_objects_v2(Bucket="pods", Prefix="Collections/Talks/", Delimiter="/")
+    assert [o["Key"] for o in talks["Contents"]] == [
+        "Collections/Talks/ep2 [2].json",
+        "Collections/Talks/ep2 [2].original.txt",
+        "Collections/Talks/ep2 [2].txt",
+    ]
+    assert [o["Key"] for o in c.list_objects_v2(Bucket="pods", Prefix="Collections/Talks/ep2 [2].t")["Contents"]] == [
+        "Collections/Talks/ep2 [2].txt"
+    ]
     # v1 listing, recursive, a page at a time
     keys, marker = [], ""
     while True:
@@ -63,22 +69,23 @@ def test_people_read_their_namespaces_over_s3(client, env):
         if not page["IsTruncated"]:
             break
         marker = keys[-1]
-    assert keys == sorted(keys, key=str.encode) and len(keys) == 6 and keys[0] == "General/ep1 [1].json"
+    assert keys == sorted(keys, key=str.encode) and keys[0] == "Collections/General/ep1 [1].json"
+    assert len([k for k in keys if k.startswith("Collections/")]) == 6 and "Topics/Gene therapy/ep1 [1].txt" in keys
     # v2 pages
     first = c.list_objects_v2(Bucket="pods", MaxKeys=4)
     rest = c.list_objects_v2(Bucket="pods", ContinuationToken=first["NextContinuationToken"])
     assert [o["Key"] for o in first["Contents"] + rest["Contents"]] == keys
     # objects, whole and in part, as listed
     own = (env["folder"] / "ep1.txt").read_bytes()
-    got = c.get_object(Bucket="pods", Key="General/ep1 [1].original.txt")
+    got = c.get_object(Bucket="pods", Key="Collections/General/ep1 [1].original.txt")
     assert got["Body"].read() == own and got["ContentLength"] == len(own) and len(got["ETag"].strip('"')) != 32
-    part = c.get_object(Bucket="pods", Key="General/ep1 [1].original.txt", Range="bytes=3-9")
+    part = c.get_object(Bucket="pods", Key="Collections/General/ep1 [1].original.txt", Range="bytes=3-9")
     assert part["Body"].read() == own[3:10] and part["ContentRange"] == f"bytes 3-9/{len(own)}"
-    head = c.head_object(Bucket="pods", Key="General/ep1 [1].txt")
-    assert head["ContentLength"] == next(o["Size"] for o in keys_of(c, "General/") if o["Key"].endswith("ep1 [1].txt"))
-    assert c.get_object(Bucket="pods", Key="General/ep1 [1].txt")["Body"].read().startswith(b"Alice: Welcome back.")
+    head = c.head_object(Bucket="pods", Key="Collections/General/ep1 [1].txt")
+    assert head["ContentLength"] == next(o["Size"] for o in keys_of(c, "Collections/General/") if o["Key"].endswith("ep1 [1].txt"))
+    assert c.get_object(Bucket="pods", Key="Collections/General/ep1 [1].txt")["Body"].read().startswith(b"Alice: Welcome back.")
     # a presigned link works on its own
-    url = c.generate_presigned_url("get_object", Params={"Bucket": "pods", "Key": "General/ep1 [1].json"}, ExpiresIn=60)
+    url = c.generate_presigned_url("get_object", Params={"Bucket": "pods", "Key": "Collections/General/ep1 [1].json"}, ExpiresIn=60)
     assert b'"namespace": "pods"' in urllib.request.urlopen(url).read()
     assert c.get_bucket_location(Bucket="pods")["LocationConstraint"] is None
 
@@ -97,9 +104,9 @@ def test_what_s3_refuses(client, env):
     k = _key(client, env["hv"])
     c = _s3(env["port"], k["id"], k["secret"])
     assert _code(lambda: c.list_objects_v2(Bucket="calls")) == "NoSuchBucket"  # not theirs
-    assert _code(lambda: c.get_object(Bucket="pods", Key="General/nope.txt")) == "NoSuchKey"
+    assert _code(lambda: c.get_object(Bucket="pods", Key="Collections/General/nope.txt")) == "NoSuchKey"
     assert _code(lambda: c.put_object(Bucket="pods", Key="x.txt", Body=b"hi")) == "AccessDenied"
-    assert _code(lambda: c.delete_object(Bucket="pods", Key="General/ep1 [1].json")) == "AccessDenied"
+    assert _code(lambda: c.delete_object(Bucket="pods", Key="Collections/General/ep1 [1].json")) == "AccessDenied"
     assert _code(lambda: _s3(env["port"], k["id"], "wrong").list_buckets()) == "SignatureDoesNotMatch"
     assert _code(lambda: _s3(env["port"], "LKAAAAAAAAAAAAAAAAAA", "x").list_buckets()) == "InvalidAccessKeyId"
     # revoked: it stops working at once

@@ -103,7 +103,7 @@ services:
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_MQTT_PORT:-1883}:1883"
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/udp"
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/tcp"
-      # the asset tree over S3 and WebDAV (docs/file-tree.md): read-only, listened on only once File shares are turned
+      # the graph as files over S3 and WebDAV (docs/file-tree.md): read-only, listened on only once File shares are turned
       # on in the app; published where the web app is. Something else using 9555 or 9556? Set LENS_S3_PORT / LENS_WEBDAV_PORT.
       - "${LENS_SHARE_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_S3_PORT:-9555}:9555"
       - "${LENS_SHARE_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_WEBDAV_PORT:-9556}:9556"

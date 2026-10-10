@@ -455,7 +455,7 @@ DEFAULTS = {
         "max_per_minute": 600,
         "triage": False,
     },
-    # the asset tree over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
+    # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
     # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
     "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the

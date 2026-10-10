@@ -1,4 +1,4 @@
-"""File shares (docs/file-tree.md): the servers that share the asset tree (filetree.py) on the network, read-only, with
+"""File shares (docs/file-tree.md): the servers that share the graph as files (filetree.py) on the network, read-only, with
 people's own access keys (s3.py): S3 (s3.py) and WebDAV (webdav.py).
 
 Off until an admin turns them on (`shares.enabled`, then `s3` and `webdav`); the process that runs routines (`lens

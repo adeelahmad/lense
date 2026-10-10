@@ -2,7 +2,8 @@
 
 Lens shows its graph as an ordinary tree of folders and files: graph nodes (collections, topics, entities) are
 folders, nested along the graph's links, and every asset (a recording, document or image) is a few files inside the
-folders it belongs to, its metadata in a sidecar beside it. Agents and tools that already understand files can read Lens without learning its API.
+folders it belongs to, its metadata in a sidecar beside it. Agents and tools that already understand files can read
+Lens without learning its API.
 
 | Where | Status |
 | --- | --- |
@@ -82,8 +83,8 @@ endpoint = http://lens.local:9555
 force_path_style = true
 ```
 
-then `rclone lsd lens:`, `rclone copy lens:pods/General ./general`, or `rclone mount lens: ~/lens`. Supported:
-listing buckets, listing objects (v1 and v2, by folder or recursively, a page at a time), reading objects whole or
+then `rclone lsd lens:`, `rclone copy "lens:pods/Topics/Gene therapy" ./gene-therapy`, or `rclone mount lens: ~/lens`.
+Supported: listing buckets, listing objects (v1 and v2, by folder or recursively, a page at a time), reading objects whole or
 in ranges, and presigned links. Anything that writes answers AccessDenied. Requests must be signed with Signature
 Version 4.
 
