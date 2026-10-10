@@ -995,6 +995,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "bridge",
+    key: "safe_links",
+    label: "Break up links the answer made itself",
+    kind: "switch",
+    hint: "Chat apps open links to preview them, so a web address the model built from what it read would send that out before anyone clicks. Addresses you, the archive or a tool wrote, and Lens’s own, stay as they are.",
+  },
+  {
+    section: "bridge",
     key: "rooms",
     label: "Rooms for a namespace’s assistant",
     kind: "lines",

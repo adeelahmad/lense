@@ -375,6 +375,9 @@ DEFAULTS = {
         # approving the assistant's reversible changes (entity merges and edits, new namespaces) by replying in the room,
         # for the people in bridge.users; everything else is approved in the web app (bridge.ROOM_SAFE)
         "approve": "low_risk",
+        # web addresses the answer built itself are broken up (hxxps://evil[.]example), so the room's app doesn't fetch
+        # them to preview: an injection could fill one with what the answer read (bridge.safe_links)
+        "safe_links": True,
         "poll_seconds": 2,
     },
     # Matterbridge run by Lens (matterbridge.py): with `run` on, the matterbridge service in Docker Compose gets its

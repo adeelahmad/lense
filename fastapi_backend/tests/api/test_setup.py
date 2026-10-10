@@ -202,6 +202,7 @@ def test_installer_settings_are_saved_once_and_stay_editable(fresh, monkeypatch,
     seed = {
         "llm": {"base_url": "http://ollama:11434/v1", "model": "llama3", "api_key": "sk-seed"},
         "decisions": {"api_key": "ts-seed"},
+        "budget": {"hard_usd": 25, "period": "month", "price_in": 3, "price_out": 15},  # the overall budget
         "nope": {"x": 1},  # not a section: logged and left out, the rest still applies
     }
     monkeypatch.setenv("LENS_SETUP_SETTINGS", base64.urlsafe_b64encode(json.dumps(seed).encode()).decode().rstrip("="))
@@ -216,6 +217,15 @@ def test_installer_settings_are_saved_once_and_stay_editable(fresh, monkeypatch,
     h = login(client, "ops@x.io", "ops password 123")
     view = client.get("/api/v1/setup", headers=h).json()
     assert view["llm"]["locked"] == [] and view["llm"]["values"]["api_key"] == {"secret": True, "set": True}
+    assert view["budget"] == {
+        "hard_usd": 25.0,
+        "soft_usd": 20.0,
+        "period": "month",
+        "on_over": "ask",
+        "price_in": 3.0,
+        "price_out": 15.0,
+        "model": "llama3",
+    }
     assert "sk-seed" not in client.get("/api/v1/settings", headers=h).text
 
     # changed in the app, then the next start: the installer's value doesn't come back

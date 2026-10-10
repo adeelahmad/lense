@@ -14,6 +14,7 @@ from app.domain import auth, setup
 from app.schemas.setup import (
     CloudModelProvider,
     LocalModelServer,
+    SetupBudget,
     SetupFinish,
     SetupLlm,
     SetupNamespace,
@@ -101,6 +102,20 @@ def save_telemetry(body: SetupTelemetry, user: AdminWriter, request: Request, db
         raise HTTPException(400, str(e)) from None
     if saved:
         auth.audit(db, user.as_audit(), "settings.save", "telemetry", saved)
+    return SetupSaved(saved=saved)
+
+
+@router.put("/budget")
+def save_budget(body: SetupBudget, user: AdminWriter, request: Request, db: Db) -> SetupSaved:
+    """The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop
+    (docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard
+    limit: no budget."""
+    try:
+        saved = setup.save_budget(db, request.app.state.archive.base, user=user.email, **body.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if saved:
+        auth.audit(db, user.as_audit(), "budget.set", "all", body.model_dump(exclude_none=True))
     return SetupSaved(saved=saved)
 
 

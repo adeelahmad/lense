@@ -76,6 +76,7 @@ def test_choosing_the_pipeline_that_runs_after(client, db, cfg, folder):
     job = client.post("/api/v1/import", headers=h, json={"namespace": "pods", "text": text, "pipeline": quick}).json()["job"]
     row = db.one("SELECT steps, pipeline FROM $j", j=store.R("job", job))
     assert [s["type"] for s in row["steps"]] == ["analyze", "report"] and row["pipeline"]["name"] == "Quick look"
-    # without one, the namespace's (here the standard one)
+    # without one, the namespace's (here the standard one), less what a transcript has nothing to do for
     job = client.post("/api/v1/import", headers=h, json={"namespace": "pods", "text": text + "\n[00:09] Ben: Later."}).json()["job"]
-    assert [s["type"] for s in db.one("SELECT steps FROM $j", j=store.R("job", job))["steps"]] == pipelines.STANDARD
+    standard = [t for t in pipelines.STANDARD if t not in ("transcribe", "diarize")]
+    assert [s["type"] for s in db.one("SELECT steps FROM $j", j=store.R("job", job))["steps"]] == standard

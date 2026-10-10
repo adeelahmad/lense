@@ -4,7 +4,7 @@ import "@testing-library/jest-dom";
 import type { ReactNode } from "react";
 
 import { Admin, Setup, type SetupView } from "@/app/openapi-client";
-import { SetupWizard } from "@/components/setup/setup-wizard";
+import { SetupWizard, isLocalModel } from "@/components/setup/setup-wizard";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
@@ -17,6 +17,7 @@ jest.mock("@/app/openapi-client", () => ({
     saveStorage: jest.fn(),
     saveTelemetry: jest.fn(),
     saveOauth: jest.fn(),
+    saveBudget: jest.fn(),
     finish: jest.fn(),
   },
   Admin: { testLlm: jest.fn(), testTelemetry: jest.fn() },
@@ -61,6 +62,15 @@ const VIEW = (over: Partial<SetupView> = {}): SetupView => ({
   },
   telemetry: { enabled: false, endpoint: null, locked: [] },
   oauth: { enabled: true, access_minutes: 60, refresh_days: 30 },
+  budget: {
+    hard_usd: null,
+    soft_usd: null,
+    period: "month",
+    on_over: "ask",
+    price_in: null,
+    price_out: null,
+    model: null,
+  },
   ...over,
 });
 
@@ -169,6 +179,10 @@ describe("SetupWizard", () => {
       api_key: null,
     });
 
+    // a model on this machine costs nothing: no budget step
+    expect(await screen.findByLabelText(/Largest upload/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Budget/ })).not.toBeInTheDocument();
+
     fireEvent.change(await screen.findByLabelText(/Largest upload/), { target: { value: "2048" } });
     fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
     await waitFor(() => expect(Setup.saveStorage).toHaveBeenCalled());
@@ -189,6 +203,44 @@ describe("SetupWizard", () => {
     );
     expect(m(Setup.saveTelemetry).mock.calls[0][0].body).toEqual({ enabled: false, endpoint: null });
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+  });
+
+  it("asks for a budget after a cloud model: one scale for the hard limit, with the model's price", async () => {
+    m(Setup.getSetup).mockImplementation(() =>
+      ok(
+        VIEW({
+          namespace: { existing: ["media"], locked: false },
+          llm: {
+            values: { base_url: "https://api.openai.com/v1", model: "gpt-x", api_key: { secret: true, set: true } },
+            locked: [],
+          },
+        }),
+      ),
+    );
+    m(Setup.saveLlm).mockImplementation(() => ok({ ok: true }));
+    m(Setup.saveBudget).mockImplementation(() => ok(["budget"]));
+    wrap(<SetupWizard />);
+    fireEvent.click(await screen.findByRole("button", { name: "Save and continue" }));
+
+    const limit = await screen.findByLabelText("Hard limit");
+    expect(screen.getByText("No limit")).toBeInTheDocument();
+    fireEvent.change(limit, { target: { value: "3" } });
+    expect(screen.getByText("$25 a month")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Input price"), { target: { value: "3" } });
+    expect(screen.getByRole("button", { name: "Save and continue" })).toBeDisabled(); // both prices or none
+    fireEvent.change(screen.getByLabelText("Output price"), { target: { value: "15" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(Setup.saveBudget).toHaveBeenCalled());
+    expect(m(Setup.saveBudget).mock.calls[0][0].body).toEqual({
+      hard_usd: 25,
+      soft_usd: null,
+      period: "month",
+      on_over: "ask",
+      price_in: 3,
+      price_out: 15,
+    });
+
+    expect(await screen.findByLabelText(/Largest upload/)).toBeInTheDocument();
   });
 
   it("opts in to telemetry with an endpoint, after a test span", async () => {
@@ -316,5 +368,18 @@ describe("SetupWizard", () => {
     await waitFor(() =>
       expect(Setup.finish).toHaveBeenCalledWith(expect.objectContaining({ body: { skipped: true } })),
     );
+  });
+
+  it("tells a model on this machine or its network from a cloud provider", () => {
+    for (const u of [
+      "http://localhost:11434/v1",
+      "http://host.docker.internal:1234/v1",
+      "http://ollama:11434/v1",
+      "http://192.168.1.5:8080/v1",
+      "http://[::1]:11434",
+    ])
+      expect(isLocalModel(u)).toBe(true);
+    for (const u of ["https://api.openai.com/v1", "https://openrouter.ai/api/v1", "", null])
+      expect(isLocalModel(u)).toBe(false);
   });
 });

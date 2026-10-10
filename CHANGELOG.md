@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A spending limit from the start.** The setup wizard has a Budget step, and the web installer asks for one with a
+  cloud provider: a scale for a hard limit on everything Lens spends on AI, with a soft limit at 80% that warns. At
+  the hard limit runs wait (or are skipped) and paid model calls stop until it goes up; models on your own computer
+  keep working. The model's price comes with it, so the spending is counted. It's the new `all` budget, changeable in
+  Settings › Budgets ([Budgets](docs/budgets.md#one-budget-for-everything)). The web installer now asks only the
+  essentials: the folder, port and network under **Advanced**, the optional extras under **More options** on the
+  review.
+
 - **Cloud model presets.** Settings → LLM provider and the setup wizard offer OpenAI, Anthropic, Google Gemini,
   OpenRouter, Groq, Mistral and DeepSeek next to the model servers found nearby: one click fills in the address and a
   model and puts the cursor in the API key field, with a link to where the provider hands out keys, so switching to a
@@ -32,7 +40,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   copy), and the conversations are the same ones Lens's chat shows, with cited answers, the steps taken and approvals.
   While the panel is open, the assistant can use that browser: open, read, click, type and download files into the
   conversation, only on sites you allow, asking before anything that sends, deletes, buys or posts, never typing
-  passwords or card numbers, and showing each action as it happens ([The assistant in your browser](docs/browser-assistant.md)).
+  passwords or card numbers, and showing each action as it happens. Once it has read a page, opening an address or
+  typing text you didn't write asks you first too ([The assistant in your browser](docs/browser-assistant.md)).
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
