@@ -8,6 +8,9 @@ import uuid
 
 os.environ.setdefault("ACCESS_SECRET_KEY", "test-access-secret-key-0123456789abcdef")
 os.environ.pop("SURREAL_URL", None)
+# one OpenMP thread per tesseract: each xdist worker runs its own, and their threads fighting over the cores made the
+# video and OCR tests take minutes instead of seconds (539 s against 23 s for them on 4 cores)
+os.environ.setdefault("OMP_THREAD_LIMIT", "1")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
