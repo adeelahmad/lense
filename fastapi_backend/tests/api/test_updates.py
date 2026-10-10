@@ -195,10 +195,11 @@ def test_auto_install_once_per_release(db, cfg, github, control):
     assert updates.run_state(db)["id"] == run["id"]
 
 
-def test_backups(client, db, folder):
+def test_backups(client, db, folder, monkeypatch):
     h = admin(client, db)
     assert client.get("/api/v1/admin/backups", headers=h).json()["backups"] == []
-    assert client.post("/api/v1/admin/backups", headers=h).status_code == 400  # mem:// has nothing to back up
+    monkeypatch.setattr(migrations, "backup", lambda db, label="manual": None)  # what an in-memory database gives
+    assert client.post("/api/v1/admin/backups", headers=h).status_code == 400
     d = folder / "data" / "backups"
     d.mkdir(parents=True)
     (d / "manual-20261001-101010.surql.gz").write_bytes(b"x" * 10)
