@@ -1,8 +1,8 @@
 # Updates and backups
 
 Lens tells admins when a new release is out, backs the database up, and installs the release from the web app, so
-upgrading never needs a terminal. Status: **built** (the check, backups and upgrades from the API and the agent);
-the web app's banner and Settings page come in their own change.
+upgrading never needs a terminal. Status: **built** (the check, upgrades from the API and the agent, and backups in
+Settings › Backups); the web app's upgrade page is **in progress**.
 
 ## The check
 

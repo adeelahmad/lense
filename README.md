@@ -76,9 +76,9 @@ Everything below is built and merged. Work that is still in a pull request is li
   at a time, from a link list or a bookmarks file, by API or by asking the assistant; and import videos and podcasts
   by their address (off by default). ([Sensors](docs/sensors.md), [processing](docs/processing.md),
   [import webhooks](docs/api.md#import-webhooks))
-- **Clip from the browser.** The Lens web clipper for Chrome and Edge turns a page, a selection or a part you pick
-  into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies through the
-  browser's store or a self-hosted update file. ([Web clipper](docs/web-clipper.md))
+- **Clip from the browser.** The Lens web clipper for Chrome, Edge and Safari turns a page, a selection or a part you
+  pick into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies through
+  the browser's store or a self-hosted update file. ([Web clipper](docs/web-clipper.md))
 - **Understand it.** Transcription and speaker recognition, text on screen and in scans, faces (off by default),
   entities and topics in a knowledge graph you can explore, query with Cypher or SPARQL, and see as it was at any
   version. Find what is most like a passage, a resource, a topic or an entity, and, with anytopdf, photos by what
@@ -94,15 +94,20 @@ Everything below is built and merged. Work that is still in a pull request is li
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
   Routine choices go to small decision models, and the LLM only when it adds value.
   ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md))
-- **Keep it up to date.** Lens checks for a new release once a day and tells admins by email or a notification. It
-  backs the database up and upgrades itself through a small agent on the machine, from the API; nothing installs
-  unless an admin says so. ([Updates and backups](docs/updates.md))
+- **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
+  notification, and upgrades itself through a small agent on the machine, from the API; nothing installs unless an
+  admin says so. Settings › Backups takes, lists, downloads and restores backups, takes them on any schedule, and can
+  copy each one, encrypted, to a storage connection. ([Updates and backups](docs/updates.md),
+  [backups](docs/database.md#backups))
 - **Watch it run.** OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint with a sample Grafana
   dashboard. Both are off until you turn them on, and send nothing anywhere else. ([Telemetry](docs/telemetry.md),
   [Prometheus](docs/prometheus.md))
-- **Stay private.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per namespace,
-  and an audit log. Reach it from anywhere through a Cloudflare tunnel with nothing opened on your router.
-  ([Encryption](docs/encryption.md), [access](docs/access.md), [remote access](docs/remote-access.md))
+- **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
+  namespace, and an audit log. What the assistant reads (recordings, documents, web pages, tool results) reaches the
+  model marked as data, not instructions. Reach Lens from anywhere through a Cloudflare tunnel with nothing opened on
+  your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
+  [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection),
+  [remote access](docs/remote-access.md))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
   IIIF for publishing, OpenTelemetry and Prometheus for monitoring, and an optional Fedora mirror.
   ([Linked data](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md))
@@ -124,9 +129,8 @@ These are open pull requests, not yet part of Lens:
 - **Costs:** a budget meter in the top bar and a Costs page ([#275](https://github.com/adeelahmad/lense/pull/275)),
   and an overall AI budget with soft and hard limits asked for in setup
   ([#281](https://github.com/adeelahmad/lense/pull/281)).
-- **Upgrades and backups in the web app:** an upgrade page with live steps that rolls back when the new version doesn't
-  start ([#262](https://github.com/adeelahmad/lense/pull/262)), and restore, download links and scheduled backups
-  ([#263](https://github.com/adeelahmad/lense/pull/263)).
+- **Upgrades in the web app:** an upgrade page with live steps that rolls back when the new version doesn't start
+  ([#262](https://github.com/adeelahmad/lense/pull/262)).
 - **Running it:** HTTPS with certificates from Let's Encrypt or ZeroSSL
   ([#289](https://github.com/adeelahmad/lense/pull/289)), structured logs with a log viewer and syslog output
   ([#284](https://github.com/adeelahmad/lense/pull/284)), built-in usage analytics
@@ -134,8 +138,7 @@ These are open pull requests, not yet part of Lens:
   ([#297](https://github.com/adeelahmad/lense/pull/297)).
 - **People:** email invitations, and removing someone for good ([#286](https://github.com/adeelahmad/lense/pull/286)).
 - **Lens.app for macOS:** a menu-bar app that carries microsandbox ([#280](https://github.com/adeelahmad/lense/pull/280)).
-- **The web clipper** for Firefox ([#282](https://github.com/adeelahmad/lense/pull/282)) and Safari
-  ([#283](https://github.com/adeelahmad/lense/pull/283)).
+- **The web clipper for Firefox** ([#282](https://github.com/adeelahmad/lense/pull/282)).
 - **Files:** assets shown as folders and files by namespace and collection
   ([#290](https://github.com/adeelahmad/lense/pull/290)) and shared read-only over NFS
   ([#295](https://github.com/adeelahmad/lense/pull/295)); items called assets unless they are audio or video
