@@ -636,9 +636,10 @@ RETRIES = 8
 
 
 def _retryable(err):
-    """SurrealDB's optimistic transactions fail with a write conflict when two touch the same record at once."""
+    """SurrealDB's optimistic transactions fail with a write conflict when two touch the same record at once, and ask
+    for a retry when a transaction's snapshot is older than the commit oracle's GC window (a busy server)."""
     m = str(err)
-    return "can be retried" in m or "Transaction conflict" in m or "Write conflict" in m
+    return "can be retried" in m or "Transaction conflict" in m or "Write conflict" in m or "retry required" in m
 
 
 def _lost(err):
