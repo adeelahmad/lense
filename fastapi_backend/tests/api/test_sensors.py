@@ -138,6 +138,26 @@ def test_syslog_tcp_framing():
     assert list(syslog._frames(io.BufferedReader(io.BytesIO(lines)))) == [b"<30>a b: c\n", b"<30>d e: f\r\n"]
 
 
+def test_syslog_any_free_port_skips_one_taken_on_tcp(monkeypatch):
+    """Port 0: UDP picks a port that may be in use on TCP (other tests, other programs); another is tried."""
+    import socketserver
+
+    bind, tries = socketserver.ThreadingTCPServer.server_bind, []
+
+    def busy_once(self):
+        tries.append(self.server_address)
+        if len(tries) == 1:
+            raise OSError(98, "Address already in use")
+        bind(self)
+
+    monkeypatch.setattr(socketserver.ThreadingTCPServer, "server_bind", busy_once)
+    listener = syslog.Listener("127.0.0.1", 0, [], lambda *a: None).start()
+    try:
+        assert len(tries) == 2 and listener.tcp.server_address[1] == listener.port
+    finally:
+        listener.stop()
+
+
 # ---------- the broker on its own ----------
 def test_broker_is_an_ordinary_local_broker():
     got = []
