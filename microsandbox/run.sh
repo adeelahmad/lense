@@ -19,7 +19,21 @@ SURREAL_VERSION=v3.2.4
 RCLONE_VERSION=v1.75.1
 NODE_MAJOR=22
 
-log() { printf '[lens] %s\n' "$*"; }
+# Each step is logged as "[lens] ...", which install.sh shows while it waits. A step that fails says so, and stops
+# what was started: install.sh stops waiting and shows why.
+step=""
+log() {
+  step="$*"
+  printf '[lens] %s\n' "$*"
+}
+failed() {
+  code=$?
+  [ "$code" = 0 ] && return
+  printf '[lens] Failed (exit %s): %s\n' "$code" "${step%...}"
+  # shellcheck disable=SC2086
+  for pid in ${pids:-}; do kill "$pid" 2>/dev/null || true; done
+}
+trap failed EXIT
 
 # The settings install.sh wrote (secrets, port, target), the same .env Compose reads
 set -a
@@ -96,6 +110,7 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   (cd "$CODE/fastapi_backend" && tar -c --exclude .venv --exclude __pycache__ .) | tar -x -C "$OPT/backend"
   (cd "$CODE/nextjs-frontend" && tar -c --exclude node_modules --exclude .next .) | tar -x -C "$OPT/web-src"
 
+  log "Installing the backend's Python packages..."
   # shellcheck disable=SC2046
   (cd "$OPT/backend" &&
     export UV_PROJECT_ENVIRONMENT="$OPT/venv" UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
@@ -103,10 +118,11 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
     retry uv sync --frozen --no-dev --python "$(command -v python3)" \
       $(for e in ${EXTRAS:-}; do printf -- '--extra %s ' "$e"; done))
 
-  (cd "$OPT/web-src" &&
-    export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" &&
-    retry corepack pnpm install --frozen-lockfile &&
-    AUTH_SECRET=build-only NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone corepack pnpm build)
+  web() { (cd "$OPT/web-src" && exec env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" "$@"); }
+  log "Installing the web app's packages..."
+  retry web corepack pnpm install --frozen-lockfile
+  log "Building the web app..."
+  web AUTH_SECRET=build-only NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone corepack pnpm build
   rm -rf "$OPT/web" && mkdir -p "$OPT/web/.next"
   cp -a "$OPT/web-src/.next/standalone/." "$OPT/web/"
   cp -a "$OPT/web-src/.next/static" "$OPT/web/.next/static"
@@ -198,6 +214,7 @@ if [ "$TARGET" = full ]; then
   export LENS_PROGRAMS="$PROGRAMS"
 fi
 
+log "Starting the database..."
 keep surrealdb "$DATA" surreal start --log info --bind 127.0.0.1:8001 --user "$SURREAL_USER" --pass "$SURREAL_PASS" \
   "surrealkv:$DATA/surreal/lens.db"
 db=$!
