@@ -4,12 +4,17 @@
 // the web installer, which this app shows in its window; after that it starts Lens and the app opens it in the
 // browser, since Lens signs in with passkeys and an app's web view can't use them. The menu-bar item starts, stops,
 // opens and updates Lens. Closing the window leaves the app in the menu bar.
+//
+// The app updates itself (Tauri's updater): it checks the latest release's latest.json at launch and every six hours,
+// and installs a newer Lens.app whose signature checks out against the key built into it, then restarts. A build made
+// without that key (LENS_UPDATER_PUBKEY, see desktop/README.md) doesn't update itself.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::path::BaseDirectory;
@@ -17,12 +22,23 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{
     AppHandle, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
 };
+use tauri_plugin_updater::UpdaterExt;
 
 /// The app's own page, as the web view addresses it.
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 const APP_PAGE: &str = "tauri://localhost/index.html";
 #[cfg(not(any(target_os = "macos", target_os = "ios")))]
 const APP_PAGE: &str = "http://tauri.localhost/index.html";
+
+/// The key that update signatures are checked against; none: the app doesn't update itself.
+const UPDATER_PUBKEY: Option<&str> = option_env!("LENS_UPDATER_PUBKEY");
+
+/// Set across the restart after an update, so the app comes back quietly in the menu bar.
+const UPDATED_ENV: &str = "LENS_APP_UPDATED";
+
+fn updates_on() -> bool {
+    UPDATER_PUBKEY.is_some_and(|k| !k.trim().is_empty())
+}
 
 /// The page the window may show besides its own: the web installer, while it runs.
 #[derive(Default)]
@@ -82,6 +98,11 @@ fn open_in_browser(url: &str) {
 
 /// Runs lens-app.sh with a command, and does what its output says (the lines are listed at its top).
 fn run(app: &AppHandle, command: &'static str) {
+    run_with(app, command, false)
+}
+
+/// As `run`; `quiet`: Lens isn't opened in the browser when it's running (after an update's restart).
+fn run_with(app: &AppHandle, command: &'static str, quiet: bool) {
     let app = app.clone();
     std::thread::spawn(move || {
         let mut cmd = Command::new("/bin/sh");
@@ -118,7 +139,9 @@ fn run(app: &AppHandle, command: &'static str) {
                     }
                 }
                 "@open" => {
-                    open_in_browser(rest);
+                    if !quiet {
+                        open_in_browser(rest);
+                    }
                     if let Some(w) = window(&app) {
                         set_status(
                             &app,
@@ -135,6 +158,56 @@ fn run(app: &AppHandle, command: &'static str) {
     });
 }
 
+/// Checks for a newer Lens.app and installs it, then restarts. `asked`: from the menu, so it says how it went.
+fn update_app(app: &AppHandle, asked: bool) {
+    if !updates_on() {
+        return;
+    }
+    // not while the web installer is in the window: a restart would lose it
+    if app.state::<Shown>().0.lock().unwrap().is_some() {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let say = |text: &str, error: bool| {
+            if asked {
+                set_status(&app, text, error);
+                show_window(&app);
+            }
+        };
+        let update = match app.updater() {
+            Ok(updater) => updater.check().await,
+            Err(e) => Err(e),
+        };
+        match update {
+            Ok(Some(update)) => {
+                say(
+                    &format!("Updating Lens.app to {}...", update.version),
+                    false,
+                );
+                if let Some(tray) = app.tray_by_id("lens") {
+                    let _ = tray.set_tooltip(Some(format!(
+                        "Lens: updating the app to {}",
+                        update.version
+                    )));
+                }
+                match update.download_and_install(|_, _| {}, || {}).await {
+                    Ok(()) => {
+                        std::env::set_var(UPDATED_ENV, "1");
+                        app.restart();
+                    }
+                    Err(e) => say(&format!("Couldn't update Lens.app: {e}"), true),
+                }
+            }
+            Ok(None) => say(
+                &format!("Lens.app {} is up to date.", app.package_info().version),
+                false,
+            ),
+            Err(e) => say(&format!("Couldn't check for a newer Lens.app: {e}"), true),
+        }
+    });
+}
+
 fn origin(url: &Url) -> String {
     url.origin().ascii_serialization()
 }
@@ -142,7 +215,14 @@ fn origin(url: &Url) -> String {
 fn main() {
     let shown = Shown::default();
     let allowed = shown.0.clone();
+    let updated = std::env::var_os(UPDATED_ENV).is_some();
+    std::env::remove_var(UPDATED_ENV);
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_updater::Builder::new()
+                .pubkey(UPDATER_PUBKEY.unwrap_or_default())
+                .build(),
+        )
         .manage(shown)
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -153,6 +233,7 @@ fn main() {
                 .title("Lens")
                 .inner_size(980.0, 760.0)
                 .min_inner_size(520.0, 420.0)
+                .visible(!updated)
                 .on_navigation(move |url| {
                     if matches!(url.scheme(), "tauri" | "asset")
                         || url.host_str() == Some("tauri.localhost")
@@ -189,6 +270,23 @@ fn main() {
             let update = MenuItem::with_id(app, "update", "Update Lens", true, None::<&str>)?;
             let window_item = MenuItem::with_id(app, "window", "Show Window", true, None::<&str>)?;
             let logs = MenuItem::with_id(app, "logs", "Show Logs", true, None::<&str>)?;
+            let app_update = if updates_on() {
+                MenuItem::with_id(
+                    app,
+                    "app-update",
+                    "Check for App Updates",
+                    true,
+                    None::<&str>,
+                )?
+            } else {
+                MenuItem::with_id(
+                    app,
+                    "app-update",
+                    "App Updates: Off in This Build",
+                    false,
+                    None::<&str>,
+                )?
+            };
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let sep = || PredefinedMenuItem::separator(app);
             let menu = Menu::with_items(
@@ -202,6 +300,7 @@ fn main() {
                     &sep()?,
                     &window_item,
                     &logs,
+                    &app_update,
                     &sep()?,
                     &quit,
                 ],
@@ -221,6 +320,7 @@ fn main() {
                     run(app, "update");
                 }
                 "window" => show_window(app),
+                "app-update" => update_app(app, true),
                 "logs" =>
                 {
                     #[cfg(target_os = "macos")]
@@ -235,7 +335,19 @@ fn main() {
             })
             .build(app)?;
 
-            run(&handle, "launch");
+            run_with(&handle, "launch", updated);
+            if updates_on() {
+                let h = handle.clone();
+                // a minute after launch (six hours after an update's restart), then every six hours
+                std::thread::spawn(move || {
+                    let mut wait = if updated { 6 * 3600 } else { 60 };
+                    loop {
+                        std::thread::sleep(Duration::from_secs(wait));
+                        update_app(&h, false);
+                        wait = 6 * 3600;
+                    }
+                });
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
