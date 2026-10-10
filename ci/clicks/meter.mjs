@@ -56,9 +56,17 @@ export class Meter {
     this.record("click", what, 1, 0);
     try {
       await locator.click({ trial: true, timeout: 3000 });
+      return await locator.click();
     } catch {
-      // Something lies over it (the floating Ask button, a toast). The step notes it; the click still counts one, done
-      // here with the keyboard so it reaches the control rather than what covers it.
+      // Covered where it scrolled to: a person scrolls on to the end of the page (not counted) and tries again
+      await this.page.mouse.wheel(0, 10000);
+      await this.page.waitForTimeout(300);
+    }
+    try {
+      await locator.click({ trial: true, timeout: 2000 });
+    } catch {
+      // Something still lies over it (the floating Ask button, a toast). The step notes it; the click still counts
+      // one, done here with the keyboard so it reaches the control rather than what covers it.
       await locator.waitFor({ state: "visible" });
       const step = this.journey?.steps.at(-1);
       if (step) step.what += " (covered by something else on the page)";
@@ -86,13 +94,16 @@ export class Meter {
     await locator.fill(text);
   }
 
-  /** Replaces what a field holds: the focusing click when needed, Ctrl+A, then the new text. */
+  /** Replaces what a field holds: the focusing click when needed, Ctrl+A unless it's all selected, the new text. */
   async replace(locator, text, what) {
     await locator.waitFor();
-    const focused = await locator.evaluate((el) => el === document.activeElement || el.contains(document.activeElement));
-    this.record("replace", what, focused ? 0 : 1, 1 + text.length);
+    const { focused, selected } = await locator.evaluate((el) => ({
+      focused: el === document.activeElement,
+      selected: el === document.activeElement && el.value != null && el.selectionStart === 0 && el.selectionEnd === el.value.length,
+    }));
+    this.record("replace", what, focused ? 0 : 1, (selected ? 0 : 1) + text.length);
     if (!focused) await locator.click();
-    await this.page.keyboard.press("ControlOrMeta+a");
+    if (!selected) await this.page.keyboard.press("ControlOrMeta+a");
     await locator.pressSequentially(text);
   }
 

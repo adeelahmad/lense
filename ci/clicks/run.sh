@@ -40,6 +40,6 @@ for url in http://127.0.0.1:8000/api/v1/auth/status http://127.0.0.1:3000/login;
 done
 
 status=0
-(cd "$here" && LENS_SURVEY_DIR="$tmp/install" node survey.mjs "$@") || status=$?
+LENS_SURVEY_DIR="$tmp/install" node "$here/survey.mjs" "$@" || status=$?
 if [ $status -ne 0 ]; then tail -40 "$tmp/backend.log" >&2; fi
 exit $status
