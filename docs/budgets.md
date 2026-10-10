@@ -67,7 +67,23 @@ Asking a routine to run from the app or the API when it's over budget is refused
 Every five minutes the scheduler looks at every budget. One that crosses `warn_at` or its cap gets an alert, once per
 period: on the budget (`alert`) and as a `budget.near` or `budget.over` row in its activity history.
 
+## The meter and the Costs page
+
+The top bar shows what the namespace picked in the switcher spent, against its budget: "$1.20 / $5" with a bar, gold
+once the budget is near (`warn_at`) and red when it's used up. It counts the budget's own period (day, week or month);
+without a budget it shows what was spent over the period you pick (day, week or month, remembered in this browser).
+With "All namespaces" it shows what all of Lens spent (admins only), against the budget for all of Lens when one is set.
+Clicking it opens the details: used and left, the spend for the period you pick and the models it went to.
+
+**Costs** in the left menu has the rest for the same namespace and period: spend by day, by model, what cost most
+(routines, pipelines, workflows, chats, documents), by namespace (for all of Lens), the namespace's budget to set or
+change (admins), and every other budget with how much of it is used.
+
+`GET /api/v1/budgets/meter?ns=&period=&detail=` serves both. Anyone who can read a namespace sees its meter; all of
+Lens is admins'. A namespace's spend is the calls that count for it: its jobs, and requests to its own pages.
+
 ## Refine later
 
 Forecasting from a routine's schedule (its runs left this period), per-person budgets, budget warnings sent through
-notifications and the weekly digest, and the assistant answering "where do my budgets stand?" in chat.
+notifications and the weekly digest, and the assistant answering "where do my budgets stand?" in chat. The meter could
+count chats in a namespace (they aren't attributed to one yet) and show a forecast to the end of the period.

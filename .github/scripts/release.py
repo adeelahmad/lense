@@ -5,8 +5,8 @@ pre-commit hook; needs only Python and git.
     release.py cut auto|patch|minor|major|X.Y.Z [--date YYYY-MM-DD]
         Writes the new version's CHANGELOG.md section: the "## Unreleased" text, when there is any, then the changes
         merged since the last release, listed from their Conventional Commit titles (except those that wrote their
-        own Unreleased entry, unless breaking). Sets the version in pyproject.toml, uv.lock, package.json and
-        CloudronManifest.json (when present) and prints it. `auto` picks the bump from those titles and any
+        own Unreleased entry, unless breaking). Sets the version in pyproject.toml, uv.lock, package.json, the API
+        schema (openapi.json) and CloudronManifest.json (when present) and prints it. `auto` picks the bump from those titles and any
         BREAKING CHANGE footers: a breaking change is major (minor before 1.0), a feat minor, anything else patch.
     release.py notes X.Y.Z
         Prints that version's CHANGELOG.md section without its heading (nothing when there's none).
@@ -37,6 +37,8 @@ VERSION_FILES = {
     "CloudronManifest.json": r'(^  "version": ")([^"]+)(")',
     # what a running Lens says it is (the API, MCP, telemetry, and the update check in docs/updates.md)
     "fastapi_backend/app/domain/__init__.py": r'(^__version__ = ")([^"]+)(")',
+    # the API schema's info.version is __version__, and CI checks the committed schema matches the generated one
+    "nextjs-frontend/openapi.json": r'(^    "version": ")([^"]+)(")',
 }
 
 TYPES = {

@@ -28,6 +28,14 @@ updates:
       # presets, so it only builds inside AFFiNE's own repo. The notes editor stays on 0.19.5 until that changes.
       - dependency-name: "@blocksuite/*"
 
+  - package-ecosystem: npm # pnpm: Nx, the root's only dependency
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: build
+      include: scope
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
