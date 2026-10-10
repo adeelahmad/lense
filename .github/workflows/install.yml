@@ -90,7 +90,7 @@ jobs:
             sleep 5
           done
           echo "$p" | jq '{state, url, error}'
-          [ "$state" = done ] || exit 1
+          [ "$state" = "done" ] || exit 1
           echo "$p" | jq -r .url >setup-url
 
       - name: Lens answers, waits for its first admin, and has the installer's settings
@@ -114,7 +114,10 @@ jobs:
         if: always()
         run: |
           curl -fsS -b jar -H 'X-Lens-Installer: 1' -X POST -d '{}' http://127.0.0.1:3990/api/quit || true
-          if [ -d "$LENS_DIR" ]; then cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml down -v || true; fi
+          if [ -d "$LENS_DIR" ]; then
+            cd "$LENS_DIR"
+            docker compose -f docker-compose.prod.yml down -v || true
+          fi
 
   install:
     name: One-line install
