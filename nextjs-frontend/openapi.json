@@ -23817,6 +23817,231 @@
           }
         }
       }
+    },
+    "/api/v1/podcasts": {
+      "post": {
+        "tags": [
+          "podcasts"
+        ],
+        "summary": "Create Podcast",
+        "description": "Make an episode about these resources and lines, in the background (watch its job on /events). It goes in the\npodcasts namespace when everyone there can read every source, else in the sources' own namespace (400 when they\nspan several); you need editor access where it goes. Audited as `podcast.create`.",
+        "operationId": "create_podcast",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PodcastCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "podcasts"
+        ],
+        "summary": "List Podcasts",
+        "description": "Episodes in the namespaces you can read, newest first.",
+        "operationId": "list_podcasts",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PodcastSummary"
+                  },
+                  "title": "Response Podcasts-List Podcasts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/podcasts/{rid}": {
+      "get": {
+        "tags": [
+          "podcasts"
+        ],
+        "summary": "Get Podcast",
+        "description": "An episode: what was asked for, how far it has got, the excerpts it drew on, the outline, the script with each\nline's citations and times, and what the fact-check changed. Its audio is /recordings/{id}/audio.",
+        "operationId": "get_podcast",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Podcast"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "podcasts"
+        ],
+        "summary": "Delete Podcast",
+        "description": "Delete an episode with its audio (editors of its namespace, unlike other recordings: Lens made it). 409 while a\njob is working on it.",
+        "operationId": "delete_podcast",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/podcasts/{rid}/regenerate": {
+      "post": {
+        "tags": [
+          "podcasts"
+        ],
+        "summary": "Regenerate Podcast",
+        "description": "Make the episode again from what was asked for, reading its sources afresh (editors). A job already making it\nis returned instead.",
+        "operationId": "regenerate_podcast",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastJob"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -40588,6 +40813,27 @@
         "type": "object",
         "title": "PhotoResults"
       },
+      "PickedLine": {
+        "properties": {
+          "recording": {
+            "type": "integer",
+            "title": "Recording"
+          },
+          "idx": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Idx",
+            "description": "the line (segment) number in the recording"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "recording",
+          "idx"
+        ],
+        "title": "PickedLine"
+      },
       "Pipeline": {
         "properties": {
           "id": {
@@ -41250,6 +41496,664 @@
         ],
         "title": "Player",
         "description": "Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces; for\ndocuments and images, their pages."
+      },
+      "Podcast": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "space": {
+            "type": "integer",
+            "title": "Space"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "queued, gathering, planning, writing, checking, rendering, publishing, ready, script_only or failed"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "request": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Request",
+            "default": {}
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PodcastSource"
+            },
+            "type": "array",
+            "title": "Sources",
+            "default": []
+          },
+          "outline": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outline"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/PodcastLine"
+            },
+            "type": "array",
+            "title": "Lines",
+            "default": []
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/PodcastCheck"
+            },
+            "type": "array",
+            "title": "Checks",
+            "default": []
+          },
+          "audio": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job",
+            "description": "the job making it now, if one is"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "space",
+          "status"
+        ],
+        "title": "Podcast"
+      },
+      "PodcastCheck": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "idx",
+          "verdict",
+          "action"
+        ],
+        "title": "PodcastCheck"
+      },
+      "PodcastCitation": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "recording": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording"
+          },
+          "idx0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idx0"
+          },
+          "idx1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idx1"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "n",
+          "kind"
+        ],
+        "title": "PodcastCitation"
+      },
+      "PodcastCreate": {
+        "properties": {
+          "selection": {
+            "$ref": "#/components/schemas/PodcastSelection"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt",
+            "description": "an angle, e.g. \"explain it for a beginner\""
+          },
+          "length": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Length",
+            "description": "minutes (up to podcasts.max_minutes)",
+            "default": 10
+          },
+          "style": {
+            "type": "string",
+            "enum": [
+              "deep-dive",
+              "recap",
+              "debate",
+              "beginner"
+            ],
+            "title": "Style",
+            "default": "deep-dive"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "voices": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PodcastVoices"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "selection"
+        ],
+        "title": "PodcastCreate"
+      },
+      "PodcastJob": {
+        "properties": {
+          "job": {
+            "type": "integer",
+            "title": "Job"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "job"
+        ],
+        "title": "PodcastJob"
+      },
+      "PodcastLine": {
+        "properties": {
+          "idx": {
+            "type": "integer",
+            "title": "Idx"
+          },
+          "speaker": {
+            "type": "string",
+            "enum": [
+              "a",
+              "b"
+            ],
+            "title": "Speaker"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "citations": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Citations",
+            "default": []
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PodcastCitation"
+            },
+            "type": "array",
+            "title": "Sources",
+            "default": []
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0"
+          },
+          "t1": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T1"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "idx",
+          "speaker",
+          "kind",
+          "text"
+        ],
+        "title": "PodcastLine"
+      },
+      "PodcastSelection": {
+        "properties": {
+          "recordings": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Recordings",
+            "description": "resources picked whole"
+          },
+          "excerpts": {
+            "items": {
+              "$ref": "#/components/schemas/PickedLine"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Excerpts",
+            "description": "lines picked in resources (search hits)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PodcastSelection"
+      },
+      "PodcastSource": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "ref": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Ref"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "picked": {
+            "type": "boolean",
+            "title": "Picked",
+            "default": true
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "n",
+          "ref",
+          "title",
+          "text"
+        ],
+        "title": "PodcastSource"
+      },
+      "PodcastStarted": {
+        "properties": {
+          "episode": {
+            "type": "integer",
+            "title": "Episode",
+            "description": "the episode's recording id"
+          },
+          "job": {
+            "type": "integer",
+            "title": "Job"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "placed": {
+            "type": "string",
+            "enum": [
+              "podcasts",
+              "sources"
+            ],
+            "title": "Placed",
+            "description": "podcasts: the podcasts namespace; sources: the sources' own"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "episode",
+          "job",
+          "namespace",
+          "placed"
+        ],
+        "title": "PodcastStarted"
+      },
+      "PodcastSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "space": {
+            "type": "integer",
+            "title": "Space"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Ms"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "space"
+        ],
+        "title": "PodcastSummary"
+      },
+      "PodcastVoices": {
+        "properties": {
+          "a": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A",
+            "description": "the explaining host's voice"
+          },
+          "b": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B",
+            "description": "the asking host's voice"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PodcastVoices"
       },
       "PreviewLine": {
         "properties": {

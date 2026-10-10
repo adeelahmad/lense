@@ -9664,6 +9664,22 @@ export type PhotoResults = {
 };
 
 /**
+ * PickedLine
+ */
+export type PickedLine = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Idx
+   *
+   * the line (segment) number in the recording
+   */
+  idx: number;
+};
+
+/**
  * Pipeline
  */
 export type Pipeline = {
@@ -10060,6 +10076,366 @@ export type Player = {
    */
   faces_pixelate?: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * Podcast
+ */
+export type Podcast = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Space
+   */
+  space: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Status
+   *
+   * queued, gathering, planning, writing, checking, rendering, publishing, ready, script_only or failed
+   */
+  status: string;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Request
+   */
+  request?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Sources
+   */
+  sources?: Array<PodcastSource>;
+  /**
+   * Outline
+   */
+  outline?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Lines
+   */
+  lines?: Array<PodcastLine>;
+  /**
+   * Checks
+   */
+  checks?: Array<PodcastCheck>;
+  /**
+   * Audio
+   */
+  audio?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Job
+   *
+   * the job making it now, if one is
+   */
+  job?: number | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastCheck
+ */
+export type PodcastCheck = {
+  /**
+   * Idx
+   */
+  idx: number;
+  /**
+   * Verdict
+   */
+  verdict: string;
+  /**
+   * Action
+   */
+  action: string;
+  /**
+   * Before
+   */
+  before?: string | null;
+  /**
+   * After
+   */
+  after?: string | null;
+  /**
+   * Why
+   */
+  why?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastCitation
+ */
+export type PodcastCitation = {
+  /**
+   * N
+   */
+  n: number;
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Recording
+   */
+  recording?: number | null;
+  /**
+   * Idx0
+   */
+  idx0?: number | null;
+  /**
+   * Idx1
+   */
+  idx1?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastCreate
+ */
+export type PodcastCreate = {
+  selection: PodcastSelection;
+  /**
+   * Prompt
+   *
+   * an angle, e.g. "explain it for a beginner"
+   */
+  prompt?: string | null;
+  /**
+   * Length
+   *
+   * minutes (up to podcasts.max_minutes)
+   */
+  length?: number;
+  /**
+   * Style
+   */
+  style?: "deep-dive" | "recap" | "debate" | "beginner";
+  /**
+   * Title
+   */
+  title?: string | null;
+  voices?: PodcastVoices | null;
+};
+
+/**
+ * PodcastJob
+ */
+export type PodcastJob = {
+  /**
+   * Job
+   */
+  job: number;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastLine
+ */
+export type PodcastLine = {
+  /**
+   * Idx
+   */
+  idx: number;
+  /**
+   * Speaker
+   */
+  speaker: "a" | "b";
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Citations
+   */
+  citations?: Array<number>;
+  /**
+   * Sources
+   */
+  sources?: Array<PodcastCitation>;
+  /**
+   * T0
+   */
+  t0?: number | null;
+  /**
+   * T1
+   */
+  t1?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastSelection
+ */
+export type PodcastSelection = {
+  /**
+   * Recordings
+   *
+   * resources picked whole
+   */
+  recordings?: Array<number>;
+  /**
+   * Excerpts
+   *
+   * lines picked in resources (search hits)
+   */
+  excerpts?: Array<PickedLine>;
+};
+
+/**
+ * PodcastSource
+ */
+export type PodcastSource = {
+  /**
+   * N
+   */
+  n: number;
+  /**
+   * Ref
+   */
+  ref: {
+    [key: string]: unknown;
+  };
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * T0
+   */
+  t0?: number | null;
+  /**
+   * Page
+   */
+  page?: number | null;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Picked
+   */
+  picked?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastStarted
+ */
+export type PodcastStarted = {
+  /**
+   * Episode
+   *
+   * the episode's recording id
+   */
+  episode: number;
+  /**
+   * Job
+   */
+  job: number;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Placed
+   *
+   * podcasts: the podcasts namespace; sources: the sources' own
+   */
+  placed: "podcasts" | "sources";
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastSummary
+ */
+export type PodcastSummary = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Status
+   */
+  status: string;
+  /**
+   * Space
+   */
+  space: number;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastVoices
+ */
+export type PodcastVoices = {
+  /**
+   * A
+   *
+   * the explaining host's voice
+   */
+  a?: string | null;
+  /**
+   * B
+   *
+   * the asking host's voice
+   */
+  b?: string | null;
 };
 
 /**
@@ -31381,3 +31757,154 @@ export type LockVaultResponses = {
 };
 
 export type LockVaultResponse = LockVaultResponses[keyof LockVaultResponses];
+
+export type ListPodcastsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/podcasts";
+};
+
+export type ListPodcastsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListPodcastsError = ListPodcastsErrors[keyof ListPodcastsErrors];
+
+export type ListPodcastsResponses = {
+  /**
+   * Response Podcasts-List Podcasts
+   *
+   * Successful Response
+   */
+  200: Array<PodcastSummary>;
+};
+
+export type ListPodcastsResponse = ListPodcastsResponses[keyof ListPodcastsResponses];
+
+export type CreatePodcastData = {
+  body: PodcastCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/podcasts";
+};
+
+export type CreatePodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreatePodcastError = CreatePodcastErrors[keyof CreatePodcastErrors];
+
+export type CreatePodcastResponses = {
+  /**
+   * Successful Response
+   */
+  202: PodcastStarted;
+};
+
+export type CreatePodcastResponse = CreatePodcastResponses[keyof CreatePodcastResponses];
+
+export type DeletePodcastData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/podcasts/{rid}";
+};
+
+export type DeletePodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletePodcastError = DeletePodcastErrors[keyof DeletePodcastErrors];
+
+export type DeletePodcastResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeletePodcastResponse = DeletePodcastResponses[keyof DeletePodcastResponses];
+
+export type GetPodcastData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/podcasts/{rid}";
+};
+
+export type GetPodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetPodcastError = GetPodcastErrors[keyof GetPodcastErrors];
+
+export type GetPodcastResponses = {
+  /**
+   * Successful Response
+   */
+  200: Podcast;
+};
+
+export type GetPodcastResponse = GetPodcastResponses[keyof GetPodcastResponses];
+
+export type RegeneratePodcastData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/podcasts/{rid}/regenerate";
+};
+
+export type RegeneratePodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RegeneratePodcastError = RegeneratePodcastErrors[keyof RegeneratePodcastErrors];
+
+export type RegeneratePodcastResponses = {
+  /**
+   * Successful Response
+   */
+  202: PodcastJob;
+};
+
+export type RegeneratePodcastResponse = RegeneratePodcastResponses[keyof RegeneratePodcastResponses];

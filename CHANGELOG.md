@@ -9,7 +9,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   against it before it's kept, and the script is read aloud in two voices by your text-to-speech provider (a local
   OpenAI-compatible server works). Episodes are recordings in a `podcasts` namespace, so they're searchable and on the
   graph. Start one with `POST /api/v1/podcasts` or the MCP tool `create_podcast`; the web app's dialog comes next
-  ([Podcasts](docs/podcasts.md))
+  ([Podcasts](docs/podcasts.md)).
 
 ## 0.4.2 <small>October 9, 2026</small> {id="0.4.2"}
 
