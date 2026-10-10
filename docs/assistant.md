@@ -152,10 +152,17 @@ apart from what the person asks:
   [your browser](browser-assistant.md), opening or downloading an address or typing text you didn't write. The
   approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
   memories are still written at once: they stay in Lens, and are marked as data when read back.
+- **Links a chat app would fetch broken up:** in chat rooms, a web address the answer built itself can't be previewed
+  ([chat rooms](chat-rooms.md)); the web app shows no links or images that load by themselves; MCP results reach
+  other agents with control tokens broken up and a note when flagged ([MCP](mcp.md)).
+- **Logged:** each flagged tool result (`assistant.injection_flagged`, with the tool and the reasons, never the text)
+  goes into the audit log, which admins read (`GET /api/v1/audit`).
 
-Marking makes injection less likely to work; it doesn't make it impossible (a system prompt is not a filter). What
-the assistant can do is still bounded by the person's reads and approvals (N-PROMPT in the repository's
-`threat-model.md`).
+The layers stand on their own: the person's reads bound what any answer can see whatever the model does, marking and
+flags work without approvals, approvals don't depend on anything being flagged, and links are broken up whether or
+not the answer asked first. Turning one off leaves the others. Marking and flagging make injection less likely to
+work; they don't make it impossible (a system prompt is not a filter). What the assistant can do is still bounded by
+the person's reads and approvals (N-PROMPT in the repository's `threat-model.md`).
 
 ## A namespace's own assistant
 
