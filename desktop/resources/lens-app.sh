@@ -64,7 +64,7 @@ install_msb() {
   [ -x "$HOME/.microsandbox/bin/msb" ] && return 0
   have msb && return 0
   bundle="${LENS_MSB_BUNDLE:-}"
-  [ -n "$bundle" ] && [ -f "$bundle" ] || return 0
+  if [ -z "$bundle" ] || [ ! -f "$bundle" ]; then return 0; fi
   status "Setting up microsandbox..."
   tmp="$(mktemp -d)"
   if ! tar -xzf "$bundle" -C "$tmp"; then
@@ -87,7 +87,9 @@ install_msb() {
   cp "$krun" "$home/lib/$name"
   ln -sf "$name" "$home/lib/libkrunfw.dylib"
   for c in msb microsandbox; do
-    [ -e "$HOME/.local/bin/$c" ] && [ ! -L "$HOME/.local/bin/$c" ] || ln -sf "$home/bin/$c" "$HOME/.local/bin/$c"
+    if [ ! -e "$HOME/.local/bin/$c" ] || [ -L "$HOME/.local/bin/$c" ]; then # leave a file someone put there
+      ln -sf "$home/bin/$c" "$HOME/.local/bin/$c"
+    fi
   done
   if [ "$os" = Darwin ]; then
     xattr -dr com.apple.quarantine "$home" 2>/dev/null || true
