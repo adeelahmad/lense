@@ -4022,7 +4022,7 @@ export type EventInfo = {
   /**
    * Type
    */
-  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added";
+  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release";
   /**
    * Label
    */
@@ -6795,7 +6795,7 @@ export type LinksImport = {
 /**
  * LinksImportRequest
  *
- * Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a
+ * Links pasted as ``text`` (one per line), listed in ``urls``, or a file (``filename`` + base64 ``data``): a list of addresses, a
  * browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON).
  */
 export type LinksImportRequest = {
@@ -6811,6 +6811,12 @@ export type LinksImportRequest = {
    * addresses, one per line
    */
   text?: string | null;
+  /**
+   * Urls
+   *
+   * addresses, as a list
+   */
+  urls?: Array<string> | null;
   /**
    * Filename
    */
@@ -8940,7 +8946,9 @@ export type NotifyTarget = {
   /**
    * Events
    */
-  events: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added">;
+  events: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  >;
   /**
    * Enabled
    */
@@ -9015,7 +9023,9 @@ export type NotifyTargetCreate = {
    *
    * default: job.failed and batch.finished
    */
-  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  events?: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  > | null;
   /**
    * Enabled
    */
@@ -9071,7 +9081,9 @@ export type NotifyTargetUpdate = {
   /**
    * Events
    */
-  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  events?: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  > | null;
   /**
    * Enabled
    */
@@ -14566,6 +14578,12 @@ export type SpeakRequest = {
    * Text
    */
   text: string;
+  /**
+   * Voice
+   *
+   * read in this voice (an id from GET /voice/voices); else the settings'
+   */
+  voice?: string | null;
 };
 
 /**
@@ -16844,6 +16862,56 @@ export type VoiceInfo = {
    * the server reads answers aloud (POST /voice/speak); else the browser does
    */
   speak: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceList
+ */
+export type VoiceList = {
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Current
+   *
+   * the voice answers are read in now (null: the provider's default)
+   */
+  current?: string | null;
+  /**
+   * Voices
+   */
+  voices: Array<VoiceOption>;
+  /**
+   * Error
+   *
+   * why the provider's voices couldn't be listed
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceOption
+ */
+export type VoiceOption = {
+  /**
+   * Id
+   *
+   * what voice.tts_voice is set to
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Detail
+   *
+   * what the provider says about it: accent, gender, style, language
+   */
+  detail?: string | null;
   [key: string]: unknown;
 };
 
@@ -32066,6 +32134,36 @@ export type SpeakTextResponses = {
 };
 
 export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];
+
+export type ListVoicesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Provider
+     */
+    provider?: string | null;
+  };
+  url: "/api/v1/voice/voices";
+};
+
+export type ListVoicesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListVoicesError = ListVoicesErrors[keyof ListVoicesErrors];
+
+export type ListVoicesResponses = {
+  /**
+   * Successful Response
+   */
+  200: VoiceList;
+};
+
+export type ListVoicesResponse = ListVoicesResponses[keyof ListVoicesResponses];
 
 export type UnsealVaultData = {
   body?: never;

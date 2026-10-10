@@ -48,7 +48,7 @@ EDITABLE = {
     "notifications": None,
     "telemetry": None,
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
-    "updates": ("check", "check_hours", "auto_install"),
+    "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
     "encryption": None,
     "fedora": None,
@@ -112,11 +112,11 @@ SECRETS = {
     "embeddings": ("api_key",),
     "decisions": ("api_key",),
     "voice": ("tts_api_key",),
-    "speech": ("openai_api_key", "elevenlabs_api_key", "assemblyai_api_key", "deepgram_api_key"),
+    "speech": ("openai_api_key", "elevenlabs_api_key", "assemblyai_api_key", "deepgram_api_key", "gemini_api_key"),
     "mail": ("password",),
     "bridge": ("token",),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
-    "telemetry": ("headers",),
+    "telemetry": ("headers", "prometheus_token"),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
     "documents": ("anytopdf_token",),
@@ -137,7 +137,7 @@ ENUMS = {
     ("decisions", "engine"): {"auto", "jev", "laya", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
     ("voice", "stt"): {"same", "sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
-    ("voice", "tts_provider"): {"openai", "elevenlabs", "deepgram"},
+    ("voice", "tts_provider"): {"openai", "elevenlabs", "deepgram", "gemini", "say"},
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
@@ -167,6 +167,8 @@ ENV_OVERRIDES = {
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
+    ("telemetry", "prometheus"): "LENS_PROMETHEUS",
+    ("telemetry", "prometheus_token"): "LENS_PROMETHEUS_TOKEN",
     ("fedora", "enabled"): "LENS_FEDORA",
     ("fedora", "url"): "LENS_FEDORA_URL",
     ("fedora", "user"): "LENS_FEDORA_USER",
@@ -371,6 +373,14 @@ def _check(section, key, value, default):
         if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
             raise ValueError("llm.vision_model is a model's name")
         return (value or "").strip() or None
+    if (section, key) == ("ai", "compact_model"):
+        if value is not None and not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError("ai.compact_model is a model's name")
+        return (value or "").strip() or None
+    if (section, key) == ("ai", "context_tokens"):
+        if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1024 <= value <= 2_000_000):
+            raise ValueError("ai.context_tokens is a whole number of tokens from 1024 to 2000000")
+        return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
             raise ValueError("llm.describe_max is a whole number from 1 to 1000")
@@ -851,10 +861,19 @@ def _sensor_setting(key, value):
 
 TELEMETRY_RANGES = {"export_seconds": (5, 3600)}
 SERVICE_RX = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+TOKEN_RX = re.compile(r"^[A-Za-z0-9._~-]+$")
 
 
 def _telemetry_setting(key, value):
-    if key in ("enabled", "traces", "metrics"):
+    if key == "prometheus_token":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and 16 <= len(value.strip()) <= 200 and TOKEN_RX.match(value.strip())):
+            raise ValueError(
+                "telemetry.prometheus_token is 16 to 200 letters, digits, ., _, ~ and -, like the output of openssl rand -hex 32"
+            )
+        return value.strip()
+    if key in ("enabled", "traces", "metrics", "prometheus"):
         if not isinstance(value, bool):
             raise ValueError(f"telemetry.{key} is true or false")
         return value
@@ -980,7 +999,7 @@ def save(db, base, section, changes, user=None):
                     telemetry.parse_headers(v)  # ValueError when malformed
                 if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
                     raise ValueError(f"matterbridge.{k} is one line of text")
-                if (section, k) == ("documents", "anytopdf_token"):
+                if (section, k) in (("documents", "anytopdf_token"), ("telemetry", "prometheus_token")):
                     v = _check(section, k, v, None)
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"

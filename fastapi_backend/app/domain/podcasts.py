@@ -39,7 +39,7 @@ STAGE_NAMES = {
 AFTER = ["analyze", "embed", "summarize"]  # what any new transcript gets
 STATUS = {"gather": "gathering", "plan": "planning", "write": "writing", "check": "checking", "audio": "rendering", "publish": "publishing"}
 # the second host's voice when podcasts.voice_b isn't set, per text-to-speech provider (the first's is voice.tts_voice)
-SECOND_VOICE = {"openai": "onyx", "elevenlabs": "EXAVITQu4vr4xnSDxMKL", "deepgram": "aura-2-orion-en"}
+SECOND_VOICE = {"openai": "onyx", "elevenlabs": "EXAVITQu4vr4xnSDxMKL", "deepgram": "aura-2-orion-en", "gemini": "Puck"}
 PAUSE_MS = {"turn": 450, "same": 250}  # silence before a line: when the other host speaks, and when the same one goes on
 LENGTHS = (5, 10, 20)  # minutes offered; anything from 1 to podcasts.max_minutes goes
 STYLES = {
@@ -718,14 +718,13 @@ def timed(lines, wpm=150, pause_ms=400):
 
 def voices(cfg, req=None):
     """{a, b}: the hosts' voices for the text-to-speech provider: what the episode asked for, else podcasts.voice_a /
-    voice_b, else voice.tts_voice and a second voice of the provider's."""
+    voice_b, else voice.tts_voice and a second voice of the provider's (say has no voice every Mac is sure to have, so
+    both hosts get the same one unless podcasts.voice_b names another)."""
     from . import speech
 
-    v, p = cfg.get("voice") or {}, cfg.get("podcasts") or {}
-    provider = v.get("tts_provider") or "openai"
-    first = {"openai": v.get("tts_voice") or "alloy", "elevenlabs": v.get("tts_voice") or speech.ELEVENLABS_VOICE}.get(
-        provider, v.get("tts_model") or speech.DEEPGRAM_TTS_MODEL
-    )
+    p = cfg.get("podcasts") or {}
+    provider = speech.tts_provider(cfg)
+    first = speech.tts_voice(cfg)  # None for say: the Mac's own voice
     asked = (req or {}).get("voices") or {}
     return {"a": asked.get("a") or p.get("voice_a") or first, "b": asked.get("b") or p.get("voice_b") or SECOND_VOICE.get(provider, first)}
 
