@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Watch a folder in four clicks.** **Watch a local folder** on the Sensors page opens this machine's allowed
+  folders, and each has a **Watch** button, so it no longer has to be opened first. Adding **This machine** as a
+  connection skips the test-and-name step unless its test fails ([Sensors](docs/sensors.md#in-the-web-app)).
+
 - **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
   inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API

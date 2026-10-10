@@ -82,6 +82,8 @@ test("the Sensors page shows the hub, new sensors with their suggestion, streams
   expect(screen.getByText(/keep everything for two weeks/)).toBeInTheDocument();
   expect(screen.getByText("Changes for a week, hourly summaries for 2 years")).toBeInTheDocument();
   expect(screen.getByText("NAS")).toBeInTheDocument();
+  // one click to this machine's allowed folders
+  expect(screen.getByRole("link", { name: "Watch a local folder" })).toHaveAttribute("href", "/sources?watch=local");
   fireEvent.click(screen.getByRole("button", { name: "Apply" }));
   await waitFor(() => expect(Sensors.applySuggestion).toHaveBeenCalled());
   expect(m(Sensors.applySuggestion).mock.calls[0][0].path).toEqual({ sid: 2 });
