@@ -18,6 +18,7 @@
 #                  when microsandbox can run here (Linux with KVM, or a Mac with Apple silicon); default: docker
 #   GITHUB_TOKEN   a GitHub token to use when downloading (not needed; avoids GitHub's rate limits)
 #   LENS_NO_OPEN   1: don't open a browser
+#   LENS_YES       1: install what Lens needs without asking (it only asks at a terminal)
 set -eu
 
 # All in a function, so nothing runs until the whole script has arrived (curl | sh streams it).
@@ -44,14 +45,17 @@ os="$(uname -s)"
 sudo_ok() { [ "$(id -u)" = 0 ] && echo "" || echo sudo; }
 
 # --- What runs it: Docker, or a microsandbox microVM ----------------------------------------------------------------
-# microsandbox needs hardware virtualization: KVM on 64-bit Linux, Apple silicon on a Mac
+# microsandbox needs hardware virtualization: KVM on 64-bit Linux (or a CPU that has it, whose module isn't loaded
+# yet), Apple silicon on a Mac
 msb_ok() {
   case "$os/$(uname -m)" in
-    Linux/x86_64 | Linux/aarch64) [ -e /dev/kvm ] ;;
+    Linux/x86_64) [ -e /dev/kvm ] || grep -Eqw 'vmx|svm' /proc/cpuinfo 2>/dev/null ;;
+    Linux/aarch64) [ -e /dev/kvm ] ;;
     Darwin/arm64) true ;;
     *) false ;;
   esac
 }
+tty_ok() { [ "${LENS_YES:-0}" != 1 ] && (: </dev/tty) 2>/dev/null; }
 BACKEND="${LENS_BACKEND:-}"
 if [ -z "$BACKEND" ] && [ -f "$DIR/.env" ]; then # an existing install keeps what it runs on (its data is there)
   BACKEND="$(grep '^LENS_BACKEND=' "$DIR/.env" | cut -d= -f2- || true)"
@@ -60,7 +64,7 @@ fi
 if [ -z "$BACKEND" ]; then
   BACKEND=docker
   # asked only when there's someone to ask: piped into sh, the answer comes from the terminal, not stdin
-  if msb_ok && (: </dev/tty) 2>/dev/null; then
+  if msb_ok && tty_ok; then
     printf '\n\033[1mHow should Lens run?\033[0m\n'
     echo "  1) Docker (default): a container for each part, the usual way"
     echo "  2) microsandbox: one lightweight virtual machine, no Docker needed"
@@ -75,14 +79,55 @@ case "$BACKEND" in
   *) fail "LENS_BACKEND is docker or microsandbox, not $BACKEND." ;;
 esac
 
+# --- What's missing: listed, and installed once you say yes ---------------------------------------------------------
+# Asked only at a terminal; piped in by a script or CI (no terminal, or LENS_YES=1) it goes ahead, as before.
+export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+plan=""
+need() { plan="$plan
+  - $*"; }
+if [ "$BACKEND" = microsandbox ]; then
+  have msb || need "microsandbox (from install.microsandbox.dev, into ~/.microsandbox)"
+  if [ "$os" = Linux ]; then
+    [ -e /dev/kvm ] || need "the KVM kernel module (modprobe, with sudo)"
+    { [ -r /dev/kvm ] && [ -w /dev/kvm ]; } || need "access to KVM for $(id -un) (the kvm group, with sudo)"
+  fi
+else
+  if ! have docker; then
+    case "$os" in
+      Linux) need "Docker Engine with Compose (from get.docker.com, with sudo)" ;;
+      Darwin)
+        have brew || need "Homebrew (from brew.sh, asks for your password)"
+        need "OrbStack, which runs Docker on a Mac (with Homebrew)"
+        ;;
+    esac
+  elif ! docker compose version >/dev/null 2>&1 &&
+    ! have docker-compose && [ "$os" = Linux ]; then
+    need "the Docker Compose plugin (with your package manager, with sudo)"
+  fi
+fi
+if [ -n "$plan" ]; then
+  printf '\n\033[1mLens needs these, and will install them:\033[0m%s\n' "$plan"
+  if tty_ok; then
+    printf 'Install them now? [Y/n] '
+    read -r answer </dev/tty || answer=
+    case "$answer" in
+      n* | N*) fail "Nothing was installed. Install them yourself, or run this again and answer yes." ;;
+    esac
+  fi
+fi
+
 if [ "$BACKEND" = microsandbox ]; then
 # --- microsandbox -----------------------------------------------------------------------------------------------
-export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
 if ! have msb; then
   say "Installing microsandbox (install.microsandbox.dev)..."
   have curl || fail "curl is needed to install microsandbox."
   curl -fsSL https://install.microsandbox.dev | sh
   have msb || fail "microsandbox didn't install. See https://docs.microsandbox.dev, then run this again."
+fi
+if [ "$os" = Linux ] && [ ! -e /dev/kvm ]; then
+  say "Loading KVM..."
+  $(sudo_ok) modprobe kvm_intel 2>/dev/null || $(sudo_ok) modprobe kvm_amd 2>/dev/null || $(sudo_ok) modprobe kvm 2>/dev/null || true
+  [ -e /dev/kvm ] || fail "KVM didn't load. Turn on virtualization (VT-x or AMD-V) in the firmware settings, or use LENS_BACKEND=docker."
 fi
 if [ "$os" = Linux ] && ! { [ -r /dev/kvm ] && [ -w /dev/kvm ]; }; then
   say "Letting $(id -un) use KVM (the kvm group)..."
@@ -102,6 +147,11 @@ if ! have docker; then
       $(sudo_ok) systemctl enable --now docker 2>/dev/null || true
       ;;
     Darwin)
+      if ! have brew && tty_ok; then
+        say "Installing Homebrew (brew.sh)..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/tty
+        for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && eval "$("$b" shellenv)" && break; done
+      fi
       if have brew; then
         say "Installing OrbStack, which runs Docker on a Mac (brew)..."
         brew install --cask orbstack
@@ -131,6 +181,12 @@ if $DOCKER compose version >/dev/null 2>&1; then
   COMPOSE="$DOCKER compose"
 elif have docker-compose; then
   COMPOSE="docker-compose"
+elif [ "$os" = Linux ] && {
+  if have apt-get; then $(sudo_ok) apt-get install -y -q docker-compose-plugin
+  elif have dnf; then $(sudo_ok) dnf install -y -q docker-compose-plugin
+  else false; fi
+} >/dev/null 2>&1 && $DOCKER compose version >/dev/null 2>&1; then
+  COMPOSE="$DOCKER compose"
 else
   fail "Docker Compose is missing. Install the Compose plugin (docker-compose-plugin), then run this again."
 fi
