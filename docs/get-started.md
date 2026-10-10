@@ -81,7 +81,7 @@ running and opens it in the browser, where passkeys work. Its menu-bar item open
 and shows the logs. It isn't signed or notarized yet: drag it to Applications, right-click it and choose **Open**, then
 **Open** again. See [desktop/README.md](https://github.com/adeelahmad/lense/blob/main/desktop/README.md).
 
-It updates itself from each release.
+Once the repository has an update key, it updates itself from each release.
 
 **Status: built, early.** Not yet: starting with the Mac, signing, an Intel build.
 
