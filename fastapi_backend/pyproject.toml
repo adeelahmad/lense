@@ -1,6 +1,6 @@
 [project]
 name = "lens"
-version = "0.4.2"
+version = "0.5.0"
 description = "Lens: intelligence for your agent. Safe, secure and cost-effective. Turns your live data streams into a cited knowledge graph your agent can reason over."
 requires-python = ">=3.12,<3.14"
 readme = "README.md"

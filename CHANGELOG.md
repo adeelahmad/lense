@@ -4,12 +4,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.5.0 <small>October 10, 2026</small> {id="0.5.0"}
+
 - **Podcasts from what you pick.** Lens makes a two-host learning episode about resources and passages: one host
   explains, the other asks what a learner would ask, every claim is cited to the passage it comes from and checked
   against it before it's kept, and the script is read aloud in two voices by your text-to-speech provider (a local
   OpenAI-compatible server works). Episodes are recordings in a `podcasts` namespace, so they're searchable and on the
   graph. Start one from the Library's selection bar or a resource's menu, with `POST /api/v1/podcasts`, or with the MCP
   tool `create_podcast`; each episode's page plays it beside its cited script ([Podcasts](docs/podcasts.md)).
+
+### Features
+
+- **install:** run Lens in a microsandbox microVM as an alternative to Docker ([#255](https://github.com/adeelahmad/lense/pull/255))
+
+### Fixes
+
+- **store:** say which setting to fix when SurrealDB refuses the password ([#254](https://github.com/adeelahmad/lense/pull/254))
 
 ## 0.4.2 <small>October 9, 2026</small> {id="0.4.2"}
 
