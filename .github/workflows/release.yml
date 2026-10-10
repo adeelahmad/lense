@@ -152,7 +152,7 @@ jobs:
         # RELEASE_TOKEN's release fires `release: published` in them already
         if: env.EXISTING != 'true' && env.HAS_RELEASE_TOKEN != 'true'
         run: |
-          for workflow in cloudron.yml qnap.yml synology.yml launchers.yml browser-extension.yml; do
+          for workflow in cloudron.yml qnap.yml synology.yml launchers.yml browser-extension.yml safari-clipper.yml; do
             if [ ! -f ".github/workflows/$workflow" ]; then
               echo "$workflow isn't in $TAG; skipped"
             elif gh workflow run "$workflow" --ref "$TAG" -f tag="$TAG"; then

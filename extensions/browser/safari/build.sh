@@ -1,7 +1,8 @@
 #!/bin/sh
 # Wraps dist/safari (the clipper built for Safari) into a Safari Web Extension: a small macOS app that carries the
 # extension, generated with Apple's safari-web-extension-converter and built with xcodebuild. Needs macOS with Xcode.
-# Unsigned unless SAFARI_TEAM_ID is set; Safari loads an unsigned one only with Develop > Allow Unsigned Extensions.
+# The build is unsigned (Safari loads it only with Develop > Allow Unsigned Extensions); app-store.sh signs and
+# uploads the same project.
 #
 #   safari/build.sh [out-dir]    (default: dist/safari-app; writes lens-clipper-safari.zip there)
 set -eu
@@ -26,14 +27,9 @@ project=$(find "$out/xcode" -maxdepth 2 -name '*.xcodeproj' | head -n 1)
 # and Xcode refuses an extension whose id doesn't start with its app's; make the app $bundle_id.
 bundle_id=$bundle_id perl -pi -e 's/(PRODUCT_BUNDLE_IDENTIFIER = )(?!"?[^;]*\.Extension"?;)[^;]*;/$1"$ENV{bundle_id}";/' \
   "$project/project.pbxproj"
-if [ -n "${SAFARI_TEAM_ID:-}" ]; then
-  set -- DEVELOPMENT_TEAM="$SAFARI_TEAM_ID" CODE_SIGN_STYLE=Automatic
-else
-  set -- CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY=
-fi
 version=$(node -p 'require("./dist/safari/manifest.json").version')
 xcodebuild -project "$project" -scheme "$app_name" -configuration Release -destination 'generic/platform=macOS' \
-  -derivedDataPath "$out/derived" MARKETING_VERSION="$version" "$@" build
+  -derivedDataPath "$out/derived" MARKETING_VERSION="$version" CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY= build
 
 app=$(find "$out/derived/Build/Products/Release" -maxdepth 1 -name '*.app' | head -n 1)
 ditto -c -k --keepParent "$app" "$out/lens-clipper-safari.zip"
