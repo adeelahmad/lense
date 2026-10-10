@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:94906ac9249700e5601f897fc83225e45c0620e1f2e5ef66359163344eb6f8e0"
+prose_version: "threat-model.md@sha256:bc2fd9d2976bd122c5bf429c2450a4738d13f600bdbeeb8a00c07acf5679870f"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1035,6 +1035,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SENSORS, effect: narrows}
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - name: "https.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "Caddy, fetched at run time, terminates TLS on 443/80 in the worker (install.sh LENS_HTTPS=1 publishes them) and proxies to the web app; DNS provider credentials go to data_dir/https/caddy.json (mode 600), not a command line"
+    affects_properties:
+      - {property_id: P-CHILD-SECRETS, effect: preserves}
+    provenance: {kind: documented, source: 'docs/https.md "Off by default"'}
   - name: "tunnel.mode, local_llm.enabled, telemetry"
     default: "off"
     security_relevant: true

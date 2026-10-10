@@ -6024,6 +6024,128 @@ export type HookPushed = {
 };
 
 /**
+ * HttpsCertificate
+ */
+export type HttpsCertificate = {
+  /**
+   * Names
+   *
+   * the domain names it's for
+   */
+  names: Array<string>;
+  /**
+   * Expires
+   *
+   * when it runs out (Caddy renews it about a month before)
+   */
+  expires: string;
+  /**
+   * Issuer
+   *
+   * the certificate authority that issued it
+   */
+  issuer: string;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsProvider
+ */
+export type HttpsProvider = {
+  /**
+   * Name
+   *
+   * the caddy-dns plugin's name, like cloudflare
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Fields
+   */
+  fields: Array<HttpsProviderField>;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsProviderField
+ */
+export type HttpsProviderField = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Secret
+   */
+  secret: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsStatus
+ */
+export type HttpsStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Running
+   *
+   * Caddy is running in a server process
+   */
+  running: boolean;
+  /**
+   * Ports Open
+   *
+   * a server process has the HTTPS ports (install.sh opened them)
+   */
+  ports_open: boolean;
+  /**
+   * Url
+   *
+   * the https:// address people open Lens at
+   */
+  url?: string | null;
+  /**
+   * Certificates
+   */
+  certificates?: Array<HttpsCertificate>;
+  /**
+   * Error
+   *
+   * why there's no certificate yet, when there isn't
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * Caddy's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Origin
+   *
+   * where Caddy sends visitors: the web app, as the server reaches it
+   */
+  origin: string;
+  /**
+   * Process
+   *
+   * the server process with the HTTPS ports
+   */
+  process?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * HubLogin
  */
 export type HubLogin = {
@@ -20100,6 +20222,40 @@ export type TunnelStatusResponses = {
 };
 
 export type TunnelStatusResponse = TunnelStatusResponses[keyof TunnelStatusResponses];
+
+export type HttpsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/status";
+};
+
+export type HttpsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: HttpsStatus;
+};
+
+export type HttpsStatusResponse = HttpsStatusResponses[keyof HttpsStatusResponses];
+
+export type HttpsProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/providers";
+};
+
+export type HttpsProvidersResponses = {
+  /**
+   * Response Admin-Https Providers
+   *
+   * Successful Response
+   */
+  200: Array<HttpsProvider>;
+};
+
+export type HttpsProvidersResponse = HttpsProvidersResponses[keyof HttpsProvidersResponses];
 
 export type TestBridgeData = {
   body?: never;

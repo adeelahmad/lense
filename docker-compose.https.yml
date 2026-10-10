@@ -1,0 +1,18 @@
+# HTTPS with certificates Lens gets and renews itself (docs/https.md), set up in Settings › HTTPS.
+# install.sh adds this file when LENS_HTTPS=1 is in .env (or the web app asked for it): the worker gets the HTTPS
+# and HTTP ports, and runs Caddy there while HTTPS is on in Settings. By hand:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.https.yml up -d
+# Something else on this machine using 443 or 80? Set LENS_HTTPS_PORT / LENS_HTTP_PORT to other ports (with the DNS
+# challenge, port 80 isn't needed at all).
+services:
+  backend:
+    environment:
+      LENS_HTTPS_PORT: ${LENS_HTTPS_PORT:-443}
+  worker:
+    environment:
+      LENS_HTTPS_LISTEN: "1"
+      LENS_HTTPS_PORT: ${LENS_HTTPS_PORT:-443}
+    ports:
+      # Caddy listens on 8443 and 8080 in the container (it runs as an ordinary user, who can't use ports below 1024)
+      - "${LENS_HTTPS_BIND:-0.0.0.0}:${LENS_HTTPS_PORT:-443}:8443"
+      - "${LENS_HTTPS_BIND:-0.0.0.0}:${LENS_HTTP_PORT:-80}:8080"
