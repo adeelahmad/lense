@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T22:24:38.726Z",
+  "surveyed": "2026-10-10T22:54:07.795Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -8,7 +8,7 @@
       "module": "Setup",
       "feature": "Install with the web installer (defaults, local model found)",
       "note": "The install line in a terminal, then the browser installer. The browser opens on its own on a desktop; on a server the link is opened by hand (counted). A computer missing Docker also asks for its password.",
-      "clicks": 8,
+      "clicks": 7,
       "keys": 2,
       "prompts": 0,
       "swipes": 3,
@@ -49,14 +49,6 @@
         {
           "page": "installer:/",
           "kind": "tap",
-          "what": "pick the model server found on this computer",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "tap",
           "what": "Continue (AI model)",
           "clicks": 1,
           "keys": 0,
@@ -90,14 +82,14 @@
         }
       ],
       "id": "install",
-      "ms": 3441,
+      "ms": 3183,
       "ok": true
     },
     {
       "module": "Setup",
       "feature": "Create the first admin (passkey)",
       "note": "From the setup link, which fills in the setup code.",
-      "clicks": 2,
+      "clicks": 1,
       "keys": 17,
       "prompts": 1,
       "swipes": 0,
@@ -106,7 +98,7 @@
           "page": "/setup",
           "kind": "type",
           "what": "email",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 17,
           "prompts": 0
         },
@@ -128,7 +120,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 859,
+      "ms": 648,
       "ok": true
     },
     {
@@ -176,7 +168,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 1316,
+      "ms": 1282,
       "ok": true
     },
     {
@@ -184,7 +176,7 @@
       "feature": "Ask the first question from the welcome tour",
       "note": "",
       "clicks": 0,
-      "keys": 44,
+      "keys": 43,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -203,18 +195,10 @@
           "clicks": 0,
           "keys": 1,
           "prompts": 0
-        },
-        {
-          "page": "/chat",
-          "kind": "key",
-          "what": "Enter again: the question waits in Chat's composer",
-          "clicks": 0,
-          "keys": 1,
-          "prompts": 0
         }
       ],
       "id": "first-question",
-      "ms": 2957,
+      "ms": 1206,
       "ok": true
     },
     {
@@ -277,7 +261,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4960,
+      "ms": 4818,
       "ok": true
     },
     {
@@ -315,7 +299,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3226,
+      "ms": 3213,
       "ok": true
     },
     {
@@ -361,7 +345,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3843,
+      "ms": 3835,
       "ok": true
     },
     {
@@ -399,7 +383,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2581,
+      "ms": 2547,
       "ok": true
     },
     {
@@ -453,15 +437,15 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3670,
+      "ms": 6561,
       "ok": true
     },
     {
       "module": "Notes",
       "feature": "Write a note",
       "note": "",
-      "clicks": 5,
-      "keys": 36,
+      "clicks": 4,
+      "keys": 35,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -493,8 +477,8 @@
           "page": "/notes/:id",
           "kind": "replace",
           "what": "title",
-          "clicks": 1,
-          "keys": 9,
+          "clicks": 0,
+          "keys": 8,
           "prompts": 0
         },
         {
@@ -507,7 +491,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 4436,
+      "ms": 4322,
       "ok": true
     },
     {
@@ -561,7 +545,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 4049,
+      "ms": 3890,
       "ok": true
     },
     {
@@ -615,7 +599,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 3512,
+      "ms": 3501,
       "ok": true
     },
     {
@@ -670,7 +654,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3443,
+      "ms": 3485,
       "ok": true
     },
     {
@@ -717,7 +701,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 8661,
+      "ms": 8632,
       "ok": true
     },
     {
@@ -763,7 +747,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3264,
+      "ms": 3313,
       "ok": true
     },
     {
@@ -819,7 +803,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 9692,
+      "ms": 9507,
       "ok": true
     },
     {
@@ -889,7 +873,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 4057,
+      "ms": 3922,
       "ok": true
     },
     {
@@ -943,7 +927,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3285,
+      "ms": 3344,
       "ok": true
     },
     {
@@ -956,7 +940,7 @@
       "swipes": 0,
       "steps": [],
       "id": "namespace-switch",
-      "ms": 7245,
+      "ms": 7237,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
@@ -987,7 +971,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3278,
+      "ms": 3012,
       "ok": true
     },
     {
@@ -1034,14 +1018,14 @@
         {
           "page": "/import",
           "kind": "tap",
-          "what": "Import (covered by something else on the page)",
+          "what": "Import",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
         }
       ],
       "id": "import-file",
-      "ms": 9166,
+      "ms": 4016,
       "ok": true
     },
     {
@@ -1136,7 +1120,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 5764,
+      "ms": 5979,
       "ok": true
     },
     {
@@ -1182,7 +1166,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 4878,
+      "ms": 5033,
       "ok": true
     },
     {
@@ -1212,7 +1196,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 9648,
+      "ms": 9686,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
@@ -1276,7 +1260,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 9428,
+      "ms": 9360,
       "ok": true
     },
     {
@@ -1330,7 +1314,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 4058,
+      "ms": 4030,
       "ok": true
     },
     {
@@ -1392,7 +1376,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3882,
+      "ms": 3831,
       "ok": true
     },
     {
@@ -1455,7 +1439,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3743,
+      "ms": 3707,
       "ok": true
     },
     {
@@ -1517,7 +1501,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3577,
+      "ms": 3524,
       "ok": true
     },
     {
@@ -1579,7 +1563,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4460,
+      "ms": 4439,
       "ok": true
     },
     {
@@ -1651,7 +1635,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 9323,
+      "ms": 9242,
       "ok": true
     }
   ],
@@ -1846,7 +1830,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 3,
-      "controls": 55
+      "controls": 56
     },
     {
       "page": "/settings/search",
