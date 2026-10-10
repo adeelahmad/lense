@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Lens on a phone.** Everything works at phone width now: the namespace switcher is at the top of the menu, Import
+  is in the top bar, Settings opens its sections as a list instead of a row to swipe through, the graph's filters close
+  after a pick, Copy no longer covers webhook addresses, sensors and connections read as cards, and Save and the other
+  form buttons stay in sight above the Ask button. On a phone the clicks survey goes from 2 features that couldn't be
+  done to none.
+
 - **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
   inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API
