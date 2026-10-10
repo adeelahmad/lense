@@ -7756,6 +7756,9 @@ export class Chats {
    * With `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and
    * its new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked
    * from (where, and the highlighted text; not the page's text, which isn't kept).
+   *
+   * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
+   * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
