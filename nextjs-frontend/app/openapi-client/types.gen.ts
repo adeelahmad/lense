@@ -3947,7 +3947,7 @@ export type EventInfo = {
   /**
    * Type
    */
-  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added";
+  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release";
   /**
    * Label
    */
@@ -8836,7 +8836,9 @@ export type NotifyTarget = {
   /**
    * Events
    */
-  events: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added">;
+  events: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  >;
   /**
    * Enabled
    */
@@ -8911,7 +8913,9 @@ export type NotifyTargetCreate = {
    *
    * default: job.failed and batch.finished
    */
-  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  events?: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  > | null;
   /**
    * Enabled
    */
@@ -8967,7 +8971,9 @@ export type NotifyTargetUpdate = {
   /**
    * Events
    */
-  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  events?: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  > | null;
   /**
    * Enabled
    */

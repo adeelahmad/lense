@@ -48,7 +48,7 @@ EDITABLE = {
     "notifications": None,
     "telemetry": None,
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
-    "updates": ("check", "check_hours", "auto_install"),
+    "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
     "encryption": None,
     "fedora": None,

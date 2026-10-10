@@ -485,7 +485,9 @@ DEFAULTS = {
     },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
-    "updates": {"check": True, "check_hours": 24, "auto_install": False, "repo": "adeelahmad/lense"},
+    # email: tell admins by email when a new release is seen (once per release; needs Settings › Email). Namespaces'
+    # notification targets can get it too (the lens.release event).
+    "updates": {"check": True, "check_hours": 24, "auto_install": False, "email": True, "repo": "adeelahmad/lense"},
     # Fedora (docs/fedora.md): a copy of the archive in a Fedora 6 repository, off until url is set (enabled: false pauses
     # it). password is a
     # secret; files: send recordings' files too (up to max_file_mb each, 0: any size).
