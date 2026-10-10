@@ -40,6 +40,17 @@ async function openImport(ctx) {
   await page.waitForURL(/\/import/);
 }
 
+/** Waits, not counted, until the API's answer at `url` has `text`: something made in the background, which a person
+ * would come back to later. */
+async function apiHas({ page, base }, url, text, what) {
+  for (let i = 0; i < 150; i++) {
+    const r = await page.request.get(base + url).catch(() => null);
+    if (r?.ok() && (await r.text()).includes(text)) return;
+    await page.waitForTimeout(2000);
+  }
+  throw new Error(`${what} wasn't there after 5 minutes`);
+}
+
 /** Fails the journey with the reason when a control isn't on the screen at all (on a phone some are hidden). */
 async function needs({ phone }, locator, what) {
   try {
@@ -463,6 +474,7 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
+      await apiHas(ctx, "/api/v1/entities?q=raspberry", "Raspberry Pi", "the entity from the imports' analysis");
       await go(ctx, "Entities");
       await meter.type(page.getByRole("searchbox", { name: "Find entities" }), "rasp", "part of its name");
       // the list filters as you type: the other entity leaves it

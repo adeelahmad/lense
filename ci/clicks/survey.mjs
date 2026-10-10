@@ -201,6 +201,8 @@ async function main() {
   fs.writeFileSync(path.join(a.out, `${name}.json`), JSON.stringify(result, null, 2) + "\n");
   fs.writeFileSync(path.join(a.out, `${name}.md`), markdown(result, base));
   console.log(`\nwrote ${path.join(a.out, `${name}.json`)} and ${name}.md`);
+  // The API's log beside the results, so a failure in CI can be read from the artifact
+  if (process.env.LENS_SURVEY_BACKEND_LOG) fs.copyFileSync(process.env.LENS_SURVEY_BACKEND_LOG, path.join(a.out, `backend${device.suffix}.log`));
   if (base) {
     const worse = compare(result, base).filter((d) => d.worse);
     for (const d of worse) console.log(`worse: ${d.id} ${d.what}`);

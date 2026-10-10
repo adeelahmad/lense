@@ -17,7 +17,8 @@ ci/clicks/run.sh --device phone --compare ci/clicks/baseline-phone.json
 free), a stand-in OpenAI-compatible model on 11434 (`fake-model.mjs`, so the installer and the setup wizard find a
 local model and the assistant answers), and the web installer with a stand-in for install.sh (`fake-install.sh`).
 rclone must be on the PATH, as it is in the Lens image (the Clicks workflow copies the image's version). Results go to
-`results/clicks.json` and `results/clicks.md` (`clicks-phone.*` for the phone).
+`results/clicks.json` and `results/clicks.md` (`clicks-phone.*` for the phone), with the API's log beside them
+(`backend.log`, `backend-phone.log`) and a screenshot of each journey that failed.
 
 ## What counts
 
