@@ -402,6 +402,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     acts: true,
   },
   { name: "import_files", label: "Import files sent in a conversation", acts: true },
+  { name: "import_urls", label: "Capture web pages from addresses or a list of links", acts: true },
   { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
   { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
   { name: "read_settings", label: "Read settings (admins)", acts: false },
@@ -439,6 +440,15 @@ export const SPEECH_PROVIDERS = [
     about: "Nova speech to text with speakers, language and sentiment, and Aura text to speech.",
     urlHint: "https://api.deepgram.com, or your self-hosted Deepgram",
     modelHint: "nova-3",
+  },
+  {
+    id: "gemini",
+    label: "Google Gemini",
+    about:
+      "Gemini text to speech for spoken answers and podcasts, in 30 prebuilt voices. Get a key at aistudio.google.com.",
+    urlHint: "https://generativelanguage.googleapis.com",
+    modelHint: "gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts",
+    modelLabel: "Text-to-speech model",
   },
 ] as const;
 
@@ -724,7 +734,29 @@ export const FIELDS: FieldSpec[] = [
     key: "compact",
     label: "Summarise long conversations",
     kind: "switch",
-    hint: "The model always reads the latest messages word for word; older ones are folded into a running summary, so long chats and chat rooms remember what was said.",
+    hint: "The model always reads the latest messages word for word; older ones are folded into a running summary, so long chats and chat rooms remember what was said. Type /compact to summarise now, or /clear to start afresh.",
+  },
+  {
+    section: "ai",
+    key: "compact_model",
+    label: "Model for summaries",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "the chat's model",
+    hint: "A smaller, cheaper model on the same provider to write them.",
+  },
+  {
+    section: "ai",
+    key: "context_tokens",
+    label: "Chat model's context",
+    kind: "int",
+    min: 1024,
+    max: 2000000,
+    nullable: true,
+    unit: "tokens",
+    placeholder: "16000",
+    hint: "A conversation is summarised early before it fills half of this.",
   },
   {
     section: "ai",
@@ -1046,6 +1078,8 @@ export const FIELDS: FieldSpec[] = [
       { value: "openai", label: "An OpenAI-compatible speech server" },
       { value: "elevenlabs", label: "ElevenLabs (provider)" },
       { value: "deepgram", label: "Deepgram Aura (provider)" },
+      { value: "gemini", label: "Google Gemini (provider)" },
+      { value: "say", label: "macOS say (Lens running on a Mac)" },
     ],
   },
   {
@@ -1139,7 +1173,7 @@ export const FIELDS: FieldSpec[] = [
     {
       section: "speech",
       key: `${p.id}_model`,
-      label: "Speech-to-text model",
+      label: ("modelLabel" in p && p.modelLabel) || "Speech-to-text model",
       kind: "text",
       mono: true,
       hint: p.modelHint,
@@ -1988,6 +2022,14 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "telemetry",
+    key: "prometheus",
+    label: "Prometheus endpoint",
+    kind: "switch",
+    hint: "Serve /metrics for a Prometheus scraper; off by default, and answered only with the scrape token",
+  },
+  { section: "telemetry", key: "prometheus_token", label: "Scrape token", kind: "secret" },
+  {
+    section: "telemetry",
     key: "prices",
     label: "Model prices for cost estimates",
     kind: "lines",
@@ -2556,6 +2598,14 @@ export function why(c: Change): string | null {
     if (origin(c.before) !== origin(c.after))
       return "Saved headers are removed, since they were for the old collector: enter them again if the new one needs them.";
   }
+  if (id === "telemetry.prometheus")
+    return c.after
+      ? "/metrics answers a scraper that sends the scrape token; nothing is served until a token is set."
+      : "/metrics stops answering.";
+  if (id === "telemetry.prometheus_token")
+    return c.after === ""
+      ? "The token is removed; /metrics answers no one."
+      : "Scrapers must send the new token; stored encrypted.";
   if (id === "telemetry.headers")
     return c.after === "" ? "The headers are removed." : "Sent with every export; stored encrypted.";
   if (id === "llm.api_key")

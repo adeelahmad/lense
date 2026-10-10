@@ -27,6 +27,7 @@ def check_updates(user: AdminWriter, db: Db, cfg: Cfg) -> UpdateStatus:
     """Ask GitHub for the latest release now."""
     try:
         updates.check(db, cfg)
+        updates.announce(db, cfg)
     except updates.UpdateError as e:
         raise HTTPException(400, str(e)) from None
     return UpdateStatus.model_validate(updates.view(db, cfg))

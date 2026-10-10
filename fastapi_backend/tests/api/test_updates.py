@@ -195,10 +195,11 @@ def test_auto_install_once_per_release(db, cfg, github, control):
     assert updates.run_state(db)["id"] == run["id"]
 
 
-def test_backups(client, db, folder):
+def test_backups(client, db, folder, monkeypatch):
     h = admin(client, db)
     assert client.get("/api/v1/admin/backups", headers=h).json()["backups"] == []
-    assert client.post("/api/v1/admin/backups", headers=h).status_code == 400  # mem:// has nothing to back up
+    monkeypatch.setattr(migrations, "backup", lambda db, label="manual": None)  # what an in-memory database gives
+    assert client.post("/api/v1/admin/backups", headers=h).status_code == 400
     d = folder / "data" / "backups"
     d.mkdir(parents=True)
     (d / "manual-20261001-101010.surql.gz").write_bytes(b"x" * 10)
@@ -232,3 +233,49 @@ def test_a_backup_taken_from_the_web_app(client, db, folder, monkeypatch):
     monkeypatch.setattr(migrations, "backup", fake)
     b = client.post("/api/v1/admin/backups", headers=admin(client, db)).json()
     assert (b["name"], b["label"], b["bytes"]) == ("manual-20261010-120000.surql.gz", "manual", 1)
+
+
+def test_a_new_release_is_announced_once(db, cfg, github, monkeypatch):
+    from app import email
+    from app.domain import notify, store
+
+    sent = []
+
+    async def fake_email(cfg_, admins, tag, current, notes_url):
+        sent.append((admins, tag, notes_url))
+
+    monkeypatch.setattr(email, "send_release_email", fake_email)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    make_user(db, "m@x.io", "member password 1")
+    pods = store.ns_id(db, "pods")
+    notify.create(db, cfg, pods, "ops", "slack", "https://hooks.example.com/a", events=["lens.release"])
+    notify.create(db, cfg, pods, "runs", "slack", "https://hooks.example.com/b", events=["job.failed"])
+    github.release = release("v99.0.0")
+    updates.tick(db, cfg)
+    assert sent == [(["root@x.io"], "v99.0.0", "https://github.com/adeelahmad/lense/releases/tag/v99.0.0")]
+    rows = db.rows("SELECT event, payload FROM notify_delivery")
+    assert [r["event"] for r in rows] == ["lens.release"]
+    assert json.loads(rows[0]["payload"])["text"] == f"Lens v99.0.0 is out (this server runs {updates.current()})."
+    # not again, whoever checks next
+    updates.check(db, cfg)
+    updates.tick(db, cfg)
+    assert len(sent) == 1 and len(db.rows("SELECT id FROM notify_delivery")) == 1
+
+
+def test_no_announcement_for_this_version_or_with_email_off(db, cfg, github, monkeypatch):
+    from app import email
+
+    sent = []
+
+    async def fake_email(*a):
+        sent.append(a)
+
+    monkeypatch.setattr(email, "send_release_email", fake_email)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    github.release = release(f"v{updates.current()}")
+    updates.tick(db, cfg)
+    assert sent == []
+    cfg["updates"]["email"] = False
+    github.release = release("v99.0.0")
+    updates.check(db, cfg)
+    assert updates.announce(db, cfg) is True and sent == []

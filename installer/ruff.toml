@@ -1,0 +1,7 @@
+# The installer runs on whatever Python the computer has (3.8 and up), so it keeps to 3.8's syntax
+line-length = 140
+target-version = "py38"
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP", "BLE"]
+ignore = ["E501"]
