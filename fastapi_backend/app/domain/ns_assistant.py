@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 
-from . import store
+from . import store, untrusted
 
 R = store.R
 NAME_MAX = 60
@@ -197,8 +197,9 @@ def labelled(db, rows):
     ]
 
 
-def prompt(namespace, p, lines):
-    """What the model is told about who it is here, with what it remembers (lines already numbered by the caller)."""
+def prompt(namespace, p, lines, cfg=None):
+    """What the model is told about who it is here, with what it remembers (lines already numbered by the caller),
+    marked as data: memories are kept from what was read, and may carry what a document said (untrusted.py)."""
     out = (
         f"\n\nYou are {p['name']}, the assistant of the {namespace} namespace. People come back to you across conversations, "
         "so you keep a memory: short facts with where they came from. When you learn something lasting about this "
@@ -209,5 +210,5 @@ def prompt(namespace, p, lines):
     )
     if p.get("instructions"):
         out += f"\n\nInstructions for this namespace's assistant, from its owners:\n{p['instructions']}"
-    out += "\n\nWhat you remember:\n" + ("\n".join(lines) if lines else "(nothing yet)")
+    out += "\n\nWhat you remember:\n" + (untrusted.wrap("\n".join(lines), "memory", cfg) if lines else "(nothing yet)")
     return out

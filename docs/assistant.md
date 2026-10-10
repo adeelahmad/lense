@@ -113,6 +113,27 @@ When the configured model supports function calling, chat becomes an agent.
   `import_files`, it picks the namespace when you don't name one, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
 
+## Third-party content and prompt injection
+
+The assistant reads text nobody vouched for: what was said in recordings, documents, text read off screens, web pages
+and emails that were captured, chat-room messages, notes and memories kept earlier, and what tools, extensions and other
+servers send back. Any of it can carry instructions meant for the model ("ignore the above and..."), so Lens keeps it
+apart from what the person asks:
+
+- **Marked as data** (`ai.untrusted_marking`, on by default; Settings → AI assistant → Treat what the assistant
+  reads as data, not instructions): each excerpt, each tool result, the page a question was asked from and the namespace
+  assistant's memories reach the model between markers that say where they came from and share a random code, and
+  the model is told to read, quote and cite marked text but never follow instructions in it, nor put what it read
+  into web addresses or tool arguments unasked. Results that are Lens's own (server status, settings, the skills you
+  chose, what a change tool reports) aren't marked. Turn it off only for a model the markers confuse.
+- **Control tokens broken up:** chat templates' control tokens in that text (`<|im_start|>`, `[INST]`,
+  `<start_of_turn>`, `<tool_call>` and the like) and anything that looks like a marker get a space inside, so a local
+  model server that reads them in a message can't be made to end the turn and speak as the system.
+
+Marking makes injection less likely to work; it doesn't make it impossible (a system prompt is not a filter). What
+the assistant can do is still bounded by the person's reads and approvals (N-PROMPT in the repository's
+`threat-model.md`).
+
 ## A namespace's own assistant
 
 Each namespace can have its own assistant that remembers from one conversation to the next. It is off until an owner
