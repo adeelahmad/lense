@@ -91,7 +91,8 @@ the browser should read it).
 When the configured model supports function calling, chat becomes an agent.
 
 - **What it can look things up with:** transcripts (including on-screen text), recordings, transcript passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, and speakers.
+  outputs, entities and their mentions and timelines, the knowledge graph, speakers, and content similar to a text,
+  a recording, a topic or an entity (`find_similar`).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
   `ai.max_steps` and `ai.max_transcript_reads`.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.

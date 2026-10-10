@@ -6,6 +6,7 @@ run work or change data don't act: they create an approval the person accepts or
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 
@@ -25,6 +26,7 @@ from . import (
     recsets,
     render,
     search as searchmod,
+    similar,
     speakers as spk,
     store,
     templates,
@@ -41,6 +43,15 @@ TOOLS = [
         "Search what was said (and text shown on screen in videos) across the recordings in scope.",
         {"query": _S, "namespace": _S, "limit": _I},
         ["query"],
+        False,
+    ),
+    (
+        "find_similar",
+        "Find the recordings, documents and images in scope most like a text, a recording, a topic or an entity (give "
+        "one): close in meaning (when search by meaning is set up), sharing key words, about the same topics, mentioning "
+        "the same entities; each with the moments that show it.",
+        {"text": _S, "recording_id": _I, "topic_id": _I, "entity_id": _I, "limit": _I},
+        [],
         False,
     ),
     (
@@ -601,6 +612,49 @@ class Toolbox(ops_tools.OpsTools):
                 }
             )
         return {"total": res["total"], "results": out}, f'Searched for "{query}": {res["total"]} match(es)'
+
+    def t_find_similar(self, text=None, recording_id=None, topic_id=None, entity_id=None, limit=5):
+        if recording_id is not None:
+            self._ok(recording_id)
+        try:
+            res = similar.similar(
+                self.db,
+                self.cfg,
+                text=text,
+                recording=recording_id,
+                topic=topic_id,
+                entity=entity_id,
+                spaces=self.readable,
+                within=self.allowed,
+                limit=min(int(limit or 5), 20),
+            )
+        except KeyError:
+            raise ValueError("that topic or entity isn't available in this conversation") from None
+        out = []
+        for x in res["items"]:
+            moments = []
+            for c in x["cites"]:
+                said = html.unescape(c["snippet"].replace("<mark>", "").replace("</mark>", ""))
+                n = self.ref(x["recording_id"], c["t0"] or 0, said, title=x["title"], source=c["source"], page=c["page"])
+                moments.append(
+                    {"ref": n, **({"page": c["page"] + 1} if c["page"] is not None else {"time": store.tc(c["t0"] or 0)}), "text": said}
+                )
+            out.append(
+                store.clean(
+                    {
+                        "recording_id": x["recording_id"],
+                        "title": x["title"],
+                        "namespace": x["namespace"],
+                        "alike_by": x["match"],
+                        "moments": moments,
+                        "words": x["words"] or None,
+                        "topics": [t["label"] for t in x["topics"]] or None,
+                        "entities": [e["name"] for e in x["entities"]] or None,
+                    }
+                )
+            )
+        like = res["label"] or ""
+        return {"like": like, "by": res["mode"], "total": res["total"], "results": out}, f'Found {res["total"]} like "{like[:60]}"'
 
     def t_list_recordings(self, namespace=None, limit=20, speaker_id=None, entity_id=None, media=None, **dates):
         f = recsets.clean_filter(

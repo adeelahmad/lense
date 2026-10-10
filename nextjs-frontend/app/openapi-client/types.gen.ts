@@ -14226,6 +14226,215 @@ export type SigninLinkToken = {
 };
 
 /**
+ * SimilarCite
+ *
+ * A moment that shows why a resource is alike: one of its passages closest in meaning, or a line with shared words.
+ */
+export type SimilarCite = {
+  /**
+   * Match
+   *
+   * found by meaning (a close passage) or by the shared words
+   */
+  match: "meaning" | "words";
+  /**
+   * Source
+   *
+   * "said" (the transcript), "page" (text on a page of a document or an image) or "described" (what a shot or a page shows)
+   */
+  source: "said" | "page" | "described";
+  /**
+   * Snippet
+   *
+   * HTML: escaped text with <mark> around the key words
+   */
+  snippet: string;
+  /**
+   * Idx
+   *
+   * the line it starts at (from 0)
+   */
+  idx?: number | null;
+  /**
+   * T0
+   *
+   * ms; None on a page
+   */
+  t0?: number | null;
+  /**
+   * Page
+   *
+   * on a document or an image: which page (from 0)
+   */
+  page?: number | null;
+  /**
+   * Similarity
+   *
+   * found by meaning: how alike it is (cosine, up to 1)
+   */
+  similarity?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarEntity
+ */
+export type SimilarEntity = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarItem
+ */
+export type SimilarItem = {
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Media Kind
+   *
+   * audio, video, transcript, document or image
+   */
+  media_kind: string;
+  /**
+   * Score
+   *
+   * reciprocal-rank fusion of the lists it's in; only for ordering
+   */
+  score: number;
+  /**
+   * Match
+   *
+   * why it's alike: close in meaning, shares key words, about the same topics, mentions the same entities
+   */
+  match: Array<"meaning" | "words" | "topics" | "entities">;
+  /**
+   * Similarity
+   *
+   * by meaning: how alike its closest passage is (cosine, up to 1)
+   */
+  similarity?: number | null;
+  /**
+   * Cites
+   *
+   * up to 3 moments that show it, to open
+   */
+  cites?: Array<SimilarCite>;
+  /**
+   * Words
+   *
+   * the key words it says
+   */
+  words?: Array<string>;
+  /**
+   * Topics
+   *
+   * topics both are about
+   */
+  topics?: Array<SimilarTopic>;
+  /**
+   * Entities
+   *
+   * entities both mention
+   */
+  entities?: Array<SimilarEntity>;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarResults
+ */
+export type SimilarResults = {
+  /**
+   * Basis
+   *
+   * what the results are like
+   */
+  basis: "text" | "recording" | "topic" | "entity";
+  /**
+   * Label
+   *
+   * the text's start, or the resource's title, the topic's label, the entity's name
+   */
+  label?: string | null;
+  /**
+   * Text
+   *
+   * the text compared by meaning (a topic's labels and definition, an entity's name and description)
+   */
+  text?: string | null;
+  /**
+   * Terms
+   *
+   * the key words looked for
+   */
+  terms?: Array<string>;
+  /**
+   * Mode
+   *
+   * "meaning": an embedding model compared it too; "words": only by key words, topics and entities
+   */
+  mode: "meaning" | "words";
+  /**
+   * Meaning
+   *
+   * why it wasn't compared by meaning, when search by meaning is set up
+   */
+  meaning?: string | null;
+  /**
+   * Semantic
+   *
+   * search by meaning is set up and indexed
+   */
+  semantic?: boolean;
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<SimilarItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarTopic
+ */
+export type SimilarTopic = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -24062,6 +24271,70 @@ export type SearchPhotosResponses = {
 };
 
 export type SearchPhotosResponse = SearchPhotosResponses[keyof SearchPhotosResponses];
+
+export type FindSimilarData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Text
+     *
+     * what was selected: a sentence, a passage, a title
+     */
+    text?: string | null;
+    /**
+     * Recording
+     *
+     * a resource: the others most like it
+     */
+    recording?: number | null;
+    /**
+     * Topic
+     *
+     * a topic: the resources most like its labels and definition, and about it
+     */
+    topic?: number | null;
+    /**
+     * Entity
+     *
+     * an entity: the resources most like its name and description, and mentioning it
+     */
+    entity?: number | null;
+    /**
+     * Exclude
+     *
+     * leave out this resource too (the one the text was selected in)
+     */
+    exclude?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/similar";
+};
+
+export type FindSimilarErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindSimilarError = FindSimilarErrors[keyof FindSimilarErrors];
+
+export type FindSimilarResponses = {
+  /**
+   * Successful Response
+   */
+  200: SimilarResults;
+};
+
+export type FindSimilarResponse = FindSimilarResponses[keyof FindSimilarResponses];
 
 export type SuggestTermsData = {
   body?: never;

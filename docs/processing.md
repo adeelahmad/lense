@@ -216,6 +216,25 @@ Settings → Search shows how far it has got and can queue more now; `lens embed
 embeddings server can't be reached, the step is skipped (the routine tries again later) and searches go by the words,
 saying why.
 
+### Similar content
+
+The API (`GET /similar`), the assistant and the MCP server (`find_similar`) list the resources most like a text (a
+sentence, a passage, a title), a resource, a topic or an entity.
+
+Four lists are fused by reciprocal rank, so a resource alike in several ways comes first:
+
+* **meaning**, when search by meaning is set up: the passages closest to the text (a topic's labels and definition,
+  an entity's name and description), or for a resource to the centre of its own passages, so no model call is needed;
+* **key words**: the text's words that the archive says in fewest recordings (from the analysis step's term counts),
+  or a resource's keywords, any of them, through the word index: resources saying more of them first;
+* **topics**: resources about the same topics, a topic fewer resources are about counting for more;
+* **entities**: resources mentioning the same people, organisations, places and terms, the rarer counting for more.
+
+Each result cites why: its closest passages and the lines with the shared words (each opens at that moment or page),
+the words, and the topics and entities in common. Without an embeddings server (the default) the last three still
+answer, and no language model is called; with one, a selected text costs one embedding request, logged in the
+activity ledger.
+
 ## Background work
 
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs
