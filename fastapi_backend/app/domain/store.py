@@ -281,6 +281,7 @@ DEFAULTS = {
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
+        "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
         "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
         "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
         "disabled_tools": [],
@@ -473,6 +474,33 @@ DEFAULTS = {
     # tunnel and DNS record for hostname with api_token). origin: the web app as this server reaches it (default
     # LENS_TUNNEL_ORIGIN, else FRONTEND_URL). token and api_token are secrets.
     "tunnel": {"mode": "off", "hostname": "", "token": None, "api_token": None, "origin": ""},
+    # HTTPS with certificates from Let's Encrypt or ZeroSSL, got and renewed by Caddy run by Lens (domain/https.py). Off
+    # by default. domains: the names to serve (and get certificates for); ca: letsencrypt, zerossl, both (Let's Encrypt
+    # then ZeroSSL) or custom (ca_url, an ACME directory); challenge: http (ports 80 and 443 reach this machine), tls-alpn
+    # (only 443) or dns (a TXT record through dns_provider's API: any caddy-dns plugin, dns_package to use another one;
+    # dns_credentials is its fields as JSON). eab_*: external account binding. https_port and http_port are where Caddy
+    # listens in the container (install.sh publishes 443 and 80 to them). dns_credentials and eab_hmac_key are secrets.
+    "https": {
+        "enabled": False,
+        "domains": [],
+        "email": "",
+        "ca": "both",
+        "ca_url": "",
+        "staging": False,
+        "challenge": "http",
+        "dns_provider": "",
+        "dns_package": "",
+        "dns_credentials": None,
+        "dns_resolvers": [],
+        "propagation": "",
+        "eab_key_id": "",
+        "eab_hmac_key": None,
+        "redirect_http": True,
+        "hsts": False,
+        "origin": "",
+        "https_port": 8443,
+        "http_port": 8080,
+    },
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
@@ -967,7 +995,8 @@ SCHEMA = [
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
-    # the Cloudflare tunnel: which process runs cloudflared, and what it's doing (app/domain/tunnel.py)
+    # the Cloudflare tunnel: which process runs cloudflared, and what it's doing (app/domain/tunnel.py); HTTPS: which
+    # process runs Caddy (app/domain/https.py)
     "DEFINE TABLE IF NOT EXISTS app_service SCHEMALESS",
     # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
     "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",

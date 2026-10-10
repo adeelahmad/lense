@@ -57,6 +57,36 @@ class TunnelStatus(ResponseModel):
     process: str | None = Field(None, description="the server process running cloudflared")
 
 
+class HttpsCertificate(ResponseModel):
+    names: list[str] = Field(description="the domain names it's for")
+    expires: str = Field(description="when it runs out (Caddy renews it about a month before)")
+    issuer: str = Field(description="the certificate authority that issued it")
+
+
+class HttpsStatus(ResponseModel):
+    enabled: bool
+    running: bool = Field(description="Caddy is running in a server process")
+    ports_open: bool = Field(description="a server process has the HTTPS ports (install.sh opened them)")
+    url: str | None = Field(None, description="the https:// address people open Lens at")
+    certificates: list[HttpsCertificate] = Field(default_factory=list)
+    error: str | None = Field(None, description="why there's no certificate yet, when there isn't")
+    log: list[str] = Field(default_factory=list, description="Caddy's last lines")
+    origin: str = Field(description="where Caddy sends visitors: the web app, as the server reaches it")
+    process: str | None = Field(None, description="the server process with the HTTPS ports")
+
+
+class HttpsProviderField(ResponseModel):
+    name: str
+    label: str
+    secret: bool
+
+
+class HttpsProvider(ResponseModel):
+    name: str = Field(description="the caddy-dns plugin's name, like cloudflare")
+    label: str
+    fields: list[HttpsProviderField]
+
+
 class LocalModel(ResponseModel):
     id: str
     label: str

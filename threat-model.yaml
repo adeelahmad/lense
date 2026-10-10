@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:42d9bc92f48ce93ea2d58412a61b086dde8ab4522af95f628304d1b33919832f"
+prose_version: "threat-model.md@sha256:96398fee54d8a0ff2efcfe809becf5307438e15538c79b4baffc56a3f78ecee8"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -359,6 +359,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — P-RETRIEVAL"
         provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
+  - id: "Lens extension side panel"
+    component: assistant
+    parameters:
+      - name: "answers shown there (model text that can repeat third-party text), the sign-in coming back"
+        attacker_controllable: true
+        x-condition: "indirectly through content"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none; answers render as Markdown cleaned by DOMPurify (no scripts, images or forms; only http and https links), and the sign-in checks its state and PKCE"
+        provenance: {kind: documented, source: 'extensions/browser/src/core/assistant.js answerHtml docstring "cleaned of anything that could run or fetch on its own"'}
   - id: "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes"
     component: assistant
     parameters:
@@ -1024,6 +1033,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SENSORS, effect: narrows}
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - name: "https.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "Caddy, fetched at run time, terminates TLS on 443/80 in the worker (install.sh LENS_HTTPS=1 publishes them) and proxies to the web app; DNS provider credentials go to data_dir/https/caddy.json (mode 600), not a command line"
+    affects_properties:
+      - {property_id: P-CHILD-SECRETS, effect: preserves}
+    provenance: {kind: documented, source: 'docs/https.md "Off by default"'}
   - name: "tunnel.mode, local_llm.enabled, telemetry"
     default: "off"
     security_relevant: true
