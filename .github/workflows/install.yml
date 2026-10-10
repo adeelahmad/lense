@@ -127,7 +127,7 @@ jobs:
       - name: Running it again updates in place and keeps the secrets
         run: |
           before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
-          LENS_BACKEND= sh < install.sh
+          LENS_BACKEND='' sh < install.sh
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
