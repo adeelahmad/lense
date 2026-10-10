@@ -744,6 +744,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "untrusted_marking",
+    label: "Treat what the assistant reads as data, not instructions",
+    kind: "switch",
+    hint: "Recordings, documents, web pages, chat rooms and what tools send back reach the model marked as material to read and cite, so instructions written in them aren't followed.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
