@@ -435,3 +435,13 @@ def test_documents_and_images_from_a_source(client, env, db, cfg, folder, monkey
     assert watch("old", kinds="both") == [("call", "transcript"), ("ep1", "audio"), ("harbour", "transcript")]
     assert watch("new") == [("call", "document"), ("ep1", "audio"), ("harbour", "document"), ("photo", "image")]
     assert client.get("/api/v1/watches", headers=ha).json()[-1]["kinds"] == "all"  # the default now
+
+
+@POPPLER
+def test_a_document_adds_to_the_graph(client, env, db, cfg):
+    """A document's text is analysed like a transcript's: the people and places in it become entities in the graph."""
+    pdf = text_pdf([["Alice Johnson met Bob Smith at the harbour.", "Alice Johnson wrote to Microsoft."]])
+    up = _upload(client, env["he"], pdf, "minutes.pdf")
+    drain(db, cfg)
+    said = {m["text"] for m in db.rows("SELECT text FROM mentions WHERE recording = $r", r=up["recording"])}
+    assert {"Alice Johnson", "Bob Smith", "Microsoft"} <= said
