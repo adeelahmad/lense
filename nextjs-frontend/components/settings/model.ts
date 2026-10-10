@@ -52,9 +52,8 @@ export type FieldSpec = {
   unit?: string;
 };
 
-/** backups.schedule: cron expressions people pick from (any other saved one is shown too). */
+/** backups.schedule: cron expressions offered in one click (any other can be typed). */
 export const BACKUP_SCHEDULES: Opt[] = [
-  { value: "", label: "Off" },
   { value: "0 3 * * *", label: "Every night at 3:00" },
   { value: "0 */6 * * *", label: "Every 6 hours" },
   { value: "0 * * * *", label: "Every hour" },
@@ -1666,9 +1665,11 @@ export const FIELDS: FieldSpec[] = [
     section: "backups",
     key: "schedule",
     label: "Back up on a schedule",
-    kind: "select",
+    kind: "text",
     nullable: true,
-    options: BACKUP_SCHEDULES,
+    mono: true,
+    placeholder: "Off",
+    hint: "Minute, hour, day of month, month, day of week: 30 2 * * 1-5 is 2:30 on weekdays. Empty: off",
   },
   {
     section: "backups",
@@ -1677,6 +1678,24 @@ export const FIELDS: FieldSpec[] = [
     kind: "text",
     placeholder: "UTC",
     hint: "For the schedule, like Europe/London",
+  },
+  {
+    section: "backups",
+    key: "connection",
+    label: "Also copy each backup to",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "Encrypted with this server’s secret key before it leaves the machine",
+  },
+  {
+    section: "backups",
+    key: "folder",
+    label: "Folder there",
+    kind: "text",
+    mono: true,
+    placeholder: "lens-backups",
+    hint: "For S3, the bucket and a path (my-bucket/lens-backups); for a folder on this machine, its full path",
   },
   {
     section: "backups",
@@ -2338,7 +2357,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     }
     case "select":
       if (f.key === "frame_width") return { value: Number(ui) };
-      if (f.section === "files" && f.key === "connection")
+      if ((f.section === "files" || f.section === "backups") && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };
       return { value: ui === "" && f.nullable ? null : ui };
     default: {

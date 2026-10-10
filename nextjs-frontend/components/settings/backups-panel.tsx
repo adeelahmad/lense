@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DatabaseBackup, Download } from "lucide-react";
+import { CloudDownload, CloudUpload, DatabaseBackup, Download } from "lucide-react";
 import { useState } from "react";
 
 import { Updates } from "@/app/openapi-client";
@@ -66,14 +66,32 @@ export function BackupsPanel() {
   const client = useApiClient();
   const qc = useQueryClient();
   const toast = useToast();
+  const fail = (title: string) => (e: Error) => toast({ title, body: e.message, tone: "red" });
   const [confirm, setConfirm] = useState<{ name: string; what: "restore" | "delete" } | null>(null);
   const list = useQuery({
     queryKey: ["admin-backups"],
     queryFn: () => data(Updates.listBackups({ client })),
     refetchInterval: (q) => (q.state.data?.restore?.running || q.state.data?.in_progress?.length ? 2000 : false),
   });
-  const refresh = () => void qc.invalidateQueries({ queryKey: ["admin-backups"] });
-  const fail = (title: string) => (e: Error) => toast({ title, body: e.message, tone: "red" });
+  const remote = useQuery({
+    queryKey: ["admin-backups-remote"],
+    queryFn: () => data(Updates.remoteBackups({ client })),
+    refetchInterval: (q) => (q.state.data?.copying.running ? 2000 : false),
+  });
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: ["admin-backups"] });
+    void qc.invalidateQueries({ queryKey: ["admin-backups-remote"] });
+  };
+  const copy = useMutation({
+    mutationFn: ({ b, what }: { b: Backup; what: "send" | "fetch" }) =>
+      data(
+        what === "send"
+          ? Updates.sendBackup({ client, path: { name: b.name } })
+          : Updates.fetchBackup({ client, path: { name: b.name } }),
+      ),
+    onSuccess: refresh,
+    onError: fail("Couldn’t copy the backup"),
+  });
   const take = useMutation({
     mutationFn: () => data(Updates.takeBackup({ client })),
     onSuccess: refresh,
@@ -111,6 +129,11 @@ export function BackupsPanel() {
   const status = backupStatus(l);
   const busy = Boolean(l.restore?.running || l.in_progress?.length || take.isPending);
   const want = l.database === "embedded" ? "folder" : "export";
+  const r = remote.data;
+  const there = new Set((r?.backups ?? []).map((b) => b.name));
+  const here = new Set(l.backups.map((b) => b.name));
+  const onlyThere = (r?.backups ?? []).filter((b) => !here.has(b.name));
+  const copyBusy = Boolean(r?.copying.running || copy.isPending);
   return (
     <section aria-label="Backups" className="flex flex-col gap-3">
       <Banner tone={status.tone} title={status.title}>
@@ -171,6 +194,22 @@ export function BackupsPanel() {
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1">
+                        {r?.connection &&
+                          (there.has(b.name) ? (
+                            <span className="px-2 text-[12px] text-fg-muted">Copied</span>
+                          ) : (
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              icon={<CloudUpload aria-hidden />}
+                              disabled={copyBusy}
+                              disabledReason={copyBusy ? "A copy is running" : undefined}
+                              aria-label={`Copy the backup of ${absolute(b.taken_at)} to the connection`}
+                              onClick={() => copy.mutate({ b, what: "send" })}
+                            >
+                              Copy there
+                            </Button>
+                          ))}
                         <Button
                           size="xs"
                           variant="ghost"
@@ -213,10 +252,98 @@ export function BackupsPanel() {
           </Table>
         </div>
       )}
+      {r?.connection && (
+        <RemoteNote
+          error={r.error ?? null}
+          lastError={r.last_error ?? null}
+          copying={
+            r.copying.running
+              ? `${r.copying.running === "send" ? "Copying" : "Bringing back"} ${r.copying.name}…`
+              : null
+          }
+          copyError={r.copying.error ?? null}
+          count={r.backups?.length ?? 0}
+        />
+      )}
+      {onlyThere.length > 0 && (
+        <div className="overflow-x-auto rounded-md border border-border">
+          <Table aria-label="Only on the connection" className="text-[13px]">
+            <THead className="border-t-0">
+              <tr>
+                <Th>Only on the connection</Th>
+                <Th>Kind</Th>
+                <Th>Size</Th>
+                <Th>
+                  <span className="sr-only">Actions</span>
+                </Th>
+              </tr>
+            </THead>
+            <tbody>
+              {onlyThere.map((b) => (
+                <Tr key={b.name} className="h-11 last:border-b-0">
+                  <Td className="whitespace-nowrap" title={b.name}>
+                    {absolute(b.taken_at)}
+                  </Td>
+                  <Td className="whitespace-nowrap text-fg-secondary">{KIND_LABEL[b.label] ?? b.label}</Td>
+                  <Td className="tabular whitespace-nowrap text-fg-secondary">{bytes(b.bytes)}</Td>
+                  <Td className="whitespace-nowrap text-right">
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      icon={<CloudDownload aria-hidden />}
+                      disabled={copyBusy}
+                      disabledReason={copyBusy ? "A copy is running" : undefined}
+                      aria-label={`Bring back the backup of ${absolute(b.taken_at)}`}
+                      onClick={() => copy.mutate({ b, what: "fetch" })}
+                    >
+                      Bring back
+                    </Button>
+                  </Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         Backups hold the database. Back up the data folder too, for uploads and the files Lens makes, and keep
         secret.key apart from the backups: it opens the credentials and file keys they hold.
       </p>
     </section>
+  );
+}
+
+/** How the copies on the connection stand: being copied, failed, or how many are there. */
+export function RemoteNote({
+  error,
+  lastError,
+  copying,
+  copyError,
+  count,
+}: {
+  error: string | null;
+  lastError: string | null;
+  copying: string | null;
+  copyError: string | null;
+  count: number;
+}) {
+  if (copying) return <Banner title={copying}>Lens keeps working meanwhile.</Banner>;
+  if (error)
+    return (
+      <Banner tone="error" title="Couldn’t list the copies on the connection.">
+        {error}
+      </Banner>
+    );
+  if (copyError || lastError)
+    return (
+      <Banner tone="error" title="The last copy to the connection failed.">
+        {copyError ?? lastError}. The backup itself is kept here; copy it again from its row.
+      </Banner>
+    );
+  return (
+    <p className="text-[12.5px] text-fg-secondary">
+      {count} cop{count === 1 ? "y" : "ies"} on the connection, encrypted with this server’s secret key. A copy only
+      opens with that key, so keep it somewhere other than the connection.
+    </p>
   );
 }

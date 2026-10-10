@@ -72,8 +72,8 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    backups,  # before updates: its /admin/backups/remote would otherwise be read as a backup's name
     updates,
-    backups,
     activity,
     budgets,
     fedora,

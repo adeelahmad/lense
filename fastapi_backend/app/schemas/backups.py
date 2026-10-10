@@ -3,6 +3,8 @@ itself is updates.Backups."""
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import Field
 
 from app.schemas.common import RequestModel, ResponseModel
@@ -33,3 +35,10 @@ class RestoreStart(RequestModel):
 class BackupLink(ResponseModel):
     url: str = Field(description="opens the download, without signing in, until it expires")
     expires_in: int = Field(description="seconds")
+
+
+class CopyWork(ResponseModel):
+    running: Literal["send", "fetch"] | None = Field(None, description="copying a backup to (send) or from (fetch) the connection")
+    name: str | None = None
+    error: str | None = None
+    finished_at: str | None = None

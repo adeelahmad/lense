@@ -377,25 +377,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       );
     case "encryption":
       return <EncryptionBody ctx={ctx} />;
-    case "backups": {
-      const saved = ctx.view.backups?.values.schedule;
-      const options =
-        typeof saved === "string" && saved && !BACKUP_SCHEDULES.some((o) => o.value === saved)
-          ? [...BACKUP_SCHEDULES, { value: saved, label: saved }]
-          : BACKUP_SCHEDULES;
-      return (
-        <>
-          <BackupsPanel />
-          <F ctx={ctx} id="backups.schedule" options={options} />
-          {Boolean(raw("backups.schedule")) && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <F ctx={ctx} id="backups.timezone" />
-              <F ctx={ctx} id="backups.keep" />
-            </div>
-          )}
-        </>
-      );
-    }
+    case "backups":
+      return <BackupsBody ctx={ctx} />;
     case "storage":
       return <StorageBody ctx={ctx} />;
     case "telemetry":
@@ -674,6 +657,50 @@ function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         Vaults are set on each namespace’s page: only their owners’ passkeys open them.
       </p>
+    </>
+  );
+}
+
+function BackupsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const conns = useQuery({ queryKey: ["sources"], queryFn: () => data(Sources.listSources({ client })) });
+  const storage = (conns.data ?? []).filter((c) => !NOT_STORAGE.has(c.type));
+  const sched = ctx.state("backups.schedule");
+  const on = Boolean(String(sched.value ?? "").trim());
+  return (
+    <>
+      <BackupsPanel />
+      <F ctx={ctx} id="backups.schedule" />
+      <div className="-mt-1 flex flex-wrap gap-1.5" role="group" aria-label="Common schedules">
+        {[{ value: "", label: "Off" }, ...BACKUP_SCHEDULES].map((o) => (
+          <Button
+            key={o.label}
+            size="xs"
+            variant={String(sched.value ?? "") === o.value ? "primary" : "secondary"}
+            onClick={() => sched.onChange(o.value)}
+          >
+            {o.label}
+          </Button>
+        ))}
+      </div>
+      {on && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="backups.timezone" />
+          <F ctx={ctx} id="backups.keep" />
+        </div>
+      )}
+      <F
+        ctx={ctx}
+        id="backups.connection"
+        options={[
+          { value: "", label: "Nowhere else: only this machine" },
+          ...storage.map((c) => ({ value: String(c.id), label: `${c.name} (${c.type})` })),
+        ]}
+      />
+      <div>
+        <AddConnection onAdded={(id) => ctx.state("backups.connection").onChange(String(id))} />
+      </div>
+      {Boolean(ctx.state("backups.connection").value) && <F ctx={ctx} id="backups.folder" />}
     </>
   );
 }

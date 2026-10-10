@@ -7,6 +7,7 @@ from __future__ import annotations
 import datetime as dt
 import gzip
 import io
+import shutil
 import tarfile
 import time
 
@@ -179,3 +180,87 @@ def test_backups_on_a_schedule(web):
     eff = settings.effective(db, cfg)
     assert backups.run_due(db, eff, now=t + dt.timedelta(days=9)) is False
     assert backups.run_due(db, eff, now=t + dt.timedelta(days=9)) is False
+
+
+# ---------- copies on a storage connection ----------
+needs_rclone = pytest.mark.skipif(not shutil.which("rclone"), reason="rclone is not installed")
+
+
+def test_copies_are_sealed_with_secret_key(folder, cfg):
+    plain = folder / "b.surql.gz"
+    plain.write_bytes(b"-- an export\n" * 300_000)  # several chunks
+    sealed, back = folder / "b.lensbk", folder / "back"
+    backups.seal(cfg, plain, sealed)
+    raw = sealed.read_bytes()
+    assert raw.startswith(backups.MAGIC) and b"an export" not in raw
+    backups.unseal(cfg, sealed, back)
+    assert back.read_bytes() == plain.read_bytes()
+    cut = folder / "cut.lensbk"
+    cut.write_bytes(raw[: len(raw) - backups.CHUNK // 2])  # the last chunk lost: not a quiet short file
+    with pytest.raises(backups.BackupError, match="doesn't open"):
+        backups.unseal(cfg, cut, folder / "x")
+    other = {**cfg, "data_dir": str(folder / "elsewhere")}  # another install's secret.key
+    with pytest.raises(backups.BackupError, match="another secret.key"):
+        backups.unseal(other, sealed, folder / "y")
+
+
+def _copying():
+    for _ in range(600):
+        if not backups.copying["running"]:
+            return backups.copying
+        time.sleep(0.05)
+    raise AssertionError("still copying")
+
+
+@needs_rclone
+def test_backups_copied_to_a_connection_and_brought_back(web, folder):
+    client, db, cfg, h = web
+    backups.copying.update(running=None, name=None, error=None, finished_at=None)
+    _recording(db, "kept")
+    assert client.put("/api/v1/settings/backups", json={"connection": 999}, headers=h).status_code == 400
+    (folder / "inbox" / "offsite").mkdir(parents=True)
+    disk = client.post("/api/v1/sources", headers=h, json={"name": "disk", "type": "local"}).json()["id"]
+    r = client.put("/api/v1/settings/backups", json={"connection": disk, "folder": str(folder / "inbox" / "offsite")}, headers=h)
+    assert r.status_code == 200, r.text
+
+    b = client.post("/api/v1/admin/backups", headers=h).json()  # copied there in the background
+    assert _copying()["error"] is None, backups.copying["error"]
+    there = client.get("/api/v1/admin/backups/remote", headers=h).json()
+    assert there["connection"] == disk and there["error"] is None and there["last_name"] == b["name"]
+    assert [x["name"] for x in there["backups"]] == [b["name"]]
+    raw = (folder / "inbox" / "offsite" / (b["name"] + ".lensbk")).read_bytes()
+    assert raw.startswith(backups.MAGIC) and b"kept" not in raw  # only ciphertext leaves the machine
+
+    # this machine's copy is gone (a new disk, say): brought back, then restored
+    assert client.delete(f"/api/v1/admin/backups/{b['name']}", headers=h).status_code == 200
+    db.q("DELETE recording")
+    assert client.post(f"/api/v1/admin/backups/{b['name']}/fetch", headers=h).status_code == 202
+    assert _copying()["error"] is None, backups.copying["error"]
+    assert b["name"] in [x["name"] for x in backups.listing(db)]
+    r = client.post(f"/api/v1/admin/backups/{b['name']}/restore", json={"confirm": b["name"]}, headers=h)
+    assert r.status_code == 202, r.text
+    assert _settle()["error"] is None, backups.work["error"]
+    assert db.values("SELECT VALUE title FROM recording") == ["kept"]
+
+    h = login(client, "admin@example.com", "pw-admin-123")
+    assert client.delete(f"/api/v1/admin/backups/{b['name']}/remote", headers=h).status_code == 200
+    assert client.get("/api/v1/admin/backups/remote", headers=h).json()["backups"] == []
+
+
+@needs_rclone
+def test_scheduled_backups_go_to_the_connection_too(web, folder):
+    client, db, cfg, h = web
+    _recording(db, "x")
+    (folder / "inbox" / "offsite").mkdir(parents=True)
+    disk = client.post("/api/v1/sources", headers=h, json={"name": "disk", "type": "local"}).json()["id"]
+    body = {"schedule": "0 3 * * *", "keep": 1, "connection": disk, "folder": str(folder / "inbox" / "offsite")}
+    assert client.put("/api/v1/settings/backups", json=body, headers=h).status_code == 200
+    eff = settings.effective(db, cfg)
+    t = dt.datetime(2030, 1, 1, 2, 0, tzinfo=dt.UTC)
+    backups.run_due(db, eff, now=t)
+    for day in range(2):
+        assert backups.run_due(db, eff, now=t + dt.timedelta(days=day, hours=1)) is True
+        time.sleep(1.01)
+    there = backups.remote_listing(db, eff)
+    assert len(there) == 1 and there[0]["label"] == "scheduled"  # keep applies there too
+    assert backups.remote_state(db).get("error") is None

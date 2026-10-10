@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
@@ -68,12 +70,16 @@ def list_backups(user: AdminReader, db: Db, cfg: Cfg) -> Backups:
 
 
 @router.post("/admin/backups", status_code=201)
-def take_backup(user: AdminWriter, db: Db) -> Backup:
-    """Back the database up now (it can take a while on a big archive)."""
+def take_backup(user: AdminWriter, db: Db, cfg: Cfg) -> Backup:
+    """Back the database up now (it can take a while on a big archive). With backups.connection set, it is then
+    copied there in the background (GET /admin/backups/remote follows it)."""
     got = backups.take(db)
     if got is None:
         raise HTTPException(400, "an in-memory database can't be backed up")
     auth.audit(db, user.as_audit(), "backup.create", None, {"name": got["name"]})
+    if backups.remote(cfg):
+        with contextlib.suppress(backups.Busy):  # another copy is running: this one waits for the next backup
+            backups.start_copy(db, cfg, "send", got["name"])
     return Backup(**got)
 
 

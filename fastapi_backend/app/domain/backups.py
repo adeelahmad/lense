@@ -310,12 +310,12 @@ def run_due(db, cfg, log=None, now=None):
     if not took:
         return False
     try:
-        e = _take(db, "scheduled")
+        got = _take(db, "scheduled")
         prune(db, "scheduled", int(b.get("keep") or 7))
         db.q(
             "UPDATE $r MERGE $d",
             r=R("backup_schedule", "next"),
-            d={"last_at": store.now(), "last_name": e and e["name"], "last_error": None},
+            d={"last_at": store.now(), "last_name": got and got["name"], "last_error": None},
         )
     except Exception as e:  # noqa: BLE001 - shown in the app; tried again at the next time
         db.q(
@@ -323,4 +323,249 @@ def run_due(db, cfg, log=None, now=None):
         )
         if log:
             log(f"scheduled backup: {type(e).__name__}: {e}")
+        return True
+    if got and remote(cfg):
+        send_quietly(db, cfg, got["name"], log)
     return True
+
+
+# ---------- copies on a storage connection ----------
+# Every new backup (taken by hand or on the schedule) is also copied to backups.connection, under backups.folder, as
+# <name>.lensbk: the export (or the embedded folder as a .tar.gz), encrypted with a key derived from secret.key. Not with
+# a namespace's key: those are kept in the database, and a backup must open when the database is gone. So keep
+# secret.key (or ARCHIVE_SECRET_KEY) somewhere other than the connection, or the copies can't be read.
+SEALED = ".lensbk"
+MAGIC = b"LENSBK1"
+CHUNK = 1 << 20
+HEADER_LEN = len(MAGIC) + 7
+
+
+def _box(cfg):
+    from . import keyring, settings
+
+    return keyring._aes(keyring.derive(settings.secret_key(cfg), "lens/backup/v1"))
+
+
+def _nonce(prefix, i, last):
+    import struct
+
+    return prefix + struct.pack(">IB", i, 1 if last else 0)
+
+
+def seal(cfg, src, dst):
+    """Encrypt the file at src into dst: AES-256-GCM in CHUNK pieces, each bound to its place and the header."""
+    import secrets as _secrets
+
+    box, prefix = _box(cfg), _secrets.token_bytes(7)
+    header = MAGIC + prefix
+    with open(src, "rb") as i, open(dst, "wb") as o:
+        o.write(header)
+        n, part = 0, i.read(CHUNK)
+        while True:
+            nxt = i.read(CHUNK)
+            o.write(box.encrypt(_nonce(prefix, n, not nxt), part, header))
+            if not nxt:
+                break
+            n, part = n + 1, nxt
+
+
+def unseal(cfg, src, dst):
+    """The plain file of seal(); BackupError if it's damaged or was sealed with another secret.key."""
+    from cryptography.exceptions import InvalidTag
+
+    box = _box(cfg)
+    with open(src, "rb") as i, open(dst, "wb") as o:
+        header = i.read(HEADER_LEN)
+        if len(header) != HEADER_LEN or not header.startswith(MAGIC):
+            raise BackupError("that isn't a Lens backup copy")
+        prefix, n = header[len(MAGIC) :], 0
+        part = i.read(CHUNK + 16)
+        while True:
+            nxt = i.read(CHUNK + 16)
+            try:
+                o.write(box.decrypt(_nonce(prefix, n, not nxt), part, header))
+            except InvalidTag:
+                raise BackupError("this copy doesn't open: it was cut short or changed, or sealed with another secret.key") from None
+            if not nxt:
+                break
+            n, part = n + 1, nxt
+
+
+def remote(cfg):
+    """Where copies go ({store: connection, ...} for blobs), or None when backups.connection isn't set."""
+    b = cfg.get("backups") or {}
+    if not b.get("connection"):
+        return None
+    return {"store": "connection", "connection": int(b["connection"]), "folder": b.get("folder") or "lens-backups", "crypt": False}
+
+
+def _package(src: pathlib.Path, out: pathlib.Path):
+    """A backup as one file: the export as it is, an embedded folder as a .tar.gz."""
+    import tarfile
+
+    if not src.is_dir():
+        shutil.copyfile(src, out)
+        return
+    with tarfile.open(out, "w:gz") as tar:
+        tar.add(src, arcname=src.name)
+
+
+def send(db, cfg, name):
+    """Copy the backup `name` to the connection; prunes the scheduled copies there to backups.keep."""
+    from . import blobs
+
+    where = remote(cfg)
+    if where is None:
+        raise BackupError("choose a storage connection for backups first")
+    src = path(db, name)
+    tmp = folder(db) / f".send-{time.time_ns()}"
+    sealed = tmp.with_name(tmp.name + SEALED)
+    try:
+        _package(src, tmp)
+        seal(cfg, tmp, sealed)
+        blobs._send(db, cfg, where, name + SEALED, sealed)
+    finally:
+        tmp.unlink(missing_ok=True)
+        sealed.unlink(missing_ok=True)
+    keep = int((cfg.get("backups") or {}).get("keep") or 7)
+    for old in [b for b in remote_listing(db, cfg) if b["label"] == "scheduled"][keep:]:
+        with contextlib.suppress(RuntimeError):
+            remote_delete(db, cfg, old["name"])
+    db.q("UPSERT $r MERGE $d", r=R("backup_remote", "last"), d={"at": store.now(), "name": name, "error": None})
+
+
+def send_quietly(db, cfg, name, log=None):
+    """send(), recording a failure instead of raising (the backup itself is kept here either way)."""
+    try:
+        send(db, cfg, name)
+    except Exception as e:  # noqa: BLE001 - shown in the app
+        db.q(
+            "UPSERT $r MERGE $d",
+            r=R("backup_remote", "last"),
+            d={"at": store.now(), "name": name, "error": f"{type(e).__name__}: {e}"[:500]},
+        )
+        if log:
+            log(f"copying backup {name} to the connection: {type(e).__name__}: {e}")
+
+
+def remote_state(db):
+    return db.one("SELECT * OMIT id FROM $r", r=R("backup_remote", "last")) or {}
+
+
+def remote_listing(db, cfg):
+    """The copies on the connection, newest first, as listing() has them (bytes: the sealed copy's size)."""
+    from . import blobs
+
+    where = remote(cfg)
+    if where is None:
+        return []
+    with blobs._remote(db, cfg, where) as (conf, prefix):
+        try:
+            out = blobs._rclone(cfg, conf, "lsjson", "--files-only", prefix, timeout=120)
+        except RuntimeError as e:
+            if blobs._missing(e):
+                return []
+            raise
+    got = []
+    for f in json.loads(out or "[]"):
+        name = str(f.get("Name") or "").removesuffix(SEALED)
+        m = NAME.match(name)
+        if not m or not str(f.get("Name")).endswith(SEALED):
+            continue
+        at = dt.datetime.strptime(m["stamp"], "%Y%m%d-%H%M%S").replace(tzinfo=dt.timezone.utc)
+        got.append(
+            {
+                "name": name,
+                "label": m["label"],
+                "kind": "folder" if m["kind"] == "surrealkv" else "export",
+                "bytes": int(f.get("Size") or 0),
+                "taken_at": at.isoformat(timespec="seconds"),
+            }
+        )
+    return sorted(got, key=lambda b: (b["taken_at"], b["name"]), reverse=True)
+
+
+def remote_delete(db, cfg, name):
+    if not NAME.match(name or ""):
+        raise ValueError("no such backup")
+    where = remote(cfg)
+    if where is None:
+        raise BackupError("no storage connection is set for backups")
+    _remote_rm(db, cfg, where, name + SEALED)
+
+
+def _remote_rm(db, cfg, where, key):
+    from . import blobs
+
+    with blobs._remote(db, cfg, where) as (conf, prefix):
+        try:
+            blobs._rclone(cfg, conf, "deletefile", prefix + key, timeout=120)
+        except RuntimeError as e:
+            if not blobs._missing(e):
+                raise
+
+
+def fetch(db, cfg, name):
+    """Bring the copy of `name` back from the connection into the backups folder (to restore or download it)."""
+    import tarfile
+
+    from . import blobs
+
+    if not NAME.match(name or ""):
+        raise ValueError("no such backup")
+    where = remote(cfg)
+    if where is None:
+        raise BackupError("no storage connection is set for backups")
+    d = folder(db)
+    d.mkdir(parents=True, exist_ok=True)
+    dst = d / name
+    if dst.exists():
+        return dst
+    sealed, plain = d / f".fetch-{time.time_ns()}{SEALED}", d / f".fetch-{time.time_ns()}"
+    try:
+        try:
+            blobs._fetch(db, cfg, where, name + SEALED, sealed)
+        except KeyError:
+            raise ValueError("no such backup on the connection") from None
+        unseal(cfg, sealed, plain)
+        part = dst.with_name(dst.name + ".fetching")
+        if name.endswith(".surrealkv"):
+            out = d / f".untar-{time.time_ns()}"
+            with tarfile.open(plain, "r:gz") as tar:
+                tar.extractall(out, filter="data")
+            (out / name).rename(part)
+            shutil.rmtree(out, ignore_errors=True)
+        else:
+            plain.rename(part)
+        part.rename(dst)
+    finally:
+        sealed.unlink(missing_ok=True)
+        plain.unlink(missing_ok=True)
+    return dst
+
+
+# ---------- copying to or from the connection in the background (one at a time per process) ----------
+copying = {"running": None, "name": None, "error": None, "finished_at": None}
+_copy_lock = threading.Lock()
+
+
+def start_copy(db, cfg, what, name):
+    """what = send (a backup here to the connection) or fetch (a copy there back here), in the background."""
+    fn = {"send": send, "fetch": fetch}[what]
+    with _copy_lock:
+        if copying["running"]:
+            raise Busy(f"{copying['name']} is being copied; wait for it to finish")
+        copying.update(running=what, name=name, error=None, finished_at=None)
+
+    def go():
+        try:
+            fn(db, cfg, name)
+        except Exception as e:  # noqa: BLE001 - shown in the app
+            log.exception("copying %s (%s) failed", name, what)
+            copying.update(error=f"{type(e).__name__}: {e}"[:500])
+            if what == "send":
+                db.q("UPSERT $r MERGE $d", r=R("backup_remote", "last"), d={"at": store.now(), "name": name, "error": copying["error"]})
+        finally:
+            copying.update(running=None, finished_at=store.now())
+
+    threading.Thread(target=go, daemon=True, name=f"backup-{what}").start()

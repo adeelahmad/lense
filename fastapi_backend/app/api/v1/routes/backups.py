@@ -14,14 +14,75 @@ from collections.abc import Iterator
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
-from app.api.deps import AdminReader, AdminWriter, Db, domain_errors
+from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.core.security import sign_path, verify_path
 from app.domain import auth, backups
-from app.schemas.backups import BackupLink, RestoreStart
+from app.schemas.backups import BackupLink, CopyWork, RestoreStart
 from app.schemas.common import Ok
+from app.schemas.updates import Backup, RemoteBackups
 
 router = APIRouter(prefix="/admin/backups", tags=["updates"])
 LINK_SECONDS = 120
+
+
+@router.get("/remote")
+def remote_backups(user: AdminReader, db: Db, cfg: Cfg) -> RemoteBackups:
+    """The copies on backups.connection, how copying the last backup there went, and a copy running now."""
+    where, st = backups.remote(cfg), backups.remote_state(db)
+    out = RemoteBackups(
+        connection=where and where["connection"],
+        folder=where and where["folder"],
+        last_at=st.get("at"),
+        last_name=st.get("name"),
+        last_error=st.get("error"),
+        copying=CopyWork(**backups.copying),
+    )
+    if where:
+        try:
+            out.backups = [Backup(**b) for b in backups.remote_listing(db, cfg)]
+        except (RuntimeError, ValueError, OSError) as e:
+            out.error = str(e)[:300] or type(e).__name__
+    return out
+
+
+def _copy(db, cfg, what, name):
+    if not backups.remote(cfg):
+        raise HTTPException(400, "choose a storage connection for backups first")
+    try:
+        backups.start_copy(db, cfg, what, name)
+    except backups.Busy as e:
+        raise HTTPException(409, str(e)) from None
+
+
+@router.post("/{name}/send", status_code=202)
+def send_backup(name: str, user: AdminWriter, db: Db, cfg: Cfg) -> Ok:
+    """Copy this backup to backups.connection now, in the background."""
+    with domain_errors():
+        backups.path(db, name)
+    _copy(db, cfg, "send", name)
+    auth.audit(db, user.as_audit(), "backup.send", None, {"name": name})
+    return Ok()
+
+
+@router.post("/{name}/fetch", status_code=202)
+def fetch_backup(name: str, user: AdminWriter, db: Db, cfg: Cfg) -> Ok:
+    """Bring the copy of this backup back from backups.connection, in the background, to restore or download it."""
+    if not backups.NAME.match(name):
+        raise HTTPException(400, "no such backup")
+    _copy(db, cfg, "fetch", name)
+    auth.audit(db, user.as_audit(), "backup.fetch", None, {"name": name})
+    return Ok()
+
+
+@router.delete("/{name}/remote")
+def delete_remote_backup(name: str, user: AdminWriter, db: Db, cfg: Cfg) -> Ok:
+    """Delete the copy of this backup on backups.connection."""
+    try:
+        backups.remote_delete(db, cfg, name)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e)) from None
+    auth.audit(db, user.as_audit(), "backup.delete_remote", None, {"name": name})
+    return Ok()
 
 
 def _signed_in(user) -> None:

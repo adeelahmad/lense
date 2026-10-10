@@ -139,7 +139,7 @@ first ([Updates and backups](updates.md)). Each is one entry in `<data_dir>/back
 | Kind | Taken | Kept |
 | --- | --- | --- |
 | `manual` | from Settings › Backups, `POST /api/v1/admin/backups` or `lens backup` | until you delete it |
-| `scheduled` | on `backups.schedule` (a cron expression in `backups.timezone`; none by default) | the newest `backups.keep` (7) |
+| `scheduled` | on `backups.schedule` (any cron expression in `backups.timezone`, typed or picked in one click; none by default) | the newest `backups.keep` (7), here and on the connection |
 | `before-upgrade` | before the database is upgraded, and before a release is installed | the newest three taken before database upgrades |
 | `before-restore` | what the database held just before a restore replaced it | the newest three |
 
@@ -152,6 +152,14 @@ put back if the restore fails; a backup from an older Lens is brought up to date
 People signed in since the backup was taken sign in again. Only an admin signed in with a passkey can download or
 restore a backup from Settings (a download there is a link that works for two minutes); an admin API token can take,
 list and delete them. `backups.restore(db, cfg, name)` in `app/domain/backups.py` is the one restore everything uses.
+
+**A copy somewhere else.** Choose a storage connection under *Also copy each backup to* (S3 or S3-compatible,
+Google Drive, Dropbox, OneDrive, SFTP, SMB, WebDAV or a folder; added under Sources, through rclone), and every new
+backup, by hand or scheduled, is copied there under `backups.folder` as `<name>.lensbk`, with the scheduled ones
+kept to `backups.keep` there as well. A copy is encrypted (AES-256-GCM) with a key derived from `secret.key` (or
+`ARCHIVE_SECRET_KEY`), not with a key kept in the database, so it can be opened after the database is lost. Keep that
+key away from the connection. *Copy there* sends one again, and *Bring back* fetches a copy that only the connection
+has, so you can then restore or download it. If copying fails, the backup here is still kept, and Settings shows why.
 
 By hand, with a server: `gunzip -k` the file, then `surreal import --conn http://host:8000 --user root --pass … --ns
 archive --db main <file>.surql` into an empty database. Embedded: stop Lens and put the copy in place of

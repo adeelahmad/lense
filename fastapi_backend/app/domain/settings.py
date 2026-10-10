@@ -771,6 +771,16 @@ def _backup_setting(key, value):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
             raise ValueError("backups.keep is a whole number of scheduled backups from 1 to 365")
         return value
+    if key == "connection":
+        if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+            raise ValueError("backups.connection is a storage connection's id, or none")
+        return value
+    if key == "folder":
+        from . import blobs
+
+        if not isinstance(value, str) or not value.strip() or len(value) > 200:
+            raise ValueError("backups.folder is a folder (a bucket and path for S3), up to 200 characters")
+        return blobs._folder(value)
     raise ValueError(f"unknown setting backups.{key}")
 
 
@@ -1041,6 +1051,10 @@ def save(db, base, section, changes, user=None):
             "SELECT VALUE id FROM passkey WHERE account IN (SELECT VALUE record::id(id) FROM account WHERE admin = true AND disabled != true) LIMIT 1"
         ):
             raise ValueError("add a passkey for an admin before turning passwords off, or nobody could administer Lens")
+    if section == "backups" and data.get("connection"):
+        from . import blobs
+
+        blobs.check_connection(db, data["connection"])
     if section == "files" and data.get("store") == "connection":
         from . import blobs
 
