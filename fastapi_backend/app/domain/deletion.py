@@ -50,6 +50,7 @@ OWN = (
     "page",
     "passage",
     "photo_vector",
+    "podcast",
 )
 
 

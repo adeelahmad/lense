@@ -266,6 +266,7 @@ DEFAULTS = {
             "report",
             "export",
             "workflow",
+            "podcast",
         ],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
@@ -296,6 +297,18 @@ DEFAULTS = {
         "tts_model": None,
         "tts_voice": None,
         "tts_api_key": None,
+    },
+    # podcast episodes made from what someone picked (domain/podcasts.py): where they go, the hosts' names, how much
+    # source text the model reads (characters), the longest episode (minutes), the speaking pace, and a model for
+    # its LLM calls (null: llm.model)
+    "podcasts": {
+        "namespace": "podcasts",
+        "host_a": "Alex",
+        "host_b": "Sam",
+        "context_chars": 24000,
+        "max_minutes": 30,
+        "words_per_minute": 150,
+        "model": None,
     },
     # a chat model Lens runs itself with llama.cpp (domain/local_llm.py): model is a catalog id or
     # "hf:<owner>/<repo>/<file>.gguf"; server is llama-server's path (a startup setting; else PATH, else fetched)
@@ -1066,6 +1079,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS graph_checkpoint SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS graph_checkpoint_part SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS graph_checkpoint_part_cp ON graph_checkpoint_part FIELDS checkpoint",
+    # what a podcast episode was made from and of, beside its recording (app/domain/podcasts.py): podcast:<recording id>
+    "DEFINE TABLE IF NOT EXISTS podcast SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS podcast_space ON podcast FIELDS space",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

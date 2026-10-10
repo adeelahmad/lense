@@ -131,6 +131,12 @@ def _workflow(db, cfg, rid, say, spec=None):
     say(f"workflow ran {ran} of {len(done) - 1} nodes")
 
 
+def _podcast(db, cfg, rid, say, spec=None):
+    from . import podcasts
+
+    podcasts.step(db, cfg, rid, say, spec)
+
+
 def _shots(db, cfg, rid, say, spec=None):
     from . import video
 
@@ -177,6 +183,7 @@ STEPS = {
     "llm": _llm,
     "export": _export,
     "workflow": _workflow,
+    "podcast": _podcast,
 }
 
 
@@ -832,8 +839,8 @@ class Worker:
         cfg_fn()  # reads the saved settings now, so telemetry (if on) is set up before the first job's span
         self.name = name or f"{socket.gethostname()}-{os.getpid()}"
         self.can = set(steps or cfg_fn()["workers"]["steps"]) & set(STEPS)
-        if "llm" in self.can:  # a workflow needs what an llm step needs; lists written before workflows existed run them too
-            self.can.add("workflow")
+        if "llm" in self.can:  # a workflow or a podcast needs what an llm step needs; older lists run them too
+            self.can |= {"workflow", "podcast"}
         if not steps and "transcribe" in self.can and not self.can & VIDEO_STEPS:
             # a workers.steps list written before the video steps existed (archive.yaml copied from an older example):
             # without them every import would wait for a worker that can run shots
