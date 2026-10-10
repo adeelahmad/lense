@@ -97,6 +97,20 @@ class LocalLlmStatus(ResponseModel):
     machine: dict[str, Any]
 
 
+class NfsStatus(ResponseModel):
+    enabled: bool
+    phase: Literal["off", "running", "error"]
+    port: int
+    allowed_networks: list[str]
+    account: str | None = Field(None, description="whose view of the file tree the share shows, while running")
+    error: str | None = None
+    refused: int = Field(0, description="connections refused since it started, from outside the allowed networks")
+    log: list[str] = Field(default_factory=list, description="rclone's last lines")
+    process: str | None = Field(None, description="the worker running it")
+    mount: str = Field(description="the command that mounts it on Linux")
+    rclone: bool = Field(description="whether rclone is installed here")
+
+
 class Removed(ResponseModel):
     removed: bool
 

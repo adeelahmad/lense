@@ -34,6 +34,7 @@ import {
   MessagesSquare,
   PackageCheck,
   RadioTower,
+  FolderTree,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -82,6 +83,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   telemetry: Activity,
   fedora: Archive,
   sensors: RadioTower,
+  nfs: FolderTree,
   uploads: Upload,
   storage: Database,
   documents: FileType,

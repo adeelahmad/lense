@@ -912,6 +912,8 @@ import type {
   NewTokenData,
   NewTokenErrors,
   NewTokenResponses,
+  NfsStatusData,
+  NfsStatusResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -2463,6 +2465,20 @@ export class Admin {
   ): RequestResult<RemoveLocalModelResponses, RemoveLocalModelErrors, ThrowOnError> {
     return (options.client ?? client).delete<RemoveLocalModelResponses, RemoveLocalModelErrors, ThrowOnError>({
       url: "/api/v1/settings/local-llm/models",
+      ...options,
+    });
+  }
+
+  /**
+   * Nfs Status
+   *
+   * The file tree over NFS: whether it's serving, as whom, to which networks, and the command that mounts it.
+   */
+  public static nfsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<NfsStatusData, ThrowOnError>,
+  ): RequestResult<NfsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NfsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/nfs/status",
       ...options,
     });
   }

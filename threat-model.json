@@ -452,6 +452,15 @@
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },
     {
+      "entry_point": "NFS share (port 12049 on the host, 2049 in the worker)",
+      "parameter": "NFS and MOUNT RPCs, client address",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables and picks the account; operator firewalls",
+      "provenance": "documented",
+      "source": "docs/file-shares.md \"NFS has no login\""
+    },
+    {
       "entry_point": ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY",
       "parameter": "process configuration",
       "attacker_controllable": "no",
@@ -999,6 +1008,14 @@
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },
     {
+      "property": "P-NFS",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks",
+      "provenance": "documented",
+      "source": "docs/file-shares.md \"NFS has no login\""
+    },
+    {
       "property": "P-CHILD-SECRETS",
       "violation_symptom": "info-leak",
       "severity_tier": "correctness",
@@ -1381,7 +1398,8 @@
     "Treat transcript text and MCP results as untrusted prompt input in your agents",
     "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS",
     "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets",
-    "Keep logs that record request paths private when sensor push tokens are in use"
+    "Keep logs that record request paths private when sensor push tokens are in use",
+    "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show"
   ],
   "known_misuse": [
     {

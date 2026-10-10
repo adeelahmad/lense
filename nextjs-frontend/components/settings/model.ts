@@ -76,6 +76,7 @@ export type SectionId =
   | "telemetry"
   | "fedora"
   | "sensors"
+  | "nfs"
   | "uploads"
   | "storage"
   | "documents"
@@ -252,6 +253,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["sensors"],
     description:
       "Off unless you turn it on. An MQTT hub and a syslog listener in Lens’s workers, so routers, DNS servers and devices can send to it; and how long what they send is kept.",
+  },
+  {
+    id: "nfs",
+    label: "NFS share",
+    backend: ["nfs"],
+    description:
+      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
   },
   {
     id: "uploads",
@@ -1677,6 +1685,32 @@ export const FIELDS: FieldSpec[] = [
     max: 1440,
     unit: "minutes",
   },
+  // NFS share (opt-in)
+  {
+    section: "nfs",
+    key: "enabled",
+    label: "Share the file tree over NFS",
+    kind: "switch",
+    hint: "Read-only. Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "account",
+    label: "Show it as",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "The share shows what this person sees in the web app, and nothing else",
+  },
+  {
+    section: "nfs",
+    key: "allowed_networks",
+    label: "Networks it’s shared with",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. NFS has no login, so machines anywhere else are turned away",
+  },
+  { section: "nfs", key: "port", label: "Port inside Lens", kind: "int", min: 1, max: 65535 },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -2328,6 +2362,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     }
     case "select":
       if (f.key === "frame_width") return { value: Number(ui) };
+      if (f.section === "nfs" && f.key === "account") return { value: ui === "" || ui == null ? null : Number(ui) };
       if (f.section === "files" && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };
       return { value: ui === "" && f.nullable ? null : ui };
@@ -2421,6 +2456,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const nets = values["notifications.networks"] as string[] | undefined;
   const badNet = nets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNet) e["notifications.networks"] = `“${badNet}” isn’t a network like 192.168.1.0/24`;
+  const nNets = values["nfs.allowed_networks"] as string[] | undefined;
+  const badNNet = nNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badNNet) e["nfs.allowed_networks"] = `“${badNNet}” isn’t a network like 192.168.1.0/24`;
+  else if (nNets && nNets.length === 0) e["nfs.allowed_networks"] = "List at least one network";
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;

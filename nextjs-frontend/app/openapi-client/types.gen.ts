@@ -7849,6 +7849,69 @@ export type NextRun = {
 };
 
 /**
+ * NfsStatus
+ */
+export type NfsStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Phase
+   */
+  phase: "off" | "running" | "error";
+  /**
+   * Port
+   */
+  port: number;
+  /**
+   * Allowed Networks
+   */
+  allowed_networks: Array<string>;
+  /**
+   * Account
+   *
+   * whose view of the file tree the share shows, while running
+   */
+  account?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Refused
+   *
+   * connections refused since it started, from outside the allowed networks
+   */
+  refused?: number;
+  /**
+   * Log
+   *
+   * rclone's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Process
+   *
+   * the worker running it
+   */
+  process?: string | null;
+  /**
+   * Mount
+   *
+   * the command that mounts it on Linux
+   */
+  mount: string;
+  /**
+   * Rclone
+   *
+   * whether rclone is installed here
+   */
+  rclone: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * NodeParam
  */
 export type NodeParam = {
@@ -19050,6 +19113,22 @@ export type RemoveLocalModelResponses = {
 };
 
 export type RemoveLocalModelResponse = RemoveLocalModelResponses[keyof RemoveLocalModelResponses];
+
+export type NfsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/nfs/status";
+};
+
+export type NfsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: NfsStatus;
+};
+
+export type NfsStatusResponse = NfsStatusResponses[keyof NfsStatusResponses];
 
 export type TunnelStatusData = {
   body?: never;

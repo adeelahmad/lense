@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:c7c945e760490e73dbb947e89beff868a218b89b839b4172f9d928d4853e992a"
+prose_version: "threat-model.md@sha256:0647ba2329f20585ed3cabc256ed0ca822b55437d90c39ddb1b30da4807a0eab"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -389,6 +389,16 @@ entry_points:
         obligation_id: enable-and-firewall-sensors
         caller_must_enforce: "admin enables; operator firewalls"
         provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: "NFS share (port 12049 on the host, 2049 in the worker)"
+    component: optional
+    parameters:
+      - name: "NFS and MOUNT RPCs, client address"
+        attacker_controllable: true
+        x-condition: "once enabled, from nfs.allowed_networks"
+        control_kinds: [data, x-network-source]
+        obligation_id: enable-and-limit-nfs
+        caller_must_enforce: "admin enables and picks the account; operator firewalls"
+        provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -523,6 +533,7 @@ contract_dimensions:
   - {component: optional, dimension: serialization-reconstruction, status: not-applicable, conditions: "readings stored as data; no object reconstruction", provenance: {kind: inferred, question_id: Q34}}
   - {component: optional, dimension: callback-execution, status: claimed, property_id: P-CHILD-SECRETS, conditions: "tunnel token and llama-server key stay off command lines", provenance: {kind: documented, source: 'docs/remote-access.md "in its environment, not on its command line"'}}
   - {component: optional, dimension: reference-lifecycle, status: claimed, property_id: P-SENSORS, conditions: "each service off until an admin turns it on", provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}}
+  - {component: optional, dimension: confidentiality, status: claimed, property_id: P-NFS, conditions: "NFS share off until an admin turns it on; read-only; one account's view; allowed networks only", provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
   - {component: optional, dimension: concurrency-reentrancy, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
   - {component: optional, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
 
@@ -1384,6 +1395,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "sensors.mqtt_anonymous (domain/sensors.py:984); sensors.syslog_networks, sensors.bind"
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: P-NFS
+    kind: confidentiality
+    components: [optional]
+    tier: security-critical
+    conditions: "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks"
+    violation_symptoms: [info-leak]
+    x-voided-by: "nfs.allowed_networks set wide, or a spoofed client address on the local network (domain/share_relay.py); Docker publishing that rewrites client addresses"
+    provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}
   - id: P-CHILD-SECRETS
     kind: confidentiality
     components: [optional]
@@ -1517,6 +1536,7 @@ downstream_responsibilities:
   - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat transcript text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
   - {id: dr-iiif-over-https, component: authz, statement: "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS", enforces: [], x-protects: "IIIF cookie", provenance: {kind: documented, source: 'docs/iiif.md "its cookie is `SameSite=None; Secure`"'}}
   - {id: dr-verify-webhook-signature, component: outbound, statement: "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets", enforces: [dmna-chat-webhooks-signed], x-protects: "§1.8 webhook bodies", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
+  - {id: dr-limit-nfs-share, component: optional, statement: "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show", enforces: [P-NFS, enable-and-limit-nfs], provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
   - {id: dr-private-logs-push-tokens, component: optional, statement: "Keep logs that record request paths private when sensor push tokens are in use", enforces: [P-SENSORS], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
 
 # ---------------------------------------------------------------- §1.14

@@ -2444,6 +2444,28 @@
         }
       }
     },
+    "/api/v1/settings/nfs/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Nfs Status",
+        "description": "The file tree over NFS: whether it's serving, as whom, to which networks, and the command that mounts it.",
+        "operationId": "nfs_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NfsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/tunnel/status": {
       "get": {
         "tags": [
@@ -37832,6 +37854,104 @@
           "basis"
         ],
         "title": "NextRun"
+      },
+      "NfsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "off",
+              "running",
+              "error"
+            ],
+            "title": "Phase"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port"
+          },
+          "allowed_networks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Networks"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account",
+            "description": "whose view of the file tree the share shows, while running"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "refused": {
+            "type": "integer",
+            "title": "Refused",
+            "description": "connections refused since it started, from outside the allowed networks",
+            "default": 0
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "rclone's last lines"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the worker running it"
+          },
+          "mount": {
+            "type": "string",
+            "title": "Mount",
+            "description": "the command that mounts it on Linux"
+          },
+          "rclone": {
+            "type": "boolean",
+            "title": "Rclone",
+            "description": "whether rclone is installed here"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "phase",
+          "port",
+          "allowed_networks",
+          "mount",
+          "rclone"
+        ],
+        "title": "NfsStatus"
       },
       "NodeParam": {
         "properties": {
