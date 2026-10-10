@@ -40,15 +40,17 @@ async function openImport(ctx) {
   await page.waitForURL(/\/import/);
 }
 
-/** Waits, not counted, until the API's answer at `url` has `text`: something made in the background, which a person
- * would come back to later. */
-async function apiHas({ page, base }, url, text, what) {
-  for (let i = 0; i < 150; i++) {
-    const r = await page.request.get(base + url).catch(() => null);
-    if (r?.ok() && (await r.text()).includes(text)) return;
-    await page.waitForTimeout(2000);
+/** Waits, not counted, until the page at `where` shows `locator`: something made in the background, which a person
+ * would come back to later. Then back to `from`, where the journey starts. */
+async function madeInBackground({ page, base }, where, locator, from, what) {
+  for (let i = 0; !(await locator.isVisible()); i++) {
+    if (i === 60) throw new Error(`${what} wasn't there after 5 minutes`);
+    await page.goto(base + where, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(5000);
   }
-  throw new Error(`${what} wasn't there after 5 minutes`);
+  await page.goto(base + from, { waitUntil: "domcontentloaded" });
+  await page.getByRole("banner").waitFor();
+  await page.waitForTimeout(2000);
 }
 
 /** Fails the journey with the reason when a control isn't on the screen at all (on a phone some are hidden). */
@@ -474,12 +476,13 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
-      await apiHas(ctx, "/api/v1/entities?q=raspberry", "Raspberry Pi", "the entity from the imports' analysis");
+      const entity = page.getByRole("main").getByRole("button", { name: "Raspberry Pi", exact: true });
+      await madeInBackground(ctx, "/entities", entity, "/", "the entity the imports' analysis makes");
       await go(ctx, "Entities");
       await meter.type(page.getByRole("searchbox", { name: "Find entities" }), "rasp", "part of its name");
       // the list filters as you type: the other entity leaves it
       await page.getByRole("main").getByRole("table").getByText("Lens", { exact: true }).waitFor({ state: "hidden" });
-      await meter.click(page.getByRole("main").getByRole("button", { name: "Raspberry Pi", exact: true }), "Raspberry Pi");
+      await meter.click(entity, "Raspberry Pi");
       await page.waitForURL(/entity=\d+/);
       await page.getByText(/Raspberry Pi can run Lens/).first().waitFor();
     },
