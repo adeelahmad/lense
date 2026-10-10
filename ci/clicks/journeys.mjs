@@ -213,11 +213,11 @@ export const JOURNEYS = [
     id: "pipeline-create",
     module: "Pipelines",
     feature: "Make a pipeline from the standard steps",
+    note: "Lens guesses the name from the steps; it can be renamed on the pipeline's page.",
     from: "/",
     async run({ page, meter }) {
       await meter.click(nav(page, "Pipelines"), "Pipelines");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New pipeline" }), "New pipeline");
-      await meter.type(page.getByRole("textbox", { name: "Pipeline name" }), "Quick pipeline", "name");
       await meter.click(page.getByRole("button", { name: "Create pipeline" }), "Create pipeline");
       await page.waitForURL(/\/pipelines\/\d+/);
     },
@@ -226,11 +226,11 @@ export const JOURNEYS = [
     id: "routine-create",
     module: "Routines",
     feature: "Make a nightly routine (sync sources, the default action)",
+    note: "Lens guesses the name from when it runs and what it does; it can be renamed later.",
     from: "/",
     async run({ page, meter }) {
       await meter.click(nav(page, "Routines"), "Routines");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New routine" }), "New routine");
-      await meter.type(page.getByRole("textbox", { name: "Name" }), "Nightly sync", "name");
       await meter.click(page.getByRole("button", { name: "Create routine" }), "Create routine");
       await page.waitForURL(/\/routines\/\d+/);
     },
@@ -293,6 +293,7 @@ export const JOURNEYS = [
     id: "api-token",
     module: "Account",
     feature: "Make an API token",
+    note: "Lens guesses the name from the scope; it can be renamed in the list.",
     from: "/",
     async run({ page, meter }) {
       await meter.click(page.getByRole("button", { name: "Account menu" }), "Account menu");
@@ -303,7 +304,6 @@ export const JOURNEYS = [
       // the form is open already when there are no tokens yet
       if (!(await d.isVisible()))
         await meter.click(page.getByRole("main").getByRole("button", { name: "New token" }).first(), "New token");
-      await meter.type(d.getByRole("textbox", { name: "Name" }), "script", "name");
       await meter.click(d.getByRole("button", { name: "Create token" }), "Create token");
       await page.getByText(/copy/i).first().waitFor();
     },

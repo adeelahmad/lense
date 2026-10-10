@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T22:25:49.567Z",
+  "surveyed": "2026-10-10T22:57:02.610Z",
   "commit": "",
   "viewport": "1400x900",
   "journeys": [
@@ -45,7 +45,7 @@
         }
       ],
       "id": "install",
-      "ms": 2081,
+      "ms": 2028,
       "ok": true
     },
     {
@@ -82,7 +82,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 475,
+      "ms": 524,
       "ok": true
     },
     {
@@ -127,7 +127,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 659,
+      "ms": 666,
       "ok": true
     },
     {
@@ -156,7 +156,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2225,
+      "ms": 2344,
       "ok": true
     },
     {
@@ -201,7 +201,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4139,
+      "ms": 4151,
       "ok": true
     },
     {
@@ -230,7 +230,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2621,
+      "ms": 2691,
       "ok": true
     },
     {
@@ -267,7 +267,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3173,
+      "ms": 3241,
       "ok": true
     },
     {
@@ -304,7 +304,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2385,
+      "ms": 2356,
       "ok": true
     },
     {
@@ -341,7 +341,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3552,
+      "ms": 3410,
       "ok": true
     },
     {
@@ -386,7 +386,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3366,
+      "ms": 3338,
       "ok": true
     },
     {
@@ -431,15 +431,15 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3487,
+      "ms": 3322,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a pipeline from the standard steps",
-      "note": "",
+      "note": "Lens guesses the name from the steps; it can be renamed on the pipeline's page.",
       "clicks": 3,
-      "keys": 14,
+      "keys": 0,
       "prompts": 0,
       "steps": [
         {
@@ -460,14 +460,6 @@
         },
         {
           "page": "/pipelines/new",
-          "kind": "type",
-          "what": "name",
-          "clicks": 0,
-          "keys": 14,
-          "prompts": 0
-        },
-        {
-          "page": "/pipelines/new",
           "kind": "click",
           "what": "Create pipeline",
           "clicks": 1,
@@ -476,15 +468,15 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2694,
+      "ms": 2649,
       "ok": true
     },
     {
       "module": "Routines",
       "feature": "Make a nightly routine (sync sources, the default action)",
-      "note": "",
+      "note": "Lens guesses the name from when it runs and what it does; it can be renamed later.",
       "clicks": 3,
-      "keys": 12,
+      "keys": 0,
       "prompts": 0,
       "steps": [
         {
@@ -505,14 +497,6 @@
         },
         {
           "page": "/routines/new",
-          "kind": "type",
-          "what": "name",
-          "clicks": 0,
-          "keys": 12,
-          "prompts": 0
-        },
-        {
-          "page": "/routines/new",
           "kind": "click",
           "what": "Create routine",
           "clicks": 1,
@@ -521,7 +505,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2647,
+      "ms": 2844,
       "ok": true
     },
     {
@@ -558,7 +542,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2554,
+      "ms": 2639,
       "ok": true
     },
     {
@@ -595,7 +579,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2684,
+      "ms": 2845,
       "ok": true
     },
     {
@@ -640,7 +624,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3491,
+      "ms": 3510,
       "ok": true
     },
     {
@@ -701,15 +685,15 @@
         }
       ],
       "id": "person-add",
-      "ms": 3863,
+      "ms": 3081,
       "ok": true
     },
     {
       "module": "Account",
       "feature": "Make an API token",
-      "note": "",
+      "note": "Lens guesses the name from the scope; it can be renamed in the list.",
       "clicks": 3,
-      "keys": 6,
+      "keys": 0,
       "prompts": 0,
       "steps": [
         {
@@ -730,14 +714,6 @@
         },
         {
           "page": "/account/tokens",
-          "kind": "type",
-          "what": "name",
-          "clicks": 0,
-          "keys": 6,
-          "prompts": 0
-        },
-        {
-          "page": "/account/tokens",
           "kind": "click",
           "what": "Create token",
           "clicks": 1,
@@ -746,7 +722,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3140,
+      "ms": 3031,
       "ok": true
     },
     {
@@ -775,7 +751,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2280,
+      "ms": 2256,
       "ok": true
     }
   ],
@@ -892,7 +868,7 @@
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 2,
-      "controls": 3
+      "controls": 6
     },
     {
       "page": "/extensions",
@@ -1048,7 +1024,7 @@
       "page": "/settings/telemetry",
       "label": "Settings › Telemetry",
       "reach": 2,
-      "controls": 12
+      "controls": 13
     },
     {
       "page": "/settings/fedora",
@@ -1126,7 +1102,7 @@
       "page": "/admin/health",
       "label": "Admin › System health",
       "reach": 2,
-      "controls": 10
+      "controls": 11
     }
   ]
 }
