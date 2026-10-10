@@ -1264,6 +1264,99 @@ def write_note(
     return {"note_id": pid, "url": _note_url(ctx, pid)}
 
 
+# ---------- podcasts ----------
+@tool(
+    "create_podcast",
+    "Make a podcast episode",
+    "Make a two-host learning episode about resources (recording_ids) and/or lines in them (lines, as "
+    '"<recording_id>:<line>", e.g. from search results): one host explains, the other asks, every claim cited to its '
+    "source and fact-checked, read aloud when text to speech is set up. It's made in the background; check on it with "
+    "get_podcast. Needs a token with the write scope and editor access where the episode goes.",
+    Arg("recording_ids", "integer[]", "resources to cover whole", maximum=100),
+    Arg("lines", "string[]", 'lines to cover, as "<recording_id>:<line>"', maximum=200),
+    Arg("prompt", "string", 'an angle, e.g. "how these relate to GPU scheduling" or "for a beginner"', max_length=2000),
+    Arg("length", "integer", "minutes", default=10, minimum=1, maximum=120),
+    Arg(
+        "style",
+        "string",
+        "deep-dive, recap, debate (compare) or beginner",
+        enum=("deep-dive", "recap", "debate", "beginner"),
+        default="deep-dive",
+    ),
+    Arg("title", "string", "a title (else the model gives one)", max_length=200),
+    writes=True,
+)
+def create_podcast(
+    ctx: Context,
+    recording_ids: list[int] | None,
+    lines: list[str] | None,
+    prompt: str | None,
+    length: int,
+    style: str,
+    title: str | None,
+) -> dict[str, Any]:
+    from app.api.v1.routes import podcasts as podcast_routes
+    from app.schemas.podcasts import PodcastCreate
+
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to make episodes")
+    excerpts = []
+    for x in lines or []:
+        m = re.fullmatch(r"\s*(\d+)\s*:\s*(\d+)\s*", x)
+        if not m:
+            raise ToolError(f'lines are "<recording_id>:<line>", not {x!r}')
+        excerpts.append({"recording": int(m[1]), "idx": int(m[2])})
+    if not recording_ids and not excerpts:
+        raise ToolError("give recording_ids or lines to make an episode about")
+    try:
+        body = PodcastCreate(
+            selection={"recordings": recording_ids or [], "excerpts": excerpts}, prompt=prompt, length=length, style=style, title=title
+        )
+    except ValueError as e:
+        raise ToolError(str(e)) from None
+    out = podcast_routes.start(ctx.acl, ctx.user, ctx.db, ctx.cfg, body)
+    return {**out.model_dump(), "url": ctx.link(out.episode)}
+
+
+@tool(
+    "get_podcast",
+    "Read a podcast episode",
+    "An episode made with create_podcast: how far it has got (status ready, script_only or failed when done), its "
+    "title, the script with each line's speaker and the sources it cites, and what the fact-check changed.",
+    Arg("episode_id", "integer", "the episode's id", required=True),
+)
+def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
+    from app.domain import podcasts
+
+    ctx.acl.recording(episode_id)
+    ep = podcasts.view(ctx.db, episode_id)  # KeyError: not an episode
+    hosts = (ep.get("request") or {}).get("hosts") or {}
+    return store.clean(
+        {
+            "episode_id": episode_id,
+            "title": ep.get("title"),
+            "status": ep["status"],
+            "error": ep.get("error"),
+            "duration_ms": ep.get("duration_ms"),
+            "script": [
+                store.clean(
+                    {
+                        "speaker": hosts.get(line["speaker"], line["speaker"]),
+                        "text": line["text"],
+                        "cites": [ctx.link(c["recording"], c.get("t0")) for c in line["sources"]] or None,
+                    }
+                )
+                for line in ep.get("lines") or []
+            ]
+            or None,
+            "changed_by_fact_check": [{k: c.get(k) for k in ("verdict", "action", "before", "after")} for c in ep.get("checks") or []]
+            or None,
+            "sources": [{"n": x["n"], "title": x["title"], "at": x.get("at")} for x in ep.get("sources") or []] or None,
+            "url": ctx.link(episode_id),
+        }
+    )
+
+
 # ---------- where files are kept (admins) ----------
 def _admin(ctx: Context) -> None:
     if not ctx.user.admin:

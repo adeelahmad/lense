@@ -145,19 +145,32 @@ def target(db, cfg, source_spaces, roles, admin):
 
 # ---------- starting ----------
 def create(
-    db, cfg, selection, by=None, roles=None, admin=False, readable=None, prompt=None, length=None, style=None, title=None, voices=None
+    db,
+    cfg,
+    selection,
+    by=None,
+    roles=None,
+    admin=False,
+    readable=None,
+    also=(),
+    prompt=None,
+    length=None,
+    style=None,
+    title=None,
+    voices=None,
 ):
     """A new episode about what was picked, queued to be made. Returns {episode, job, namespace, placed}.
 
-    `roles` ({space: role}) and `admin` decide where it may go; `readable` (None: everything) bounds the sources it may
-    read, and is kept for the job. Callers check the person may read every picked recording first."""
+    `roles` ({space: role}) and `admin` decide where it may go; `readable` (None: everything) and `also` (recordings
+    seen through a role on their collection) bound the sources it may read, and are kept for the job. Callers check the person may read every picked recording first."""
     sel = clean_selection(selection)
     opts = options(cfg, length, style, prompt, voices)
     rids = selected_recordings(sel)
     rows = db.rows("SELECT record::id(id) AS id, space, title FROM recording WHERE id IN $ids", ids=[R("recording", r) for r in rids])
     if len(rows) != len(rids):
         raise KeyError(sorted(set(rids) - {r["id"] for r in rows})[0])
-    if readable is not None and any(r["space"] not in readable for r in rows):
+    also = sorted({int(x) for x in also or ()})
+    if readable is not None and any(r["space"] not in readable and r["id"] not in also for r in rows):
         raise KeyError("recording")
     sid, placed = target(db, cfg, {r["space"] for r in rows}, roles or {}, admin)
     rid = db.next_id("recording")
@@ -193,6 +206,7 @@ def create(
                 "status": "queued",
                 "request": {"selection": sel, **opts, "hosts": hosts(cfg)},
                 "readable": sorted(readable) if readable is not None else None,
+                "also": also or None,
                 "by": by,
                 "created_at": t,
                 "updated_at": t,
@@ -328,15 +342,16 @@ def _excerpt(n, rid, run, rec, names, space_names, picked=True):
     )
 
 
-def resolve(db, cfg, sel, prompt=None, readable=None, budget=None):
+def resolve(db, cfg, sel, prompt=None, readable=None, budget=None, also=()):
     """The picked recordings and lines as numbered excerpts, within `budget` characters shared fairly between the
-    sources. A picked line comes with its neighbours. Recordings outside `readable` (None: all) are left out."""
+    sources. A picked line comes with its neighbours. Recordings outside `readable` (None: all) and not in `also` are
+    left out."""
     budget = int(budget or (cfg.get("podcasts") or {}).get("context_chars") or 24000)
     rids = selected_recordings(sel)
     recs = {
         r["id"]: r
         for r in db.rows("SELECT record::id(id) AS id, title, space FROM recording WHERE id IN $ids", ids=[R("recording", i) for i in rids])
-        if readable is None or r["space"] in readable
+        if readable is None or r["space"] in readable or r["id"] in set(also or ())
     }
     if not recs:
         raise Problem("none of the picked sources can be read any more")
@@ -371,7 +386,7 @@ def gather(db, cfg, rid, say):
     p = get_row(db, rid)
     req = p["request"]
     readable = set(p["readable"]) if p.get("readable") is not None else None
-    sources = resolve(db, cfg, req["selection"], req.get("prompt"), readable)
+    sources = resolve(db, cfg, req["selection"], req.get("prompt"), readable, also=p.get("also") or ())
     _save(db, rid, sources=sources, outline=None, lines=None, checks=None, audio=None)
     say(f"gathered {len(sources)} excerpt(s) from {len({s['ref']['recording'] for s in sources})} source(s)")
 
@@ -814,7 +829,17 @@ def view(db, rid):
     p = get_row(db, rid)
     rec = db.one("SELECT title, space, duration_ms, status FROM $r", r=R("recording", int(rid))) or {}
     by_n = {s["n"]: s for s in p.get("sources") or []}
-    lines = [{**l, "sources": [by_n[n]["ref"] | {"n": n} for n in l["citations"] if n in by_n]} for l in p.get("lines") or []]
+    lines = [
+        {
+            **l,
+            "sources": [
+                store.clean(by_n[n]["ref"] | {"n": n, "t0": by_n[n].get("t0"), "page": by_n[n].get("page")})
+                for n in l["citations"]
+                if n in by_n
+            ],
+        }
+        for l in p.get("lines") or []
+    ]
     return store.clean(
         {
             "id": int(rid),

@@ -225,7 +225,7 @@ def test_episode_is_made_by_a_job(db, cfg, folder, llm):
         "The samples ship on Friday.",
         "So: designed capsids, and samples leave Friday.",
     ]
-    assert ep["lines"][2]["sources"] == [{**ep["sources"][0]["ref"], "n": 1}]
+    assert ep["lines"][2]["sources"] == [{**ep["sources"][0]["ref"], "n": 1, "t0": 0}]
     assert [(c["verdict"], c["action"]) for c in ep["checks"]] == [
         ("partial", "rewritten"),
         ("unsupported", "rewritten"),

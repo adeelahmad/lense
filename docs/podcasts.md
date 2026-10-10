@@ -1,7 +1,7 @@
 # Podcasts
 
-**Status: in progress.** The backend that writes a cited, fact-checked script and records it in two voices is built.
-The API, MCP tools and the web app's dialog and episode page are planned (see the [dev log](https://github.com/adeelahmad/lense/blob/main/DEVLOG.md)).
+**Status: in progress.** The backend that writes a cited, fact-checked script and records it in two voices, its API
+and its MCP tools are built. The web app's dialog and episode page are planned (see the [dev log](https://github.com/adeelahmad/lense/blob/main/DEVLOG.md)).
 
 Pick resources (and passages in them) and Lens makes a two-host learning episode about them: one host explains, the
 other asks the questions a smart learner would ask, with analogies and a recap. Every claim in the script cites the
@@ -34,6 +34,20 @@ One job on the episode's recording, one step per stage, visible in Activity and 
 
 Then the usual analyze, embed and summarize steps run. Workers run podcast steps when their `workers.steps` list has
 `podcast` (or `llm`).
+
+## API and MCP
+
+| | |
+|---|---|
+| `POST /api/v1/podcasts` | make an episode: `selection` (`recordings`, and `excerpts` as `{recording, idx}` lines), `prompt`, `length` (minutes), `style` (deep-dive, recap, debate, beginner), `title`, `voices` (`{a, b}`). Answers 202 with the episode's id, its job (watch it on `GET /api/v1/events`), its namespace and why it went there. 404 for a source you can't read; 400 when there's nowhere you may put it |
+| `GET /api/v1/podcasts` | episodes in the namespaces you can read, newest first |
+| `GET /api/v1/podcasts/{id}` | an episode: status, the request, excerpts, outline, lines with citations and times, fact-check changes, audio, and the job making it now |
+| `POST /api/v1/podcasts/{id}/regenerate` | make it again from the same request (editors) |
+| `DELETE /api/v1/podcasts/{id}` | delete it and its audio (editors) |
+
+The audio is the recording's (`GET /api/v1/recordings/{id}/audio`), and so are sharing and the transcript. Agents
+use the MCP tools `create_podcast` (resources as `recording_ids`, lines as `"<recording_id>:<line>"`) and
+`get_podcast` ([MCP](mcp.md)).
 
 ## The prompts are templates
 
