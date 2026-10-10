@@ -3544,6 +3544,93 @@
         }
       }
     },
+    "/api/v1/budgets/meter": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Budget Meter",
+        "description": "What a namespace (or all of Lens) spent this day, week or month, against its budget when it has one: the top\nbar's meter, and with `detail` the costs page. Anyone who can read a namespace sees its meter; admins see all of\nLens's.",
+        "operationId": "budget_meter",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a namespace; none for all of Lens (admins)",
+              "title": "Ns"
+            },
+            "description": "a namespace; none for all of Lens (admins)"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "day",
+                    "week",
+                    "month"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "none: the budget's own period, else month",
+              "title": "Period"
+            },
+            "description": "none: the budget's own period, else month"
+          },
+          {
+            "name": "detail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "also by day, by model and what cost most",
+              "default": false,
+              "title": "Detail"
+            },
+            "description": "also by day, by model and what cost most"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetMeter"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/budgets/status": {
       "get": {
         "tags": [
@@ -26505,6 +26592,135 @@
         ],
         "title": "Budget"
       },
+      "BudgetMeter": {
+        "properties": {
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource",
+            "description": "space:<id>, or none for all of Lens"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/Spent"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the budget it is measured against stands; none without one"
+          },
+          "by_day": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DaySpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Day"
+          },
+          "by_model": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Model"
+          },
+          "top": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top"
+          },
+          "by_namespace": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "spent",
+          "calls"
+        ],
+        "title": "BudgetMeter"
+      },
       "BudgetSet": {
         "properties": {
           "usd": {
@@ -29640,6 +29856,36 @@
           "graph"
         ],
         "title": "CustomNodeVersionCreate"
+      },
+      "DaySpend": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day",
+            "description": "YYYY-MM-DD (UTC)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "DaySpend"
       },
       "DecisionStatus": {
         "properties": {
@@ -37180,6 +37426,47 @@
           "after"
         ],
         "title": "MetadataEdit"
+      },
+      "ModelSpend": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "none: calls with no model (webhooks, web tools)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "cost_usd",
+          "tokens",
+          "calls",
+          "estimate"
+        ],
+        "title": "ModelSpend"
       },
       "MonthStats": {
         "properties": {
@@ -51227,6 +51514,47 @@
           "tool"
         ],
         "title": "ToolStep"
+      },
+      "TopSpend": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "what the resource is called, when it has a name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "TopSpend"
       },
       "TopicAbout": {
         "properties": {

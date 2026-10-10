@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
+  left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
+  month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
+  ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and

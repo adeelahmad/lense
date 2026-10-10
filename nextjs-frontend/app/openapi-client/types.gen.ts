@@ -1302,6 +1302,56 @@ export type Budget = {
 };
 
 /**
+ * BudgetMeter
+ */
+export type BudgetMeter = {
+  /**
+   * Resource
+   *
+   * space:<id>, or none for all of Lens
+   */
+  resource?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Period
+   */
+  period: "day" | "week" | "month";
+  /**
+   * Since
+   */
+  since?: string | null;
+  spent: Spent;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * where the budget it is measured against stands; none without one
+   */
+  budget?: BudgetStatus | null;
+  /**
+   * By Day
+   */
+  by_day?: Array<DaySpend> | null;
+  /**
+   * By Model
+   */
+  by_model?: Array<ModelSpend> | null;
+  /**
+   * Top
+   */
+  top?: Array<TopSpend> | null;
+  /**
+   * By Namespace
+   */
+  by_namespace?: Array<TopSpend> | null;
+  [key: string]: unknown;
+};
+
+/**
  * BudgetSet
  */
 export type BudgetSet = {
@@ -3028,6 +3078,31 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DaySpend
+ */
+export type DaySpend = {
+  /**
+   * Day
+   *
+   * YYYY-MM-DD (UTC)
+   */
+  day: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -7475,6 +7550,35 @@ export type MetadataEdit = {
   after: {
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+};
+
+/**
+ * ModelSpend
+ */
+export type ModelSpend = {
+  /**
+   * Model
+   *
+   * none: calls with no model (webhooks, web tools)
+   */
+  model?: string | null;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Estimate
+   */
+  estimate: boolean;
   [key: string]: unknown;
 };
 
@@ -15562,6 +15666,35 @@ export type ToolStep = {
 };
 
 /**
+ * TopSpend
+ */
+export type TopSpend = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Name
+   *
+   * what the resource is called, when it has a name
+   */
+  name?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * TopicAbout
  */
 export type TopicAbout = {
@@ -19698,6 +19831,50 @@ export type SetBudgetResponses = {
 };
 
 export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
+
+export type BudgetMeterData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * a namespace; none for all of Lens (admins)
+     */
+    ns?: string | null;
+    /**
+     * Period
+     *
+     * none: the budget's own period, else month
+     */
+    period?: "day" | "week" | "month" | null;
+    /**
+     * Detail
+     *
+     * also by day, by model and what cost most
+     */
+    detail?: boolean;
+  };
+  url: "/api/v1/budgets/meter";
+};
+
+export type BudgetMeterErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BudgetMeterError = BudgetMeterErrors[keyof BudgetMeterErrors];
+
+export type BudgetMeterResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetMeter;
+};
+
+export type BudgetMeterResponse = BudgetMeterResponses[keyof BudgetMeterResponses];
 
 export type BudgetStatusData = {
   body?: never;

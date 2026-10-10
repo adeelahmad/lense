@@ -54,6 +54,9 @@ import type {
   BrowseSourceData,
   BrowseSourceErrors,
   BrowseSourceResponses,
+  BudgetMeterData,
+  BudgetMeterErrors,
+  BudgetMeterResponses,
   BudgetStatusData,
   BudgetStatusErrors,
   BudgetStatusResponses,
@@ -2927,6 +2930,22 @@ export class Budgets {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Budget Meter
+   *
+   * What a namespace (or all of Lens) spent this day, week or month, against its budget when it has one: the top
+   * bar's meter, and with `detail` the costs page. Anyone who can read a namespace sees its meter; admins see all of
+   * Lens's.
+   */
+  public static budgetMeter<ThrowOnError extends boolean = false>(
+    options?: Options<BudgetMeterData, ThrowOnError>,
+  ): RequestResult<BudgetMeterResponses, BudgetMeterErrors, ThrowOnError> {
+    return (options?.client ?? client).get<BudgetMeterResponses, BudgetMeterErrors, ThrowOnError>({
+      url: "/api/v1/budgets/meter",
+      ...options,
     });
   }
 

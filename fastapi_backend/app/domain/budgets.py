@@ -28,6 +28,7 @@ R = store.R
 PERIODS = ("run", "day", "week", "month")
 ON_OVER = ("ask", "skip", "assistant")
 TABLES = ("routine", "pipeline", "workflow", "space")
+GLOBAL = "lens:all"  # the budget for all of Lens (set in setup); the meter measures "all namespaces" against it
 REF = re.compile(r"^(routine|pipeline|workflow|space):(\d+)$")
 FIELDS = "resource, usd, tokens, period, on_over, warn_at, note, by, updated_at, alert"
 LOOKBACK_DAYS = 30  # the past runs an estimate is drawn from
@@ -267,3 +268,38 @@ def sweep(db, cfg, now=None, every=None):
         )
         made.append({"resource": res, **alert})
     return made
+
+
+# ---------- the meter (top bar) and the costs page ----------
+VIEW_PERIODS = ("day", "week", "month")
+TOP_TABLES = ("routine", "pipeline", "workflow", "chat", "recording", "extension", "sensor", "note_page")  # what "top" lists
+
+
+def meter(db, resource, budget_ref=None, period=None, detail=False, now=None):
+    """What a namespace (`space:<id>`), or all of Lens (resource None), spent this period, against its budget when it
+    has one: {resource, period, since, spent: {usd, tokens, estimate}, budget: status | None}. The period is the one
+    asked for, else the budget's own (day, week or month), else month. `budget_ref` is the budget to measure against
+    (the namespace's own by default). With `detail`, also by_day, by_model and top (what cost most in it)."""
+    budget_ref = budget_ref if budget_ref is not None else resource
+    b = get(db, budget_ref) if budget_ref else None
+    st = status(db, budget_ref, b, now) if b else None
+    if period not in VIEW_PERIODS:
+        period = b["period"] if b and b.get("period") in VIEW_PERIODS else "month"
+    since = activity._since(period, now)
+    t = activity.totals(db, resource, since)
+    out = {
+        "resource": resource,
+        "period": period,
+        "since": since,
+        "spent": {"usd": t["cost_usd"], "tokens": t["tokens_in"] + t["tokens_out"], "estimate": t["estimate"]},
+        "calls": t["calls"] - (t["by_kind"].get("run") or {}).get("calls", 0),
+        "budget": st,
+    }
+    if detail:
+        out["by_day"] = activity.by_day(db, resource, since)
+        out["by_model"] = activity.by_model(db, resource, since)
+        top = activity.top(db, None, since, 40, within=resource)
+        out["top"] = [r for r in top if r["resource"].split(":")[0] in TOP_TABLES][:12]
+        if resource is None:
+            out["by_namespace"] = activity.top(db, "space", since, 50)
+    return out

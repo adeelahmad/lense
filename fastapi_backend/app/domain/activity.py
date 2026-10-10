@@ -450,22 +450,83 @@ def spent(db, resource, since=None):
     return round(float(row.get("usd") or 0), 6), int(row.get("tokens") or 0)
 
 
-def top(db, prefix=None, since=None, limit=20):
-    """The resources that cost most since a time, of one table (`routine`) or any: [{resource, cost_usd, tokens, calls}]."""
-    p = {"n": limit, "p": f"{prefix}:" if prefix else ""}
+def top(db, prefix=None, since=None, limit=20, within=None):
+    """The resources that cost most since a time, of one table (`routine`) or any, and only calls that also count for
+    `within` (a namespace, `space:3`) when given: [{resource, cost_usd, tokens, calls}]."""
+    p = {"p": f"{prefix}:" if prefix else ""}
     inner = "kind != 'run' AND array::len(resources ?? []) > 0"
+    if within:
+        inner += " AND resources CONTAINS $w"
+        p["w"] = within
     if since:
         inner += " AND at >= $since"
         p["since"] = since
     rows = db.rows(
         "SELECT resources AS resource, math::sum(cost_usd ?? 0) AS cost_usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, "
         f"count() AS calls FROM (SELECT resources, cost_usd, tokens_in, tokens_out FROM activity WHERE {inner} SPLIT resources) "
-        "WHERE string::starts_with(resources, $p) GROUP BY resource ORDER BY cost_usd DESC, tokens DESC LIMIT $n",
+        "WHERE string::starts_with(resources, $p) GROUP BY resource",
         **p,
     )
     for r in rows:
         r["cost_usd"] = round(float(r.get("cost_usd") or 0), 6)
-    return rows
+    # sorted here: the database doesn't order grouped rows by an aggregate reliably
+    return sorted(rows, key=lambda r: (-r["cost_usd"], -(r.get("tokens") or 0)))[:limit]
+
+
+def _scoped(resource, since):
+    where, p = ["kind != 'run'"], {}
+    if resource:
+        where.append("resources CONTAINS $res")
+        p["res"] = resource
+    if since:
+        where.append("at >= $since")
+        p["since"] = since
+    return " AND ".join(where), p
+
+
+def by_model(db, resource=None, since=None):
+    """What each model cost since a time, for a resource (or everything), most first: [{model, cost_usd, tokens, calls,
+    estimate}]. Calls with no model (webhooks, web tools) are under model None."""
+    where, p = _scoped(resource, since)
+    rows = db.rows(
+        "SELECT model, math::sum(cost_usd ?? 0) AS cost_usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, "
+        f"count() AS calls, count({_unpriced_sql()}) AS unpriced FROM activity WHERE {where} GROUP BY model",
+        **p,
+    )
+    out = [
+        {
+            "model": r.get("model"),
+            "cost_usd": round(float(r.get("cost_usd") or 0), 6),
+            "tokens": int(r.get("tokens") or 0),
+            "calls": r.get("calls") or 0,
+            "estimate": (r.get("unpriced") or 0) > 0,
+        }
+        for r in rows
+    ]
+    return sorted(out, key=lambda r: (-r["cost_usd"], -r["tokens"]))
+
+
+def by_day(db, resource=None, since=None):
+    """What a resource (or everything) cost each day (UTC) since a time, oldest first: [{day, cost_usd, tokens, calls}].
+    Days with nothing are left out."""
+    where, p = _scoped(resource, since)
+    rows = db.rows(
+        "SELECT day, math::sum(cost_usd ?? 0) AS cost_usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, "
+        "count() AS calls FROM (SELECT string::slice(at, 0, 10) AS day, cost_usd, tokens_in, tokens_out FROM activity "
+        f"WHERE {where}) GROUP BY day",
+        **p,
+    )
+    out = [
+        {
+            "day": r["day"],
+            "cost_usd": round(float(r.get("cost_usd") or 0), 6),
+            "tokens": int(r.get("tokens") or 0),
+            "calls": r.get("calls") or 0,
+        }
+        for r in rows
+        if r.get("day")
+    ]
+    return sorted(out, key=lambda r: r["day"])
 
 
 def _unpriced_sql():

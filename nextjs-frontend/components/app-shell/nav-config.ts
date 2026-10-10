@@ -15,6 +15,7 @@ import {
   Shield,
   Tags,
   type LucideIcon,
+  Wallet,
   Waypoints,
   Workflow,
 } from "lucide-react";
@@ -49,12 +50,8 @@ export const NAV: NavItem[] = [
   { label: "Topics", href: "/topics", icon: Tags },
   { label: "Graph", href: "/graph", icon: Waypoints },
   { label: "Podcasts", href: "/podcasts", icon: Podcast },
-  {
-    label: "Reports",
-    href: "/reports",
-    icon: ChartNoAxesColumn,
-    divider: true,
-  },
+  { label: "Reports", href: "/reports", icon: ChartNoAxesColumn },
+  { label: "Costs", href: "/costs", icon: Wallet, divider: true },
   { label: "Pipelines", href: "/pipelines", icon: Workflow },
   { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
   { label: "Extensions", href: "/extensions", icon: Blocks },
