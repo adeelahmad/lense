@@ -29,7 +29,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Ask Lens from your browser.** The web clipper extension has the Lens assistant in a side panel: **Ask Lens** in
   its popup or on the right-click menu. It signs in with one click through Lens's own sign-in page (OAuth, nothing to
   copy), and the conversations are the same ones Lens's chat shows, with cited answers, the steps taken and approvals.
-  Letting the assistant use the browser itself is in progress ([The assistant in your browser](docs/browser-assistant.md)).
+  While the panel is open, the assistant can use that browser: open, read, click, type and download files into the
+  conversation, only on sites you allow, asking before anything that sends, deletes, buys or posts, never typing
+  passwords or card numbers, and showing each action as it happens ([The assistant in your browser](docs/browser-assistant.md)).
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 

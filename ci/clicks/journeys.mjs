@@ -32,19 +32,25 @@ export const JOURNEYS = [
       meter.record("terminal", "paste the install line and press Enter", 0, 2);
       meter.openLink("open the installer link");
       await page.goto(`${INSTALLER}/?t=survey-token`);
-      await meter.click(page.locator("#next"), "Continue (this computer)");
-      await page.getByRole("heading", { name: "How Lens runs" }).waitFor();
-      await meter.click(page.locator("#next"), "Continue (how it runs)");
-      const found = page.getByRole("button", { name: /Ollama · \d+ models/ });
-      await found.waitFor();
-      // picked already when it's the only one found
-      if (!(await found.evaluate((el) => el.classList.contains("on"))))
-        await meter.click(found, "pick the model server found on this computer");
-      await meter.click(page.locator("#next"), "Continue (AI model)");
-      await page.getByRole("heading", { name: "Extras" }).waitFor();
-      await meter.click(page.locator("#next"), "Continue (extras)");
-      await page.getByRole("heading", { name: "Ready to install" }).waitFor();
-      await meter.click(page.locator("#next"), "Install Lens");
+      const quick = page.locator("#quick");
+      await page.locator("#next").waitFor();
+      if (await quick.count()) {
+        await meter.click(quick, "Install with the defaults");
+      } else {
+        await meter.click(page.locator("#next"), "Continue (this computer)");
+        await page.getByRole("heading", { name: "How Lens runs" }).waitFor();
+        await meter.click(page.locator("#next"), "Continue (how it runs)");
+        const found = page.getByRole("button", { name: /Ollama · \d+ models/ });
+        await found.waitFor();
+        // picked already when it's the only one found
+        if (!(await found.evaluate((el) => el.classList.contains("on"))))
+          await meter.click(found, "pick the model server found on this computer");
+        await meter.click(page.locator("#next"), "Continue (AI model)");
+        await page.getByRole("heading", { name: "Extras" }).waitFor();
+        await meter.click(page.locator("#next"), "Continue (extras)");
+        await page.getByRole("heading", { name: "Ready to install" }).waitFor();
+        await meter.click(page.locator("#next"), "Install Lens");
+      }
       const open = page.getByRole("button", { name: "Open Lens" });
       await open.waitFor({ timeout: 60000 });
       await meter.click(open, "Open Lens");
@@ -291,8 +297,12 @@ export const JOURNEYS = [
     async run({ page, meter }) {
       await meter.click(page.getByRole("button", { name: "Account menu" }), "Account menu");
       await meter.click(page.getByRole("menuitem", { name: /API tokens/ }), "API tokens");
-      await meter.click(page.getByRole("main").getByRole("button", { name: "New token" }).first(), "New token");
       const d = page.getByRole("dialog");
+      await page.waitForURL(/\/account\/tokens/);
+      await page.waitForTimeout(500);
+      // the form is open already when there are no tokens yet
+      if (!(await d.isVisible()))
+        await meter.click(page.getByRole("main").getByRole("button", { name: "New token" }).first(), "New token");
       await meter.type(d.getByRole("textbox", { name: "Name" }), "script", "name");
       await meter.click(d.getByRole("button", { name: "Create token" }), "Create token");
       await page.getByText(/copy/i).first().waitFor();

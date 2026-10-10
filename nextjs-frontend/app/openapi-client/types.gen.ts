@@ -5732,6 +5732,10 @@ export type Health = {
   sources: Array<HealthSource>;
   disk: HealthDisk;
   counts: HealthCounts;
+  /**
+   * CPU, memory, load and uptime now
+   */
+  machine?: HealthMachine | null;
   [key: string]: unknown;
 };
 
@@ -5795,6 +5799,65 @@ export type HealthDisk = {
    * Total Gb
    */
   total_gb: number;
+  [key: string]: unknown;
+};
+
+/**
+ * HealthMachine
+ */
+export type HealthMachine = {
+  /**
+   * Cpu Pct
+   *
+   * busy share of all CPUs, 0-100; null where /proc isn't there
+   */
+  cpu_pct?: number | null;
+  /**
+   * Cpus
+   */
+  cpus?: number | null;
+  /**
+   * Mem Used
+   *
+   * bytes
+   */
+  mem_used?: number | null;
+  /**
+   * Mem Total
+   *
+   * bytes
+   */
+  mem_total?: number | null;
+  /**
+   * Load1
+   */
+  load1?: number | null;
+  /**
+   * Load5
+   */
+  load5?: number | null;
+  /**
+   * Load15
+   */
+  load15?: number | null;
+  /**
+   * Rss
+   *
+   * the API process's memory, bytes
+   */
+  rss?: number | null;
+  /**
+   * Uptime
+   *
+   * seconds since the API started
+   */
+  uptime: number;
+  /**
+   * Host Uptime
+   *
+   * seconds since the machine started
+   */
+  host_uptime?: number | null;
   [key: string]: unknown;
 };
 

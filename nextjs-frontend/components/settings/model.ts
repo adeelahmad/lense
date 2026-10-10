@@ -2068,6 +2068,16 @@ export const FIELDS: FieldSpec[] = [
   { section: "telemetry", key: "prometheus_token", label: "Scrape token", kind: "secret" },
   {
     section: "telemetry",
+    key: "grafana_url",
+    label: "Grafana address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://localhost:3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. The monitoring profile runs one at :3001",
+  },
+  {
+    section: "telemetry",
     key: "prices",
     label: "Model prices for cost estimates",
     kind: "lines",
