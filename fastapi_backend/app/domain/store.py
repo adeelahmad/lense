@@ -280,6 +280,7 @@ DEFAULTS = {
         "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
+        "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -480,6 +481,10 @@ DEFAULTS = {
     # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
     # default; reads: log API reads (GET) too; keep_days: how long rows are kept
     "activity": {"enabled": True, "reads": False, "keep_days": 365},
+    # database backups (docs/database.md, Backups): schedule is a cron expression in timezone, or none (the default)
+    # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
+    # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
+    "backups": {"schedule": None, "timezone": "UTC", "keep": 7, "connection": None, "folder": "lens-backups"},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -627,6 +632,31 @@ def _backoff(attempt):
     time.sleep(min(0.5, 0.005 * 2**attempt) * (0.5 + random.random()))
 
 
+def _released(folder, wait=60.0):
+    """Wait (up to `wait` seconds) until this process has no file under `folder` open: a closed embedded engine lets
+    go of its files when it is collected, and copying or replacing them before then mixes old writes into the new."""
+    import gc
+
+    gc.collect()
+    root = str(pathlib.Path(folder).resolve()) + os.sep
+    fds = pathlib.Path("/proc/self/fd")
+    if not fds.is_dir():  # not Linux: collecting is all that can be done
+        return
+    until = time.monotonic() + wait
+    while time.monotonic() < until:
+        held = False
+        for fd in list(fds.iterdir()):
+            with contextlib.suppress(OSError):
+                if os.readlink(fd).startswith(root):
+                    held = True
+                    break
+        if not held:
+            return
+        gc.collect()
+        time.sleep(0.02)
+    raise RuntimeError(f"the embedded database still had files open {wait:.0f} s after closing it; try again")
+
+
 class DB:
     """A thread-safe SurrealDB handle.
 
@@ -700,16 +730,24 @@ class DB:
         """Every connection closed meanwhile (once the queries in flight finish), then opened again: for copying an
         embedded database's files."""
         held = [self._pool.get() for _ in self._all]
+        n = len(held)
         for c in held:
             with contextlib.suppress(Exception):
                 c.close()
+            # the embedded engine keeps its files open, and may still write them, until its handle is dropped
+            with contextlib.suppress(AttributeError):
+                c._db = None
+        del c
+        # the places stay taken, so a query meanwhile waits for the pool instead of opening a connection of its own
+        held, self._all = [], [None] * n
         try:
+            if self.embedded:
+                _released(self.url.partition("://")[2])
             yield
         finally:
-            self._all = []
-            for _ in held:
+            for i in range(n):
                 c = self._open()
-                self._all.append(c)
+                self._all[i] = c
                 self._pool.put(c)
 
     @contextlib.contextmanager
@@ -1216,6 +1254,10 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",
     "DEFINE TABLE IF NOT EXISTS approval SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS approval_chat ON approval FIELDS chat",
+    # the scheduled backup (domain/backups.py): backup_schedule:next holds when it's next due and how the last went
+    "DEFINE TABLE IF NOT EXISTS backup_schedule SCHEMALESS",
+    # backup_remote:last: how copying the last backup to backups.connection went
+    "DEFINE TABLE IF NOT EXISTS backup_remote SCHEMALESS",
 ]
 
 
@@ -1292,15 +1334,21 @@ def connect(cfg, upgrade=True):
     """Open the database, apply the schema and, unless upgrade=False (for `lens migrations`), bring its data up to
     date (domain/migrations.py)."""
     db = DB(cfg)
-    # one round trip, not one per statement: against a server that was over a second for every test's database
-    db.run([_analyzer(cfg), *SCHEMA], transaction=False)
-    _search_engine(db, cfg)
-    for name, spec in cfg["namespaces"].items():
-        sid = ns_id(db, name)
-        db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
+    prepare(db, cfg)
     if upgrade:
         migrate(db)
     return db
+
+
+def prepare(db, cfg):
+    """The schema, word search and the namespaces archive.yaml names: on every start, and after a restore
+    (domain/backups.py)."""
+    # one round trip, not one per statement: against a server that was over a second for every test's database
+    db.run([_analyzer(cfg), *SCHEMA], transaction=False)
+    _search_engine(db, cfg, rebuild=getattr(db, "textindex", None) is not None)
+    for name, spec in cfg["namespaces"].items():
+        sid = ns_id(db, name)
+        db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
 
 
 def migrate(db):

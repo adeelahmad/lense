@@ -2895,6 +2895,324 @@
         }
       }
     },
+    "/api/v1/admin/backups/remote": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Remote Backups",
+        "description": "The copies on backups.connection, how copying the last backup there went, and a copy running now.",
+        "operationId": "remote_backups",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteBackups"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/send": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Send Backup",
+        "description": "Copy this backup to backups.connection now, in the background.",
+        "operationId": "send_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/fetch": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Fetch Backup",
+        "description": "Bring the copy of this backup back from backups.connection, in the background, to restore or download it.",
+        "operationId": "fetch_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/remote": {
+      "delete": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Delete Remote Backup",
+        "description": "Delete the copy of this backup on backups.connection.",
+        "operationId": "delete_remote_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/restore": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Restore Backup",
+        "description": "Replace the whole database with this backup, in the background (GET /admin/backups follows it). What it held\nis backed up first (before-restore), and put back if the restore fails. Sign-ins made since the backup end.",
+        "operationId": "restore_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreStart"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/link": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Backup Link",
+        "description": "A link that downloads the backup for the next couple of minutes, for the browser to open.",
+        "operationId": "backup_link",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackupLink"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}/file": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Backup File",
+        "description": "The backup itself, through a link from POST /admin/backups/{name}/link.",
+        "operationId": "backup_file",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exp"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sig"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "the backup (an embedded one as a .tar.gz)",
+            "content": {
+              "application/gzip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/updates": {
       "get": {
         "tags": [
@@ -2994,7 +3312,7 @@
           "updates"
         ],
         "summary": "List Backups",
-        "description": "The database backups in <data_dir>/backups, newest first.",
+        "description": "The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or\nthe last one); and the backup schedule.",
         "operationId": "list_backups",
         "responses": {
           "200": {
@@ -3014,7 +3332,7 @@
           "updates"
         ],
         "summary": "Take Backup",
-        "description": "Back the database up now (it can take a while on a big archive).",
+        "description": "Back the database up now (it can take a while on a big archive). With backups.connection set, it is then\ncopied there in the background (GET /admin/backups/remote follows it).",
         "operationId": "take_backup",
         "responses": {
           "201": {
@@ -3527,6 +3845,93 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/budgets/meter": {
+      "get": {
+        "tags": [
+          "budgets"
+        ],
+        "summary": "Budget Meter",
+        "description": "What a namespace (or all of Lens) spent this day, week or month, against its budget when it has one: the top\nbar's meter, and with `detail` the costs page. Anyone who can read a namespace sees its meter; admins see all of\nLens's.",
+        "operationId": "budget_meter",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a namespace; none for all of Lens (admins)",
+              "title": "Ns"
+            },
+            "description": "a namespace; none for all of Lens (admins)"
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "day",
+                    "week",
+                    "month"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "none: the budget's own period, else month",
+              "title": "Period"
+            },
+            "description": "none: the budget's own period, else month"
+          },
+          {
+            "name": "detail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "also by day, by model and what cost most",
+              "default": false,
+              "title": "Detail"
+            },
+            "description": "also by day, by model and what cost most"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetMeter"
                 }
               }
             }
@@ -26036,6 +26441,101 @@
         ],
         "title": "Backup"
       },
+      "BackupLink": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "opens the download, without signing in, until it expires"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "seconds"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "expires_in"
+        ],
+        "title": "BackupLink"
+      },
+      "BackupSchedule": {
+        "properties": {
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule",
+            "description": "backups.schedule: a cron expression, or none"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone",
+            "default": "UTC"
+          },
+          "keep": {
+            "type": "integer",
+            "title": "Keep",
+            "description": "how many scheduled backups are kept",
+            "default": 7
+          },
+          "next_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next At"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "BackupSchedule"
+      },
       "Backups": {
         "properties": {
           "folder": {
@@ -26048,6 +26548,52 @@
             },
             "type": "array",
             "title": "Backups"
+          },
+          "database": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "server",
+                  "embedded",
+                  "memory"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Database",
+            "description": "the database this Lens uses: a restore needs a backup of the same kind (export or folder)"
+          },
+          "in_progress": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "In Progress",
+            "description": "backups being written now, by any Lens process"
+          },
+          "restore": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RestoreWork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the restore running on this server, or the last one"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BackupSchedule"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -27131,6 +27677,135 @@
           "warn_at"
         ],
         "title": "Budget"
+      },
+      "BudgetMeter": {
+        "properties": {
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource",
+            "description": "space:<id>, or none for all of Lens"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "spent": {
+            "$ref": "#/components/schemas/Spent"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BudgetStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the budget it is measured against stands; none without one"
+          },
+          "by_day": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DaySpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Day"
+          },
+          "by_model": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ModelSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Model"
+          },
+          "top": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top"
+          },
+          "by_namespace": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TopSpend"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By Namespace"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "period",
+          "spent",
+          "calls"
+        ],
+        "title": "BudgetMeter"
       },
       "BudgetSet": {
         "properties": {
@@ -29884,6 +30559,62 @@
         "title": "Converters",
         "description": "What this server can make into PDFs to read as documents (docs/api.md#documents-and-images)."
       },
+      "CopyWork": {
+        "properties": {
+          "running": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "send",
+                  "fetch"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running",
+            "description": "copying a backup to (send) or from (fetch) the connection"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "CopyWork"
+      },
       "Created": {
         "properties": {
           "ok": {
@@ -30267,6 +30998,36 @@
           "graph"
         ],
         "title": "CustomNodeVersionCreate"
+      },
+      "DaySpend": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day",
+            "description": "YYYY-MM-DD (UTC)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "DaySpend"
       },
       "DecisionStatus": {
         "properties": {
@@ -38353,6 +39114,47 @@
         ],
         "title": "MetadataEdit"
       },
+      "ModelSpend": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "none: calls with no model (webhooks, web tools)"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "estimate": {
+            "type": "boolean",
+            "title": "Estimate"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "cost_usd",
+          "tokens",
+          "calls",
+          "estimate"
+        ],
+        "title": "ModelSpend"
+      },
       "MonthStats": {
         "properties": {
           "month": {
@@ -46301,6 +47103,97 @@
         ],
         "title": "Release"
       },
+      "RemoteBackups": {
+        "properties": {
+          "connection": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection",
+            "description": "backups.connection: where copies go, or none"
+          },
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder"
+          },
+          "backups": {
+            "items": {
+              "$ref": "#/components/schemas/Backup"
+            },
+            "type": "array",
+            "title": "Backups",
+            "description": "the copies there, newest first"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the connection couldn't be listed"
+          },
+          "last_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last At",
+            "description": "when the last backup was copied there (or tried)"
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Name"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error",
+            "description": "why copying the last backup failed"
+          },
+          "copying": {
+            "$ref": "#/components/schemas/CopyWork"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "copying"
+        ],
+        "title": "RemoteBackups"
+      },
       "Removed": {
         "properties": {
           "removed": {
@@ -46676,6 +47569,81 @@
           "estimate"
         ],
         "title": "ResourceSpend"
+      },
+      "RestoreStart": {
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "title": "Confirm",
+            "description": "the backup's name again, to show this is meant: restoring replaces everything"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "confirm"
+        ],
+        "title": "RestoreStart"
+      },
+      "RestoreWork": {
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "a restore is running on this server now",
+            "default": false
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the backup being (or last) restored"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the last restore here failed (what was there was put back)"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "the before-restore backup of what the database held"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RestoreWork"
       },
       "Reviewed": {
         "properties": {
@@ -52762,6 +53730,47 @@
           "tool"
         ],
         "title": "ToolStep"
+      },
+      "TopSpend": {
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "tokens": {
+            "type": "integer",
+            "title": "Tokens"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "what the resource is called, when it has a name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "resource",
+          "cost_usd",
+          "tokens",
+          "calls"
+        ],
+        "title": "TopSpend"
       },
       "TopicAbout": {
         "properties": {

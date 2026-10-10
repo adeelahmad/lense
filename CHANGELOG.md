@@ -9,6 +9,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Admin → System health shows CPU, memory, load and uptime now and links to Grafana for history
   ([Prometheus](docs/prometheus.md#prometheus-and-grafana-ready-made)).
 
+- **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
+  left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
+  month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
+  ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
+
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,

@@ -705,6 +705,64 @@ export type Backup = {
 };
 
 /**
+ * BackupLink
+ */
+export type BackupLink = {
+  /**
+   * Url
+   *
+   * opens the download, without signing in, until it expires
+   */
+  url: string;
+  /**
+   * Expires In
+   *
+   * seconds
+   */
+  expires_in: number;
+  [key: string]: unknown;
+};
+
+/**
+ * BackupSchedule
+ */
+export type BackupSchedule = {
+  /**
+   * Schedule
+   *
+   * backups.schedule: a cron expression, or none
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Keep
+   *
+   * how many scheduled backups are kept
+   */
+  keep?: number;
+  /**
+   * Next At
+   */
+  next_at?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Backups
  */
 export type Backups = {
@@ -716,6 +774,23 @@ export type Backups = {
    * Backups
    */
   backups: Array<Backup>;
+  /**
+   * Database
+   *
+   * the database this Lens uses: a restore needs a backup of the same kind (export or folder)
+   */
+  database?: "server" | "embedded" | "memory" | null;
+  /**
+   * In Progress
+   *
+   * backups being written now, by any Lens process
+   */
+  in_progress?: Array<string>;
+  /**
+   * the restore running on this server, or the last one
+   */
+  restore?: RestoreWork | null;
+  schedule?: BackupSchedule | null;
   [key: string]: unknown;
 };
 
@@ -1298,6 +1373,56 @@ export type Budget = {
   alert?: {
     [key: string]: unknown;
   } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BudgetMeter
+ */
+export type BudgetMeter = {
+  /**
+   * Resource
+   *
+   * space:<id>, or none for all of Lens
+   */
+  resource?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Period
+   */
+  period: "day" | "week" | "month";
+  /**
+   * Since
+   */
+  since?: string | null;
+  spent: Spent;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * where the budget it is measured against stands; none without one
+   */
+  budget?: BudgetStatus | null;
+  /**
+   * By Day
+   */
+  by_day?: Array<DaySpend> | null;
+  /**
+   * By Model
+   */
+  by_model?: Array<ModelSpend> | null;
+  /**
+   * Top
+   */
+  top?: Array<TopSpend> | null;
+  /**
+   * By Namespace
+   */
+  by_namespace?: Array<TopSpend> | null;
   [key: string]: unknown;
 };
 
@@ -2834,6 +2959,31 @@ export type Converters = {
 };
 
 /**
+ * CopyWork
+ */
+export type CopyWork = {
+  /**
+   * Running
+   *
+   * copying a backup to (send) or from (fetch) the connection
+   */
+  running?: "send" | "fetch" | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Created
  */
 export type Created = {
@@ -3028,6 +3178,31 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DaySpend
+ */
+export type DaySpend = {
+  /**
+   * Day
+   *
+   * YYYY-MM-DD (UTC)
+   */
+  day: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -7798,6 +7973,35 @@ export type MetadataEdit = {
 };
 
 /**
+ * ModelSpend
+ */
+export type ModelSpend = {
+  /**
+   * Model
+   *
+   * none: calls with no model (webhooks, web tools)
+   */
+  model?: string | null;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Estimate
+   */
+  estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * MonthStats
  */
 export type MonthStats = {
@@ -12379,6 +12583,52 @@ export type Release = {
 };
 
 /**
+ * RemoteBackups
+ */
+export type RemoteBackups = {
+  /**
+   * Connection
+   *
+   * backups.connection: where copies go, or none
+   */
+  connection?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Backups
+   *
+   * the copies there, newest first
+   */
+  backups?: Array<Backup>;
+  /**
+   * Error
+   *
+   * why the connection couldn't be listed
+   */
+  error?: string | null;
+  /**
+   * Last At
+   *
+   * when the last backup was copied there (or tried)
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   *
+   * why copying the last backup failed
+   */
+  last_error?: string | null;
+  copying: CopyWork;
+  [key: string]: unknown;
+};
+
+/**
  * Removed
  */
 export type Removed = {
@@ -12614,6 +12864,53 @@ export type ResourceSpend = {
    * true: cost_usd is a floor (unpriced calls); show it as an estimate
    */
   estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * RestoreStart
+ */
+export type RestoreStart = {
+  /**
+   * Confirm
+   *
+   * the backup's name again, to show this is meant: restoring replaces everything
+   */
+  confirm: string;
+};
+
+/**
+ * RestoreWork
+ */
+export type RestoreWork = {
+  /**
+   * Running
+   *
+   * a restore is running on this server now
+   */
+  running?: boolean;
+  /**
+   * Name
+   *
+   * the backup being (or last) restored
+   */
+  name?: string | null;
+  /**
+   * Error
+   *
+   * why the last restore here failed (what was there was put back)
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Before
+   *
+   * the before-restore backup of what the database held
+   */
+  before?: string | null;
   [key: string]: unknown;
 };
 
@@ -16104,6 +16401,35 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TopSpend
+ */
+export type TopSpend = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Name
+   *
+   * what the resource is called, when it has a name
+   */
+  name?: string | null;
   [key: string]: unknown;
 };
 
@@ -19901,6 +20227,211 @@ export type ReindexSearchResponses = {
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
 
+export type RemoteBackupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups/remote";
+};
+
+export type RemoteBackupsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RemoteBackups;
+};
+
+export type RemoteBackupsResponse = RemoteBackupsResponses[keyof RemoteBackupsResponses];
+
+export type SendBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/send";
+};
+
+export type SendBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendBackupError = SendBackupErrors[keyof SendBackupErrors];
+
+export type SendBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type SendBackupResponse = SendBackupResponses[keyof SendBackupResponses];
+
+export type FetchBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/fetch";
+};
+
+export type FetchBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FetchBackupError = FetchBackupErrors[keyof FetchBackupErrors];
+
+export type FetchBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type FetchBackupResponse = FetchBackupResponses[keyof FetchBackupResponses];
+
+export type DeleteRemoteBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/remote";
+};
+
+export type DeleteRemoteBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRemoteBackupError = DeleteRemoteBackupErrors[keyof DeleteRemoteBackupErrors];
+
+export type DeleteRemoteBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRemoteBackupResponse = DeleteRemoteBackupResponses[keyof DeleteRemoteBackupResponses];
+
+export type RestoreBackupData = {
+  body: RestoreStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/restore";
+};
+
+export type RestoreBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreBackupError = RestoreBackupErrors[keyof RestoreBackupErrors];
+
+export type RestoreBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type RestoreBackupResponse = RestoreBackupResponses[keyof RestoreBackupResponses];
+
+export type BackupLinkData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/link";
+};
+
+export type BackupLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupLinkError = BackupLinkErrors[keyof BackupLinkErrors];
+
+export type BackupLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: BackupLink;
+};
+
+export type BackupLinkResponse = BackupLinkResponses[keyof BackupLinkResponses];
+
+export type BackupFileData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Exp
+     */
+    exp?: string | null;
+    /**
+     * Sig
+     */
+    sig?: string | null;
+  };
+  url: "/api/v1/admin/backups/{name}/file";
+};
+
+export type BackupFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupFileError = BackupFileErrors[keyof BackupFileErrors];
+
+export type BackupFileResponses = {
+  /**
+   * the backup (an embedded one as a .tar.gz)
+   */
+  200: Blob | File;
+};
+
+export type BackupFileResponse = BackupFileResponses[keyof BackupFileResponses];
+
 export type GetUpdatesData = {
   body?: never;
   path?: never;
@@ -20294,6 +20825,50 @@ export type SetBudgetResponses = {
 };
 
 export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
+
+export type BudgetMeterData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * a namespace; none for all of Lens (admins)
+     */
+    ns?: string | null;
+    /**
+     * Period
+     *
+     * none: the budget's own period, else month
+     */
+    period?: "day" | "week" | "month" | null;
+    /**
+     * Detail
+     *
+     * also by day, by model and what cost most
+     */
+    detail?: boolean;
+  };
+  url: "/api/v1/budgets/meter";
+};
+
+export type BudgetMeterErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BudgetMeterError = BudgetMeterErrors[keyof BudgetMeterErrors];
+
+export type BudgetMeterResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetMeter;
+};
+
+export type BudgetMeterResponse = BudgetMeterResponses[keyof BudgetMeterResponses];
 
 export type BudgetStatusData = {
   body?: never;
