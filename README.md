@@ -56,15 +56,16 @@ what their person may read.
 Everything below is built and merged. Work that is still in a pull request is listed under [In progress](#in-progress).
 
 - **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, read transcripts and notes, cite exact
-  moments, explore the graph with Cypher or SPARQL, suggest topics and graph changes, write notes and make podcasts.
-  They sign in with OAuth and see only what their person may read. The web app runs on the same REST API, so an agent
-  can do what a person can. ([MCP](docs/mcp.md), [API](docs/api.md), [authentication](docs/authentication.md))
+  moments, find similar content, explore the graph with Cypher or SPARQL, suggest topics and graph changes, write
+  notes and make podcasts. They sign in with OAuth and see only what their person may read. The web app runs on the
+  same REST API, so an agent can do what a person can. ([MCP](docs/mcp.md), [API](docs/api.md),
+  [authentication](docs/authentication.md))
 - **Ask, and get cited answers.** A chat assistant on every page, and by voice, searches your archive by words (and by
   meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. It reads
-  answers aloud with your speech provider, and `/clear` and `/compact` keep long conversations short. Each namespace
-  can have its own assistant with its own name, instructions and memory, answering in Slack, Discord, Telegram,
-  Matrix, WhatsApp and other chat rooms through Matterbridge. ([Chat](docs/assistant.md),
-  [chat rooms](docs/chat-rooms.md), [speech providers](docs/speech-providers.md))
+  answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine (opt-in), and `/clear` and
+  `/compact` keep long conversations short. Each namespace can have its own assistant with its own name, instructions
+  and memory, answering in Slack, Discord, Telegram, Matrix, WhatsApp and other chat rooms through Matterbridge.
+  ([Chat](docs/assistant.md), [chat rooms](docs/chat-rooms.md), [speech providers](docs/speech-providers.md))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and remote MCP servers, by code, on the canvas or just by asking. Install skills and plugins from
   marketplaces in the open plugin format, or from a repository or an archive.
@@ -75,11 +76,13 @@ Everything below is built and merged. Work that is still in a pull request is li
   at a time, from a link list or a bookmarks file, by API or by asking the assistant; and import videos and podcasts
   by their address (off by default). ([Sensors](docs/sensors.md), [processing](docs/processing.md),
   [import webhooks](docs/api.md#import-webhooks))
-- **Clip from the browser.** The Lens web clipper for Chrome turns a page, a selection or a part you pick into
-  Markdown, lets you look it over, and sends it to a namespace. ([Web clipper](docs/web-clipper.md))
+- **Clip from the browser.** The Lens web clipper for Chrome and Edge turns a page, a selection or a part you pick
+  into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies through the
+  browser's store or a self-hosted update file. ([Web clipper](docs/web-clipper.md))
 - **Understand it.** Transcription and speaker recognition, text on screen and in scans, faces (off by default),
   entities and topics in a knowledge graph you can explore, query with Cypher or SPARQL, and see as it was at any
-  version. With anytopdf, photos are found by what they show. ([Graph](docs/graph.md),
+  version. Find what is most like a passage, a resource, a topic or an entity, and, with anytopdf, photos by what
+  they show. ([Graph](docs/graph.md), [similar content](docs/processing.md#similar-content),
   [graph history](docs/graph-history.md), [topics](docs/topics.md), [video](docs/video.md))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
   source, read aloud in two voices. Keep notes beside every recording, entity and topic, written by you or the
@@ -131,16 +134,13 @@ These are open pull requests, not yet part of Lens:
   ([#297](https://github.com/adeelahmad/lense/pull/297)).
 - **People:** email invitations, and removing someone for good ([#286](https://github.com/adeelahmad/lense/pull/286)).
 - **Lens.app for macOS:** a menu-bar app that carries microsandbox ([#280](https://github.com/adeelahmad/lense/pull/280)).
-- **The web clipper** for Firefox ([#282](https://github.com/adeelahmad/lense/pull/282)), Safari
-  ([#283](https://github.com/adeelahmad/lense/pull/283)) and Edge ([#285](https://github.com/adeelahmad/lense/pull/285)),
-  with releases that update themselves ([#294](https://github.com/adeelahmad/lense/pull/294)).
+- **The web clipper** for Firefox ([#282](https://github.com/adeelahmad/lense/pull/282)) and Safari
+  ([#283](https://github.com/adeelahmad/lense/pull/283)).
 - **Files:** assets shown as folders and files by namespace and collection
   ([#290](https://github.com/adeelahmad/lense/pull/290)) and shared read-only over NFS
   ([#295](https://github.com/adeelahmad/lense/pull/295)); items called assets unless they are audio or video
   ([#273](https://github.com/adeelahmad/lense/pull/273)).
-- **Reading and search:** documents read by an Apache Tika server ([#292](https://github.com/adeelahmad/lense/pull/292)),
-  content similar to a text, a resource, a topic or an entity ([#296](https://github.com/adeelahmad/lense/pull/296)),
-  and reading aloud with StyleTTS2 on this machine ([#291](https://github.com/adeelahmad/lense/pull/291)).
+- **Reading documents** with an Apache Tika server ([#292](https://github.com/adeelahmad/lense/pull/292)).
 
 ## Stack
 
