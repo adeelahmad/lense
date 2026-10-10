@@ -199,7 +199,8 @@ flowchart LR
   and workers may run at once; throttle counters and the setup code live in each process's memory *(inferred, Q5)*.
 
 **Host side effects.** Lens makes no outbound connection except to configured sources, model servers, mail,
-notification and telemetry targets; telemetry is off by default and there is no update check *(maintainer, 2026-10)*.
+notification and telemetry targets; telemetry and the Google Analytics export (`analytics.py`: daily counts for the
+install, no personal content) are off by default and there is no update check *(maintainer, 2026-10)*.
 
 | Behaviour | Observed | Tag |
 | --- | --- | --- |
@@ -239,7 +240,7 @@ machine requires HTTPS, and a changed DB credential when SurrealDB runs as its o
 | `documents.web_networks`, `LENS_WEB_NETWORKS`; `notifications.networks` | empty | widen the outbound guard to listed private networks | Yes (operator and admin input) | *(documented, docs/configuration.md "loopback and cloud metadata addresses stay out")* |
 | Chromium sandbox | off as root or without user namespaces | the `netguard` proxy is the only barrier | Yes | *(documented, docs/configuration.md "runs with its sandbox where it can")* |
 | `sensors.enabled`, `sensors.mqtt_anonymous` | off (`bind` `0.0.0.0`); off | opens MQTT and syslog listeners; anonymous MQTT publish | Yes; anonymous is the admin's choice | *(documented, docs/sensors.md "Sensors are off until an admin turns them on")* |
-| `tunnel.mode`, `local_llm.enabled`, `telemetry` | off | outbound tunnel (Cloudflare terminates TLS, Q30); local model server; OTLP export | Yes | *(documented, docs/remote-access.md "It's off until an admin turns it on")* |
+| `tunnel.mode`, `local_llm.enabled`, `telemetry`, `analytics.enabled` | off | outbound tunnel (Cloudflare terminates TLS, Q30); local model server; OTLP export; GA4 Measurement Protocol export of daily counts | Yes | *(documented, docs/remote-access.md "It's off until an admin turns it on")* |
 | `components.auto` | on | unpinned-hash pip installs at runtime | Yes | *(maintainer, 2026-10)* |
 | `encryption.files` | on for new archives | file encryption at rest | Yes | *(documented, docs/encryption.md "A new archive turns this on at its first start")* |
 | `ai.extensions`, `ai.disabled_tools` | on, none | turn assistant extensions or named tools off | Yes | *(documented, docs/assistant.md "Extending the assistant")* |
