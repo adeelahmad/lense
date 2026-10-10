@@ -134,6 +134,10 @@ def test_other_servers_use_the_same_keys(client, db, cfg, env):
     assert endpoint == "http://worker:9555" and s3.service_key(db, cfg, uid, "nfs") == (endpoint, kid, secret)
     c = _s3(env["port"], kid, secret)
     assert [b["Name"] for b in c.list_buckets()["Buckets"]] == ["pods"]
+    inside = s3.internal_endpoint(db, lambda: cfg)
+    assert inside.startswith("http://127.0.0.1:") and s3.internal_endpoint(db, lambda: cfg) == inside
+    c = _s3(int(inside.rsplit(":", 1)[1]), kid, secret)
+    assert [b["Name"] for b in c.list_buckets()["Buckets"]] == ["pods"]
     assert s3.revoke_service_key(db, uid, "nfs") and s3.lookup_key(db, cfg, kid) is None
 
 

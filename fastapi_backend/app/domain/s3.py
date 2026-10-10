@@ -21,6 +21,7 @@ import hmac
 import http.server
 import re
 import secrets
+import threading
 import urllib.parse
 from typing import Any
 from xml.sax.saxutils import escape
@@ -148,6 +149,22 @@ def service_key(db, cfg, account, label):
         },
     )
     return endpoint, kid, secret
+
+
+_internal: dict[str, Any] = {}
+_internal_lock = threading.Lock()
+
+
+def internal_endpoint(db, cfg_fn):
+    """The URL of an S3 server for this process alone (loopback, a free port), started on first use whatever the
+    share settings say: for servers in the same process that read the tree through S3 (NFS). `cfg_fn` gives the
+    current settings."""
+    from . import shares
+
+    with _internal_lock:
+        if "server" not in _internal:
+            _internal["server"] = shares.Server("127.0.0.1", 0, db, cfg_fn).start()
+        return f"http://127.0.0.1:{_internal['server'].port}"
 
 
 def revoke_service_key(db, account, label):
