@@ -4,7 +4,7 @@ Safari runs the same clipper as Chrome and Firefox; `targets/safari.json` is all
 `build.sh` wraps that build in the small macOS app Safari needs to carry an extension.
 
 ```sh
-extensions/browser/safari/build.sh          # macOS with Xcode; writes dist/safari-app/lens-clipper-safari.zip
+extensions/browser/safari/build.sh          # macOS with Xcode; writes dist/safari-app/lens-clipper-safari-app.zip
 ```
 
 To use it: unzip, move **Lens Clipper.app** to Applications and open it once, then in Safari turn on

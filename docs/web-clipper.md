@@ -107,7 +107,7 @@ that. The code reaches the extension API as `globalThis.browser ?? globalThis.ch
 ## Safari
 
 Safari runs the same clipper, carried inside a small macOS app (**Lens Clipper.app**). Each release has
-`lens-clipper-safari.zip` attached; to build it yourself on a Mac with Xcode, run `extensions/browser/safari/build.sh`.
+`lens-clipper-safari-app.zip` attached; to build it yourself on a Mac with Xcode, run `extensions/browser/safari/build.sh`.
 
 To install the zip: unzip it, move **Lens Clipper.app** to Applications and open it once. In Safari, turn on
 **Settings > Advanced > Show features for web developers** and **Develop > Allow Unsigned Extensions**, then enable

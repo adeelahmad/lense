@@ -4,7 +4,7 @@
 # The build is unsigned (Safari loads it only with Develop > Allow Unsigned Extensions); app-store.sh signs and
 # uploads the same project.
 #
-#   safari/build.sh [out-dir]    (default: dist/safari-app; writes lens-clipper-safari.zip there)
+#   safari/build.sh [out-dir]    (default: dist/safari-app; writes lens-clipper-safari-app.zip there)
 set -eu
 
 here=$(cd "$(dirname "$0")/.." && pwd)
@@ -32,5 +32,5 @@ xcodebuild -project "$project" -scheme "$app_name" -configuration Release -desti
   -derivedDataPath "$out/derived" MARKETING_VERSION="$version" CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY= build
 
 app=$(find "$out/derived/Build/Products/Release" -maxdepth 1 -name '*.app' | head -n 1)
-ditto -c -k --keepParent "$app" "$out/lens-clipper-safari.zip"
-echo "built $out/lens-clipper-safari.zip ($app_name $version)"
+ditto -c -k --keepParent "$app" "$out/lens-clipper-safari-app.zip"
+echo "built $out/lens-clipper-safari-app.zip ($app_name $version)"

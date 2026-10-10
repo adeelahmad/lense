@@ -45,13 +45,13 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: lens-clipper-safari
-          path: ${{ runner.temp }}/safari/lens-clipper-safari.zip
+          path: ${{ runner.temp }}/safari/lens-clipper-safari-app.zip
       - name: Attach to the release
         if: github.event_name == 'release' || inputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
-        run: gh release upload "$TAG" "$RUNNER_TEMP/safari/lens-clipper-safari.zip" --clobber --repo "${{ github.repository }}"
+        run: gh release upload "$TAG" "$RUNNER_TEMP/safari/lens-clipper-safari-app.zip" --clobber --repo "${{ github.repository }}"
       - name: Upload to App Store Connect
         if: (github.event_name == 'release' || inputs.tag != '') && env.APPLE_API_KEY_ID != ''
         env:
