@@ -14,8 +14,9 @@ Lens reads Anthropic's open formats as they are, so a marketplace made for Claud
 
 What becomes what: a skill is a skill, with its text files (references, examples, scripts to read; nothing runs); a
 command is a skill the assistant follows when someone asks for it; an agent is a prompt tool with the agent's
-instructions as its system prompt. Claude Code's hooks run shell commands on the computer, so they're left out, and so
-are MCP servers for now; `preview` lists what's left out and why. A plugin becomes one Lens plugin, owned by the person
+instructions as its system prompt. Claude Code's hooks run shell commands on the computer, so they're left out; MCP
+servers on the network come along when an admin installs it (servers that run as a program don't); `preview` lists
+what's left out and why. A plugin becomes one Lens plugin, owned by the person
 who installed it and private until they share it, and installing it again brings the new version.
 
 Only admins add marketplaces: that's the approval. People who can write extensions install from the ones added, and
@@ -401,9 +402,59 @@ def _norm(p):
     return "" if p == "." else p
 
 
-def read_plugin(found, entry=None):
+def _mcp(found, meta, admin, report):
+    """A plugin's MCP servers (.mcp.json, or mcpServers in its manifest) as MCP server items, their tools listed now.
+    Servers on the network only (HTTP); only admins add them."""
+    conf = meta.get("mcpServers")
+    if isinstance(conf, str):
+        conf = found.get(_norm(conf))
+    elif conf is None:
+        conf = found.get(".mcp.json")
+    if isinstance(conf, bytes):
+        try:
+            conf = json.loads(conf)
+        except ValueError:
+            conf = None
+    if isinstance(conf, dict) and isinstance(conf.get("mcpServers"), dict):
+        conf = conf["mcpServers"]
+    if not isinstance(conf, dict) or not conf:
+        return []
+    if not admin:
+        report.append(
+            {"kind": "mcp", "name": ", ".join(conf)[:200], "why": "only admins add MCP servers: an admin installing it brings them"}
+        )
+        return []
+    from . import mcp_client
+
+    out = []
+    for name, c in list(conf.items())[:20]:
+        c = c if isinstance(c, dict) else {}
+        kind = c.get("type") or ("stdio" if c.get("command") else "http")
+        if kind == "stdio" or c.get("command"):
+            report.append(
+                {"kind": "mcp", "name": name, "why": "it runs a program on the computer; Lens reaches MCP servers on the network"}
+            )
+            continue
+        if kind not in ("http", "streamable-http") or not isinstance(c.get("url"), str):
+            report.append({"kind": "mcp", "name": name, "why": f"Lens speaks MCP over HTTP; this one uses {kind}"})
+            continue
+        headers = {k: v for k, v in (c.get("headers") or {}).items() if isinstance(k, str) and isinstance(v, str)}
+        server = {"url": c["url"], "headers": headers or None}
+        try:
+            tools = mcp_client.discover(server)
+        except ValueError as e:
+            tools = []
+            report.append({"kind": "mcp", "name": name, "why": f"its tools couldn't be listed ({e}); save it again once it can be reached"})
+        out.append(
+            {"kind": "mcp", "name": slug(name), "description": f"The {name} MCP server", "spec": store.clean({**server, "tools": tools})}
+        )
+    return out
+
+
+def read_plugin(found, entry=None, admin=False):
     """A plugin folder's files ({path: bytes}) as a Lens plugin manifest, and what was left out: (manifest, skipped).
-    `entry` is its marketplace entry, which describes it when there's no plugin.json (strict: false)."""
+    `entry` is its marketplace entry, which describes it when there's no plugin.json (strict: false). MCP servers come
+    along when an admin installs it."""
     entry = dict(entry or {})
     meta = {}
     if PLUGIN_JSON in found:
@@ -458,8 +509,7 @@ def read_plugin(found, entry=None):
         report.append(
             {"kind": "hooks", "name": "hooks", "why": "Claude Code's hooks run commands on the computer; Lens hooks are made in Lens"}
         )
-    if meta.get("mcpServers") or ".mcp.json" in found:
-        report.append({"kind": "mcp", "name": "MCP servers", "why": "MCP servers from plugins aren't read yet"})
+    items += _mcp(found, meta, admin, report)
 
     # names: each item's own, made different where two are the same
     seen = set()
@@ -470,7 +520,9 @@ def read_plugin(found, entry=None):
             it["name"], n = base[: 41 - len(suffix)] + suffix, n + 1
         seen.add(it["name"])
     if not items:
-        raise ValueError("nothing in it Lens can use: no skills, commands or agents" + (f" ({report[0]['why']})" if report else ""))
+        raise ValueError(
+            "nothing in it Lens can use: no skills, commands, agents or MCP servers" + (f" ({report[0]['why']})" if report else "")
+        )
     if len(items) > extensions.MAX_ITEMS:
         raise ValueError(f"it has {len(items)} skills, commands and agents; a Lens plugin has at most {extensions.MAX_ITEMS}")
     name = meta.get("name") or (items[0]["name"] if len(items) == 1 else "plugin")
@@ -631,18 +683,18 @@ def _entry(db, mid, name):
     raise KeyError(name)
 
 
-def _read(cfg, src, entry=None):
+def _read(cfg, src, entry=None, admin=False):
     found = files(cfg, src)
     # a plugin's own plugin.json describes it, unless the marketplace says it describes it (strict: false)
     if entry and entry.get("strict") is not False and PLUGIN_JSON in found:
         entry = {k: v for k, v in entry.items() if k in ("name", "description", "version")}
-    return read_plugin(found, entry)
+    return read_plugin(found, entry, admin)
 
 
 def preview(db, cfg, me, mid, name):
     """What installing a marketplace's plugin would add to the assistant, and what it leaves out."""
     _, p, src = _entry(db, mid, name)
-    manifest, skipped = _read(cfg, src, p)
+    manifest, skipped = _read(cfg, src, p, me["admin"])
     extensions.check_manifest(manifest, me, db)
     return {"manifest": manifest, "skipped": skipped, "source": show_source(src)}
 
@@ -659,7 +711,7 @@ def install(db, cfg, me, mid, name):
     """Install a marketplace's plugin as this person's own plugin (private until they share it); again, a new version.
     (extension id, version)."""
     d, p, src = _entry(db, mid, name)
-    manifest, _ = _read(cfg, src, p)
+    manifest, _ = _read(cfg, src, p, me["admin"])
     source = store.clean(
         {"marketplace": d["id"], "plugin": p["name"], "version": str(p["version"]) if p.get("version") else None, "url": show_source(src)}
     )
@@ -683,7 +735,7 @@ def import_link(db, cfg, me, link, dry=False):
     src = parse_source(link)
     if src["host"] == "url":
         raise ValueError("that's a marketplace: an admin adds it under Marketplaces")
-    manifest, skipped = read_plugin(files(cfg, src))
+    manifest, skipped = read_plugin(files(cfg, src), admin=me["admin"])
     url = show_source(src)
     if dry:
         extensions.check_manifest(manifest, me, db)
@@ -701,7 +753,7 @@ def import_archive(db, me, filename, data, dry=False):
     if len(raw) > MAX_UPLOAD:
         raise ValueError(f"the file is larger than {MAX_UPLOAD // 2**20} MB")
     name = (filename or "the file").strip()[:200]
-    manifest, skipped = read_plugin(_unpack(io.BytesIO(raw), name))
+    manifest, skipped = read_plugin(_unpack(io.BytesIO(raw), name), admin=me["admin"])
     if dry:
         extensions.check_manifest(manifest, me, db)
         return {"manifest": manifest, "skipped": skipped, "source": name}

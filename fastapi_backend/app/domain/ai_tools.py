@@ -1155,8 +1155,7 @@ def run_extension(db, cfg, args, user, admin, readable, toolbox=None):
     me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in readable})
     if g.get("deleted_at") or not g.get("enabled") or not extensions.can_use(g, me):
         raise ValueError("that extension was switched off or removed")
-    items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
-    t = next((it for it in items if it.get("kind") == "tool" and it["name"] == args["tool"]), None)
+    t = next((it for it in extensions.tool_items(g) if it["name"] == args["tool"]), None)
     if not t:
         raise ValueError(f"the extension has no tool {args['tool']} any more")
     out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], args.get("args") or {}), toolbox=toolbox)

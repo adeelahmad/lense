@@ -3926,7 +3926,7 @@ export type Extension = {
   /**
    * Kind
    */
-  kind: "tool" | "skill" | "hook" | "plugin";
+  kind: "tool" | "skill" | "hook" | "plugin" | "mcp";
   /**
    * Title
    */
@@ -4041,7 +4041,7 @@ export type ExtensionDetail = {
   /**
    * Kind
    */
-  kind: "tool" | "skill" | "hook" | "plugin";
+  kind: "tool" | "skill" | "hook" | "plugin" | "mcp";
   /**
    * Title
    */
@@ -28980,7 +28980,7 @@ export type ListExtensionsData = {
     /**
      * Kind
      */
-    kind?: "tool" | "skill" | "hook" | "plugin" | null;
+    kind?: "tool" | "skill" | "hook" | "plugin" | "mcp" | null;
   };
   url: "/api/v1/extensions";
 };

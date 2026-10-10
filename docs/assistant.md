@@ -144,7 +144,12 @@ shared with namespaces (admins can share with everyone), and switched on or off 
   only when the skill applies.
 - **Hook**: runs when a question arrives, before or after a tool, or after an answer, to add context, block a tool or
   call one. Your own hooks run in your conversations; other people's run only when an admin shared them.
-- **Plugin**: a bundle of tools, skills and hooks, shared and switched off as one.
+- **MCP server** (admins add them): a server that speaks the Model Context Protocol over Streamable HTTP, at the
+  address an admin gives (this machine and the local network included, as for the model's address), with the headers
+  it needs (a token). Lens lists its tools when it's saved, and the assistant calls them as `<server>__<tool>`: one the
+  server marks read-only answers at once, the others ask for approval. Servers that run as a program (stdio) aren't
+  run.
+- **Plugin**: a bundle of tools, skills, hooks and MCP servers, shared and switched off as one.
 
 Make one however suits you:
 
@@ -188,8 +193,8 @@ An installed plugin is one Lens plugin, yours and private until you share it; in
 version. A skill (a folder with SKILL.md) is a skill, and the assistant reads its text files (references, examples,
 scripts) when the instructions point at them; nothing in them runs. A command (`commands/*.md`) is a skill the
 assistant follows when someone asks for it, and an agent (`agents/*.md`) is a prompt tool with the agent's instructions
-as its system prompt. Claude Code's hooks run commands on the computer, so they're left out, and so are a plugin's MCP
-servers for now. Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
+as its system prompt. Claude Code's hooks run commands on the computer, so they're left out. A plugin's MCP servers on
+the network (`.mcp.json`) come along when an admin installs it; those that run as a program are left out. Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
 tools: public addresses only.
 
 `ai.extensions: false` turns every extension off.

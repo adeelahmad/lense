@@ -18873,7 +18873,8 @@
                     "tool",
                     "skill",
                     "hook",
-                    "plugin"
+                    "plugin",
+                    "mcp"
                   ],
                   "type": "string"
                 },
@@ -31335,7 +31336,8 @@
               "tool",
               "skill",
               "hook",
-              "plugin"
+              "plugin",
+              "mcp"
             ],
             "title": "Kind"
           },
@@ -31528,7 +31530,8 @@
               "tool",
               "skill",
               "hook",
-              "plugin"
+              "plugin",
+              "mcp"
             ],
             "title": "Kind"
           },

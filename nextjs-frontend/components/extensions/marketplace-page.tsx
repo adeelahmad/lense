@@ -17,7 +17,7 @@ import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 
-const ITEM_LABEL: Record<string, string> = { skill: "Skill", tool: "Tool", hook: "Hook" };
+const ITEM_LABEL: Record<string, string> = { skill: "Skill", tool: "Tool", hook: "Hook", mcp: "MCP server" };
 
 /** A file, as base64 for the API. */
 function base64(file: File): Promise<string> {

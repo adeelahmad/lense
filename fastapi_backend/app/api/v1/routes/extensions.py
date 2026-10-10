@@ -132,9 +132,8 @@ def test_extension(eid: int, body: ExtensionTest, user: Writer, acl: Acl, db: Db
     needs `confirm`."""
     with _errors():
         g = extensions.visible_one(db, me(user), eid)
-        items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
         name = body.tool or (g["name"] if g["kind"] == "tool" else None)
-        t = next((it for it in items if it.get("kind") == "tool" and it["name"] == name), None)
+        t = next((it for it in extensions.tool_items(g) if it["name"] == name), None)
         if not t:
             raise ValueError("name one of its tools to try")
         if t["spec"]["effect"] == "change" and not body.confirm:

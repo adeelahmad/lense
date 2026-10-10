@@ -8,7 +8,7 @@ from pydantic import Field
 
 from app.schemas.common import RequestModel, ResponseModel
 
-Kind = Literal["tool", "skill", "hook", "plugin"]
+Kind = Literal["tool", "skill", "hook", "plugin", "mcp"]
 Visibility = Literal["private", "namespace", "everyone"]
 Origin = Literal["code", "canvas", "chat"]
 
