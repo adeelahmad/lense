@@ -51,6 +51,7 @@ from app.api.v1.routes import (
     speakers,
     templates,
     topics,
+    updates,
     uploads,
     users,
     vaults,
@@ -70,6 +71,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    updates,
     activity,
     budgets,
     fedora,
