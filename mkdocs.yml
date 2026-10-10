@@ -89,6 +89,7 @@ nav:
       - Graph and Cypher: graph.md
       - Graph history: graph-history.md
       - Topics: topics.md
+      - The graph as files: file-tree.md
       - Linked data (RDF): rdf.md
       - IIIF: iiif.md
       - Fedora repository: fedora.md
