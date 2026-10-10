@@ -127,6 +127,7 @@ export function PageChat() {
           onClick={() => open()}
           aria-label="Chat about this page"
           title="Chat about this page"
+          data-ask-button
           className="fixed bottom-5 right-5 z-[90] inline-flex h-12 items-center gap-2 rounded-pill bg-blue px-4 text-[14px] font-bold text-white shadow-3 transition-transform hover:scale-[1.03] active:scale-[.98] [&_svg]:size-[18px]"
         >
           <MessagesSquare />

@@ -221,7 +221,10 @@ export function GraphPage() {
       shown={visible.nodes.length}
       total={all.nodes.length}
       maxNodes={maxNodes}
-      onPick={(id) => select(id)}
+      onPick={(id) => {
+        select(id);
+        setFiltersOpen(false); // on a phone the filters sheet would cover the node picked
+      }}
       isolated={namespaces.filter((n) => n.graph === "isolated").map((n) => n.name)}
     />
   );

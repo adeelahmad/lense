@@ -12,6 +12,7 @@ import {
   Bot,
   Captions,
   ChartNoAxesColumn,
+  ChevronDown,
   Clapperboard,
   Cpu,
   Database,
@@ -92,11 +93,24 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   startup: Terminal,
 };
 
-function SectionLink({ id, label, on, errors }: { id: AnySectionId; label: string; on: boolean; errors?: boolean }) {
+function SectionLink({
+  id,
+  label,
+  on,
+  errors,
+  onNavigate,
+}: {
+  id: AnySectionId;
+  label: string;
+  on: boolean;
+  errors?: boolean;
+  onNavigate?: () => void;
+}) {
   const Icon = ICON[id];
   return (
     <Link
       href={`/settings/${id}`}
+      onClick={onNavigate}
       aria-current={on ? "page" : undefined}
       className={cn(
         "flex h-8 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-sm px-2.5 text-[13.5px] leading-none transition-colors duration-fast",
@@ -111,16 +125,17 @@ function SectionLink({ id, label, on, errors }: { id: AnySectionId; label: strin
 }
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="hidden px-2.5 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wide text-fg-muted md:block">
-      {children}
-    </div>
-  );
+  return <div className="px-2.5 pb-1 pt-3 text-[11px] font-bold uppercase tracking-wide text-fg-muted">{children}</div>;
 }
 
-/** Settings: Speakers for every member, then the archive's settings for admins (ST1–ST3, MD5), one at a time. */
+/** Settings: Speakers for every member, then the archive's settings for admins (ST1–ST3, MD5), one at a time. On a
+ * phone the sections are a list that opens from the section's name, rather than a strip that scrolls sideways. */
 export function SettingsShell({ section }: { section: AnySectionId }) {
   const { admin } = useArchive();
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  const current = [...WORKSPACE_SECTIONS, ...SECTIONS].find((s) => s.id === section);
+  const CurrentIcon = ICON[section];
   const [withErrors, setWithErrors] = useState<Set<SectionId>>(new Set());
   const onErrors = useCallback((id: SectionId, has: boolean) => {
     setWithErrors((s) => {
@@ -137,17 +152,38 @@ export function SettingsShell({ section }: { section: AnySectionId }) {
         aria-label="Settings sections"
         className="flex min-w-0 flex-col gap-px border-b border-border bg-surface px-2.5 py-[18px] md:sticky md:top-16 md:h-[calc(100vh-64px)] md:overflow-y-auto md:border-b-0 md:border-r"
       >
-        <div className="px-2.5 pb-1.5 pt-1 text-[20px] font-bold leading-none text-fg">Settings</div>
-        <div className="flex gap-1 overflow-x-auto md:flex-col md:gap-px md:overflow-visible">
+        <div className="flex items-center gap-2">
+          <div className="flex-1 px-2.5 pb-1.5 pt-1 text-[20px] font-bold leading-none text-fg">Settings</div>
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls="settings-sections"
+            onClick={() => setOpen((o) => !o)}
+            className="flex h-9 min-w-0 items-center gap-2 rounded-sm border border-border bg-background px-2.5 text-[13.5px] font-semibold text-fg md:hidden"
+          >
+            <CurrentIcon aria-hidden className="size-[15px] shrink-0 text-fg-secondary" />
+            <span className="sr-only">Settings section: </span>
+            <span className="truncate">{current?.label ?? "Sections"}</span>
+            <ChevronDown aria-hidden className={cn("size-4 shrink-0 text-fg-muted", open && "rotate-180")} />
+          </button>
+        </div>
+        <div id="settings-sections" className={cn("flex-col gap-px pt-1 md:flex md:pt-0", open ? "flex" : "hidden")}>
           <GroupLabel>Your namespaces</GroupLabel>
           {WORKSPACE_SECTIONS.map((s) => (
-            <SectionLink key={s.id} id={s.id} label={s.label} on={s.id === section} />
+            <SectionLink key={s.id} id={s.id} label={s.label} on={s.id === section} onNavigate={close} />
           ))}
           {admin && (
             <>
               <GroupLabel>Archive</GroupLabel>
               {SECTIONS.map((s) => (
-                <SectionLink key={s.id} id={s.id} label={s.label} on={s.id === section} errors={withErrors.has(s.id)} />
+                <SectionLink
+                  key={s.id}
+                  id={s.id}
+                  label={s.label}
+                  on={s.id === section}
+                  errors={withErrors.has(s.id)}
+                  onNavigate={close}
+                />
               ))}
             </>
           )}
