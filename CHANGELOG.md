@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.6.0 <small>October 10, 2026</small> {id="0.6.0"}
+
+### Features
+
+- **install:** list the prerequisites and ask before installing them ([#258](https://github.com/adeelahmad/lense/pull/258))
+
+### Fixes
+
+- **install:** pull the microsandbox base image from mirrors that need no sign-in ([#259](https://github.com/adeelahmad/lense/pull/259))
+
 ## 0.5.0 <small>October 10, 2026</small> {id="0.5.0"}
 
 - **Podcasts from what you pick.** Lens makes a two-host learning episode about resources and passages: one host
