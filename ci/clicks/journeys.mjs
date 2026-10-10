@@ -189,6 +189,8 @@ export const JOURNEYS = [
       await meter.click(page.getByRole("main").getByRole("button", { name: "New note" }).first(), "New note");
       await page.waitForURL(/\/notes\/\d+/);
       const title = page.getByRole("textbox", { name: "Title" });
+      // A person starts typing once the note has loaded and its title has the cursor (a click is counted if it never does)
+      await page.waitForFunction((el) => el === document.activeElement, await title.elementHandle(), { timeout: 5000 }).catch(() => {});
       await meter.replace(title, "Pi setup", "title");
       const body = page.locator("main affine-page-root [contenteditable=true]").first();
       const editor = (await body.count()) ? body : page.locator("main .inline-editor").last();
