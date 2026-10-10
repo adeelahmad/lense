@@ -4047,7 +4047,7 @@ export type Extension = {
   /**
    * Kind
    */
-  kind: "tool" | "skill" | "hook" | "plugin";
+  kind: "tool" | "skill" | "hook" | "plugin" | "mcp";
   /**
    * Title
    */
@@ -4099,9 +4099,17 @@ export type Extension = {
   /**
    * Origin
    *
-   * how this version was made: code, canvas or chat
+   * how this version was made: code, canvas, chat or import
    */
   origin?: string | null;
+  /**
+   * Source
+   *
+   * where it was imported from: a marketplace's plugin, a link or a file
+   */
+  source?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Updated At
    */
@@ -4154,7 +4162,7 @@ export type ExtensionDetail = {
   /**
    * Kind
    */
-  kind: "tool" | "skill" | "hook" | "plugin";
+  kind: "tool" | "skill" | "hook" | "plugin" | "mcp";
   /**
    * Title
    */
@@ -4206,9 +4214,17 @@ export type ExtensionDetail = {
   /**
    * Origin
    *
-   * how this version was made: code, canvas or chat
+   * how this version was made: code, canvas, chat or import
    */
   origin?: string | null;
+  /**
+   * Source
+   *
+   * where it was imported from: a marketplace's plugin, a link or a file
+   */
+  source?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Updated At
    */
@@ -4223,6 +4239,107 @@ export type ExtensionDetail = {
    * History
    */
   history?: Array<ExtensionVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionImportArchive
+ */
+export type ExtensionImportArchive = {
+  /**
+   * Filename
+   */
+  filename?: string | null;
+  /**
+   * Data
+   *
+   * a .zip, .skill or .tar.gz with a plugin or a skill, as base64 (20 MB at most)
+   */
+  data: string;
+  /**
+   * Preview
+   */
+  preview?: boolean;
+};
+
+/**
+ * ExtensionImportLink
+ */
+export type ExtensionImportLink = {
+  /**
+   * Url
+   *
+   * a plugin or skill: a GitHub or GitLab repository or folder, or a .zip or .tar.gz link
+   */
+  url: string;
+  /**
+   * Preview
+   *
+   * say what it would install, without installing it
+   */
+  preview?: boolean;
+};
+
+/**
+ * ExtensionImportPreview
+ */
+export type ExtensionImportPreview = {
+  /**
+   * Manifest
+   *
+   * the plugin as Lens would install it
+   */
+  manifest: {
+    [key: string]: unknown;
+  };
+  /**
+   * Skipped
+   */
+  skipped?: Array<ExtensionSkipped>;
+  /**
+   * Source
+   */
+  source: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionImported
+ */
+export type ExtensionImported = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Skipped
+   */
+  skipped?: Array<ExtensionSkipped>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionSkipped
+ */
+export type ExtensionSkipped = {
+  /**
+   * Kind
+   *
+   * what was left out: hooks, mcp, skill, command, agent or file
+   */
+  kind: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Why
+   */
+  why: string;
   [key: string]: unknown;
 };
 
@@ -7198,6 +7315,133 @@ export type ManifestChecked = {
   manifest: {
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+};
+
+/**
+ * Marketplace
+ */
+export type Marketplace = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * the name its marketplace.json gives it
+   */
+  name: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Source
+   *
+   * where it is: a repository, or a link to its marketplace.json
+   */
+  source: string;
+  /**
+   * Plugins
+   *
+   * how many plugins it lists
+   */
+  plugins: number;
+  /**
+   * Added By
+   */
+  added_by?: string | null;
+  /**
+   * Fetched At
+   */
+  fetched_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MarketplaceCreate
+ */
+export type MarketplaceCreate = {
+  /**
+   * Source
+   *
+   * owner/repo on GitHub, a GitHub or GitLab link, or a link to a marketplace.json
+   */
+  source: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+};
+
+/**
+ * MarketplacePlugin
+ */
+export type MarketplacePlugin = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Version
+   */
+  version?: string | null;
+  /**
+   * Category
+   */
+  category?: string | null;
+  /**
+   * Author
+   */
+  author?: string | null;
+  /**
+   * Homepage
+   */
+  homepage?: string | null;
+  /**
+   * Installable
+   *
+   * whether Lens can read it (why_not says why when it can't)
+   */
+  installable: boolean;
+  /**
+   * Why Not
+   */
+  why_not?: string | null;
+  /**
+   * Installed
+   *
+   * your extension installed from it, if you installed it
+   */
+  installed?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MarketplaceSuggestion
+ */
+export type MarketplaceSuggestion = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Source
+   */
+  source: string;
   [key: string]: unknown;
 };
 
@@ -29349,7 +29593,7 @@ export type ListExtensionsData = {
     /**
      * Kind
      */
-    kind?: "tool" | "skill" | "hook" | "plugin" | null;
+    kind?: "tool" | "skill" | "hook" | "plugin" | "mcp" | null;
   };
   url: "/api/v1/extensions";
 };
@@ -29423,6 +29667,60 @@ export type CheckManifestResponses = {
 };
 
 export type CheckManifestResponse = CheckManifestResponses[keyof CheckManifestResponses];
+
+export type ImportLinkData = {
+  body: ExtensionImportLink;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/import";
+};
+
+export type ImportLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportLinkError = ImportLinkErrors[keyof ImportLinkErrors];
+
+export type ImportLinkResponses = {
+  /**
+   * Response Extensions-Import Link
+   *
+   * Successful Response
+   */
+  200: ExtensionImportPreview | ExtensionImported;
+};
+
+export type ImportLinkResponse = ImportLinkResponses[keyof ImportLinkResponses];
+
+export type ImportArchiveData = {
+  body: ExtensionImportArchive;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/import/archive";
+};
+
+export type ImportArchiveErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportArchiveError = ImportArchiveErrors[keyof ImportArchiveErrors];
+
+export type ImportArchiveResponses = {
+  /**
+   * Response Extensions-Import Archive
+   *
+   * Successful Response
+   */
+  200: ExtensionImportPreview | ExtensionImported;
+};
+
+export type ImportArchiveResponse = ImportArchiveResponses[keyof ImportArchiveResponses];
 
 export type DeleteExtensionData = {
   body?: never;
@@ -29578,6 +29876,229 @@ export type TestExtensionResponses = {
 };
 
 export type TestExtensionResponse = TestExtensionResponses[keyof TestExtensionResponses];
+
+export type ListMarketplacesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces";
+};
+
+export type ListMarketplacesResponses = {
+  /**
+   * Response Extensions-List Marketplaces
+   *
+   * Successful Response
+   */
+  200: Array<Marketplace>;
+};
+
+export type ListMarketplacesResponse = ListMarketplacesResponses[keyof ListMarketplacesResponses];
+
+export type AddMarketplaceData = {
+  body: MarketplaceCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces";
+};
+
+export type AddMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddMarketplaceError = AddMarketplaceErrors[keyof AddMarketplaceErrors];
+
+export type AddMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type AddMarketplaceResponse = AddMarketplaceResponses[keyof AddMarketplaceResponses];
+
+export type SuggestedMarketplacesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces/suggested";
+};
+
+export type SuggestedMarketplacesResponses = {
+  /**
+   * Response Extensions-Suggested Marketplaces
+   *
+   * Successful Response
+   */
+  200: Array<MarketplaceSuggestion>;
+};
+
+export type SuggestedMarketplacesResponse = SuggestedMarketplacesResponses[keyof SuggestedMarketplacesResponses];
+
+export type RefreshMarketplaceData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/refresh";
+};
+
+export type RefreshMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RefreshMarketplaceError = RefreshMarketplaceErrors[keyof RefreshMarketplaceErrors];
+
+export type RefreshMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RefreshMarketplaceResponse = RefreshMarketplaceResponses[keyof RefreshMarketplaceResponses];
+
+export type DeleteMarketplaceData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}";
+};
+
+export type DeleteMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteMarketplaceError = DeleteMarketplaceErrors[keyof DeleteMarketplaceErrors];
+
+export type DeleteMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteMarketplaceResponse = DeleteMarketplaceResponses[keyof DeleteMarketplaceResponses];
+
+export type ListMarketplacePluginsData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins";
+};
+
+export type ListMarketplacePluginsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListMarketplacePluginsError = ListMarketplacePluginsErrors[keyof ListMarketplacePluginsErrors];
+
+export type ListMarketplacePluginsResponses = {
+  /**
+   * Response Extensions-List Marketplace Plugins
+   *
+   * Successful Response
+   */
+  200: Array<MarketplacePlugin>;
+};
+
+export type ListMarketplacePluginsResponse = ListMarketplacePluginsResponses[keyof ListMarketplacePluginsResponses];
+
+export type PreviewMarketplacePluginData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins/{name}/preview";
+};
+
+export type PreviewMarketplacePluginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewMarketplacePluginError = PreviewMarketplacePluginErrors[keyof PreviewMarketplacePluginErrors];
+
+export type PreviewMarketplacePluginResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionImportPreview;
+};
+
+export type PreviewMarketplacePluginResponse =
+  PreviewMarketplacePluginResponses[keyof PreviewMarketplacePluginResponses];
+
+export type InstallMarketplacePluginData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins/{name}/install";
+};
+
+export type InstallMarketplacePluginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type InstallMarketplacePluginError = InstallMarketplacePluginErrors[keyof InstallMarketplacePluginErrors];
+
+export type InstallMarketplacePluginResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionImported;
+};
+
+export type InstallMarketplacePluginResponse =
+  InstallMarketplacePluginResponses[keyof InstallMarketplacePluginResponses];
 
 export type ListChatsData = {
   body?: never;

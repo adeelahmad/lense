@@ -12,7 +12,8 @@ a base URL (a proxy or a compatible server works too), a model and an API key, s
 * gemini: Google Gemini text to speech (its prebuilt voices).
 
 Text to speech can also come from macOS `say` when Lens runs on a Mac itself (not in Docker): nothing to set up, the
-Mac's own voices. voices() lists what each one can read in, for Settings and podcast hosts.
+Mac's own voices; or from StyleTTS2, the optional `styletts2` service (styletts2/), which reads in a voice like a
+short clip of someone speaking. voices() lists what each one can read in, for Settings and podcast hosts.
 
 A provider's transcript is the same list of segments a local engine returns, plus `provider_speaker`: the speaker
 separation step uses those labels (diarize.engine provider, or auto), and voice IDs still come from local voiceprints.
@@ -53,8 +54,9 @@ LABELS = {
     "deepgram": "Deepgram",
     "gemini": "Google Gemini",
     "say": "macOS say",
+    "styletts2": "StyleTTS2",
 }
-TTS_PROVIDERS = ("openai", "elevenlabs", "deepgram", "gemini", "say")
+TTS_PROVIDERS = ("openai", "elevenlabs", "deepgram", "gemini", "say", "styletts2")
 CHUNK_SECONDS = 600  # OpenAI-compatible servers take up to 25 MB a request; ten minutes of Opus is a few MB
 POLL_SECONDS = 3
 MAX_WORDS = 40
@@ -68,7 +70,15 @@ ELEVENLABS_TTS_MODEL = "eleven_multilingual_v2"
 DEEPGRAM_TTS_MODEL = "aura-2-thalia-en"
 GEMINI_VOICE = "Kore"
 # what each provider reads in when nothing is picked (say: the Mac's own voice)
-DEFAULT_VOICE = {"openai": "alloy", "elevenlabs": ELEVENLABS_VOICE, "deepgram": DEEPGRAM_TTS_MODEL, "gemini": GEMINI_VOICE, "say": None}
+DEFAULT_VOICE = {
+    "openai": "alloy",
+    "elevenlabs": ELEVENLABS_VOICE,
+    "deepgram": DEEPGRAM_TTS_MODEL,
+    "gemini": GEMINI_VOICE,
+    "say": None,
+    "styletts2": "default",
+}
+STYLETTS2_SECONDS = 600  # it reads on the CPU, a long answer slowly; the first call also loads the model
 OPENAI_VOICES = ("alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer", "verse")
 # Gemini's prebuilt voices and how Google describes each
 GEMINI_VOICES = {
@@ -491,6 +501,8 @@ def tts_ready(cfg):
         return bool(v.get("tts_model") and (v.get("tts_base_url") or (cfg.get("llm") or {}).get("base_url")))
     if p == "say":
         return say_available()
+    if p == "styletts2":
+        return bool(v.get("styletts2_url"))  # its own service; when it isn't running the browser reads answers
     return p in TTS_PROVIDERS and bool(_key(cfg, p))
 
 
@@ -583,7 +595,25 @@ def _speak_openai(cfg, text, voice):
     return m, lambda: _request(base + "/audio/speech", data=json.dumps(body).encode(), headers=headers, timeout=60)
 
 
-SPEAK = {"openai": _speak_openai, "elevenlabs": _speak_elevenlabs, "deepgram": _speak_deepgram, "gemini": _speak_gemini, "say": _speak_say}
+def _styletts2_url(cfg):
+    return str((cfg.get("voice") or {}).get("styletts2_url") or "").rstrip("/")
+
+
+def _speak_styletts2(cfg, text, voice):
+    body = {"model": "styletts2", "input": text, "voice": voice, "response_format": "wav"}
+    url = _styletts2_url(cfg) + "/v1/audio/speech"
+    headers = {"Content-Type": "application/json"}
+    return "styletts2", lambda: _request(url, data=json.dumps(body).encode(), headers=headers, timeout=STYLETTS2_SECONDS)
+
+
+SPEAK = {
+    "styletts2": _speak_styletts2,
+    "openai": _speak_openai,
+    "elevenlabs": _speak_elevenlabs,
+    "deepgram": _speak_deepgram,
+    "gemini": _speak_gemini,
+    "say": _speak_say,
+}
 
 
 def speak(cfg, text, voice=None):
@@ -666,6 +696,12 @@ def voices(cfg, provider=None):
             return _say_voices(), None
         except (OSError, subprocess.TimeoutExpired) as e:
             return [], f"say didn't list its voices: {e}"
+    if p == "styletts2":
+        try:
+            names = _json(_styletts2_url(cfg) + "/v1/audio/voices", timeout=15).get("voices") or []
+        except (ProviderError, AttributeError) as e:
+            return [], f"StyleTTS2 isn't running ({e}): docker compose --profile styletts2 up -d"
+        return [_voice(n, detail="its own reader" if n == "default" else "from your clip") for n in names if isinstance(n, str)], None
     if not _key(cfg, p):
         return [], f"{LABELS[p]} has no API key yet: add it in Settings → Speech providers"
     try:

@@ -718,8 +718,8 @@ def timed(lines, wpm=150, pause_ms=400):
 
 def voices(cfg, req=None):
     """{a, b}: the hosts' voices for the text-to-speech provider: what the episode asked for, else podcasts.voice_a /
-    voice_b, else voice.tts_voice and a second voice of the provider's (say has no voice every Mac is sure to have, so
-    both hosts get the same one unless podcasts.voice_b names another)."""
+    voice_b, else voice.tts_voice and a second voice of the provider's (say and StyleTTS2 have no second voice they're
+    sure to have, so both hosts get the same one unless podcasts.voice_b names another)."""
     from . import speech
 
     p = cfg.get("podcasts") or {}

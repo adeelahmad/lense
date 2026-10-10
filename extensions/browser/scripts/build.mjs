@@ -1,6 +1,11 @@
 // Builds the extension for each browser in targets/: dist/<target>/ is what the browser loads (or the store gets).
 // A target is targets/<name>.json, merged over src/manifest.json (null removes a key). `--target chrome` builds one;
 // `--check` builds and then checks every file the manifests name exists.
+//
+// With EXT_UPDATE_BASE set (a release sets it to its "latest/download" address), each target but Safari also gets
+// dist/<target>-selfhosted: the same build with an update_url, for copies installed from the release rather than a
+// store. Firefox reads lens-clipper-<target>-updates.json there, Chromium browsers lens-clipper-<target>-updates.xml
+// (scripts/release.mjs writes both).
 import { build } from "esbuild";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -65,4 +70,17 @@ for (const target of targets) {
     if (missing.length) throw new Error(`${target}: the manifest names files the build lacks: ${missing.join(", ")}`);
   }
   console.log(`built dist/${target} (${manifest.name} ${manifest.version})`);
+
+  const updateBase = process.env.EXT_UPDATE_BASE?.replace(/\/+$/, "");
+  if (updateBase && target !== "safari") {
+    const self = `${out}-selfhosted`;
+    rmSync(self, { recursive: true, force: true });
+    cpSync(out, self, { recursive: true });
+    const gecko = manifest.browser_specific_settings?.gecko;
+    const selfHosted = gecko
+      ? merge(manifest, { browser_specific_settings: { gecko: { update_url: `${updateBase}/lens-clipper-${target}-updates.json` } } })
+      : { ...manifest, update_url: `${updateBase}/lens-clipper-${target}-updates.xml` };
+    writeFileSync(join(self, "manifest.json"), `${JSON.stringify(selfHosted, null, 2)}\n`);
+    console.log(`built dist/${target}-selfhosted (updates from ${updateBase})`);
+  }
 }

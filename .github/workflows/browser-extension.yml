@@ -3,6 +3,15 @@ name: Browser extension
 # The Lens web clipper (extensions/browser): tested and built for each browser in extensions/browser/targets/, and
 # kept with the run as lens-clipper-<target>.zip (unzip and "Load unpacked", or hand to the browser's store). A release
 # gets the zips attached: through the release event, or workflow_dispatch with `tag` (the Release workflow starts it).
+#
+# A release also publishes it for updates (docs/web-clipper.md, Releases and updates), each part only when its secrets
+# are set:
+# - CRX_PRIVATE_KEY (a PEM RSA key, kept forever: it is the extension's ID): signed lens-clipper-<chrome|edge>.crx and
+#   the lens-clipper-<target>-updates.xml they poll, for copies installed by policy or on Linux;
+# - AMO_JWT_ISSUER and AMO_JWT_SECRET: lens-clipper-firefox-updates.json, which the self-hosted Firefox build polls
+#   for the signed .xpi the Firefox workflow attaches;
+# - CWS_EXTENSION_ID, CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN: upload to the Chrome Web Store and publish;
+# - EDGE_PRODUCT_ID, EDGE_CLIENT_ID, EDGE_API_KEY: upload to Microsoft Edge Add-ons and publish.
 on:
   push:
     branches: [main]
@@ -51,9 +60,9 @@ jobs:
       - name: Zip them
         run: |
           mkdir -p ../../dist/extension
-          for d in dist/*/; do
-            t=$(basename "$d")
-            (cd "$d" && zip -qr "../../../../dist/extension/lens-clipper-$t.zip" .)
+          for f in targets/*.json; do
+            t=$(basename "$f" .json)
+            (cd "dist/$t" && zip -qr "../../../../dist/extension/lens-clipper-$t.zip" .)
           done
           ls -l ../../dist/extension
       - uses: actions/upload-artifact@v7
@@ -66,3 +75,99 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: gh release upload "$TAG" ../../dist/extension/*.zip --clobber --repo "${{ github.repository }}"
+
+  publish:
+    name: Publish the release for updates
+    needs: build
+    if: github.event_name == 'release' || inputs.tag != ''
+    runs-on: ubuntu-latest # Google Chrome packs the .crx
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      CRX_PRIVATE_KEY: ${{ secrets.CRX_PRIVATE_KEY }}
+      AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+      CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+      CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+      CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+      CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+      EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+      EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+      EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+    defaults:
+      run:
+        working-directory: ./extensions/browser
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extensions/browser/package-lock.json
+      - run: npm ci
+      - name: Build, with self-hosted copies that update from the newest release
+        env:
+          EXT_VERSION: ${{ env.TAG }}
+          EXT_UPDATE_BASE: ${{ github.server_url }}/${{ github.repository }}/releases/latest/download
+        run: npm run build && mkdir -p out
+
+      - name: Signed .crx and update manifests for Chrome and Edge
+        if: env.CRX_PRIVATE_KEY != ''
+        run: |
+          umask 077
+          printf '%s\n' "$CRX_PRIVATE_KEY" > "$RUNNER_TEMP/key.pem"
+          id=$(node scripts/release.mjs id "$RUNNER_TEMP/key.pem")
+          echo "Extension ID: $id" >> "$GITHUB_STEP_SUMMARY"
+          for t in chrome edge; do
+            [ -d "dist/$t-selfhosted" ] || continue
+            google-chrome --headless=new --no-sandbox --pack-extension="$PWD/dist/$t-selfhosted" --pack-extension-key="$RUNNER_TEMP/key.pem"
+            mv "dist/$t-selfhosted.crx" "out/lens-clipper-$t.crx"
+            node scripts/release.mjs chrome-updates "$t" "$id" \
+              "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$TAG/lens-clipper-$t.crx" "out/lens-clipper-$t-updates.xml"
+          done
+          rm -f "$RUNNER_TEMP/key.pem"
+
+      - name: Update manifest for Firefox
+        if: env.AMO_JWT_ISSUER != ''
+        run: |
+          [ -d dist/firefox-selfhosted ] || { echo "no Firefox target"; exit 0; }
+          node scripts/release.mjs firefox-updates firefox \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$TAG/lens-clipper-firefox.xpi" out/lens-clipper-firefox-updates.json
+
+      - name: Attach them to the release
+        run: |
+          ls -l out
+          if [ -n "$(ls out)" ]; then gh release upload "$TAG" out/* --clobber --repo "$GITHUB_REPOSITORY"; fi
+
+      - name: Chrome Web Store
+        if: env.CWS_EXTENSION_ID != '' && env.CWS_REFRESH_TOKEN != ''
+        run: |
+          (cd dist/chrome && zip -qr "$RUNNER_TEMP/chrome.zip" .)
+          token=$(curl -fsS https://oauth2.googleapis.com/token -d client_id="$CWS_CLIENT_ID" -d client_secret="$CWS_CLIENT_SECRET" \
+            -d refresh_token="$CWS_REFRESH_TOKEN" -d grant_type=refresh_token | jq -r .access_token)
+          echo "::add-mask::$token"
+          curl -fsS -X PUT -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" -T "$RUNNER_TEMP/chrome.zip" \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CWS_EXTENSION_ID" | tee "$RUNNER_TEMP/upload.json"
+          [ "$(jq -r .uploadState "$RUNNER_TEMP/upload.json")" != FAILURE ] || exit 1
+          curl -fsS -X POST -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" -H "Content-Length: 0" \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/$CWS_EXTENSION_ID/publish"
+
+      - name: Microsoft Edge Add-ons
+        if: env.EDGE_PRODUCT_ID != '' && env.EDGE_API_KEY != ''
+        run: |
+          [ -d dist/edge ] || { echo "no Edge target"; exit 0; }
+          (cd dist/edge && zip -qr "$RUNNER_TEMP/edge.zip" .)
+          api="https://api.addons.microsoftedge.microsoft.com/v1/products/$EDGE_PRODUCT_ID/submissions"
+          auth=(-H "Authorization: ApiKey $EDGE_API_KEY" -H "X-ClientID: $EDGE_CLIENT_ID")
+          op=$(curl -fsS -D - -o /dev/null -X POST "${auth[@]}" -H "Content-Type: application/zip" --data-binary @"$RUNNER_TEMP/edge.zip" \
+            "$api/draft/package" | tr -d '\r' | awk 'tolower($1)=="location:"{print $2}')
+          for _ in $(seq 30); do
+            status=$(curl -fsS "${auth[@]}" "$api/draft/package/operations/$op" | jq -r .status)
+            [ "$status" = InProgress ] || break
+            sleep 10
+          done
+          [ "$status" = Succeeded ] || { echo "::error::Edge upload: $status"; exit 1; }
+          curl -fsS -X POST "${auth[@]}" -H "Content-Type: application/json" -d "{\"notes\":\"Lens $TAG\"}" "$api"
