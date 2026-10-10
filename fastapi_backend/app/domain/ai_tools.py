@@ -494,13 +494,20 @@ class Toolbox(ops_tools.OpsTools):
 
         return run
 
-    def t_use_skill(self, name):
+    def t_use_skill(self, name, file=None):
         s = (self.ext.skills if self.ext else {}).get(name)
         if not s:
             raise ValueError(f"no skill {name}")
+        files = s["spec"].get("files") or {}
+        if file:
+            if file not in files:
+                raise ValueError(f"the skill {name} has no file {file}; it has: {', '.join(files) or 'none'}")
+            return {"skill": name, "file": file, "text": files[file]}, f"Read {file} from the skill {name}"
         out = {"skill": name, "instructions": s["spec"]["instructions"]}
         if s["spec"].get("tools"):
             out["tools"] = s["spec"]["tools"]
+        if files:
+            out["files"] = list(files)
         return out, f"Read the skill {name}"
 
     # ---- extensions, from chat ----
@@ -1114,7 +1121,7 @@ class Toolbox(ops_tools.OpsTools):
 
 def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None):
     """Carry out an approved action: a batch run (or a sample of it), an entity change, or a change to the server
-    (ops_tools.py: settings, a namespace, importing attached files)."""
+    (ops_tools.py: settings, a namespace, importing attached files or web pages)."""
     a = db.one("SELECT record::id(id) AS id, chat, account, tool, args, status FROM $r", r=R("approval", int(aid)))
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
@@ -1142,7 +1149,7 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
         result = run_extension(db, cfg, args, user, admin, box.readable, box)
     elif a["tool"] in ("save_extension", "switch_extension"):
         result = author_extension(db, a["tool"], args, user, admin, readable if readable is not None else editable, editable)
-    elif a["tool"] in ("change_settings", "create_namespace", "import_files"):
+    elif a["tool"] in ("change_settings", "create_namespace", "import_files", "import_urls"):
         result = ops_tools.apply(db, cfg, base or cfg, a["tool"], args, user, editable, admin)
     elif a["tool"] == "forget_memory":
         sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
@@ -1202,8 +1209,7 @@ def run_extension(db, cfg, args, user, admin, readable, toolbox=None):
     me = extensions.who(user["id"], user.get("email"), admin, {s: "viewer" for s in readable})
     if g.get("deleted_at") or not g.get("enabled") or not extensions.can_use(g, me):
         raise ValueError("that extension was switched off or removed")
-    items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
-    t = next((it for it in items if it.get("kind") == "tool" and it["name"] == args["tool"]), None)
+    t = next((it for it in extensions.tool_items(g) if it["name"] == args["tool"]), None)
     if not t:
         raise ValueError(f"the extension has no tool {args['tool']} any more")
     out = extensions.run_tool(db, cfg, t["spec"], extensions.tool_args(t["spec"], args.get("args") or {}), toolbox=toolbox)

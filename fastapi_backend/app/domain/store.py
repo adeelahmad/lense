@@ -291,7 +291,8 @@ DEFAULTS = {
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
-    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram: the keys in speech)
+    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram, gemini: the keys in speech; say: macOS's
+    # own voices, when Lens runs on a Mac itself); tts_voice: the voice they read in (null: the provider's default)
     "voice": {
         "input": "auto",
         "stt": "same",
@@ -344,6 +345,9 @@ DEFAULTS = {
         "deepgram_base_url": "https://api.deepgram.com",
         "deepgram_model": "nova-3",
         "deepgram_api_key": None,
+        "gemini_base_url": "https://generativelanguage.googleapis.com",
+        "gemini_model": "gemini-2.5-flash-preview-tts",
+        "gemini_api_key": None,
         "sentiment": True,
         "timeout": 1800,
     },
@@ -484,6 +488,10 @@ DEFAULTS = {
         "export_seconds": 60,
         "service_name": "lens",
         "prices": {},
+        # a Prometheus scrape endpoint at /metrics (docs/prometheus.md): off by default; prometheus_token is a secret
+        # the scraper sends as a bearer token, and nothing is served until one is set
+        "prometheus": False,
+        "prometheus_token": None,
     },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
@@ -1071,6 +1079,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS extension SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS extension_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS extension_version_e ON extension_version FIELDS extension",
+    "DEFINE TABLE IF NOT EXISTS marketplace SCHEMALESS",  # where plugins and skills are installed from (marketplace.py)
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",

@@ -9,12 +9,16 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import ai_tools, auth, extensions
+from app.domain import ai_tools, auth, extensions, marketplace
 from app.schemas.common import Created, Ok
 from app.schemas.extensions import (
     Extension,
     ExtensionCreate,
     ExtensionDetail,
+    ExtensionImportArchive,
+    ExtensionImported,
+    ExtensionImportLink,
+    ExtensionImportPreview,
     ExtensionTest,
     ExtensionTestResult,
     ExtensionUpdate,
@@ -68,6 +72,27 @@ def create_extension(body: ExtensionCreate, user: Writer, db: Db) -> Created:
     return Created(id=eid)
 
 
+@router.post("/import")
+def import_link(body: ExtensionImportLink, user: Writer, db: Db, cfg: Cfg) -> ExtensionImportPreview | ExtensionImported:
+    """A plugin or skill in Anthropic's format from a link: a GitHub or GitLab repository or folder, or a .zip. With
+    `preview`, what it would add and leave out; else installed as your own (importing it again: a new version)."""
+    with _errors():
+        out = marketplace.import_link(db, cfg, me(user), body.url, dry=body.preview)
+    if not body.preview:
+        auth.audit(db, user.as_audit(), "extension.import", f"extension:{out['id']}", {"url": body.url, "version": out["version"]})
+    return ExtensionImportPreview(**out) if body.preview else ExtensionImported(**out)
+
+
+@router.post("/import/archive")
+def import_archive(body: ExtensionImportArchive, user: Writer, db: Db) -> ExtensionImportPreview | ExtensionImported:
+    """A plugin or skill from a .zip, .skill or .tar.gz you send (as base64)."""
+    with _errors():
+        out = marketplace.import_archive(db, me(user), body.filename, body.data, dry=body.preview)
+    if not body.preview:
+        auth.audit(db, user.as_audit(), "extension.import", f"extension:{out['id']}", {"file": body.filename, "version": out["version"]})
+    return ExtensionImportPreview(**out) if body.preview else ExtensionImported(**out)
+
+
 @router.get("/{eid}")
 def get_extension(eid: int, user: CurrentUser, db: Db, version: int | None = None) -> ExtensionDetail:
     """One version (default: the current one), as a manifest too, and the list of versions."""
@@ -107,9 +132,8 @@ def test_extension(eid: int, body: ExtensionTest, user: Writer, acl: Acl, db: Db
     needs `confirm`."""
     with _errors():
         g = extensions.visible_one(db, me(user), eid)
-        items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
         name = body.tool or (g["name"] if g["kind"] == "tool" else None)
-        t = next((it for it in items if it.get("kind") == "tool" and it["name"] == name), None)
+        t = next((it for it in extensions.tool_items(g) if it["name"] == name), None)
         if not t:
             raise ValueError("name one of its tools to try")
         if t["spec"]["effect"] == "change" and not body.confirm:
