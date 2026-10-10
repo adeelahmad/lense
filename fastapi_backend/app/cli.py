@@ -260,7 +260,22 @@ def platform_main(argv, config):
     import threading
     import time
 
-    from .domain import auth, channels, jobs, local_llm, notify, passkeys, routines, sensors, settings, sources, telemetry, tunnel, updates
+    from .domain import (
+        auth,
+        channels,
+        https,
+        jobs,
+        local_llm,
+        notify,
+        passkeys,
+        routines,
+        sensors,
+        settings,
+        sources,
+        telemetry,
+        tunnel,
+        updates,
+    )
 
     ap = argparse.ArgumentParser(prog="lens")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -366,6 +381,7 @@ def platform_main(argv, config):
                     sensors.start(db, C, stop, log=print, name=wk.name)  # and the sensor hub, while sensors are on
                     channels.start_all(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat channels, while they're on
                     tunnel.start(db, C, stop, name=wk.name, log=print)  # and the Cloudflare tunnel, while it's on
+                    https.start(db, C, stop, name=wk.name, log=print)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
                     local_llm.start(db, C, stop, name=wk.name, log=print)  # and the local chat model, while it's on
                     updates.start(db, C, stop, log=print)  # and the daily check for a new release (docs/updates.md)
                 _stop_on_term()
