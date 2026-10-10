@@ -253,6 +253,7 @@ DEFAULTS = {
         "max_attempts": 3,
         "steps": [
             "transcribe",
+            "read",
             "diarize",
             "shots",
             "ocr",
