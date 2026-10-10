@@ -1,0 +1,68 @@
+name: Browser extension
+
+# The Lens web clipper (extensions/browser): tested and built for each browser in extensions/browser/targets/, and
+# kept with the run as lens-clipper-<target>.zip (unzip and "Load unpacked", or hand to the browser's store). A release
+# gets the zips attached: through the release event, or workflow_dispatch with `tag` (the Release workflow starts it).
+on:
+  push:
+    branches: [main]
+    paths:
+      - extensions/browser/**
+      - .github/workflows/browser-extension.yml
+  pull_request:
+    paths:
+      - extensions/browser/**
+      - .github/workflows/browser-extension.yml
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the extension to (the Release workflow passes it); blank: build this ref"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build the web clipper
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    permissions:
+      contents: write # to attach the zips to a release
+    defaults:
+      run:
+        working-directory: ./extensions/browser
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extensions/browser/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Build every target
+        env:
+          EXT_VERSION: ${{ github.event.release.tag_name || inputs.tag }}
+        run: npm run check
+      - name: Zip them
+        run: |
+          mkdir -p ../../dist/extension
+          for d in dist/*/; do
+            t=$(basename "$d")
+            (cd "$d" && zip -qr "../../../../dist/extension/lens-clipper-$t.zip" .)
+          done
+          ls -l ../../dist/extension
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lens-clipper
+          path: dist/extension/*.zip
+      - name: Attach to the release
+        if: github.event_name == 'release' || inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$TAG" ../../dist/extension/*.zip --clobber --repo "${{ github.repository }}"
