@@ -674,6 +674,52 @@ export type Backend = {
 };
 
 /**
+ * Backup
+ */
+export type Backup = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   *
+   * manual, or before-upgrade
+   */
+  label: string;
+  /**
+   * Kind
+   *
+   * export: a SurrealDB export (.surql.gz); folder: an embedded database's copy
+   */
+  kind: "export" | "folder";
+  /**
+   * Bytes
+   */
+  bytes: number;
+  /**
+   * Taken At
+   */
+  taken_at: string;
+  [key: string]: unknown;
+};
+
+/**
+ * Backups
+ */
+export type Backups = {
+  /**
+   * Folder
+   */
+  folder: string;
+  /**
+   * Backups
+   */
+  backups: Array<Backup>;
+  [key: string]: unknown;
+};
+
+/**
  * Batch
  */
 export type Batch = {
@@ -3901,7 +3947,7 @@ export type EventInfo = {
   /**
    * Type
    */
-  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added";
+  type: "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release";
   /**
    * Label
    */
@@ -3926,7 +3972,7 @@ export type Extension = {
   /**
    * Kind
    */
-  kind: "tool" | "skill" | "hook" | "plugin";
+  kind: "tool" | "skill" | "hook" | "plugin" | "mcp";
   /**
    * Title
    */
@@ -3978,9 +4024,17 @@ export type Extension = {
   /**
    * Origin
    *
-   * how this version was made: code, canvas or chat
+   * how this version was made: code, canvas, chat or import
    */
   origin?: string | null;
+  /**
+   * Source
+   *
+   * where it was imported from: a marketplace's plugin, a link or a file
+   */
+  source?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Updated At
    */
@@ -4033,7 +4087,7 @@ export type ExtensionDetail = {
   /**
    * Kind
    */
-  kind: "tool" | "skill" | "hook" | "plugin";
+  kind: "tool" | "skill" | "hook" | "plugin" | "mcp";
   /**
    * Title
    */
@@ -4085,9 +4139,17 @@ export type ExtensionDetail = {
   /**
    * Origin
    *
-   * how this version was made: code, canvas or chat
+   * how this version was made: code, canvas, chat or import
    */
   origin?: string | null;
+  /**
+   * Source
+   *
+   * where it was imported from: a marketplace's plugin, a link or a file
+   */
+  source?: {
+    [key: string]: unknown;
+  } | null;
   /**
    * Updated At
    */
@@ -4102,6 +4164,107 @@ export type ExtensionDetail = {
    * History
    */
   history?: Array<ExtensionVersionInfo>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionImportArchive
+ */
+export type ExtensionImportArchive = {
+  /**
+   * Filename
+   */
+  filename?: string | null;
+  /**
+   * Data
+   *
+   * a .zip, .skill or .tar.gz with a plugin or a skill, as base64 (20 MB at most)
+   */
+  data: string;
+  /**
+   * Preview
+   */
+  preview?: boolean;
+};
+
+/**
+ * ExtensionImportLink
+ */
+export type ExtensionImportLink = {
+  /**
+   * Url
+   *
+   * a plugin or skill: a GitHub or GitLab repository or folder, or a .zip or .tar.gz link
+   */
+  url: string;
+  /**
+   * Preview
+   *
+   * say what it would install, without installing it
+   */
+  preview?: boolean;
+};
+
+/**
+ * ExtensionImportPreview
+ */
+export type ExtensionImportPreview = {
+  /**
+   * Manifest
+   *
+   * the plugin as Lens would install it
+   */
+  manifest: {
+    [key: string]: unknown;
+  };
+  /**
+   * Skipped
+   */
+  skipped?: Array<ExtensionSkipped>;
+  /**
+   * Source
+   */
+  source: string;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionImported
+ */
+export type ExtensionImported = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Version
+   */
+  version: number;
+  /**
+   * Skipped
+   */
+  skipped?: Array<ExtensionSkipped>;
+  [key: string]: unknown;
+};
+
+/**
+ * ExtensionSkipped
+ */
+export type ExtensionSkipped = {
+  /**
+   * Kind
+   *
+   * what was left out: hooks, mcp, skill, command, agent or file
+   */
+  kind: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Why
+   */
+  why: string;
   [key: string]: unknown;
 };
 
@@ -4882,6 +5045,12 @@ export type FileStoreTestResult = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the connection is rate limiting: reads work, new files are kept here
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -6674,7 +6843,7 @@ export type LinksImport = {
 /**
  * LinksImportRequest
  *
- * Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a
+ * Links pasted as ``text`` (one per line), listed in ``urls``, or a file (``filename`` + base64 ``data``): a list of addresses, a
  * browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON).
  */
 export type LinksImportRequest = {
@@ -6690,6 +6859,12 @@ export type LinksImportRequest = {
    * addresses, one per line
    */
   text?: string | null;
+  /**
+   * Urls
+   *
+   * addresses, as a list
+   */
+  urls?: Array<string> | null;
   /**
    * Filename
    */
@@ -7071,6 +7246,133 @@ export type ManifestChecked = {
   manifest: {
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+};
+
+/**
+ * Marketplace
+ */
+export type Marketplace = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   *
+   * the name its marketplace.json gives it
+   */
+  name: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Source
+   *
+   * where it is: a repository, or a link to its marketplace.json
+   */
+  source: string;
+  /**
+   * Plugins
+   *
+   * how many plugins it lists
+   */
+  plugins: number;
+  /**
+   * Added By
+   */
+  added_by?: string | null;
+  /**
+   * Fetched At
+   */
+  fetched_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MarketplaceCreate
+ */
+export type MarketplaceCreate = {
+  /**
+   * Source
+   *
+   * owner/repo on GitHub, a GitHub or GitLab link, or a link to a marketplace.json
+   */
+  source: string;
+  /**
+   * Title
+   */
+  title?: string | null;
+};
+
+/**
+ * MarketplacePlugin
+ */
+export type MarketplacePlugin = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Version
+   */
+  version?: string | null;
+  /**
+   * Category
+   */
+  category?: string | null;
+  /**
+   * Author
+   */
+  author?: string | null;
+  /**
+   * Homepage
+   */
+  homepage?: string | null;
+  /**
+   * Installable
+   *
+   * whether Lens can read it (why_not says why when it can't)
+   */
+  installable: boolean;
+  /**
+   * Why Not
+   */
+  why_not?: string | null;
+  /**
+   * Installed
+   *
+   * your extension installed from it, if you installed it
+   */
+  installed?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MarketplaceSuggestion
+ */
+export type MarketplaceSuggestion = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Source
+   */
+  source: string;
   [key: string]: unknown;
 };
 
@@ -8790,7 +9092,9 @@ export type NotifyTarget = {
   /**
    * Events
    */
-  events: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added">;
+  events: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  >;
   /**
    * Enabled
    */
@@ -8865,7 +9169,9 @@ export type NotifyTargetCreate = {
    *
    * default: job.failed and batch.finished
    */
-  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  events?: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  > | null;
   /**
    * Enabled
    */
@@ -8921,7 +9227,9 @@ export type NotifyTargetUpdate = {
   /**
    * Events
    */
-  events?: Array<"job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added"> | null;
+  events?: Array<
+    "job.succeeded" | "job.failed" | "job.cancelled" | "batch.finished" | "recording.added" | "lens.release"
+  > | null;
   /**
    * Enabled
    */
@@ -9664,6 +9972,22 @@ export type PhotoResults = {
 };
 
 /**
+ * PickedLine
+ */
+export type PickedLine = {
+  /**
+   * Recording
+   */
+  recording: number;
+  /**
+   * Idx
+   *
+   * the line (segment) number in the recording
+   */
+  idx: number;
+};
+
+/**
  * Pipeline
  */
 export type Pipeline = {
@@ -10060,6 +10384,374 @@ export type Player = {
    */
   faces_pixelate?: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * Podcast
+ */
+export type Podcast = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Space
+   */
+  space: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Status
+   *
+   * queued, gathering, planning, writing, checking, rendering, publishing, ready, script_only or failed
+   */
+  status: string;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Request
+   */
+  request?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Sources
+   */
+  sources?: Array<PodcastSource>;
+  /**
+   * Outline
+   */
+  outline?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Lines
+   */
+  lines?: Array<PodcastLine>;
+  /**
+   * Checks
+   */
+  checks?: Array<PodcastCheck>;
+  /**
+   * Audio
+   *
+   * a signed link to the episode's audio, once it has some
+   */
+  audio?: string | null;
+  /**
+   * Voicing
+   *
+   * who read it: the provider, the hosts' voices, its length
+   */
+  voicing?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Job
+   *
+   * the job making it now, if one is
+   */
+  job?: number | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastCheck
+ */
+export type PodcastCheck = {
+  /**
+   * Idx
+   */
+  idx: number;
+  /**
+   * Verdict
+   */
+  verdict: string;
+  /**
+   * Action
+   */
+  action: string;
+  /**
+   * Before
+   */
+  before?: string | null;
+  /**
+   * After
+   */
+  after?: string | null;
+  /**
+   * Why
+   */
+  why?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastCitation
+ */
+export type PodcastCitation = {
+  /**
+   * N
+   */
+  n: number;
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Recording
+   */
+  recording?: number | null;
+  /**
+   * Idx0
+   */
+  idx0?: number | null;
+  /**
+   * Idx1
+   */
+  idx1?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastCreate
+ */
+export type PodcastCreate = {
+  selection: PodcastSelection;
+  /**
+   * Prompt
+   *
+   * an angle, e.g. "explain it for a beginner"
+   */
+  prompt?: string | null;
+  /**
+   * Length
+   *
+   * minutes (up to podcasts.max_minutes)
+   */
+  length?: number;
+  /**
+   * Style
+   */
+  style?: "deep-dive" | "recap" | "debate" | "beginner";
+  /**
+   * Title
+   */
+  title?: string | null;
+  voices?: PodcastVoices | null;
+};
+
+/**
+ * PodcastJob
+ */
+export type PodcastJob = {
+  /**
+   * Job
+   */
+  job: number;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastLine
+ */
+export type PodcastLine = {
+  /**
+   * Idx
+   */
+  idx: number;
+  /**
+   * Speaker
+   */
+  speaker: "a" | "b";
+  /**
+   * Kind
+   */
+  kind: string;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Citations
+   */
+  citations?: Array<number>;
+  /**
+   * Sources
+   */
+  sources?: Array<PodcastCitation>;
+  /**
+   * T0
+   */
+  t0?: number | null;
+  /**
+   * T1
+   */
+  t1?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastSelection
+ */
+export type PodcastSelection = {
+  /**
+   * Recordings
+   *
+   * resources picked whole
+   */
+  recordings?: Array<number>;
+  /**
+   * Excerpts
+   *
+   * lines picked in resources (search hits)
+   */
+  excerpts?: Array<PickedLine>;
+};
+
+/**
+ * PodcastSource
+ */
+export type PodcastSource = {
+  /**
+   * N
+   */
+  n: number;
+  /**
+   * Ref
+   */
+  ref: {
+    [key: string]: unknown;
+  };
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * T0
+   */
+  t0?: number | null;
+  /**
+   * Page
+   */
+  page?: number | null;
+  /**
+   * Text
+   */
+  text: string;
+  /**
+   * Picked
+   */
+  picked?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastStarted
+ */
+export type PodcastStarted = {
+  /**
+   * Episode
+   *
+   * the episode's recording id
+   */
+  episode: number;
+  /**
+   * Job
+   */
+  job: number;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Placed
+   *
+   * podcasts: the podcasts namespace; sources: the sources' own
+   */
+  placed: "podcasts" | "sources";
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastSummary
+ */
+export type PodcastSummary = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Status
+   */
+  status: string;
+  /**
+   * Space
+   */
+  space: number;
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * PodcastVoices
+ */
+export type PodcastVoices = {
+  /**
+   * A
+   *
+   * the explaining host's voice
+   */
+  a?: string | null;
+  /**
+   * B
+   *
+   * the asking host's voice
+   */
+  b?: string | null;
 };
 
 /**
@@ -11588,6 +12280,39 @@ export type RefreshRequest = {
    * Refresh Token
    */
   refresh_token: string;
+};
+
+/**
+ * Release
+ */
+export type Release = {
+  /**
+   * Tag
+   *
+   * vX.Y.Z
+   */
+  tag: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Url
+   *
+   * the release's page on GitHub
+   */
+  url: string;
+  /**
+   * Published At
+   */
+  published_at?: string | null;
+  /**
+   * Notes
+   *
+   * what changed, in Markdown
+   */
+  notes?: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -13864,6 +14589,12 @@ export type SourceHealth = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the service is rate limiting the account; it still works
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -13999,6 +14730,12 @@ export type SpeakRequest = {
    * Text
    */
   text: string;
+  /**
+   * Voice
+   *
+   * read in this voice (an id from GET /voice/voices); else the settings'
+   */
+  voice?: string | null;
 };
 
 /**
@@ -15455,6 +16192,143 @@ export type Undone = {
 };
 
 /**
+ * UpdateStatus
+ */
+export type UpdateStatus = {
+  /**
+   * Current
+   *
+   * the version running
+   */
+  current: string;
+  latest?: Release | null;
+  /**
+   * Available
+   *
+   * latest is newer than current
+   */
+  available: boolean;
+  /**
+   * Checked At
+   */
+  checked_at?: string | null;
+  /**
+   * Error
+   *
+   * why the last check failed
+   */
+  error?: string | null;
+  /**
+   * Check
+   *
+   * updates.check: the daily check is on
+   */
+  check: boolean;
+  /**
+   * Auto Install
+   */
+  auto_install: boolean;
+  /**
+   * Agent
+   *
+   * what upgrades this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that upgrades it by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * the last upgrade asked for
+   */
+  upgrade?: UpgradeRun | null;
+  [key: string]: unknown;
+};
+
+/**
+ * UpgradeRequest
+ */
+export type UpgradeRequest = {
+  /**
+   * Ref
+   *
+   * a release tag; default: the latest release
+   */
+  ref?: string | null;
+  /**
+   * Backup
+   *
+   * back the database up first
+   */
+  backup?: boolean;
+};
+
+/**
+ * UpgradeRun
+ */
+export type UpgradeRun = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Ref
+   *
+   * the release tag (or branch) being installed
+   */
+  ref: string;
+  /**
+   * State
+   */
+  state: "backing-up" | "queued" | "running" | "done" | "failed";
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Queued At
+   */
+  queued_at?: string | null;
+  /**
+   * Started At
+   */
+  started_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Backup
+   *
+   * the backup taken first, in Backups
+   */
+  backup?: string | null;
+  /**
+   * Version
+   *
+   * the version installed, once done
+   */
+  version?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * the last lines install.sh printed
+   */
+  log?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * Upload
  */
 export type Upload = {
@@ -16111,6 +16985,56 @@ export type VoiceInfo = {
    * the server reads answers aloud (POST /voice/speak); else the browser does
    */
   speak: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceList
+ */
+export type VoiceList = {
+  /**
+   * Provider
+   */
+  provider: string;
+  /**
+   * Current
+   *
+   * the voice answers are read in now (null: the provider's default)
+   */
+  current?: string | null;
+  /**
+   * Voices
+   */
+  voices: Array<VoiceOption>;
+  /**
+   * Error
+   *
+   * why the provider's voices couldn't be listed
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * VoiceOption
+ */
+export type VoiceOption = {
+  /**
+   * Id
+   *
+   * what voice.tts_voice is set to
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Detail
+   *
+   * what the provider says about it: accent, gender, style, language
+   */
+  detail?: string | null;
   [key: string]: unknown;
 };
 
@@ -18704,6 +19628,158 @@ export type ReindexSearchResponses = {
 };
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
+
+export type GetUpdatesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/updates";
+};
+
+export type GetUpdatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: UpdateStatus;
+};
+
+export type GetUpdatesResponse = GetUpdatesResponses[keyof GetUpdatesResponses];
+
+export type CheckUpdatesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/updates/check";
+};
+
+export type CheckUpdatesResponses = {
+  /**
+   * Successful Response
+   */
+  200: UpdateStatus;
+};
+
+export type CheckUpdatesResponse = CheckUpdatesResponses[keyof CheckUpdatesResponses];
+
+export type StartUpgradeData = {
+  /**
+   * Body
+   */
+  body?: UpgradeRequest | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/updates/upgrade";
+};
+
+export type StartUpgradeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartUpgradeError = StartUpgradeErrors[keyof StartUpgradeErrors];
+
+export type StartUpgradeResponses = {
+  /**
+   * Successful Response
+   */
+  202: UpdateStatus;
+};
+
+export type StartUpgradeResponse = StartUpgradeResponses[keyof StartUpgradeResponses];
+
+export type ListBackupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups";
+};
+
+export type ListBackupsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Backups;
+};
+
+export type ListBackupsResponse = ListBackupsResponses[keyof ListBackupsResponses];
+
+export type TakeBackupData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups";
+};
+
+export type TakeBackupResponses = {
+  /**
+   * Successful Response
+   */
+  201: Backup;
+};
+
+export type TakeBackupResponse = TakeBackupResponses[keyof TakeBackupResponses];
+
+export type DeleteBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}";
+};
+
+export type DeleteBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteBackupError = DeleteBackupErrors[keyof DeleteBackupErrors];
+
+export type DeleteBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteBackupResponse = DeleteBackupResponses[keyof DeleteBackupResponses];
+
+export type DownloadBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}";
+};
+
+export type DownloadBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DownloadBackupError = DownloadBackupErrors[keyof DownloadBackupErrors];
+
+export type DownloadBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+};
+
+export type DownloadBackupResponse = DownloadBackupResponses[keyof DownloadBackupResponses];
 
 export type ResourceHistoryData = {
   body?: never;
@@ -28352,7 +29428,7 @@ export type ListExtensionsData = {
     /**
      * Kind
      */
-    kind?: "tool" | "skill" | "hook" | "plugin" | null;
+    kind?: "tool" | "skill" | "hook" | "plugin" | "mcp" | null;
   };
   url: "/api/v1/extensions";
 };
@@ -28426,6 +29502,60 @@ export type CheckManifestResponses = {
 };
 
 export type CheckManifestResponse = CheckManifestResponses[keyof CheckManifestResponses];
+
+export type ImportLinkData = {
+  body: ExtensionImportLink;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/import";
+};
+
+export type ImportLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportLinkError = ImportLinkErrors[keyof ImportLinkErrors];
+
+export type ImportLinkResponses = {
+  /**
+   * Response Extensions-Import Link
+   *
+   * Successful Response
+   */
+  200: ExtensionImportPreview | ExtensionImported;
+};
+
+export type ImportLinkResponse = ImportLinkResponses[keyof ImportLinkResponses];
+
+export type ImportArchiveData = {
+  body: ExtensionImportArchive;
+  path?: never;
+  query?: never;
+  url: "/api/v1/extensions/import/archive";
+};
+
+export type ImportArchiveErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ImportArchiveError = ImportArchiveErrors[keyof ImportArchiveErrors];
+
+export type ImportArchiveResponses = {
+  /**
+   * Response Extensions-Import Archive
+   *
+   * Successful Response
+   */
+  200: ExtensionImportPreview | ExtensionImported;
+};
+
+export type ImportArchiveResponse = ImportArchiveResponses[keyof ImportArchiveResponses];
 
 export type DeleteExtensionData = {
   body?: never;
@@ -28581,6 +29711,229 @@ export type TestExtensionResponses = {
 };
 
 export type TestExtensionResponse = TestExtensionResponses[keyof TestExtensionResponses];
+
+export type ListMarketplacesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces";
+};
+
+export type ListMarketplacesResponses = {
+  /**
+   * Response Extensions-List Marketplaces
+   *
+   * Successful Response
+   */
+  200: Array<Marketplace>;
+};
+
+export type ListMarketplacesResponse = ListMarketplacesResponses[keyof ListMarketplacesResponses];
+
+export type AddMarketplaceData = {
+  body: MarketplaceCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces";
+};
+
+export type AddMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AddMarketplaceError = AddMarketplaceErrors[keyof AddMarketplaceErrors];
+
+export type AddMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Created;
+};
+
+export type AddMarketplaceResponse = AddMarketplaceResponses[keyof AddMarketplaceResponses];
+
+export type SuggestedMarketplacesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/marketplaces/suggested";
+};
+
+export type SuggestedMarketplacesResponses = {
+  /**
+   * Response Extensions-Suggested Marketplaces
+   *
+   * Successful Response
+   */
+  200: Array<MarketplaceSuggestion>;
+};
+
+export type SuggestedMarketplacesResponse = SuggestedMarketplacesResponses[keyof SuggestedMarketplacesResponses];
+
+export type RefreshMarketplaceData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/refresh";
+};
+
+export type RefreshMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RefreshMarketplaceError = RefreshMarketplaceErrors[keyof RefreshMarketplaceErrors];
+
+export type RefreshMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RefreshMarketplaceResponse = RefreshMarketplaceResponses[keyof RefreshMarketplaceResponses];
+
+export type DeleteMarketplaceData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}";
+};
+
+export type DeleteMarketplaceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteMarketplaceError = DeleteMarketplaceErrors[keyof DeleteMarketplaceErrors];
+
+export type DeleteMarketplaceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteMarketplaceResponse = DeleteMarketplaceResponses[keyof DeleteMarketplaceResponses];
+
+export type ListMarketplacePluginsData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins";
+};
+
+export type ListMarketplacePluginsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListMarketplacePluginsError = ListMarketplacePluginsErrors[keyof ListMarketplacePluginsErrors];
+
+export type ListMarketplacePluginsResponses = {
+  /**
+   * Response Extensions-List Marketplace Plugins
+   *
+   * Successful Response
+   */
+  200: Array<MarketplacePlugin>;
+};
+
+export type ListMarketplacePluginsResponse = ListMarketplacePluginsResponses[keyof ListMarketplacePluginsResponses];
+
+export type PreviewMarketplacePluginData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins/{name}/preview";
+};
+
+export type PreviewMarketplacePluginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PreviewMarketplacePluginError = PreviewMarketplacePluginErrors[keyof PreviewMarketplacePluginErrors];
+
+export type PreviewMarketplacePluginResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionImportPreview;
+};
+
+export type PreviewMarketplacePluginResponse =
+  PreviewMarketplacePluginResponses[keyof PreviewMarketplacePluginResponses];
+
+export type InstallMarketplacePluginData = {
+  body?: never;
+  path: {
+    /**
+     * Mid
+     */
+    mid: number;
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/marketplaces/{mid}/plugins/{name}/install";
+};
+
+export type InstallMarketplacePluginErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type InstallMarketplacePluginError = InstallMarketplacePluginErrors[keyof InstallMarketplacePluginErrors];
+
+export type InstallMarketplacePluginResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExtensionImported;
+};
+
+export type InstallMarketplacePluginResponse =
+  InstallMarketplacePluginResponses[keyof InstallMarketplacePluginResponses];
 
 export type ListChatsData = {
   body?: never;
@@ -31138,6 +32491,36 @@ export type SpeakTextResponses = {
 
 export type SpeakTextResponse = SpeakTextResponses[keyof SpeakTextResponses];
 
+export type ListVoicesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Provider
+     */
+    provider?: string | null;
+  };
+  url: "/api/v1/voice/voices";
+};
+
+export type ListVoicesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListVoicesError = ListVoicesErrors[keyof ListVoicesErrors];
+
+export type ListVoicesResponses = {
+  /**
+   * Successful Response
+   */
+  200: VoiceList;
+};
+
+export type ListVoicesResponse = ListVoicesResponses[keyof ListVoicesResponses];
+
 export type UnsealVaultData = {
   body?: never;
   path: {
@@ -31381,3 +32764,154 @@ export type LockVaultResponses = {
 };
 
 export type LockVaultResponse = LockVaultResponses[keyof LockVaultResponses];
+
+export type ListPodcastsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/podcasts";
+};
+
+export type ListPodcastsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListPodcastsError = ListPodcastsErrors[keyof ListPodcastsErrors];
+
+export type ListPodcastsResponses = {
+  /**
+   * Response Podcasts-List Podcasts
+   *
+   * Successful Response
+   */
+  200: Array<PodcastSummary>;
+};
+
+export type ListPodcastsResponse = ListPodcastsResponses[keyof ListPodcastsResponses];
+
+export type CreatePodcastData = {
+  body: PodcastCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/podcasts";
+};
+
+export type CreatePodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreatePodcastError = CreatePodcastErrors[keyof CreatePodcastErrors];
+
+export type CreatePodcastResponses = {
+  /**
+   * Successful Response
+   */
+  202: PodcastStarted;
+};
+
+export type CreatePodcastResponse = CreatePodcastResponses[keyof CreatePodcastResponses];
+
+export type DeletePodcastData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/podcasts/{rid}";
+};
+
+export type DeletePodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletePodcastError = DeletePodcastErrors[keyof DeletePodcastErrors];
+
+export type DeletePodcastResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeletePodcastResponse = DeletePodcastResponses[keyof DeletePodcastResponses];
+
+export type GetPodcastData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/podcasts/{rid}";
+};
+
+export type GetPodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetPodcastError = GetPodcastErrors[keyof GetPodcastErrors];
+
+export type GetPodcastResponses = {
+  /**
+   * Successful Response
+   */
+  200: Podcast;
+};
+
+export type GetPodcastResponse = GetPodcastResponses[keyof GetPodcastResponses];
+
+export type RegeneratePodcastData = {
+  body?: never;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/podcasts/{rid}/regenerate";
+};
+
+export type RegeneratePodcastErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RegeneratePodcastError = RegeneratePodcastErrors[keyof RegeneratePodcastErrors];
+
+export type RegeneratePodcastResponses = {
+  /**
+   * Successful Response
+   */
+  202: PodcastJob;
+};
+
+export type RegeneratePodcastResponse = RegeneratePodcastResponses[keyof RegeneratePodcastResponses];

@@ -131,7 +131,8 @@ single statements and for `run()` transactions (which roll back as a whole, so r
 
 ## Backups
 
-`lens backup` writes one into `<data_dir>/backups` (Lens also takes one before upgrading the database):
+`lens backup` writes one into `<data_dir>/backups`, as does Back up now in the web app ([Updates and backups](updates.md));
+Lens also takes one before upgrading the database or installing a release:
 
 * With a server, `manual-<time>.surql.gz`: SurrealDB's export of the database, gzipped. Restore it into an empty
   database with `gunzip -k` and `surreal import --conn http://host:8000 --user root --pass … --ns archive --db main

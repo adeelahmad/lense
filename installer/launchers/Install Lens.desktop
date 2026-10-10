@@ -1,0 +1,10 @@
+[Desktop Entry]
+# Double-click to install Lens on Linux (allow launching it first: right-click, Allow Launching). It opens Lens's
+# installer in your browser; anything that goes wrong shows in a window.
+Type=Application
+Name=Install Lens
+Comment=Install Lens: it opens an installer in your browser
+Exec=sh -c "curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | LENS_WIZARD=1 sh"
+Icon=system-software-install
+Terminal=false
+Categories=System;

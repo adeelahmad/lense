@@ -76,11 +76,12 @@ class VideoImportRequest(RequestModel):
 
 
 class LinksImportRequest(RequestModel):
-    """Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a
+    """Links pasted as ``text`` (one per line), listed in ``urls``, or a file (``filename`` + base64 ``data``): a list of addresses, a
     browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."""
 
     namespace: str = Field(description="a namespace you edit; admins may name a new one")
     text: str | None = Field(None, max_length=1_000_000, description="addresses, one per line")
+    urls: list[str] | None = Field(None, max_length=500, description="addresses, as a list")
     filename: str | None = None
     data: str | None = Field(None, description="the file, base64 encoded")
     folders_as_tags: bool = Field(True, description="tag each page with the bookmark folders it was in")

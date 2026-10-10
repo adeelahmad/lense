@@ -314,3 +314,19 @@ def test_an_open_room_routes_each_question(db, cfg, room, llm):
     assert ask("Lens, use the force")[0].startswith("OK\n")  # not a namespace: a question, answered
     cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE kind = 'bridge' LIMIT 1")
     assert "use pods" in [m["content"] for m in chat.history(db, cid)]  # kept in the conversation like any message
+
+
+def test_clear_and_compact_in_a_room(db, cfg, room, llm):
+    from app.domain import chat
+
+    cfg["ai"]["tools"] = False
+    room.waiting = [said("Lens, what leaves on Friday?")]
+    run(db, cfg)
+    room.waiting = [said("Lens /compact keep the shipment")]
+    run(db, cfg)
+    assert room.posted[-1]["text"].startswith("Compacted 2 messages")
+    room.waiting = [said("@Lens /clear")]
+    run(db, cfg)
+    assert room.posted[-1]["text"].startswith("Cleared")
+    cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE kind = 'bridge' LIMIT 1")
+    assert chat.memory(db, cfg, cid)["text"] == ""

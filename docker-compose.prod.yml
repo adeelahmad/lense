@@ -50,6 +50,8 @@ x-backend: &backend
     LENS_LLM_MODEL: ${LENS_LLM_MODEL:-}
     LENS_LLM_API_KEY: ${LENS_LLM_API_KEY:-}
     LENS_LLM_VISION_MODEL: ${LENS_LLM_VISION_MODEL:-}
+    # settings to start with, saved once and editable in the app (the web installer's answers; docs/configuration.md)
+    LENS_SETUP_SETTINGS: ${LENS_SETUP_SETTINGS:-}
     # private networks calendar feeds and web pages may be fetched from, e.g. 192.168.1.0/24 (documents.web_networks)
     LENS_WEB_NETWORKS: ${LENS_WEB_NETWORKS:-}
     # opt-in telemetry (docs/telemetry.md): unset, it stays off unless turned on in Settings
@@ -58,8 +60,12 @@ x-backend: &backend
     LENS_TELEMETRY_HEADERS: ${LENS_TELEMETRY_HEADERS:-}
     # the volume shared with the matterbridge service (its config, written from Settings → Chat rooms)
     LENS_MATTERBRIDGE_DIR: /matterbridge
+    # upgrading from the web app (docs/updates.md): the folder install.sh's upgrade agent watches, and the install folder
+    LENS_CONTROL_DIR: /control
+    LENS_HOST_DIR: ${LENS_DIR:-}
   volumes:
     - archive-data:/data
+    - ./.lens-control:/control
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
     - matterbridge-data:/matterbridge
   depends_on:
@@ -133,6 +139,20 @@ services:
     restart: unless-stopped
     networks: [lens]
 
+  # StyleTTS2 (docs/speech-providers.md#styletts2): spoken answers and podcasts read on this machine, in a voice like a
+  # short clip you put in its voices volume. Heavy (PyTorch and a 1 GB model, fetched on first use), so opt-in:
+  # `docker compose --profile styletts2 up -d`, then Settings → AI assistant → Voice → StyleTTS2.
+  styletts2:
+    security_opt: ["no-new-privileges:true"]
+    image: lens-styletts2:${LENS_VERSION:-prod}
+    build: ./styletts2
+    profiles: [styletts2]
+    volumes:
+      - styletts2-data:/data
+      - styletts2-voices:/voices
+    restart: unless-stopped
+    networks: [lens]
+
   # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
   # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
   # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
@@ -166,6 +186,8 @@ services:
 volumes:
   surreal-data:
   matterbridge-data:
+  styletts2-data:
+  styletts2-voices:
   archive-data:
   fedora-data:
   opensearch-data:

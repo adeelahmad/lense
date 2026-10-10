@@ -24,6 +24,10 @@ sealed like any setting's secret: there's nothing to type or remember.
 Each file records where it went, so changing these settings never strands what is already stored: older files are read
 from wherever they were written, and new ones go to the new place.
 
+When a connection refuses new files for a while (Google Drive's daily upload limit), new files are kept on this
+machine instead, and each records that, so nothing fails; files already on the connection are still read from it. The
+check then says it works but is rate limited (`limited`).
+
 `POST /api/v1/settings/files/test` writes a small file there, reads it back and removes it: what is saved, or a
 `{store, connection, folder, crypt}` given in the body, to check before saving. The assistant (for admins) has
 `file_storage`, which says where files go and which connections could take them, and checks it with `check`; it

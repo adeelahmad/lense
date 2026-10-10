@@ -28,6 +28,7 @@ from app.api.v1.routes import (
     import_hooks,
     imports,
     jobs,
+    marketplaces,
     metadata,
     namespaces,
     notebook,
@@ -37,6 +38,7 @@ from app.api.v1.routes import (
     oauth,
     passkeys,
     pipelines,
+    podcasts,
     public,
     rdf,
     recordings,
@@ -50,6 +52,7 @@ from app.api.v1.routes import (
     speakers,
     templates,
     topics,
+    updates,
     uploads,
     users,
     vaults,
@@ -69,6 +72,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    updates,
     activity,
     budgets,
     fedora,
@@ -105,6 +109,7 @@ for module in (
     workflows,
     custom_nodes,
     extensions,
+    marketplaces,
     chats,
     collections,
     batches,
@@ -117,5 +122,6 @@ for module in (
     import_hooks,
     voice,
     vaults,
+    podcasts,
 ):
     api_router.include_router(module.router)

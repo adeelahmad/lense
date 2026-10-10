@@ -262,6 +262,12 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
   to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
   `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.
+- Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
+  (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
+  drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.
+- A rate-limited connection (Google Drive throttling an account) still works: its check shows it working, slowly;
+  rclone backs off and retries (Drive gets 10 low-level retries); and a file a scan couldn't fetch waits for the next
+  scan, as do the rest of that scan's files, rather than failing for good.
 - Folders on this machine can only be watched inside `sources.local_roots`, and the rclone binary can only be set in
   archive.yaml: the web app can neither open up the server's disk nor choose what runs.
 

@@ -253,6 +253,7 @@ DEFAULTS = {
         "max_attempts": 3,
         "steps": [
             "transcribe",
+            "read",
             "diarize",
             "shots",
             "ocr",
@@ -266,6 +267,7 @@ DEFAULTS = {
             "report",
             "export",
             "workflow",
+            "podcast",
         ],
     },
     # video: sampling, shot detection, OCR and faces. Model paths are bootstrap-only (the app can't point at arbitrary files).
@@ -275,6 +277,8 @@ DEFAULTS = {
         "extensions": True,  # tools, skills, hooks and plugins people add (extensions.py)
         "refine_notes": True,  # the model keeps notes' titles and one-line summaries true to the whole note (notebook.py)
         "compact": True,  # a long conversation keeps a summary of the messages the model no longer sees (chat.compact)
+        "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
+        "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "disabled_tools": [],
         "max_steps": 6,
@@ -287,7 +291,9 @@ DEFAULTS = {
     # talking to Lens (voice.py): input auto uses the server's speech-to-text engine when it has one, else the
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
-    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram: the keys in speech)
+    # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram, gemini: the keys in speech; say: macOS's
+    # own voices, when Lens runs on a Mac itself; styletts2: the optional service at styletts2_url); tts_voice: the
+    # voice they read in (null: the provider's default)
     "voice": {
         "input": "auto",
         "stt": "same",
@@ -296,6 +302,22 @@ DEFAULTS = {
         "tts_model": None,
         "tts_voice": None,
         "tts_api_key": None,
+        "styletts2_url": "http://styletts2:8880",
+    },
+    # podcast episodes made from what someone picked (domain/podcasts.py): where they go, the hosts' names, how much
+    # source text the model reads (characters), the longest episode (minutes), the speaking pace, and a model for
+    # its LLM calls (null: llm.model). voice_a and voice_b are the hosts' text-to-speech voices (null: voice.tts_voice,
+    # and a second voice of the provider's)
+    "podcasts": {
+        "namespace": "podcasts",
+        "host_a": "Alex",
+        "host_b": "Sam",
+        "voice_a": None,
+        "voice_b": None,
+        "context_chars": 24000,
+        "max_minutes": 30,
+        "words_per_minute": 150,
+        "model": None,
     },
     # a chat model Lens runs itself with llama.cpp (domain/local_llm.py): model is a catalog id or
     # "hf:<owner>/<repo>/<file>.gguf"; server is llama-server's path (a startup setting; else PATH, else fetched)
@@ -325,6 +347,9 @@ DEFAULTS = {
         "deepgram_base_url": "https://api.deepgram.com",
         "deepgram_model": "nova-3",
         "deepgram_api_key": None,
+        "gemini_base_url": "https://generativelanguage.googleapis.com",
+        "gemini_model": "gemini-2.5-flash-preview-tts",
+        "gemini_api_key": None,
         "sentiment": True,
         "timeout": 1800,
     },
@@ -465,7 +490,16 @@ DEFAULTS = {
         "export_seconds": 60,
         "service_name": "lens",
         "prices": {},
+        # a Prometheus scrape endpoint at /metrics (docs/prometheus.md): off by default; prometheus_token is a secret
+        # the scraper sends as a bearer token, and nothing is served until one is set
+        "prometheus": False,
+        "prometheus_token": None,
     },
+    # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
+    # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
+    # email: tell admins by email when a new release is seen (once per release; needs Settings › Email). Namespaces'
+    # notification targets can get it too (the lens.release event).
+    "updates": {"check": True, "check_hours": 24, "auto_install": False, "email": True, "repo": "adeelahmad/lense"},
     # Fedora (docs/fedora.md): a copy of the archive in a Fedora 6 repository, off until url is set (enabled: false pauses
     # it). password is a
     # secret; files: send recordings' files too (up to max_file_mb each, 0: any size).
@@ -628,11 +662,16 @@ class DB:
             self._pool.put(c)
         except Exception as e:  # noqa: BLE001
             self.close()
-            hint = (
-                " If another process has this embedded database open, stop it or point both at a SurrealDB server (SURREAL_URL=ws://...)."
-                if self.embedded
-                else ""
-            )
+            if self.embedded:
+                hint = " If another process has this embedded database open, stop it or point both at a SurrealDB server (SURREAL_URL=ws://...)."
+            elif "authentication" in str(e).lower():
+                # the server keeps the root user it was first started with: a later SURREAL_PASS doesn't change it
+                hint = (
+                    " SURREAL_USER/SURREAL_PASS don't match the user this database was created with."
+                    " Set them back to the values it was first started with (see .env), then restart."
+                )
+            else:
+                hint = ""
             raise SystemExit(f"cannot open SurrealDB at {url}: {e}.{hint}") from None
 
     def _open(self):
@@ -1042,6 +1081,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS extension SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS extension_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS extension_version_e ON extension_version FIELDS extension",
+    "DEFINE TABLE IF NOT EXISTS marketplace SCHEMALESS",  # where plugins and skills are installed from (marketplace.py)
     # routines (scheduled syncs, pipelines and workflows) and the graph changes they make or propose
     "DEFINE TABLE IF NOT EXISTS seed SCHEMALESS",  # what has been seeded once: seed:routines
     "DEFINE TABLE IF NOT EXISTS routine SCHEMALESS",
@@ -1061,6 +1101,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS graph_checkpoint SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS graph_checkpoint_part SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS graph_checkpoint_part_cp ON graph_checkpoint_part FIELDS checkpoint",
+    # what a podcast episode was made from and of, beside its recording (app/domain/podcasts.py): podcast:<recording id>
+    "DEFINE TABLE IF NOT EXISTS podcast SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS podcast_space ON podcast FIELDS space",
     "DEFINE TABLE IF NOT EXISTS output SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS output_rec ON output FIELDS recording",
     "DEFINE TABLE IF NOT EXISTS chat SCHEMALESS",

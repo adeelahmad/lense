@@ -3,9 +3,9 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
 #
-# Gets the code (or updates it), writes the secrets once, builds and starts the stack with Docker, waits until the web
-# app answers, then opens it on the setup page with the setup code already filled in. Run it again to update: the
-# secrets, the database and the archive are kept.
+# Gets the code (or updates it), writes the secrets once, builds and starts the stack with Docker (or in a microsandbox
+# microVM, if chosen), waits until the web app answers, then opens it on the setup page with the setup code already
+# filled in. Run it again to update: the secrets, the database and the archive are kept.
 #
 # Settings, all optional (put them before `sh`: `... | LENS_DIR=/srv/lens sh`):
 #   LENS_DIR       where Lens goes (default: ~/lens)
@@ -14,8 +14,14 @@
 #   LENS_PUBLIC    1: reachable from other machines on the network, 0: this machine only (default: 1 on a server
 #                  without a desktop, else 0)
 #   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: full)
+#   LENS_BACKEND   docker or microsandbox (one microVM, no Docker: docs/microsandbox.md). Asked on a first install
+#                  when microsandbox can run here (Linux with KVM, or a Mac with Apple silicon); default: docker
 #   GITHUB_TOKEN   a GitHub token to use when downloading (not needed; avoids GitHub's rate limits)
 #   LENS_NO_OPEN   1: don't open a browser
+#   LENS_YES       1: install what Lens needs without asking (it only asks at a terminal)
+#   LENS_UPGRADE_AGENT  0: don't set up the agent that lets the web app install new releases (docs/updates.md)
+#   LENS_WIZARD    1: answer everything in the web installer, in the browser (the default for a first install at a
+#                  terminal, where Python 3 is there); 0: here in the terminal
 set -eu
 
 # All in a function, so nothing runs until the whole script has arrived (curl | sh streams it).
@@ -39,8 +45,155 @@ code() { LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 12; }
 
 os="$(uname -s)"
 
+sudo_ok() { # the web installer hands sudo your password through SUDO_ASKPASS
+  if [ "$(id -u)" = 0 ]; then echo ""; elif [ -n "${SUDO_ASKPASS:-}" ]; then echo "sudo -A"; else echo sudo; fi
+}
+
+# --- What runs it: Docker, or a microsandbox microVM ----------------------------------------------------------------
+# microsandbox needs hardware virtualization: KVM on 64-bit Linux (or a CPU that has it, whose module isn't loaded
+# yet), Apple silicon on a Mac
+msb_ok() {
+  case "$os/$(uname -m)" in
+    Linux/x86_64) [ -e /dev/kvm ] || grep -Eqw 'vmx|svm' /proc/cpuinfo 2>/dev/null ;;
+    Linux/aarch64) [ -e /dev/kvm ] ;;
+    Darwin/arm64) true ;;
+    *) false ;;
+  esac
+}
+tty_ok() { [ "${LENS_YES:-0}" != 1 ] && (: </dev/tty) 2>/dev/null; }
+
+# --- The web installer: a first install at a terminal continues in the browser ----------------------------------------
+# It asks everything there (what to install, how Lens runs, the AI model and its key, the extras), then runs this
+# script again with the answers (LENS_WIZARD=0) and shows its progress. Python 3.8+ runs it; without it, the
+# questions are asked here.
+py_ok() {
+  have python3 && python3 -c 'import sys; sys.exit(sys.version_info < (3, 8))' 2>/dev/null || return 1
+  [ "$os" != Darwin ] || xcode-select -p >/dev/null 2>&1 # else python3 is a stub that pops up an install dialog
+}
+WIZARD="${LENS_WIZARD:-}"
+if [ -z "$WIZARD" ]; then
+  WIZARD=0
+  [ ! -f "$DIR/.env" ] && [ -z "${LENS_BACKEND:-}" ] && tty_ok && WIZARD=1
+fi
+# Started from a launcher (Install Lens.app, the .desktop file) there is no terminal to fall back to: say why in a
+# window instead.
+gui_fail() {
+  printf '%s\n' "$1" >&2
+  if ! (: </dev/tty) 2>/dev/null; then
+    if [ "$os" = Darwin ]; then
+      osascript -e "display dialog \"$1\" buttons {\"OK\"} default button 1 with title \"Install Lens\" with icon caution" >/dev/null 2>&1
+    elif have zenity; then
+      zenity --error --title "Install Lens" --text "$1" 2>/dev/null
+    elif have kdialog; then
+      kdialog --title "Install Lens" --error "$1" 2>/dev/null
+    elif have notify-send; then
+      notify-send "Install Lens" "$1" 2>/dev/null
+    fi
+    exit 1
+  fi
+}
+if [ "$WIZARD" = 1 ] && py_ok && have curl; then
+  wiz="$(mktemp -d)"
+  trap 'rm -rf "$wiz"' EXIT
+  base="${LENS_INSTALLER_URL:-https://raw.githubusercontent.com/$REPO/$REF/installer}"
+  if curl -fsSL "$base/lens_installer.py" -o "$wiz/lens_installer.py" && curl -fsSL "$base/page.html" -o "$wiz/page.html"; then
+    say "Opening the installer in your browser..."
+    LENS_INSTALLER_FETCH=1 python3 "$wiz/lens_installer.py" --dir "$DIR" --repo "$REPO" --ref "$REF"
+    exit $?
+  fi
+  gui_fail "Couldn't download Lens's installer. Check the internet connection, and try again."
+  echo "Couldn't download the web installer; asking here instead."
+elif [ "$WIZARD" = 1 ]; then
+  have curl || gui_fail "Lens needs curl to download itself. Install curl (on Ubuntu: sudo apt install curl), then try again."
+  if [ "$os" = Darwin ] && ! xcode-select -p >/dev/null 2>&1; then
+    xcode-select --install 2>/dev/null || true
+    gui_fail "Lens's installer needs Apple's Command Line Tools. Install them in the window that opened, then open Install Lens again."
+  fi
+  gui_fail "Lens's installer needs Python 3.8 or later. Install Python 3 with your software center, then try again."
+  echo "The web installer needs Python 3.8 or later; asking here instead."
+fi
+BACKEND="${LENS_BACKEND:-}"
+if [ -z "$BACKEND" ] && [ -f "$DIR/.env" ]; then # an existing install keeps what it runs on (its data is there)
+  BACKEND="$(grep '^LENS_BACKEND=' "$DIR/.env" | cut -d= -f2- || true)"
+  [ -n "$BACKEND" ] || BACKEND=docker
+fi
+if [ -z "$BACKEND" ]; then
+  BACKEND=docker
+  # asked only when there's someone to ask: piped into sh, the answer comes from the terminal, not stdin
+  if msb_ok && tty_ok; then
+    printf '\n\033[1mHow should Lens run?\033[0m\n'
+    echo "  1) Docker (default): a container for each part, the usual way"
+    echo "  2) microsandbox: one lightweight virtual machine, no Docker needed"
+    printf 'Choose [1]: '
+    read -r answer </dev/tty || answer=
+    case "$answer" in 2 | m*) BACKEND=microsandbox ;; esac
+  fi
+fi
+case "$BACKEND" in
+  docker) ;;
+  microsandbox) msb_ok || fail "microsandbox needs KVM on 64-bit Linux or a Mac with Apple silicon. Use LENS_BACKEND=docker." ;;
+  *) fail "LENS_BACKEND is docker or microsandbox, not $BACKEND." ;;
+esac
+
+# --- What's missing: listed, and installed once you say yes ---------------------------------------------------------
+# Asked only at a terminal; piped in by a script or CI (no terminal, or LENS_YES=1) it goes ahead, as before.
+export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+plan=""
+need() { plan="$plan
+  - $*"; }
+if [ "$BACKEND" = microsandbox ]; then
+  have msb || need "microsandbox (from install.microsandbox.dev, into ~/.microsandbox)"
+  if [ "$os" = Linux ]; then
+    [ -e /dev/kvm ] || need "the KVM kernel module (modprobe, with sudo)"
+    { [ -r /dev/kvm ] && [ -w /dev/kvm ]; } || need "access to KVM for $(id -un) (the kvm group, with sudo)"
+  fi
+else
+  if ! have docker; then
+    case "$os" in
+      Linux) need "Docker Engine with Compose (from get.docker.com, with sudo)" ;;
+      Darwin)
+        have brew || need "Homebrew (from brew.sh, asks for your password)"
+        need "OrbStack, which runs Docker on a Mac (with Homebrew)"
+        ;;
+    esac
+  elif ! docker compose version >/dev/null 2>&1 &&
+    ! have docker-compose && [ "$os" = Linux ]; then
+    need "the Docker Compose plugin (with your package manager, with sudo)"
+  fi
+fi
+if [ -n "$plan" ]; then
+  printf '\n\033[1mLens needs these, and will install them:\033[0m%s\n' "$plan"
+  if tty_ok; then
+    printf 'Install them now? [Y/n] '
+    read -r answer </dev/tty || answer=
+    case "$answer" in
+      n* | N*) fail "Nothing was installed. Install them yourself, or run this again and answer yes." ;;
+    esac
+  fi
+fi
+
+if [ "$BACKEND" = microsandbox ]; then
+# --- microsandbox -----------------------------------------------------------------------------------------------
+if ! have msb; then
+  say "Installing microsandbox (install.microsandbox.dev)..."
+  have curl || fail "curl is needed to install microsandbox."
+  curl -fsSL https://install.microsandbox.dev | sh
+  have msb || fail "microsandbox didn't install. See https://docs.microsandbox.dev, then run this again."
+fi
+if [ "$os" = Linux ] && [ ! -e /dev/kvm ]; then
+  say "Loading KVM..."
+  $(sudo_ok) modprobe kvm_intel 2>/dev/null || $(sudo_ok) modprobe kvm_amd 2>/dev/null || $(sudo_ok) modprobe kvm 2>/dev/null || true
+  [ -e /dev/kvm ] || fail "KVM didn't load. Turn on virtualization (VT-x or AMD-V) in the firmware settings, or use LENS_BACKEND=docker."
+fi
+if [ "$os" = Linux ] && ! { [ -r /dev/kvm ] && [ -w /dev/kvm ]; }; then
+  say "Letting $(id -un) use KVM (the kvm group)..."
+  $(sudo_ok) usermod -aG kvm "$(id -un)" 2>/dev/null || true
+  # the group counts from the next sign-in; for this run, access for this user alone
+  have setfacl && $(sudo_ok) setfacl -m "u:$(id -un):rw" /dev/kvm 2>/dev/null || true
+  [ -r /dev/kvm ] && [ -w /dev/kvm ] || fail "Can't use /dev/kvm. Sign out and in again (or run: msb doctor), then run this again."
+fi
+else
 # --- Docker -------------------------------------------------------------------------------------------------------
-sudo_ok() { [ "$(id -u)" = 0 ] && echo "" || echo sudo; }
 if ! have docker; then
   case "$os" in
     Linux)
@@ -50,6 +203,16 @@ if ! have docker; then
       $(sudo_ok) systemctl enable --now docker 2>/dev/null || true
       ;;
     Darwin)
+      if ! have brew && { tty_ok || [ -n "${SUDO_ASKPASS:-}" ]; }; then
+        say "Installing Homebrew (brew.sh)..."
+        brew_sh="$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        if tty_ok; then
+          /bin/bash -c "$brew_sh" </dev/tty
+        else # from the web installer: no questions, and sudo asks the installer for the password
+          NONINTERACTIVE=1 /bin/bash -c "$brew_sh" </dev/null
+        fi
+        for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$b" ] && eval "$("$b" shellenv)" && break; done
+      fi
       if have brew; then
         say "Installing OrbStack, which runs Docker on a Mac (brew)..."
         brew install --cask orbstack
@@ -79,8 +242,15 @@ if $DOCKER compose version >/dev/null 2>&1; then
   COMPOSE="$DOCKER compose"
 elif have docker-compose; then
   COMPOSE="docker-compose"
+elif [ "$os" = Linux ] && {
+  if have apt-get; then $(sudo_ok) apt-get install -y -q docker-compose-plugin
+  elif have dnf; then $(sudo_ok) dnf install -y -q docker-compose-plugin
+  else false; fi
+} >/dev/null 2>&1 && $DOCKER compose version >/dev/null 2>&1; then
+  COMPOSE="$DOCKER compose"
 else
   fail "Docker Compose is missing. Install the Compose plugin (docker-compose-plugin), then run this again."
+fi
 fi
 
 # --- The code -----------------------------------------------------------------------------------------------------
@@ -154,15 +324,145 @@ if [ ! -f .env ]; then
   setenv SURREAL_PASS "$(secret)"
 fi
 grep -q '^LENS_SETUP_CODE=' .env || setenv LENS_SETUP_CODE "$(code)" # only used until the first admin exists
+setenv LENS_BACKEND "$BACKEND"
 setenv LENS_TARGET "$TARGET"
 setenv LENS_BIND "$bind"
 setenv LENS_PORT "$PORT"
 setenv FRONTEND_URL "http://$host:$PORT"
+setenv LENS_REPO "$REPO"
+setenv LENS_DIR "$DIR"
+# from the web installer (docs/configuration.md): the first namespace, and settings Lens saves once at its first start
+for k in LENS_NAMESPACE LENS_SETUP_SETTINGS; do
+  eval "v=\${$k:-}"
+  [ -z "$v" ] || setenv "$k" "$v"
+done
 setup_code="$(grep '^LENS_SETUP_CODE=' .env | cut -d= -f2-)"
 
+# --- The control folder: the web app asks for upgrades here, and reads how they went (docs/updates.md) -----------
+# The containers write as their own user (uid 1000), so the inbox is open to them; the agent only ever installs a
+# release tag or this install's branch, whoever writes the request.
+mkdir -p .lens-control/inbox
+chmod 755 .lens-control
+chmod 777 .lens-control/inbox
+
 # --- Build and start ----------------------------------------------------------------------------------------------
-say "Building and starting Lens (the first build takes a few minutes)..."
-$COMPOSE -f docker-compose.prod.yml up -d --build
+if [ "$BACKEND" = microsandbox ]; then
+  # the code it was built from: the sandbox builds again when this changes
+  { git rev-parse HEAD 2>/dev/null || date +%s; } >.lens-build
+  # Memory: three quarters of this machine's, 2 to 8 GB (building the web app needs about 2)
+  if [ "$os" = Darwin ]; then mem=$(($(sysctl -n hw.memsize) / 1048576)); else mem=$(($(awk '/MemTotal/ {print $2}' /proc/meminfo) / 1024)); fi
+  mem=$((mem * 3 / 4))
+  [ "$mem" -lt 2048 ] && mem=2048
+  [ "$mem" -gt 8192 ] && mem=8192
+  cpus="$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2)"
+  sensors="${LENS_SENSOR_BIND:-$bind}"
+  # The stock Python image, from mirrors that need no sign-in first: Docker Hub can refuse it ("Not authorized") when
+  # this machine has Docker Hub credentials that microsandbox can't use, and limits anonymous pulls.
+  say "Getting the base image..."
+  image=""
+  for ref in mirror.gcr.io/library/python:3.12-slim-bookworm public.ecr.aws/docker/library/python:3.12-slim-bookworm \
+    docker.io/library/python:3.12-slim-bookworm; do
+    if out="$(msb pull -q "$ref" 2>&1)"; then
+      image="$ref"
+      break
+    fi
+  done
+  [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-bookworm): $out"
+  # The internet, this network (mail servers, model servers) and this machine (Ollama, LM Studio); only the web app
+  # and the sensor ports are published, as with Docker.
+  set -- run -d -q --name lens --replace -c "$cpus" -m "${mem}M" --root-disk 16G --net public,private,host \
+    -p "$bind:$PORT:3000" \
+    -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
+    -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
+    -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named lens-data:/data \
+    --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
+  say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
+  # The command that starts it, kept for a restart of the machine: a sandbox started again (msb start) boots without
+  # running Lens, so it is always replaced; its packages come from the cache in the volume, its build stays there.
+  {
+    echo "#!/bin/sh"
+    echo "# Starts Lens in its microsandbox (written by install.sh)"
+    printf 'exec %s' "'$(command -v msb)'"
+    for a in "$@"; do printf " '%s'" "$a"; done
+    echo
+  } >.lens-sandbox
+  chmod +x .lens-sandbox
+  ./.lens-sandbox >/dev/null
+  LOGS="msb logs -f lens"
+  STOP="msb stop lens"
+  WAIT=900 # 30 minutes: the first start installs the system packages and builds everything
+  # back after a restart of the machine, as Docker's restart policy does
+  if [ "$os" = Linux ] && have systemctl && [ -d /run/systemd/system ]; then
+    unit=/etc/systemd/system/lens-microsandbox.service
+    printf '%s\n' "[Unit]" "Description=Lens (microsandbox)" "After=network-online.target" "Wants=network-online.target" "" \
+      "[Service]" "Type=oneshot" "RemainAfterExit=yes" "User=$(id -un)" "ExecStart=$PWD/.lens-sandbox" \
+      "ExecStop=$(command -v msb) stop lens" "" "[Install]" "WantedBy=multi-user.target" |
+      $(sudo_ok) tee "$unit" >/dev/null && $(sudo_ok) systemctl enable lens-microsandbox.service >/dev/null 2>&1 || true
+  elif [ "$os" = Darwin ]; then
+    plist="$HOME/Library/LaunchAgents/dev.lens.microsandbox.plist"
+    mkdir -p "$(dirname "$plist")"
+    cat >"$plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>dev.lens.microsandbox</string>
+  <key>ProgramArguments</key><array><string>$PWD/.lens-sandbox</string></array>
+  <key>RunAtLoad</key><true/>
+</dict></plist>
+PLIST
+  fi
+else
+  say "Building and starting Lens (the first build takes a few minutes)..."
+  $COMPOSE -f docker-compose.prod.yml up -d --build
+  LOGS="$COMPOSE -f docker-compose.prod.yml logs"
+  STOP="$COMPOSE -f docker-compose.prod.yml down"
+  WAIT=300
+fi
+
+# --- The upgrade agent: runs packaging/host/lens-upgrade.sh when the web app asks for a new release ---------------
+# systemd on Linux, launchd on a Mac; not set up again by an upgrade it runs (LENS_AGENT_RUN)
+if [ "${LENS_UPGRADE_AGENT:-1}" != 0 ] && [ "${LENS_AGENT_RUN:-0}" != 1 ]; then
+  agent=""
+  if [ "$os" = Linux ] && have systemctl && [ -d /run/systemd/system ]; then
+    # the user who installed it, unless only root can use Docker here
+    run_as="$(id -un)"
+    case "${DOCKER:-docker}" in sudo*) run_as=root ;; esac
+    unit=/etc/systemd/system/lens-upgrade
+    if printf '%s\n' "[Unit]" "Description=Lens upgrade agent: installs the release the web app asks for" "" \
+      "[Path]" "PathExistsGlob=$PWD/.lens-control/inbox/upgrade" "" "[Install]" "WantedBy=multi-user.target" |
+      $(sudo_ok) tee "$unit.path" >/dev/null 2>&1 &&
+      printf '%s\n' "[Unit]" "Description=Lens upgrade (docs/updates.md)" "After=network-online.target" "" \
+        "[Service]" "Type=oneshot" "User=$run_as" "Environment=HOME=$HOME" \
+        "Environment=PATH=$HOME/.local/bin:$HOME/.microsandbox/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+        "ExecStart=/bin/sh $PWD/packaging/host/lens-upgrade.sh $PWD" |
+      $(sudo_ok) tee "$unit.service" >/dev/null 2>&1 &&
+      $(sudo_ok) systemctl daemon-reload >/dev/null 2>&1 &&
+      $(sudo_ok) systemctl enable --now lens-upgrade.path >/dev/null 2>&1; then
+      agent=systemd
+    fi
+  elif [ "$os" = Darwin ] && have launchctl; then
+    plist="$HOME/Library/LaunchAgents/dev.lens.upgrade.plist"
+    mkdir -p "$(dirname "$plist")"
+    cat >"$plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>dev.lens.upgrade</string>
+  <key>ProgramArguments</key><array><string>/bin/sh</string><string>$PWD/packaging/host/lens-upgrade.sh</string><string>$PWD</string></array>
+  <key>WatchPaths</key><array><string>$PWD/.lens-control/inbox</string></array>
+  <key>EnvironmentVariables</key><dict><key>PATH</key><string>$HOME/.orbstack/bin:$HOME/.microsandbox/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string></dict>
+</dict></plist>
+PLIST
+    launchctl bootout "gui/$(id -u)" "$plist" >/dev/null 2>&1 || true
+    launchctl bootstrap "gui/$(id -u)" "$plist" >/dev/null 2>&1 && agent=launchd
+  fi
+  if [ -n "$agent" ]; then
+    echo "kind=$agent" >.lens-control/agent
+    chmod 644 .lens-control/agent # the containers read it (a first install writes with umask 077, for .env)
+  else
+    rm -f .lens-control/agent # the web app shows the line to run instead
+  fi
+fi
 
 say "Waiting for the web app..."
 i=0
@@ -170,14 +470,14 @@ i=0
 until curl -fsS -o /dev/null "http://127.0.0.1:$PORT/login" 2>/dev/null &&
   curl -fsS -o /dev/null "http://127.0.0.1:$PORT/api/v1/auth/status" 2>/dev/null; do
   i=$((i + 1))
-  [ $i -gt 300 ] && fail "Lens didn't answer within 10 minutes. See what happened: cd $DIR && $COMPOSE -f docker-compose.prod.yml logs"
+  [ $i -gt $WAIT ] && fail "Lens didn't answer within $((WAIT * 2 / 60)) minutes. See what happened: cd $DIR && $LOGS"
   sleep 2
 done
 
 url="http://$host:$PORT/setup?code=$setup_code"
 say "Lens is running: $url"
 echo "  (once the admin account exists, the link opens the sign-in page)"
-echo "  Stop: cd $DIR && $COMPOSE -f docker-compose.prod.yml down    Update: run the same line again"
+echo "  Stop: cd $DIR && $STOP    Update: run the same line again"
 if [ "${LENS_NO_OPEN:-0}" != 1 ]; then
   if [ "$os" = Darwin ]; then
     open "$url" 2>/dev/null || true

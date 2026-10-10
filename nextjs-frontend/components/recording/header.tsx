@@ -21,17 +21,19 @@ import {
   NotebookPen,
   Paperclip,
   Pencil,
+  Podcast,
   RefreshCw,
   RotateCw,
   Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 
 import { AccessBadge } from "@/components/access/access-fields";
 import { libraryHref } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
+import { CreatePodcastDialog } from "@/components/podcasts/create-dialog";
 import { useRec } from "@/components/recording/context";
 import { pageAt, pagesSummary } from "@/components/recording/document/model";
 import { useEvidence, useExport, usePipelines, useRecordingActions } from "@/components/recording/hooks";
@@ -331,6 +333,7 @@ function MoreMenu({ compact }: { compact?: boolean }) {
   const api = usePlayerApi();
   const toast = useToast();
   const latest = r.jobs[0];
+  const [podcast, setPodcast] = useState(false);
   const copy = async (withTime: boolean) => {
     const t = Math.floor(api.now() / 1000);
     const page = r.paged ? pageAt(r.model.segments, api.now()) + 1 : 0; // a document's: the page with the text in view
@@ -347,73 +350,84 @@ function MoreMenu({ compact }: { compact?: boolean }) {
     }
   };
   return (
-    <Menu>
-      <MenuTrigger asChild>
-        <IconButton label="More actions" size={32}>
-          <Ellipsis />
-        </IconButton>
-      </MenuTrigger>
-      <MenuContent className="min-w-[240px]">
-        <MenuItem icon={<Link2 />} onSelect={() => void copy(false)}>
-          Copy link
-        </MenuItem>
-        <MenuItem icon={<Copy />} onSelect={() => void copy(true)}>
-          {r.paged ? "Copy link to this page" : "Copy link at the current time"}
-        </MenuItem>
-        <MenuItem icon={<FolderTree />} disabled={!r.canEdit || !r.ns} onSelect={r.openCollection}>
-          Move to collection…
-        </MenuItem>
-        {compact && (
-          <>
-            {!r.paged && (
-              <MenuItem icon={<CodeXml />} onSelect={() => r.openShare(Math.floor(api.now()) || undefined)}>
-                Share / Embed
-              </MenuItem>
-            )}
-            <MenuItem icon={<RefreshCw />} disabled={!r.canEdit} onSelect={r.openReprocess}>
-              Reprocess…
-            </MenuItem>
-            <MenuItem icon={<Pencil />} disabled={!r.canEdit} onSelect={r.openRename}>
-              Rename…
-            </MenuItem>
-            {r.transcriptOnly && (
-              <MenuItem icon={<Paperclip />} disabled={!r.canEdit} onSelect={r.openAttach}>
-                Attach audio…
-              </MenuItem>
-            )}
-            <MenuItem icon={<Globe />} onSelect={r.openAccess}>
-              Access…
-            </MenuItem>
-            <MenuItem icon={<RotateCw />} onSelect={() => r.setTab("history")}>
-              History
-            </MenuItem>
-          </>
-        )}
-        <MenuSeparator />
-        {latest && (
-          <MenuItem asChild>
-            <Link href={`/activity/${latest.id}`} className="flex items-center gap-2.5">
-              <Workflow />
-              <span className="flex-1">Latest run in Activity</span>
-            </Link>
+    <>
+      <Menu>
+        <MenuTrigger asChild>
+          <IconButton label="More actions" size={32}>
+            <Ellipsis />
+          </IconButton>
+        </MenuTrigger>
+        <MenuContent className="min-w-[240px]">
+          <MenuItem icon={<Link2 />} onSelect={() => void copy(false)}>
+            Copy link
           </MenuItem>
-        )}
-        {r.rec.report_url && (
-          <MenuItem asChild>
-            <a href={r.rec.report_url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5">
-              <ExternalLink />
-              <span className="flex-1">Recording report</span>
-            </a>
+          <MenuItem icon={<Copy />} onSelect={() => void copy(true)}>
+            {r.paged ? "Copy link to this page" : "Copy link at the current time"}
           </MenuItem>
-        )}
-        <MenuItem icon={<FileText />} onSelect={() => r.setTab("details")}>
-          Details
-        </MenuItem>
-        <MenuItem icon={<Keyboard />} shortcut="?" onSelect={() => window.dispatchEvent(new Event("lens:shortcuts"))}>
-          Keyboard shortcuts
-        </MenuItem>
-      </MenuContent>
-    </Menu>
+          <MenuItem icon={<FolderTree />} disabled={!r.canEdit || !r.ns} onSelect={r.openCollection}>
+            Move to collection…
+          </MenuItem>
+          <MenuItem icon={<Podcast />} onSelect={() => setPodcast(true)}>
+            Create podcast…
+          </MenuItem>
+          {compact && (
+            <>
+              {!r.paged && (
+                <MenuItem icon={<CodeXml />} onSelect={() => r.openShare(Math.floor(api.now()) || undefined)}>
+                  Share / Embed
+                </MenuItem>
+              )}
+              <MenuItem icon={<RefreshCw />} disabled={!r.canEdit} onSelect={r.openReprocess}>
+                Reprocess…
+              </MenuItem>
+              <MenuItem icon={<Pencil />} disabled={!r.canEdit} onSelect={r.openRename}>
+                Rename…
+              </MenuItem>
+              {r.transcriptOnly && (
+                <MenuItem icon={<Paperclip />} disabled={!r.canEdit} onSelect={r.openAttach}>
+                  Attach audio…
+                </MenuItem>
+              )}
+              <MenuItem icon={<Globe />} onSelect={r.openAccess}>
+                Access…
+              </MenuItem>
+              <MenuItem icon={<RotateCw />} onSelect={() => r.setTab("history")}>
+                History
+              </MenuItem>
+            </>
+          )}
+          <MenuSeparator />
+          {latest && (
+            <MenuItem asChild>
+              <Link href={`/activity/${latest.id}`} className="flex items-center gap-2.5">
+                <Workflow />
+                <span className="flex-1">Latest run in Activity</span>
+              </Link>
+            </MenuItem>
+          )}
+          {r.rec.report_url && (
+            <MenuItem asChild>
+              <a href={r.rec.report_url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5">
+                <ExternalLink />
+                <span className="flex-1">Recording report</span>
+              </a>
+            </MenuItem>
+          )}
+          <MenuItem icon={<FileText />} onSelect={() => r.setTab("details")}>
+            Details
+          </MenuItem>
+          <MenuItem icon={<Keyboard />} shortcut="?" onSelect={() => window.dispatchEvent(new Event("lens:shortcuts"))}>
+            Keyboard shortcuts
+          </MenuItem>
+        </MenuContent>
+      </Menu>
+      <CreatePodcastDialog
+        open={podcast}
+        onOpenChange={setPodcast}
+        recordings={[r.id]}
+        what={`“${r.model.title || "Untitled"}”`}
+      />
+    </>
   );
 }
 
