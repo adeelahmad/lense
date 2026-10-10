@@ -54,6 +54,7 @@ EDITABLE = {
     "encryption": None,
     "fedora": None,
     "tunnel": None,
+    "https": None,
     # bind is a startup setting only
     "sensors": (
         "enabled",
@@ -123,6 +124,7 @@ SECRETS = {
     "telemetry": ("headers", "prometheus_token"),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
+    "https": ("dns_credentials", "eab_hmac_key"),
     "documents": ("anytopdf_token",),
 }
 ENUMS = {
@@ -146,6 +148,8 @@ ENUMS = {
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
+    ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
+    ("https", "challenge"): {"http", "tls-alpn", "dns"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
 }
@@ -1065,6 +1069,10 @@ def save(db, base, section, changes, user=None):
                     raise ValueError(f"matterbridge.{k} is one line of text")
                 if (section, k) in (("documents", "anytopdf_token"), ("telemetry", "prometheus_token")):
                     v = _check(section, k, v, None)
+                if (section, k) == ("https", "dns_credentials"):
+                    from . import https
+
+                    https.parse_credentials(v)
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"
                 raise ValueError(f"{section}.{k} must be text")
@@ -1112,6 +1120,12 @@ def save(db, base, section, changes, user=None):
 
         merged = {**(base.get("tunnel") or {}), **data, **{k: "set" for k in sealed}}
         tunnel.check({"tunnel": merged})
+    if section == "https":
+        from . import https
+
+        merged = {**(base.get("https") or {}), **data, **{k: "set" for k in sealed}}
+        merged.pop("dns_credentials", None)  # its fields aren't needed to check the rest
+        https.check({"https": merged})
     if (
         section == "server"
         and "allowed_hosts" in data

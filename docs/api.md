@@ -597,6 +597,16 @@ page was before each change, and `restore` puts an earlier version back (what it
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.
 
+## the graph as files
+
+```
+GET    /api/v1/tree?path=
+GET    /api/v1/tree/file?path=
+```
+
+The archive as folders and files ([The graph as files](file-tree.md)): `tree` lists a folder (an empty path lists your
+namespaces; in each, `Collections`, `Topics` and `Entities`), `tree/file` reads a file with byte ranges. Read-only; everyone sees what they can read in the web app.
+
 ## comments
 
 ```

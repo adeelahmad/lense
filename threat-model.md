@@ -105,7 +105,7 @@ optional listeners (MQTT, syslog, tunnel, local model server) run inside workers
 | Ingest & processing (Ingest) | `routes/{uploads,files,imports}.py`, `domain/{ingest,documents,convert,video,uploads}.py`, `templates.py`, `render.py` | child processes (ffmpeg, LibreOffice, Chromium, poppler, Tesseract), files | In |
 | Query engines (Query) | `domain/cypher.py`, `domain/rdf.py` (SPARQL), `domain/rdf_import.py`, `domain/search.py` | DB | In |
 | Assistant & extensions (Assistant) | `domain/{chat,ai_tools,ops_tools,extensions,tool_nodes,flow,custom_nodes,code_tools}.py`, MCP write tools | network (model servers), child process (code tools) | In |
-| Optional services, off by default (Optional) | `domain/{sensors,mqtt,syslog}.py`, `tunnel.py`, `local_llm.py`, `components.py`, `telemetry.py` | listening sockets, downloads, child processes | In |
+| Optional services, off by default (Optional) | `domain/{sensors,mqtt,syslog}.py`, `tunnel.py`, `https.py`, `local_llm.py`, `components.py`, `telemetry.py` | listening sockets, downloads, child processes | In |
 | Packaging variants | `docker-compose.prod.yml`, `install.sh`, `cloudron/`, `packaging/{synology,qnap}`, `proxmox/` | host | §1.6 |
 | Dev and CI tooling, samples | `docker-compose.yml`, `make dev`, `.github/`, `ci/`, `examples/`, `overrides/`, `prod-frontend-deploy.yml`, `watcher.py`, `commands/`, `fastapi_backend/tests/` | host | Out (§1.3) |
 
@@ -241,6 +241,7 @@ machine requires HTTPS, and a changed DB credential when SurrealDB runs as its o
 | Chromium sandbox | off as root or without user namespaces | the `netguard` proxy is the only barrier | Yes | *(documented, docs/configuration.md "runs with its sandbox where it can")* |
 | `sensors.enabled`, `sensors.mqtt_anonymous` | off (`bind` `0.0.0.0`); off | opens MQTT and syslog listeners; anonymous MQTT publish | Yes; anonymous is the admin's choice | *(documented, docs/sensors.md "Sensors are off until an admin turns them on")* |
 | `tunnel.mode`, `local_llm.enabled`, `telemetry` | off | outbound tunnel (Cloudflare terminates TLS, Q30); local model server; OTLP export | Yes | *(documented, docs/remote-access.md "It's off until an admin turns it on")* |
+| `https.enabled` (and install.sh's `LENS_HTTPS=1`) | off | Caddy, fetched at run time, terminates TLS on ports 443/80 in the worker and proxies to the web app; the DNS provider's credentials are written to `data_dir/https/caddy.json` (mode 600), not a command line | Yes | *(documented, docs/https.md "Off by default")* |
 | `components.auto` | on | unpinned-hash pip installs at runtime | Yes | *(maintainer, 2026-10)* |
 | `encryption.files` | on for new archives | file encryption at rest | Yes | *(documented, docs/encryption.md "A new archive turns this on at its first start")* |
 | `ai.extensions`, `ai.disabled_tools` | on, none | turn assistant extensions or named tools off | Yes | *(documented, docs/assistant.md "Extending the assistant")* |

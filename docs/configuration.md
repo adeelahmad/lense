@@ -76,6 +76,8 @@ this machine or the Docker host, with their models), `PUT /api/v1/setup/storage`
 | `AUTH_TRUST_HOST` | `true` behind a proxy or in Docker |
 | `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host`, `-Proto` and `-For`: they're passed on to the API, which names that address in OAuth discovery and reads the visitor's address for IP groups and throttles. Off, the web app reports the `Host` the browser sent and the address it was reached from |
 | `LENS_WEB_PROXY_HOSTS` | hosts whose `X-Forwarded-For` the web app passes on with `TRUST_PROXY_HEADERS` off (`backend,worker` in the Docker Compose files, for the Cloudflare tunnel) |
+| `LENS_HTTPS`, `LENS_HTTPS_PORT`, `LENS_HTTP_PORT`, `LENS_HTTPS_BIND` | install.sh: `LENS_HTTPS=1` publishes the HTTPS and HTTP ports (443 and 80 by default) for [HTTPS](https.md) |
+| `LENS_HTTPS_LISTEN` | `1` in the process that has the HTTPS ports and runs Caddy (the worker in `docker-compose.https.yml`); `LENS_CADDY`: a caddy to use instead of fetching one |
 
 ## archive.yaml
 
