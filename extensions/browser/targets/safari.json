@@ -1,0 +1,5 @@
+{
+  "host_permissions": ["https://*/*", "http://*/*"],
+  "optional_host_permissions": null,
+  "browser_specific_settings": { "safari": { "strict_min_version": "16.4" } }
+}

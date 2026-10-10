@@ -2,6 +2,29 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-10 · Similar content
+
+Goal (Adeel): a Similar tab on every resource, and selecting text anywhere (a resource's text or title, notes, topics,
+entities, the graph canvas) shows similar content in a popover, with a way to find more.
+
+Model (fastapi_backend/app/domain/similar.py, docs/processing.md#similar-content): one list for a text, a resource, a
+topic or an entity, fused by reciprocal rank from four: meaning (passages near the text, or near the centre of a
+resource's passages: no model call for a resource), key words (the text's words the `term` table says are rare, or
+`analyze.keywords`, OR'ed through the word index), shared topics and shared entities (rarer ones weigh more). Each item
+cites up to three moments. `GET /similar`, assistant and MCP `find_similar`. Without embeddings (the default) the
+other three answer, with no model call.
+
+PRs: API, assistant and MCP tool; the Similar tab; the selection popover and the full Similar page; topics, entities and
+graph nodes.
+
+Refine later:
+- key words of a text are single words and two-word phrases; stems beyond plurals (designing/design) don't match;
+- a resource not indexed for meaning is compared by its title and keywords (one embedding request), not its text;
+- the centre of a long resource's passages blurs what its parts are about; comparing a few of its passages may be
+  sharper;
+- entities in another namespace with the same name count only through the words, not as the same entity;
+- no "not similar" feedback yet, and nothing is cached between requests beyond the query vectors.
+
 ## 2026-10-10 · More voices for spoken answers
 
 Goal (Adeel): read answers and podcasts aloud with ElevenLabs, macOS `say`, Google Gemini TTS or StyleTTS2, with
@@ -12,11 +35,12 @@ Todo:
 
 - [x] Gemini TTS and macOS `say` as text-to-speech providers; `GET /voice/voices` lists each provider's voices;
       `POST /voice/speak` takes a voice to try
-- [ ] StyleTTS2 as an opt-in local service (off by default; heavy)
+- [x] StyleTTS2 as an opt-in local service (`styletts2/`, Compose profile `styletts2`; voices are clips in a volume)
 - [x] Settings → AI assistant → Voice: pick a voice from the list and hear it; Gemini in Speech providers
 
 Refine later: pick a second `say` voice for podcast hosts from what the Mac has; Gemini's multi-speaker mode for a
-whole podcast in one call; ElevenLabs voice settings (stability, style); cache the voice lists.
+whole podcast in one call; ElevenLabs voice settings (stability, style); cache the voice lists; upload StyleTTS2 voice
+clips from Settings (or use a speaker's own voiceprint clips); start the StyleTTS2 service from Settings; GPU build.
 
 ## 2026-10-10 · Podcasts from picked knowledge
 

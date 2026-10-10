@@ -328,7 +328,7 @@ def answer(db, cfg, base, account, cid, q, files=(), act_on=()):
             return "I couldn't answer that: " + str(e), box.approvals
     error = None
     try:
-        text = llm.chat(cfg, chat.messages_for(asked, passages, past, summary)) if llm.configured(cfg) else chat.fallback(passages)
+        text = llm.chat(cfg, chat.messages_for(asked, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
     except llm.LLMError as e:
         text, error = "I couldn't answer that: " + str(e), str(e)
     chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages), steps=steps, notice=notice, error=error, model=wrote)

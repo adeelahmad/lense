@@ -390,6 +390,9 @@ import type {
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
+  FindSimilarData,
+  FindSimilarErrors,
+  FindSimilarResponses,
   FinishData,
   FinishErrors,
   FinishResponses,
@@ -5185,6 +5188,23 @@ export class Search {
   ): RequestResult<SearchPhotosResponses, SearchPhotosErrors, ThrowOnError> {
     return (options.client ?? client).get<SearchPhotosResponses, SearchPhotosErrors, ThrowOnError>({
       url: "/api/v1/search/photos",
+      ...options,
+    });
+  }
+
+  /**
+   * Find Similar
+   *
+   * The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you
+   * can read and the collections you were given a role on, each with why: its closest passages by meaning (when
+   * search by meaning is set up), the lines with the key words it shares, and the topics and entities in common.
+   * Each cited moment can be opened. A resource is never listed as like itself.
+   */
+  public static findSimilar<ThrowOnError extends boolean = false>(
+    options?: Options<FindSimilarData, ThrowOnError>,
+  ): RequestResult<FindSimilarResponses, FindSimilarErrors, ThrowOnError> {
+    return (options?.client ?? client).get<FindSimilarResponses, FindSimilarErrors, ThrowOnError>({
+      url: "/api/v1/similar",
       ...options,
     });
   }
