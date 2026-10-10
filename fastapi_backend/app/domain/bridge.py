@@ -275,10 +275,13 @@ def route(db, cfg, account, cid, q, ns=None):
 
 
 # ---------- answering ----------
-def answer(db, cfg, base, account, cid, q, files=(), act_on=()):
+def answer(db, cfg, base, account, cid, q, files=(), act_on=(), outside=None):
     """Answer a question in a conversation as the account would be answered in the web app (without streaming), with
-    the files sent with it (held uploads: channels.hold); `act_on` are the changes made at once (Channel.acts).
-    Returns (text, approvals)."""
+    the files sent with it (held uploads: channels.hold); `act_on` are the changes made at once (Channel.acts), and
+    `outside` where the question's text came from outside Lens (Channel.outside, a Matterbridge room's by default), so
+    that changes ask first. Returns (text, approvals)."""
+    if outside is None:
+        outside = MATTERBRIDGE.outside(cfg, {})
     roles = auth.roles(db, account)
     readable = set(roles)
     editable = {s for s in roles if auth.allows(roles, s, "editor")}
@@ -306,6 +309,7 @@ def answer(db, cfg, base, account, cid, q, files=(), act_on=()):
             base,
             account["admin"],
             said=q,
+            outside=list(outside) + ai_tools.read_before(past, summary),
             act_on=act_on,
         )
         try:
@@ -511,7 +515,7 @@ def handle(db, cfg, base, m, ch=None):
                 chat.add(db, cid, "assistant", said)
                 ch.send(cfg, m, said)
                 return True
-        text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS], files, ch.acts(cfg))
+        text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS], files, ch.acts(cfg), ch.outside(cfg, m))
     except Exception:  # noqa: BLE001 - still say something in the room
         log.exception("%s: answering failed", ch.key)
         text, approvals, note = "Something went wrong while answering. Try again.", [], None
@@ -547,6 +551,10 @@ class Matterbridge(channels.Channel):
 
     def send(self, cfg, m, text):
         post(cfg, m.get("gateway"), text, m.get("channel"))
+
+    def outside(self, cfg, m):
+        # anyone in a room with no list of who may talk to Lens is someone the account doesn't vouch for
+        return [] if [u for u in cfg["bridge"].get("users") or [] if u.strip()] else ["chat room"]
 
 
 MATTERBRIDGE = Matterbridge()

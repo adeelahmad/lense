@@ -368,6 +368,10 @@ class Mailbox(channels.Channel):
     def acts(self, cfg):
         return {"import_files"} if settings_of(cfg).get("imports", "auto") == "auto" else ()
 
+    def outside(self, cfg, m):
+        # what was forwarded is someone else's: once it's read, imports ask first too (ai.untrusted_asks)
+        return ["forwarded email"] if m.get("forwarded") else []
+
     def pause(self, cfg, reading, failed):
         if failed:  # a server that refused the sign-in isn't asked again at once (it may lock the account)
             return max(60, int(settings_of(cfg).get("poll_seconds") or 30))
@@ -412,6 +416,7 @@ class Mailbox(channels.Channel):
             "event": "",
             "direct": True,  # mail to the assistant is for it
             "files": files,
+            "forwarded": bool(forwarded),
             "thread": ["email", m.get("address"), root],
             "uid": uid,
             "validity": validity,

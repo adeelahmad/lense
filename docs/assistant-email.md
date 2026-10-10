@@ -51,7 +51,8 @@ loads from another server when you read it.
   **Imported once approved**.
 - **A forwarded email** is imported whole, as an email with its attachments. The assistant also reads its text, as
   something someone else wrote: it is marked as data, so instructions written in it aren't followed
-  ([third-party content](assistant.md#third-party-content-and-prompt-injection)).
+  ([third-party content](assistant.md#third-party-content-and-prompt-injection)), and once it has read it, its
+  changes wait for your approval, the import too.
 - **Approving by email**: reply "yes" (or "no", "yes 2", "yes all") to what it proposes, for entity merges and edits
   and new namespaces; settings, runs and extensions are approved in the web app, linked from the answer.
 - `/clear` and `/compact` as an email's text work as in Chat.

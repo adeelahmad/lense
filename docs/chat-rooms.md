@@ -97,7 +97,9 @@ That's all. Without an account given, it answers as the admin who turned it on.
   several waiting, "yes all" or "yes 12". Only the chat usernames listed may talk to Lens and approve, so it needs
   that list; **Approving in the room: only in the web app** turns it off. Settings, imports, batch runs, extensions
   and forgetting are always approved in the web app. Each approval is in the audit log with "via chat room" and who
-  said yes.
+  said yes. Without a list, anyone in the room may be someone the account doesn't vouch for, so their messages count
+  as text from outside Lens: web tools and other servers' tools wait for approval in the web app too
+  ([third-party content](assistant.md#third-party-content-and-prompt-injection)).
 - **Conversations.** Each person in each room is a conversation of that account's, titled
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)). `Lens /clear` starts

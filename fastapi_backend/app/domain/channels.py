@@ -68,6 +68,11 @@ class Channel:
         """The assistant's changes made at once in this channel rather than waiting for approval (none by default)."""
         return ()
 
+    def outside(self, cfg, m):
+        """Where the text of `m` came from outside Lens (Toolbox.outside), so that changes ask first: someone the
+        account doesn't vouch for, or what was forwarded. Nothing by default: the people let in."""
+        return []
+
     def pause(self, cfg, reading, failed):
         """Seconds to wait before the next look: `reading` when this process holds the lease, `failed` after an error."""
         return max(1, int((cfg.get(self.key) or {}).get("poll_seconds") or 2))

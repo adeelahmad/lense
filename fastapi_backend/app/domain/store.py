@@ -281,6 +281,7 @@ DEFAULTS = {
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
+        "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
         "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
         "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
         "disabled_tools": [],
@@ -569,6 +570,8 @@ DEFAULTS = {
         # the scraper sends as a bearer token, and nothing is served until one is set
         "prometheus": False,
         "prometheus_token": None,
+        # where Grafana shows Lens's charts (docs/prometheus.md), for a link on Admin → System health; none: no link
+        "grafana_url": None,
     },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
@@ -674,9 +677,10 @@ RETRIES = 8
 
 
 def _retryable(err):
-    """SurrealDB's optimistic transactions fail with a write conflict when two touch the same record at once."""
+    """SurrealDB's optimistic transactions fail with a write conflict when two touch the same record at once, and ask
+    for a retry when a transaction's snapshot is older than the commit oracle's GC window (a busy server)."""
     m = str(err)
-    return "can be retried" in m or "Transaction conflict" in m or "Write conflict" in m
+    return "can be retried" in m or "Transaction conflict" in m or "Write conflict" in m or "retry required" in m
 
 
 def _lost(err):

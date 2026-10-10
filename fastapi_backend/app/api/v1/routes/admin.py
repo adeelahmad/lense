@@ -24,6 +24,7 @@ from app.domain import (
     keyring,
     llm,
     local_llm,
+    machine,
     mailbox,
     matterbridge,
     semantic,
@@ -375,6 +376,7 @@ def get_health(user: AdminReader, request: Request, db: Db) -> Health:
             "sources": [{"id": x["id"], "name": x["name"], "type": x["type"], "health": x.get("health")} for x in sources.list_sources(db)],
             "disk": {"path": data_dir, "free_gb": round(disk.free / 1e9, 1), "total_gb": round(disk.total / 1e9, 1)},
             "counts": {"recordings": n("recording"), "speakers": n("speaker"), "accounts": n("account")},
+            "machine": machine.live(),
         }
     )
 
