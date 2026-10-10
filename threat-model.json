@@ -110,7 +110,8 @@
       "entry_points": [
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
-        "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
+        "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
+        "Lens extension side panel"
       ],
       "touches": [
         "network",
@@ -423,6 +424,15 @@
       "caller_must_enforce": "none — P-RETRIEVAL",
       "provenance": "documented",
       "source": "docs/assistant.md \"limited to what the person can read\""
+    },
+    {
+      "entry_point": "Lens extension side panel",
+      "parameter": "answers shown there (model text that can repeat third-party text), the sign-in coming back",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none; answers render as Markdown cleaned by DOMPurify (no scripts, images or forms; only http and https links), and the sign-in checks its state and PKCE",
+      "provenance": "documented",
+      "source": "extensions/browser/src/core/assistant.js answerHtml docstring \"cleaned of anything that could run or fetch on its own\""
     },
     {
       "entry_point": "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
@@ -1037,6 +1047,14 @@
       "conditions": "flow and tool graphs never loop back and run within a step budget",
       "provenance": "documented",
       "source": "domain/flow.py docstring \"Graphs never loop back\""
+    },
+    {
+      "property": "P-BROWSER",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "the assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected; only they see and answer that session's actions; ai.browser off turns it off",
+      "provenance": "documented",
+      "source": "docs/browser-assistant.md \"Only you\""
     },
     {
       "property": "MX-AUTHZ-LIST-CAPS",

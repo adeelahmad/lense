@@ -1322,6 +1322,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       </p>
       <F ctx={ctx} id="ai.tools" />
       <F ctx={ctx} id="ai.untrusted_marking" />
+      <F ctx={ctx} id="ai.untrusted_asks" />
       <F ctx={ctx} id="ai.compact" />
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="ai.compact_model" />
@@ -1329,6 +1330,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <F ctx={ctx} id="ai.refine_notes" />
       <F ctx={ctx} id="ai.organise_notes" />
+      <F ctx={ctx} id="ai.browser" />
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Tools</span>
         <ul className="flex flex-col gap-2">
@@ -1357,6 +1359,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="ai.price_in" />
         <F ctx={ctx} id="ai.price_out" />
         <F ctx={ctx} id="ai.max_steps" />
+        <F ctx={ctx} id="ai.browser_steps" />
         <F ctx={ctx} id="ai.max_transcript_reads" />
       </div>
       <div className="flex flex-col gap-3">

@@ -37,7 +37,9 @@ export const JOURNEYS = [
       await meter.click(page.locator("#next"), "Continue (how it runs)");
       const found = page.getByRole("button", { name: /Ollama · \d+ models/ });
       await found.waitFor();
-      await meter.click(found, "pick the model server found on this computer");
+      // picked already when it's the only one found
+      if (!(await found.evaluate((el) => el.classList.contains("on"))))
+        await meter.click(found, "pick the model server found on this computer");
       await meter.click(page.locator("#next"), "Continue (AI model)");
       await page.getByRole("heading", { name: "Ready to install" }).waitFor();
       await meter.click(page.locator("#next"), "Install Lens");
@@ -164,7 +166,6 @@ export const JOURNEYS = [
     from: "/",
     async run({ page, meter }) {
       await meter.click(nav(page, "Chat"), "Chat");
-      await meter.click(page.getByRole("button", { name: "New conversation" }), "New conversation");
       await meter.type(page.getByRole("textbox", { name: "Your question" }), "Who said what about Raspberry Pi?", "question");
       await meter.press("Enter", "Enter to send");
       await page.getByText(ANSWER).first().waitFor({ timeout: 60000 });

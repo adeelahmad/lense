@@ -113,6 +113,9 @@ When the configured model supports function calling, chat becomes an agent.
   bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
   `import_files`, it picks the namespace when you don't name one, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
+- **Your browser** (in progress): asked from the Lens extension's side panel, the assistant can open, read, click and
+  type in that browser and download files into the conversation, on sites you allow, asking before anything that
+  sends, deletes or buys. See [The assistant in your browser](browser-assistant.md).
 
 ## Third-party content and prompt injection
 
@@ -130,6 +133,15 @@ apart from what the person asks:
 - **Control tokens broken up:** chat templates' control tokens in that text (`<|im_start|>`, `[INST]`,
   `<start_of_turn>`, `<tool_call>` and the like) and anything that looks like a marker get a space inside, so a local
   model server that reads them in a message can't be made to end the turn and speak as the system.
+
+- **Asks first once it has read it** (`ai.untrusted_asks`, on by default; Settings → AI assistant → Ask before
+  sending data out after reading third-party text): once an answer has read text from outside Lens (a tool's result
+  other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
+  open to anyone, or an earlier answer in the conversation that read any of these), anything that could carry what
+  it read out of Lens waits for your approval, even where it would otherwise run at once: your own `read` web tools,
+  other servers' MCP tools and Python tools with the network, and the changes a setup conversation makes itself. The
+  approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
+  memories are still written at once: they stay in Lens, and are marked as data when read back.
 
 Marking makes injection less likely to work; it doesn't make it impossible (a system prompt is not a filter). What
 the assistant can do is still bounded by the person's reads and approvals (N-PROMPT in the repository's
@@ -241,7 +253,8 @@ Admins also get the server tools: `server_status` (what's set up and what's miss
 (`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
 connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
 changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
-Turning telemetry on or off always asks first.
+Turning telemetry on or off always asks first, and so does every change once the answer has read text from outside
+Lens ([third-party content](#third-party-content-and-prompt-injection)).
 
 ### Routine choices
 

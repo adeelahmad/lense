@@ -14,6 +14,9 @@ import type {
   AcceptGraphChangeData,
   AcceptGraphChangeErrors,
   AcceptGraphChangeResponses,
+  ActionsData,
+  ActionsErrors,
+  ActionsResponses,
   AddAssistantMemoryData,
   AddAssistantMemoryErrors,
   AddAssistantMemoryResponses,
@@ -37,6 +40,9 @@ import type {
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
+  AnswerActionData,
+  AnswerActionErrors,
+  AnswerActionResponses,
   AnswerData,
   AnswerErrors,
   AnswerResponses,
@@ -108,6 +114,9 @@ import type {
   CombineBatchData,
   CombineBatchErrors,
   CombineBatchResponses,
+  ConnectData,
+  ConnectErrors,
+  ConnectResponses,
   ConsentData,
   ConsentErrors,
   ConsentResponses,
@@ -352,9 +361,12 @@ import type {
   DiffTemplateVersionsData,
   DiffTemplateVersionsErrors,
   DiffTemplateVersionsResponses,
+  DisconnectData,
+  DisconnectErrors,
   DisconnectIdentityData,
   DisconnectIdentityErrors,
   DisconnectIdentityResponses,
+  DisconnectResponses,
   DismissFaceSuggestionData,
   DismissFaceSuggestionErrors,
   DismissFaceSuggestionResponses,
@@ -647,6 +659,10 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  HttpsProvidersData,
+  HttpsProvidersResponses,
+  HttpsStatusData,
+  HttpsStatusResponses,
   ImportArchiveData,
   ImportArchiveErrors,
   ImportArchiveResponses,
@@ -760,6 +776,9 @@ import type {
   ListFilesData,
   ListFilesErrors,
   ListFilesResponses,
+  ListFolderData,
+  ListFolderErrors,
+  ListFolderResponses,
   ListGrantsData,
   ListGrantsResponses,
   ListGraphChangesData,
@@ -862,6 +881,8 @@ import type {
   ListSegmentEditsResponses,
   ListSensorsData,
   ListSensorsResponses,
+  ListSessionsData,
+  ListSessionsResponses,
   ListSharesData,
   ListSharesErrors,
   ListSharesResponses,
@@ -1032,6 +1053,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReadFileData,
+  ReadFileErrors,
+  ReadFileResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -1146,9 +1170,12 @@ import type {
   RotateNotifySecretData,
   RotateNotifySecretErrors,
   RotateNotifySecretResponses,
+  RunData,
+  RunErrors,
   RunPipelineData,
   RunPipelineErrors,
   RunPipelineResponses,
+  RunResponses,
   RunRoutineData,
   RunRoutineErrors,
   RunRoutineResponses,
@@ -2535,6 +2562,36 @@ export class Admin {
   ): RequestResult<TunnelStatusResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<TunnelStatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/tunnel/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Https Status
+   *
+   * How HTTPS (Settings › HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it
+   * holds and when they run out, and Caddy's last lines.
+   */
+  public static httpsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsStatusData, ThrowOnError>,
+  ): RequestResult<HttpsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Https Providers
+   *
+   * The DNS providers Settings › HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns
+   * plugin works too, by name.
+   */
+  public static httpsProviders<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsProvidersData, ThrowOnError>,
+  ): RequestResult<HttpsProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/providers",
       ...options,
     });
   }
@@ -4872,6 +4929,37 @@ export class Files {
   ): RequestResult<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError> {
     return (options.client ?? client).get<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/files/{fid}/lines",
+      ...options,
+    });
+  }
+}
+
+export class Tree {
+  /**
+   * List Folder
+   *
+   * A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'
+   * files. A file answers 400 (read it at /tree/file).
+   */
+  public static listFolder<ThrowOnError extends boolean = false>(
+    options?: Options<ListFolderData, ThrowOnError>,
+  ): RequestResult<ListFolderResponses, ListFolderErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListFolderResponses, ListFolderErrors, ThrowOnError>({
+      url: "/api/v1/tree",
+      ...options,
+    });
+  }
+
+  /**
+   * Read File
+   *
+   * A file of the tree, with byte ranges.
+   */
+  public static readFile<ThrowOnError extends boolean = false>(
+    options?: Options<ReadFileData, ThrowOnError>,
+  ): RequestResult<ReadFileResponses, ReadFileErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ReadFileResponses, ReadFileErrors, ThrowOnError>({
+      url: "/api/v1/tree/file",
       ...options,
     });
   }
@@ -8250,6 +8338,10 @@ export class Chats {
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
+   *
+   * With `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that
+   * browser while the side panel is connected: open pages, read them, click, type and download files into the
+   * conversation (docs/browser-assistant.md).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
@@ -8317,6 +8409,109 @@ export class Chats {
   ): RequestResult<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Browser {
+  /**
+   * List Sessions
+   *
+   * Your browsers whose side panel is connected now, the latest first.
+   */
+  public static listSessions<ThrowOnError extends boolean = false>(
+    options?: Options<ListSessionsData, ThrowOnError>,
+  ): RequestResult<ListSessionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListSessionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/browser/sessions",
+      ...options,
+    });
+  }
+
+  /**
+   * Connect
+   *
+   * Connect a browser's Lens side panel: then open its action stream. Audited as `browser.connect`.
+   */
+  public static connect<ThrowOnError extends boolean = false>(
+    options?: Options<ConnectData, ThrowOnError>,
+  ): RequestResult<ConnectResponses, ConnectErrors, ThrowOnError> {
+    return (options?.client ?? client).post<ConnectResponses, ConnectErrors, ThrowOnError>({
+      url: "/api/v1/browser/sessions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+  }
+
+  /**
+   * Disconnect
+   *
+   * The side panel closed: the assistant can't use that browser any more, and actions waiting on it fail.
+   */
+  public static disconnect<ThrowOnError extends boolean = false>(
+    options: Options<DisconnectData, ThrowOnError>,
+  ): RequestResult<DisconnectResponses, DisconnectErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DisconnectResponses, DisconnectErrors, ThrowOnError>({
+      url: "/api/v1/browser/sessions/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Actions
+   *
+   * The actions the assistant (or an agent) asks of this browser, as server-sent `action` events {id, tool, args,
+   * chat}: carry each one out and answer it with POST /browser/actions/{id}. The session stays connected while this
+   * stream is open; a comment line every 15 seconds keeps it so through proxies. `once=true` sends the actions waiting
+   * now and closes, for a client that asks again and again instead (each time keeps it connected for a while).
+   */
+  public static actions<ThrowOnError extends boolean = false>(
+    options: Options<ActionsData, ThrowOnError, unknown>,
+  ): Promise<ServerSentEventsResult<ActionsResponses>> {
+    return (options.client ?? client).sse.get<ActionsResponses, ActionsErrors, ThrowOnError>({
+      url: "/api/v1/browser/sessions/{sid}/actions",
+      ...options,
+    });
+  }
+
+  /**
+   * Answer Action
+   *
+   * What the browser did with an action: its result, or why it didn't (the person said no, the site isn't allowed...).
+   * 404 for an action that isn't one of your browser's, or that's been answered or given up on.
+   */
+  public static answerAction<ThrowOnError extends boolean = false>(
+    options: Options<AnswerActionData, ThrowOnError>,
+  ): RequestResult<AnswerActionResponses, AnswerActionErrors, ThrowOnError> {
+    return (options.client ?? client).post<AnswerActionResponses, AnswerActionErrors, ThrowOnError>({
+      url: "/api/v1/browser/actions/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run
+   *
+   * Do one thing in your connected browser, as the assistant's browser_ tools do, and wait for it: for agents and
+   * scripts. The side panel shows it and asks you first, as it does for the assistant. Audited as `browser.run`.
+   */
+  public static run<ThrowOnError extends boolean = false>(
+    options: Options<RunData, ThrowOnError>,
+  ): RequestResult<RunResponses, RunErrors, ThrowOnError> {
+    return (options.client ?? client).post<RunResponses, RunErrors, ThrowOnError>({
+      url: "/api/v1/browser/sessions/{sid}/run",
       ...options,
       headers: {
         "Content-Type": "application/json",

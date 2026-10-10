@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:4525de4bf73248fe9511a6ad69c55ff7c021b11a9a3e46a285bf25fe5208ea99"
+prose_version: "threat-model.md@sha256:96398fee54d8a0ff2efcfe809becf5307438e15538c79b4baffc56a3f78ecee8"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -359,6 +359,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — P-RETRIEVAL"
         provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
+  - id: "Lens extension side panel"
+    component: assistant
+    parameters:
+      - name: "answers shown there (model text that can repeat third-party text), the sign-in coming back"
+        attacker_controllable: true
+        x-condition: "indirectly through content"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none; answers render as Markdown cleaned by DOMPurify (no scripts, images or forms; only http and https links), and the sign-in checks its state and PKCE"
+        provenance: {kind: documented, source: 'extensions/browser/src/core/assistant.js answerHtml docstring "cleaned of anything that could run or fetch on its own"'}
   - id: "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes"
     component: assistant
     parameters:
@@ -1024,6 +1033,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SENSORS, effect: narrows}
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - name: "https.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "Caddy, fetched at run time, terminates TLS on 443/80 in the worker (install.sh LENS_HTTPS=1 publishes them) and proxies to the web app; DNS provider credentials go to data_dir/https/caddy.json (mode 600), not a command line"
+    affects_properties:
+      - {property_id: P-CHILD-SECRETS, effect: preserves}
+    provenance: {kind: documented, source: 'docs/https.md "Off by default"'}
   - name: "tunnel.mode, local_llm.enabled, telemetry"
     default: "off"
     security_relevant: true
@@ -1426,6 +1443,14 @@ properties_claimed:
     violation_symptoms: [hang]
     x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
     provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}
+  - id: P-BROWSER
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "the assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected; only they see and answer that session's actions; ai.browser off turns it off"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the side panel carries out what it's asked (which sites, what it asks first: the extension's); an agent with the person's write token can ask too (api/v1/routes/browser.py)"
+    provenance: {kind: documented, source: 'docs/browser-assistant.md "Only you"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]

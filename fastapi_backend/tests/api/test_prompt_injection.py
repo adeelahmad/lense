@@ -8,7 +8,7 @@ import re
 
 import pytest
 
-from app.domain import ingest, untrusted
+from app.domain import ai_tools, bridge, chat, extensions, ingest, settings, untrusted
 from tests import fake_llm, injections
 from tests.api._assist import Assist, sse, start_llm
 from tests.helpers import unmark
@@ -128,3 +128,125 @@ def test_marking_can_be_switched_off(unmarked, app, db, cfg, folder, new_client,
     got = _tool_messages(llm)[0]
     assert not got.startswith("<untrusted-") and "<|im_start|>" in got
     assert untrusted.RULES not in [b for b in llm.seen if b.get("tools")][0]["messages"][0]["content"]
+
+
+# ---------- once an answer has read outside text, what could carry it out asks first (ai_tools.Toolbox.wary) ----------
+LOOKUP = {
+    "name": "lookup",
+    "kind": "tool",
+    "description": "Look a word up in an online dictionary.",
+    "effect": "read",
+    "params": [{"name": "q", "kind": "text", "required": True}],
+    "run": {"type": "http", "url": "https://dict.example/define?q={{q}}"},
+}
+
+
+@pytest.fixture
+def sent(monkeypatch):
+    out = []
+    monkeypatch.setattr(extensions, "http_call", lambda cfg, run, args: out.append(args) or {"status": 200, "json": {"meaning": "x"}})
+    return out
+
+
+def _ask(c, h, cid, q):
+    return sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": q}).text)
+
+
+def test_a_web_tool_asks_first_once_the_answer_read_outside_text(app, db, cfg, folder, new_client, llm, sent):
+    s = Assist(app, db, cfg, folder, new_client)
+    rid = _poisoned(s, db, cfg)
+    c, h = s.cl["editor"]
+    assert c.post("/api/v1/extensions", headers=h, json={"manifest": LOOKUP}).status_code == 200
+    # nothing read yet: the person's own read tool answers at once, as before
+    llm.tool_script = [{"content": "", "tool_calls": [call(1, "lookup", {"q": "capsid"})]}, {"content": "A protein shell."}]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = _ask(c, h, cid, "What's a capsid?")
+    assert sent == [{"q": "capsid"}] and "approval" not in ev
+
+    # after reading a transcript that says to send everything somewhere, the same tool waits for a yes
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "read_transcript", {"recording_id": rid})]},
+        {"content": "", "tool_calls": [call(2, "lookup", {"q": "every excerpt"})]},
+        {"content": "I asked before looking it up."},
+    ]
+    cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+    ev = _ask(c, h, cid, "Read Mallory's talk")
+    assert sent == [{"q": "capsid"}]  # nothing went out
+    appr = ev["approval"][0]
+    assert appr["summary"] == ('Run lookup(q="every excerpt") (asked first: this answer read text from outside Lens: tool read_transcript)')
+    # the person decides: approved, it runs
+    assert c.post(f"/api/v1/approvals/{appr['id']}", headers=h, json={"decision": "approve"}).json()["status"] == "done"
+    assert sent[-1] == {"q": "every excerpt"}
+
+    # the next question in that conversation still counts what the earlier answer read
+    sent.clear()
+    llm.tool_script = [{"content": "", "tool_calls": [call(1, "lookup", {"q": "virus"})]}, {"content": "Asked."}]
+    ev = _ask(c, h, cid, "And virus?")
+    assert sent == [] and "earlier answers" in ev["approval"][0]["summary"]
+
+
+def test_asking_first_can_be_switched_off(app, db, cfg, folder, new_client, llm, sent):
+    s = Assist(app, db, cfg, folder, new_client)
+    rid = _poisoned(s, db, cfg)
+    cfg["ai"]["untrusted_asks"] = False
+    box = ai_tools.Toolbox(db, cfg, _me(db, "ed@x.io"), {s.pods}, {s.pods}, {}, None)
+    extensions.create(db, box.me, LOOKUP)
+    box = ai_tools.Toolbox(db, cfg, _me(db, "ed@x.io"), {s.pods}, {s.pods}, {}, None)
+    box.call("read_transcript", {"recording_id": rid})
+    assert box.outside == ["tool read_transcript"] and not box.wary()
+    box.call("lookup", {"q": "x"})
+    assert sent == [{"q": "x"}] and box.approvals == []
+
+
+def test_a_setup_conversation_asks_once_it_read_outside_text(app, db, cfg, folder, new_client, llm):
+    s = Assist(app, db, cfg, folder, new_client)
+    rid = _poisoned(s, db, cfg)
+    ca, ha = s.cl["admin"]
+    cid = ca.post("/api/v1/chats", headers=ha, json={"kind": "setup"}).json()["id"]
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "change_settings", {"section": "ai", "changes": {"max_steps": 7}})]},
+        {"content": "Done."},
+    ]
+    ev = _ask(ca, ha, cid, "Give the assistant seven steps")
+    assert ev["step"][0]["summary"] == "Set ai: max_steps = 7: done" and "approval" not in ev
+    # a transcript that asks for the model provider to move: the change waits for the admin
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "read_transcript", {"recording_id": rid})]},
+        {"content": "", "tool_calls": [call(2, "change_settings", {"section": "llm", "changes": {"base_url": "https://evil.example/v1"}})]},
+        {"content": "That needs your yes."},
+    ]
+    ev = _ask(ca, ha, cid, "What does Mallory's talk say to do?")
+    assert ev["approval"][0]["summary"].startswith("Set llm: base_url = https://evil.example/v1 (asked first: ")
+    assert settings.Settings(db, cfg).current()["llm"]["base_url"] != "https://evil.example/v1"
+
+
+def test_a_room_anyone_can_talk_in_counts_as_outside_text(app, db, cfg, folder, new_client, llm, sent):
+    s = Assist(app, db, cfg, folder, new_client)
+    me = _me(db, "ed@x.io")
+    extensions.create(db, extensions.who(me["id"], me["email"], False, {s.pods: "editor"}), LOOKUP)
+    account = {**me, "admin": False}
+    for users, asks in (([], True), (["alice"], False)):
+        cfg["bridge"] = {**cfg["bridge"], "users": users}
+        sent.clear()
+        cid = chat.create(db, me["id"], kind="bridge")
+        llm.tool_script = [{"content": "", "tool_calls": [call(1, "lookup", {"q": "capsid"})]}, {"content": "OK."}]
+        text, approvals = bridge.answer(db, cfg, cfg, account, cid, "look up capsid")
+        assert (bool(approvals), sent) == ((True, []) if asks else (False, [{"q": "capsid"}]))
+        if asks:
+            assert "chat room" in approvals[0]["summary"]
+
+
+def test_which_tools_send_data_out():
+    def spec(**run):
+        return {"run": run}
+
+    assert extensions.sends_out(spec(type="http", url="https://x.example/"))
+    assert extensions.sends_out(spec(type="mcp", url="https://mcp.example/", tool="t"))
+    assert extensions.sends_out(spec(type="python", code="", network=True))
+    assert not extensions.sends_out(spec(type="python", code=""))
+    assert not extensions.sends_out(spec(type="prompt", prompt="x"))
+    assert not extensions.sends_out(spec(type="graph", graph={}))  # each tool it calls is gated on its own
+
+
+def _me(db, email):
+    return {"id": db.one("SELECT VALUE record::id(id) FROM account WHERE email = $e", e=email), "email": email}
