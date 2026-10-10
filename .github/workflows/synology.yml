@@ -34,7 +34,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
       # the architecture that isn't the runner's own (armv8 on GitHub's runners, x86_64 on an Apple silicon Mac)
-      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v3
         with:
           driver: docker
