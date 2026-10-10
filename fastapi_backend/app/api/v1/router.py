@@ -37,6 +37,7 @@ from app.api.v1.routes import (
     oauth,
     passkeys,
     pipelines,
+    podcasts,
     public,
     rdf,
     recordings,
@@ -117,5 +118,6 @@ for module in (
     import_hooks,
     voice,
     vaults,
+    podcasts,
 ):
     api_router.include_router(module.router)

@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Podcasts from what you pick.** Lens makes a two-host learning episode about resources and passages: one host
+  explains, the other asks what a learner would ask, every claim is cited to the passage it comes from and checked
+  against it before it's kept, and the script is read aloud in two voices by your text-to-speech provider (a local
+  OpenAI-compatible server works). Episodes are recordings in a `podcasts` namespace, so they're searchable and on the
+  graph. Start one with `POST /api/v1/podcasts` or the MCP tool `create_podcast`; the web app's dialog comes next
+  ([Podcasts](docs/podcasts.md)).
+
 ## 0.4.2 <small>October 9, 2026</small> {id="0.4.2"}
 
 ### Dependencies

@@ -172,6 +172,9 @@ import type {
   CreatePipelineVersionData,
   CreatePipelineVersionErrors,
   CreatePipelineVersionResponses,
+  CreatePodcastData,
+  CreatePodcastErrors,
+  CreatePodcastResponses,
   CreateRoutineData,
   CreateRoutineErrors,
   CreateRoutineResponses,
@@ -294,6 +297,9 @@ import type {
   DeletePageFileErrors,
   DeletePageFileResponses,
   DeletePageResponses,
+  DeletePodcastData,
+  DeletePodcastErrors,
+  DeletePodcastResponses,
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
@@ -492,6 +498,9 @@ import type {
   GetPlayerData,
   GetPlayerErrors,
   GetPlayerResponses,
+  GetPodcastData,
+  GetPodcastErrors,
+  GetPodcastResponses,
   GetPublicCollectionData,
   GetPublicCollectionErrors,
   GetPublicCollectionResponses,
@@ -773,6 +782,9 @@ import type {
   ListPendingAccessRequestsResponses,
   ListPipelinesData,
   ListPipelinesResponses,
+  ListPodcastsData,
+  ListPodcastsErrors,
+  ListPodcastsResponses,
   ListReadingsData,
   ListReadingsErrors,
   ListReadingsResponses,
@@ -973,6 +985,9 @@ import type {
   RefreshData,
   RefreshErrors,
   RefreshResponses,
+  RegeneratePodcastData,
+  RegeneratePodcastErrors,
+  RegeneratePodcastResponses,
   RegisterData,
   RegisterErrors,
   RegisterResponses,
@@ -9104,6 +9119,87 @@ export class Vaults {
   ): RequestResult<LockVaultResponses, LockVaultErrors, ThrowOnError> {
     return (options.client ?? client).post<LockVaultResponses, LockVaultErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/vault/lock",
+      ...options,
+    });
+  }
+}
+
+export class Podcasts {
+  /**
+   * List Podcasts
+   *
+   * Episodes in the namespaces you can read, newest first.
+   */
+  public static listPodcasts<ThrowOnError extends boolean = false>(
+    options?: Options<ListPodcastsData, ThrowOnError>,
+  ): RequestResult<ListPodcastsResponses, ListPodcastsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListPodcastsResponses, ListPodcastsErrors, ThrowOnError>({
+      url: "/api/v1/podcasts",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Podcast
+   *
+   * Make an episode about these resources and lines, in the background (watch its job on /events). It goes in the
+   * podcasts namespace when everyone there can read every source, else in the sources' own namespace (400 when they
+   * span several); you need editor access where it goes. Audited as `podcast.create`.
+   */
+  public static createPodcast<ThrowOnError extends boolean = false>(
+    options: Options<CreatePodcastData, ThrowOnError>,
+  ): RequestResult<CreatePodcastResponses, CreatePodcastErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreatePodcastResponses, CreatePodcastErrors, ThrowOnError>({
+      url: "/api/v1/podcasts",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Podcast
+   *
+   * Delete an episode with its audio (editors of its namespace, unlike other recordings: Lens made it). 409 while a
+   * job is working on it.
+   */
+  public static deletePodcast<ThrowOnError extends boolean = false>(
+    options: Options<DeletePodcastData, ThrowOnError>,
+  ): RequestResult<DeletePodcastResponses, DeletePodcastErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeletePodcastResponses, DeletePodcastErrors, ThrowOnError>({
+      url: "/api/v1/podcasts/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Podcast
+   *
+   * An episode: what was asked for, how far it has got, the excerpts it drew on, the outline, the script with each
+   * line's citations and times, and what the fact-check changed. Its audio is /recordings/{id}/audio.
+   */
+  public static getPodcast<ThrowOnError extends boolean = false>(
+    options: Options<GetPodcastData, ThrowOnError>,
+  ): RequestResult<GetPodcastResponses, GetPodcastErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetPodcastResponses, GetPodcastErrors, ThrowOnError>({
+      url: "/api/v1/podcasts/{rid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Regenerate Podcast
+   *
+   * Make the episode again from what was asked for, reading its sources afresh (editors). A job already making it
+   * is returned instead.
+   */
+  public static regeneratePodcast<ThrowOnError extends boolean = false>(
+    options: Options<RegeneratePodcastData, ThrowOnError>,
+  ): RequestResult<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError> {
+    return (options.client ?? client).post<RegeneratePodcastResponses, RegeneratePodcastErrors, ThrowOnError>({
+      url: "/api/v1/podcasts/{rid}/regenerate",
       ...options,
     });
   }

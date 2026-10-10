@@ -39,6 +39,7 @@ EDITABLE = {
     "components": None,
     "voice": None,
     "speech": None,
+    "podcasts": None,
     # llama-server's path is a startup setting only (the web app can't choose what the server runs)
     "local_llm": ("enabled", "model", "use_as_provider", "context", "threads", "gpu_layers", "port", "host"),
     "mail": None,
@@ -411,6 +412,8 @@ def _check(section, key, value, default):
         return value.strip()
     if section == "speech":
         return _speech_setting(key, value)
+    if section == "podcasts":
+        return _podcast_setting(key, value)
     if section == "local_llm":
         return _local_llm_setting(key, value)
     if section == "decisions" and key != "engine":
@@ -540,6 +543,32 @@ def _speech_setting(key, value):
             raise ValueError("speech.timeout is a whole number of seconds from 30 to 86400")
         return value
     raise ValueError(f"unknown setting speech.{key}")
+
+
+PODCAST_RANGES = {"context_chars": (2000, 400_000), "max_minutes": (1, 120), "words_per_minute": (80, 250)}
+
+
+def _podcast_setting(key, value):
+    if key in PODCAST_RANGES:
+        lo, hi = PODCAST_RANGES[key]
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"podcasts.{key} is a whole number from {lo} to {hi}")
+        return value
+    if key == "namespace":
+        if not (isinstance(value, str) and store.NS_RX.match(value.strip())):
+            raise ValueError("podcasts.namespace is a namespace name (lowercase letters, digits, - and _)")
+        return value.strip()
+    if key in ("host_a", "host_b"):
+        if not (isinstance(value, str) and 0 < len(value.strip()) <= 40):
+            raise ValueError(f"podcasts.{key} is a name of up to 40 characters")
+        return value.strip()
+    if key in ("model", "voice_a", "voice_b"):
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and len(value.strip()) <= 200):
+            raise ValueError(f"podcasts.{key} is a name")
+        return value.strip()
+    raise ValueError(f"unknown setting podcasts.{key}")
 
 
 EMAIL_RX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")

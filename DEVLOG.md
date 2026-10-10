@@ -2,6 +2,35 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-10 · Podcasts from picked knowledge
+
+Goal (Adeel): pick documents, search results, topics, notes or graph concepts and get a two-host, Recast-style
+learning episode about them, every claim cited to a real source, connected to the rest of the library.
+
+Model (fastapi_backend/app/domain/podcasts.py, docs/podcasts.md): an episode is a recording (its script lines are
+segments spoken by the hosts) plus `podcast:<rid>` for the request, excerpts, outline, cited lines and fact-check log.
+One job on that recording runs podcast steps (gather, plan, write, check, publish) and then analyze, embed, summarize.
+Citations are segment runs `{recording, idx0, idx1}`, which exist without embeddings. Prompts are prompt templates
+with role podcast.<stage>.
+
+Rulings (Adeel, 2026-10-10, recommended defaults accepted): episodes go in a `podcasts` namespace only when its readers
+can read every source namespace and no source is in a vault, else in the sources' namespace; OpenAI-compatible TTS by
+default, ElevenLabs opt-in, script-only without TTS; 5/10/20 min presets, 30 max; rewrite an unsupported line once,
+then drop; episodes are never cited as evidence by later episodes (memory only); MCP may queue an episode; on by
+default; stale citations are marked, never auto-regenerated.
+
+Todo:
+
+- [x] Backend script pipeline: selection (recordings, passages), plan, write, fact-check, publish as a transcript
+- [x] Audio: per-line TTS with two voices, stitch with pauses, loudness, store as the recording's media
+- [x] REST API and MCP `create_podcast` / `get_podcast`
+- [ ] Web: Create podcast dialog, progress, episode page with citations
+- [ ] Phase 2: cross-page selection tray (search hits, topics, notes, graph), context expansion, connections
+- [ ] Phase 3: episode memory, script editing and re-render, episode→source graph edges, stale citations
+
+Watch out: an episode's speakers are named after the hosts, so they are the same speakers across episodes in a
+namespace.
+
 ## 2026-10-05 · Threat model
 
 Goal (Adeel): write down Lens's security contract, meaning what it assumes, guarantees and leaves to whoever runs it,

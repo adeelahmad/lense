@@ -74,6 +74,7 @@ nav:
   - Speech providers: speech-providers.md
   - Local models: local-models.md
   - Chat and batch runs: assistant.md
+  - Podcasts: podcasts.md
   - Notifications: notifications.md
   - Chat rooms: chat-rooms.md
   - Sensors: sensors.md
