@@ -1,8 +1,9 @@
 # The assistant in your browser
 
-**Status: in progress.** Built: the server side (sessions, the assistant's browser tools and the API) and the Lens
-extension's side panel, where you sign in and chat with the assistant. In progress: the side panel carrying out the
-assistant's browser actions, with the sites you allow, your yes for anything consequential and the action log.
+**Status: built** in the Lens extension for Chrome and Edge: the side panel, where you sign in and chat with the
+assistant, and the assistant using that browser on the sites you allow. Safari runs it in a tab; Firefox's sidebar
+comes with its build. Webmail attachments behind a download button rather than a link are not handled yet (Refine
+later).
 
 Ask the assistant from your browser, and let it do things there for you: "check my email and import the important
 attachments", "find last month's invoice on the supplier's site and put it in Accounts", "save this page". It opens
@@ -34,6 +35,32 @@ answer.
 Firefox shows the panel in its sidebar (also under **View → Sidebar → Ask Lens**) and signs in the same way. Safari
 has no side panel and doesn't let extensions show a sign-in page, so there **Ask Lens** opens in a tab, and you sign in
 with a write API token you make in Lens (your account's API tokens).
+
+## Letting it use your browser
+
+While the side panel is open, **Let Lens use this browser** (under the question box, on unless you turn it off) lets
+the assistant work in that window when you ask it to:
+
+- **A site is used only once you allow it.** The first time the assistant wants to read or act on a site, or open an
+  address there, the panel asks **Let Lens read and act on mail.example.com?** Allow, and the browser may ask too, for
+  the extension's access to that site. Allowed sites are listed in the extension's options, under The assistant, where
+  you remove them again.
+- **Anything consequential waits for your yes.** A click or a submit that sends, deletes, buys, books, posts, shares
+  or changes an account shows what it is about to do (**Click “Send” on mail.example.com?**) with **Yes, do it** and
+  **No**. It asks when the assistant marks the action consequential, or when the button's words say so (send, delete,
+  pay, order, post, submit, confirm, unsubscribe...), or when the form posts somewhere. No answer within 80 seconds
+  counts as No.
+- **Never passwords or card numbers.** It doesn't type into password fields, card number or security code fields,
+  or file pickers, and doesn't see what's in them: you type those.
+- **You see each action as it happens**, in the answer it's for: opening, reading, clicking, typing, downloading,
+  with ✓ when done and ✗ when not (and why). An app using your browser through the API shows the same way.
+- **Pages are third-party text.** What a page or an email says reaches the assistant marked as material to read, never
+  as instructions; opening an address on a site you haven't allowed asks first, so what it read can't be carried
+  off in a link.
+
+Files the assistant downloads (an attachment, a PDF behind a sign-in, or the page itself as Markdown) are attached to
+the conversation like a file you dropped in, and it puts them in a namespace with `import_files`, which waits for
+your **Approve**.
 
 ## How it works
 
@@ -82,6 +109,12 @@ A question sent with `browser` (the session's id) on `POST /api/v1/chats/{id}/me
 
 ## Refine later
 
+- Webmail attachments behind a download button (no link to read), and files a site hands over from another site
+  after a redirect, which need that site allowed too.
+- Pages inside frames (other than the page's own shadow trees), and real input events through the browser's
+  debugger for pages that ignore synthetic ones.
+- Safari, where the panel is a tab of its own: the assistant picks the page's tab from `browser_tabs` today; it
+  should default to the tab you were on before.
 - Ask about the page you're on, or the text you selected, straight from the right-click menu.
 - Pick the model, or the namespaces to look in, in the side panel (the web app's chat has both).
 - The assistant's browser for conversations elsewhere (WhatsApp, Slack, Telegram) while the side panel is open, as
