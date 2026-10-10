@@ -9,6 +9,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API
   (`/api/v1/tree`) and the MCP tools `list_files` and `read_file` ([The graph as files](docs/file-tree.md)).
   S3, WebDAV, SMB and NFS servers that share it are in progress.
+- **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
+  left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
+  month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
+  ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 

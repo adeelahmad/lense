@@ -6,6 +6,7 @@ from app.api.v1.routes import (
     activity,
     admin,
     auth,
+    backups,
     batches,
     budgets,
     chats,
@@ -73,6 +74,7 @@ api_router.include_router(oauth.router)
 for module in (
     users,
     admin,
+    backups,  # before updates: its /admin/backups/remote would otherwise be read as a backup's name
     updates,
     activity,
     budgets,
