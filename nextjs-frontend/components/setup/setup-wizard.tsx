@@ -48,6 +48,21 @@ const URL_RX = /^https?:\/\/[^\s]+$/;
 /** The budget scale: the hard limit in USD (0: no limit). The soft limit is 80% of it unless set under More. */
 const LIMITS = [0, 5, 10, 25, 50, 100, 250, 500];
 
+/** Whether a model server is on this machine or its network (free to call), not a paid cloud provider. */
+export function isLocalModel(baseUrl: string | null | undefined): boolean {
+  let host: string;
+  try {
+    host = new URL(baseUrl ?? "").hostname.replace(/^\[|\]$/g, "");
+  } catch {
+    return false;
+  }
+  return (
+    !host.includes(".") || // a container next to Lens (ollama), localhost, ::1
+    /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0$)/.test(host) ||
+    /\.(local|internal|lan|home\.arpa)$/.test(host)
+  );
+}
+
 function errorText(e: unknown): string {
   return e instanceof ApiError ? e.message : "Something went wrong. Please try again.";
 }
@@ -104,12 +119,21 @@ export function SetupWizard() {
     },
   });
 
-  const next = (from: StepId, saved: boolean) => {
+  // The budget step is for a paid (cloud) model; one on this machine or its network costs nothing, so it's skipped.
+  const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const url = modelUrl ?? (view.data?.llm.values as { base_url?: string | null } | undefined)?.base_url ?? null;
+  const paid = Boolean(url) && !isLocalModel(url);
+  const steps = STEPS.filter((s) => s.id !== "budget" || paid);
+
+  const next = (from: StepId, saved: boolean, baseUrl?: string) => {
     if (saved) setDone((d) => new Set(d).add(from));
     queryClient.invalidateQueries({ queryKey: ["setup"] });
-    const i = STEPS.findIndex((s) => s.id === from);
-    if (i === STEPS.length - 1) finish.mutate(false);
-    else setStep(STEPS[i + 1].id);
+    const shown =
+      baseUrl === undefined ? steps : STEPS.filter((s) => s.id !== "budget" || (baseUrl && !isLocalModel(baseUrl)));
+    if (baseUrl !== undefined) setModelUrl(baseUrl);
+    const i = shown.findIndex((s) => s.id === from);
+    if (i === shown.length - 1) finish.mutate(false);
+    else setStep(shown[i + 1].id);
   };
 
   return (
@@ -135,7 +159,7 @@ export function SetupWizard() {
       </div>
 
       <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Setup steps">
-        {STEPS.map((s, i) => {
+        {steps.map((s, i) => {
           const on = s.id === step;
           const ok = done.has(s.id);
           return (
@@ -203,7 +227,7 @@ export function SetupWizard() {
         ) : step === "namespace" ? (
           <NamespaceStep view={view.data} onNext={(saved) => next("namespace", saved)} />
         ) : step === "llm" ? (
-          <LlmStep view={view.data} onNext={(saved) => next("llm", saved)} />
+          <LlmStep view={view.data} onNext={(saved, baseUrl) => next("llm", saved, baseUrl)} />
         ) : step === "budget" ? (
           <BudgetStep view={view.data} onNext={(saved) => next("budget", saved)} />
         ) : step === "storage" ? (
@@ -361,7 +385,7 @@ function NamespaceStep({ view, onNext }: { view: SetupView; onNext: (saved: bool
   );
 }
 
-function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) => void }) {
+function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean, baseUrl?: string) => void }) {
   const client = useApiClient();
   const v = view.llm.values as { base_url?: string | null; model?: string | null; api_key?: { set?: boolean } };
   const locked = new Set(view.llm.locked);
@@ -523,7 +547,9 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean) =
           </Button>
           <Button
             variant="primary"
-            onClick={() => (allLocked ? onNext(true) : save.mutate(undefined, { onSuccess: () => onNext(true) }))}
+            onClick={() =>
+              allLocked ? onNext(true, baseUrl) : save.mutate(undefined, { onSuccess: () => onNext(true, baseUrl) })
+            }
             disabled={save.isPending}
           >
             {save.isPending ? "Saving…" : allLocked ? "Continue" : "Save and continue"}

@@ -39,8 +39,6 @@ export const JOURNEYS = [
       await found.waitFor();
       await meter.click(found, "pick the model server found on this computer");
       await meter.click(page.locator("#next"), "Continue (AI model)");
-      await page.getByRole("heading", { name: "Extras" }).waitFor();
-      await meter.click(page.locator("#next"), "Continue (extras)");
       await page.getByRole("heading", { name: "Ready to install" }).waitFor();
       await meter.click(page.locator("#next"), "Install Lens");
       const open = page.getByRole("button", { name: "Open Lens" });

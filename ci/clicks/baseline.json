@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T20:28:52.714Z",
+  "surveyed": "2026-10-10T22:13:49.651Z",
   "commit": "",
   "viewport": "1400x900",
   "journeys": [
@@ -7,7 +7,7 @@
       "module": "Setup",
       "feature": "Install with the web installer (defaults, local model found)",
       "note": "The install line in a terminal, then the browser installer. The browser opens on its own on a desktop; on a server the link is opened by hand (counted). A computer missing Docker also asks for its password.",
-      "clicks": 8,
+      "clicks": 7,
       "keys": 2,
       "prompts": 0,
       "steps": [
@@ -62,14 +62,6 @@
         {
           "page": "installer:/",
           "kind": "click",
-          "what": "Continue (extras)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "click",
           "what": "Install Lens",
           "clicks": 1,
           "keys": 0,
@@ -85,7 +77,7 @@
         }
       ],
       "id": "install",
-      "ms": 1925,
+      "ms": 2383,
       "ok": true
     },
     {
@@ -122,7 +114,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 515,
+      "ms": 495,
       "ok": true
     },
     {
@@ -167,7 +159,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 690,
+      "ms": 582,
       "ok": true
     },
     {
@@ -204,7 +196,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2409,
+      "ms": 2362,
       "ok": true
     },
     {
@@ -249,7 +241,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 7044,
+      "ms": 9293,
       "ok": true
     },
     {
@@ -278,7 +270,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2819,
+      "ms": 2564,
       "ok": true
     },
     {
@@ -315,7 +307,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3260,
+      "ms": 3198,
       "ok": true
     },
     {
@@ -352,7 +344,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2357,
+      "ms": 2315,
       "ok": true
     },
     {
@@ -397,7 +389,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3638,
+      "ms": 3480,
       "ok": true
     },
     {
@@ -442,7 +434,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3515,
+      "ms": 3307,
       "ok": true
     },
     {
@@ -487,7 +479,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3026,
+      "ms": 3207,
       "ok": true
     },
     {
@@ -532,7 +524,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2909,
+      "ms": 2588,
       "ok": true
     },
     {
@@ -577,7 +569,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2735,
+      "ms": 2615,
       "ok": true
     },
     {
@@ -614,7 +606,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2637,
+      "ms": 2481,
       "ok": true
     },
     {
@@ -651,7 +643,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2687,
+      "ms": 2524,
       "ok": true
     },
     {
@@ -696,7 +688,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3646,
+      "ms": 3238,
       "ok": true
     },
     {
@@ -757,7 +749,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3268,
+      "ms": 2983,
       "ok": true
     },
     {
@@ -810,7 +802,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 2869,
+      "ms": 2849,
       "ok": true
     },
     {
@@ -839,7 +831,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2348,
+      "ms": 2277,
       "ok": true
     }
   ],
@@ -905,6 +897,12 @@
       "controls": 4
     },
     {
+      "page": "/costs",
+      "label": "Costs",
+      "reach": 1,
+      "controls": 4
+    },
+    {
       "page": "/pipelines",
       "label": "Pipelines",
       "reach": 1,
@@ -956,7 +954,7 @@
       "page": "/extensions",
       "label": "Extensions",
       "reach": 1,
-      "controls": 6
+      "controls": 7
     },
     {
       "page": "/sensors",
@@ -998,7 +996,7 @@
       "page": "/settings/speech-providers",
       "label": "Settings › Speech providers",
       "reach": 2,
-      "controls": 18
+      "controls": 22
     },
     {
       "page": "/settings/voice-ids",
@@ -1028,13 +1026,13 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 2,
-      "controls": 48
+      "controls": 53
     },
     {
       "page": "/settings/search",
       "label": "Settings › Search",
       "reach": 2,
-      "controls": 17
+      "controls": 18
     },
     {
       "page": "/settings/reports",
@@ -1106,7 +1104,7 @@
       "page": "/settings/telemetry",
       "label": "Settings › Telemetry",
       "reach": 2,
-      "controls": 10
+      "controls": 12
     },
     {
       "page": "/settings/fedora",
@@ -1125,6 +1123,12 @@
       "label": "Settings › Uploads",
       "reach": 2,
       "controls": 23
+    },
+    {
+      "page": "/settings/backups",
+      "label": "Settings › Backups",
+      "reach": 2,
+      "controls": 9
     },
     {
       "page": "/settings/storage",
