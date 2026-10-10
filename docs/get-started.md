@@ -20,6 +20,37 @@ Where it can (Linux with KVM, or a Mac with Apple silicon), a first install asks
 default) or in a [microsandbox](microsandbox.md) microVM, which needs no Docker; `LENS_BACKEND=microsandbox` chooses
 it without asking.
 
+## The web installer
+
+On a first install run at a terminal (on Linux or a Mac with Python 3.8 or later, which nearly all have), the line
+above opens an installer in your browser instead of asking anything in the terminal:
+
+1. **This computer**: the system, memory, free disk, whether Docker is there and running, and whether microsandbox can
+   run.
+2. **How it runs**: Docker or [microsandbox](microsandbox.md), the full or lean edition (lean is picked on a computer
+   with less than 4 GB of memory, such as a Raspberry Pi), the folder, the port, and whether other devices on the
+   network may reach it. It lists what it will install; when that needs administrator rights, it asks for your
+   password here, keeps it in memory for the install and hands it to `sudo` (it is never written down).
+3. **AI model**: model servers already running on the computer (Ollama, LM Studio, llama.cpp, vLLM, LocalAI) with their
+   models, or a provider (OpenAI, Anthropic, Google Gemini, OpenRouter, Groq, Mistral or any OpenAI-compatible server)
+   with its API key; **Test** lists the models. It can be skipped and set in Lens later.
+4. **Extras**, all optional: the first namespace, search by meaning (an embeddings server), the typesafe.ai decision
+   model's key, cloud transcription and its key, email (SMTP), remote access through a Cloudflare tunnel, anytopdf,
+   and telemetry.
+5. **Review**, then **Install**: it runs `install.sh` with those answers and shows its progress (and the full output
+   under **Details**). If something fails, it says what, and **Try again** runs it again (what's done stays done).
+6. **Open Lens** goes to the setup page with the setup code filled in, where you create the admin account with a
+   passkey.
+
+The answers that are settings go to Lens as `LENS_SETUP_SETTINGS`, which it saves once at its first start as if they
+were made in the app, so they stay editable in Settings (unlike the `LENS_LLM_*` variables, which lock them); the line
+is taken out of `.env` again once Lens is running. On a server without a desktop, the installer answers on the
+network and the terminal prints its link, which carries a one-time key. Only someone with the link can use it.
+
+`LENS_WIZARD=0` asks in the terminal as before, and `LENS_WIZARD=1` opens the installer for an existing install too
+(to change how it runs; its data, secrets and accounts stay). Runs without a terminal (scripts, CI) and runs with
+`LENS_YES=1` or `LENS_BACKEND` set never open it. Windows isn't supported by the installer yet.
+
 ## With Docker and make
 
 You need Docker with Compose, and `make`.

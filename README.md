@@ -18,8 +18,9 @@ hardware with local models or any cloud model, private by default and cost-aware
 curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
 ```
 
-That one line is all: it installs Docker if needed, starts Lens and opens the setup page, where a short wizard asks
-for a namespace, a model provider and storage ([details](docs/get-started.md#in-one-line)). Run it again to update.
+That one line is all: it opens an installer in your browser that checks the computer, asks how Lens should run, the AI
+model and its key and any extras, then installs what's missing (Docker included), starts Lens and opens its setup page
+([details](docs/get-started.md#the-web-installer)). Run it again to update.
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
 [Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
 

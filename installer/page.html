@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install Lens</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Ccircle cx='112' cy='110' r='80' fill='none' stroke='%231A73E8' stroke-width='32'/%3E%3Cpath d='M172 170l44 44' stroke='%23F9AB00' stroke-width='34' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f8f9fa; --card: #fff; --ink: #202124; --sub: #5f6368; --muted: #80868b; --line: #dadce0;
+    --blue: #1a73e8; --tint: #e8f0fe; --green: #34a853; --red: #ea4335; --gold: #f9ab00; --field: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #131417; --card: #1d1f23; --ink: #e8eaed; --sub: #bdc1c6; --muted: #9aa0a6; --line: #3c4043;
+      --blue: #8ab4f8; --tint: #1f2a3d; --field: #26282c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 16px 64px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  header svg { width: 36px; height: 36px; }
+  header h1 { font-size: 22px; margin: 0; font-weight: 600; }
+  header span { color: var(--muted); font-size: 13px; margin-left: auto; }
+  ol.steps { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0 0 18px; flex-wrap: wrap; }
+  ol.steps li { font-size: 12px; padding: 4px 10px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); color: var(--muted); }
+  ol.steps li.on { background: var(--tint); color: var(--blue); border-color: transparent; font-weight: 600; }
+  ol.steps li.done { color: var(--sub); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+  h2 { margin: 0 0 4px; font-size: 19px; font-weight: 600; }
+  p.lead { margin: 0 0 18px; color: var(--sub); }
+  h3 { font-size: 14px; margin: 22px 0 8px; font-weight: 600; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 8px; }
+  .fact { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .fact b { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+  ul.checks { list-style: none; padding: 0; margin: 0; }
+  ul.checks li { padding: 6px 0 6px 26px; position: relative; }
+  ul.checks li::before { position: absolute; left: 0; top: 6px; width: 18px; height: 18px; border-radius: 50%; font-size: 12px;
+    display: grid; place-items: center; content: "✓"; background: var(--green); color: #fff; }
+  ul.checks li.todo::before { content: "+"; background: var(--blue); }
+  ul.checks li.warn::before { content: "!"; background: var(--gold); color: #202124; }
+  ul.checks li.bad::before { content: "×"; background: var(--red); }
+  ul.checks small { color: var(--muted); }
+  label { display: block; font-weight: 500; margin: 14px 0 4px; }
+  label small, .hint { color: var(--muted); font-weight: 400; font-size: 13px; }
+  input[type=text], input[type=password], input[type=number], input[type=email], select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); color: var(--ink); font: inherit; }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+  .choice { display: grid; gap: 10px; }
+  .opt { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; cursor: pointer; margin: 0; font-weight: 400; }
+  .opt:has(input:checked) { border-color: var(--blue); background: var(--tint); }
+  .opt.off { opacity: .55; cursor: not-allowed; }
+  .opt input { margin-top: 4px; }
+  .opt b { display: block; font-weight: 600; }
+  .opt span { color: var(--sub); font-size: 13px; }
+  .switch { display: flex; gap: 10px; align-items: center; font-weight: 400; margin-top: 14px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 4px; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 99px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
+  .chip.on { background: var(--tint); color: var(--blue); border-color: var(--blue); }
+  details { border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; margin-top: 10px; }
+  details[open] { padding-bottom: 14px; }
+  summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+  summary small { font-weight: 400; color: var(--muted); }
+  .nav { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+  button { font: inherit; border-radius: 8px; padding: 10px 18px; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  button.primary { background: var(--blue); border-color: var(--blue); color: #fff; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { button.primary { color: #131417; } }
+  button:disabled { opacity: .5; cursor: default; }
+  button.small { padding: 6px 12px; font-size: 13px; }
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+  .msg.err { background: color-mix(in srgb, var(--red) 14%, transparent); }
+  .msg.ok { background: color-mix(in srgb, var(--green) 16%, transparent); }
+  .msg.info { background: var(--tint); }
+  .msg:empty { display: none; }
+  dl.review { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+  dl.review dt { color: var(--muted); }
+  dl.review dd { margin: 0; overflow-wrap: anywhere; }
+  .progress { list-style: none; padding: 0; margin: 0 0 12px; }
+  .progress li { padding: 6px 0 6px 28px; position: relative; }
+  .progress li::before { content: ""; position: absolute; left: 4px; top: 11px; width: 12px; height: 12px; border-radius: 50%; background: var(--green); }
+  .progress li.now::before { background: var(--blue); animation: pulse 1.2s infinite; }
+  .progress li.fail::before { background: var(--red); }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .progress li.now::before { animation: none; } }
+  pre.log { background: #0f1115; color: #d7dae0; border-radius: 10px; padding: 12px; max-height: 340px; overflow: auto; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+  .big { font-size: 16px; padding: 12px 22px; }
+  .muted { color: var(--muted); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg viewBox="0 0 256 256" aria-hidden="true"><path fill="#EA4335" d="M79.4 21.8A94 94 0 0 1 199.4 75.4L169.6 87.2A62 62 0 0 0 90.5 51.9Z"/><path fill="#34A853" d="M199.2 74.8a94 94 0 0 1 0 70.4 16 16 0 0 1-29.7-12 62 62 0 0 0 0-46.4Z"/><path fill="#1A73E8" d="M112 204A94 94 0 0 1 79.9 21.7a16 16 0 0 1 10.9 30A62 62 0 0 0 112 172a16 16 0 0 1 0 32Z"/><circle fill="#1A73E8" cx="112" cy="110" r="25"/><path fill="#F9AB00" d="M160 183l44 44a17 17 0 0 0 24-24l-44-44a17 17 0 0 0-24 24Z"/></svg>
+    <h1>Install Lens</h1>
+    <span id="where"></span>
+  </header>
+  <ol class="steps" id="steps"></ol>
+  <main class="card" id="card"><p class="muted">Looking at this computer…</p></main>
+</div>
+<script>
+"use strict";
+const STEPS = ["This computer", "How it runs", "AI model", "Extras", "Review", "Install"];
+const PRESETS = [
+  { id: "openai", name: "OpenAI", base_url: "https://api.openai.com/v1", key: true },
+  { id: "anthropic", name: "Anthropic", base_url: "https://api.anthropic.com/v1", key: true, model: "claude-sonnet-5-5" },
+  { id: "gemini", name: "Google Gemini", base_url: "https://generativelanguage.googleapis.com/v1beta/openai", key: true },
+  { id: "openrouter", name: "OpenRouter", base_url: "https://openrouter.ai/api/v1", key: true },
+  { id: "groq", name: "Groq", base_url: "https://api.groq.com/openai/v1", key: true },
+  { id: "mistral", name: "Mistral", base_url: "https://api.mistral.ai/v1", key: true },
+  { id: "custom", name: "Another server", base_url: "", key: true },
+];
+const S = {
+  step: 0, facts: null, servers: null, password: "", passwordOk: false,
+  a: { backend: "docker", target: "full", dir: "", port: 3000, public: false, ref: "main", namespace: "" },
+  llm: { preset: null, base_url: "", model: "", api_key: "", models: [], tested: false },
+  x: { embeddings: "same", embed_base_url: "", embed_model: "", embed_key: "", decisions_key: "",
+       stt: "local", stt_key: "", mail_server: "", mail_port: "587", mail_user: "", mail_password: "", mail_from: "",
+       mail_security: "starttls", tunnel: "off", tunnel_token: "", anytopdf_url: "", anytopdf_token: "",
+       telemetry: "", },
+  since: 0, log: [],
+};
+const $ = (s) => document.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") n.className = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else if (v === true) n.setAttribute(k, "");
+    else if (v !== false && v != null) n.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k != null && k !== false) n.append(k.nodeType ? k : String(k));
+  return n;
+};
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json", "X-Lens-Installer": "1" }, body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `The installer answered ${r.status}`);
+  return data;
+}
+function bind(obj, key, attrs = {}) {
+  const input = el("input", { type: "text", ...attrs, value: obj[key] ?? "" });
+  input.addEventListener("input", () => { obj[key] = input.type === "number" ? Number(input.value) : input.value; });
+  return input;
+}
+function field(label, input, hint) {
+  const id = "f" + Math.random().toString(36).slice(2);
+  input.id = id;
+  return el("div", {}, el("label", { for: id }, label, hint ? el("small", {}, " · " + hint) : null), input);
+}
+function radio(name, value, current, title, detail, onpick, disabled) {
+  const input = el("input", { type: "radio", name, value, checked: value === current, disabled: !!disabled });
+  input.addEventListener("change", () => onpick(value));
+  return el("label", { class: "opt" + (disabled ? " off" : "") }, input, el("div", {}, el("b", {}, title), el("span", {}, detail)));
+}
+function select(obj, key, options) {
+  const s = el("select", {}, options.map(([v, t]) => el("option", { value: v, selected: obj[key] === v }, t)));
+  s.addEventListener("change", () => { obj[key] = s.value; render(); });
+  return s;
+}
+function nav(next, opts = {}) {
+  return el("div", { class: "nav" },
+    S.step > 0 ? el("button", { onclick: () => go(S.step - 1) }, "Back") : null,
+    el("button", { class: "primary", onclick: next, disabled: !!opts.disabled, id: "next" }, opts.label || "Continue"));
+}
+function msg(kind, text) { const m = $("#msg"); if (m) { m.className = "msg " + kind; m.textContent = text || ""; } }
+function go(n) { S.step = n; render(); window.scrollTo(0, 0); }
+function gb(mb) { return mb ? (mb / 1024).toFixed(mb < 10240 ? 1 : 0) + " GB" : "?"; }
+
+function drawSteps() {
+  const ol = $("#steps");
+  ol.replaceChildren(...STEPS.map((t, i) => el("li", { class: i === S.step ? "on" : i < S.step ? "done" : "" }, `${i + 1}. ${t}`)));
+}
+
+// 1. This computer ----------------------------------------------------------------------------------------------
+function needsPassword() {
+  const f = S.facts;
+  return f.sudo === "password" && f.plan[S.a.backend].some((i) => i.admin && !i.optional);
+}
+function viewComputer() {
+  const f = S.facts;
+  const d = f.docker;
+  const items = [];
+  items.push(el("li", {}, `${f.os_name} on ${f.board || f.arch}`));
+  const mem = f.memory_mb;
+  items.push(el("li", { class: mem && mem < 2048 ? "warn" : "" }, `${gb(mem)} of memory`,
+    mem && mem < 4096 ? el("small", {}, " · the lean edition and cloud AI models suit it best") : null));
+  items.push(el("li", { class: f.disk_free_gb != null && f.disk_free_gb < 10 ? "warn" : "" },
+    `${f.disk_free_gb ?? "?"} GB free`, el("small", {}, " · Lens and its images take about 6 GB (lean: 3 GB), then your data")));
+  items.push(el("li", { class: d.installed && d.running ? "" : "todo" },
+    d.installed ? (d.running ? "Docker is running" : "Docker is installed but not running yet") : "Docker isn't installed",
+    !d.installed ? el("small", {}, " · Lens installs it (or uses microsandbox)") : null));
+  if (f.msb_ok) items.push(el("li", {}, "This computer can also run microsandbox virtual machines"));
+  if (!f.git) items.push(el("li", { class: "todo" }, "git isn't here, so Lens downloads its code as an archive"));
+  if (!f.curl) items.push(el("li", { class: "bad" }, "curl is missing: install it first (it downloads Lens)"));
+  if (!f.supported) items.push(el("li", { class: "bad" }, "This installer runs Lens on Linux and macOS. Windows support is planned."));
+  const ex = f.existing;
+  return el("div", {},
+    el("h2", {}, ex ? "Lens is already installed here" : "Let's set Lens up on this computer"),
+    el("p", { class: "lead" }, ex
+      ? `It's in ${f.dir}. Going on installs it again with the answers you give here; its data, secrets and accounts stay.`
+      : "Everything happens here in the browser: what to install, which AI model, any keys. Nothing needs the terminal."),
+    el("ul", { class: "checks" }, items),
+    ex ? el("p", { class: "hint" }, `Now: ${ex.LENS_BACKEND || "docker"}, ${ex.LENS_TARGET || "full"}, ${ex.FRONTEND_URL || ""}`) : null,
+    f.actions.length ? el("div", {}, el("h3", {}, "Other things to do"),
+      f.actions.map((a) => el("button", { class: "small", title: a.detail, onclick: () => runAction(a) }, a.label))) : null,
+    el("div", { id: "msg", class: "msg" }),
+    nav(() => go(1), { disabled: !f.supported || !f.curl }));
+}
+async function runAction(a) {
+  try { await api("/api/action", { id: a.id }); S.step = 5; render(); poll(); } catch (e) { msg("err", e.message); }
+}
+
+// 2. How it runs ------------------------------------------------------------------------------------------------
+function viewRun() {
+  const f = S.facts;
+  const plan = f.plan[S.a.backend];
+  const box = el("div", {},
+    el("h2", {}, "How Lens runs"),
+    el("p", { class: "lead" }, "The defaults suit most people."),
+    el("div", { class: "choice" },
+      radio("backend", "docker", S.a.backend, "Docker (recommended)", "A container for each part of Lens, the usual way.", (v) => { S.a.backend = v; render(); }),
+      radio("backend", "microsandbox", S.a.backend, "microsandbox", f.msb_ok
+        ? "One lightweight virtual machine, no Docker needed. Newer; the first start takes longer."
+        : "Needs KVM on 64-bit Linux, or a Mac with Apple silicon: not available on this computer.",
+        (v) => { S.a.backend = v; render(); }, !f.msb_ok)),
+    el("h3", {}, "Edition"),
+    el("div", { class: "choice" },
+      radio("target", "full", S.a.target, "Full", "Reads Office files, web pages and emails too (LibreOffice and Chromium).", (v) => { S.a.target = v; }),
+      radio("target", "lean", S.a.target, "Lean", "Smaller and lighter: audio, PDFs, images and text. Good on a Raspberry Pi.", (v) => { S.a.target = v; })),
+    el("h3", {}, "What gets installed"),
+    plan.length ? el("ul", { class: "checks" }, plan.map((i) => el("li", { class: "todo" }, i.what,
+      i.admin ? el("small", {}, " · needs your password") : null, i.optional ? el("small", {}, " · optional") : null)))
+      : el("p", { class: "hint" }, "Nothing: this computer has what Lens needs."),
+  );
+  if (needsPassword() || (S.facts.sudo === "password" && plan.some((i) => i.admin))) {
+    const pw = el("input", { type: "password", autocomplete: "current-password", value: S.password });
+    pw.addEventListener("input", () => { S.password = pw.value; S.passwordOk = false; });
+    box.append(field(`Password for ${f.user || "your account"}`, pw,
+      "to install the above as administrator; kept in memory for this install, never saved"));
+  }
+  box.append(
+    el("div", { class: "row" },
+      field("Folder", bind(S.a, "dir"), "where Lens and its settings live"),
+      field("Port", bind(S.a, "port", { type: "number", min: 1024, max: 65535 }), "the web app's address ends with it")),
+    (() => {
+      const c = el("input", { type: "checkbox", checked: S.a.public });
+      c.addEventListener("change", () => { S.a.public = c.checked; });
+      return el("label", { class: "switch" }, c, el("span", {}, "Reachable from other devices on this network",
+        el("small", { class: "hint" }, f.desktop ? " (off: this computer only)" : " (on: this looks like a server)")));
+    })(),
+    el("details", {}, el("summary", {}, "Advanced"), field("Version", bind(S.a, "ref"), "a branch or release tag")),
+    el("div", { id: "msg", class: "msg" }),
+    nav(async () => {
+      const needs = needsPassword();
+      if (needs && !S.passwordOk) {
+        if (!S.password) return msg("err", "Enter your password: installing the above needs it.");
+        try { $("#next").disabled = true; await api("/api/password", { password: S.password }); S.passwordOk = true; }
+        catch (e) { $("#next").disabled = false; return msg("err", e.message); }
+      }
+      go(2);
+      if (S.servers === null) detect();
+    }));
+  return box;
+}
+
+// 3. AI model ---------------------------------------------------------------------------------------------------
+async function detect() {
+  try { S.servers = (await api("/api/models/detect")).servers; } catch { S.servers = []; }
+  if (S.step === 2) render();
+}
+function pickLocal(s) {
+  Object.assign(S.llm, { preset: "local:" + s.kind, base_url: s.base_url, api_key: "", models: s.models, model: s.models[0] || "", tested: true });
+  render();
+}
+function pickPreset(p) {
+  Object.assign(S.llm, { preset: p.id, base_url: p.base_url, model: p.model || "", models: [], tested: false });
+  render();
+}
+async function testModel() {
+  msg("info", "Asking it for its models…");
+  try {
+    const r = await api("/api/models/test", { base_url: S.llm.base_url, api_key: S.llm.api_key });
+    S.llm.models = r.models; S.llm.tested = true;
+    if (!S.llm.model || !r.models.includes(S.llm.model)) S.llm.model = r.models[0] || S.llm.model;
+    render();
+    msg("ok", `It works: ${r.models.length} model${r.models.length === 1 ? "" : "s"}.`);
+  } catch (e) { msg("err", e.message); }
+}
+function viewModel() {
+  const L = S.llm;
+  const box = el("div", {},
+    el("h2", {}, "The AI model"),
+    el("p", { class: "lead" }, "Lens works with any OpenAI-compatible model server: one running on this computer (private, free) or a cloud provider with an API key."));
+  box.append(el("h3", {}, "On this computer"));
+  if (S.servers === null) box.append(el("p", { class: "hint" }, "Looking for Ollama, LM Studio, llama.cpp, vLLM and LocalAI…"));
+  else if (!S.servers.length) box.append(el("p", { class: "hint" }, "None running. Start one (Ollama is the easiest) and ",
+    el("button", { class: "small", onclick: () => { S.servers = null; render(); detect(); } }, "look again"), ", or pick a provider below."));
+  else box.append(el("div", { class: "presets" }, S.servers.map((s) =>
+    el("button", { class: "chip" + (L.preset === "local:" + s.kind ? " on" : ""), onclick: () => pickLocal(s) }, `${s.kind} · ${s.models.length} models`))));
+  box.append(el("h3", {}, "A provider"),
+    el("div", { class: "presets" }, PRESETS.map((p) =>
+      el("button", { class: "chip" + (L.preset === p.id ? " on" : ""), onclick: () => pickPreset(p) }, p.name))));
+  if (L.preset) {
+    const local = L.preset.startsWith("local:");
+    box.append(field("Address", bind(L, "base_url", { placeholder: "https://…/v1" }), "the server's OpenAI-compatible API"));
+    if (!local) {
+      const key = bind(L, "api_key", { type: "password", autocomplete: "off", placeholder: "sk-…" });
+      box.append(field("API key", key, "kept encrypted by Lens; only an admin can replace it"));
+    }
+    const model = L.models.length
+      ? select(L, "model", L.models.map((m) => [m, m]))
+      : bind(L, "model", { placeholder: "test to list the models, or type one" });
+    box.append(el("div", { class: "row" }, field("Model", model),
+      el("div", { style: "align-self:end" }, el("button", { onclick: testModel }, "Test"))));
+    if (local) box.append(el("p", { class: "hint" }, "Lens reaches it from its container as host.docker.internal; the installer takes care of that."));
+  }
+  box.append(el("div", { id: "msg", class: "msg" }),
+    nav(() => go(3), { label: L.preset ? "Continue" : "Skip for now" }));
+  return box;
+}
+
+// 4. Extras -----------------------------------------------------------------------------------------------------
+function viewExtras() {
+  const X = S.x;
+  const pw = (key, ph) => bind(X, key, { type: "password", autocomplete: "off", placeholder: ph || "" });
+  return el("div", {},
+    el("h2", {}, "Extras"),
+    el("p", { class: "lead" }, "All optional, and all of it can be set later in Lens's Settings."),
+    el("details", {}, el("summary", {}, "First namespace ", el("small", {}, "· where your first files go")),
+      field("Name", bind(S.a, "namespace", { placeholder: "archive" }), "lowercase letters, digits, - and _")),
+    el("details", {}, el("summary", {}, "Search by meaning ", el("small", {}, "· an embeddings model")),
+      field("Embeddings", select(X, "embeddings", [["same", "From the AI model's server (default)"], ["other", "Another server"], ["off", "Off"]])),
+      X.embeddings === "other" ? el("div", {},
+        field("Address", bind(X, "embed_base_url", { placeholder: "http://localhost:11434/v1" })),
+        el("div", { class: "row" }, field("Model", bind(X, "embed_model", { placeholder: "nomic-embed-text" })), field("API key", pw("embed_key")))) : null),
+    el("details", {}, el("summary", {}, "Decision model ", el("small", {}, "· typesafe.ai Jev, for cheap routine decisions")),
+      field("typesafe.ai API key", pw("decisions_key"))),
+    el("details", {}, el("summary", {}, "Transcription ", el("small", {}, "· on this computer, or a cloud service")),
+      field("Engine", select(X, "stt", [["local", "On this computer (SenseVoice, default)"], ["openai", "OpenAI"], ["elevenlabs", "ElevenLabs"], ["assemblyai", "AssemblyAI"], ["deepgram", "Deepgram"]])),
+      X.stt !== "local" ? field("API key", pw("stt_key")) : null),
+    el("details", {}, el("summary", {}, "Email ", el("small", {}, "· for sign-in links and notices")),
+      el("div", { class: "row" }, field("Server", bind(X, "mail_server", { placeholder: "smtp.example.com" })), field("Port", bind(X, "mail_port"))),
+      el("div", { class: "row" }, field("Username", bind(X, "mail_user")), field("Password", pw("mail_password"))),
+      el("div", { class: "row" }, field("From address", bind(X, "mail_from", { type: "email" })),
+        field("Security", select(X, "mail_security", [["starttls", "STARTTLS"], ["ssl", "SSL"], ["none", "None"]])))),
+    el("details", {}, el("summary", {}, "Remote access ", el("small", {}, "· reach Lens from anywhere with a Cloudflare tunnel")),
+      field("Tunnel", select(X, "tunnel", [["off", "Off"], ["quick", "A quick random address (trycloudflare.com)"], ["token", "My tunnel (a token from Cloudflare)"]])),
+      X.tunnel === "token" ? field("Tunnel token", pw("tunnel_token")) : null),
+    el("details", {}, el("summary", {}, "anytopdf ", el("small", {}, "· convert documents and media on another machine")),
+      el("div", { class: "row" }, field("Address", bind(X, "anytopdf_url", { placeholder: "http://anytopdf:8080" })), field("Token", pw("anytopdf_token")))),
+    el("details", {}, el("summary", {}, "Telemetry ", el("small", {}, "· off unless you name a collector")),
+      field("OpenTelemetry endpoint", bind(X, "telemetry", { placeholder: "http://localhost:4318" }))),
+    nav(() => go(4)));
+}
+function settings() {
+  const L = S.llm, X = S.x, out = {};
+  const put = (sec, k, v) => { if (v !== "" && v != null) (out[sec] ||= {})[k] = v; };
+  if (L.preset) { put("llm", "base_url", L.base_url); put("llm", "model", L.model); put("llm", "api_key", L.api_key); }
+  if (X.embeddings === "off") put("embeddings", "enabled", false);
+  if (X.embeddings === "other") { put("embeddings", "base_url", X.embed_base_url); put("embeddings", "model", X.embed_model); put("embeddings", "api_key", X.embed_key); }
+  put("decisions", "api_key", X.decisions_key);
+  if (X.stt !== "local") { put("transcribe", "engine", X.stt); put("speech", X.stt + "_api_key", X.stt_key); }
+  if (X.mail_server) {
+    put("mail", "server", X.mail_server); put("mail", "port", Number(X.mail_port) || 587); put("mail", "username", X.mail_user);
+    put("mail", "password", X.mail_password); put("mail", "from_address", X.mail_from); put("mail", "security", X.mail_security);
+  }
+  if (X.tunnel !== "off") { put("tunnel", "mode", X.tunnel); if (X.tunnel === "token") put("tunnel", "token", X.tunnel_token); }
+  put("documents", "anytopdf_url", X.anytopdf_url); put("documents", "anytopdf_token", X.anytopdf_token);
+  if (X.telemetry) { put("telemetry", "enabled", true); put("telemetry", "endpoint", X.telemetry); }
+  return out;
+}
+
+// 5. Review -----------------------------------------------------------------------------------------------------
+function viewReview() {
+  const a = S.a, L = S.llm, set = settings();
+  const extras = Object.keys(set).filter((k) => k !== "llm");
+  const rows = [
+    ["Runs with", a.backend === "docker" ? "Docker" : "microsandbox"],
+    ["Edition", a.target === "full" ? "Full" : "Lean"],
+    ["Folder", a.dir],
+    ["Address", `http://${a.public ? "this computer's address" : "localhost"}:${a.port}`],
+    ["AI model", L.preset ? `${L.model || "(choose in Lens)"} at ${L.base_url}` : "set it in Lens later"],
+    ["Extras", extras.length ? extras.join(", ") : "none"],
+  ];
+  if (a.namespace) rows.push(["First namespace", a.namespace]);
+  if (a.ref !== S.facts.ref) rows.push(["Version", a.ref]);
+  return el("div", {},
+    el("h2", {}, "Ready to install"),
+    el("p", { class: "lead" }, S.facts.plan[a.backend].length
+      ? "Lens installs what's missing, gets its code, builds and starts. The first build takes a few minutes (longer on a Raspberry Pi)."
+      : "Lens gets its code, builds and starts. The first build takes a few minutes (longer on a Raspberry Pi)."),
+    el("dl", { class: "review" }, rows.map(([k, v]) => [el("dt", {}, k), el("dd", {}, v)])),
+    el("div", { id: "msg", class: "msg" }),
+    nav(install, { label: "Install Lens" }));
+}
+async function install() {
+  $("#next").disabled = true;
+  try {
+    await api("/api/install", { ...S.a, port: Number(S.a.port), settings: settings() });
+  } catch (e) { $("#next").disabled = false; return msg("err", e.message); }
+  S.since = 0; S.log = []; go(5); poll();
+}
+
+// 6. Install ----------------------------------------------------------------------------------------------------
+let P = { state: "running", steps: [], url: null, error: null };
+async function poll() {
+  try {
+    const r = await api("/api/progress?since=" + S.since);
+    S.since = r.next; S.log.push(...r.lines); P = r;
+  } catch (e) { P.error = e.message; }
+  if (S.step === 5) render();
+  if (P.state === "running") setTimeout(poll, 1000);
+}
+function viewInstall() {
+  const done = P.state === "done", failed = P.state === "failed";
+  const steps = P.steps.length ? P.steps : ["Starting…"];
+  const box = el("div", {},
+    el("h2", {}, done ? "Lens is running" : failed ? "The install stopped" : "Installing Lens"),
+    el("p", { class: "lead" }, done ? "One last step in Lens itself: create your admin account, signed in with a passkey."
+      : failed ? "Here's what happened. Fix it and try again; nothing you've set up is lost."
+      : "You can leave this page open and come back. Closing it doesn't stop the install."),
+    el("ul", { class: "progress" }, steps.map((t, i) => el("li", { class: i === steps.length - 1 && !done ? (failed ? "fail" : "now") : "" }, t))));
+  if (failed) box.append(el("div", { class: "msg err" }, P.error || "install.sh stopped"));
+  const pre = el("pre", { class: "log" }, S.log.join("\n") || "…");
+  box.append(el("details", { open: failed }, el("summary", {}, "Details"), pre));
+  if (done) box.append(el("div", { class: "nav" }, el("button", { class: "primary big", onclick: async () => {
+    api("/api/quit", {}).catch(() => {});
+    location.href = P.url;
+  } }, "Open Lens")));
+  if (failed) box.append(el("div", { class: "nav" }, el("button", { onclick: () => go(4) }, "Back to review"),
+    el("button", { class: "primary", onclick: install }, "Try again")));
+  requestAnimationFrame(() => { pre.scrollTop = pre.scrollHeight; });
+  return box;
+}
+
+function render() {
+  drawSteps();
+  const views = [viewComputer, viewRun, viewModel, viewExtras, viewReview, viewInstall];
+  $("#card").replaceChildren(views[S.step]());
+}
+
+(async function start() {
+  try {
+    S.facts = await api("/api/system");
+  } catch (e) {
+    $("#card").replaceChildren(el("p", {}, "The installer isn't answering: " + e.message));
+    return;
+  }
+  const f = S.facts, ex = f.existing || {};
+  Object.assign(S.a, { dir: f.dir, port: f.port, public: f.public, ref: f.ref,
+    backend: ex.LENS_BACKEND || "docker",
+    // a small computer (a Raspberry Pi) gets the lean edition unless it already runs the full one
+    target: ex.LENS_TARGET || (f.memory_mb && f.memory_mb < 4096 ? "lean" : "full") });
+  $("#where").textContent = f.os_name;
+  const p = await api("/api/progress").catch(() => null);
+  if (p && p.state !== "idle") { S.step = 5; P = p; S.since = 0; poll(); }
+  render();
+})();
+</script>
+</body>
+</html>
