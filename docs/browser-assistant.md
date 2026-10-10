@@ -1,9 +1,9 @@
 # The assistant in your browser
 
 **Status: built** in the Lens extension for Chrome and Edge: the side panel, where you sign in and chat with the
-assistant, and the assistant using that browser on the sites you allow. Safari runs it in a tab; Firefox's sidebar
-comes with its build. Webmail attachments behind a download button rather than a link are not handled yet (Refine
-later).
+assistant, and the assistant using that browser on the sites you allow. Firefox (in its sidebar) and Safari (in a tab)
+run the same code, but only Chromium is covered by the end-to-end test so far. Webmail attachments behind a download
+button rather than a link are not handled yet (Refine later).
 
 Ask the assistant from your browser, and let it do things there for you: "check my email and import the important
 attachments", "find last month's invoice on the supplier's site and put it in Accounts", "save this page". It opens
