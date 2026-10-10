@@ -4,7 +4,8 @@ dropped into the conversation.
 Admins get the server tools; anyone gets `import_files` for their own attachments and `import_urls` for web pages,
 into namespaces they edit. A change
 waits for the person's approval, unless the conversation lets the assistant act (a setup conversation does: the admin
-asked it to set things up): then it's made at once, audited, and said in the answer. Telemetry, which sends data
+asked it to set things up): then it's made at once, audited, and said in the answer, as long as the answer hasn't read
+text from outside Lens (Toolbox.wary), which could be what asked for it. Telemetry, which sends data
 elsewhere, always waits for approval.
 """
 
@@ -228,10 +229,12 @@ def describe_namespace(db, sid, name):
 
 
 class OpsTools:
-    """Mixed into the chat Toolbox: needs db, cfg, base, user, editable, admin, act and _approval."""
+    """Mixed into the chat Toolbox: needs db, cfg, base, user, editable, admin, act, wary, why and _approval."""
 
     def _change(self, tool, args, summary):
         if self.act and not (tool == "change_settings" and args.get("section") in ALWAYS_ASK):
+            if self.wary():  # it read text from outside Lens, which may be what asked for this
+                return self._approval(tool, args, summary + self.why())
             out = apply(self.db, self.cfg, self.base, tool, args, self.user, self.editable, self.admin)
             return {"status": "done", **out}, f"{summary}: done"
         return self._approval(tool, args, summary)

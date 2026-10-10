@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, FileText, History, Link2, Shapes, Sparkles, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Notes } from "@/app/openapi-client";
@@ -66,6 +66,9 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
   const [linking, setLinking] = useState(false);
   const [view, setView] = useState<View>("page");
   const loadedFor = useRef<string | null>(null);
+  // Just made with New note (?new=1): the title takes the focus with "Untitled" selected, so typing names it
+  const fresh = useRef(useSearchParams().get("new") === "1");
+  const titleRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!page) return;
     const k = page.about ?? `page:${page.id}`;
@@ -77,6 +80,14 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
     setPlace(saved?.place ?? "");
     setView((saved?.view as View | null) ?? "page");
   }, [page, saved]);
+  useEffect(() => {
+    const el = titleRef.current;
+    if (!fresh.current || !el || !title || !page?.can_edit) return;
+    fresh.current = false;
+    el.focus();
+    el.select();
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+  }, [title, page?.can_edit]);
 
   // Saving: changes gather for a moment, then go in one request. A thing's draft becomes its page on the first one.
   const pending = useRef<Changes>({});
@@ -272,6 +283,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
       </div>
       <input
         aria-label="Title"
+        ref={titleRef}
         value={title}
         readOnly={!canEdit}
         onChange={(e) => {

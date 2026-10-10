@@ -664,6 +664,10 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  HttpsProvidersData,
+  HttpsProvidersResponses,
+  HttpsStatusData,
+  HttpsStatusResponses,
   ImportArchiveData,
   ImportArchiveErrors,
   ImportArchiveResponses,
@@ -2565,6 +2569,36 @@ export class Admin {
   ): RequestResult<TunnelStatusResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<TunnelStatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/tunnel/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Https Status
+   *
+   * How HTTPS (Settings › HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it
+   * holds and when they run out, and Caddy's last lines.
+   */
+  public static httpsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsStatusData, ThrowOnError>,
+  ): RequestResult<HttpsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Https Providers
+   *
+   * The DNS providers Settings › HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns
+   * plugin works too, by name.
+   */
+  public static httpsProviders<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsProvidersData, ThrowOnError>,
+  ): RequestResult<HttpsProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/providers",
       ...options,
     });
   }

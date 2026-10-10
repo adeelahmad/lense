@@ -263,6 +263,7 @@ def platform_main(argv, config):
     from .domain import (
         auth,
         bridge,
+        https,
         jobs,
         local_llm,
         notify,
@@ -382,6 +383,7 @@ def platform_main(argv, config):
                     shares.start(db, C, stop, log=print, name=wk.name)  # and the file shares (S3, WebDAV), while they're on
                     bridge.start(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat-room bridge, while it's on
                     tunnel.start(db, C, stop, name=wk.name, log=print)  # and the Cloudflare tunnel, while it's on
+                    https.start(db, C, stop, name=wk.name, log=print)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
                     local_llm.start(db, C, stop, name=wk.name, log=print)  # and the local chat model, while it's on
                     updates.start(db, C, stop, log=print)  # and the daily check for a new release (docs/updates.md)
                 _stop_on_term()

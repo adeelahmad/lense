@@ -19,6 +19,9 @@
 #   GITHUB_TOKEN   a GitHub token to use when downloading (not needed; avoids GitHub's rate limits)
 #   LENS_NO_OPEN   1: don't open a browser
 #   LENS_YES       1: install what Lens needs without asking (it only asks at a terminal)
+#   LENS_HTTPS     1: publish the HTTPS and HTTP ports (443, 80; LENS_HTTPS_PORT / LENS_HTTP_PORT for others) so Lens
+#                  can serve https:// with certificates it gets itself, set up in Settings › HTTPS (docs/https.md);
+#                  0: don't (default: as the last run left it, else 0)
 #   LENS_UPGRADE_AGENT  0: don't set up the agent that lets the web app install new releases (docs/updates.md)
 #   LENS_WIZARD    1: answer everything in the web installer, in the browser (the default for a first install at a
 #                  terminal, where Python 3 is there); 0: here in the terminal
@@ -307,6 +310,16 @@ if [ "$LENS_PUBLIC" = 1 ]; then
   [ -n "$ip" ] && host="$ip"
 fi
 
+# --- HTTPS (docs/https.md): the ports Caddy answers on, run by Lens while Settings › HTTPS has it on ---------------
+if [ -z "${LENS_HTTPS:-}" ] && [ -f .env ]; then # as the last run left it
+  LENS_HTTPS="$(grep '^LENS_HTTPS=' .env | cut -d= -f2- || true)"
+fi
+[ "${LENS_HTTPS:-0}" = 1 ] || LENS_HTTPS=0
+HTTPS_PORT="${LENS_HTTPS_PORT:-$( [ -f .env ] && grep '^LENS_HTTPS_PORT=' .env | cut -d= -f2- || true)}"
+HTTP_PORT="${LENS_HTTP_PORT:-$( [ -f .env ] && grep '^LENS_HTTP_PORT=' .env | cut -d= -f2- || true)}"
+HTTPS_PORT="${HTTPS_PORT:-443}"
+HTTP_PORT="${HTTP_PORT:-80}"
+
 # --- Secrets, once: changing them later would sign everyone out and make stored credentials unreadable ------------
 setenv() { # key value: replace the line, or add it
   if grep -q "^$1=" .env; then
@@ -330,6 +343,11 @@ setenv LENS_BIND "$bind"
 setenv LENS_PORT "$PORT"
 setenv FRONTEND_URL "http://$host:$PORT"
 setenv LENS_REPO "$REPO"
+setenv LENS_HTTPS "$LENS_HTTPS"
+if [ "$LENS_HTTPS" = 1 ]; then
+  setenv LENS_HTTPS_PORT "$HTTPS_PORT"
+  setenv LENS_HTTP_PORT "$HTTP_PORT"
+fi
 setenv LENS_DIR "$DIR"
 # from the web installer (docs/configuration.md): the first namespace, and settings Lens saves once at its first start
 for k in LENS_NAMESPACE LENS_SETUP_SETTINGS; do
@@ -374,8 +392,11 @@ if [ "$BACKEND" = microsandbox ]; then
     -p "$bind:$PORT:3000" \
     -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
     -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
-    -p "${LENS_SHARE_BIND:-$bind}:${LENS_S3_PORT:-9555}:9555" -p "${LENS_SHARE_BIND:-$bind}:${LENS_WEBDAV_PORT:-9556}:9556" \
-    -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named lens-data:/data \
+    -p "${LENS_SHARE_BIND:-$bind}:${LENS_S3_PORT:-9555}:9555" -p "${LENS_SHARE_BIND:-$bind}:${LENS_WEBDAV_PORT:-9556}:9556"
+  if [ "$LENS_HTTPS" = 1 ]; then # Caddy listens on 8443 and 8080 inside (docs/https.md)
+    set -- "$@" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTPS_PORT:8443" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTP_PORT:8080"
+  fi
+  set -- "$@" -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named lens-data:/data \
     --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
   say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
   # The command that starts it, kept for a restart of the machine: a sandbox started again (msb start) boots without
@@ -413,10 +434,13 @@ if [ "$BACKEND" = microsandbox ]; then
 PLIST
   fi
 else
+  files="-f docker-compose.prod.yml"
+  [ "$LENS_HTTPS" = 1 ] && files="$files -f docker-compose.https.yml" # the HTTPS ports (docs/https.md)
   say "Building and starting Lens (the first build takes a few minutes)..."
-  $COMPOSE -f docker-compose.prod.yml up -d --build
-  LOGS="$COMPOSE -f docker-compose.prod.yml logs"
-  STOP="$COMPOSE -f docker-compose.prod.yml down"
+  # shellcheck disable=SC2086
+  $COMPOSE $files up -d --build
+  LOGS="$COMPOSE $files logs"
+  STOP="$COMPOSE $files down"
   WAIT=300
 fi
 

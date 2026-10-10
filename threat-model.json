@@ -110,7 +110,8 @@
       "entry_points": [
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
-        "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
+        "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
+        "Lens extension side panel"
       ],
       "touches": [
         "network",
@@ -423,6 +424,15 @@
       "caller_must_enforce": "none — P-RETRIEVAL",
       "provenance": "documented",
       "source": "docs/assistant.md \"limited to what the person can read\""
+    },
+    {
+      "entry_point": "Lens extension side panel",
+      "parameter": "answers shown there (model text that can repeat third-party text), the sign-in coming back",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none; answers render as Markdown cleaned by DOMPurify (no scripts, images or forms; only http and https links), and the sign-in checks its state and PKCE",
+      "provenance": "documented",
+      "source": "extensions/browser/src/core/assistant.js answerHtml docstring \"cleaned of anything that could run or fetch on its own\""
     },
     {
       "entry_point": "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
