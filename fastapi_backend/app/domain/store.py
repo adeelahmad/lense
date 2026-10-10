@@ -281,6 +281,7 @@ DEFAULTS = {
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
         "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
+        "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
         "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
         "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
         "disabled_tools": [],
