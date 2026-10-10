@@ -1,0 +1,18 @@
+# Prometheus for the `monitoring` profile (docs/prometheus.md): scrapes Lens's /metrics with the scrape token and the
+# machine through node-exporter, and keeps LENS_METRICS_DAYS of history (30 by default).
+global:
+  scrape_interval: 60s
+  scrape_timeout: 20s
+
+scrape_configs:
+  - job_name: lens
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /prometheus/lens-token  # written from LENS_PROMETHEUS_TOKEN when the container starts
+    static_configs:
+      - targets: ["backend:8000"]
+
+  - job_name: machine
+    static_configs:
+      - targets: ["node-exporter:9100"]

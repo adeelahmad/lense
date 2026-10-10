@@ -1,6 +1,6 @@
 # Web clipper
 
-**Status: built (Chrome, Edge and Firefox); Safari in progress.** Every browser's build comes from the same code;
+**Status: built (Chrome, Edge, Firefox and Safari).** Every browser's build comes from the same code;
 each gets a target in `extensions/browser/targets/`.
 
 The Lens web clipper is a browser extension that turns what you're reading into Markdown and sends it to your Lens,

