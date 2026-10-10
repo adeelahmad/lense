@@ -180,7 +180,17 @@ if [ "$BACKEND" = microsandbox ]; then
 if ! have msb; then
   say "Installing microsandbox (install.microsandbox.dev)..."
   have curl || fail "curl is needed to install microsandbox."
-  curl -fsSL https://install.microsandbox.dev | sh
+  msb_installer="$(curl -fsSL https://install.microsandbox.dev)" || fail "Couldn't download the microsandbox installer."
+  # Its installer asks GitHub's API for the latest release, which refuses busy shared addresses (CI, offices); the
+  # release page's redirect names it without that limit, so hand the installer the version when we can find it.
+  msb_repo="$(printf '%s\n' "$msb_installer" | sed -n 's/^GITHUB_REPO="\(.*\)"$/\1/p' | head -1)"
+  msb_tag=""
+  [ -n "$msb_repo" ] && msb_tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$msb_repo/releases/latest" 2>/dev/null | sed -n 's#.*/releases/tag/##p')"
+  if [ -n "$msb_tag" ]; then
+    printf '%s\n' "$msb_installer" | sed "s|^    get_latest_version\$|    VERSION=$msb_tag|" | sh
+  else
+    printf '%s\n' "$msb_installer" | sh
+  fi
   have msb || fail "microsandbox didn't install. See https://docs.microsandbox.dev, then run this again."
 fi
 if [ "$os" = Linux ] && [ ! -e /dev/kvm ]; then
