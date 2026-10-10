@@ -27,6 +27,7 @@ class SourceHealth(ResponseModel):
     ok: bool
     checked_at: str | None = None
     error: str | None = None
+    limited: str | None = Field(default=None, description="the service is rate limiting the account; it still works")
 
 
 class SecretFlag(ResponseModel):

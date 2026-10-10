@@ -364,6 +364,85 @@ def search(
     return out
 
 
+@tool(
+    "find_similar",
+    "Find similar content",
+    "The recordings, documents and images most like a text (a sentence, a passage, a title), a recording, a topic or "
+    "an entity: give exactly one. Best first, each with why it's alike: `match` (meaning: close in meaning, when an "
+    "embedding model is set up; words: shares key words; topics: about the same topics; entities: mentions the same "
+    "people, organisations, places...), the moments that show it (text with the key words in **bold**, and a url that "
+    "opens it there), and the words, topics and entities in common. A recording is never listed as like itself.",
+    Arg("text", "string", "what to find more like: a sentence, a passage, a title", max_length=2000),
+    Arg("recording_id", "integer", "a recording: the others most like it"),
+    Arg("topic_id", "integer", "a topic (from list_topics): what's most like its labels and definition, and about it"),
+    Arg("entity_id", "integer", "an entity (from list_entities): what's most like its name and description, and mentions it"),
+    Arg("exclude_recording_id", "integer", "leave this recording out too (the one the text is from)"),
+    Arg("limit", "integer", "how many", default=10, minimum=1, maximum=50),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
+)
+def find_similar(
+    ctx: Context,
+    text: str | None,
+    recording_id: int | None,
+    topic_id: int | None,
+    entity_id: int | None,
+    exclude_recording_id: int | None,
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    if sum(x is not None for x in (text, recording_id, topic_id, entity_id)) != 1:
+        raise ToolError("give one of text, recording_id, topic_id or entity_id")
+    found = search_routes.find_similar(
+        ctx.acl,
+        ctx.user,
+        ctx.db,
+        ctx.cfg,
+        text=text,
+        recording=recording_id,
+        topic=topic_id,
+        entity=entity_id,
+        exclude=exclude_recording_id,
+        limit=limit,
+        offset=offset,
+    )
+    results = []
+    for x in found.items:
+        moments = []
+        for c in x.cites:
+            m: dict[str, Any] = {
+                "found": c.match,
+                "at": store.tc(c.t0) if c.t0 is not None and c.page is None else None,
+                "seconds": _seconds(c.t0) if c.page is None else None,
+                "line": c.idx,
+                "page": c.page + 1 if c.page is not None else None,
+                "similarity": c.similarity,
+                "text": _plain(c.snippet),
+                "url": ctx.link(x.recording_id, c.t0 if c.page is None else None) + (f"?page={c.page}" if c.page is not None else ""),
+            }
+            moments.append({k: v for k, v in m.items() if v is not None})
+        item: dict[str, Any] = {
+            "recording_id": x.recording_id,
+            "title": x.title,
+            "namespace": x.namespace,
+            "recorded_at": x.recorded_at,
+            "media": x.media_kind,
+            "match": x.match,
+            "similarity": x.similarity,
+            "moments": moments,
+            "words": x.words or None,
+            "topics": [{"id": t.id, "label": t.label} for t in x.topics] or None,
+            "entities": [{"id": e.id, "name": e.name} for e in x.entities] or None,
+            "url": ctx.link(x.recording_id),
+        }
+        results.append({k: v for k, v in item.items() if v is not None})
+    out: dict[str, Any] = {"like": found.label, "by": found.mode, "key_words": found.terms, "total": found.total, "results": results}
+    if found.meaning:
+        out["note"] = found.meaning
+    if offset + len(results) < found.total:
+        out["next_offset"] = offset + len(results)
+    return out
+
+
 # ---------- browsing ----------
 @tool(
     "list_namespaces",

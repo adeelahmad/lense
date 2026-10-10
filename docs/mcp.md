@@ -6,6 +6,9 @@ and sees exactly what that person sees: their namespaces, the collections they w
 those open. Its tools read, except the few listed under [Tools](#tools) that suggest or write, which need a
 write-scope token and editor access.
 
+It works the other way too: Lens's own assistant calls the tools of MCP servers an admin adds, as extensions
+([Extending the assistant](assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins)).
+
 ## Connecting
 
 The server is at `/mcp` on the web app's address: `https://lens.example.org/mcp` (`http://localhost:3000/mcp`
@@ -38,6 +41,7 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | Tool | |
 |---|---|
 | `search` | moments where words are said, shown on screen or written, best first: the asset, speaker, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, speaker or asset |
+| `find_similar` | the assets (recordings, documents and images) most like a text, an asset, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
 | `list_namespaces` | the namespaces you can read, with their assets, hours, speakers and your role |
 | `list_recordings` | assets, newest first, by namespace, title words, dates, speaker, tag or kind |
 | `list_speakers` | the speakers of your namespaces, the ones who talk most first |

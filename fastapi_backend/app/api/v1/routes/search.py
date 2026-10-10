@@ -9,9 +9,9 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from app.api.deps import Acl, Cfg, CurrentUser, Db
 from app.api.media import sign_urls
 from app.domain import graph as graphmod
-from app.domain import graph_history, hierarchy, photos, render, store
+from app.domain import graph_history, hierarchy, photos, render, similar, store
 from app.domain import search as searchmod
-from app.schemas.search import Graph, Mention, PhotoResults, SearchResults, TermSuggestion
+from app.schemas.search import Graph, Mention, PhotoResults, SearchResults, SimilarResults, TermSuggestion
 
 router = APIRouter(tags=["search"])
 
@@ -115,6 +115,49 @@ def search_photos(
         if h["recording"] in recs
     ]
     return PhotoResults.model_validate(sign_urls({"hits": out}, full=True))
+
+
+@router.get("/similar")
+def find_similar(
+    acl: Acl,
+    user: CurrentUser,
+    db: Db,
+    cfg: Cfg,
+    text: str | None = Query(None, max_length=similar.TEXT_MAX, description="what was selected: a sentence, a passage, a title"),
+    recording: int | None = Query(None, description="a resource: the others most like it"),
+    topic: int | None = Query(None, description="a topic: the resources most like its labels and definition, and about it"),
+    entity: int | None = Query(None, description="an entity: the resources most like its name and description, and mentioning it"),
+    exclude: int | None = Query(None, description="leave out this resource too (the one the text was selected in)"),
+    limit: int = Query(10, ge=1, le=similar.LIMIT_MAX),
+    offset: int = Query(0, ge=0),
+) -> SimilarResults:
+    """The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you
+    can read and the collections you were given a role on, each with why: its closest passages by meaning (when
+    search by meaning is set up), the lines with the key words it shares, and the topics and entities in common.
+    Each cited moment can be opened. A resource is never listed as like itself."""
+    given = [x for x in (text and text.strip(), recording, topic, entity) if x not in (None, "")]
+    if len(given) != 1:
+        raise HTTPException(422, "give one of text, recording, topic or entity")
+    if recording is not None:
+        acl.recording(recording)  # 404 unless they may read it
+    spaces = set(acl.roles)
+    try:
+        res = similar.similar(
+            db,
+            cfg,
+            text=text,
+            recording=recording,
+            topic=topic,
+            entity=entity,
+            spaces=spaces,
+            also=acl.partial_recordings(),
+            exclude=exclude,
+            limit=limit,
+            offset=offset,
+        )
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    return SimilarResults.model_validate(res)
 
 
 @router.get("/search/terms")

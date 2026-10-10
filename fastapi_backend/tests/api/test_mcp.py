@@ -196,6 +196,15 @@ def test_search_and_cite(client, env):
     assert tool_error(client, h, "search", query="capsid", namespace="calls") == "not found, or not something you can read"
     assert tool_error(client, h, "search", query="capsid", recording_id=call) == "not found, or not something you can read"
 
+    # like a text, citing the moments; never what isn't theirs
+    like = tool(client, h, "find_similar", text="capsid samples for gene therapy")
+    assert like["by"] == "words" and "capsid" in like["key_words"] and [r["recording_id"] for r in like["results"]] == [ep1]
+    m = like["results"][0]["moments"][0]
+    assert m["found"] == "words" and "**" in m["text"] and m["url"].startswith(f"http://localhost:3000/resources/{ep1}")
+    assert [r["recording_id"] for r in tool(client, h, "find_similar", recording_id=ep1)["results"]] == [ep2]
+    assert tool_error(client, h, "find_similar", recording_id=call) == "not found, or not something you can read"
+    assert tool_error(client, h, "find_similar") == "give one of text, recording_id, topic_id or entity_id"
+
     c = tool(client, h, "cite", recording_id=ep1, line=1, lines=2)
     assert c["quote"].startswith("Wow, really? Dyno Therapeutics") and c["quote"].endswith("by a wide margin.")
     assert c["speakers"] == ["Bob", "Alice"] and c["title"] == "ep1" and c["line"] == 1
