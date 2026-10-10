@@ -70,7 +70,8 @@ With `auto` it picks the version from the PR titles merged since the last releas
 override. It writes the new section (the Unreleased text, then the changes grouped into features, fixes,
 performance, reverts, dependencies and other changes; `docs`, `refactor`, `test`, `build`, `ci`, `chore` and
 `style` are left out, and so is a PR that wrote its own Unreleased entry, unless it's breaking), sets the version in `fastapi_backend/pyproject.toml`, `uv.lock`,
-`nextjs-frontend/package.json` and `CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
+`nextjs-frontend/package.json`, the API schema `nextjs-frontend/openapi.json`, `app/domain/__init__.py` and
+`CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
 it and publishes the GitHub release with that section as its notes. Pushing a `vX.Y.Z` tag yourself publishes it the
 same way, without the commit. `python3 .github/scripts/release.py cut auto` shows locally what it would write.
 An exact version must be newer than the current one, and only the newest version is marked Latest. If a run pushed its
