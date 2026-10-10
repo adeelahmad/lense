@@ -125,14 +125,15 @@ def _missing(err):
 
 
 def _rclone(cfg, conf, *argv, timeout=TIMEOUT):
+    # --drive-stop-on-upload-limit: past Google's daily upload limit, fail at once rather than retry for hours
     out = subprocess.run(
-        [sources._bin(cfg), "--config", conf, "--retries", "2", "--low-level-retries", "3", *argv],
+        [sources._bin(cfg), "--config", conf, "--retries", "2", "--low-level-retries", "3", "--drive-stop-on-upload-limit", *argv],
         capture_output=True,
         text=True,
         timeout=timeout,
     )
     if out.returncode:
-        raise RuntimeError(sources._clean_err(out.stderr) or f"rclone exited with {out.returncode}")
+        raise sources.failure(out.stderr) if out.stderr.strip() else RuntimeError(f"rclone exited with {out.returncode}")
     return out.stdout
 
 
@@ -193,7 +194,13 @@ def put(db, cfg, sid, key, path, where=None):
             keyring.protect(db, cfg, sid, tmp)
         else:
             keyring.encrypt_file(db, cfg, sid, tmp, force=True)  # it leaves the machine: only ever as ciphertext
-        _send(db, cfg, where, key, tmp)
+        try:
+            _send(db, cfg, where, key, tmp)
+        except sources.RateLimited:
+            # the connection refuses new files for now (Drive's daily upload limit): keep this one here instead, so
+            # nothing fails; it records where it went, and what's on the connection is still read from there
+            where = {"store": "local"}
+            _send(db, cfg, where, key, tmp)  # already encrypted with the namespace's key
     return where
 
 
@@ -230,7 +237,16 @@ def test(db, cfg, where=None):
         store_, key = where["store"], f"lens-check/{secrets.token_hex(8)}"
         with _scratch(cfg) as tmp, _scratch(cfg) as back:
             pathlib.Path(tmp).write_bytes(probe)
-            _send(db, cfg, where, key, tmp)
+            try:
+                _send(db, cfg, where, key, tmp)
+            except sources.RateLimited as e:
+                return {
+                    "ok": True,
+                    "store": store_,
+                    "seconds": round(time.monotonic() - t0, 2),
+                    "limited": f"refusing new files for now ({e}); until that lifts, new files are kept on this "
+                    "machine and files already there are still read from it"[:400],
+                }
             _fetch(db, cfg, where, key, back)
             delete(db, cfg, where, key)
             if pathlib.Path(back).read_bytes() != probe:

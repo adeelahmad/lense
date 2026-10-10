@@ -4928,6 +4928,12 @@ export type FileStoreTestResult = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the connection is rate limiting: reads work, new files are kept here
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -14333,6 +14339,12 @@ export type SourceHealth = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the service is rate limiting the account; it still works
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 

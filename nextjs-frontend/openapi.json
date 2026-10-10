@@ -32842,6 +32842,18 @@
               }
             ],
             "title": "Error"
+          },
+          "limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited",
+            "description": "the connection is rate limiting: reads work, new files are kept here"
           }
         },
         "additionalProperties": true,
@@ -49132,6 +49144,18 @@
               }
             ],
             "title": "Error"
+          },
+          "limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited",
+            "description": "the service is rate limiting the account; it still works"
           }
         },
         "additionalProperties": true,
