@@ -1,0 +1,34 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "docs",
+  "projectType": "application",
+  "namedInputs": {
+    "site": [
+      "{projectRoot}/**/*",
+      "{workspaceRoot}/mkdocs.yml",
+      "{workspaceRoot}/overrides/**/*",
+      "{workspaceRoot}/README.md",
+      "{workspaceRoot}/CHANGELOG.md",
+      "sharedGlobals"
+    ]
+  },
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "inputs": ["site"],
+      "outputs": ["{workspaceRoot}/site"],
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "uvx --with \"mkdocs-material>=9.6.9\" mkdocs build --strict --site-dir site"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "uvx --with \"mkdocs-material>=9.6.9\" mkdocs serve"
+      }
+    }
+  }
+}

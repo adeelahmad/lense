@@ -705,6 +705,64 @@ export type Backup = {
 };
 
 /**
+ * BackupLink
+ */
+export type BackupLink = {
+  /**
+   * Url
+   *
+   * opens the download, without signing in, until it expires
+   */
+  url: string;
+  /**
+   * Expires In
+   *
+   * seconds
+   */
+  expires_in: number;
+  [key: string]: unknown;
+};
+
+/**
+ * BackupSchedule
+ */
+export type BackupSchedule = {
+  /**
+   * Schedule
+   *
+   * backups.schedule: a cron expression, or none
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Keep
+   *
+   * how many scheduled backups are kept
+   */
+  keep?: number;
+  /**
+   * Next At
+   */
+  next_at?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Backups
  */
 export type Backups = {
@@ -716,6 +774,23 @@ export type Backups = {
    * Backups
    */
   backups: Array<Backup>;
+  /**
+   * Database
+   *
+   * the database this Lens uses: a restore needs a backup of the same kind (export or folder)
+   */
+  database?: "server" | "embedded" | "memory" | null;
+  /**
+   * In Progress
+   *
+   * backups being written now, by any Lens process
+   */
+  in_progress?: Array<string>;
+  /**
+   * the restore running on this server, or the last one
+   */
+  restore?: RestoreWork | null;
+  schedule?: BackupSchedule | null;
   [key: string]: unknown;
 };
 
@@ -1251,6 +1326,116 @@ export type BrowseEntry = {
 };
 
 /**
+ * BrowserAnswer
+ */
+export type BrowserAnswer = {
+  /**
+   * Ok
+   *
+   * whether the browser did it
+   */
+  ok: boolean;
+  /**
+   * Result
+   *
+   * what it found or did (the page, the tabs, the file it attached...)
+   */
+  result?: unknown;
+  /**
+   * Error
+   *
+   * why not, when it didn't (the person said no, no such ref...)
+   */
+  error?: string | null;
+};
+
+/**
+ * BrowserConnect
+ */
+export type BrowserConnect = {
+  /**
+   * Label
+   *
+   * what to call this browser, e.g. 'Chrome on the laptop'
+   */
+  label?: string | null;
+};
+
+/**
+ * BrowserResult
+ */
+export type BrowserResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Result
+   */
+  result?: unknown;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BrowserRun
+ */
+export type BrowserRun = {
+  /**
+   * Tool
+   *
+   * the action: one of the assistant's browser_ tools, without browser_
+   */
+  tool: "tabs" | "open" | "read" | "click" | "type" | "press" | "import";
+  /**
+   * Args
+   *
+   * its arguments, as the browser_ tool takes them
+   */
+  args?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Wait
+   *
+   * seconds to wait for the browser
+   */
+  wait?: number;
+};
+
+/**
+ * BrowserSession
+ */
+export type BrowserSession = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Seen At
+   */
+  seen_at?: string | null;
+  /**
+   * Live
+   *
+   * its side panel is connected now
+   */
+  live: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Budget
  */
 export type Budget = {
@@ -1298,6 +1483,56 @@ export type Budget = {
   alert?: {
     [key: string]: unknown;
   } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BudgetMeter
+ */
+export type BudgetMeter = {
+  /**
+   * Resource
+   *
+   * space:<id>, or none for all of Lens
+   */
+  resource?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Period
+   */
+  period: "day" | "week" | "month";
+  /**
+   * Since
+   */
+  since?: string | null;
+  spent: Spent;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * where the budget it is measured against stands; none without one
+   */
+  budget?: BudgetStatus | null;
+  /**
+   * By Day
+   */
+  by_day?: Array<DaySpend> | null;
+  /**
+   * By Model
+   */
+  by_model?: Array<ModelSpend> | null;
+  /**
+   * Top
+   */
+  top?: Array<TopSpend> | null;
+  /**
+   * By Namespace
+   */
+  by_namespace?: Array<TopSpend> | null;
   [key: string]: unknown;
 };
 
@@ -2834,6 +3069,31 @@ export type Converters = {
 };
 
 /**
+ * CopyWork
+ */
+export type CopyWork = {
+  /**
+   * Running
+   *
+   * copying a backup to (send) or from (fetch) the connection
+   */
+  running?: "send" | "fetch" | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Created
  */
 export type Created = {
@@ -3028,6 +3288,31 @@ export type CustomNodeVersionCreate = {
    * Notes
    */
   notes?: string | null;
+};
+
+/**
+ * DaySpend
+ */
+export type DaySpend = {
+  /**
+   * Day
+   *
+   * YYYY-MM-DD (UTC)
+   */
+  day: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -7642,6 +7927,12 @@ export type MessageCreate = {
    * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
    */
   edit?: number | null;
+  /**
+   * Browser
+   *
+   * asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)
+   */
+  browser?: string | null;
 };
 
 /**
@@ -7731,6 +8022,35 @@ export type MetadataEdit = {
   after: {
     [key: string]: unknown;
   };
+  [key: string]: unknown;
+};
+
+/**
+ * ModelSpend
+ */
+export type ModelSpend = {
+  /**
+   * Model
+   *
+   * none: calls with no model (webhooks, web tools)
+   */
+  model?: string | null;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Estimate
+   */
+  estimate: boolean;
   [key: string]: unknown;
 };
 
@@ -12316,6 +12636,52 @@ export type Release = {
 };
 
 /**
+ * RemoteBackups
+ */
+export type RemoteBackups = {
+  /**
+   * Connection
+   *
+   * backups.connection: where copies go, or none
+   */
+  connection?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Backups
+   *
+   * the copies there, newest first
+   */
+  backups?: Array<Backup>;
+  /**
+   * Error
+   *
+   * why the connection couldn't be listed
+   */
+  error?: string | null;
+  /**
+   * Last At
+   *
+   * when the last backup was copied there (or tried)
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   *
+   * why copying the last backup failed
+   */
+  last_error?: string | null;
+  copying: CopyWork;
+  [key: string]: unknown;
+};
+
+/**
  * Removed
  */
 export type Removed = {
@@ -12551,6 +12917,53 @@ export type ResourceSpend = {
    * true: cost_usd is a floor (unpriced calls); show it as an estimate
    */
   estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * RestoreStart
+ */
+export type RestoreStart = {
+  /**
+   * Confirm
+   *
+   * the backup's name again, to show this is meant: restoring replaces everything
+   */
+  confirm: string;
+};
+
+/**
+ * RestoreWork
+ */
+export type RestoreWork = {
+  /**
+   * Running
+   *
+   * a restore is running on this server now
+   */
+  running?: boolean;
+  /**
+   * Name
+   *
+   * the backup being (or last) restored
+   */
+  name?: string | null;
+  /**
+   * Error
+   *
+   * why the last restore here failed (what was there was put back)
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Before
+   *
+   * the before-restore backup of what the database held
+   */
+  before?: string | null;
   [key: string]: unknown;
 };
 
@@ -16041,6 +16454,35 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TopSpend
+ */
+export type TopSpend = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Name
+   *
+   * what the resource is called, when it has a name
+   */
+  name?: string | null;
   [key: string]: unknown;
 };
 
@@ -19838,6 +20280,211 @@ export type ReindexSearchResponses = {
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
 
+export type RemoteBackupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups/remote";
+};
+
+export type RemoteBackupsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RemoteBackups;
+};
+
+export type RemoteBackupsResponse = RemoteBackupsResponses[keyof RemoteBackupsResponses];
+
+export type SendBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/send";
+};
+
+export type SendBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendBackupError = SendBackupErrors[keyof SendBackupErrors];
+
+export type SendBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type SendBackupResponse = SendBackupResponses[keyof SendBackupResponses];
+
+export type FetchBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/fetch";
+};
+
+export type FetchBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FetchBackupError = FetchBackupErrors[keyof FetchBackupErrors];
+
+export type FetchBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type FetchBackupResponse = FetchBackupResponses[keyof FetchBackupResponses];
+
+export type DeleteRemoteBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/remote";
+};
+
+export type DeleteRemoteBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRemoteBackupError = DeleteRemoteBackupErrors[keyof DeleteRemoteBackupErrors];
+
+export type DeleteRemoteBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRemoteBackupResponse = DeleteRemoteBackupResponses[keyof DeleteRemoteBackupResponses];
+
+export type RestoreBackupData = {
+  body: RestoreStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/restore";
+};
+
+export type RestoreBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreBackupError = RestoreBackupErrors[keyof RestoreBackupErrors];
+
+export type RestoreBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type RestoreBackupResponse = RestoreBackupResponses[keyof RestoreBackupResponses];
+
+export type BackupLinkData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/link";
+};
+
+export type BackupLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupLinkError = BackupLinkErrors[keyof BackupLinkErrors];
+
+export type BackupLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: BackupLink;
+};
+
+export type BackupLinkResponse = BackupLinkResponses[keyof BackupLinkResponses];
+
+export type BackupFileData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Exp
+     */
+    exp?: string | null;
+    /**
+     * Sig
+     */
+    sig?: string | null;
+  };
+  url: "/api/v1/admin/backups/{name}/file";
+};
+
+export type BackupFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupFileError = BackupFileErrors[keyof BackupFileErrors];
+
+export type BackupFileResponses = {
+  /**
+   * the backup (an embedded one as a .tar.gz)
+   */
+  200: Blob | File;
+};
+
+export type BackupFileResponse = BackupFileResponses[keyof BackupFileResponses];
+
 export type GetUpdatesData = {
   body?: never;
   path?: never;
@@ -20231,6 +20878,50 @@ export type SetBudgetResponses = {
 };
 
 export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
+
+export type BudgetMeterData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * a namespace; none for all of Lens (admins)
+     */
+    ns?: string | null;
+    /**
+     * Period
+     *
+     * none: the budget's own period, else month
+     */
+    period?: "day" | "week" | "month" | null;
+    /**
+     * Detail
+     *
+     * also by day, by model and what cost most
+     */
+    detail?: boolean;
+  };
+  url: "/api/v1/budgets/meter";
+};
+
+export type BudgetMeterErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BudgetMeterError = BudgetMeterErrors[keyof BudgetMeterErrors];
+
+export type BudgetMeterResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetMeter;
+};
+
+export type BudgetMeterResponse = BudgetMeterResponses[keyof BudgetMeterResponses];
 
 export type BudgetStatusData = {
   body?: never;
@@ -30513,6 +31204,175 @@ export type DecideApprovalResponses = {
 };
 
 export type DecideApprovalResponse = DecideApprovalResponses[keyof DecideApprovalResponses];
+
+export type ListSessionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/browser/sessions";
+};
+
+export type ListSessionsResponses = {
+  /**
+   * Response Browser-List Sessions
+   *
+   * Successful Response
+   */
+  200: Array<BrowserSession>;
+};
+
+export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type ConnectData = {
+  /**
+   * Body
+   */
+  body?: BrowserConnect | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/browser/sessions";
+};
+
+export type ConnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ConnectError = ConnectErrors[keyof ConnectErrors];
+
+export type ConnectResponses = {
+  /**
+   * Successful Response
+   */
+  201: BrowserSession;
+};
+
+export type ConnectResponse = ConnectResponses[keyof ConnectResponses];
+
+export type DisconnectData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/sessions/{sid}";
+};
+
+export type DisconnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DisconnectError = DisconnectErrors[keyof DisconnectErrors];
+
+export type DisconnectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DisconnectResponse = DisconnectResponses[keyof DisconnectResponses];
+
+export type ActionsData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: {
+    /**
+     * Once
+     */
+    once?: boolean;
+  };
+  url: "/api/v1/browser/sessions/{sid}/actions";
+};
+
+export type ActionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ActionsError = ActionsErrors[keyof ActionsErrors];
+
+export type ActionsResponses = {
+  /**
+   * `event: action` with {id, tool, args, chat}
+   */
+  200: unknown;
+};
+
+export type AnswerActionData = {
+  body: BrowserAnswer;
+  path: {
+    /**
+     * Aid
+     */
+    aid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/actions/{aid}";
+};
+
+export type AnswerActionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AnswerActionError = AnswerActionErrors[keyof AnswerActionErrors];
+
+export type AnswerActionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type AnswerActionResponse = AnswerActionResponses[keyof AnswerActionResponses];
+
+export type RunData = {
+  body: BrowserRun;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/sessions/{sid}/run";
+};
+
+export type RunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunError = RunErrors[keyof RunErrors];
+
+export type RunResponses = {
+  /**
+   * Successful Response
+   */
+  200: BrowserResult;
+};
+
+export type RunResponse = RunResponses[keyof RunResponses];
 
 export type ListCollectionsData = {
   body?: never;

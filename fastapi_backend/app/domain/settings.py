@@ -50,6 +50,7 @@ EDITABLE = {
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
     "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
+    "backups": None,
     "encryption": None,
     "fedora": None,
     "tunnel": None,
@@ -381,6 +382,10 @@ def _check(section, key, value, default):
         if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1024 <= value <= 2_000_000):
             raise ValueError("ai.context_tokens is a whole number of tokens from 1024 to 2000000")
         return value
+    if (section, key) == ("ai", "browser_steps"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
+            raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
+        return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
             raise ValueError("llm.describe_max is a whole number from 1 to 1000")
@@ -410,6 +415,8 @@ def _check(section, key, value, default):
         return _updates_setting(key, value)
     if section == "activity":
         return _activity_setting(key, value)
+    if section == "backups":
+        return _backup_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
     if section == "sensors":
@@ -757,6 +764,44 @@ def _activity_setting(key, value):
     raise ValueError(f"unknown setting activity.{key}")
 
 
+def _backup_setting(key, value):
+    from . import schedule
+
+    if key == "schedule":
+        if value in (None, ""):
+            return None
+        if not isinstance(value, str):
+            raise ValueError("backups.schedule is a cron expression, like 0 3 * * * (every night at 3), or empty for none")
+        try:
+            schedule.parse(value.strip())
+        except ValueError as e:
+            raise ValueError(f"backups.schedule: {e}") from None
+        return value.strip()
+    if key == "timezone":
+        if not isinstance(value, str):
+            raise ValueError("backups.timezone is a time zone name, like Europe/London")
+        try:
+            schedule.zone(value)
+        except ValueError as e:
+            raise ValueError(f"backups.timezone: {e}") from None
+        return value
+    if key == "keep":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("backups.keep is a whole number of scheduled backups from 1 to 365")
+        return value
+    if key == "connection":
+        if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+            raise ValueError("backups.connection is a storage connection's id, or none")
+        return value
+    if key == "folder":
+        from . import blobs
+
+        if not isinstance(value, str) or not value.strip() or len(value) > 200:
+            raise ValueError("backups.folder is a folder (a bucket and path for S3), up to 200 characters")
+        return blobs._folder(value)
+    raise ValueError(f"unknown setting backups.{key}")
+
+
 EMBED_RANGES = {"passage_chars": (200, 4000), "batch_size": (1, 256), "neighbours": (5, 500), "timeout": (5, 600)}
 
 
@@ -1033,6 +1078,10 @@ def save(db, base, section, changes, user=None):
             "SELECT VALUE id FROM passkey WHERE account IN (SELECT VALUE record::id(id) FROM account WHERE admin = true AND disabled != true) LIMIT 1"
         ):
             raise ValueError("add a passkey for an admin before turning passwords off, or nobody could administer Lens")
+    if section == "backups" and data.get("connection"):
+        from . import blobs
+
+        blobs.check_connection(db, data["connection"])
     if section == "files" and data.get("store") == "connection":
         from . import blobs
 

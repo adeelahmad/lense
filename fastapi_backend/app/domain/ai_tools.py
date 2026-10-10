@@ -26,12 +26,14 @@ from . import (
     recsets,
     render,
     search as searchmod,
+    browser as browsermod,
     similar,
     speakers as spk,
     store,
     templates,
     topics,
     untrusted,
+    uploads,
 )
 
 R = store.R
@@ -318,7 +320,8 @@ MEMORY_TOOLS = [
 
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
-    return {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS} | {"use_skill"}
+    every = TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + browsermod.TOOLS
+    return {t[0] for t in every} | {"use_skill"}
 
 
 # tools whose results the model may take as Lens's own word: the server's state and settings, the skills the person
@@ -345,9 +348,12 @@ def read_before(history, summary=None):
 
 class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
-    makes their changes at once instead of asking for approval."""
+    makes their changes at once instead of asking for approval. `browser`: the person's connected side panel
+    (browser.py), whose browser the assistant can then use."""
 
-    def __init__(self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said="", outside=()):
+    def __init__(
+        self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said="", outside=(), browser=None
+    ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
@@ -369,11 +375,14 @@ class Toolbox(ops_tools.OpsTools):
         # the namespace's own assistant, when the conversation is about that namespace alone and its assistant is on
         home = ns_assistant.for_scope(db, self.scope)
         self.home = home if home and home[0] in self.readable else None
+        # the browser the person is talking from, while its side panel is connected (and an admin hasn't turned it off)
+        on = browser and browsermod.enabled(cfg) and browsermod.live(db, browser, user["id"])
+        self.browser = str(browser) if on else None
 
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
         for this question."""
-        out = self._home_note()
+        out = self._home_note() + (browsermod.NOTE if self.browser else "")
         if not self.ext:
             return out
         out += self.ext.system_note()
@@ -441,6 +450,8 @@ class Toolbox(ops_tools.OpsTools):
             tools += [t for t in AUTHOR_TOOLS if can_act or self.admin or not t[4]]
         if self.home:
             tools += [t for t in MEMORY_TOOLS if self.home[0] in self.editable or not t[4]]
+        if self.browser:
+            tools += browsermod.TOOLS
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
         return [
@@ -572,6 +583,48 @@ class Toolbox(ops_tools.OpsTools):
         if files:
             out["files"] = list(files)
         return out, f"Read the skill {name}"
+
+    # ---- the person's browser, through its Lens side panel (browser.py): the extension does each action ----
+    def _browse(self, tool, **args):
+        args = store.clean(args)
+        try:
+            out = browsermod.run(self.db, self.browser, self.user["id"], tool, args, chat=self.chat)
+        except browsermod.BrowserError as e:
+            raise ValueError(str(e)) from None
+        return out, browsermod.summary(tool, args, out)
+
+    def t_browser_tabs(self):
+        return self._browse("tabs")
+
+    def t_browser_open(self, url, tab_id=None, new_tab=None):
+        return self._browse("open", url=str(url), tab_id=tab_id, new_tab=new_tab)
+
+    def t_browser_read(self, tab_id=None, find=None, max_chars=None):
+        return self._browse("read", tab_id=tab_id, find=find, max_chars=max_chars)
+
+    def t_browser_click(self, ref, tab_id=None, consequential=None):
+        return self._browse("click", ref=str(ref), tab_id=tab_id, consequential=consequential)
+
+    def t_browser_type(self, ref, text, submit=None, tab_id=None, consequential=None):
+        return self._browse("type", ref=str(ref), text=str(text), submit=submit, tab_id=tab_id, consequential=consequential)
+
+    def t_browser_press(self, key, tab_id=None):
+        return self._browse("press", key=str(key), tab_id=tab_id)
+
+    def t_browser_import(self, ref=None, url=None, tab_id=None, page=None):
+        if not (ref or url or page):
+            raise ValueError("give a link's ref, a file's url, or page: true")
+        out, said = self._browse("import", ref=ref, url=url, tab_id=tab_id, page=page)
+        # the browser attached it as one of the person's held uploads: check it's theirs and waiting to be placed
+        uid = str((out or {}).get("upload_id") or "")
+        try:
+            up = uploads.get(self.db, uid)
+        except KeyError:
+            raise ValueError("the browser didn't attach the file") from None
+        if up.get("account") != self.user["id"] or up.get("state") != "held":
+            raise ValueError("the browser didn't attach the file")
+        attached = {"upload_id": uid, "filename": up["filename"], "size": up["size"], "next": "import_files puts it in a namespace"}
+        return attached, f"Attached {up['filename']} from the browser"
 
     # ---- extensions, from chat ----
     def _ext_named(self, name):

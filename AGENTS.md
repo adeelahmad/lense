@@ -46,6 +46,9 @@ review, and charts.
 - **Fix every red check** in the PR, flaky or unrelated ones included. Never skip or disable a test, and never just
   re-run and wait.
 - **Checks run in CI.** Don't ask the owner to run things locally.
+- **Nx runs the checks.** `make affected` runs the lint, type check, test and build targets of every project a change
+  touches, as CI does. A new project joins CI with a `project.json`
+  ([Monorepo and CI](docs/contributing.md#monorepo-and-ci-nx)).
 - **Generated files come from tooling** (`make openapi`), never from hand-merging.
 - **Docs move with the code.** Update `docs/` when behaviour or configuration changes; `mkdocs build --strict` stays
   clean.
