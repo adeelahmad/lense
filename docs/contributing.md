@@ -7,6 +7,51 @@ Follow [Get started](get-started.md), then install the git hooks with `make hook
 ESLint, Prettier and tsc on the files you changed, check YAML, TOML and the GitHub workflows (actionlint), and
 regenerate the OpenAPI client when the API changes. The commit message is checked too.
 
+## Monorepo and CI (Nx)
+
+Lens is one repository with several projects, and [Nx](https://nx.dev/) runs their checks. Each project has a
+`project.json` naming its targets; `nx.json` holds what they share. The apps keep their own package files
+(`pyproject.toml` and `uv.lock`, `package.json` and `pnpm-lock.yaml`); the root `package.json` only brings Nx, and
+`make` installs it on first use (`pnpm install` at the root).
+
+| Project | Folder | Targets |
+| --- | --- | --- |
+| `backend` | `fastapi_backend/` | `lint`, `format`, `typecheck`, `test` (`:ci` with coverage, `:server` against `LENS_TEST_SURREAL_URL`), `openapi-check`, `openapi` |
+| `frontend` | `nextjs-frontend/` | `lint`, `typecheck`, `test` (`:ci` with coverage), `build`, `generate-client` |
+| `installer` | `installer/` | `test` |
+| `docs` | `docs/` (with `mkdocs.yml`, `overrides/`, `README.md`, `CHANGELOG.md`) | `build` (strict, as CI), `serve` |
+| `clipper` | `extensions/browser/` | `install` (`npm ci` when the lockfile is newer than `node_modules`), `test`, `build` (every browser target, checked) |
+
+```bash
+pnpm exec nx run backend:test                          # one target (make test-backend)
+pnpm exec nx run backend:test -- tests/api/test_auth.py  # arguments after -- go to the command
+pnpm exec nx affected -t lint typecheck test build     # only what your changes affect, against main (make affected)
+pnpm exec nx show projects --affected                  # which projects that is
+pnpm exec nx graph                                     # the projects and how they depend on each other
+```
+
+The `make` targets (`test-backend`, `lint-backend`, `test-frontend`, `lint-frontend`, `openapi`, `docs`, `docs-build`)
+run these same targets. A target whose inputs (its project's files, plus the few root files `nx.json` names) haven't
+changed replays its last result from the local cache in `.nx/`; `--skip-nx-cache` runs it anyway. The cache stays on
+your machine: Nx Cloud is never connected (`neverConnectToCloud`) and Nx's usage analytics are off (`analytics: false`).
+
+CI (`.github/workflows/ci.yml`) runs the same targets, and only for the projects a change affects. Its first job,
+**Affected projects**, compares a pull request with the `main` it merges into (a push to `main` with `main`'s last
+green CI run) and lists the affected projects in its summary. **FastAPI (embedded SurrealDB)** and **FastAPI
+(SurrealDB server)** run when `backend` is affected, **Next.js** when `frontend` is, and **Other projects** runs the
+`lint`, `typecheck`, `test` and `build` targets of every other affected project (the docs site, the installer tests,
+the web clipper). A job that doesn't run is reported as skipped, which counts as passed, so these job names can stay
+required checks. A change to `nx.json`, the root `package.json` or `ci.yml` affects every project. Running the CI
+workflow by hand (Actions > CI > Run workflow) checks every project. `pre-commit`, `PR title`, `Install`,
+`threat model`, the clipper's browser workflows (which also keep the zips with the run) and the packaging workflows run
+as before.
+
+To add a project (the desktop app, say), give its folder a `project.json` with a `name` and any of the `lint`,
+`typecheck`, `test` and `build` targets (`nx:run-commands`, with `cwd: "{projectRoot}"`); a target that needs its
+dependencies installed first depends on an `install` target, as the clipper's do. **Other projects** picks it up
+without a change to CI. Name files outside the folder that it reads in its `inputs`, so changing them counts as
+affecting it.
+
 ## Commit messages and PR titles
 
 Write them as [Conventional Commits](https://www.conventionalcommits.org/): `type(optional scope): what changed`,
@@ -56,7 +101,8 @@ pnpm test && pnpm lint && pnpm tsc && pnpm build
 
 ## Documentation
 
-The docs are these Markdown files, built with mkdocs-material: `cd fastapi_backend && uv run mkdocs serve -f ../mkdocs.yml`.
+The docs are these Markdown files, built with mkdocs-material: `make docs` serves them, and `make docs-build` builds
+the site the way CI does, failing on broken links.
 
 ## Release
 
@@ -70,7 +116,8 @@ With `auto` it picks the version from the PR titles merged since the last releas
 override. It writes the new section (the Unreleased text, then the changes grouped into features, fixes,
 performance, reverts, dependencies and other changes; `docs`, `refactor`, `test`, `build`, `ci`, `chore` and
 `style` are left out, and so is a PR that wrote its own Unreleased entry, unless it's breaking), sets the version in `fastapi_backend/pyproject.toml`, `uv.lock`,
-`nextjs-frontend/package.json` and `CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
+`nextjs-frontend/package.json`, the API schema `nextjs-frontend/openapi.json`, `app/domain/__init__.py` and
+`CloudronManifest.json`, commits that to `main` as `chore(release): vX.Y.Z`, tags
 it and publishes the GitHub release with that section as its notes. Pushing a `vX.Y.Z` tag yourself publishes it the
 same way, without the commit. `python3 .github/scripts/release.py cut auto` shows locally what it would write.
 An exact version must be newer than the current one, and only the newest version is marked Latest. If a run pushed its
