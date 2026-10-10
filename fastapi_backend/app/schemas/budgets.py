@@ -60,3 +60,40 @@ class BudgetStatus(ResponseModel):
     left: dict[str, float] | None = None
     share: float | None = Field(None, description="the largest share of a cap spent (1 is all of it)")
     share_after_next: float | None = Field(None, description="the share once the next run (estimated) is done")
+
+
+class DaySpend(ResponseModel):
+    day: str = Field(description="YYYY-MM-DD (UTC)")
+    cost_usd: float
+    tokens: int
+    calls: int
+
+
+class ModelSpend(ResponseModel):
+    model: str | None = Field(None, description="none: calls with no model (webhooks, web tools)")
+    cost_usd: float
+    tokens: int
+    calls: int
+    estimate: bool
+
+
+class TopSpend(ResponseModel):
+    resource: str
+    cost_usd: float
+    tokens: int
+    calls: int
+    name: str | None = Field(None, description="what the resource is called, when it has a name")
+
+
+class BudgetMeter(ResponseModel):
+    resource: str | None = Field(None, description="space:<id>, or none for all of Lens")
+    namespace: str | None = None
+    period: Literal["day", "week", "month"]
+    since: str | None = None
+    spent: Spent
+    calls: int
+    budget: BudgetStatus | None = Field(None, description="where the budget it is measured against stands; none without one")
+    by_day: list[DaySpend] | None = None
+    by_model: list[ModelSpend] | None = None
+    top: list[TopSpend] | None = None
+    by_namespace: list[TopSpend] | None = None
