@@ -15848,6 +15848,52 @@ export type TopicUpdate = {
 };
 
 /**
+ * TreeEntry
+ */
+export type TreeEntry = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Folder
+   */
+  folder: boolean;
+  /**
+   * Modified
+   */
+  modified?: string | null;
+  /**
+   * Size
+   *
+   * a file's size in bytes
+   */
+  size?: number | null;
+  /**
+   * Content Type
+   */
+  content_type?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TreeFolder
+ */
+export type TreeFolder = {
+  /**
+   * Path
+   *
+   * the folder, from the top: '' for the namespaces
+   */
+  path: string;
+  /**
+   * Entries
+   */
+  entries: Array<TreeEntry>;
+  [key: string]: unknown;
+};
+
+/**
  * TunnelStatus
  */
 export type TunnelStatus = {
@@ -23276,6 +23322,74 @@ export type ListFileLinesResponses = {
 };
 
 export type ListFileLinesResponse = ListFileLinesResponses[keyof ListFileLinesResponses];
+
+export type ListFolderData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Path
+     *
+     * a folder or file, from the top: namespace/Collections/…
+     */
+    path?: string;
+  };
+  url: "/api/v1/tree";
+};
+
+export type ListFolderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListFolderError = ListFolderErrors[keyof ListFolderErrors];
+
+export type ListFolderResponses = {
+  /**
+   * Successful Response
+   */
+  200: TreeFolder;
+};
+
+export type ListFolderResponse = ListFolderResponses[keyof ListFolderResponses];
+
+export type ReadFileData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Path
+     *
+     * a folder or file, from the top: namespace/Collections/…
+     */
+    path?: string;
+  };
+  url: "/api/v1/tree/file";
+};
+
+export type ReadFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadFileError = ReadFileErrors[keyof ReadFileErrors];
+
+export type ReadFileResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+  /**
+   * a byte range
+   */
+  206: unknown;
+};
+
+export type ReadFileResponse = ReadFileResponses[keyof ReadFileResponses];
 
 export type ListFieldsData = {
   body?: never;

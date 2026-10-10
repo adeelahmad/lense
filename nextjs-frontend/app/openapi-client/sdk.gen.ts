@@ -727,6 +727,9 @@ import type {
   ListFilesData,
   ListFilesErrors,
   ListFilesResponses,
+  ListFolderData,
+  ListFolderErrors,
+  ListFolderResponses,
   ListGrantsData,
   ListGrantsResponses,
   ListGraphChangesData,
@@ -988,6 +991,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReadFileData,
+  ReadFileErrors,
+  ReadFileResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -4671,6 +4677,37 @@ export class Files {
   ): RequestResult<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError> {
     return (options.client ?? client).get<ListFileLinesResponses, ListFileLinesErrors, ThrowOnError>({
       url: "/api/v1/resources/{rid}/files/{fid}/lines",
+      ...options,
+    });
+  }
+}
+
+export class Tree {
+  /**
+   * List Folder
+   *
+   * A folder's files and folders: '' lists your namespaces; each has Collections, Topics, Entities and
+   * namespace.json. A file answers 400 (read it at /tree/file).
+   */
+  public static listFolder<ThrowOnError extends boolean = false>(
+    options?: Options<ListFolderData, ThrowOnError>,
+  ): RequestResult<ListFolderResponses, ListFolderErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListFolderResponses, ListFolderErrors, ThrowOnError>({
+      url: "/api/v1/tree",
+      ...options,
+    });
+  }
+
+  /**
+   * Read File
+   *
+   * A file of the tree, with byte ranges.
+   */
+  public static readFile<ThrowOnError extends boolean = false>(
+    options?: Options<ReadFileData, ThrowOnError>,
+  ): RequestResult<ReadFileResponses, ReadFileErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ReadFileResponses, ReadFileErrors, ThrowOnError>({
+      url: "/api/v1/tree/file",
       ...options,
     });
   }

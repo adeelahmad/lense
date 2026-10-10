@@ -87,6 +87,7 @@ nav:
   - Topics: topics.md
   - Notes: notes.md
   - Storage: storage.md
+  - The graph as files: file-tree.md
   - Linked data (RDF): rdf.md
   - Fedora repository: fedora.md
   - API: api.md

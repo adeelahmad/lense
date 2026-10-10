@@ -12,6 +12,7 @@ import datetime as dt
 import html
 import json
 import re
+import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -26,7 +27,7 @@ from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
-from app.domain import analyze, auth, blobs, feeds, graph_history, library, notebook, rdf, render, settings, sources, store
+from app.domain import analyze, auth, blobs, feeds, filetree, graph_history, library, notebook, rdf, render, settings, sources, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
@@ -1355,6 +1356,61 @@ def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
             "url": ctx.link(episode_id),
         }
     )
+
+
+# ---------- the graph as files ----------
+FILE_CHARS = 100_000  # the most of a file read_file returns at once; offset pages through the rest
+
+
+def _tree(ctx: Context) -> filetree.Tree:
+    return filetree.Tree(ctx.db, ctx.cfg, filetree.Viewer(ctx.user.admin, ctx.user.roles, ctx.user.collections))
+
+
+@tool(
+    "list_files",
+    "List a folder of the file tree",
+    "The archive as folders and files, the tree its S3 server serves: '' lists your namespaces; a namespace has "
+    "Collections/<collection>/…, Topics/<topic>/ and Entities/<type>/<name>/ holding its assets, and namespace.json. "
+    "Each asset is files named '<title> [<id>]': its own file (.mp3, .pdf, …), .json with its metadata, topics and "
+    "entities, and .txt with its text.",
+    Arg("path", "string", "the folder, from the top (e.g. pods/Topics/Gene therapy)", default="", max_length=4000),
+)
+def list_files(ctx: Context, path: str) -> dict[str, Any]:
+    t = _tree(ctx)
+    try:
+        entries = t.list(path)
+    except filetree.NotFound:
+        raise KeyError(path) from None
+    except filetree.NotAFolder:
+        raise ToolError("that's a file: read it with read_file") from None
+    return {"path": "/".join(t.split(path)), "entries": [e.out() for e in entries]}
+
+
+@tool(
+    "read_file",
+    "Read a file of the file tree",
+    "A text file of the tree (an asset's .txt or .json, or namespace.json), from list_files. Media and documents' own "
+    f"files are only their size and type here: download them from the API (/api/v1/tree/file?path=). At most "
+    f"{FILE_CHARS} characters at a time; next_offset continues.",
+    Arg("path", "string", "the file, from the top", required=True, max_length=4000),
+    Arg("offset", "integer", "start at this character", default=0, minimum=0),
+)
+def read_file(ctx: Context, path: str, offset: int) -> dict[str, Any]:
+    try:
+        e = _tree(ctx).stat(path)
+    except filetree.NotFound:
+        raise KeyError(path) from None
+    if e.folder:
+        raise ToolError("that's a folder: list it with list_files")
+    out: dict[str, Any] = {"path": path, "size": e.size, "content_type": e.content_type, "modified": e.modified}
+    if e.data is None:
+        out["download"] = f"{store.API}/tree/file?path={urllib.parse.quote(path)}"
+        return out
+    text = e.data.decode("utf-8", "replace")
+    out["text"] = text[offset : offset + FILE_CHARS]
+    if offset + FILE_CHARS < len(text):
+        out["next_offset"] = offset + FILE_CHARS
+    return out
 
 
 # ---------- where files are kept (admins) ----------

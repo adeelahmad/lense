@@ -62,6 +62,8 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about recordings or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
+| `list_files` | a folder of the archive [as files](file-tree.md): your namespaces, then each one's Collections, Topics and Entities folders holding its assets' files |
+| `read_file` | a text file of that tree (an asset's `.txt` text or `.json` metadata, `namespace.json`), a page at a time; other files' download link |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
