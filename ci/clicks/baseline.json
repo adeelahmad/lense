@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T22:25:49.567Z",
+  "surveyed": "2026-10-10T22:47:49.235Z",
   "commit": "",
   "viewport": "1400x900",
   "journeys": [
@@ -45,7 +45,7 @@
         }
       ],
       "id": "install",
-      "ms": 2081,
+      "ms": 2000,
       "ok": true
     },
     {
@@ -82,7 +82,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 475,
+      "ms": 423,
       "ok": true
     },
     {
@@ -127,7 +127,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 659,
+      "ms": 572,
       "ok": true
     },
     {
@@ -156,7 +156,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2225,
+      "ms": 2207,
       "ok": true
     },
     {
@@ -201,7 +201,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4139,
+      "ms": 4107,
       "ok": true
     },
     {
@@ -230,7 +230,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2621,
+      "ms": 2525,
       "ok": true
     },
     {
@@ -267,7 +267,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3173,
+      "ms": 3176,
       "ok": true
     },
     {
@@ -304,7 +304,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2385,
+      "ms": 2251,
       "ok": true
     },
     {
@@ -341,15 +341,15 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3552,
+      "ms": 3390,
       "ok": true
     },
     {
       "module": "Notes",
       "feature": "Write a note",
       "note": "",
-      "clicks": 3,
-      "keys": 35,
+      "clicks": 2,
+      "keys": 36,
       "prompts": 0,
       "steps": [
         {
@@ -378,15 +378,23 @@
         },
         {
           "page": "/notes/:id",
+          "kind": "key",
+          "what": "Enter to go to the first line",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/notes/:id",
           "kind": "type",
           "what": "first line",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 27,
           "prompts": 0
         }
       ],
       "id": "note-create",
-      "ms": 3366,
+      "ms": 3254,
       "ok": true
     },
     {
@@ -431,15 +439,15 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3487,
+      "ms": 3368,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a pipeline from the standard steps",
       "note": "",
-      "clicks": 3,
-      "keys": 14,
+      "clicks": 2,
+      "keys": 1,
       "prompts": 0,
       "steps": [
         {
@@ -460,31 +468,23 @@
         },
         {
           "page": "/pipelines/new",
-          "kind": "type",
-          "what": "name",
+          "kind": "key",
+          "what": "Enter to create",
           "clicks": 0,
-          "keys": 14,
-          "prompts": 0
-        },
-        {
-          "page": "/pipelines/new",
-          "kind": "click",
-          "what": "Create pipeline",
-          "clicks": 1,
-          "keys": 0,
+          "keys": 1,
           "prompts": 0
         }
       ],
       "id": "pipeline-create",
-      "ms": 2694,
+      "ms": 2548,
       "ok": true
     },
     {
       "module": "Routines",
       "feature": "Make a nightly routine (sync sources, the default action)",
       "note": "",
-      "clicks": 3,
-      "keys": 12,
+      "clicks": 2,
+      "keys": 1,
       "prompts": 0,
       "steps": [
         {
@@ -505,23 +505,15 @@
         },
         {
           "page": "/routines/new",
-          "kind": "type",
-          "what": "name",
+          "kind": "key",
+          "what": "Enter to create",
           "clicks": 0,
-          "keys": 12,
-          "prompts": 0
-        },
-        {
-          "page": "/routines/new",
-          "kind": "click",
-          "what": "Create routine",
-          "clicks": 1,
-          "keys": 0,
+          "keys": 1,
           "prompts": 0
         }
       ],
       "id": "routine-create",
-      "ms": 2647,
+      "ms": 3298,
       "ok": true
     },
     {
@@ -558,7 +550,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2554,
+      "ms": 2533,
       "ok": true
     },
     {
@@ -595,7 +587,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2684,
+      "ms": 2822,
       "ok": true
     },
     {
@@ -640,7 +632,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3491,
+      "ms": 3430,
       "ok": true
     },
     {
@@ -701,7 +693,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3863,
+      "ms": 3059,
       "ok": true
     },
     {
@@ -746,7 +738,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3140,
+      "ms": 3137,
       "ok": true
     },
     {
@@ -775,7 +767,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2280,
+      "ms": 2256,
       "ok": true
     }
   ],
@@ -892,7 +884,7 @@
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 2,
-      "controls": 3
+      "controls": 6
     },
     {
       "page": "/extensions",
@@ -1048,7 +1040,7 @@
       "page": "/settings/telemetry",
       "label": "Settings › Telemetry",
       "reach": 2,
-      "controls": 12
+      "controls": 13
     },
     {
       "page": "/settings/fedora",
@@ -1126,7 +1118,7 @@
       "page": "/admin/health",
       "label": "Admin › System health",
       "reach": 2,
-      "controls": 10
+      "controls": 11
     }
   ]
 }
