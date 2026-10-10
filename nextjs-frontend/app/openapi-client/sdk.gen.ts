@@ -52,6 +52,12 @@ import type {
   AskGraphData,
   AskGraphErrors,
   AskGraphResponses,
+  BackupFileData,
+  BackupFileErrors,
+  BackupFileResponses,
+  BackupLinkData,
+  BackupLinkErrors,
+  BackupLinkResponses,
   BridgeStatusData,
   BridgeStatusResponses,
   BrowseSourceData,
@@ -314,6 +320,9 @@ import type {
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
+  DeleteRemoteBackupData,
+  DeleteRemoteBackupErrors,
+  DeleteRemoteBackupResponses,
   DeleteRoutineData,
   DeleteRoutineErrors,
   DeleteRoutineResponses,
@@ -387,9 +396,15 @@ import type {
   ExternalStartData,
   ExternalStartErrors,
   ExternalStartResponses,
+  FetchBackupData,
+  FetchBackupErrors,
+  FetchBackupResponses,
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
+  FindSimilarData,
+  FindSimilarErrors,
+  FindSimilarResponses,
   FinishData,
   FinishErrors,
   FinishResponses,
@@ -1037,6 +1052,8 @@ import type {
   ReleaseJobData,
   ReleaseJobErrors,
   ReleaseJobResponses,
+  RemoteBackupsData,
+  RemoteBackupsResponses,
   RemoveBudgetData,
   RemoveBudgetErrors,
   RemoveBudgetResponses,
@@ -1085,6 +1102,9 @@ import type {
   ResourceTotalsData,
   ResourceTotalsErrors,
   ResourceTotalsResponses,
+  RestoreBackupData,
+  RestoreBackupErrors,
+  RestoreBackupResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -1176,6 +1196,9 @@ import type {
   SearchTranscriptsResponses,
   SemanticStatusData,
   SemanticStatusResponses,
+  SendBackupData,
+  SendBackupErrors,
+  SendBackupResponses,
   SendChunkData,
   SendChunkErrors,
   SendChunkResponses,
@@ -2754,6 +2777,109 @@ export class Admin {
 
 export class Updates {
   /**
+   * Remote Backups
+   *
+   * The copies on backups.connection, how copying the last backup there went, and a copy running now.
+   */
+  public static remoteBackups<ThrowOnError extends boolean = false>(
+    options?: Options<RemoteBackupsData, ThrowOnError>,
+  ): RequestResult<RemoteBackupsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<RemoteBackupsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/backups/remote",
+      ...options,
+    });
+  }
+
+  /**
+   * Send Backup
+   *
+   * Copy this backup to backups.connection now, in the background.
+   */
+  public static sendBackup<ThrowOnError extends boolean = false>(
+    options: Options<SendBackupData, ThrowOnError>,
+  ): RequestResult<SendBackupResponses, SendBackupErrors, ThrowOnError> {
+    return (options.client ?? client).post<SendBackupResponses, SendBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/send",
+      ...options,
+    });
+  }
+
+  /**
+   * Fetch Backup
+   *
+   * Bring the copy of this backup back from backups.connection, in the background, to restore or download it.
+   */
+  public static fetchBackup<ThrowOnError extends boolean = false>(
+    options: Options<FetchBackupData, ThrowOnError>,
+  ): RequestResult<FetchBackupResponses, FetchBackupErrors, ThrowOnError> {
+    return (options.client ?? client).post<FetchBackupResponses, FetchBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/fetch",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Remote Backup
+   *
+   * Delete the copy of this backup on backups.connection.
+   */
+  public static deleteRemoteBackup<ThrowOnError extends boolean = false>(
+    options: Options<DeleteRemoteBackupData, ThrowOnError>,
+  ): RequestResult<DeleteRemoteBackupResponses, DeleteRemoteBackupErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteRemoteBackupResponses, DeleteRemoteBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/remote",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Backup
+   *
+   * Replace the whole database with this backup, in the background (GET /admin/backups follows it). What it held
+   * is backed up first (before-restore), and put back if the restore fails. Sign-ins made since the backup end.
+   */
+  public static restoreBackup<ThrowOnError extends boolean = false>(
+    options: Options<RestoreBackupData, ThrowOnError>,
+  ): RequestResult<RestoreBackupResponses, RestoreBackupErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreBackupResponses, RestoreBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/restore",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Backup Link
+   *
+   * A link that downloads the backup for the next couple of minutes, for the browser to open.
+   */
+  public static backupLink<ThrowOnError extends boolean = false>(
+    options: Options<BackupLinkData, ThrowOnError>,
+  ): RequestResult<BackupLinkResponses, BackupLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<BackupLinkResponses, BackupLinkErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/link",
+      ...options,
+    });
+  }
+
+  /**
+   * Backup File
+   *
+   * The backup itself, through a link from POST /admin/backups/{name}/link.
+   */
+  public static backupFile<ThrowOnError extends boolean = false>(
+    options: Options<BackupFileData, ThrowOnError>,
+  ): RequestResult<BackupFileResponses, BackupFileErrors, ThrowOnError> {
+    return (options.client ?? client).get<BackupFileResponses, BackupFileErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/file",
+      ...options,
+    });
+  }
+
+  /**
    * Get Updates
    *
    * The version running, the latest release, and how the last upgrade went.
@@ -2803,7 +2929,8 @@ export class Updates {
   /**
    * List Backups
    *
-   * The database backups in <data_dir>/backups, newest first.
+   * The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or
+   * the last one); and the backup schedule.
    */
   public static listBackups<ThrowOnError extends boolean = false>(
     options?: Options<ListBackupsData, ThrowOnError>,
@@ -2817,7 +2944,8 @@ export class Updates {
   /**
    * Take Backup
    *
-   * Back the database up now (it can take a while on a big archive).
+   * Back the database up now (it can take a while on a big archive). With backups.connection set, it is then
+   * copied there in the background (GET /admin/backups/remote follows it).
    */
   public static takeBackup<ThrowOnError extends boolean = false>(
     options?: Options<TakeBackupData, ThrowOnError>,
@@ -5153,6 +5281,23 @@ export class Search {
   ): RequestResult<SearchPhotosResponses, SearchPhotosErrors, ThrowOnError> {
     return (options.client ?? client).get<SearchPhotosResponses, SearchPhotosErrors, ThrowOnError>({
       url: "/api/v1/search/photos",
+      ...options,
+    });
+  }
+
+  /**
+   * Find Similar
+   *
+   * The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you
+   * can read and the collections you were given a role on, each with why: its closest passages by meaning (when
+   * search by meaning is set up), the lines with the key words it shares, and the topics and entities in common.
+   * Each cited moment can be opened. A resource is never listed as like itself.
+   */
+  public static findSimilar<ThrowOnError extends boolean = false>(
+    options?: Options<FindSimilarData, ThrowOnError>,
+  ): RequestResult<FindSimilarResponses, FindSimilarErrors, ThrowOnError> {
+    return (options?.client ?? client).get<FindSimilarResponses, FindSimilarErrors, ThrowOnError>({
+      url: "/api/v1/similar",
       ...options,
     });
   }

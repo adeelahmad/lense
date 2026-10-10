@@ -1,6 +1,6 @@
 [package]
 name = "lens-desktop"
-version = "0.6.0"
+version = "0.7.0"
 description = "Lens for macOS: installs, starts and opens Lens from the menu bar"
 license = "MIT"
 edition = "2021"

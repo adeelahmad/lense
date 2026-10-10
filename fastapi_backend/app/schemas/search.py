@@ -126,3 +126,61 @@ class PhotoHit(ResponseModel):
 
 class PhotoResults(ResponseModel):
     hits: list[PhotoHit] = Field(default_factory=list)
+
+
+class SimilarCite(ResponseModel):
+    """A moment that shows why a resource is alike: one of its passages closest in meaning, or a line with shared words."""
+
+    match: Literal["meaning", "words"] = Field(description="found by meaning (a close passage) or by the shared words")
+    source: Literal["said", "page", "described"] = Field(
+        description='"said" (the transcript), "page" (text on a page of a document or an image) or "described" (what a '
+        "shot or a page shows)"
+    )
+    snippet: str = Field(description="HTML: escaped text with <mark> around the key words")
+    idx: int | None = Field(None, description="the line it starts at (from 0)")
+    t0: int | None = Field(None, description="ms; None on a page")
+    page: int | None = Field(None, description="on a document or an image: which page (from 0)")
+    similarity: float | None = Field(None, description="found by meaning: how alike it is (cosine, up to 1)")
+
+
+class SimilarTopic(ResponseModel):
+    id: int
+    label: str
+
+
+class SimilarEntity(ResponseModel):
+    id: int
+    name: str
+
+
+class SimilarItem(ResponseModel):
+    recording_id: int
+    title: str | None = None
+    recorded_at: str | None = None
+    namespace: str | None = None
+    media_kind: str = Field(description="audio, video, transcript, document or image")
+    score: float = Field(description="reciprocal-rank fusion of the lists it's in; only for ordering")
+    match: list[Literal["meaning", "words", "topics", "entities"]] = Field(
+        description="why it's alike: close in meaning, shares key words, about the same topics, mentions the same entities"
+    )
+    similarity: float | None = Field(None, description="by meaning: how alike its closest passage is (cosine, up to 1)")
+    cites: list[SimilarCite] = Field(default_factory=list, description="up to 3 moments that show it, to open")
+    words: list[str] = Field(default_factory=list, description="the key words it says")
+    topics: list[SimilarTopic] = Field(default_factory=list, description="topics both are about")
+    entities: list[SimilarEntity] = Field(default_factory=list, description="entities both mention")
+
+
+class SimilarResults(ResponseModel):
+    basis: Literal["text", "recording", "topic", "entity"] = Field(description="what the results are like")
+    label: str | None = Field(None, description="the text's start, or the resource's title, the topic's label, the entity's name")
+    text: str | None = Field(
+        None, description="the text compared by meaning (a topic's labels and definition, an entity's name and description)"
+    )
+    terms: list[str] = Field(default_factory=list, description="the key words looked for")
+    mode: Literal["meaning", "words"] = Field(
+        description='"meaning": an embedding model compared it too; "words": only by key words, topics and entities'
+    )
+    meaning: str | None = Field(None, description="why it wasn't compared by meaning, when search by meaning is set up")
+    semantic: bool = Field(False, description="search by meaning is set up and indexed")
+    total: int
+    items: list[SimilarItem]

@@ -7,6 +7,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { Admin, Fedora, Metadata, Sensors, Sources } from "@/app/openapi-client";
 import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
+import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -19,6 +20,7 @@ import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import {
   AI_TOOLS,
+  BACKUP_SCHEDULES,
   SPEECH_PROVIDERS,
   type FieldSpec,
   type SectionId,
@@ -376,6 +378,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       );
     case "encryption":
       return <EncryptionBody ctx={ctx} />;
+    case "backups":
+      return <BackupsBody ctx={ctx} />;
     case "storage":
       return <StorageBody ctx={ctx} />;
     case "telemetry":
@@ -685,6 +689,50 @@ function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
   );
 }
 
+function BackupsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const conns = useQuery({ queryKey: ["sources"], queryFn: () => data(Sources.listSources({ client })) });
+  const storage = (conns.data ?? []).filter((c) => !NOT_STORAGE.has(c.type));
+  const sched = ctx.state("backups.schedule");
+  const on = Boolean(String(sched.value ?? "").trim());
+  return (
+    <>
+      <BackupsPanel />
+      <F ctx={ctx} id="backups.schedule" />
+      <div className="-mt-1 flex flex-wrap gap-1.5" role="group" aria-label="Common schedules">
+        {[{ value: "", label: "Off" }, ...BACKUP_SCHEDULES].map((o) => (
+          <Button
+            key={o.label}
+            size="xs"
+            variant={String(sched.value ?? "") === o.value ? "primary" : "secondary"}
+            onClick={() => sched.onChange(o.value)}
+          >
+            {o.label}
+          </Button>
+        ))}
+      </div>
+      {on && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <F ctx={ctx} id="backups.timezone" />
+          <F ctx={ctx} id="backups.keep" />
+        </div>
+      )}
+      <F
+        ctx={ctx}
+        id="backups.connection"
+        options={[
+          { value: "", label: "Nowhere else: only this machine" },
+          ...storage.map((c) => ({ value: String(c.id), label: `${c.name} (${c.type})` })),
+        ]}
+      />
+      <div>
+        <AddConnection onAdded={(id) => ctx.state("backups.connection").onChange(String(id))} />
+      </div>
+      {Boolean(ctx.state("backups.connection").value) && <F ctx={ctx} id="backups.folder" />}
+    </>
+  );
+}
+
 function StorageBody({ ctx }: { ctx: BodyCtx }) {
   const client = useApiClient();
   const conns = useQuery({ queryKey: ["sources"], queryFn: () => data(Sources.listSources({ client })) });
@@ -742,7 +790,11 @@ function StorageBody({ ctx }: { ctx: BodyCtx }) {
         <span className="text-[12px] text-fg-muted">Writes a small file there, reads it back and removes it</span>
       </div>
       {test.data &&
-        (test.data.ok ? (
+        (test.data.ok && test.data.limited ? (
+          <Banner tone="warning" title="It works, but it’s rate limited.">
+            The connection is {test.data.limited}.
+          </Banner>
+        ) : test.data.ok ? (
           <Banner tone="success" title="It works.">
             Written, read back and removed in {test.data.seconds} s.
           </Banner>
@@ -1269,6 +1321,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
         The assistant uses the model set in LLM provider; it needs one that supports tool calls.
       </p>
       <F ctx={ctx} id="ai.tools" />
+      <F ctx={ctx} id="ai.untrusted_marking" />
       <F ctx={ctx} id="ai.compact" />
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="ai.compact_model" />
