@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:96398fee54d8a0ff2efcfe809becf5307438e15538c79b4baffc56a3f78ecee8"
+prose_version: "threat-model.md@sha256:6dedfe71cd1ec807c7a04b3338c03cb01f70b61882d620d46a236bbe6e257399"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1451,6 +1451,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "the side panel carries out what it's asked (which sites, what it asks first: the extension's); an agent with the person's write token can ask too (api/v1/routes/browser.py)"
     provenance: {kind: documented, source: 'docs/browser-assistant.md "Only you"'}
+  - id: P-BROWSER-GUARD
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "the side panel reads and acts only on sites the person allowed, opens addresses only there, asks before a consequential click, submit or Enter (model flag, the control's words, a posting form), never types into or reports password, card or file fields, and shows each action"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the consequential check is the model's flag plus a word list (extensions/browser/src/core/act.js): an unlabelled control a misled model doesn't mark runs without asking; removing a site keeps the browser's access for the clipper"
+    provenance: {kind: documented, source: 'docs/browser-assistant.md "Letting it use your browser"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]

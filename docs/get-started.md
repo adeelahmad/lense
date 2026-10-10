@@ -26,7 +26,9 @@ On a first install run at a terminal (on Linux or a Mac with Python 3.8 or later
 above opens an installer in your browser instead of asking anything in the terminal:
 
 1. **This computer**: the system, memory, free disk, whether Docker is there and running, and whether microsandbox can
-   run.
+   run. On a first install, **Install with the defaults** installs right away (Docker, the edition that suits the
+   computer, the model server found on it, if any) and shows its progress; **Choose options** goes through the steps
+   below, as it does when installing needs your password.
 2. **How it runs**: Docker or [microsandbox](microsandbox.md) and the full or lean edition (lean is picked on a computer
    with less than 4 GB of memory, such as a Raspberry Pi). It lists what it will install; when that needs
    administrator rights, it asks for your password here, keeps it in memory for the install and hands it to `sudo` (it

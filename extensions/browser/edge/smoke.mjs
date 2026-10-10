@@ -1,6 +1,8 @@
 // Edge smoke test: loads dist/edge (npm run build in ..) into Microsoft Edge, opens the popup and options, clips an
 // article page and checks a stand-in Lens import webhook got its Markdown. Then it signs the side panel in to the
-// stand-in Lens through its OAuth consent page, asks the assistant and approves what it proposes. Run under a display
+// stand-in Lens through its OAuth consent page, asks the assistant and approves what it proposes, and has the stand-in
+// Lens send the side panel browser actions: reading a page once its site is allowed, typing, a click that waits for
+// the person's yes, refusing a password field, and downloading a file into a held upload. Run under a display
 // (xvfb-run in CI).
 // EDGE_CHANNEL=chromium runs the same test in Playwright's Chromium, for machines without Edge.
 import { createHash } from "node:crypto";
@@ -61,6 +63,23 @@ const server = createServer((req, res) => {
   res.writeHead(404, cors).end();
 });
 
+// the browser, as Lens uses it: a session, its stream of actions, and their answers
+const browserSide = { label: null, stream: null, answers: new Map(), waiting: new Map(), ended: false, uploaded: null, next: 1 };
+function act(tool, args = {}, chat = null) {
+  const id = `a${browserSide.next++}`;
+  const done = new Promise((resolve, reject) => {
+    browserSide.waiting.set(id, resolve);
+    setTimeout(() => reject(new Error(`no answer to ${tool} ${id}`)), 30000);
+  });
+  browserSide.stream.write(`event: action\ndata: ${JSON.stringify({ id, tool, args, chat })}\n\n`);
+  return done;
+}
+const COMPOSE = `<!doctype html><html lang="en"><head><title>Compose</title></head><body><h1>New message</h1>
+<label>To <input id="to"></label> <label>Password <input id="pw" type="password"></label>
+<button id="send" onclick="document.getElementById('state').textContent = 'Sent to ' + document.getElementById('to').value">Send</button>
+<p id="state">Draft</p><p>Attached: <a href="/files/report.pdf">report.pdf</a></p></body></html>`;
+const PDF = "%PDF-1.4\n% a stand-in report\n%%EOF\n";
+
 function lens(req, res) {
   const url = new URL(req.url, origin);
   const reply = (status, body, headers = {}) => res.writeHead(status, { "Content-Type": "application/json", ...headers }).end(JSON.stringify(body));
@@ -107,6 +126,42 @@ function lens(req, res) {
     read((body) => {
       decided.push(JSON.parse(body));
       reply(200, { status: "done" });
+    });
+  } else if (url.pathname === "/compose") {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(COMPOSE);
+  } else if (url.pathname === "/files/report.pdf") {
+    res.writeHead(200, { "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="report.pdf"' }).end(PDF);
+  } else if (url.pathname === "/api/v1/browser/sessions" && req.method === "POST") {
+    read((body) => {
+      browserSide.label = JSON.parse(body || "{}").label;
+      reply(201, { id: "s1", label: browserSide.label, live: true });
+    });
+  } else if (url.pathname === "/api/v1/browser/sessions/s1/actions") {
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store" });
+    res.write(": open\n\n");
+    browserSide.stream = res;
+    req.on("close", () => browserSide.stream === res && (browserSide.stream = null));
+  } else if (url.pathname.startsWith("/api/v1/browser/actions/") && req.method === "POST") {
+    read((body) => {
+      const id = url.pathname.split("/").pop();
+      browserSide.answers.set(id, JSON.parse(body));
+      browserSide.waiting.get(id)?.(JSON.parse(body));
+      reply(200, { ok: true });
+    });
+  } else if (url.pathname === "/api/v1/browser/sessions/s1" && req.method === "DELETE") {
+    browserSide.ended = true;
+    reply(200, { ok: true });
+  } else if (url.pathname === "/api/v1/uploads/limits") {
+    reply(200, { max_mb: 10, chunk_mb: 8, extensions: [".pdf"] });
+  } else if (url.pathname === "/api/v1/uploads" && req.method === "POST") {
+    read((body) => {
+      const b = JSON.parse(body);
+      reply(201, { id: "up1", filename: b.filename, size: b.size, offset: 0, state: "receiving", hold: b.hold });
+    });
+  } else if (url.pathname === "/api/v1/uploads/up1" && req.method === "PUT") {
+    read((body) => {
+      browserSide.uploaded = body;
+      reply(200, { id: "up1", filename: "report.pdf", size: body.length, offset: body.length, state: "held" });
     });
   } else {
     return false;
@@ -209,6 +264,39 @@ try {
   await panel.click(".approval button.primary");
   await panel.waitForFunction(() => document.querySelector(".approval")?.textContent.includes("Done"), null, { timeout: 5000 }).catch(() => null);
   check(decided.at(-1)?.decision === "approve", "approving sends the person's pick to Lens");
+
+  // the assistant using this browser: Lens sends actions, the side panel carries them out on sites the person allows
+  await panel.waitForFunction(() => document.getElementById("browserState").textContent.includes("can use"), null, { timeout: 10000 }).catch(() => null);
+  check(Boolean(browserSide.stream) && /\S/.test(browserSide.label ?? ""), `the side panel connects this browser to Lens (${browserSide.label})`);
+  const compose = await context.newPage();
+  await compose.goto(`${origin}/compose`);
+  const tab_id = await panel.evaluate(async (url) => (await chrome.tabs.query({ url })).at(0)?.id, `${origin}/compose`);
+  const reading = act("read", { tab_id });
+  await panel.locator(".ask.site button.primary").click({ timeout: 10000 });
+  let a = await reading;
+  check(a.ok && a.result.text.includes("New message"), `Lens reads a page once the person allows its site${a.ok ? "" : `: ${a.error}`}`);
+  const refOf = (name) => new RegExp(`\\[(e\\d+)\\] [a-z ]+"${name}"`).exec(a.result?.text ?? "")?.[1];
+  const [to, pw, send, file] = ["To", "Password", "Send", "report.pdf"].map(refOf);
+  a = await act("type", { tab_id, ref: to, text: "ada@example.com" });
+  check(a.ok && (await compose.inputValue("#to")) === "ada@example.com", `it types into a field${a.ok ? "" : `: ${a.error}`}`);
+  a = await act("type", { tab_id, ref: pw, text: "hunter2" });
+  check(!a.ok && /password/.test(a.error) && (await compose.inputValue("#pw")) === "", "and never into a password field");
+  const declined = act("click", { tab_id, ref: send });
+  await panel.locator(".ask.action").last().getByRole("button", { name: "No" }).click({ timeout: 10000 });
+  a = await declined;
+  check(!a.ok && /said no/.test(a.error) && (await compose.textContent("#state")) === "Draft", "a consequential click waits for the person, and No means it doesn't happen");
+  const sending = act("click", { tab_id, ref: send });
+  await panel.locator(".ask.action").last().getByRole("button", { name: "Yes, do it" }).click({ timeout: 10000 });
+  a = await sending;
+  check(a.ok && (await compose.textContent("#state")) === "Sent to ada@example.com", `and Yes does it${a.ok ? "" : `: ${a.error}`}`);
+  check(a.result?.text?.includes("Sent to ada@example.com"), "the answer has the page as it is after the click");
+  a = await act("import", { tab_id, ref: file });
+  check(a.ok && a.result.upload_id === "up1" && browserSide.uploaded === PDF, `it downloads a file into a held upload${a.ok ? "" : `: ${a.error}`}`);
+  const logged = await panel.locator(".steps li").allTextContents();
+  check(logged.some((t) => t.startsWith("Clicked “Send”")) && logged.some((t) => t.startsWith("Downloaded report.pdf")), "each action shows in the side panel");
+  await panel.close({ runBeforeUnload: true });
+  for (let i = 0; i < 20 && !browserSide.ended; i++) await new Promise((ok) => setTimeout(ok, 100));
+  check(browserSide.ended, "closing the side panel ends the session");
   check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join("; ")}` : ""}`);
 } finally {
   await context.close();

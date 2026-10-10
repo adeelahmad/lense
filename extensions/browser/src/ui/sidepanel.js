@@ -1,7 +1,10 @@
 // The side panel: the Lens assistant next to any page (docs/browser-assistant.md). Sign in once, through Lens's own
-// sign-in page, then ask. The conversation is the same one the web app shows, so it can be picked up there.
+// sign-in page, then ask. The conversation is the same one the web app shows, so it can be picked up there. While the
+// panel is open, the assistant can also use this browser: each action shows here, a site is used only once the person
+// allows it, and anything consequential waits for their yes.
 import * as account from "../core/account.js";
 import * as assistant from "../core/assistant.js";
+import * as browserCtl from "../core/browser.js";
 import * as settingsStore from "../core/settings.js";
 
 const ext = globalThis.browser ?? globalThis.chrome;
@@ -10,7 +13,10 @@ const CHAT_KEY = "assistantChat"; // {server, id}: the conversation the side pan
 
 let me = null; // the signed-in account
 let chatId = null;
-let answering = null; // {controller} while an answer streams
+let answering = null; // {controller, view} while an answer streams
+let session = null; // this browser's session with Lens, while the assistant may use it
+let listening = null; // aborts the session's action stream
+const ASK_MS = 80_000; // a question to the person lapses before Lens stops waiting for the action (90 seconds)
 
 function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
@@ -76,6 +82,7 @@ $("signinForm").addEventListener("submit", (e) => {
 
 $("signout").addEventListener("click", async () => {
   if (answering) await stopAnswer();
+  stopBrowser();
   await ext.storage.local.remove(CHAT_KEY);
   await account.signOut();
   $("log").replaceChildren();
@@ -121,6 +128,12 @@ function addAnswer() {
       steps.append(el("li", { textContent: text }));
       scrollDown();
     },
+    /** An action in the browser, as it happens: running, then done or not. */
+    live(text) {
+      steps.hidden = false;
+      thinking.textContent = "Using the browser…";
+      return liveStep(steps, text);
+    },
     answer(text, passages) {
       thinking.remove();
       body.innerHTML = assistant.answerHtml(text, passages, me.server, window);
@@ -139,6 +152,129 @@ function addAnswer() {
     },
   };
 }
+
+function liveStep(list, text) {
+  const item = el("li", { className: "running", textContent: `${text}…` });
+  list.append(item);
+  scrollDown();
+  return {
+    done(said, ok) {
+      item.className = ok ? "" : "bad";
+      item.textContent = said;
+      scrollDown();
+    },
+  };
+}
+
+// ---------- the browser, for the assistant ----------
+/** Where an action shows: in the answer it's for, or on its own (an agent asking through the API). */
+function placeFor(action) {
+  if (answering?.view && action.chat === chatId) return answering.view;
+  return null;
+}
+
+const ui = {
+  log(action, text) {
+    const view = placeFor(action);
+    if (view) return view.live(text);
+    $("log").querySelector(".empty")?.remove();
+    const list = el("ul", { className: "steps" });
+    $("log").append(el("div", { className: "msg assistant" }, el("p", { className: "note", textContent: "An app is using this browser through Lens:" }), list));
+    return liveStep(list, text);
+  },
+  /** Ask the person; resolves to their yes. For a site, the browser's own access is asked for in their click. */
+  ask({ kind, text, detail, origins }, action = {}) {
+    return new Promise((resolve) => {
+      const status = el("span", { className: "status" });
+      const yes = el("button", { className: "primary", type: "button", textContent: kind === "site" ? "Allow" : "Yes, do it" });
+      const no = el("button", { type: "button", textContent: kind === "site" ? "Not this site" : "No" });
+      const buttons = el("p", { className: "row" }, yes, no, status);
+      const card = el(
+        "div",
+        { className: `approval ask ${kind}`, role: "alertdialog", ariaLabel: text },
+        el("p", { textContent: text }),
+        detail ? el("p", { className: kind === "action" ? "detail" : "hint", textContent: detail }) : null,
+        buttons,
+      );
+      const finish = (ok, said) => {
+        clearTimeout(timer);
+        buttons.replaceChildren(el("span", { className: `status ${ok ? "ok" : ""}`, textContent: said }));
+        resolve(ok);
+      };
+      const timer = setTimeout(() => finish(false, "No answer, so Lens didn't"), ASK_MS);
+      yes.addEventListener("click", () => {
+        // asked straight from the click: browsers grant a site only from the person's own gesture
+        const granted = origins && ext.permissions?.request ? ext.permissions.request({ origins }) : Promise.resolve(true);
+        granted.then(
+          (ok) => finish(ok, ok ? (kind === "site" ? "Allowed" : "Done") : "The browser didn't allow it"),
+          (e) => finish(false, e.message),
+        );
+      });
+      no.addEventListener("click", () => finish(false, kind === "site" ? "Not allowed" : "Not done"));
+      const view = placeFor(action);
+      (view?.root ?? $("log")).append(card);
+      scrollDown(true);
+    });
+  },
+};
+
+function browserState(text, kind = "") {
+  $("browserState").className = `hint ${kind}`;
+  $("browserState").textContent = text;
+}
+
+/** Offer this browser to the assistant: a session with Lens, and its actions carried out as they come. */
+async function startBrowser() {
+  stopBrowser();
+  $("useBrowser").checked = await browserCtl.enabled();
+  if (!$("useBrowser").checked || !me) return browserState("");
+  try {
+    session = await browserCtl.connect();
+  } catch (err) {
+    if (err instanceof account.SignedOut) return showSignIn(err.message);
+    return browserState(err.status === 403 ? "Lens's admin turned this off" : `Not connected: ${err.message}`, err.status === 403 ? "" : "bad");
+  }
+  const windowId = (await ext.windows.getCurrent()).id;
+  const hands = new browserCtl.Hands({ windowId, ui });
+  listening = new AbortController();
+  const mine = session;
+  browserCtl
+    .listen(mine.id, (action) => hands.run(action), {
+      signal: listening.signal,
+      onLive: (on) => browserState(on ? "Lens can use this browser on sites you allow" : "Reconnecting…"),
+      onGone: (status) => {
+        if (session !== mine) return;
+        session = null;
+        if (status === 403) browserState("Lens's admin turned this off");
+        else startBrowser(); // Lens forgot the session (a restart): connect again
+      },
+    })
+    .catch((err) => (err instanceof account.SignedOut ? showSignIn(err.message) : browserState(err.message, "bad")));
+}
+
+function stopBrowser() {
+  listening?.abort();
+  listening = null;
+  if (session && me) browserCtl.end(session.id, me);
+  session = null;
+}
+
+$("useBrowser").addEventListener("change", async () => {
+  await browserCtl.setEnabled($("useBrowser").checked);
+  if ($("useBrowser").checked) await startBrowser().catch((err) => browserState(err.message, "bad"));
+  else {
+    stopBrowser();
+    browserState("");
+  }
+});
+
+// the panel closing ends the session at once (it would lapse by itself after a few seconds)
+addEventListener("pagehide", () => stopBrowser());
+
+// a renewed token, or signing out in another panel
+ext.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.account && me) me = changes.account.newValue ?? me;
+});
 
 const DECIDED = { done: "Done", declined: "Declined" };
 
@@ -205,6 +341,7 @@ async function showChat() {
   emptyHint();
   scrollDown(true);
   $("q").focus();
+  startBrowser().catch((err) => browserState(err.message, "bad"));
 }
 
 $("new").addEventListener("click", async () => {
@@ -236,14 +373,17 @@ async function send(text) {
     if (!chatId) await setChat(await assistant.newChat());
     addUser(text);
     view.current = addAnswer();
-    answering = { controller: new AbortController() };
+    answering = { controller: new AbortController(), view: view.current };
     setAnswering(true);
     let answer = "";
     let passages = [];
+    const browser = session?.id;
     await assistant.ask(chatId, text, {
+      browser,
       signal: answering.controller.signal,
       onEvent(name, data) {
         const v = view.current;
+        if (name === "step" && browser && String(data.tool).startsWith("browser_")) return; // shown as it happened
         if (name === "step") v.step(data.summary || data.tool);
         else if (name === "approval") v.approval(data);
         else if (name === "notice") v.note(data.message);
