@@ -2591,7 +2591,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^(openai|elevenlabs|assemblyai|deepgram)$",
+              "pattern": "^(openai|elevenlabs|assemblyai|deepgram|gemini)$",
               "title": "Provider"
             }
           }
@@ -19699,7 +19699,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.",
         "operationId": "send_message",
         "parameters": [
           {
@@ -23630,6 +23630,57 @@
           },
           "204": {
             "description": "the browser reads it"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/voice/voices": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "List Voices",
+        "description": "The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it\nlists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have.",
+        "operationId": "list_voices",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceList"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -31151,7 +31202,8 @@
               "job.failed",
               "job.cancelled",
               "batch.finished",
-              "recording.added"
+              "recording.added",
+              "lens.release"
             ],
             "title": "Type"
           },
@@ -39582,7 +39634,8 @@
                 "job.failed",
                 "job.cancelled",
                 "batch.finished",
-                "recording.added"
+                "recording.added",
+                "lens.release"
               ]
             },
             "type": "array",
@@ -39730,7 +39783,8 @@
                     "job.failed",
                     "job.cancelled",
                     "batch.finished",
-                    "recording.added"
+                    "recording.added",
+                    "lens.release"
                   ]
                 },
                 "type": "array"
@@ -39859,7 +39913,8 @@
                     "job.failed",
                     "job.cancelled",
                     "batch.finished",
-                    "recording.added"
+                    "recording.added",
+                    "lens.release"
                   ]
                 },
                 "type": "array"
@@ -49367,6 +49422,19 @@
             "type": "string",
             "maxLength": 8000,
             "title": "Text"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice",
+            "description": "read in this voice (an id from GET /voice/voices); else the settings'"
           }
         },
         "additionalProperties": false,
@@ -53200,6 +53268,84 @@
           "speak"
         ],
         "title": "VoiceInfo"
+      },
+      "VoiceList": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current",
+            "description": "the voice answers are read in now (null: the provider's default)"
+          },
+          "voices": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceOption"
+            },
+            "type": "array",
+            "title": "Voices"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the provider's voices couldn't be listed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "provider",
+          "voices"
+        ],
+        "title": "VoiceList"
+      },
+      "VoiceOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "what voice.tts_voice is set to"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what the provider says about it: accent, gender, style, language"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "VoiceOption"
       },
       "Watch": {
         "properties": {
