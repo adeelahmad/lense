@@ -234,12 +234,17 @@ if [ "$BACKEND" = microsandbox ]; then
     -v "$PWD:/lens:ro" --mount-named lens-data:/data \
     --entrypoint /bin/sh python:3.12-slim-bookworm -- /lens/microsandbox/run.sh
   say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
-  if [ "$*" = "$(cat .lens-sandbox 2>/dev/null)" ] && msb ls -q 2>/dev/null | grep -qx lens; then
-    msb restart lens >/dev/null # same settings: keeps its installed packages
-  else
-    msb "$@" >/dev/null
-    printf '%s' "$*" >.lens-sandbox
-  fi
+  # The command that starts it, kept for a restart of the machine: a sandbox started again (msb start) boots without
+  # running Lens, so it is always replaced; its packages come from the cache in the volume, its build stays there.
+  {
+    echo "#!/bin/sh"
+    echo "# Starts Lens in its microsandbox (written by install.sh)"
+    printf 'exec %s' "'$(command -v msb)'"
+    for a in "$@"; do printf " '%s'" "$a"; done
+    echo
+  } >.lens-sandbox
+  chmod +x .lens-sandbox
+  ./.lens-sandbox >/dev/null
   LOGS="msb logs -f lens"
   STOP="msb stop lens"
   WAIT=900 # 30 minutes: the first start installs the system packages and builds everything
@@ -247,7 +252,7 @@ if [ "$BACKEND" = microsandbox ]; then
   if [ "$os" = Linux ] && have systemctl && [ -d /run/systemd/system ]; then
     unit=/etc/systemd/system/lens-microsandbox.service
     printf '%s\n' "[Unit]" "Description=Lens (microsandbox)" "After=network-online.target" "Wants=network-online.target" "" \
-      "[Service]" "Type=oneshot" "RemainAfterExit=yes" "User=$(id -un)" "ExecStart=$(command -v msb) start lens" \
+      "[Service]" "Type=oneshot" "RemainAfterExit=yes" "User=$(id -un)" "ExecStart=$PWD/.lens-sandbox" \
       "ExecStop=$(command -v msb) stop lens" "" "[Install]" "WantedBy=multi-user.target" |
       $(sudo_ok) tee "$unit" >/dev/null && $(sudo_ok) systemctl enable lens-microsandbox.service >/dev/null 2>&1 || true
   elif [ "$os" = Darwin ]; then
@@ -258,7 +263,7 @@ if [ "$BACKEND" = microsandbox ]; then
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>Label</key><string>dev.lens.microsandbox</string>
-  <key>ProgramArguments</key><array><string>$(command -v msb)</string><string>start</string><string>lens</string></array>
+  <key>ProgramArguments</key><array><string>$PWD/.lens-sandbox</string></array>
   <key>RunAtLoad</key><true/>
 </dict></plist>
 PLIST

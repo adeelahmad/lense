@@ -37,7 +37,8 @@ esac
 mkdir -p "$OPT/bin" "$DATA/surreal" /tmp/lens
 export PATH="$OPT/bin:$OPT/node/bin:$OPT/venv/bin:$PATH"
 
-# --- System packages: in the sandbox's own disk, so installed again if the sandbox is replaced ---------------------
+# --- System packages: in the sandbox's own disk, installed on each start (install.sh replaces the sandbox), from
+# the packages kept in the volume, so only the first start downloads them ------------------------------------------
 packages="ffmpeg tesseract-ocr antiword poppler-utils ca-certificates curl xz-utils unzip"
 [ "$TARGET" = full ] && packages="$packages libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui
   chromium fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-cjk"
@@ -45,9 +46,11 @@ stamp="/var/lib/lens-packages.$TARGET"
 if [ ! -f "$stamp" ]; then
   log "Installing system packages ($TARGET)..."
   export DEBIAN_FRONTEND=noninteractive
+  rm -f /etc/apt/apt.conf.d/docker-clean # the image's setting that deletes downloaded packages
+  mkdir -p "$OPT/apt/partial"
   apt-get update -q
   # shellcheck disable=SC2086
-  apt-get install -y -q --no-install-recommends $packages
+  apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" $packages
   rm -rf /var/lib/apt/lists/*
   id lens >/dev/null 2>&1 || useradd --create-home --uid 1000 lens
   touch "$stamp"

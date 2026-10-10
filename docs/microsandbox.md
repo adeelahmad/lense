@@ -39,22 +39,24 @@ do:
    changes.
 4. Runs SurrealDB, the API, a job worker and the web app, and restarts any of them that stops.
 
-The database, the archive and the builds are in the named volume `lens-data`, which outlives the sandbox. The first
-start installs and builds everything, which takes several minutes (longer on a Raspberry Pi). Later starts take
-seconds.
+The database, the archive, the builds and the downloaded packages are in the named volume `lens-data`, which outlives
+the sandbox. A sandbox that is started again boots without running Lens, so Lens always starts in a fresh one:
+`~/lens/.lens-sandbox`, which install.sh writes, replaces the sandbox. The first start downloads and builds everything,
+which takes several minutes (longer on a Raspberry Pi). Later starts install the packages from the volume and reuse the
+build, so they take a minute or two.
 
 The sandbox can reach the internet, your network (mail servers, model servers) and this machine. On this machine,
 Ollama or LM Studio are at `host.docker.internal`, the same address as with Docker. Only the web app's port and the
 sensor ports are published, on the same addresses Docker would use (`LENS_BIND`, `LENS_SENSOR_BIND`).
 
-On Linux with systemd, the installer adds a `lens-microsandbox` service that starts the sandbox when the machine
-starts. On a Mac, it adds a LaunchAgent that starts it at sign-in.
+On Linux with systemd, the installer adds a `lens-microsandbox` service that runs `.lens-sandbox` when the machine
+starts. On a Mac, it adds a LaunchAgent that runs it at sign-in.
 
 ## Day to day
 
 ```bash
 msb logs -f lens      # follow the logs
-msb stop lens         # stop it; msb start lens starts it again
+msb stop lens         # stop it; ~/lens/.lens-sandbox starts it again
 msb exec lens -- sh   # a shell inside it
 ```
 
