@@ -24,6 +24,7 @@ import threading
 
 from . import (
     activity,
+    backups,
     budgets,
     fedora,
     jobs,
@@ -637,8 +638,8 @@ def run_due(db, cfg, log=print, now=None):
 
 
 def start(db, cfg_fn, stop, log=None):
-    """The scheduling threads, until `stop` is set: watched folders scanned when due (every sources.check_seconds) and
-    routines run when due (every CHECK_SECONDS). The API runs them with its background work; `lens worker` runs them too,
+    """The scheduling threads, until `stop` is set: watched folders scanned when due (every sources.check_seconds),
+    routines run when due (every CHECK_SECONDS) and the scheduled backup taken when due. The API runs them with its background work; `lens worker` runs them too,
     since Docker and the packages run the API without it."""
 
     def every(seconds, fn, what):
@@ -659,6 +660,7 @@ def start(db, cfg_fn, stop, log=None):
         every(lambda: CHECK_SECONDS, run_due, "routines"),
         every(lambda: cfg_fn()["fedora"]["sync_seconds"], fedora.sync_due, "fedora"),
         every(lambda: notebook.QUIET_SECONDS / 2, notebook.organise_due, "notes"),
+        every(lambda: CHECK_SECONDS, backups.run_due, "backups"),
     ]
 
 
