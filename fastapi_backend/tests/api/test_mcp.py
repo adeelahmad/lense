@@ -76,6 +76,8 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "propose_graph_change",
         "write_note",
         "create_podcast",
+        "set_nsfw",
+        "mark_nsfw",
         "set_file_storage",
     ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]

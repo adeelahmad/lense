@@ -18,6 +18,7 @@ import type { ReactNode } from "react";
 import type { Enrichment } from "@/app/openapi-client";
 
 import { uploadKindName } from "@/components/import/files";
+import { NsfwDetail } from "@/components/nsfw/nsfw";
 import { ContentTypePicker } from "@/components/recording/content-type";
 import { useRec } from "@/components/recording/context";
 import { emailRows, renditionNote, webRows, type EmailInfo } from "@/components/recording/document/model";
@@ -117,6 +118,7 @@ export function DetailsTab() {
         : "not run",
     ],
     ["Summarize", rec.summarized_at ? absolute(rec.summarized_at) : "not run"],
+    ["NSFW", rec.nsfw ? <NsfwDetail key="nsfw" /> : null],
     [
       "Report",
       rec.report_url ? (

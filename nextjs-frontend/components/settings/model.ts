@@ -64,6 +64,7 @@ export type SectionId =
   | "search"
   | "reports"
   | "video"
+  | "nsfw"
   | "workers"
   | "components"
   | "access"
@@ -170,6 +171,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Video, OCR, faces and objects",
     backend: ["video"],
     description: "Shots and keyframes, text on screen, faces, and objects in videos, documents and images.",
+  },
+  {
+    id: "nsfw",
+    label: "NSFW",
+    backend: ["nsfw"],
+    description:
+      "Flag videos, documents and images with NSFW pictures, with a model on this server, and blur or hide them. Off until you turn it on here or a namespace's owner does for theirs.",
   },
   {
     id: "workers",
@@ -305,6 +313,7 @@ export const WORKER_STEPS = [
   "ocr",
   "faces",
   "objects",
+  "nsfw",
   "describe",
   "analyze",
   "embed",
@@ -1560,6 +1569,43 @@ export const FIELDS: FieldSpec[] = [
     min: 0.05,
     max: 0.95,
     hint: "Objects the detector is less sure of are left out",
+  },
+  // NSFW
+  {
+    section: "nsfw",
+    key: "enabled",
+    label: "Classify NSFW pictures",
+    kind: "switch",
+    hint: "In every namespace that doesn't say otherwise; the model (about 105 MB) is fetched the first time",
+  },
+  {
+    section: "nsfw",
+    key: "threshold",
+    label: "Flag at score",
+    kind: "number",
+    min: 0.5,
+    max: 0.99,
+    hint: "A resource is flagged when one of its pictures scores at least this (0 safe, 1 NSFW)",
+  },
+  {
+    section: "nsfw",
+    key: "display",
+    label: "Flagged resources",
+    kind: "select",
+    options: [
+      { value: "blur", label: "Blur their pictures" },
+      { value: "hide", label: "Hide them from the Library, and blur" },
+      { value: "show", label: "Show them, with a label" },
+    ],
+  },
+  {
+    section: "nsfw",
+    key: "max_frames",
+    label: "Most pictures per resource",
+    kind: "int",
+    min: 1,
+    max: 5000,
+    hint: "Spread evenly over a long video or document",
   },
   // Workers
   {

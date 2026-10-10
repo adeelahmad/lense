@@ -15,6 +15,7 @@ import { ActivityPanel, BudgetPanel, CostCell, useBudgets, useCosts } from "@/co
 import { isUnreachable } from "@/components/errors/error-states";
 import { NotificationsSection } from "@/components/notifications/notifications-section";
 import { runtime } from "@/components/iiif/iiif-model";
+import { NsfwSection } from "@/components/nsfw/nsfw-section";
 import { ChoiceCards } from "@/components/settings/controls";
 import { VaultSection } from "@/components/vaults/vault-section";
 import { RoleChip } from "@/components/ui/badge";
@@ -475,6 +476,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
             )}
           </section>
           <NsAssistantSection ns={ns} isOwner={isOwner} />
+          {known && <NsfwSection ns={ns} isOwner={isOwner} />}
           <IpGroupsSection ns={ns} isOwner={isOwner} admin={admin} />
           <ImportHooksSection ns={ns} isOwner={isOwner} />
           <NotificationsSection ns={ns} isOwner={isOwner} admin={admin} />

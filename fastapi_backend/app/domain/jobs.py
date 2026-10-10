@@ -17,14 +17,14 @@ import time
 from . import activity, analyze, ingest, keyring, pipelines, render, speakers as spk, store, telemetry
 
 R = store.R
-PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
+PIPELINE = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "analyze", "embed", "summarize", "report"]
 AFTER_IMPORT = ["analyze", "embed", "summarize", "report"]
 ACTIVE = ["queued", "running", "held"]  # held: over budget, waiting for someone to pick (budgets.py)
 FIELDS = (
     "record::id(id) AS id, recording, space, batch, pipeline, steps, step_index, next_step, status, worker, error, attempts, "
     "created_by, created_at, started_at, finished_at, updated_at, cancel_requested, log_total, cost_usd, tokens, cost_estimate, hold"
 )
-MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe"}  # they take longer the longer the recording
+MEDIA_STEPS = {"transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe"}  # they take longer the longer the recording
 FILED = ("audio", "document", "image")  # sources with a file of their own for the steps to work on
 TIMINGS = 25  # recent timings kept per kind of step, for estimates
 
@@ -169,6 +169,12 @@ def _objects(db, cfg, rid, say, spec=None):
     objects.step_objects(db, cfg, rid, say)
 
 
+def _nsfw(db, cfg, rid, say, spec=None):
+    from . import nsfw
+
+    nsfw.step(db, cfg, rid, say)
+
+
 def _describe(db, cfg, rid, say, spec=None):
     from . import descriptions
 
@@ -184,6 +190,7 @@ STEPS = {
     "ocr": _ocr,
     "faces": _faces,
     "objects": _objects,
+    "nsfw": _nsfw,
     "describe": _describe,
     "analyze": _analyze,
     "embed": _embed,
@@ -900,6 +907,8 @@ class Worker:
             self.can |= VIDEO_STEPS
         if self.can & {"analyze", "summarize"}:  # embedding needs what they need; lists written before it existed run it too
             self.can.add("embed")
+        if not steps and "objects" in self.can:  # NSFW classification runs on ONNX Runtime too; older lists run it as well
+            self.can.add("nsfw")
         if not steps and log and (missing := sorted(set(STEPS) - self.can)):
             log(f"worker {self.name}: workers.steps leaves out {', '.join(missing)}; jobs with those steps wait for another worker")
         self.was_paused = False

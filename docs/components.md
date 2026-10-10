@@ -17,6 +17,7 @@ archive that only uses cloud models never downloads them, which keeps a small ma
 | Face models | `video.face_engine` is `opencv` (the default) | OpenCV, YuNet and SFace |
 | Face models | `video.face_engine` is `anytopdf` | SFace, for anytopdf to describe faces with (anytopdf too) |
 | Object model | `video.object_engine` is `yolox` (the default) or `anytopdf` | YOLOX-s, and ONNX Runtime for `yolox` |
+| NSFW model | [NSFW classification](nsfw.md) is on for the archive or a namespace (off by default) | the 8-bit ONNX export of AdamCodd/vit-base-nsfw-detector (Apache-2.0, 88 MB), and ONNX Runtime |
 | yt-dlp | `documents.video_urls` is on | the yt-dlp program, release 2026.08.19 (Unlicense), to download videos and podcasts imported by address |
 | Chat model, embedding model | the LLM provider or embeddings server is Ollama | pulled on that server (`/api/pull`) |
 | Outlook .msg emails | listed in `components.also` | extract-msg (GPL-3.0, so only when asked for) |
@@ -24,7 +25,7 @@ archive that only uses cloud models never downloads them, which keeps a small ma
 - Python packages go into `data_dir/python`, at the versions in `uv.lock`. Packages the image already has win.
 - Models go into `data_dir/models`: the Hugging Face, ModelScope and PyTorch caches point there (unless `HF_HOME`,
   `MODELSCOPE_CACHE` or `TORCH_HOME` say otherwise). They outlast container rebuilds and upgrades.
-- Model files fetched by URL (YOLOX, YuNet, SFace) are checked against their SHA-256.
+- Model files fetched by URL (YOLOX, YuNet, SFace, the NSFW model) are checked against their SHA-256.
 - A job step that needs something still being fetched waits for it instead of falling back or failing. If a fetch fails,
   the step runs as before (for transcription, falling back to another engine), and the fetch is tried again an hour
   later, when the settings change, or on **Check again now**.

@@ -9,6 +9,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Telemetry (or `LENS_PROMETHEUS=on`), it answers only a scraper with the scrape token, and follows `LENS_BIND`. A
   sample Grafana dashboard comes with it ([Prometheus](docs/prometheus.md)).
 
+- **NSFW classification, with a model on your server.** Turn it on in Settings → NSFW for every namespace, or on a
+  namespace's page for that one (off by default). The new `nsfw` step scores a video's sampled frames, a document's
+  pages or an image with an Apache-2.0 model (fetched on first use, about 105 MB with ONNX Runtime) and flags the
+  resource when a picture scores at least the threshold. Flagged resources are blurred until someone chooses to see
+  them, left out of the Library, or shown with a label; editors can mark one NSFW or not by hand, and **Classify
+  existing** classifies what was there before. Agents use it through the API and MCP (`nsfw_settings`, `set_nsfw`,
+  `mark_nsfw`) ([NSFW classification](docs/nsfw.md)).
+
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries
   launchers that need no terminal at all: **Install Lens.app** for macOS, **Install Lens.cmd** for Windows and

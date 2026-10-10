@@ -26,7 +26,7 @@ from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
-from app.domain import analyze, auth, blobs, feeds, graph_history, library, notebook, rdf, render, settings, sources, store
+from app.domain import analyze, auth, blobs, feeds, graph_history, library, notebook, nsfw, rdf, render, settings, sources, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
@@ -405,6 +405,13 @@ MEDIA = ("audio", "video", "transcript", "document", "image")
     Arg("speaker_id", "integer", "only recordings this speaker is in"),
     Arg("tag", "string", "only recordings with this tag", max_length=100),
     Arg("media", "string", "only this kind", enum=MEDIA),
+    Arg(
+        "sensitive",
+        "string",
+        "where NSFW classification is on: only those flagged NSFW, exclude them, or include them (without it, flagged ones "
+        "are left out where their namespace hides them)",
+        enum=("include", "only", "exclude"),
+    ),
     Arg("sort", "string", "order: date, title or duration; - first for descending", default="-date", enum=SORTS),
     Arg("limit", "integer", "how many", default=20, minimum=1, maximum=100),
     Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
@@ -418,6 +425,7 @@ def list_recordings(
     speaker_id: int | None,
     tag: str | None,
     media: str | None,
+    sensitive: str | None,
     sort: str,
     limit: int,
     offset: int,
@@ -437,6 +445,7 @@ def list_recordings(
         media=media,
         tags=[tag] if tag else None,
         cfg=ctx.cfg,
+        sensitive=sensitive,
     )
     out: dict[str, Any] = {
         "total": total,
@@ -452,6 +461,7 @@ def list_recordings(
                 "speakers": r.get("speakers") or None,
                 "tags": r.get("tags") or None,
                 "language": r.get("language"),
+                "nsfw": True if (r.get("nsfw") or {}).get("flagged") else None,
                 "url": ctx.link(r["id"]),
             }
             for r in rows
@@ -547,6 +557,8 @@ def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
         out["email"] = rec.email.model_dump(exclude_none=True)
     if rec.web:
         out["web_page"] = rec.web.model_dump(exclude_none=True)
+    if rec.nsfw:
+        out["nsfw"] = rec.nsfw.model_dump(exclude_none=True, include={"flagged", "score", "manual", "threshold", "checked", "of"})
     return {k: v for k, v in out.items() if v is not None}
 
 
@@ -1355,6 +1367,92 @@ def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
             "url": ctx.link(episode_id),
         }
     )
+
+
+# ---------- NSFW classification ----------
+@tool(
+    "nsfw_settings",
+    "NSFW classification",
+    "Whether a local model classifies NSFW pictures (nudity and sexual content) in a namespace's videos, documents and "
+    "images; the threshold a resource is flagged at; how flagged resources show in the web app (blur, hide from the "
+    "Library, or show); what the namespace chose itself and the archive's settings it otherwise follows; and how many "
+    "are classified and flagged. Off unless an admin or the namespace's owner turns it on.",
+    Arg("namespace", "string", "the namespace (see list_namespaces)", required=True),
+)
+def nsfw_settings(ctx: Context, namespace: str) -> dict[str, Any]:
+    out = nsfw.status(ctx.db, ctx.cfg, ctx.acl.namespace(namespace))
+    return {**out, "settings": f"{ctx.web}/admin/namespaces/{namespace}#nsfw"}
+
+
+@tool(
+    "set_nsfw",
+    "Change NSFW classification",
+    "Turn NSFW classification on or off for a namespace, or give it its own threshold (0.5 to 0.99) or display (blur, "
+    "hide or show) (its owners); without a namespace, change the archive's settings that every namespace follows "
+    "unless it chose otherwise (admins). classify_existing also queues the namespace's videos, documents and images "
+    "not classified yet; new ones are classified by their pipeline. The model runs on this server and is fetched the "
+    "first time it's needed. Needs a token with the write scope.",
+    Arg("namespace", "string", "the namespace; leave it out for the archive's settings (admins)"),
+    Arg("enabled", "boolean", "on or off"),
+    Arg("threshold", "number", "flag a resource when one of its pictures scores at least this (0.5 to 0.99)"),
+    Arg("display", "string", "how flagged resources show in the web app", enum=nsfw.DISPLAYS),
+    Arg("classify_existing", "boolean", "also queue those not classified yet (needs a namespace)", default=False),
+    writes=True,
+)
+def set_nsfw(
+    ctx: Context,
+    namespace: str | None = None,
+    enabled: bool | None = None,
+    threshold: float | None = None,
+    display: str | None = None,
+    classify_existing: bool = False,
+) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change NSFW classification")
+    changes = {k: v for k, v in (("enabled", enabled), ("threshold", threshold), ("display", display)) if v is not None}
+    if not changes and not classify_existing:
+        raise ToolError("say what to change: enabled, threshold, display or classify_existing")
+    if namespace is None:
+        if classify_existing:
+            raise ToolError("classify_existing needs a namespace")
+        if not ctx.user.admin:
+            raise ToolError("only admins change the archive's NSFW settings; give a namespace you own")
+        settings.save(ctx.db, ctx.request.app.state.archive.base, "nsfw", changes, ctx.user.email)
+        auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "nsfw", sorted(changes) + ["mcp"])
+        if "threshold" in changes:
+            nsfw.reflag(ctx.db, ctx.request.app.state.settings.current())
+        return {"saved": changes, "archive": {k: (ctx.request.app.state.settings.current().get("nsfw") or {}).get(k) for k in changes}}
+    sid = ctx.acl.namespace(namespace, "owner")
+    nsfw.save_own(ctx.db, sid, changes)
+    if "threshold" in changes:
+        nsfw.reflag(ctx.db, ctx.cfg, [sid])
+    out: dict[str, Any] = {"saved": changes}
+    if classify_existing:
+        if not nsfw.policy(ctx.db, ctx.cfg, sid)["enabled"]:
+            raise ToolError("NSFW classification is off in this namespace: turn it on first (enabled true)")
+        out["queued"] = len(nsfw.queue_unclassified(ctx.db, sid, ctx.user.email))
+    auth.audit(ctx.db, ctx.user.as_audit(), "namespace.nsfw", namespace, {**changes, "via": "mcp"})
+    return {**out, **nsfw.status(ctx.db, ctx.cfg, sid)}
+
+
+@tool(
+    "mark_nsfw",
+    "Mark a recording NSFW or not",
+    "A person's own call on a recording, document or image, where NSFW classification is on in its namespace: nsfw or "
+    "not_nsfw wins over the model's score; model lets the score decide again. Editors, with a token that has the write "
+    "scope.",
+    Arg("recording_id", "integer", "the recording", required=True),
+    Arg("verdict", "string", "nsfw, not_nsfw, or model", required=True, enum=("nsfw", "not_nsfw", "model")),
+    writes=True,
+)
+def mark_nsfw(ctx: Context, recording_id: int, verdict: str) -> dict[str, Any]:
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to mark recordings")
+    ctx.acl.recording(recording_id, "editor")
+    flagged = {"nsfw": True, "not_nsfw": False, "model": None}[verdict]
+    got = nsfw.mark(ctx.db, ctx.cfg, recording_id, flagged, ctx.user.email)
+    auth.audit(ctx.db, ctx.user.as_audit(), "recording.nsfw", f"recording:{recording_id}", {"flagged": flagged, "via": "mcp"})
+    return {"recording_id": recording_id, "nsfw": got, "url": ctx.link(recording_id)}
 
 
 # ---------- where files are kept (admins) ----------

@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 
 import { homeText } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
+import { RevealCover, useBlur } from "@/components/nsfw/nsfw";
 import { useMediaQuery } from "@/components/player/use-media-query";
 import { highlightRanges, highlightRuns, openThreads } from "@/components/recording/comments-model";
 import { useRec, type PanelTab } from "@/components/recording/context";
@@ -170,6 +171,7 @@ function PageImage({
   zoom: number;
   name: string;
 }) {
+  const blur = useBlur();
   if (!page.image)
     return (
       <div className="mx-auto flex aspect-[3/4] w-full max-w-[560px] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-background p-6 text-center text-[13px] leading-snug text-fg-muted">
@@ -189,8 +191,9 @@ function PageImage({
         height={page.height ?? undefined}
         alt={name}
         draggable={false}
-        className="block h-auto w-full select-none rounded-[2px] bg-surface shadow-2"
+        className={cn("block h-auto w-full select-none rounded-[2px] bg-surface shadow-2", blur)}
       />
+      <RevealCover />
       {marks.map((m, i) => (
         <span
           key={i}
@@ -494,6 +497,7 @@ function PageStage({ view, compact, object = null }: { view: DocView; compact?: 
 /** Thumbnails of every page, the current one marked; choosing one turns to it. */
 function Thumbs({ view }: { view: DocView }) {
   const { model } = useRec();
+  const blur = useBlur();
   const list = useRef<HTMLOListElement>(null);
   useEffect(() => {
     list.current?.querySelector(`[data-page="${view.page}"]`)?.scrollIntoView({ block: "nearest" });
@@ -519,7 +523,12 @@ function Thumbs({ view }: { view: DocView }) {
               >
                 {p.thumb ? (
                   // eslint-disable-next-line @next/next/no-img-element -- a signed link to a thumbnail the API drew
-                  <img src={p.thumb} alt="" loading="lazy" className="w-full rounded-[2px] bg-background shadow-1" />
+                  <img
+                    src={p.thumb}
+                    alt=""
+                    loading="lazy"
+                    className={cn("w-full rounded-[2px] bg-background shadow-1", blur)}
+                  />
                 ) : (
                   <span className="grid aspect-[3/4] w-full place-items-center rounded-[2px] bg-surface-neutral text-fg-muted">
                     <FileText className="size-4" aria-hidden />
@@ -751,7 +760,7 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
  */
 export function DocumentLayout({ compact }: { compact: boolean }) {
   const r = useRec();
-  const { model, rec, tab, setTab, find, state } = r;
+  const { model, rec, tab, setTab, find } = r;
   const view = useDocView();
   const wide = useMediaQuery("(min-width: 1280px)");
   const notes = useNotes(r.id).data?.length ?? 0;
@@ -834,7 +843,7 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
           </div>
           <HeaderActions compact />
         </div>
-        {state.phase !== "ready" && <Banners className="mx-3 mt-2" />}
+        <Banners className="mx-3 mt-2" />
         <PageStage view={view} compact object={object} />
         <div className="flex min-h-[320px] flex-col border-t border-border">
           <PanelTabs tabs={tabs} more={MORE_TABS} value={current} onChange={setTab} idBase="doc" className="px-3.5" />

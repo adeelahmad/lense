@@ -42,9 +42,9 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 |---|---|
 | `search` | moments where words are said, shown on screen or written, best first: the recording, speaker, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, speaker or recording |
 | `list_namespaces` | the namespaces you can read, with their recordings, hours, speakers and your role |
-| `list_recordings` | recordings, newest first, by namespace, title words, dates, speaker, tag or kind |
+| `list_recordings` | recordings, newest first, by namespace, title words, dates, speaker, tag or kind, and whether they're flagged NSFW (`sensitive`) |
 | `list_speakers` | the speakers of your namespaces, the ones who talk most first |
-| `get_recording` | one recording: when, how long, speakers, summary and key points, chapters, the entities and keywords most mentioned, its link |
+| `get_recording` | one recording: when, how long, speakers, summary and key points, chapters, the entities and keywords most mentioned, its link, and whether it's flagged NSFW |
 | `get_transcript` | a recording's lines in order (speaker, time, text, link), a page at a time, from a line or a time window |
 | `fetch` | a recording's whole text at once, as `[m:ss] Speaker: …` lines |
 | `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said them, the recording and date, the time, the link, and all of it as Markdown |
@@ -65,6 +65,9 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about recordings or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
+| `nsfw_settings` | how [NSFW classification](nsfw.md) works in a namespace: on or off, the threshold, how flagged resources show, and how many are classified, flagged and not classified yet |
+| `set_nsfw` | turn NSFW classification on or off, set its threshold and display, for a namespace (owners) or the archive (admins), and optionally classify what's there. Needs a write-scope token |
+| `mark_nsfw` | mark a resource NSFW or not by hand, or hand it back to the model's score. Needs a write-scope token and editor access |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
@@ -77,7 +80,8 @@ expect (`results` with `id`, `title`, `url`; `fetch` by that `id`).
 
 Every tool reads, except `suggest_topic`, which adds suggestions people accept or dismiss, `propose_graph_change`,
 which records an undoable change (proposed by default), `write_note`, which adds a note, `create_podcast`, which
-queues an episode, and `set_file_storage`, which changes where new files are kept (admins).
+queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
+editors), and `set_file_storage`, which changes where new files are kept (admins).
 Importing, editing and curating stay in the web app and the API.
 
 ## Protocol

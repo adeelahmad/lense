@@ -259,6 +259,7 @@ DEFAULTS = {
             "ocr",
             "faces",
             "objects",
+            "nsfw",
             "describe",
             "analyze",
             "embed",
@@ -427,6 +428,11 @@ DEFAULTS = {
         "ultralytics_model": None,
         "object_min_score": 0.4,
     },
+    # NSFW classification (nsfw.py, docs/nsfw.md): off until an admin turns it on here, or an owner for their namespace
+    # (which can also choose its own threshold and display). A local model (ViT, Apache-2.0, fetched on first use) scores
+    # each picture; a resource is flagged when one scores at least the threshold. display is how flagged resources show
+    # in the web app: blur (click to see), hide (left out of the Library unless asked for) or show.
+    "nsfw": {"enabled": False, "threshold": 0.8, "display": "blur", "max_frames": 300},
     # rclone and local_roots are bootstrap-only on purpose: the web app must not be able to pick an executable
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},

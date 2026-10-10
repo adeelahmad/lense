@@ -8,7 +8,7 @@ import pathlib
 import re
 from collections import Counter, defaultdict
 
-from . import access as acc, metadata, render, store
+from . import access as acc, metadata, nsfw, render, store
 
 R = store.R
 STATUSES = ("new", "transcribed", "diarized", "analyzed", "error")
@@ -26,7 +26,7 @@ SORTS = {
 }
 FIELDS = (
     "record::id(id) AS id, title, recorded_at, duration_ms, status, error, source, stats, summary, space, collection, media, "
-    "access, access_parts, featured, tags, language, path, remote, engine"
+    "access, access_parts, featured, tags, language, path, remote, engine, nsfw"
 )
 # where a recording came from (origin_of): a connected source (source:<id>), or one of these
 ORIGINS = {
@@ -195,6 +195,7 @@ def where(
     cfg=None,
     field=None,
     objects=None,
+    sensitive=None,
 ):
     """The WHERE clause and its parameters for these filters. Filters combine with AND, the values of one filter with OR.
 
@@ -207,6 +208,8 @@ def where(
     (edited_by). collections: collection ids (a collection and the ones inside it). within: {namespace: collection
     ids} for namespaces someone sees only some collections of (in_scope). field: (condition, value) on a custom field,
     from fields.filter_condition. objects: any of these kinds of object seen in it (ignoring case; objects.py).
+    sensitive (nsfw.py, where NSFW classification is on): only those flagged NSFW, exclude them, or include them;
+    without it (and with cfg), flagged ones are left out where their namespace hides them.
     """
     base, p = in_scope(spaces, within)
     w = [base]
@@ -299,6 +302,19 @@ def where(
     if kinds:
         p["kinds"] = kinds
         w.append("objects CONTAINSANY $kinds")
+    if sensitive not in (None, "include", "only", "exclude"):
+        raise ValueError("sensitive is include, only or exclude")
+    if sensitive in ("only", "exclude") or (sensitive is None and cfg is not None):
+        on, hide = nsfw.flagged_spaces(db, cfg or {}, sorted({*spaces, *(within or {})}))
+        if sensitive == "only":
+            p["nsfw_on"] = on
+            w.append("(nsfw.flagged = true AND space IN $nsfw_on)")
+        elif sensitive == "exclude" and on:
+            p["nsfw_on"] = on
+            w.append("(nsfw.flagged != true OR space NOTINSIDE $nsfw_on)")
+        elif sensitive is None and hide:
+            p["nsfw_hide"] = hide
+            w.append("(nsfw.flagged != true OR space NOTINSIDE $nsfw_hide)")
     if edited is not None:
         p["edited"] = recs(sorted(edited))
         w.append("id IN $edited")
@@ -374,14 +390,17 @@ def summaries(db, rows, cfg=None):
         )
     origins = Origins(db, cfg) if cfg is not None and rows else None
     came = {r["id"]: origins.of(r) for r in rows} if origins else {}
+    flags = nsfw.briefs(db, cfg, rows)
     called = origins.names(set(came.values())) if origins else {}
     out = []
     for r in rows:
         if origins:
             r["origin"] = came[r["id"]]
             r["origin_name"] = called[r["origin"]]
-        for k in ("_k", "_none", "access_parts", "path", "remote", "engine"):
+        for k in ("_k", "_none", "access_parts", "path", "remote", "engine", "nsfw"):
             r.pop(k, None)
+        if flags.get(r["id"]):
+            r["nsfw"] = flags[r["id"]]
         a = access[r["id"]]
         r.update(access=a["access"], open=a["open"], featured=a["featured"], tags=r.get("tags") or [])
         st, sm = r.pop("stats", None) or {}, r.pop("summary", None) or {}
@@ -460,6 +479,17 @@ def object_counts(db, spaces, within=None):
     for kinds in db.values(f"SELECT VALUE objects FROM recording WHERE {cond} AND objects != NONE", **p) if spaces or within else []:
         counts.update(set(kinds or []))
     return [{"object": k, "recordings": n} for k, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+
+
+def nsfw_counts(db, cfg, spaces, within=None):
+    """NSFW classification in these namespaces' recordings (and those of the collections in `within`): whether it's on
+    in any of them, how many are flagged, and how many of those the Library leaves out (display hide)."""
+    on, hide = nsfw.flagged_spaces(db, cfg, sorted({*spaces, *(within or {})}))
+    if not on:
+        return {"on": False, "flagged": 0, "hidden": 0}
+    cond, p = in_scope(spaces, within)
+    rows = db.values(f"SELECT VALUE space FROM recording WHERE {cond} AND nsfw.flagged = true AND space IN $on", on=on, **p)
+    return {"on": True, "flagged": len(rows), "hidden": sum(1 for s in rows if s in hide)}
 
 
 def tag_counts(db, spaces, within=None):
