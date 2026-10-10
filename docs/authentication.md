@@ -213,4 +213,7 @@ the access page; the probe service answers with a short-lived signed link. See
 ## Audit
 
 Changes to people, roles, settings, sources, shares, tokens, apps given access and curation go into the audit log (`GET /api/v1/audit`,
-admins).
+admins), and so does what Lens caught of prompt injection: tool results the assistant or the MCP server flagged
+(`assistant.injection_flagged`, `mcp.injection_flagged`) and chat-room answers that had links broken up
+(`bridge.links_broken`), with the reasons and counts, never the text
+([third-party content](assistant.md#third-party-content-and-prompt-injection)).

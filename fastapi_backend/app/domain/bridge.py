@@ -276,7 +276,11 @@ def answer(db, cfg, base, account, cid, q):
     """Answer a question in a conversation as the account would be answered in the web app (without streaming).
     Returns (text, approvals): the text as the room gets it, its links safe to preview (`safe_links`)."""
     text, approvals, keep = _answer(db, cfg, base, account, cid, q)
-    return safe_links(cfg, db, text, keep), approvals
+    safe = safe_links(cfg, db, text, keep)
+    if safe != text:  # what an injection may have tried, for admins to see
+        broken = len(untrusted.links(text) - untrusted.links(safe))
+        auth.audit(db, {"id": account["id"], "email": account["email"]}, "bridge.links_broken", f"chat:{cid}", {"links": broken})
+    return safe, approvals
 
 
 def safe_links(cfg, db, text, keep=()):

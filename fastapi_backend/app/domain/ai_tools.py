@@ -11,6 +11,7 @@ import json
 import logging
 
 from . import (
+    auth,
     batches,
     cypher,
     entities,
@@ -546,8 +547,9 @@ class Toolbox(ops_tools.OpsTools):
         if model:
             if self.untrusted(name):
                 why = untrusted.flags(result, self.cfg, model=True)
-                if why:  # the person sees it on the step, the model on the marker
+                if why:  # the person sees it on the step, the model on the marker, admins in the audit log
                     summary = f"{summary} (reads like instructions to an AI: {'; '.join(why)})"
+                    auth.audit(self.db, self.user, "assistant.injection_flagged", f"chat:{self.chat}", {"tool": name, "why": why})
                 result = untrusted.wrap(result, f"tool {name}", self.cfg, why=why)
             return result + (f"\n\n{extra.strip()}" if extra else ""), summary
         if extra:  # what hooks add, next to what the tool gave back
