@@ -1,6 +1,9 @@
 // Edge smoke test: loads dist/edge (npm run build in ..) into Microsoft Edge, opens the popup and options, clips an
-// article page and checks a stand-in Lens import webhook got its Markdown. Run under a display (xvfb-run in CI).
+// article page and checks a stand-in Lens import webhook got its Markdown. Then it signs the side panel in to the
+// stand-in Lens through its OAuth consent page, asks the assistant and approves what it proposes. Run under a display
+// (xvfb-run in CI).
 // EDGE_CHANNEL=chromium runs the same test in Playwright's Chromium, for machines without Edge.
+import { createHash } from "node:crypto";
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
@@ -22,8 +25,20 @@ ${"<p>The Lens clipper turns what you read into Markdown with its metadata and i
 <ul><li>first point</li><li>second point</li></ul><pre><code class="language-js">const x = 1;</code></pre>
 </article><footer>footer links</footer></body></html>`;
 
-// the article page and a stand-in for Lens's import webhook, on one local port
+// the article page and a stand-in for Lens (its import webhook, app sign-in and assistant), on one local port
 const pushes = [];
+const asked = [];
+const decided = [];
+const ACCESS = "lens-smoke-access-token";
+let challenge = "";
+const sse = (events) => events.map(([name, data]) => `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`).join("");
+const ANSWER = sse([
+  ["step", { tool: "search", args: {}, summary: "Searched for “renewal”" }],
+  ["approval", { id: 41, tool: "import_files", summary: "Import invoice.pdf into Personal" }],
+  ["passages", [{ n: 1, recording_id: 7, title: "Renewal call", time: "12:34", t0: 754000, text: "renewal" }]],
+  ["token", { text: "The renewal is **due in March** [1]." }],
+  ["done", { message: 12 }],
+]);
 const server = createServer((req, res) => {
   const cors = {
     "Access-Control-Allow-Origin": "*",
@@ -31,6 +46,7 @@ const server = createServer((req, res) => {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
   if (req.method === "OPTIONS") return res.writeHead(204, cors).end();
+  if (lens(req, res)) return;
   if (req.url === "/article") return res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(ARTICLE);
   if (req.url === "/api/v1/hooks/import" && req.method === "POST") {
     let body = "";
@@ -44,6 +60,60 @@ const server = createServer((req, res) => {
   }
   res.writeHead(404, cors).end();
 });
+
+function lens(req, res) {
+  const url = new URL(req.url, origin);
+  const reply = (status, body, headers = {}) => res.writeHead(status, { "Content-Type": "application/json", ...headers }).end(JSON.stringify(body));
+  const read = (then) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => then(body));
+  };
+  if (url.pathname === "/.well-known/oauth-authorization-server") {
+    reply(200, {
+      issuer: origin,
+      authorization_endpoint: `${origin}/oauth/authorize`,
+      token_endpoint: `${origin}/api/v1/oauth/token`,
+      registration_endpoint: `${origin}/api/v1/oauth/register`,
+      revocation_endpoint: `${origin}/api/v1/oauth/revoke`,
+    });
+  } else if (url.pathname === "/api/v1/oauth/register") {
+    read(() => reply(201, { client_id: "smoke-client" }));
+  } else if (url.pathname === "/oauth/authorize") {
+    // the consent page, with the person saying yes at once: back to the extension with a code
+    challenge = url.searchParams.get("code_challenge");
+    const back = new URL(url.searchParams.get("redirect_uri"));
+    back.searchParams.set("code", "smoke-code");
+    back.searchParams.set("state", url.searchParams.get("state"));
+    res.writeHead(302, { Location: back.toString() }).end();
+  } else if (url.pathname === "/api/v1/oauth/token") {
+    read((body) => {
+      const form = new URLSearchParams(body);
+      const ok = form.get("code") === "smoke-code" && createHash("sha256").update(form.get("code_verifier")).digest("base64url") === challenge;
+      reply(ok ? 200 : 400, ok ? { access_token: ACCESS, refresh_token: "smoke-refresh", expires_in: 3600 } : { error: "invalid_grant" });
+    });
+  } else if (url.pathname.startsWith("/api/v1/") && req.headers.authorization !== `Bearer ${ACCESS}` && !url.pathname.startsWith("/api/v1/hooks/")) {
+    reply(401, { detail: "sign in" });
+  } else if (url.pathname === "/api/v1/auth/me") {
+    reply(200, { user: { email: "ada@example.com", name: "Ada" } });
+  } else if (url.pathname === "/api/v1/chats" && req.method === "POST") {
+    read(() => reply(200, { id: 5 }));
+  } else if (url.pathname === "/api/v1/chats/5/messages" && req.method === "POST") {
+    read((body) => {
+      asked.push(JSON.parse(body));
+      res.writeHead(200, { "Content-Type": "text/event-stream" }).end(ANSWER);
+    });
+  } else if (url.pathname === "/api/v1/approvals/41" && req.method === "POST") {
+    read((body) => {
+      decided.push(JSON.parse(body));
+      reply(200, { status: "done" });
+    });
+  } else {
+    return false;
+  }
+  return true;
+}
+
 await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
 const origin = `http://127.0.0.1:${server.address().port}`;
 
@@ -78,7 +148,7 @@ try {
 
   // a first install opens the options page; it and the popup render without errors
   const errors = [];
-  for (const page of ["options.html", "popup.html"]) {
+  for (const page of ["options.html", "popup.html", "sidepanel.html"]) {
     const p = await context.newPage();
     p.on("pageerror", (e) => errors.push(`${page}: ${e.message}`));
     await p.goto(`chrome-extension://${id}/${page}`);
@@ -116,6 +186,30 @@ try {
   const push = pushes.at(-1);
   check(push?.auth === `Bearer ${TOKEN}`, "Lens got it with the hook's token");
   check(push && JSON.parse(push.body).text === md, "and the Markdown as text");
+
+  // the side panel: sign in through the consent page, ask, see the cited answer, approve what it proposes
+  check(manifest.side_panel?.default_path === "sidepanel.html" && manifest.permissions.includes("sidePanel"), "the manifest has the side panel");
+  const panel = await context.newPage();
+  panel.on("pageerror", (e) => errors.push(`side panel: ${e.message}`));
+  await panel.goto(`chrome-extension://${id}/sidepanel.html`);
+  check((await panel.inputValue("#server")) === origin, "the side panel offers the clipper's Lens to sign in to");
+  await panel.click("#signinButton");
+  await panel.waitForSelector("#q:visible", { timeout: 20000 }).catch(() => null);
+  check(await panel.isVisible("#q"), `the side panel signs in through Lens's consent page${(await panel.isVisible("#q")) ? "" : `: ${await panel.textContent("#signinStatus")}`}`);
+  const kept = await panel.evaluate(async () => (await chrome.storage.local.get("account")).account);
+  check(kept?.accessToken === ACCESS && kept.email === "ada@example.com", "and keeps the token and who signed in");
+  await panel.fill("#q", "When is the renewal?");
+  await panel.press("#q", "Enter");
+  await panel.waitForSelector(".msg.assistant a.cite", { timeout: 10000 }).catch(() => null);
+  check(asked.at(-1)?.content === "When is the renewal?", "Enter asks the question");
+  check((await panel.textContent(".msg.assistant .steps")).includes("Searched for"), "the steps show");
+  const cite = await panel.getAttribute(".msg.assistant a.cite", "href").catch(() => null);
+  check(cite === `${origin}/resources/7?t=754`, "the answer cites the moment it came from");
+  check((await panel.textContent(".msg.assistant strong").catch(() => "")) === "due in March", "the answer is Markdown");
+  await panel.click(".approval button.primary");
+  await panel.waitForFunction(() => document.querySelector(".approval")?.textContent.includes("Done"), null, { timeout: 5000 }).catch(() => null);
+  check(decided.at(-1)?.decision === "approve", "approving sends the person's pick to Lens");
+  check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join("; ")}` : ""}`);
 } finally {
   await context.close();
   server.close();

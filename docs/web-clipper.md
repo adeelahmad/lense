@@ -42,6 +42,9 @@ network.
 
 With **Right-click and shortcut clips open the popup** on, those open the popup to look over first instead.
 
+The same extension has the Lens assistant in a side panel: **Ask Lens** in the popup, or **Ask Lens…** on the
+right-click menu. See [The assistant in your browser](browser-assistant.md).
+
 ## Templates
 
 What's sent is the template with the clip's variables filled in. The default puts the metadata in YAML front matter

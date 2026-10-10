@@ -1,7 +1,8 @@
 # The assistant in your browser
 
-**Status: in progress.** Built: the server side, below: sessions, the assistant's browser tools and the API. In
-progress: the Lens extension's side panel, where you chat with the assistant and it uses your browser.
+**Status: in progress.** Built: the server side (sessions, the assistant's browser tools and the API) and the Lens
+extension's side panel, where you sign in and chat with the assistant. In progress: the side panel carrying out the
+assistant's browser actions, with the sites you allow, your yes for anything consequential and the action log.
 
 Ask the assistant from your browser, and let it do things there for you: "check my email and import the important
 attachments", "find last month's invoice on the supplier's site and put it in Accounts", "save this page". It opens
@@ -11,6 +12,27 @@ goes. Anything that sends, deletes, buys or posts waits for your yes.
 Lens looks in what it already has first. Mail from an account connected as a source (IMAP), files you imported and
 pages you captured need no browsing; the browser is for what Lens can't reach itself, such as webmail without IMAP,
 or a site with no API.
+
+## The side panel
+
+Open it from the extension's popup (**Ask Lens**), by right-clicking any page (**Ask Lens…**), or with a shortcut you
+give it in your browser's extension shortcuts (browsers suggest at most four per extension, and the clipper has them).
+
+**Signing in** takes one click. The address is filled in from the clipper's Lens; press **Sign in**, let the extension
+reach that address when the browser asks, and allow the "Lens browser extension" on Lens's own sign-in page, where you
+are signed in with your passkey. Nothing to copy or paste: the extension signs in like any app (OAuth, see
+[Authentication](authentication.md#oauth)), so it needs **Let apps and AI assistants sign in** on, in Settings → API
+keys (on by default). Its tokens stay on this device and renew themselves; **Sign out** hands them back to Lens, and
+you can also take its access away under API tokens → Apps with access.
+
+**Asking** works as in Lens's chat, and it's the same conversation: **Open in Lens** picks it up there, and **New**
+starts another. Answers cite their sources (a citation opens the moment it came from), the steps the assistant took
+are listed above the answer, and anything it proposes (an import, say) waits in the panel for **Approve** or
+**Decline**. <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line and <kbd>Esc</kbd> stops the
+answer.
+
+Safari has no side panel and doesn't let extensions show a sign-in page, so there **Ask Lens** opens in a tab, and you
+sign in with a write API token you make in Lens (your account's API tokens). Firefox's sidebar comes with its build.
 
 ## How it works
 
@@ -59,6 +81,8 @@ A question sent with `browser` (the session's id) on `POST /api/v1/chats/{id}/me
 
 ## Refine later
 
+- Ask about the page you're on, or the text you selected, straight from the right-click menu.
+- Pick the model, or the namespaces to look in, in the side panel (the web app's chat has both).
 - The assistant's browser for conversations elsewhere (WhatsApp, Slack, Telegram) while the side panel is open, as
   a setting that's off by default.
 - Keep-alive events in the chat stream while an action waits for you, for proxies that cut quiet streams short.

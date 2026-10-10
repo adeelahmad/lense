@@ -9,6 +9,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
   ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
 
+- **Ask Lens from your browser.** The web clipper extension has the Lens assistant in a side panel: **Ask Lens** in
+  its popup or on the right-click menu. It signs in with one click through Lens's own sign-in page (OAuth, nothing to
+  copy), and the conversations are the same ones Lens's chat shows, with cited answers, the steps taken and approvals.
+  Letting the assistant use the browser itself is in progress ([The assistant in your browser](docs/browser-assistant.md)).
+
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,
