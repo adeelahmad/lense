@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.3.0"
+    "version": "0.6.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -2888,6 +2888,221 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Started"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Updates",
+        "description": "The version running, the latest release, and how the last upgrade went.",
+        "operationId": "get_updates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates/check": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Check Updates",
+        "description": "Ask GitHub for the latest release now.",
+        "operationId": "check_updates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates/upgrade": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Start Upgrade",
+        "description": "Back the database up, then have this machine install the release (the latest unless one is named). Lens\nrestarts on the new version; GET /admin/updates follows along.",
+        "operationId": "start_upgrade",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UpgradeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "List Backups",
+        "description": "The database backups in <data_dir>/backups, newest first.",
+        "operationId": "list_backups",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Backups"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Take Backup",
+        "description": "Back the database up now (it can take a while on a big archive).",
+        "operationId": "take_backup",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Backup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Download Backup",
+        "description": "Download a backup (exports only: an embedded database's folder is copied from the data folder).",
+        "operationId": "download_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/gzip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Delete Backup",
+        "description": "Delete a backup.",
+        "operationId": "delete_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -25154,6 +25369,68 @@
         ],
         "title": "Backend"
       },
+      "Backup": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "manual, or before-upgrade"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "export",
+              "folder"
+            ],
+            "title": "Kind",
+            "description": "export: a SurrealDB export (.surql.gz); folder: an embedded database's copy"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "taken_at": {
+            "type": "string",
+            "title": "Taken At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "kind",
+          "bytes",
+          "taken_at"
+        ],
+        "title": "Backup"
+      },
+      "Backups": {
+        "properties": {
+          "folder": {
+            "type": "string",
+            "title": "Folder"
+          },
+          "backups": {
+            "items": {
+              "$ref": "#/components/schemas/Backup"
+            },
+            "type": "array",
+            "title": "Backups"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "folder",
+          "backups"
+        ],
+        "title": "Backups"
+      },
       "Batch": {
         "properties": {
           "id": {
@@ -44806,6 +45083,49 @@
         ],
         "title": "RefreshRequest"
       },
+      "Release": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "title": "Tag",
+            "description": "vX.Y.Z"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the release's page on GitHub"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "description": "what changed, in Markdown",
+            "default": ""
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "tag",
+          "name",
+          "url"
+        ],
+        "title": "Release"
+      },
       "Removed": {
         "properties": {
           "removed": {
@@ -51535,6 +51855,256 @@
           "undone"
         ],
         "title": "Undone"
+      },
+      "UpdateStatus": {
+        "properties": {
+          "current": {
+            "type": "string",
+            "title": "Current",
+            "description": "the version running"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Release"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "latest is newer than current"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the last check failed"
+          },
+          "check": {
+            "type": "boolean",
+            "title": "Check",
+            "description": "updates.check: the daily check is on"
+          },
+          "auto_install": {
+            "type": "boolean",
+            "title": "Auto Install"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what upgrades this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that upgrades it by hand, on the machine Lens runs on"
+          },
+          "upgrade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpgradeRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the last upgrade asked for"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "current",
+          "available",
+          "check",
+          "auto_install",
+          "manual"
+        ],
+        "title": "UpdateStatus"
+      },
+      "UpgradeRequest": {
+        "properties": {
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref",
+            "description": "a release tag; default: the latest release"
+          },
+          "backup": {
+            "type": "boolean",
+            "title": "Backup",
+            "description": "back the database up first",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UpgradeRequest"
+      },
+      "UpgradeRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref",
+            "description": "the release tag (or branch) being installed"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "backing-up",
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "State"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "queued_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "backup": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backup",
+            "description": "the backup taken first, in Backups"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the version installed, once done"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "the last lines install.sh printed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "ref",
+          "state"
+        ],
+        "title": "UpgradeRun"
       },
       "Upload": {
         "properties": {

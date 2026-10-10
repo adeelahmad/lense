@@ -47,6 +47,8 @@ EDITABLE = {
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
+    # repo is a startup setting only (what gets installed isn't chosen in the web app)
+    "updates": ("check", "check_hours", "auto_install"),
     "activity": None,
     "encryption": None,
     "fedora": None,
@@ -333,6 +335,16 @@ def view(db, base):
     return out
 
 
+def _updates_setting(key, value):
+    if key == "check_hours":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 24 * 30):
+            raise ValueError("updates.check_hours is a whole number of hours from 1 to 720")
+        return value
+    if not isinstance(value, bool):
+        raise ValueError(f"updates.{key} is true or false")
+    return value
+
+
 def _check(section, key, value, default):
     enum = ENUMS.get((section, key))
     if enum and value not in enum:
@@ -384,6 +396,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "updates":
+        return _updates_setting(key, value)
     if section == "activity":
         return _activity_setting(key, value)
     if section == "fedora":
