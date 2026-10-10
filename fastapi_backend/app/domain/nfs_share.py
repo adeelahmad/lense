@@ -101,11 +101,11 @@ class ShareError(RuntimeError):
 
 
 def s3_remote(db, cfg, account):
-    """rclone's command-line remote and environment for Lens's own S3 server, signed in as `account`. The S3 thread's
-    server (s3_server.py) owns the endpoint and the keys; this only asks it for them."""
-    from . import s3_server  # noqa: PLC0415 - optional until the S3 server is in
+    """rclone's command-line remote and environment for Lens's own S3 server (s3.py), signed in as `account` with a
+    key s3.py keeps for this share."""
+    from . import s3  # noqa: PLC0415 - optional until the S3 server is in
 
-    endpoint, key_id, secret = s3_server.service_key(db, cfg, account["id"], "nfs")
+    endpoint, key_id, secret = s3.service_key(db, cfg, account["id"], "nfs")
     env = {
         "RCLONE_S3_PROVIDER": "Other",
         "RCLONE_S3_ENDPOINT": endpoint,
@@ -116,11 +116,21 @@ def s3_remote(db, cfg, account):
     return ":s3:", env
 
 
+def s3_revoke(db, account_id):
+    """Drop the share's S3 key once the share stops using it."""
+    try:
+        from . import s3  # noqa: PLC0415
+    except ImportError:
+        return
+    s3.revoke_service_key(db, account_id, "nfs")
+
+
 class Runner:
     """Holds the lease and runs rclone serve nfs plus the relay while nfs.enabled is on."""
 
-    def __init__(self, db, cfg_fn, name, log=None, remote=s3_remote):
-        self.db, self.cfg_fn, self.name, self.log, self.remote = db, cfg_fn, name, log or (lambda *a: None), remote
+    def __init__(self, db, cfg_fn, name, log=None, remote=s3_remote, revoke=s3_revoke):
+        self.db, self.cfg_fn, self.name, self.log = db, cfg_fn, name, log or (lambda *a: None)
+        self.remote, self.revoke, self.account_id = remote, revoke, None
         self.proc: subprocess.Popen | None = None
         self.relay: share_relay.Relay | None = None
         self.sig = None
@@ -204,9 +214,17 @@ class Runner:
             self.relay = share_relay.Relay(c["bind"], int(c["port"]), inner, share_relay.networks(c["allowed_networks"]), self.log).start()
         except OSError as e:
             raise ShareError(f"port {c['port']}: {e.strerror or e}") from None
-        self.account = account.get("email")
+        self.account, self.account_id = account.get("email"), account["id"]
         self.phase, self.error, self.fails = "running", None, 0
         self.log(f"nfs: serving the file tree as {self.account} on port {self.relay.port}")
+
+    def _drop_key(self):
+        aid, self.account_id = self.account_id, None
+        if aid is not None:
+            try:
+                self.revoke(self.db, aid)
+            except Exception as e:  # noqa: BLE001 - a key left behind is read-only; say so and carry on
+                self.log(f"nfs: couldn't revoke the share's S3 key: {e}")
 
     def tick(self):
         cfg = self.cfg_fn()
@@ -214,6 +232,7 @@ class Runner:
         if not c["enabled"]:
             if self.proc or self.relay or self.phase != "off":
                 self.stop_serving()
+                self._drop_key()
                 self.sig, self.phase, self.error, self.account = None, "off", None, None
                 if self._lease():
                     self._save()
@@ -225,6 +244,7 @@ class Runner:
         sig = json.dumps([c["port"], c["account"], c["bind"]])
         if sig != self.sig:
             self.stop_serving()
+            self._drop_key()
             self.sig, self.fails, self.next_try, self.error, self.lines = sig, 0, 0.0, None, []
         if self.relay is not None:
             self.relay.nets = share_relay.networks(c["allowed_networks"])  # follows the setting without a restart

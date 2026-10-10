@@ -394,6 +394,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     acts: true,
   },
   { name: "import_files", label: "Import files sent in a conversation", acts: true },
+  { name: "import_urls", label: "Capture web pages from addresses or a list of links", acts: true },
   { name: "server_status", label: "Check what the server has set up (admins)", acts: false },
   { name: "find_model_servers", label: "Find model servers nearby (admins)", acts: false },
   { name: "read_settings", label: "Read settings (admins)", acts: false },
@@ -1993,6 +1994,14 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "telemetry",
+    key: "prometheus",
+    label: "Prometheus endpoint",
+    kind: "switch",
+    hint: "Serve /metrics for a Prometheus scraper; off by default, and answered only with the scrape token",
+  },
+  { section: "telemetry", key: "prometheus_token", label: "Scrape token", kind: "secret" },
+  {
+    section: "telemetry",
     key: "prices",
     label: "Model prices for cost estimates",
     kind: "lines",
@@ -2566,6 +2575,14 @@ export function why(c: Change): string | null {
     if (origin(c.before) !== origin(c.after))
       return "Saved headers are removed, since they were for the old collector: enter them again if the new one needs them.";
   }
+  if (id === "telemetry.prometheus")
+    return c.after
+      ? "/metrics answers a scraper that sends the scrape token; nothing is served until a token is set."
+      : "/metrics stops answering.";
+  if (id === "telemetry.prometheus_token")
+    return c.after === ""
+      ? "The token is removed; /metrics answers no one."
+      : "Scrapers must send the new token; stored encrypted.";
   if (id === "telemetry.headers")
     return c.after === "" ? "The headers are removed." : "Sent with every export; stored encrypted.";
   if (id === "llm.api_key")

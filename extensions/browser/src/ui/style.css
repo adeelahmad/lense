@@ -1,0 +1,64 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #16161d;
+  --muted: #5d5d6b;
+  --line: #dedee6;
+  --field: #f6f6f9;
+  --accent: #6d5dfc;
+  --accent-fg: #ffffff;
+  --ok: #15803d;
+  --bad: #b91c1c;
+  font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17171d;
+    --fg: #ececf1;
+    --muted: #a1a1b0;
+    --line: #33333d;
+    --field: #202029;
+    --accent: #8b7dff;
+    --ok: #4ade80;
+    --bad: #f87171;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); }
+h1 { font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px; }
+h1 img { width: 20px; height: 20px; }
+h2 { font-size: 14px; margin: 24px 0 8px; }
+label { display: block; font-size: 13px; font-weight: 500; margin: 10px 0 4px; }
+.hint { color: var(--muted); font-size: 12px; font-weight: 400; }
+input[type="text"], input[type="url"], input[type="password"], input[type="number"], select, textarea {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+textarea { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; resize: vertical; }
+button {
+  font: inherit;
+  border: 1px solid var(--line);
+  background: var(--field);
+  color: inherit;
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+button:disabled { opacity: 0.55; cursor: default; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row > .grow { flex: 1; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; flex: 1; background: transparent; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.status { min-height: 18px; font-size: 12px; color: var(--muted); }
+.status.ok { color: var(--ok); }
+.status.bad { color: var(--bad); }
+a { color: var(--accent); }
+.check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; }
+.check input { margin-top: 3px; }

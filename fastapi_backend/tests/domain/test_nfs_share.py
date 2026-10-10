@@ -109,7 +109,8 @@ def test_the_runner_follows_the_setting(db, cfg, folder, monkeypatch):
     cfg["nfs"]["bind"] = "127.0.0.1"
     settings.save(db, cfg, "nfs", {"enabled": True, "port": port}, "t")
     s = settings.Settings(db, cfg)
-    run = nfs_share.Runner(db, s.current, "test", remote=remote)
+    revoked = []
+    run = nfs_share.Runner(db, s.current, "test", remote=remote, revoke=lambda db_, aid: revoked.append(aid))
     try:
         run.tick()
         assert run.phase == "running", (run.error, run.lines)
@@ -128,6 +129,7 @@ def test_the_runner_follows_the_setting(db, cfg, folder, monkeypatch):
         settings.save(db, cfg, "nfs", {"enabled": False}, "t")
         run.tick()
         assert run.proc is None and run.relay is None
+        assert len(revoked) == 1  # its S3 key goes once the share stops
         assert nfs_share.status(db, s.current())["phase"] == "off"
         with pytest.raises(OSError):
             socket.create_connection(("127.0.0.1", port), timeout=1).close()

@@ -719,9 +719,9 @@ intranet. Without Chromium on the server it answers 400 (`GET /uploads/limits` â
 `import.web`. The PDF is the resource's file (`GET /resources/{rid}/media`), named after the link
 (`annual-report.pdf`) or the page's title (`harbour-news.pdf`).
 
-`POST /api/v1/import/web/links {namespace, text | filename + data, folders_as_tags?, collection?, pipeline?}` captures
-many pages at once: pasted addresses (`text`, one per line; a line's other words become its title, `#` lines are
-skipped), or a file (base64 `data`): a list of addresses, a browser's bookmark export (the HTML file every browser
+`POST /api/v1/import/web/links {namespace, text | urls | filename + data, folders_as_tags?, collection?, pipeline?}`
+captures one or many pages at once: pasted addresses (`text`, one per line; a line's other words become its title, `#`
+lines are skipped), a JSON list of addresses (`urls`), or a file (base64 `data`): a list of addresses, a browser's bookmark export (the HTML file every browser
 writes) or Chrome's own Bookmarks file (JSON). Each link becomes a page captured as above, titled with its bookmark's
 name until it's captured, and tagged with the bookmark folders it was in (the innermost five, without the browser's
 own: Bookmarks bar, Other bookmarks), unless `folders_as_tags` is false. At most 500 links at once (400 beyond); links
