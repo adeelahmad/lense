@@ -6,13 +6,14 @@ import { useState } from "react";
 
 import { Tokens } from "@/app/openapi-client";
 import type { ApiToken } from "@/app/openapi-client/types.gen";
-import { daysError, expiresOn, SCOPE_LABEL, tokenExpiry } from "@/components/account/token-model";
+import { daysError, expiresOn, SCOPE_LABEL, suggestedTokenName, tokenExpiry } from "@/components/account/token-model";
 import { isUnreachable } from "@/components/errors/error-states";
 import { ChoiceCards } from "@/components/settings/controls";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/field";
+import { RenameTitle } from "@/components/ui/rename-title";
 import { EmptyState, SkeletonRows } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { useToast } from "@/components/ui/toast";
@@ -101,7 +102,19 @@ export function TokensPage() {
                   const expired = exp.state === "expired";
                   return (
                     <Tr key={t.id} className={cn("h-12 last:border-b-0", expired && "text-fg-muted")}>
-                      <Td className="font-semibold">{t.name}</Td>
+                      <Td>
+                        <RenameTitle
+                          as="span"
+                          name={t.name}
+                          what="token"
+                          className="text-[13px] font-semibold text-inherit"
+                          inputClassName="h-8 w-[200px] text-[13px] font-semibold"
+                          onRename={async (n) => {
+                            await data(Tokens.renameToken({ client, path: { token_id: t.id }, body: { name: n } }));
+                            await qc.invalidateQueries({ queryKey: ["tokens"] });
+                          }}
+                        />
+                      </Td>
                       <Td>
                         <span className="inline-flex h-[22px] items-center whitespace-nowrap rounded-pill border border-border px-2 text-[11.5px] font-semibold">
                           {SCOPE_LABEL[t.scope] ?? t.scope}
@@ -142,6 +155,7 @@ export function TokensPage() {
       </section>
       <NewTokenDialog
         open={creating}
+        taken={list.map((t) => t.name)}
         onClose={() => setCreating(false)}
         onCreated={(c) => {
           setCreating(false);
@@ -169,10 +183,13 @@ export function TokensPage() {
 
 function NewTokenDialog({
   open,
+  taken,
   onClose,
   onCreated,
 }: {
   open: boolean;
+  /** The names of the tokens there are, so the guessed name is a new one. */
+  taken: string[];
   onClose: () => void;
   onCreated: (c: Created) => void;
 }) {
@@ -187,13 +204,15 @@ function NewTokenDialog({
   });
   const limits = limitsQ.data ?? null;
   const shown = days || (limits ? String(limits.default_days) : "");
+  const guess = suggestedTokenName(scope, taken);
+  const named = name.trim() || guess;
   const create = useMutation({
     mutationFn: () =>
       data(
         Tokens.createToken({
           client,
           body: {
-            name: name.trim(),
+            name: named,
             scope: scope as "read" | "write",
             days: Number(shown),
           },
@@ -202,7 +221,7 @@ function NewTokenDialog({
     onSuccess: (r) => {
       onCreated({
         token: r.token,
-        name: name.trim(),
+        name: named,
         scope,
         days: Number(shown),
       });
@@ -213,7 +232,7 @@ function NewTokenDialog({
   });
   const nameError = name.trim() ? (name.trim().length > 80 ? "Use at most 80 characters" : null) : null;
   const dError = limits ? daysError(shown, limits) : "Loading how long keys may last…";
-  const ready = name.trim() && !nameError && !dError;
+  const ready = !nameError && !dError;
 
   return (
     <Dialog
@@ -233,7 +252,7 @@ function NewTokenDialog({
           <Button
             variant="primary"
             disabled={!ready || create.isPending}
-            disabledReason={!ready ? "Give the token a name and a number of days" : undefined}
+            disabledReason={!ready ? (nameError ?? dError) : undefined}
             onClick={() => create.mutate()}
           >
             {create.isPending ? "Creating…" : "Create token"}
@@ -256,6 +275,7 @@ function NewTokenDialog({
               aria-describedby={f.describedBy}
               invalid={f.invalid}
               value={name}
+              placeholder={guess}
               onChange={(e) => setName(e.target.value)}
               autoFocus
               maxLength={120}

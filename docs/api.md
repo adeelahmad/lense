@@ -62,6 +62,7 @@ accounts. See [Authentication](authentication.md#signing-in-passkeys).
 GET    /api/v1/tokens
 GET    /api/v1/tokens/limits
 POST   /api/v1/tokens
+PATCH  /api/v1/tokens/{token_id}
 DELETE /api/v1/tokens/{token_id}
 GET    /api/v1/admin/tokens
 DELETE /api/v1/admin/tokens/{token_id}
@@ -69,7 +70,8 @@ DELETE /api/v1/admin/tokens/{token_id}
 
 `POST /tokens {name, scope, days?}` makes an API key (while signed in). `days` defaults to `tokens.default_days`; more
 than `tokens.max_days`, or `0` (never expires) when `tokens.never_expire` is off, is a 400. `GET /tokens/limits` says
-`{default_days, max_days, never_expire}`. `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
+`{default_days, max_days, never_expire}`. `PATCH /tokens/{token_id} {name}` renames one of your keys (audited as
+`token.rename`). `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
 `DELETE /admin/tokens/{token_id}` revokes any of them; revoking is audited as `token.revoke`.
 
 ## oauth
@@ -1139,9 +1141,13 @@ GET    /api/v1/templates
 POST   /api/v1/templates
 POST   /api/v1/templates/preview
 GET    /api/v1/templates/{tid}
+PATCH  /api/v1/templates/{tid}
 POST   /api/v1/templates/{tid}/versions
 GET    /api/v1/templates/{tid}/diff
 ```
+
+`PATCH {name?, description?}` renames a template or changes its description (admins); its text changes by saving a
+version.
 
 ## pipelines
 
@@ -1149,9 +1155,13 @@ GET    /api/v1/templates/{tid}/diff
 GET    /api/v1/pipelines
 POST   /api/v1/pipelines
 GET    /api/v1/pipelines/{pid}
+PATCH  /api/v1/pipelines/{pid}
 POST   /api/v1/pipelines/{pid}/versions
 POST   /api/v1/pipelines/{pid}/run
 ```
+
+`PATCH {name?, description?}` renames a pipeline or changes its description (admins); its steps change by saving a
+version.
 
 ## chats
 

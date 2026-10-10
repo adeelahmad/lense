@@ -72,6 +72,11 @@ class PipelineCreate(RequestModel):
     description: str | None = None
 
 
+class PipelineUpdate(RequestModel):
+    name: str | None = None
+    description: str | None = None
+
+
 class PipelineVersionCreate(RequestModel):
     steps: list[Step] = Field(default_factory=list, description="the steps in order; or send a graph instead")
     graph: PipelineGraph | None = None

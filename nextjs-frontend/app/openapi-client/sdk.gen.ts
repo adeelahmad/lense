@@ -1111,6 +1111,9 @@ import type {
   RenameSpeakerData,
   RenameSpeakerErrors,
   RenameSpeakerResponses,
+  RenameTokenData,
+  RenameTokenErrors,
+  RenameTokenResponses,
   ReprocessRecordingData,
   ReprocessRecordingErrors,
   ReprocessRecordingResponses,
@@ -1448,6 +1451,9 @@ import type {
   UpdatePatternData,
   UpdatePatternErrors,
   UpdatePatternResponses,
+  UpdatePipelineData,
+  UpdatePipelineErrors,
+  UpdatePipelineResponses,
   UpdateRecordingAccessData,
   UpdateRecordingAccessErrors,
   UpdateRecordingAccessResponses,
@@ -1472,6 +1478,9 @@ import type {
   UpdateSourceData,
   UpdateSourceErrors,
   UpdateSourceResponses,
+  UpdateTemplateData,
+  UpdateTemplateErrors,
+  UpdateTemplateResponses,
   UpdateTopicData,
   UpdateTopicErrors,
   UpdateTopicResponses,
@@ -2163,6 +2172,24 @@ export class Tokens {
     return (options.client ?? client).delete<RevokeTokenResponses, RevokeTokenErrors, ThrowOnError>({
       url: "/api/v1/tokens/{token_id}",
       ...options,
+    });
+  }
+
+  /**
+   * Rename Token
+   *
+   * Rename one of your keys.
+   */
+  public static renameToken<ThrowOnError extends boolean = false>(
+    options: Options<RenameTokenData, ThrowOnError>,
+  ): RequestResult<RenameTokenResponses, RenameTokenErrors, ThrowOnError> {
+    return (options.client ?? client).patch<RenameTokenResponses, RenameTokenErrors, ThrowOnError>({
+      url: "/api/v1/tokens/{token_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
@@ -7506,6 +7533,24 @@ export class Templates {
   }
 
   /**
+   * Update Template
+   *
+   * Its name and description (the text changes by saving a version).
+   */
+  public static updateTemplate<ThrowOnError extends boolean = false>(
+    options: Options<UpdateTemplateData, ThrowOnError>,
+  ): RequestResult<UpdateTemplateResponses, UpdateTemplateErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateTemplateResponses, UpdateTemplateErrors, ThrowOnError>({
+      url: "/api/v1/templates/{tid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Create Template Version
    */
   public static createTemplateVersion<ThrowOnError extends boolean = false>(
@@ -7578,6 +7623,24 @@ export class Pipelines {
     return (options.client ?? client).get<GetPipelineResponses, GetPipelineErrors, ThrowOnError>({
       url: "/api/v1/pipelines/{pid}",
       ...options,
+    });
+  }
+
+  /**
+   * Update Pipeline
+   *
+   * Its name and description (the steps change by saving a version).
+   */
+  public static updatePipeline<ThrowOnError extends boolean = false>(
+    options: Options<UpdatePipelineData, ThrowOnError>,
+  ): RequestResult<UpdatePipelineResponses, UpdatePipelineErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdatePipelineResponses, UpdatePipelineErrors, ThrowOnError>({
+      url: "/api/v1/pipelines/{pid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

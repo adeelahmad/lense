@@ -75,6 +75,10 @@ def test_api_tokens(client, db):
     assert client.post("/api/v1/tokens", json={"name": "x"}, headers=bearer).status_code == 403  # read-only
     listed = client.get("/api/v1/tokens", headers=h).json()
     assert [t["name"] for t in listed] == ["ci"] and "hash" not in listed[0]
+    assert client.patch(f"/api/v1/tokens/{tok['id']}", json={"name": "  "}, headers=h).status_code == 400
+    assert client.patch("/api/v1/tokens/999", json={"name": "x"}, headers=h).status_code == 404
+    assert client.patch(f"/api/v1/tokens/{tok['id']}", json={"name": " ci runner "}, headers=h).status_code == 200
+    assert [t["name"] for t in client.get("/api/v1/tokens", headers=h).json()] == ["ci runner"]
     assert client.post("/api/v1/tokens", json={"name": "x", "scope": "admin"}, headers=h).status_code == 422
     assert client.delete(f"/api/v1/tokens/{tok['id']}", headers=h).status_code == 200
     assert client.get("/api/v1/auth/me", headers=bearer).status_code == 401

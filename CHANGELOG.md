@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **New pipelines, workflows, templates and API tokens come with a name.** The web app guesses one from what you're
+  making ("Transcribe to report", "Recording workflow", "Prompt template 2", "Read only token"), as it already did for
+  routines, so making one takes no typing; type over it to choose your own. The pencil next to the name renames it
+  later, and `PATCH /api/v1/pipelines/{id}`, `/templates/{id}` and `/tokens/{id}` rename them through the API.
+
 - **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
   inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API
