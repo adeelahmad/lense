@@ -9,6 +9,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API
   (`/api/v1/tree`) and the MCP tools `list_files` and `read_file` ([The graph as files](docs/file-tree.md)).
   S3, WebDAV, SMB and NFS servers that share it are in progress.
+
+- **HTTPS with automatic certificates.** Lens can serve itself at `https://` your domain with a certificate it gets
+  and renews on its own from Let's Encrypt or ZeroSSL (or any ACME authority), proving the domain over HTTP, TLS-ALPN
+  or DNS, with Cloudflare, Route 53 and the other caddy-dns providers, so wildcards and machines the internet can't
+  reach work too. Run the install line with `LENS_HTTPS=1` to open ports 443 and 80, then set it up with
+  `PUT /api/v1/settings/https`; the Settings page comes next. Off by default ([HTTPS](docs/https.md)).
+
 - **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
   left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
   month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget

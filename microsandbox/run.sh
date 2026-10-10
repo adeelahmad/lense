@@ -123,6 +123,8 @@ export ARCHIVE_ALLOWED_HOSTS="${ARCHIVE_ALLOWED_HOSTS:-localhost,127.0.0.1}"
 export LENS_TUNNEL_ORIGIN=http://127.0.0.1:3000
 export LENS_TRUSTED_PROXY_HOSTS=localhost
 export LENS_WEB_PROXY_HOSTS=localhost
+# HTTPS (docs/https.md): install.sh published 443 and 80 to the sandbox's 8443 and 8080, where Caddy listens
+[ "${LENS_HTTPS:-0}" = 1 ] && export LENS_HTTPS_LISTEN=1 LENS_HTTPS_PORT="${LENS_HTTPS_PORT:-443}"
 export API_BASE_URL=http://127.0.0.1:8000
 export AUTH_TRUST_HOST=true NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 export HOME=/home/lens XDG_CACHE_HOME="$DATA/.cache"
