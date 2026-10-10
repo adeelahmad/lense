@@ -244,11 +244,22 @@ jobs:
 
       - name: Running it again updates in place and keeps the secrets
         run: |
+          # while it waited, it showed the steps the sandbox logged
+          grep -q '^  Building Lens' install.log || { echo "install.sh didn't show the sandbox's progress"; exit 1; }
           before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
-          LENS_BACKEND='' sh < install.sh
+          LENS_BACKEND='' sh < install.sh | tee again.log
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
+          grep -q "Stopping the Lens that's running" again.log || { echo "the second run didn't stop the running sandbox first"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: A start that takes too long stops waiting and says why
+        run: |
+          if LENS_BACKEND='' LENS_WAIT=8 sh < install.sh >slow.log 2>&1; then cat slow.log; echo "it didn't stop waiting"; exit 1; fi
+          cat slow.log
+          grep -q "Lens didn't answer on port" slow.log
+          grep -q 'The last lines Lens logged:' slow.log
+          grep -q '^\[lens\] ' slow.log # the sandbox's own log
 
       - name: What the sandbox said
         if: failure()

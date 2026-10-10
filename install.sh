@@ -20,6 +20,8 @@
 #   LENS_NO_OPEN   1: don't open a browser
 #   LENS_YES       1: install what Lens needs without asking (it only asks at a terminal)
 #   LENS_UPGRADE_AGENT  0: don't set up the agent that lets the web app install new releases (docs/updates.md)
+#   LENS_WAIT      how long to wait for the web app to answer, in seconds (default: 1800 in a microsandbox, whose
+#                  first start builds everything, else 600)
 #   LENS_WIZARD    1: answer everything in the web installer, in the browser (the default for a first install at a
 #                  terminal, where Python 3 is there); 0: here in the terminal
 set -eu
@@ -134,6 +136,7 @@ case "$BACKEND" in
   microsandbox) msb_ok || fail "microsandbox needs KVM on 64-bit Linux or a Mac with Apple silicon. Use LENS_BACKEND=docker." ;;
   *) fail "LENS_BACKEND is docker or microsandbox, not $BACKEND." ;;
 esac
+case "${LENS_WAIT:-0}" in *[!0-9]*) fail "LENS_WAIT is a number of seconds, not ${LENS_WAIT:-}." ;; esac
 
 # --- What's missing: listed, and installed once you say yes ---------------------------------------------------------
 # Asked only at a terminal; piped in by a script or CI (no terminal, or LENS_YES=1) it goes ahead, as before.
@@ -387,10 +390,27 @@ if [ "$BACKEND" = microsandbox ]; then
     echo
   } >.lens-sandbox
   chmod +x .lens-sandbox
+  # Run again: the running sandbox stops first, so its database closes cleanly (a replace kills it after 10 seconds)
+  # and its port is free for the new one
+  if msb ls --running -q </dev/null 2>/dev/null | grep -qx lens; then
+    say "Stopping the Lens that's running..."
+    msb stop -q -t 60 lens </dev/null >/dev/null 2>&1 || msb stop -q -f lens </dev/null >/dev/null 2>&1 || true
+  fi
+  i=0
+  until free "$PORT"; do
+    i=$((i + 1))
+    if [ $i -gt 15 ]; then
+      who="$(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | awk 'NR == 2 {print $1 " (process " $2 ")"}' || true)"
+      fail "Port $PORT is in use${who:+ by $who}, so Lens can't start on it. Stop that, or run this again with LENS_PORT set to a free port."
+    fi
+    sleep 2
+  done
+  since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" # what the new sandbox logs, for the progress below
   ./.lens-sandbox >/dev/null
   LOGS="msb logs -f lens"
+  TAIL="msb logs lens --tail 40"
   STOP="msb stop lens"
-  WAIT=900 # 30 minutes: the first start installs the system packages and builds everything
+  WAIT=1800 # 30 minutes: the first start installs the system packages and builds everything
   # back after a restart of the machine, as Docker's restart policy does
   if [ "$os" = Linux ] && have systemctl && [ -d /run/systemd/system ]; then
     unit=/etc/systemd/system/lens-microsandbox.service
@@ -415,8 +435,9 @@ else
   say "Building and starting Lens (the first build takes a few minutes)..."
   $COMPOSE -f docker-compose.prod.yml up -d --build
   LOGS="$COMPOSE -f docker-compose.prod.yml logs"
+  TAIL="$COMPOSE -f docker-compose.prod.yml logs --tail 40"
   STOP="$COMPOSE -f docker-compose.prod.yml down"
-  WAIT=300
+  WAIT=600
 fi
 
 # --- The upgrade agent: runs packaging/host/lens-upgrade.sh when the web app asks for a new release ---------------
@@ -465,12 +486,59 @@ PLIST
 fi
 
 say "Waiting for the web app..."
-i=0
-# the page and the API behind it: the setup page needs both, and the API starts a few seconds after the page
-until curl -fsS -o /dev/null "http://127.0.0.1:$PORT/login" 2>/dev/null &&
-  curl -fsS -o /dev/null "http://127.0.0.1:$PORT/api/v1/auth/status" 2>/dev/null; do
-  i=$((i + 1))
-  [ $i -gt $WAIT ] && fail "Lens didn't answer within $((WAIT * 2 / 60)) minutes. See what happened: cd $DIR && $LOGS"
+# the page and the API behind it: the setup page needs both, and the API starts a few seconds after the page. Each
+# try gives up after a few seconds: a port that takes the connection but never answers mustn't hold this forever.
+up() {
+  curl -fsS -o /dev/null --max-time 5 "http://127.0.0.1:$PORT/login" 2>/dev/null &&
+    curl -fsS -o /dev/null --max-time 5 "http://127.0.0.1:$PORT/api/v1/auth/status" 2>/dev/null
+}
+# why it stopped waiting, after the last lines Lens logged
+stuck() {
+  echo "The last lines Lens logged:"
+  $TAIL 2>&1 </dev/null | tail -n 40 || true
+  fail "$1 See everything: cd $DIR && $LOGS"
+}
+# the steps the sandbox reports (run.sh's "[lens] ..." lines), each shown once; it stops waiting when one failed or
+# the sandbox stopped
+seen=0 down=0 step=""
+sandbox_progress() {
+  lines="$(msb logs lens --since "$since" --grep '\[lens\]' </dev/null 2>/dev/null | grep '^\[lens\] ' || true)"
+  n="$(printf '%s\n' "$lines" | grep -c . || true)"
+  if [ "$n" -gt "$seen" ]; then
+    printf '%s\n' "$lines" | sed -n "$((seen + 1)),\$p" | sed 's/^\[lens\]/ /'
+    seen=$n
+    shown=$now
+    step="$(printf '%s\n' "$lines" | tail -n 1 | sed 's/^\[lens\] //; s/[.][.][.]$//')"
+  fi
+  failed="$(printf '%s\n' "$lines" | sed -n 's/^\[lens\] \(Failed.*\)/\1/p' | tail -n 1)"
+  [ -z "$failed" ] || stuck "Lens couldn't start in its microsandbox. $failed."
+  if running="$(msb ls --running -q </dev/null 2>/dev/null)"; then # twice in a row, as it may be booting
+    if printf '%s\n' "$running" | grep -qx lens; then down=0; else down=$((down + 1)); fi
+  fi
+  [ $down -lt 2 ] || stuck "Lens's microsandbox stopped${step:+ at: $step}."
+}
+WAIT="${LENS_WAIT:-$WAIT}"
+start=$(date +%s)
+shown=$start checked=0
+until up; do
+  now=$(date +%s)
+  if [ "$BACKEND" = microsandbox ] && [ $((now - checked)) -ge 10 ]; then
+    checked=$now
+    sandbox_progress
+  fi
+  if [ $((now - start)) -ge "$WAIT" ]; then
+    why="Lens didn't answer on port $PORT within $(((now - start) / 60)) min${step:+ (its last step: $step)}."
+    # up in the sandbox, but not on this machine's port: the port is the problem, not Lens
+    if [ "$BACKEND" = microsandbox ] &&
+      msb exec lens -- curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:3000/login </dev/null >/dev/null 2>&1; then
+      why="Lens is running in its microsandbox, but port $PORT on this machine doesn't reach it. Is another program using the port?"
+    fi
+    stuck "$why"
+  fi
+  if [ $((now - shown)) -ge 60 ]; then # never silent for long
+    echo "  still starting ($(((now - start) / 60)) min so far)..."
+    shown=$now
+  fi
   sleep 2
 done
 
