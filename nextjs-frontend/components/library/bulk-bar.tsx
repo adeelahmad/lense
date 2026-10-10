@@ -139,7 +139,7 @@ export function BulkBar({
             Export
           </MenuTrigger>
           <MenuContent align="center">
-            <MenuLabel>Download each transcript as</MenuLabel>
+            <MenuLabel>Download each as</MenuLabel>
             {EXPORT_FORMATS.map((f) => (
               <MenuItem key={f.value} onSelect={() => onExport(f.value)}>
                 {f.label}
@@ -264,7 +264,7 @@ export function ReprocessDialog({
                 <span className="text-[14px] font-semibold text-fg">{c.label}</span>
                 <span className="text-[12.5px] text-fg-muted">
                   {off
-                    ? `Needs audio: ${count(withoutAudio)} of ${count(n)} selected ${withoutAudio === 1 ? "is" : "are"} transcript-only.`
+                    ? `Needs audio: ${count(withoutAudio)} of ${count(n)} selected ${withoutAudio === 1 ? "is" : "are"} text-only.`
                     : c.hint}
                 </span>
               </span>
@@ -304,7 +304,7 @@ export function DeleteDialog({
       open={open}
       onOpenChange={(o) => !busy && onOpenChange(o)}
       title={n === 1 ? `Delete “${name(rows[0])}”?` : `Delete ${plural(n, "asset")}?`}
-      description="Their transcripts and analysis, chapters, reports and outputs, shares and permissions go with them. This can’t be undone."
+      description="Their text and analysis, chapters, reports and outputs, shares and permissions go with them. This can’t be undone."
       actions={
         <>
           <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
@@ -400,7 +400,7 @@ export function MoveDialog({
       title={
         rows.length === 1 ? `Move “${rows[0].title || `Asset ${rows[0].id}`}”` : `Move ${plural(rows.length, "asset")}`
       }
-      description="Their transcripts, media, outputs and permissions go with them."
+      description="Their text, media, outputs and permissions go with them."
       actions={
         <>
           <Button variant="ghost" disabled={busy} onClick={() => onOpenChange(false)}>
@@ -442,9 +442,9 @@ export function MoveDialog({
               onCheckedChange={setRediarize}
               label={
                 <span className="flex flex-col">
-                  <span className="text-[13.5px] font-semibold text-fg">Identify speakers again from their voices</span>
+                  <span className="text-[13.5px] font-semibold text-fg">Identify people again from their voices</span>
                   <span className="text-[12px] text-fg-muted">
-                    Against {to || "the new namespace"}’s voiceprints. Otherwise speakers are matched by name.
+                    Against {to || "the new namespace"}’s voiceprints. Otherwise people are matched by name.
                   </span>
                 </span>
               }

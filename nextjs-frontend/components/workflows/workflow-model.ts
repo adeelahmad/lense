@@ -83,7 +83,7 @@ export const NODES: Record<string, Info> = {
   },
   input: {
     label: "Asset",
-    describe: "Where every workflow starts: the asset as templates see it (transcript, summary, entities, outputs…)",
+    describe: "Where every workflow starts: the asset as templates see it (text, summary, entities, outputs…)",
     icon: PlayCircle,
     tone: "blue",
     inputs: 0,
@@ -309,7 +309,7 @@ export const NODES: Record<string, Info> = {
   },
   llm_judge: {
     label: "Ask the model",
-    describe: "Asks the model whether each pair is the same thing, with lines where each name was said",
+    describe: "Asks the model whether each pair is the same thing, with lines where each name appears",
     icon: Gavel,
     tone: "gold",
     inputs: 1,

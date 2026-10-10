@@ -60,7 +60,7 @@ def graph_history_event(version: str, user: CurrentUser, acl: Acl, db: Db) -> di
 @router.get("/graph/as-of/{version}")
 def graph_as_of(version: str, user: CurrentUser, acl: Acl, db: Db, namespace: str | None = NAMESPACE) -> dict[str, Any]:
     """The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone
-    said are different. Mentions aren't versioned: counts elsewhere are today's."""
+    marked as different. Mentions aren't versioned: counts elsewhere are today's."""
     with domain_errors():
         return graph_history.as_of(db, _version(db, version), _spaces(acl, namespace))
 

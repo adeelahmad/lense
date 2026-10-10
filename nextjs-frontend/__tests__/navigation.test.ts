@@ -4,11 +4,11 @@ import { safeCallbackUrl } from "@/lib/definitions";
 describe("navigation", () => {
   const labels = (admin: boolean) => navFor(admin).map((i) => i.label);
 
-  it("shows Admin to admins only, and Settings (where Speakers are) to everyone", () => {
+  it("shows Admin to admins only, and Settings (where People are) to everyone", () => {
     expect(labels(true)).toEqual(expect.arrayContaining(["Settings", "Admin"]));
     expect(labels(false)).toContain("Settings");
     expect(labels(false)).not.toContain("Admin");
-    expect(labels(true)).not.toContain("Speakers");
+    expect(labels(true)).not.toContain("People");
     // Admins see every source as a sensor; members keep Sources, the watched folders feeding their namespaces.
     expect(labels(true)).toContain("Sensors");
     expect(labels(true)).not.toContain("Sources");

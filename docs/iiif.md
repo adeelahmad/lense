@@ -4,7 +4,7 @@ Every asset is published as a IIIF Presentation 3.0 Manifest, and every namespac
 can open them, and harvesters can follow them.
 
 - **Manifest** (`/iiif/<id>/manifest`): the audio on a Canvas with its duration.
-  - The transcript comes as WebVTT captions plus per-line annotations; speakers and entities come as tagging annotations.
+  - The transcript comes as WebVTT captions plus per-line annotations; people and entities come as tagging annotations.
   - Chapters become the table of contents (Ranges).
   - Downloads (`rendering`): vtt, srt, txt, md and json.
   - Supplementary files ([API](api.md#files)): every one is a download (`rendering`, at `/iiif/<id>/files/<file>`).
@@ -32,7 +32,7 @@ can open them, and harvesters can follow them.
   way the spec requires, that compatible viewers open.
 - **Change Discovery 1.0:** `/iiif/discovery/activity`, a feed of Create, Update and Delete events for published
   assets.
-- **Authorization Flow 2.0:** protected audio and transcripts carry a probe service.
+- **Authorization Flow 2.0:** protected media and text carry a probe service.
   - Other viewers open `/iiif/auth/access` to sign in and get a token from `/iiif/auth/token`, which posts it only to
     the viewer's origin. The page signs in with a password, so where passwords are off (`auth.passwords`) it offers
     no form and a submitted one answers 403; such viewers play only what is open to everyone.
@@ -47,7 +47,7 @@ can open them, and harvesters can follow them.
 An asset's access decides what is published ([Access](access.md)). It's set per asset, with a default per
 namespace, and only owners change it:
 
-- `public`: published. Its open parts (media, transcript, index) are plain links; closed ones sit behind the
+- `public`: published. Its open parts (media, text, index) are plain links; closed ones sit behind the
   Authorization Flow. Chapters are ranges when the index is open.
 - `restricted` and `private` (the default): not published. The manifest answers 404 unless the request carries
   permission, and collections leave the asset out.
@@ -64,7 +64,7 @@ RightsStatements.org URI), attribution, provider, date, languages, creators, con
 to authorities such as Wikidata), identifiers and related links. Published custom fields ([API](api.md#fields)) are
 label/value pairs too: a resource's in its Manifest, a collection's in its Collection; internal ones never are.
 
-- Values that aren't set come from the asset itself: its title, date, language, speakers, main topics and summary.
+- Values that aren't set come from the asset itself: its title, date, language, people, main topics and summary.
 - A namespace profile sets required fields, defaults, controlled vocabularies, and the default access and open parts.
 - Every change is kept and can be reverted. Bulk edits report what would change before applying.
 

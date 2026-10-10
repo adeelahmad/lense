@@ -71,7 +71,7 @@ That's all. Without an account given, it answers as the admin who turned it on.
   opens away from home too.
 - **Approving in the room.** Reversible changes (merging, renaming or retyping entities, new namespaces) can be
   approved right there: the answer says "Reply “yes” to do it", and "yes" (or "no") does it (or declines it). With
-  several waiting, "yes all" or "yes 12". Only the chat usernames listed may talk to Lens and approve, so it needs
+  several waiting, "yes all" or "yes 12". Only the chat usernames listed may message Lens and approve, so it needs
   that list; **Approving in the room: only in the web app** turns it off. Settings, imports, batch runs, extensions
   and forgetting are always approved in the web app. Each approval is in the audit log with "via chat room" and who
   said yes.

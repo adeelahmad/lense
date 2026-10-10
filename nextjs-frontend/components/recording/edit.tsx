@@ -336,7 +336,7 @@ export function ReassignMenu({ turn, current }: { turn: Turn; current: SpeakerIn
         </button>
       </MenuTrigger>
       <MenuContent align="start" className="max-h-[320px] overflow-y-auto">
-        <MenuLabel>Speakers in {ns}</MenuLabel>
+        <MenuLabel>People in {ns}</MenuLabel>
         {dir.isLoading && <Skeleton className="m-2 w-40" />}
         {(dir.data?.speakers ?? []).map((s) => (
           <MenuItem

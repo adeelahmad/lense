@@ -1,6 +1,6 @@
-"""The archive as RDF (domain/rdf.py) for the app and API clients: a recording's description, or a whole namespace's
-graph (its collections, recordings, entities and speakers), in Turtle, JSON-LD, N-Triples or RDF/XML; and Dublin Core
-read back into a namespace's recordings (domain/rdf_import.py)."""
+"""The archive as RDF (domain/rdf.py) for the app and API clients: an asset's description, or a whole namespace's
+graph (its collections, assets, entities and people), in Turtle, JSON-LD, N-Triples or RDF/XML; and Dublin Core
+read back into a namespace's assets (domain/rdf_import.py)."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def get_namespace_rdf(
     format: str | None = FORMAT,
     download: bool = Query(False, description="as a file to save"),
 ) -> Response:
-    """Everything in the namespace as one graph: itself, its collections, assets, entities and speakers."""
+    """Everything in the namespace as one graph: itself, its collections, assets, entities and people."""
     sid = acl.namespace(name)
     g = rdf.namespace_graph(db, cfg, base_url(request, cfg), sid)
     return rdf_response(g, wanted(request, format) or "turtle", filename=name if download else None)

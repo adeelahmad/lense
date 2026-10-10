@@ -132,7 +132,7 @@ export function scopeWords(s: Scope): string {
     s.collections?.length
       ? `${s.collections.length === 1 ? "one collection" : `${s.collections.length} collections`}`
       : null,
-    s.speakers?.length ? "chosen speakers" : null,
+    s.speakers?.length ? "chosen people" : null,
   ]
     .filter(Boolean)
     .join(", ");

@@ -94,7 +94,7 @@ def upload_limits(user: CurrentUser, cfg: Cfg) -> UploadLimits:
 @router.post("", status_code=201)
 def start_upload(body: UploadStart, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> Upload:
     """Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
-    a transcript-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
+    a text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
     namespace's. Then send the file with PUT /uploads/{uid}.
     400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507
     when the server's disk can't hold it."""

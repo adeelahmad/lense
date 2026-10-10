@@ -396,8 +396,8 @@ export function WorkflowEditor({ id }: { id?: number }) {
             <div className="flex flex-col gap-2 text-[13px] text-fg-secondary">
               <h2 className="text-[15px] font-bold text-fg">How workflows run</h2>
               <p>
-                A workflow starts from the Asset node with what the pipeline made of it: transcript, summary, entities
-                and earlier outputs. Each node passes what it makes along its connections, port to port. Condition and
+                A workflow starts from the Asset node with what the pipeline made of it: text, summary, entities and
+                earlier outputs. Each node passes what it makes along its connections, port to port. Condition and
                 Switch send it down one branch; the nodes on the others are skipped.
               </p>
               <p>

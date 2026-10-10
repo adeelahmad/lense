@@ -43,7 +43,7 @@ export function SummaryTab() {
           <p className="text-[13.5px] leading-normal text-fg-strong">
             The {state.failedStep === "llm" ? "template" : "Summarize"} step failed
             {state.error ? `: ${shortError(state.error)}` : ""}. Retrying keeps every earlier step&apos;s output —
-            nothing is re-transcribed.
+            nothing is processed again.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button

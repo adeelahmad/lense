@@ -87,7 +87,7 @@ export type SectionId =
 export type WorkspaceSectionId = "speakers";
 export type AnySectionId = SectionId | WorkspaceSectionId;
 
-export const WORKSPACE_SECTIONS: { id: WorkspaceSectionId; label: string }[] = [{ id: "speakers", label: "Speakers" }];
+export const WORKSPACE_SECTIONS: { id: WorkspaceSectionId; label: string }[] = [{ id: "speakers", label: "People" }];
 
 export function isWorkspaceSection(id: string): id is WorkspaceSectionId {
   return WORKSPACE_SECTIONS.some((s) => s.id === id);
@@ -125,13 +125,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Voice IDs",
     backend: ["speakers"],
     description:
-      "Each voice in a recording is compared with the speakers in its namespace. The score decides what happens next.",
+      "Each voice in a recording is compared with the people in its namespace. The score decides what happens next.",
   },
   {
     id: "analysis",
     label: "Analysis",
     backend: ["analysis"],
-    description: "How people, organisations, products, places and topics are found in transcripts.",
+    description: "How people, organisations, products, places and topics are found in assets’ text.",
   },
   {
     id: "llm",
@@ -157,7 +157,7 @@ export const SECTIONS: SectionSpec[] = [
     id: "search",
     label: "Search",
     backend: ["search", "embeddings"],
-    description: "How transcripts are indexed for search, and search by meaning with an embedding model.",
+    description: "How assets’ text is indexed for search, and search by meaning with an embedding model.",
   },
   {
     id: "reports",
@@ -244,7 +244,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "Fedora repository",
     backend: ["fedora"],
     description:
-      "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, asset (with its file), entity and speaker, described in RDF with Dublin Core.",
+      "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, asset (with its file), entity and person, described in RDF with Dublin Core.",
   },
   {
     id: "sensors",
@@ -339,7 +339,7 @@ export const UPLOAD_TYPES = [
 ];
 
 export const LAYERS: Opt[] = [
-  { value: "transcript", label: "Transcript lines" },
+  { value: "transcript", label: "Text lines" },
   { value: "speakers", label: "Speakers" },
   { value: "entities", label: "Entities" },
   { value: "chapters", label: "Chapters" },
@@ -349,15 +349,15 @@ export const LAYERS: Opt[] = [
 
 /** The chat assistant's tools (app/domain/ai_tools.py), with whether they change anything. */
 export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
-  { name: "search_transcripts", label: "Search transcripts", acts: false },
+  { name: "search_transcripts", label: "Search assets’ text", acts: false },
   {
     name: "list_recordings",
-    label: "List assets (namespace, date, speaker, entity)",
+    label: "List assets (namespace, date, person, entity)",
     acts: false,
   },
   {
     name: "read_transcript",
-    label: "Read a transcript or time range",
+    label: "Read an asset’s text or a time range",
     acts: false,
   },
   {
@@ -374,7 +374,7 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     label: "Explore the graph (neighbours)",
     acts: false,
   },
-  { name: "speaker_stats", label: "Speakers’ talk time", acts: false },
+  { name: "speaker_stats", label: "People’s talk time", acts: false },
   { name: "find_notes", label: "Find notes", acts: false },
   { name: "read_note", label: "Read a note", acts: false },
   { name: "write_note", label: "Write notes", acts: false },
@@ -760,7 +760,7 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "ai",
     key: "max_transcript_reads",
-    label: "Transcripts read per question",
+    label: "Asset texts read per question",
     kind: "int",
     min: 1,
     max: 500,
@@ -1644,7 +1644,7 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "server",
     key: "max_upload_mb",
-    label: "Largest transcript file (MB)",
+    label: "Largest text or document file (MB)",
     kind: "int",
     min: 1,
     max: 1_000_000,

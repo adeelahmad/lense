@@ -1,4 +1,4 @@
-"""Recordings: the list, one recording, its player data and audio, shares, exports and transcript edits.
+"""Assets: the list, one asset, its player data and media, shares, exports and text edits.
 
 Media (audio, word clouds) is served to anyone the recording is visible to: a role in its namespace (bearer token), a
 share link (``?s=``) or a signed link from one of the JSON responses here.
@@ -103,20 +103,20 @@ def list_recordings(
     cfg: Cfg,
     response: Response,
     ns: str | None = Query(None, description="one namespace (default: every namespace you can read)"),
-    q: str | None = Query(None, max_length=200, description="words that must all appear in the title, the namespace or a speaker's name"),
+    q: str | None = Query(None, max_length=200, description="words that must all appear in the title, the namespace or a person's name"),
     status: list[RecordingState] | None = Query(
         None,
         description="asset statuses, or processing (a job is queued or running) and failed (the latest job failed); "
         "repeat for several (any of them matches)",
     ),
-    attention: bool = Query(False, description="only assets that need a person: errored, latest job failed, or a voice match to review"),
+    attention: bool = Query(False, description="only assets that need attention: errored, latest job failed, or a person match to review"),
     processing: bool = Query(False, description="only assets with a job queued or running"),
-    speaker: list[int] | None = Query(None, description="speaker ids; repeat for several (any of them matches)"),
+    speaker: list[int] | None = Query(None, description="person ids; repeat for several (any of them matches)"),
     date_from: date | None = Query(None, alias="from", description="recorded on or after this day"),
     date_to: date | None = Query(None, alias="to", description="recorded on or before this day"),
     min_duration: int | None = Query(None, ge=0, description="at least this many seconds long"),
     max_duration: int | None = Query(None, ge=1, description="shorter than this many seconds"),
-    media: MediaKind | None = Query(None, description="audio, video, transcript (no media), document or image"),
+    media: MediaKind | None = Query(None, description="audio, video, `transcript` (text without media), document or image"),
     access: list[AccessLevel] | None = Query(None, description="public, restricted or private; repeat for several"),
     featured: bool | None = Query(None, description="only featured assets (true) or only the others (false)"),
     tag: list[str] | None = Query(None, description="tags (ignoring case); repeat for several (any of them matches)"),
@@ -132,7 +132,7 @@ def list_recordings(
         None, description="kinds of object seen in it (person, car, dog …; ignoring case); repeat for several (any of them matches)"
     ),
     edited_by: Literal["me"] | None = Query(
-        None, description="me: assets you edited (corrected the transcript, changed the catalogue record or renamed)"
+        None, description="me: assets you edited (corrected the text, changed the catalogue record or renamed)"
     ),
     collection: int | None = Query(None, description="a collection: the assets in it and in the collections inside it"),
     field: int | None = Query(None, description="a custom field (of resources): the assets with a value for it, or with `value`"),
@@ -142,7 +142,9 @@ def list_recordings(
         description="with `field`: text that its value contains, the number, a date it starts with (1998, 1998-05), "
         "true/false, or one of its options",
     ),
-    sort: RecordingSort = Query("-date", description="date, title, duration, speakers, status or importance; prefix - for descending"),
+    sort: RecordingSort = Query(
+        "-date", description="date, title, duration, speakers (number of people), status or importance; prefix - for descending"
+    ),
     limit: int = Query(500, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ) -> list[RecordingSummary]:
@@ -325,7 +327,7 @@ def update_recording(rid: int, body: RecordingUpdate, acl: Acl, user: Writer, db
 
 @router.delete("/{rid}")
 def delete_recording(rid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg, request: Request, tasks: BackgroundTasks) -> Ok:
-    """Delete an asset (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
+    """Delete an asset (owners). Everything Lens made from it goes: its text and analysis, frames, reports and
     outputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched
     folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
     is running on it, this answers 409. Audited as `recording.delete`."""
@@ -348,10 +350,10 @@ def move_recording(
 ) -> RecordingMoved:
     """Move an asset to another namespace (owners of its namespace, editors of the new one).
 
-    It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
-    its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
-    faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
-    analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
+    It keeps its text, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
+    its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). People
+    (voices and faces) are matched by name in the new namespace (`rediarize`: voices identified again, audio only),
+    and analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
     files are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on
     it; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`."""
     acl.recording(rid, "owner")
@@ -636,7 +638,7 @@ def list_shares(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[Share]:
     responses={200: {"content": {t: {} for t in EXPORT_TYPES.values()}}},
 )
 def export_recording(rid: int, fmt: str, acl: Acl, db: Db) -> Response:
-    """The transcript as txt, md, srt, vtt or json (a download)."""
+    """The text (transcript, for audio and video) as txt, md, srt, vtt or json (a download)."""
     acl.recording(rid)
     if fmt not in EXPORT_TYPES:
         raise HTTPException(404, f"exports: {', '.join(EXPORT_TYPES)}")
@@ -659,7 +661,7 @@ def evidence_pdf(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Response:
 
 @router.patch("/{rid}/segments/{idx}")
 def edit_segment(rid: int, idx: int, body: SegmentUpdate, acl: Acl, user: Writer, db: Db) -> JobQueued:
-    """Correct a transcript line (text and/or speaker); the asset is re-analysed afterwards."""
+    """Correct a line of the text (its words and/or person); the asset is re-analysed afterwards."""
     rec = acl.recording(rid, "editor")
     sr = R("segment", rid * store.SEG + idx)
     seg = db.one("SELECT text, speaker FROM $s", s=sr)
@@ -676,10 +678,10 @@ def edit_segment(rid: int, idx: int, body: SegmentUpdate, acl: Acl, user: Writer
         if body.speaker is not None:
             row = db.one("SELECT space FROM $s", s=R("speaker", body.speaker))
             if not row or row["space"] != rec["space"]:
-                raise HTTPException(400, "that speaker isn't in this namespace")
+                raise HTTPException(400, "that person isn't in this namespace")
         patch["speaker"] = body.speaker
     if not patch:
-        raise HTTPException(400, "change the text or the speaker")
+        raise HTTPException(400, "change the text or the person")
     db.q("UPDATE $s MERGE $p", s=sr, p=patch)
     edit = {
         "recording": rid,
@@ -705,15 +707,15 @@ def _changed(db: DB, rid: int, idx: int, kind: str, done: dict[str, Any], user: 
 
 @router.post("/{rid}/segments/{idx}/split")
 def split_segment(rid: int, idx: int, body: SegmentSplit, acl: Acl, user: Writer, db: Db) -> JobQueued:
-    """Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word
-    it's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the
-    line's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it
+    """Split a line of the text in two (editors): at `at`, a position in its text, moved back to the start of the word
+    it's in. The second part starts at `t` (ms) when given, else when its first word starts (or as far into the
+    line's time as `at` is into its text); it keeps the line's person unless `speaker` is sent. The lines after it
     move down one, with their corrections. Kept in the edit history; the asset is re-analysed afterwards."""
     rec = acl.recording(rid, "editor")
     if body.speaker is not None:
         row = db.one("SELECT space FROM $s", s=R("speaker", body.speaker))
         if not row or row["space"] != rec["space"]:
-            raise HTTPException(400, "that speaker isn't in this namespace")
+            raise HTTPException(400, "that person isn't in this namespace")
     with domain_errors():
         done = transcript.split(db, rid, idx, body.at, body.t, body.speaker, "speaker" in body.model_fields_set)
     return _changed(db, rid, idx, "split", done, user)
@@ -721,8 +723,8 @@ def split_segment(rid: int, idx: int, body: SegmentSplit, acl: Acl, user: Writer
 
 @router.post("/{rid}/segments/{idx}/merge")
 def merge_segments(rid: int, idx: int, acl: Acl, user: Writer, db: Db) -> JobQueued:
-    """Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the
-    second's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit
+    """Merge a line of the text with the next one (editors): one line with both texts, from the first's start to the
+    second's end, with the first's person. The lines after it move up one, with their corrections. Kept in the edit
     history (with where to split it again); the asset is re-analysed afterwards."""
     acl.recording(rid, "editor")
     with domain_errors():
@@ -732,7 +734,7 @@ def merge_segments(rid: int, idx: int, acl: Acl, user: Writer, db: Db) -> JobQue
 
 @router.get("/{rid}/edits")
 def list_segment_edits(rid: int, acl: Acl, user: CurrentUser, db: Db) -> list[SegmentEdit]:
-    """Corrections, splits and merges of the transcript, the latest first."""
+    """Corrections, splits and merges of the text, the latest first."""
     acl.recording(rid)
     rows = db.rows("SELECT idx, kind, before, after, by, at, n FROM segment_edit WHERE recording = $r ORDER BY at DESC, n DESC", r=rid)
     return [SegmentEdit(**{k: v for k, v in e.items() if k != "n"}) for e in rows]  # n: their order within a second

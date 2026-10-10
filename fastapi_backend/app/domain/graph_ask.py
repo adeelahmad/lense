@@ -19,7 +19,7 @@ EXAMPLES = [
         "cypher": "MATCH (r:Recording)-[m:MENTIONS]->(e:Entity) WHERE toLower(e.name) = 'acme' RETURN r.name, r.date, m.count ORDER BY r.date",
     },
     {
-        "ask": "Who talks about Acme, and how often?",
+        "ask": "Which people mention Acme, and how often?",
         "cypher": "MATCH (s:Speaker)-[x:SAID]->(e:Entity {name: 'Acme'}) RETURN s.name, x.count ORDER BY x.count DESC",
     },
     {

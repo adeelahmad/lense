@@ -58,7 +58,7 @@ class PublicSpeaker(ResponseModel):
 class PublicSegment(ResponseModel):
     t0: int = Field(description="start, in ms (for a document's text, only a reading pace)")
     t1: int = Field(description="end, in ms")
-    s: str | None = Field(None, description="the speaker's key")
+    s: str | None = Field(None, description="the person's key")
     text: str
     p: int | None = Field(None, description="a document's or an image's text: the page it's on (from 0)")
 
@@ -72,7 +72,7 @@ class PublicDownload(ResponseModel):
 class PublicTranscript(ResponseModel):
     speakers: list[PublicSpeaker]
     segments: list[PublicSegment]
-    downloads: list[PublicDownload] = Field(description="transcript files; offered when the transcript is open to everyone")
+    downloads: list[PublicDownload] = Field(description="text files; offered when the text is open to everyone")
 
 
 class PublicChapter(ResponseModel):
@@ -83,7 +83,7 @@ class PublicChapter(ResponseModel):
 
 class PublicFile(ResponseModel):
     """A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and
-    translations the transcript, indexes the index, thumbnails the media); attachments need permission."""
+    translations the text, indexes the index, thumbnails the media); attachments need permission."""
 
     id: int
     role: str
@@ -177,9 +177,7 @@ class PublicHit(ResponseModel):
 
 
 class PublicResult(PublicCard):
-    hits: list[PublicHit] = Field(
-        default_factory=list, description="matching transcript lines, best first; none where the transcript is closed"
-    )
+    hits: list[PublicHit] = Field(default_factory=list, description="matching lines of text, best first; none where the text is closed")
 
 
 class PublicSearch(ResponseModel):

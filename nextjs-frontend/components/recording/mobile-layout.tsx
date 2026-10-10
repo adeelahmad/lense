@@ -76,7 +76,7 @@ export function MobileLayout() {
               role ? role[0].toUpperCase() + role.slice(1) : null,
               tc(model.durationMs),
               word,
-              r.transcriptOnly ? "Transcript only" : null,
+              r.transcriptOnly ? "Text only" : null,
               rec.access && rec.access !== "private" ? accessLabel(rec.access) : null,
             ]
               .filter(Boolean)

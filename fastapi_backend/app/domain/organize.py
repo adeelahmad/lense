@@ -56,7 +56,7 @@ JUDGE_SCHEMA = {
     "required": ["judgements"],
 }
 JUDGE_SYSTEM = (
-    "You tidy a knowledge graph built from transcripts. For each numbered pair of names, say whether both names mean "
+    "You tidy a knowledge graph built from the text of assets (transcripts, documents, pages and more). For each numbered pair of names, say whether both names mean "
     "the same real thing (the same person, organisation, product, place, event, work or topic), how sure you are "
     "from 0 to 1, which name to keep (the fuller, correctly spelled one), and why in a few words. Say same only when "
     "the lines make it clear: two people who share a first name or a surname are not the same person. Reply with JSON "
@@ -177,7 +177,7 @@ def candidates(db, spaces, c):
 def _describe(k, item):
     def side(s):
         said = "; ".join(f'"{x[:160]}"' for x in s["samples"]) or "no lines"
-        return f'"{s["name"]}" ({s["type"]}, {s["mentions"]} mentions in {s["namespace"]}; said in: {said})'
+        return f'"{s["name"]}" ({s["type"]}, {s["mentions"]} mentions in {s["namespace"]}; found in: {said})'
 
     return f"{k}. a: {side(item['a'])}\n   b: {side(item['b'])}\n   rules thought: {item['reason']} ({item['confidence']})"
 

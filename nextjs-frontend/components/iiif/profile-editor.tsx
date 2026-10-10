@@ -53,7 +53,7 @@ const DERIVED: Partial<Record<Field, string>> = {
   label: "asset title",
   summary: "from Summarize",
   navDate: "asset date",
-  contributors: "speakers",
+  contributors: "people",
   subjects: "top entities",
   language: "detected by Transcribe",
 };

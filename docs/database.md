@@ -1,6 +1,6 @@
 # Database: SurrealDB
 
-Everything Lens stores lives in SurrealDB: assets, transcript segments, speakers and voiceprints, entities and
+Everything Lens stores lives in SurrealDB: assets, text segments, people and voiceprints, entities and
 the knowledge graph, jobs, accounts, settings and audit. The word search index is kept beside it, in a SQLite file by
 default ([below](#schema)).
 
@@ -24,7 +24,7 @@ engine and with SurrealDB 2.3 and 3.2 servers.
     The embedded engine (SurrealDB 2.x inside the Python SDK) is slow to write. With `search.engine: surrealdb`, its
     full-text index also loses entries when the database is closed and reopened. Lens then repairs the index once per
     process, before the first search (the API does it at startup, `lens` commands that don't search skip it), which
-    takes about 30 ms per transcript segment: seconds for a few thousand segments, but about ten minutes for 20,000.
+    takes about 30 ms per segment: seconds for a few thousand segments, but about ten minutes for 20,000.
     The default word index (SQLite) isn't affected. Beyond a few thousand segments, run a SurrealDB server; the Docker
     setups already do.
 
@@ -37,17 +37,17 @@ engine and with SurrealDB 2.3 and 3.2 servers.
 The schema is defined idempotently in `app/domain/store.py` (`SCHEMA`) and applied on every start
 (`DEFINE ... IF NOT EXISTS`), so new tables, fields and indexes need no migration (see [Upgrades](#upgrades) for the
 rest). Tables are `SCHEMALESS` with indexes on the fields
-that are queried. Graph edges are real relations: `mentions` (segment → entity) and `same_as` (speaker → speaker).
+that are queried. Graph edges are real relations: `mentions` (segment → entity) and `same_as` (person → person).
 
 ```sql
 SELECT ->mentions->entity.name FROM segment WHERE recording = 12;
 ```
 
-Word search (`search.engine`) is kept out of SurrealDB by default. With `sqlite`, the default, the text of transcript
+Word search (`search.engine`) is kept out of SurrealDB by default. With `sqlite`, the default, the text of asset
 lines, text on screen, file lines, objects and descriptions is indexed in a SQLite FTS5 file per database
 (`<data_dir>/search/`, BM25 ranking, Porter stemming, highlights; `app/domain/textindex.py`). An event on each of
 those tables notes changed rows in `text_change`, and the index catches up before each search, so writers need do
-nothing. SurrealDB still decides which rows a person may see. On 10,000 transcript lines against a 3.2.4 server
+nothing. SurrealDB still decides which rows a person may see. On 10,000 lines of text against a 3.2.4 server
 (`surrealkv` storage) this used 64 MB of server memory instead of 380 MB, and writing and indexing them took about 5 s
 instead of 10 s; the SQLite file was 4 MB.
 

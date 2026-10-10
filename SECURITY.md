@@ -23,7 +23,7 @@ next release, and you're credited in its notes unless you'd rather not be.
 
 ## What counts
 
-Lens keeps people's recordings, transcripts and documents, so these matter most:
+Lens keeps people's documents, recordings, photos and messages, so these matter most:
 
 - reading or changing anything in a namespace you have no role in (the API should answer 404 there), or doing more
   than your role allows;

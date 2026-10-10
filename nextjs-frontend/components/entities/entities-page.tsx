@@ -235,7 +235,7 @@ export function EntitiesPage() {
                       Assets
                     </SortTh>
                     <SortTh {...sortBy("recent")} className="hidden w-[130px] md:table-cell">
-                      Last said
+                      Last mentioned
                     </SortTh>
                     <Th className="w-8">
                       <span className="sr-only">Open</span>

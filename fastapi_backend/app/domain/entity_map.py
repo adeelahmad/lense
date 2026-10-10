@@ -266,7 +266,7 @@ def set_aliases(db, eid, aliases, user=None, plan=None):
 
 # ---------- matching by description (the model) ----------
 JUDGE_SYSTEM = (
-    "You sort the names found in a transcript into a knowledge base's entities. Use each entity's description, its other "
+    "You sort the names found in an asset's text into a knowledge base's entities. Use each entity's description, its other "
     "names and what the place is about. Say an entity's id only when the name means that entity (a nickname, a "
     "misspelling, a description of it); never because it is merely related. Answer for every name."
 )
@@ -319,7 +319,7 @@ def judge(db, cfg, sid, setup, names, entities, answers, seg_texts=()):
         + "\n".join(
             f"e{e['id']}: {e['name']} ({types.get(e['type'], {}).get('label', e['type'])})"
             + (f" - {e['description']}" if e.get("description") else "")
-            + (f"; also said as: {', '.join(al[e['id']])}" if al.get(e["id"]) else "")
+            + (f"; also known as: {', '.join(al[e['id']])}" if al.get(e["id"]) else "")
             for e in ents
         )
         if ents

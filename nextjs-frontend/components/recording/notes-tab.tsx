@@ -53,7 +53,7 @@ export function NotesTab() {
         </EmptyState>
       ) : list.length === 0 ? (
         <EmptyState icon={<StickyNote />} title="No notes yet" className="py-8">
-          Select words in the transcript and choose Add note, or write one above about where the player is.
+          Select words in the text and choose Add note, or write one above.
         </EmptyState>
       ) : (
         <>

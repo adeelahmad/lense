@@ -329,7 +329,7 @@ export function StepSettings({
                   options={[
                     { value: "", label: "Any" },
                     { value: "audio", label: "Audio or video" },
-                    { value: "transcript", label: "Imported transcript" },
+                    { value: "transcript", label: "Imported text" },
                   ]}
                 />
               )}

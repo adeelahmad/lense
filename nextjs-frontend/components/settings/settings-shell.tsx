@@ -191,7 +191,7 @@ function ArchiveSettings({
         title="These settings are for admins"
         actions={
           <Button asChild>
-            <Link href="/settings/speakers">Go to Speakers</Link>
+            <Link href="/settings/speakers">Go to People</Link>
           </Button>
         }
       >

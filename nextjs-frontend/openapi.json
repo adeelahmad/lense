@@ -3938,7 +3938,7 @@
           "namespaces"
         ],
         "summary": "List Namespaces",
-        "description": "The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,\nno `role`): counted over those collections, without the namespace-wide speakers and word cloud.",
+        "description": "The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,\nno `role`): counted over those collections, without the namespace-wide people and word cloud.",
         "operationId": "list_namespaces",
         "responses": {
           "200": {
@@ -4121,10 +4121,10 @@
                   "type": "null"
                 }
               ],
-              "description": "recorded on or after this day",
+              "description": "dated on or after this day",
               "title": "From"
             },
-            "description": "recorded on or after this day"
+            "description": "dated on or after this day"
           },
           {
             "name": "to",
@@ -4140,10 +4140,10 @@
                   "type": "null"
                 }
               ],
-              "description": "recorded on or before this day",
+              "description": "dated on or before this day",
               "title": "To"
             },
-            "description": "recorded on or before this day"
+            "description": "dated on or before this day"
           },
           {
             "name": "top",
@@ -4153,11 +4153,11 @@
               "type": "integer",
               "maximum": 50,
               "minimum": 1,
-              "description": "how many speakers in `top_speakers`",
+              "description": "how many people in `top_speakers`",
               "default": 5,
               "title": "Top"
             },
-            "description": "how many speakers in `top_speakers`"
+            "description": "how many people in `top_speakers`"
           }
         ],
         "responses": {
@@ -5173,10 +5173,10 @@
                   "type": "null"
                 }
               ],
-              "description": "words that must all appear in the title, the namespace or a speaker's name",
+              "description": "words that must all appear in the title, the namespace or a person's name",
               "title": "Q"
             },
-            "description": "words that must all appear in the title, the namespace or a speaker's name"
+            "description": "words that must all appear in the title, the namespace or a person's name"
           },
           {
             "name": "status",
@@ -5214,11 +5214,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "only assets that need a person: errored, latest job failed, or a voice match to review",
+              "description": "only assets that need attention: errored, latest job failed, or a person match to review",
               "default": false,
               "title": "Attention"
             },
-            "description": "only assets that need a person: errored, latest job failed, or a voice match to review"
+            "description": "only assets that need attention: errored, latest job failed, or a person match to review"
           },
           {
             "name": "processing",
@@ -5248,10 +5248,10 @@
                   "type": "null"
                 }
               ],
-              "description": "speaker ids; repeat for several (any of them matches)",
+              "description": "person ids; repeat for several (any of them matches)",
               "title": "Speaker"
             },
-            "description": "speaker ids; repeat for several (any of them matches)"
+            "description": "person ids; repeat for several (any of them matches)"
           },
           {
             "name": "from",
@@ -5349,10 +5349,10 @@
                   "type": "null"
                 }
               ],
-              "description": "audio, video, transcript (no media), document or image",
+              "description": "audio, video, `transcript` (text without media), document or image",
               "title": "Media"
             },
-            "description": "audio, video, transcript (no media), document or image"
+            "description": "audio, video, `transcript` (text without media), document or image"
           },
           {
             "name": "access",
@@ -5496,10 +5496,10 @@
                   "type": "null"
                 }
               ],
-              "description": "me: assets you edited (corrected the transcript, changed the catalogue record or renamed)",
+              "description": "me: assets you edited (corrected the text, changed the catalogue record or renamed)",
               "title": "Edited By"
             },
-            "description": "me: assets you edited (corrected the transcript, changed the catalogue record or renamed)"
+            "description": "me: assets you edited (corrected the text, changed the catalogue record or renamed)"
           },
           {
             "name": "collection",
@@ -5576,11 +5576,11 @@
                 "-importance"
               ],
               "type": "string",
-              "description": "date, title, duration, speakers, status or importance; prefix - for descending",
+              "description": "date, title, duration, speakers (number of people), status or importance; prefix - for descending",
               "default": "-date",
               "title": "Sort"
             },
-            "description": "date, title, duration, speakers, status or importance; prefix - for descending"
+            "description": "date, title, duration, speakers (number of people), status or importance; prefix - for descending"
           },
           {
             "name": "limit",
@@ -6045,7 +6045,7 @@
           "resources"
         ],
         "summary": "Delete Recording",
-        "description": "Delete an asset (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and\noutputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched\nfolders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job\nis running on it, this answers 409. Audited as `recording.delete`.",
+        "description": "Delete an asset (owners). Everything Lens made from it goes: its text and analysis, frames, reports and\noutputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched\nfolders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job\nis running on it, this answers 409. Audited as `recording.delete`.",
         "operationId": "delete_recording",
         "parameters": [
           {
@@ -6088,7 +6088,7 @@
           "resources"
         ],
         "summary": "Move Recording",
-        "description": "Move an asset to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and\nfaces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and\nanalysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its\nfiles are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on\nit; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.",
+        "description": "Move an asset to another namespace (owners of its namespace, editors of the new one).\n\nIt keeps its text, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);\nits IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). People\n(voices and faces) are matched by name in the new namespace (`rediarize`: voices identified again, audio only),\nand analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its\nfiles are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on\nit; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.",
         "operationId": "move_recording",
         "parameters": [
           {
@@ -7180,7 +7180,7 @@
           "resources"
         ],
         "summary": "Export Recording",
-        "description": "The transcript as txt, md, srt, vtt or json (a download).",
+        "description": "The text (transcript, for audio and video) as txt, md, srt, vtt or json (a download).",
         "operationId": "export_recording",
         "parameters": [
           {
@@ -7271,7 +7271,7 @@
           "resources"
         ],
         "summary": "Edit Segment",
-        "description": "Correct a transcript line (text and/or speaker); the asset is re-analysed afterwards.",
+        "description": "Correct a line of the text (its words and/or person); the asset is re-analysed afterwards.",
         "operationId": "edit_segment",
         "parameters": [
           {
@@ -7333,7 +7333,7 @@
           "resources"
         ],
         "summary": "Split Segment",
-        "description": "Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word\nit's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the\nline's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it\nmove down one, with their corrections. Kept in the edit history; the asset is re-analysed afterwards.",
+        "description": "Split a line of the text in two (editors): at `at`, a position in its text, moved back to the start of the word\nit's in. The second part starts at `t` (ms) when given, else when its first word starts (or as far into the\nline's time as `at` is into its text); it keeps the line's person unless `speaker` is sent. The lines after it\nmove down one, with their corrections. Kept in the edit history; the asset is re-analysed afterwards.",
         "operationId": "split_segment",
         "parameters": [
           {
@@ -7395,7 +7395,7 @@
           "resources"
         ],
         "summary": "Merge Segments",
-        "description": "Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the\nsecond's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit\nhistory (with where to split it again); the asset is re-analysed afterwards.",
+        "description": "Merge a line of the text with the next one (editors): one line with both texts, from the first's start to the\nsecond's end, with the first's person. The lines after it move up one, with their corrections. Kept in the edit\nhistory (with where to split it again); the asset is re-analysed afterwards.",
         "operationId": "merge_segments",
         "parameters": [
           {
@@ -7447,7 +7447,7 @@
           "resources"
         ],
         "summary": "List Segment Edits",
-        "description": "Corrections, splits and merges of the transcript, the latest first.",
+        "description": "Corrections, splits and merges of the text, the latest first.",
         "operationId": "list_segment_edits",
         "parameters": [
           {
@@ -7586,7 +7586,7 @@
           "notes"
         ],
         "summary": "Create Note",
-        "description": "Write a note about a moment (`t0`\u2013`t1`, with the `quote` picked in the transcript) or about the whole asset.\nAnyone who can read the asset can; only you see it unless you share it with everyone who can read the\nasset, which needs editor access. Up to 500 each on an asset. Sharing is audited (`note.share`).",
+        "description": "Write a note about a moment (`t0`\u2013`t1`, with the `quote` picked in the text) or about the whole asset.\nAnyone who can read the asset can; only you see it unless you share it with everyone who can read the\nasset, which needs editor access. Up to 500 each on an asset. Sharing is audited (`note.share`).",
         "operationId": "create_note",
         "parameters": [
           {
@@ -7844,7 +7844,7 @@
           "notes"
         ],
         "summary": "Link Targets",
-        "description": "What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, people and other\nentities, collections and speakers.",
+        "description": "What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other\nentities, collections and people.",
         "operationId": "link_targets",
         "parameters": [
           {
@@ -7923,7 +7923,7 @@
           "notes"
         ],
         "summary": "Page About",
-        "description": "The page of an asset, entity, topic, collection or speaker: its page, or a draft while nobody has written one.",
+        "description": "The page of an asset, entity, topic, collection or person: its page, or a draft while nobody has written one.",
         "operationId": "page_about",
         "parameters": [
           {
@@ -10351,7 +10351,7 @@
           "uploads"
         ],
         "summary": "Start Upload",
-        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na transcript-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
+        "description": "Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of\na text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the\nnamespace's. Then send the file with PUT /uploads/{uid}.\n400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507\nwhen the server's disk can't hold it.",
         "operationId": "start_upload",
         "requestBody": {
           "content": {
@@ -10544,7 +10544,7 @@
           "search"
         ],
         "summary": "Search Transcripts",
-        "description": "Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary\ntranscripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion\nfilter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ.",
+        "description": "Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in\na resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,\ndocuments and images),\nbest first, in the namespaces you can read and the collections you were given a role on. A person or emotion\nfilter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.",
         "operationId": "search_transcripts",
         "parameters": [
           {
@@ -10670,11 +10670,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "also count all the matching moments by namespace, speaker, emotion and asset, and list their kinds of object",
+              "description": "also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object",
               "default": false,
               "title": "Facets"
             },
-            "description": "also count all the matching moments by namespace, speaker, emotion and asset, and list their kinds of object"
+            "description": "also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object"
           },
           {
             "name": "mode",
@@ -10800,7 +10800,7 @@
           "search"
         ],
         "summary": "Find Similar",
-        "description": "The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you\ncan read and the collections you were given a role on, each with why: its closest passages by meaning (when\nsearch by meaning is set up), the lines with the key words it shares, and the topics and entities in common.\nEach cited moment can be opened. A resource is never listed as like itself.",
+        "description": "The assets most like a text, an asset, a topic or an entity (give one), best first, in the namespaces you\ncan read and the collections you were given a role on, each with why: its closest passages by meaning (when\nsearch by meaning is set up), the lines with the key words it shares, and the topics and entities in common.\nEach cited moment can be opened. An asset is never listed as like itself.",
         "operationId": "find_similar",
         "parameters": [
           {
@@ -10948,7 +10948,7 @@
           "search"
         ],
         "summary": "Suggest Terms",
-        "description": "Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search\nhas no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so\ncollections you were given a role on don't add any.",
+        "description": "Whole words found in the namespaces you can read (or `ns`) that start with `prefix`, the most frequent first. Search\nhas no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so\ncollections you were given a role on don't add any.",
         "operationId": "suggest_terms",
         "parameters": [
           {
@@ -11027,7 +11027,7 @@
           "search"
         ],
         "summary": "Get Graph",
-        "description": "Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).\n`as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.",
+        "description": "People and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).\n`as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.",
         "operationId": "get_graph",
         "parameters": [
           {
@@ -11163,7 +11163,7 @@
           "searches"
         ],
         "summary": "Create Search",
-        "description": "Save a search (its words, namespace, speaker, emotion, asset and object) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
+        "description": "Save a search (its words, namespace, person, emotion, asset and object) under a name unique among yours. Sharing it\nwith its namespace needs editor access there.",
         "operationId": "create_search",
         "requestBody": {
           "content": {
@@ -11299,7 +11299,7 @@
           "speakers"
         ],
         "summary": "List Speakers",
-        "description": "A namespace's speakers, its recent merges (undoable; who merged and how many recordings moved), links to speakers\nin other namespaces, and voices in other shared namespaces that are likely the same person (`cross`).",
+        "description": "A namespace's people, its recent merges (undoable; who merged and how many assets moved), links to people\nin other namespaces, and people in other shared namespaces who are likely the same person (`cross`).",
         "operationId": "list_speakers",
         "parameters": [
           {
@@ -11440,7 +11440,7 @@
           "speakers"
         ],
         "summary": "Merge Speaker",
-        "description": "Fold this speaker into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.",
+        "description": "Fold this person into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.",
         "operationId": "merge_speaker",
         "parameters": [
           {
@@ -11535,7 +11535,7 @@
           "speakers"
         ],
         "summary": "Link Speaker",
-        "description": "Mark this speaker and one in another namespace as the same person (you need editor access to both).",
+        "description": "Mark this person and one in another namespace as the same person (you need editor access to both).",
         "operationId": "link_speaker",
         "parameters": [
           {
@@ -11694,7 +11694,7 @@
           "entities"
         ],
         "summary": "List Entities",
-        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those said in it, also for someone who sees it through a role on its collection (then counted\nover the assets they see). With `collection`, those said in its assets and those of the collections inside\nit (counted over them).",
+        "description": "Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.\nWith `recording`, those mentioned in it, also for someone who sees it through a role on its collection (then counted\nover the assets they see). With `collection`, those mentioned in its assets and those of the collections inside\nit (counted over them).",
         "operationId": "list_entities",
         "parameters": [
           {
@@ -12286,7 +12286,7 @@
           "entities"
         ],
         "summary": "Update Entity",
-        "description": "Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.",
+        "description": "Describe the entity (what it is, in your words), say how else it's called, or put it on (or off) the fixed list.",
         "operationId": "update_entity",
         "parameters": [
           {
@@ -12550,7 +12550,7 @@
           "entities"
         ],
         "summary": "Rename Entity",
-        "description": "Rename; with `correct`, also fix the transcript lines (re-analysing the assets). `dry_run` previews the lines.",
+        "description": "Rename; with `correct`, also fix the lines of text (re-analysing the assets). `dry_run` previews the lines.",
         "operationId": "rename_entity",
         "parameters": [
           {
@@ -12874,7 +12874,7 @@
           "entities"
         ],
         "summary": "Explore Graph",
-        "description": "The neighbourhood of a node (`e<id>` for an entity, a speaker node id...). scope: `all` (shared graphs) or `ns:<name>`.",
+        "description": "The neighbourhood of a node (`e<id>` for an entity, `s<id>` for a person...). scope: `all` (shared graphs) or `ns:<name>`.",
         "operationId": "explore_graph",
         "parameters": [
           {
@@ -14252,7 +14252,7 @@
           "graph"
         ],
         "summary": "Graph As Of",
-        "description": "The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone\nsaid are different. Mentions aren't versioned: counts elsewhere are today's.",
+        "description": "The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone\nmarked as different. Mentions aren't versioned: counts elsewhere are today's.",
         "operationId": "graph_as_of",
         "parameters": [
           {
@@ -15401,7 +15401,7 @@
           "rdf"
         ],
         "summary": "Get Namespace Rdf",
-        "description": "Everything in the namespace as one graph: itself, its collections, assets, entities and speakers.",
+        "description": "Everything in the namespace as one graph: itself, its collections, assets, entities and people.",
         "operationId": "get_namespace_rdf",
         "parameters": [
           {
@@ -16324,7 +16324,7 @@
           "video"
         ],
         "summary": "Link Face Speaker",
-        "description": "Say whose voice goes with this face (null unlinks).",
+        "description": "Say which person this face is (null unlinks).",
         "operationId": "link_face_speaker",
         "parameters": [
           {
@@ -16377,7 +16377,7 @@
           "video"
         ],
         "summary": "Dismiss Face Suggestion",
-        "description": "Drop a suggestion (`kind` face or speaker, with its id).",
+        "description": "Drop a suggestion (`kind` face, or speaker for a person, with its id).",
         "operationId": "dismiss_face_suggestion",
         "parameters": [
           {
@@ -21256,7 +21256,7 @@
           "public"
         ],
         "summary": "Search Public",
-        "description": "Search what this visitor may see: titles of the assets they see listed, and the lines of the transcripts\nthey may read. Title matches come first. Restricted assets (for signed-in people) and public ones with the\ntranscript closed match on their title only.",
+        "description": "Search what this visitor may see: titles of the assets they see listed, and the lines of the text of those\nthey may read. Title matches come first. Restricted assets (for signed-in people) and public ones with the\ntext closed match on their title only.",
         "operationId": "search_public",
         "parameters": [
           {
@@ -23813,7 +23813,7 @@
           "import hooks"
         ],
         "summary": "Push To Import Hook",
-        "description": "Push something into an import webhook's namespace, with its token as a bearer token. Three ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over\nuploads.max_mb. Audited as `import.hook`.",
+        "description": "Push something into an import webhook's namespace, with its token as a bearer token. Three ways:\n\n- a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and\n  images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as\n  transcripts;\n- multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;\n- JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional\n  `title`.\n\nEach runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over\nuploads.max_mb. Audited as `import.hook`.",
         "operationId": "push_to_import_hook",
         "parameters": [
           {
@@ -23938,7 +23938,7 @@
                         "type": "null"
                       }
                     ],
-                    "description": "text to import as a transcript, as pasted text is",
+                    "description": "text to import, as pasted text is",
                     "title": "Text"
                   },
                   "title": {
@@ -24100,7 +24100,7 @@
                         "type": "null"
                       }
                     ],
-                    "description": "text to import as a transcript, as pasted text is",
+                    "description": "text to import, as pasted text is",
                     "title": "Text"
                   },
                   "title": {
@@ -26681,7 +26681,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "BatchSelection",
-        "description": "Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or speaker)."
+        "description": "Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or person)."
       },
       "BatchSummary": {
         "properties": {
@@ -30893,7 +30893,7 @@
             "type": "array",
             "maxItems": 100,
             "title": "Aliases",
-            "description": "other ways it's said"
+            "description": "other ways it's written"
           },
           "collection": {
             "anyOf": [
@@ -31259,7 +31259,7 @@
           "correct": {
             "type": "boolean",
             "title": "Correct",
-            "description": "also correct the transcript lines that say the old name",
+            "description": "also correct the lines of text that have the old name",
             "default": false
           },
           "dry_run": {
@@ -31692,7 +31692,7 @@
               }
             ],
             "title": "Aliases",
-            "description": "the other ways it's said (these replace the ones it has)"
+            "description": "the other ways it's written (these replace the ones it has)"
           },
           "defined": {
             "anyOf": [
@@ -33517,7 +33517,7 @@
               }
             ],
             "title": "Speaker",
-            "description": "who says it, as the file names them"
+            "description": "who says or writes it, as the file names them"
           },
           "title": {
             "anyOf": [
@@ -38377,7 +38377,7 @@
           "enabled": {
             "type": "boolean",
             "title": "Enabled",
-            "description": "conversations scoped to this namespace alone talk to its assistant"
+            "description": "conversations scoped to this namespace alone go to its assistant"
           },
           "name": {
             "type": "string",
@@ -38667,7 +38667,7 @@
           "speakers": {
             "type": "integer",
             "title": "Speakers",
-            "description": "speakers heard in them"
+            "description": "people in them"
           },
           "undated": {
             "type": "integer",
@@ -38713,7 +38713,7 @@
             },
             "type": "array",
             "title": "Top Speakers",
-            "description": "by talk time in the range, most first"
+            "description": "by speaking time in the range, most first"
           }
         },
         "additionalProperties": true,
@@ -39072,7 +39072,7 @@
               }
             ],
             "title": "Quote",
-            "description": "the words picked in the transcript"
+            "description": "the words picked in the text"
           },
           "shared": {
             "type": "boolean",
@@ -39246,7 +39246,7 @@
               }
             ],
             "title": "Quote",
-            "description": "the words picked in the transcript"
+            "description": "the words picked in the text"
           },
           "shared": {
             "type": "boolean",
@@ -41603,7 +41603,7 @@
               }
             ],
             "title": "Time",
-            "description": "when it was said (\"12:34\"), or for a document its page (\"p. 3\")"
+            "description": "where it is: a time (\"12:34\"), or for a document its page (\"p. 3\")"
           },
           "page": {
             "anyOf": [
@@ -42707,7 +42707,7 @@
             },
             "type": "array",
             "title": "Segments",
-            "description": "the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace"
+            "description": "the lines: t0, t1 (ms), s (person key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace"
           },
           "sections": {
             "items": {
@@ -42765,7 +42765,7 @@
               }
             ],
             "title": "Media",
-            "description": "kind: audio, video, document or image (audio for a transcript without media), and its size"
+            "description": "kind: audio, video, document or image (audio for text without media), and its size"
           },
           "pages": {
             "anyOf": [
@@ -42817,7 +42817,7 @@
           "id"
         ],
         "title": "Player",
-        "description": "Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces; for\ndocuments and images, their pages."
+        "description": "Everything the player shows: text, people, sections, entities and, for videos, shots and faces; for\ndocuments and images, their pages."
       },
       "Podcast": {
         "properties": {
@@ -43989,7 +43989,7 @@
           "url"
         ],
         "title": "PublicFile",
-        "description": "A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and\ntranslations the transcript, indexes the index, thumbnails the media); attachments need permission."
+        "description": "A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and\ntranslations the text, indexes the index, thumbnails the media); attachments need permission."
       },
       "PublicHit": {
         "properties": {
@@ -44657,7 +44657,7 @@
             },
             "type": "array",
             "title": "Hits",
-            "description": "matching transcript lines, best first; none where the transcript is closed"
+            "description": "matching lines of text, best first; none where the text is closed"
           }
         },
         "additionalProperties": true,
@@ -44727,7 +44727,7 @@
               }
             ],
             "title": "S",
-            "description": "the speaker's key"
+            "description": "the person's key"
           },
           "text": {
             "type": "string",
@@ -44801,7 +44801,7 @@
             },
             "type": "array",
             "title": "Downloads",
-            "description": "transcript files; offered when the transcript is open to everyone"
+            "description": "text files; offered when the text is open to everyone"
           }
         },
         "additionalProperties": true,
@@ -45315,7 +45315,7 @@
             },
             "type": "array",
             "title": "Open",
-            "description": "the parts anyone may use when it is public: media, transcript, index"
+            "description": "the parts anyone may use when it is public: media, transcript (the text), index"
           },
           "featured": {
             "type": "boolean",
@@ -45578,7 +45578,7 @@
           "rediarize": {
             "type": "boolean",
             "title": "Rediarize",
-            "description": "identify its speakers again from their voices in the new namespace (audio only); else matched by name",
+            "description": "identify its people again from their voices in the new namespace (audio only); else matched by name",
             "default": false
           },
           "revoke_shares": {
@@ -45862,7 +45862,7 @@
           "speakers": {
             "type": "string",
             "title": "Speakers",
-            "description": "speaker names, comma separated",
+            "description": "names of the people in it, comma separated",
             "default": ""
           },
           "access": {
@@ -46482,7 +46482,7 @@
                 "type": "null"
               }
             ],
-            "description": "none for a transcript without audio or video"
+            "description": "none for text without audio or video"
           },
           "files": {
             "items": {
@@ -47420,7 +47420,7 @@
               }
             ],
             "title": "Speaker Name",
-            "description": "the speaker's name, when you can read their namespace"
+            "description": "the person's name, when you can read their namespace"
           },
           "emotion": {
             "anyOf": [
@@ -47787,7 +47787,7 @@
           "partial"
         ],
         "title": "SearchFacets",
-        "description": "How many of all the matching moments are in each namespace, speaker, emotion and asset (up to 50 of each,\nmost first), and the kinds of object seen in the assets they're in. Text on screen has no speaker or emotion."
+        "description": "How many of all the matching moments are in each namespace, person, emotion and asset (up to 50 of each,\nmost first), and the kinds of object seen in the assets they're in. Text on screen has no person or emotion."
       },
       "SearchHit": {
         "properties": {
@@ -47801,7 +47801,7 @@
               }
             ],
             "title": "Id",
-            "description": "segment id (int) for transcript hits, OCR span or file line id (str) for the others"
+            "description": "segment id (int) for hits in an asset's text, OCR span or file line id (str) for the others"
           },
           "recording_id": {
             "type": "integer",
@@ -47923,7 +47923,7 @@
               "described"
             ],
             "title": "Source",
-            "description": "\"said\" (transcript), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace), \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or \"described\" (what a model that can see said a shot of a video, or a page, shows)"
+            "description": "\"said\" (a line of a transcript or other text), \"screen\" (text on screen in a video), \"file\" (a line of a supplementary file), \"page\" (text on a page of a document or an image, whose times are only a reading pace), \"object\" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or \"described\" (what a model that can see said a shot of a video, or a page, shows)"
           },
           "frame": {
             "anyOf": [
@@ -48262,7 +48262,7 @@
               }
             ],
             "title": "T",
-            "description": "when the second part starts, in ms (default: when its first word was said)"
+            "description": "when the second part starts, in ms (default: when its first word starts)"
           },
           "speaker": {
             "anyOf": [
@@ -48274,7 +48274,7 @@
               }
             ],
             "title": "Speaker",
-            "description": "the second part's speaker (an id in the namespace, or null); leave out to keep the line's"
+            "description": "the second part's person (an id in the namespace, or null); leave out to keep the line's"
           }
         },
         "additionalProperties": false,
@@ -48313,7 +48313,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "SegmentUpdate",
-        "description": "Send ``text``, ``speaker`` (a speaker id in the same namespace, or null), or both."
+        "description": "Send ``text``, ``speaker`` (a person id in the same namespace, or null), or both."
       },
       "SemanticStatus": {
         "properties": {
@@ -50597,7 +50597,7 @@
               "transcript"
             ],
             "title": "Documents As",
-            "description": "PDFs, Word and text files become documents (their pages kept and read), or transcripts (their text only)",
+            "description": "PDFs, Word and text files become documents (their pages kept and read), or text only (`transcript`)",
             "default": "document"
           }
         },
@@ -50848,12 +50848,12 @@
           "a": {
             "type": "integer",
             "title": "A",
-            "description": "this namespace's speaker"
+            "description": "this namespace's person"
           },
           "b": {
             "type": "integer",
             "title": "B",
-            "description": "the speaker in another namespace"
+            "description": "the person in another namespace"
           },
           "a_name": {
             "anyOf": [
@@ -50943,7 +50943,7 @@
             },
             "type": "array",
             "title": "Cross",
-            "description": "likely the same voice in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not said to be different"
+            "description": "likely the same person in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not marked as different"
           }
         },
         "additionalProperties": true,
@@ -51059,7 +51059,7 @@
           "with": {
             "type": "integer",
             "title": "With",
-            "description": "a speaker in another namespace: the same person"
+            "description": "a person in another namespace: the same person"
           }
         },
         "additionalProperties": false,
@@ -51152,7 +51152,7 @@
               }
             ],
             "title": "Recordings",
-            "description": "how many recordings' lines moved to the remaining speaker"
+            "description": "how many assets' lines moved to the remaining person"
           },
           "segments": {
             "anyOf": [
@@ -51203,7 +51203,7 @@
           "into": {
             "type": "integer",
             "title": "Into",
-            "description": "the speaker that remains"
+            "description": "the person that remains"
           }
         },
         "additionalProperties": false,
@@ -51237,7 +51237,7 @@
           "with": {
             "type": "integer",
             "title": "With",
-            "description": "the other speaker"
+            "description": "the other person"
           }
         },
         "additionalProperties": false,
@@ -51326,13 +51326,13 @@
           "talk_ms": {
             "type": "integer",
             "title": "Talk Ms",
-            "description": "how long they talk in the range's recordings",
+            "description": "how long they speak in the range's assets",
             "default": 0
           },
           "recordings": {
             "type": "integer",
             "title": "Recordings",
-            "description": "how many of the range's recordings they talk in",
+            "description": "how many of the range's assets they are in",
             "default": 0
           }
         },
@@ -52516,7 +52516,7 @@
           "count": {
             "type": "integer",
             "title": "Count",
-            "description": "how often it's said"
+            "description": "how often it appears"
           },
           "recordings": {
             "type": "integer",
@@ -53566,7 +53566,7 @@
               }
             ],
             "title": "Attach",
-            "description": "the transcript-only asset it becomes the audio of"
+            "description": "the text-only asset it becomes the audio of"
           },
           "pipeline": {
             "anyOf": [
@@ -53692,7 +53692,7 @@
               }
             ],
             "title": "Recording",
-            "description": "attach the file to this transcript-only asset as its audio, instead of making an asset of it"
+            "description": "attach the file to this text-only asset as its audio, instead of making an asset of it"
           },
           "filename": {
             "type": "string",
@@ -54364,7 +54364,7 @@
               }
             ],
             "title": "Speaker",
-            "description": "a speaker's name: whoever has it in the namespaces shown"
+            "description": "a person's name: whoever has it in the namespaces shown"
           },
           "date": {
             "type": "string",
@@ -54911,7 +54911,7 @@
               }
             ],
             "title": "Kinds",
-            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "poll_minutes": {
             "anyOf": [
@@ -55113,7 +55113,7 @@
               }
             ],
             "title": "Kinds",
-            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "include": {
             "anyOf": [
@@ -55170,7 +55170,7 @@
               }
             ],
             "title": "Kinds",
-            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)"
+            "description": "what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)"
           },
           "poll_minutes": {
             "anyOf": [

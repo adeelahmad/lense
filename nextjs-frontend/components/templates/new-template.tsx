@@ -19,7 +19,7 @@ type Kind = "prompt" | "report" | "export";
 /** Starting points, so a new template renders straight away. */
 const STARTERS: Record<Kind, { body: string; schema?: Record<string, unknown> }> = {
   prompt: {
-    body: 'Summarise "{{ recording.title }}" ({{ recording.duration }}).\n\nSpeakers: {% for s in speakers %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}\n\nTranscript:\n{{ transcript }}\n\nReturn JSON matching the schema.\n',
+    body: 'Summarise "{{ recording.title }}" ({{ recording.duration }}).\n\nPeople: {% for s in speakers %}{{ s.name }}{% if not loop.last %}, {% endif %}{% endfor %}\n\nText:\n{{ transcript }}\n\nReturn JSON matching the schema.\n',
     schema: {
       type: "object",
       required: ["tldr", "key_points"],

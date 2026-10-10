@@ -44,7 +44,7 @@ export function collectionPath(name: string): string {
 export const KIND_WORD: Record<string, string> = {
   audio: "Audio",
   video: "Video",
-  transcript: "Transcript only",
+  transcript: "Text only",
   document: "Document",
   image: "Image",
 };
@@ -120,7 +120,10 @@ const PART_WORDS: Record<AccessPart, { what: (kind: string) => string; verb: (ki
     verb: (kind) =>
       kind === "video" ? "watch it" : kind === "document" ? "see them" : kind === "image" ? "see it" : "listen to it",
   },
-  transcript: { what: (kind) => (PAGED.has(kind) ? "The text" : "The transcript"), verb: () => "read it" },
+  transcript: {
+    what: (kind) => (PAGED.has(kind) || kind === "transcript" ? "The text" : "The transcript"),
+    verb: () => "read it",
+  },
   index: { what: (kind) => (PAGED.has(kind) ? "The sections" : "The chapters"), verb: () => "see them" },
 };
 

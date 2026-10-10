@@ -1,4 +1,4 @@
-"""Full-text search over transcripts, the knowledge graph, and where entities are mentioned."""
+"""Full-text search over the text of assets, the knowledge graph, and where entities are mentioned."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def search_transcripts(
     offset: int = Query(0, ge=0),
     facets: bool = Query(
         False,
-        description="also count all the matching moments by namespace, speaker, emotion and asset, and list their kinds of object",
+        description="also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object",
     ),
     mode: Literal["auto", "keyword", "semantic", "hybrid"] = Query(
         "auto",
@@ -43,10 +43,11 @@ def search_transcripts(
         "or OR, else keyword",
     ),
 ) -> SearchResults:
-    """Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
-    transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
-    best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
-    filter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ."""
+    """Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in
+    a resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,
+    documents and images),
+    best first, in the namespaces you can read and the collections you were given a role on. A person or emotion
+    filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ."""
     if ns:
         acl.scope(ns)  # 404 unless they see some of it
     also = acl.partial_recordings()
@@ -131,10 +132,10 @@ def find_similar(
     limit: int = Query(10, ge=1, le=similar.LIMIT_MAX),
     offset: int = Query(0, ge=0),
 ) -> SimilarResults:
-    """The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you
+    """The assets most like a text, an asset, a topic or an entity (give one), best first, in the namespaces you
     can read and the collections you were given a role on, each with why: its closest passages by meaning (when
     search by meaning is set up), the lines with the key words it shares, and the topics and entities in common.
-    Each cited moment can be opened. A resource is never listed as like itself."""
+    Each cited moment can be opened. An asset is never listed as like itself."""
     given = [x for x in (text and text.strip(), recording, topic, entity) if x not in (None, "")]
     if len(given) != 1:
         raise HTTPException(422, "give one of text, recording, topic or entity")
@@ -169,7 +170,7 @@ def suggest_terms(
     ns: str | None = None,
     limit: int = Query(8, ge=1, le=20),
 ) -> list[TermSuggestion]:
-    """Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
+    """Whole words found in the namespaces you can read (or `ns`) that start with `prefix`, the most frequent first. Search
     has no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so
     collections you were given a role on don't add any."""
     if ns:
@@ -187,7 +188,7 @@ def get_graph(
     scope: str = Query("global", description='"global" or "ns:<namespace>"'),
     as_of: str | None = Query(None, description="the entities as of a graph version: a number, a version's name, or head"),
 ) -> Graph:
-    """Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
+    """People and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
     `as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's."""
     allowed = set(acl.roles)
     if scope.startswith("ns:"):

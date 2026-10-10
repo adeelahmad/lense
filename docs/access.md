@@ -9,10 +9,10 @@ closed. Who may open what depends on who is asking.
 | Setting | Values | Default |
 |---|---|---|
 | `access` | `public`, `restricted` or `private` | the namespace's default access, else `private` |
-| `open` | the parts of a public asset anyone may use: `media` (audio or video, frames; a document's or an image's pages and its file), `transcript` (the text with who said what, its search and downloads) and `index` (chapters, or a document's sections) | the namespace's default parts, else all three |
+| `open` | the parts of a public asset anyone may use: `media` (audio or video, frames; a document's or an image's pages and its file), `transcript` (the asset's text or transcript, its search and downloads) and `index` (chapters, or a document's sections) | the namespace's default parts, else all three |
 | `featured` | shown on the home page when public | no |
 
-An asset's **description** (its descriptive metadata: title, date, summary, speakers, subjects, rights) is never a
+An asset's **description** (its descriptive metadata: title, date, summary, people, subjects, rights) is never a
 closed part: whoever may see the asset's page sees it, as IIIF manifests always have.
 
 Publishing is for owners: they set an asset's access, open parts and featured flag (in its Access dialog, or
@@ -24,7 +24,7 @@ on it.
 ## Files
 
 A resource's supplementary files ([API](api.md#files)) follow its parts. On a public resource, transcripts, captions
-and translations are open when its transcript is, indexes when its index is, and thumbnails when its media is;
+and translations are open when its text is, indexes when its index is, and thumbnails when its media is;
 attachments (release forms, notes, anything else) always need permission. Decided with the project owner. People with
 permission download all of them; the public page lists the files a visitor may download and says how many more need
 permission, which signed-in visitors may ask for. IIIF lists every file, the closed ones behind the Authorization
@@ -57,7 +57,7 @@ Owners give someone permission on one asset in its Access dialog, by the email a
 creates accounts), and take it away there; both are audited. With permission, a person sees all of the asset on
 the pages for visitors, whatever its access: a private asset is listed for them in its collection and in search,
 and under "Shared with you" on the home page. IIIF lets them in too: its manifest with their token or the IIIF access
-cookie, and its media and transcript through the Authorization Flow. Face crops stay with members unless the namespace
+cookie, and its media and text through the Authorization Flow. Face crops stay with members unless the namespace
 publishes them. Permission doesn't open the workspace: that stays with the namespace's members.
 
 In the matrix, view and edit permission open the same pages; Lens has one permission for both.
@@ -71,7 +71,7 @@ assets and only reads the rest.
 
 | | Viewer | Editor | Admin |
 |---|---|---|---|
-| its assets | see and search them, open their pages, write their own notes | and edit them: transcript, catalogue record, tags, collection, notes for everyone, reprocessing | and act as their owner: access and featured, permission, deleting |
+| its assets | see and search them, open their pages, write their own notes | and edit them: text, catalogue record, tags, collection, notes for everyone, reprocessing | and act as their owner: access and featured, permission, deleting |
 | the collection | — | — | rename, describe, move it within what they're an admin of, make and delete collections inside it, give roles on it |
 
 Owners of the namespace give roles on any of its collections, admins of a collection on it and the ones inside it
@@ -82,10 +82,10 @@ is audited as `collection.member`. Deleting a collection (only when it's empty) 
 Someone **without a role in the namespace** who has a role on some of its collections sees just those: their
 assets in the Library (the namespace is marked "Some"), in search and on the assets' pages, and the
 collections in the Library's Collection filter, starting from the ones they were given. The namespace's own pages
-(Home's numbers, Speakers, Graph, Reports, Chat, Activity, Batches) stay with the namespace's members, so nothing outside their
+(Home's numbers, People, Graph, Reports, Chat, Activity, Batches) stay with the namespace's members, so nothing outside their
 collections shows: those pages say so when such a namespace is picked. On an asset, the entities it mentions are
-counted over the assets they see; the namespace's lists of speakers and faces stay with its members, and renaming
-or merging speakers and faces (which are the namespace's) needs editor access to the namespace. For the pages
+counted over the assets they see; the namespace's lists of people and faces stay with its members, and renaming
+or merging people and faces (which are the namespace's) needs editor access to the namespace. For the pages
 visitors see and IIIF, a role on a collection is permission on its assets.
 
 ## Asking for access
@@ -128,12 +128,12 @@ the picture) for people who are signed in, and all of them for members and for v
 the namespace. A collection with nothing for the visitor
 isn't there for them. The sign-in page links to the home page.
 
-**Search** finds the assets the visitor sees by their title, and by the lines of the transcripts they may read,
-title matches first; each line links to its moment in the recording. A restricted asset (for signed-in people) and
-a public one whose transcript is closed match on their title only, so a search never reveals what they say.
+**Search** finds the assets the visitor sees by their title, and by the lines of text they may read,
+title matches first; each line links to its moment in the asset. A restricted asset (for signed-in people) and
+a public one whose text is closed match on their title only, so a search never reveals what they contain.
 
 **An asset's public page** shows what the visitor may see: its title, date and description, and each open part: the
-player, the transcript (with find in the transcript, and its files to download), the chapters, and the supplementary
+player or pages, the text (with find in the text, and its files to download), the chapters, and the supplementary
 files open to them. A closed part says who can open it and offers visitors to sign in; signing in comes back to the
 page. Signed-in people without permission see a restricted asset's title behind a lock ("content locked"); members
 see all of it, with a link to the workspace. `?t=<seconds>` opens it at a moment. Owners find the link to share in a
@@ -144,7 +144,7 @@ never appear there, and grant holders see the assets shared with them.
 
 ## What IIIF publishes
 
-IIIF follows the same setting. A public asset's manifest is open; its media and transcript are plain links when
+IIIF follows the same setting. A public asset's manifest is open; its media and text are plain links when
 those parts are open, otherwise they sit behind the IIIF Authorization Flow, which admits people with permission
 (visitors from an IP group's addresses need no sign-in). Chapters appear as ranges when the index is open. Supplementary
 files follow their parts the same way (see Files), and custom fields appear only when published ([API](api.md#fields)).
@@ -161,7 +161,7 @@ Lens used to set access for IIIF only, with four levels. The first start of this
 | Before | After |
 |---|---|
 | `public` | `public`, all parts open |
-| `transcript` (text open, audio after sign-in) | `public`, transcript and index open, media closed |
+| `transcript` (text open, audio after sign-in) | `public`, text and index open, media closed |
 | `signed-in` (listed, content after sign-in) | `restricted` |
 | `private` | `private` |
 

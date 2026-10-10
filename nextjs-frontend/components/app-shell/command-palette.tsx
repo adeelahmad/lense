@@ -125,7 +125,7 @@ export function CommandPalette() {
         className="flex h-10 w-full max-w-[540px] items-center gap-2.5 rounded-sm bg-surface-neutral px-3.5 text-left text-[14px] text-fg-muted hover:bg-border/60"
       >
         <Search className="size-4 shrink-0" />
-        <span className="flex-1 truncate">Jump to an asset, speaker or page…</span>
+        <span className="flex-1 truncate">Jump to an asset, person or page…</span>
         <span className="hidden gap-1 sm:flex">
           <kbd className="grid h-5 min-w-5 place-items-center rounded-xs border border-border bg-background px-1 font-sans text-[11px]">
             ⌘

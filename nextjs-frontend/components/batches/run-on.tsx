@@ -309,7 +309,7 @@ function DoubleCheck({
         </h1>
         <p className="m-0 text-[14px] leading-normal text-fg-secondary">
           {allTranscripts
-            ? `${total === 1 ? "It is" : `All ${count(total)} are`} transcript-only, so there’s no audio to work on. Attach audio first, or pick steps that work on text (Analyze, Summarize, Report).`
+            ? `${total === 1 ? "It is" : `All ${count(total)} are`} text-only, so there’s no audio to work on. Attach audio first, or pick steps that work on text (Analyze, Summarize, Report).`
             : est.skipped
               ? `You can only view ${est.skipped === 1 ? "it" : "them"}: running needs editor access to the namespace.`
               : "No assets match this selection any more."}
@@ -392,8 +392,8 @@ function DoubleCheck({
             {(est.skipped ?? 0) > 0 && transcripts > 0 && " · "}
             {transcripts > 0 &&
               (media.length
-                ? `${plural(transcripts, "transcript-only asset")} can’t run ${media.map((m) => STEP_LABEL[m] ?? m).join(", ")} (no audio)`
-                : "transcript-only assets run (this doesn’t need audio)")}
+                ? `${plural(transcripts, "text-only asset")} can’t run ${media.map((m) => STEP_LABEL[m] ?? m).join(", ")} (no audio)`
+                : "text-only assets run (this doesn’t need audio)")}
           </p>
         </section>
       )}
@@ -554,7 +554,7 @@ export function RunOnPage() {
             </Button>
           }
         >
-          “Run on…” starts from a Library selection, a namespace, a speaker, an entity in the graph, search results or a
+          “Run on…” starts from a Library selection, a namespace, a person, an entity in the graph, search results or a
           saved collection.
         </EmptyState>
       </div>
@@ -563,7 +563,7 @@ export function RunOnPage() {
     return (
       <div className="px-4 py-6 md:px-6">
         <EmptyState title="You can’t run things here">
-          {needRole("editor", selNs)}. Viewers can read, listen, search and chat.
+          {needRole("editor", selNs)}. Viewers can open, search and chat.
         </EmptyState>
       </div>
     );

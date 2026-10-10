@@ -384,9 +384,9 @@ def merge(db, src, dst, by=None):
     many recordings and lines moved."""
     a, b = db.one("SELECT * FROM $r", r=R("speaker", src)), db.one("SELECT * FROM $r", r=R("speaker", dst))
     if not a or not b or src == dst:
-        raise ValueError("pick two different speakers")
+        raise ValueError("pick two different people")
     if a["space"] != b["space"]:
-        raise ValueError("speakers from different namespaces are linked, not merged")
+        raise ValueError("people from different namespaces are linked, not merged")
     links = db.rows("SELECT record::id(in) AS a, record::id(out) AS b FROM same_as WHERE in = $r OR out = $r", r=R("speaker", src))
     snap = {
         "speaker": {k: a.get(k) for k in ("space", "label", "name", "embedding", "n_obs", "created_at")},
@@ -492,7 +492,7 @@ def undo(db, merge_id, by=None):
 def link(db, a, b):
     ra, rb = db.one("SELECT space FROM $r", r=R("speaker", a)), db.one("SELECT space FROM $r", r=R("speaker", b))
     if not ra or not rb:
-        raise ValueError("unknown speaker")
+        raise ValueError("unknown person")
     if ra["space"] == rb["space"]:
         raise ValueError("same namespace: merge them instead")
     x, y = R("speaker", min(a, b)), R("speaker", max(a, b))
@@ -514,7 +514,7 @@ def not_same(db, a, b, by=None):
     """Someone says these two speakers aren't the same person (in one namespace or two): drop the suggestion and never
     make it again."""
     if a == b:
-        raise ValueError("pick two different speakers")
+        raise ValueError("pick two different people")
     if not db.one("SELECT id FROM $r", r=R("speaker", a)) or not db.one("SELECT id FROM $r", r=R("speaker", b)):
         raise KeyError("speaker")
     db.run(

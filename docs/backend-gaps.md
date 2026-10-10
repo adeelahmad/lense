@@ -34,11 +34,11 @@ grouped by area; each item names the smallest endpoint or field that would do.
 | Feature | Needed |
 |---|---|
 
-## Speakers and graph
+## People and graph
 
 | Feature | Needed |
 |---|---|
-| Voiceprint length, words per minute, shared topics in review; last heard | speaker profile fields |
+| Voiceprint length, words per minute, shared topics in review; last seen or heard | person profile fields |
 | Node total before the cap | a count on `/graph` |
 
 ## Batch runs and collections

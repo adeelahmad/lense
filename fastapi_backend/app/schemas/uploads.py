@@ -29,7 +29,7 @@ class UploadStart(RequestModel):
         "", description="a namespace you edit; admins may name a new one, created when the upload finishes (default: the asset's)"
     )
     recording: int | None = Field(
-        None, description="attach the file to this transcript-only asset as its audio, instead of making an asset of it"
+        None, description="attach the file to this text-only asset as its audio, instead of making an asset of it"
     )
     filename: str = Field(min_length=1, max_length=1000)
     size: int = Field(gt=0, description="the file's size in bytes")
@@ -56,7 +56,7 @@ class Upload(ResponseModel):
     size: int
     offset: int = Field(description="how many bytes have arrived: the next chunk starts here")
     state: Literal["receiving", "held", "done"] = Field(description="held: all here, waiting to be put in a namespace")
-    attach: int | None = Field(None, description="the transcript-only asset it becomes the audio of")
+    attach: int | None = Field(None, description="the text-only asset it becomes the audio of")
     pipeline: int | None = Field(None, description="the pipeline chosen to run once it's here (default: the namespace's)")
     recording: int | None = Field(None, description="the asset it became (or was attached to), once done")
     job: int | None = Field(None, description="the processing queued for it, if any")

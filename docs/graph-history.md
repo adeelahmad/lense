@@ -16,12 +16,12 @@ In the web app, Routines › History lists every version; open one to see what c
 What people and agents curate:
 
 - **Entities**: name, type, description, hidden (and why), on the fixed list, Unknown and Unlabeled.
-- **Other names** (`entity_alias`): the ways a name is said that point at an entity, from merges, renames, the
+- **Other names** (`entity_alias`): the other ways a name is written that point at an entity, from merges, renames, the
   entity page and names the model placed.
 - **Links**: the same thing in two namespaces.
-- **Distinct pairs**: two entities someone said are not one, so they aren't suggested again.
+- **Distinct pairs**: two entities someone marked as not one, so they aren't suggested again.
 
-Mentions are not versioned: analysis makes them from transcripts, and transcript edits have their own history. An
+Mentions are not versioned: analysis makes them from assets' text, and text edits have their own history. An
 as-of view uses today's mentions. A moved or removed mention is still an event (`mention.move`, `mention.remove`), so
 it shows in both entities' histories.
 
@@ -66,9 +66,9 @@ first, and records the whole of it as one new version (`graph.rollback`, with `r
 any other: rolling back to the version just before it brings everything back, merges included.
 
 - Merges come undone with their mentions; a merge undone since is merged again. Graph changes it takes back are
-  marked undone. Moved mentions go back to the entity they were on, and removed ones are said again.
+  marked undone. Moved mentions go back to the entity they were on, and removed ones come back.
 - Then every record is set to how it was at that version.
-- What analysis found since stays: it comes from the transcripts, and mentions point at it. Changes people made to
+- What analysis found since stays: it comes from assets' text, and mentions point at it. Changes people made to
   those entities are still taken back.
 - An entity made since that is mentioned now stays (hide it instead); the reply lists it under `skipped`.
 - It needs editor access to every namespace the changes touched: a link to a namespace you can't edit stops it.
@@ -104,7 +104,7 @@ events between two versions: for each record, how it was before the first and af
 
 The graph API (`/graph/schema`, `/graph/related`, `/graph/paths`), Cypher (`POST /graph/query`), questions
 (`POST /graph/ask`) and the canvas overview (`GET /graph`) take `as_of`, a version or a version's name: entities and their cross-namespace links are as they were then; mentions, assets and
-speakers are today's, so an entity merged away since shows only if it is still mentioned. The explorer's graph is
+people are today's, so an entity merged away since shows only if it is still mentioned. The explorer's graph is
 cached per graph version, so any recorded change shows at once.
 
 On the graph canvas, the clock menu in the toolbar shows the graph as of a named version or as it was before one of
@@ -117,6 +117,6 @@ analysis found is left out there), and what analysing an asset changed under `re
 
 ## Refine later
 
-- Speakers (same-person links, names) in the history.
+- People (same-person links, names) in the history.
 - A mention-level history.
 - As-of from the nearest checkpoint, so very old versions don't walk back through every later event.

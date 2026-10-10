@@ -1,7 +1,7 @@
 # Topics
 
 Each namespace keeps a controlled vocabulary of topics: what its assets are about. Topics are separate from
-entities. Entities are the named things a transcript mentions (people, organisations, products, places); a topic is a
+entities. Entities are the named things an asset's text mentions (people, organisations, products, places); a topic is a
 subject someone chose for the vocabulary, like "Gene therapy" or "Funding".
 
 Status: **built**: the vocabulary (labels, definitions, broader, narrower and related topics), assets about
@@ -45,7 +45,7 @@ Analysis never changes the vocabulary or what an asset is about on its own; it s
 language model is called for it: it reuses what analysis already found.
 
 - **Topics for assets.** An asset gets a topic as a suggestion when its summary names one of the topic's
-  labels, or its transcript says one of them (a label of one or two words) at least twice. Labels match whatever
+  labels, or its text mentions one of them (a label of one or two words) at least twice. Labels match whatever
   their case or plural. This runs after each analysis and summary, and over the whole namespace when a topic is
   added, renamed, given other labels or merged. Accepting keeps where it came from; dismissing is remembered, so
   analysis doesn't suggest that topic for that asset again. Suggestions that no longer match go.

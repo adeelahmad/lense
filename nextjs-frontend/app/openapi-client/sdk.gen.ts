@@ -3153,7 +3153,7 @@ export class Namespaces {
    * List Namespaces
    *
    * The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,
-   * no `role`): counted over those collections, without the namespace-wide speakers and word cloud.
+   * no `role`): counted over those collections, without the namespace-wide people and word cloud.
    */
   public static listNamespaces<ThrowOnError extends boolean = false>(
     options?: Options<ListNamespacesData, ThrowOnError>,
@@ -3656,7 +3656,7 @@ export class Resources {
   /**
    * Delete Recording
    *
-   * Delete an asset (owners). Everything Lens made from it goes: its transcript and analysis, frames, reports and
+   * Delete an asset (owners). Everything Lens made from it goes: its text and analysis, frames, reports and
    * outputs, shares, notes, permissions and requests for access. The media file stays where it is, and scans and watched
    * folders don't import it again; importing it on purpose brings it back. Its waiting jobs are cancelled; while a job
    * is running on it, this answers 409. Audited as `recording.delete`.
@@ -3705,10 +3705,10 @@ export class Resources {
    *
    * Move an asset to another namespace (owners of its namespace, editors of the new one).
    *
-   * It keeps its transcript, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
-   * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). Speakers and
-   * faces are matched by name in the new namespace (`rediarize`: identified again from their voices, audio only), and
-   * analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
+   * It keeps its text, media, outputs, notes, permissions and share links (`revoke_shares` stops them working);
+   * its IIIF manifest stays as it was, with what it had from its old namespace pinned on it (`pinned`). People
+   * (voices and faces) are matched by name in the new namespace (`rediarize`: voices identified again, audio only),
+   * and analysis runs again there (`job`). The old namespace's scans and watched folders don't import the file again. Its
    * files are kept under the new namespace's key. 409 when the new namespace has the same file or a job is running on
    * it; 423 when either namespace is a vault nobody has unlocked. Audited as `recording.move`.
    */
@@ -4032,7 +4032,7 @@ export class Resources {
   /**
    * Export Recording
    *
-   * The transcript as txt, md, srt, vtt or json (a download).
+   * The text (transcript, for audio and video) as txt, md, srt, vtt or json (a download).
    */
   public static exportRecording<ThrowOnError extends boolean = false>(
     options: Options<ExportRecordingData, ThrowOnError>,
@@ -4062,7 +4062,7 @@ export class Resources {
   /**
    * Edit Segment
    *
-   * Correct a transcript line (text and/or speaker); the asset is re-analysed afterwards.
+   * Correct a line of the text (its words and/or person); the asset is re-analysed afterwards.
    */
   public static editSegment<ThrowOnError extends boolean = false>(
     options: Options<EditSegmentData, ThrowOnError>,
@@ -4080,9 +4080,9 @@ export class Resources {
   /**
    * Split Segment
    *
-   * Split a transcript line in two (editors): at `at`, a position in its text, moved back to the start of the word
-   * it's in. The second part starts at `t` (ms) when given, else when its first word was said (or as far into the
-   * line's time as `at` is into its text); it keeps the line's speaker unless `speaker` is sent. The lines after it
+   * Split a line of the text in two (editors): at `at`, a position in its text, moved back to the start of the word
+   * it's in. The second part starts at `t` (ms) when given, else when its first word starts (or as far into the
+   * line's time as `at` is into its text); it keeps the line's person unless `speaker` is sent. The lines after it
    * move down one, with their corrections. Kept in the edit history; the asset is re-analysed afterwards.
    */
   public static splitSegment<ThrowOnError extends boolean = false>(
@@ -4101,8 +4101,8 @@ export class Resources {
   /**
    * Merge Segments
    *
-   * Merge a transcript line with the next one (editors): one line with both texts, from the first's start to the
-   * second's end, with the first's speaker. The lines after it move up one, with their corrections. Kept in the edit
+   * Merge a line of the text with the next one (editors): one line with both texts, from the first's start to the
+   * second's end, with the first's person. The lines after it move up one, with their corrections. Kept in the edit
    * history (with where to split it again); the asset is re-analysed afterwards.
    */
   public static mergeSegments<ThrowOnError extends boolean = false>(
@@ -4117,7 +4117,7 @@ export class Resources {
   /**
    * List Segment Edits
    *
-   * Corrections, splits and merges of the transcript, the latest first.
+   * Corrections, splits and merges of the text, the latest first.
    */
   public static listSegmentEdits<ThrowOnError extends boolean = false>(
     options: Options<ListSegmentEditsData, ThrowOnError>,
@@ -4161,7 +4161,7 @@ export class Notes {
   /**
    * Create Note
    *
-   * Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole asset.
+   * Write a note about a moment (`t0`–`t1`, with the `quote` picked in the text) or about the whole asset.
    * Anyone who can read the asset can; only you see it unless you share it with everyone who can read the
    * asset, which needs editor access. Up to 500 each on an asset. Sharing is audited (`note.share`).
    */
@@ -4248,8 +4248,8 @@ export class Notes {
   /**
    * Link Targets
    *
-   * What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, people and other
-   * entities, collections and speakers.
+   * What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other
+   * entities, collections and people.
    */
   public static linkTargets<ThrowOnError extends boolean = false>(
     options: Options<LinkTargetsData, ThrowOnError>,
@@ -4263,7 +4263,7 @@ export class Notes {
   /**
    * Page About
    *
-   * The page of an asset, entity, topic, collection or speaker: its page, or a draft while nobody has written one.
+   * The page of an asset, entity, topic, collection or person: its page, or a draft while nobody has written one.
    */
   public static pageAbout<ThrowOnError extends boolean = false>(
     options: Options<PageAboutData, ThrowOnError>,
@@ -5057,7 +5057,7 @@ export class Uploads {
    * Start Upload
    *
    * Start uploading an audio or video file into a namespace (editors; admins may name a new one), or as the audio of
-   * a transcript-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
+   * a text-only asset (`recording`; editors of its namespace). `pipeline` runs once it's here instead of the
    * namespace's. Then send the file with PUT /uploads/{uid}.
    * 400 for a type not in uploads.extensions, 409 when the asset has audio already, 413 over uploads.max_mb, 507
    * when the server's disk can't hold it.
@@ -5130,10 +5130,11 @@ export class Search {
   /**
    * Search Transcripts
    *
-   * Moments where the words are said (or shown on screen in a video, or written in a resource's supplementary
-   * transcripts, captions, translations and indexes, or the kinds of object seen in videos, documents and images),
-   * best first, in the namespaces you can read and the collections you were given a role on. A speaker or emotion
-   * filter keeps to what was said. By meaning, a moment is a passage about what was asked, though its words may differ.
+   * Moments where the words appear (said in audio or video, shown on screen in a video, written in a document or in
+   * a resource's supplementary transcripts, captions, translations and indexes, or the kinds of object seen in videos,
+   * documents and images),
+   * best first, in the namespaces you can read and the collections you were given a role on. A person or emotion
+   * filter keeps to their lines. By meaning, a moment is a passage about what was asked, though its words may differ.
    */
   public static searchTranscripts<ThrowOnError extends boolean = false>(
     options: Options<SearchTranscriptsData, ThrowOnError>,
@@ -5163,10 +5164,10 @@ export class Search {
   /**
    * Find Similar
    *
-   * The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you
+   * The assets most like a text, an asset, a topic or an entity (give one), best first, in the namespaces you
    * can read and the collections you were given a role on, each with why: its closest passages by meaning (when
    * search by meaning is set up), the lines with the key words it shares, and the topics and entities in common.
-   * Each cited moment can be opened. A resource is never listed as like itself.
+   * Each cited moment can be opened. An asset is never listed as like itself.
    */
   public static findSimilar<ThrowOnError extends boolean = false>(
     options?: Options<FindSimilarData, ThrowOnError>,
@@ -5180,7 +5181,7 @@ export class Search {
   /**
    * Suggest Terms
    *
-   * Whole words said in the namespaces you can read (or `ns`) that start with `prefix`, the most said first. Search
+   * Whole words found in the namespaces you can read (or `ns`) that start with `prefix`, the most frequent first. Search
    * has no prefix search, so the web app offers these when someone types interp*. Words are counted per namespace, so
    * collections you were given a role on don't add any.
    */
@@ -5196,7 +5197,7 @@ export class Search {
   /**
    * Get Graph
    *
-   * Speakers and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
+   * People and entities as a graph, over the namespaces you can read (isolated ones only in their own scope).
    * `as_of` shows the entities as they were at an earlier version (docs/graph-history.md); mentions are today's.
    */
   public static getGraph<ThrowOnError extends boolean = false>(
@@ -5239,7 +5240,7 @@ export class Searches {
   /**
    * Create Search
    *
-   * Save a search (its words, namespace, speaker, emotion, asset and object) under a name unique among yours. Sharing it
+   * Save a search (its words, namespace, person, emotion, asset and object) under a name unique among yours. Sharing it
    * with its namespace needs editor access there.
    */
   public static createSearch<ThrowOnError extends boolean = false>(
@@ -5293,8 +5294,8 @@ export class Speakers {
   /**
    * List Speakers
    *
-   * A namespace's speakers, its recent merges (undoable; who merged and how many recordings moved), links to speakers
-   * in other namespaces, and voices in other shared namespaces that are likely the same person (`cross`).
+   * A namespace's people, its recent merges (undoable; who merged and how many assets moved), links to people
+   * in other namespaces, and people in other shared namespaces who are likely the same person (`cross`).
    */
   public static listSpeakers<ThrowOnError extends boolean = false>(
     options: Options<ListSpeakersData, ThrowOnError>,
@@ -5336,7 +5337,7 @@ export class Speakers {
   /**
    * Merge Speaker
    *
-   * Fold this speaker into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.
+   * Fold this person into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo.
    */
   public static mergeSpeaker<ThrowOnError extends boolean = false>(
     options: Options<MergeSpeakerData, ThrowOnError>,
@@ -5366,7 +5367,7 @@ export class Speakers {
   /**
    * Link Speaker
    *
-   * Mark this speaker and one in another namespace as the same person (you need editor access to both).
+   * Mark this person and one in another namespace as the same person (you need editor access to both).
    */
   public static linkSpeaker<ThrowOnError extends boolean = false>(
     options: Options<LinkSpeakerData, ThrowOnError>,
@@ -5425,8 +5426,8 @@ export class Entities {
    * List Entities
    *
    * Entities in the namespaces you can read. `types` and `namespaces` are comma-separated; `group` joins same-named ones.
-   * With `recording`, those said in it, also for someone who sees it through a role on its collection (then counted
-   * over the assets they see). With `collection`, those said in its assets and those of the collections inside
+   * With `recording`, those mentioned in it, also for someone who sees it through a role on its collection (then counted
+   * over the assets they see). With `collection`, those mentioned in its assets and those of the collections inside
    * it (counted over them).
    */
   public static listEntities<ThrowOnError extends boolean = false>(
@@ -5583,7 +5584,7 @@ export class Entities {
   /**
    * Update Entity
    *
-   * Describe the entity (what it is, in your words), say how else it's said, or put it on (or off) the fixed list.
+   * Describe the entity (what it is, in your words), say how else it's called, or put it on (or off) the fixed list.
    */
   public static updateEntity<ThrowOnError extends boolean = false>(
     options: Options<UpdateEntityData, ThrowOnError>,
@@ -5629,7 +5630,7 @@ export class Entities {
   /**
    * Rename Entity
    *
-   * Rename; with `correct`, also fix the transcript lines (re-analysing the assets). `dry_run` previews the lines.
+   * Rename; with `correct`, also fix the lines of text (re-analysing the assets). `dry_run` previews the lines.
    */
   public static renameEntity<ThrowOnError extends boolean = false>(
     options: Options<RenameEntityData, ThrowOnError>,
@@ -5729,7 +5730,7 @@ export class Entities {
   /**
    * Explore Graph
    *
-   * The neighbourhood of a node (`e<id>` for an entity, a speaker node id...). scope: `all` (shared graphs) or `ns:<name>`.
+   * The neighbourhood of a node (`e<id>` for an entity, `s<id>` for a person...). scope: `all` (shared graphs) or `ns:<name>`.
    */
   public static exploreGraph<ThrowOnError extends boolean = false>(
     options: Options<ExploreGraphData, ThrowOnError>,
@@ -6182,7 +6183,7 @@ export class Graph {
    * Graph As Of
    *
    * The graph as it was at a version: entities (with their other names), cross-namespace links and the pairs someone
-   * said are different. Mentions aren't versioned: counts elsewhere are today's.
+   * marked as different. Mentions aren't versioned: counts elsewhere are today's.
    */
   public static graphAsOf<ThrowOnError extends boolean = false>(
     options: Options<GraphAsOfData, ThrowOnError>,
@@ -6468,7 +6469,7 @@ export class Rdf {
   /**
    * Get Namespace Rdf
    *
-   * Everything in the namespace as one graph: itself, its collections, assets, entities and speakers.
+   * Everything in the namespace as one graph: itself, its collections, assets, entities and people.
    */
   public static getNamespaceRdf<ThrowOnError extends boolean = false>(
     options: Options<GetNamespaceRdfData, ThrowOnError>,
@@ -6723,7 +6724,7 @@ export class Video {
   /**
    * Link Face Speaker
    *
-   * Say whose voice goes with this face (null unlinks).
+   * Say which person this face is (null unlinks).
    */
   public static linkFaceSpeaker<ThrowOnError extends boolean = false>(
     options: Options<LinkFaceSpeakerData, ThrowOnError>,
@@ -6741,7 +6742,7 @@ export class Video {
   /**
    * Dismiss Face Suggestion
    *
-   * Drop a suggestion (`kind` face or speaker, with its id).
+   * Drop a suggestion (`kind` face, or speaker for a person, with its id).
    */
   public static dismissFaceSuggestion<ThrowOnError extends boolean = false>(
     options: Options<DismissFaceSuggestionData, ThrowOnError>,
@@ -8402,9 +8403,9 @@ export class Public {
   /**
    * Search Public
    *
-   * Search what this visitor may see: titles of the assets they see listed, and the lines of the transcripts
+   * Search what this visitor may see: titles of the assets they see listed, and the lines of the text of those
    * they may read. Title matches come first. Restricted assets (for signed-in people) and public ones with the
-   * transcript closed match on their title only.
+   * text closed match on their title only.
    */
   public static searchPublic<ThrowOnError extends boolean = false>(
     options?: Options<SearchPublicData, ThrowOnError>,
@@ -9223,7 +9224,7 @@ export class ImportHooks {
    * images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
    * transcripts;
    * - multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;
-   * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional
+   * - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
    * `title`.
    *
    * Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over

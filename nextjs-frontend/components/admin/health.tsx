@@ -191,7 +191,7 @@ export function HealthPage() {
         >
           SurrealDB · {h.database.embedded ? "embedded" : "server"} · full-text search{" "}
           {h.database.fulltext ? `(${h.database.fulltext})` : "unavailable"} · {count(h.counts.recordings)} assets,{" "}
-          {count(h.counts.speakers)} speakers, {count(h.counts.accounts)} accounts
+          {count(h.counts.speakers)} people, {count(h.counts.accounts)} accounts
         </Card>
         <Card
           icon={Cpu}

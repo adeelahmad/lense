@@ -188,7 +188,7 @@ export function EmbedBuilder({
               ) : (
                 <Tooltip
                   key={l.value}
-                  content="Not available yet: the player has one layout (assets without audio show the transcript only)"
+                  content="Not available yet: the player has one layout (assets without audio show their text only)"
                 >
                   {card}
                 </Tooltip>

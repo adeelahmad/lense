@@ -40,12 +40,12 @@ chat rooms, devices and webhooks all flow in, and everything becomes memory you 
 where it came from, down to the second of a recording or the line of a document. It runs on your own hardware, from a
 Raspberry Pi to the cloud, and you own every byte.
 
-Lens is built first for agents and AI assistants. After setup, most people do two things: talk to an assistant that
+Lens is built first for agents and AI assistants. After setup, most people do two things: ask an assistant that
 finds and fetches what they need, and look at the charts and reports that show what is in their archive and what it
 cost.
 
 Lens is also infrastructure to build on. An app built on Lens, such as an email responder or a customer manager,
-starts with real, structured context (who is involved, what was said, what was decided, with sources) instead of a
+starts with real, structured context (who is involved, what was discussed, what was decided, with sources) instead of a
 blank prompt. Apps reach it the same way agents do: through the MCP server, the REST API and OAuth sign-in, limited to
 what their person may read.
 
@@ -55,12 +55,12 @@ what their person may read.
   archive, and acts on it with tools: changes wait for your approval. Each namespace can have its own assistant with
   its own name, instructions and memory, and the assistant can answer in Slack, Discord, Telegram, Matrix and other
   chat rooms. ([Chat](docs/assistant.md), [chat rooms](docs/chat-rooms.md))
-- **Connect your agents.** Lens is an MCP server (`/mcp`) with 25 tools for search, transcripts, citations, the
+- **Connect your agents.** Lens is an MCP server (`/mcp`) with 25 tools for search, reading, citations, the
   graph, topics and notes. Agents sign in with OAuth and see only what their person may read. ([MCP](docs/mcp.md))
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks;
   IMAP mail and iCal calendars; a built-in MQTT broker, syslog and webhook streams; uploads of audio, video, PDFs,
   Office files, web pages and transcripts. ([Sensors](docs/sensors.md), [processing](docs/processing.md))
-- **Understand it.** Transcription and speaker recognition, entities and topics in a knowledge graph you can explore,
+- **Understand it.** Transcription, people recognised by voice and face, entities and topics in a knowledge graph you can explore,
   query with Cypher or SPARQL, and see as it was at any version. ([Graph](docs/graph.md),
   [graph history](docs/graph-history.md), [topics](docs/topics.md), [video](docs/video.md))
 - **Keep notes beside it.** Every asset, entity and topic has a page, plus free notes that you and the assistant

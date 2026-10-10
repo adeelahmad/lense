@@ -6,7 +6,7 @@ from app.schemas.common import RequestModel, ResponseModel
 
 
 class NamespaceAssistant(ResponseModel):
-    enabled: bool = Field(description="conversations scoped to this namespace alone talk to its assistant")
+    enabled: bool = Field(description="conversations scoped to this namespace alone go to its assistant")
     name: str
     instructions: str = Field("", description="what its owners tell it, read with every question")
     memories: int = Field(0, description="how many things it remembers")

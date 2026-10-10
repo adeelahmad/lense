@@ -32,8 +32,8 @@ class MonthStats(ResponseModel):
 class SpeakerStats(ResponseModel):
     id: int
     name: str | None = None
-    talk_ms: int = Field(0, description="how long they talk in the range's recordings")
-    recordings: int = Field(0, description="how many of the range's recordings they talk in")
+    talk_ms: int = Field(0, description="how long they speak in the range's assets")
+    recordings: int = Field(0, description="how many of the range's assets they are in")
 
 
 class NamespaceStats(ResponseModel):
@@ -41,7 +41,7 @@ class NamespaceStats(ResponseModel):
     to: str | None = Field(None, description="the last day of the range; null when open")
     recordings: int = Field(description="assets made in the range (without a range: all of them, dated or not)")
     ms: int = Field(description="how long they are together")
-    speakers: int = Field(description="speakers heard in them")
+    speakers: int = Field(description="people in them")
     undated: int = Field(0, description="the namespace's assets without a date: counted only when there's no range")
     first: str | None = Field(None, description="the day of the earliest dated asset in the range")
     last: str | None = Field(None, description="the day of the latest dated asset in the range")
@@ -50,7 +50,7 @@ class NamespaceStats(ResponseModel):
         description="each calendar month from `from` (else the first asset) to `to` (else the later of today and "
         "the last asset), empty ones included; at most the latest 240",
     )
-    top_speakers: list[SpeakerStats] = Field(default_factory=list, description="by talk time in the range, most first")
+    top_speakers: list[SpeakerStats] = Field(default_factory=list, description="by speaking time in the range, most first")
 
 
 class NamespaceCreate(RequestModel):

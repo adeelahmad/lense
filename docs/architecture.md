@@ -17,7 +17,7 @@ processes around one database, with word search in a small index beside it:
 | **Next.js** (`nextjs-frontend/`) | The web app. Auth.js (NextAuth v5) keeps the session; server components and server actions call the API with the session's access token through the generated, typed client. |
 | **FastAPI** (`fastapi_backend/app/`) | The HTTP API under `/api/v1`, IIIF endpoints under `/iiif`, the embeddable player at `/embed/<id>` (and `/s/<code>`, a share link's short address) and stored reports at `/reports/...`. |
 | **Workers** (`lens worker`) | Run queued jobs: transcription, diarisation, video analysis, entity extraction, LLM steps and reports. Any number, on any machine that reaches the database; each can be limited to the steps it can run (for example mlx transcription on a Mac). |
-| **SurrealDB** | Everything but the word index: assets, transcripts, speakers, the knowledge graph (as graph edges), jobs, accounts and settings. |
+| **SurrealDB** | Everything but the word index: assets, their text, people, the knowledge graph (as graph edges), jobs, accounts and settings. |
 | **Word index** | Full-text search. By default a SQLite FTS5 file in `<data_dir>/search/` (BM25 ranking, stemming, highlights); `search.engine: opensearch` moves it to an OpenSearch cluster. It is kept in step with SurrealDB from a change table before each search (`app/domain/textindex.py`). |
 
 ## Backend layout
@@ -68,8 +68,8 @@ saved in the app by admins. See [Configuration](configuration.md).
 
 ## Access model
 
-Admins can do everything. Everyone else has a role per namespace: **viewer** (read, listen, search, chat), **editor**
-(import, correct, rename and merge speakers, run pipelines) or **owner** (members and namespace settings). A namespace
+Admins can do everything. Everyone else has a role per namespace: **viewer** (read, play, search, chat), **editor**
+(import, correct, rename and merge people, run pipelines) or **owner** (members and namespace settings). A namespace
 you have no role in behaves as if it didn't exist: its assets, search hits, graph nodes and reports all answer 404.
 `deps.Access` enforces this on every request. See [Authentication](authentication.md).
 
@@ -94,7 +94,7 @@ signed link, a share link (`?s=…`) or a bearer token. Byte ranges are supporte
 
 Only links the server writes are signed: in API responses, the fields that hold links (`media.LINK_KEYS`); in the
 embed and report pages, links to the assets the page is about. Text that people or models write (a title, a
-transcript line, metadata, a chat answer) is never signed, however much it looks like a link.
+line of text, metadata, a chat answer) is never signed, however much it looks like a link.
 
 ## Design decisions
 

@@ -190,7 +190,7 @@ def accept_file(db, cfg, hook, path, filename, title=None):
             rid, job, dup = up["recording"], up.get("job"), bool(up.get("duplicate"))
         else:
             if path.stat().st_size > cfg["server"]["max_upload_mb"] * uploads.MB:
-                raise uploads.TooLarge(f"transcripts up to {cfg['server']['max_upload_mb']} MB")
+                raise uploads.TooLarge(f"text files up to {cfg['server']['max_upload_mb']} MB")
             named = path.with_name(path.name + pathlib.Path(name).suffix)  # read_transcript goes by the extension
             path.rename(named)
             path = named

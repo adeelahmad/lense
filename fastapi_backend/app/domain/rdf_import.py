@@ -119,7 +119,7 @@ def _agent(g, node, base):
     sid = _id_of(f"{base}/id/speaker/", node)
     name = _label(g, node)
     if sid is not None:
-        return {"name": name or f"Speaker {sid}", "speaker": sid}
+        return {"name": name or f"Person {sid}", "speaker": sid}
     if isinstance(node, URIRef):
         return {"name": name or str(node), "uri": str(node) if str(node).startswith(("http://", "https://")) else None}
     return {"name": name} if name else None
@@ -308,7 +308,7 @@ def _ours(db, sid, fields):
             if p.get("speaker") is not None:
                 row = db.one("SELECT space FROM $r", r=R("speaker", int(p["speaker"])))
                 if not row or row["space"] != sid:
-                    problems.append(f"speaker {p['speaker']} isn't in this namespace: kept as a name")
+                    problems.append(f"person {p['speaker']} isn't in this namespace: kept as a name")
                     p.pop("speaker")
     for x in fields.get("subjects") or []:
         if x.get("entity") is not None:

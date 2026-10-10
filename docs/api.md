@@ -264,11 +264,11 @@ PUT    /api/v1/namespaces/{name}/collections/{cid}/members
 
 `GET /namespaces` lists the namespaces you have a role in, with their counts and your `role`, and those you see only
 some collections of: `partial: true`, no `role`, counted over those collections, without the namespace-wide word
-cloud and speakers.
+cloud and people.
 
 `/namespaces/{name}/stats?from=&to=&top=` gives the Reports overview its numbers (viewers of the namespace): the
 assets made from `from` to `to` (days, `YYYY-MM-DD`, both included; leave either open), how many and how long
-(`recordings`, `ms`), how many speakers are heard in them and the `top` ones by talk time in them (`top_speakers`,
+(`recordings`, `ms`), how many people are heard in them and the `top` ones by talk time in them (`top_speakers`,
 default 5, at most 50, each with `talk_ms` and `recordings`), the days of the `first` and `last`, and `months`: every
 calendar month from `from` (else the first asset) to `to` (else the later of today and the last asset),
 empty ones included, at most the latest 240. Without a range it counts every asset; `undated` says how many
@@ -325,7 +325,7 @@ namespace aren't listed: theirs holds everywhere in it.
 
 ## resources
 
-A resource is what the archive holds: a recording (audio, video, or a transcript without media), a document (a PDF) or
+A resource is what the archive holds: a recording (audio, video, or text without media), a document (a PDF) or
 an image ([Documents and images](#documents-and-images)). The API calls them resources: `/api/v1/resources/…` is the canonical path for everything below, and the schema and the generated
 client use it (the `Resources` class). `/api/v1/recordings/…`, their address before, keeps working for existing
 clients and reaches the same routes; links the server writes (signed media links, for one) may still use it. Fields
@@ -381,21 +381,21 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 |---|---|
 | `ns` | one namespace (default: every namespace you can read) |
 | `collection` | a collection's id: the assets in it and in the collections inside it |
-| `q` | words that must all appear in the title, the namespace's name or a speaker's name |
+| `q` | words that must all appear in the title, the namespace's name or a person's name |
 | `status` | `new`, `transcribed`, `diarized`, `analyzed`, `error`, and two job states: `processing` (a job is queued or running) and `failed` (the latest job failed) |
 | `attention` | `true`: only assets that need a person (errored, latest job failed, or a voice match waiting for review) |
 | `processing` | `true`: only assets with a job queued or running |
-| `speaker` | speaker ids |
+| `speaker` | person ids |
 | `from`, `to` | the asset date, `YYYY-MM-DD`, both days included; assets without a date don't match |
 | `min_duration`, `max_duration` | seconds: at least `min_duration`, shorter than `max_duration` |
-| `media` | `audio`, `video`, `transcript` (no media), `document` or `image` |
+| `media` | `audio`, `video`, `transcript` (text without media), `document` or `image` |
 | `access` | `public`, `restricted` or `private`: the asset's own setting, else its namespace's default |
 | `featured` | `true`: only featured assets; `false`: only the others |
 | `tag` | tags, ignoring case |
 | `origin` | where they came from: `source:<id>` (a connected source), `upload`, `paste`, `iiif`, `folder` (the archive's own folders) or `file` (another file imported by path) |
 | `language` | language codes, ignoring case; `none` for assets whose language isn't known |
 | `object` | kinds of object seen in them (`person`, `car` …; [Objects](#objects)), ignoring case |
-| `edited_by` | `me`: assets you edited (corrected a line of the transcript, changed the catalogue record, or renamed) |
+| `edited_by` | `me`: assets you edited (corrected a line of the text, changed the catalogue record, or renamed) |
 | `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Assets without the value come last either way |
 | `limit`, `offset` | one page (default 500 rows, at most 1000) |
 
@@ -411,7 +411,7 @@ their IIIF Manifests change (`partOf`), so harvesters see an Update. Audited as 
 origins, languages and kinds of object of the assets you can read with how many have each, most first, for the
 Library's Source, Language and Objects filters.
 
-`PATCH /resources/{rid}/segments/{idx}` corrects a transcript line: its `text`, its `speaker` (an id in the
+`PATCH /resources/{rid}/segments/{idx}` corrects a line of text: its `text`, its `speaker` (a person id in the
 namespace, or `null`), or both (editors). `POST …/segments/{idx}/split {at, t?, speaker?}` splits a line in two at
 `at`, a position in its text moved back to the start of the word it's in. The second part starts at `t` (ms, inside
 the line) or else when its first timed word was said (or as far into the line's time as `at` is into its text), and
@@ -425,7 +425,7 @@ started (`after.at`, `after.t`) to split it there again.
 
 An asset's `summary` (the Summarize step's, also in `GET …/player`) has `summary`, `key_points` and
 `action_items`, `topics`, `people`, `sentiment` and `importance` (1–5). Key points and action items are
-`{text, who?, t0?}`: `who` will do it, and `t0` is where the line they come from starts (ms), when the model said;
+`{text, who?, t0?}`: `who` will do it, and `t0` is where the line they come from starts (ms), when the model gave it;
 summaries made before they had times hold plain strings.
 
 In `GET …/player`, a line whose words have timings from transcription carries them as `w`: `[c0, c1, t0, t1]` for
@@ -442,10 +442,10 @@ most used first.
 characters). It is audited as `recording.rename`; the asset's report page follows the new title and is rebuilt,
 and a published asset shows up as an Update in the IIIF change feed.
 
-`DELETE /resources/{rid}` deletes an asset (owners). Everything Lens made from it goes: its transcript and analysis
-(segments, speakers' turns, chapters, entity mentions, terms, edits), video shots, text on screen, face tracks and
+`DELETE /resources/{rid}` deletes an asset (owners). Everything Lens made from it goes: its text and analysis
+(segments, speaker turns, chapters, entity mentions, terms, edits), video shots, text on screen, face tracks and
 frames, outputs, reports and exports, shares, permissions, requests for access, and its place in IP groups, fixed
-collections, chat scopes and batch runs that haven't started it. Speakers and faces only it had are removed unless
+collections, chat scopes and batch runs that haven't started it. People and faces only it had are removed unless
 someone named them. Its waiting jobs are cancelled; while a job is running on it the answer is 409, and a worker that
 finds its asset gone stops. The media file stays where it is: scans skip the same path and the same file elsewhere,
 and watched folders skip the same remote file, even when it changes; importing it on purpose (the Import dialog,
@@ -454,11 +454,11 @@ audited as `recording.delete` with its title, namespace and path.
 
 `POST /resources/{rid}/move` with `{"namespace", "collection", "rediarize", "revoke_shares"}` moves an asset to
 another namespace (owners of its namespace, editors of the new one), into `collection` there (default: the new
-namespace's default collection; 404 for a collection of another namespace). It keeps its transcript, media, frames, outputs, the people given
+namespace's default collection; 404 for a collection of another namespace). It keeps its text, media, frames, outputs, the people given
 permission on it and its share links (`revoke_shares`: they stop working). Its IIIF manifest stays as it was: what it
 had from its old namespace (default access and open parts, the metadata profile's defaults) is pinned on it wherever
-the new namespace would change it, kept in its metadata history and listed in `pinned`. Speakers and faces are matched
-by name in the new namespace, or start there with this recording's voice and face (`rediarize`, audio only: identified
+the new namespace would change it, kept in its metadata history and listed in `pinned`. People and faces are matched
+by name in the new namespace, or start there with this asset's voice and face (`rediarize`, audio only: identified
 again from their voices instead); unnamed ones left with nothing in the old namespace are removed. Its entity mentions
 and per-mention corrections start over: analysis runs again in the new namespace (`job`). Its report pages and exports
 move to the new namespace's folders. The old namespace's scans and watched folders don't import the file again, and
@@ -506,10 +506,10 @@ email's `email` is its `subject`, `from`, `to`, `cc` and `date`; its subject bec
 made, unless someone named or dated it. Its attachments are kept as its files (role `attachment`), and those Lens can
 read become resources of their own beside it, each with `attached_to: {resource, file, title}` (the email, and its
 title when the caller may see it); an attachment file's `resource` is the resource it became, or the one it was already
-in the namespace (`documents.attachment_resources`). Transcribing an email again keeps and makes nothing twice.
+in the namespace (`documents.attachment_resources`). Reading an email again keeps and makes nothing twice.
 `GET /uploads/limits` says what the server can convert (`convert: {office, pages, msg}`); an upload it can't read is
-refused, saying what it needs, and the files that can be transcripts too (PDFs, Word, text and Markdown) can be imported
-as transcripts instead (`POST /import`). Its pipeline's read step (its transcribe step, for a document or an image:
+refused, saying what it needs, and the files that can be read as plain text too (PDFs, Word, text and Markdown) can be imported
+as text instead (`POST /import`). Its pipeline's read step (its transcribe step, for a document or an image:
 no speech model is fetched for one) draws its pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's
 pdftotext; pypdf without poppler, when there are no pages to look at), and by OCR (`video.ocr_engine`) the pages with
 fewer than `documents.ocr_below_chars` characters of text, drawn sharper for it. An image is one page (a TIFF one per
@@ -539,7 +539,7 @@ Manifest with a Canvas per page ([IIIF](iiif.md)), and its public page shows its
 collection you can read (a list in its own order, a filter's oldest first; 50 at most), as one PDF to hand on, made by
 [anytopdf](configuration.md#anytopdf). Each resource goes in as its own file: a document or an image as it is, a
 captured web page as captured, audio or video with Lens's transcript of it (its speakers' names on each line), and a
-transcript without media as its text. The PDF is searchable PDF/A-3 with its text and chunks embedded, and its last
+text-only asset as its text. The PDF is searchable PDF/A-3 with its text and chunks embedded, and its last
 page is a provenance page giving every file's SHA-256 and size, so whoever gets it can check each part against the
 file it came from. It holds no paths of the server (anytopdf's `share` profile), is made when asked for, and nothing
 of it is kept. Anyone who can read the resources can have it (share links and signed links can't).
@@ -560,7 +560,7 @@ DELETE /api/v1/resources/{rid}/notes/{nid}
 
 Notes on an asset, for people with a role in its namespace (share links and signed links don't reach them). `POST`
 with `text` (up to 5,000 characters) and, for a note about a moment, `t0` and `t1` (ms from the start; `t1` defaults
-to `t0` and stops at the end of the recording) and the `quote` picked in the transcript (up to 1,000 characters);
+to `t0` and stops at the end of the asset) and the `quote` picked in the text (up to 1,000 characters);
 without `t0` the note is about the whole asset. Anyone who can read the asset can write notes, up to 500 each
 on an asset. A note is its writer's: only they see it, unless they share it (`shared: true`, which needs editor
 access) with everyone who can read the asset. `GET` lists yours and the shared ones: notes about the whole
@@ -648,7 +648,7 @@ GET    /api/v1/resources/{rid}/files/{fid}/download
 GET    /api/v1/resources/{rid}/files/{fid}/lines
 ```
 
-A resource's files: its primary file (`primary`: the audio or video its pipeline runs on, none for a transcript
+A resource's files: its primary file (`primary`: the audio or video its pipeline runs on, none for text
 without media) and any number of supplementary files beside it, each with a `role`, and a `language`, `label` and
 `description` of its own:
 
@@ -675,7 +675,7 @@ Downloads come as attachments and are never run by a browser: pages, scripts and
 stay with a resource that moves to another namespace and go when it's deleted.
 
 `public` says whether everyone may download a file. A public resource opens its files with its parts
-([Access](access.md#files)): transcripts, captions and translations with its transcript, indexes with its index,
+([Access](access.md#files)): transcripts, captions and translations with its text, indexes with its index,
 thumbnails with its media. Attachments always need permission.
 
 ## imports
@@ -707,7 +707,7 @@ of the namespace; admins may name a new one). Its pipeline keeps the page as it 
 any document ([Documents and images](#documents-and-images)): a link to a PDF is kept as it is, any other page is
 printed by headless Chromium with its scripts run. Its `web` is `{url, final, captured_at, how}`: the address given,
 the one it ended at after redirects, when it was captured, and `printed` or `pdf`. Its title is the page's own once it's
-captured, unless `title` gave one. Capturing happens once: transcribing it again keeps the page it captured.
+captured, unless `title` gave one. Capturing happens once: reading it again keeps the page it captured.
 
 Only public addresses are reached, on ports 80 and 443: the address is checked when it's given (400, saying why: not
 http(s), a user name or password in it, another port, or a host with an address that isn't public), and every request
@@ -773,10 +773,10 @@ a URL; the address form ends up in proxy logs, so prefer the header). Three ways
 
 - **A file as the raw body**, named by `?filename=`, `Content-Disposition` or `X-Filename`. Audio, video, documents
   and images become assets exactly as [uploads](#uploads) do, duplicates included; `.srt`, `.vtt`,
-  `.json`, `.jsonl` and `.ics` are imported as transcripts.
+  `.json`, `.jsonl` and `.ics` are imported as text.
 - **Multipart form files** (field `file`, up to 20), with optional `title`, `url` and `text` fields.
 - **JSON** `{url?, text?, title?}`: a web page or PDF kept as a document, as [web pages](#web-pages) are (a page needs
-  Chromium on the server; a link to a PDF doesn't), and text imported as a transcript, as pasted text is.
+  Chromium on the server; a link to a PDF doesn't), and text imported as pasted text is.
 
 The answer (202) is `{namespace, items: [{kind, name, recording, job, duplicate}]}`. 401 for a token that isn't a hook's,
 403 while the hook is paused, 413 over `uploads.max_mb`, 507 when the disk can't hold the file. Each item is audited as
@@ -791,7 +791,7 @@ curl -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{
 ### Uploads
 
 Audio, video, documents (PDF) and images go up in pieces, so a dropped connection costs one piece, not the file. A PDF
-uploaded this way is a [document](#documents-and-images); to import a PDF as a transcript (its text only), send it to
+uploaded this way is a [document](#documents-and-images); to import only a PDF's text, send it to
 `POST /import` instead (the web app's Import asks which).
 
 ```
@@ -804,11 +804,11 @@ DELETE /api/v1/uploads/{uid}
 ```
 
 `GET /limits` tells anyone signed in what can be uploaded: the types (`uploads.extensions`), the largest file
-(`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest transcript file for
+(`uploads.max_mb`), the piece size the web app sends (`uploads.chunk_mb`) and the largest text or transcript file for
 `POST /import` (`server.max_upload_mb`).
 
 `POST /uploads {namespace, filename, size, title?, modified?, pipeline?, collection?, recording?}` starts one (editors of the namespace; admins
-may name a new namespace, created when the upload finishes). With `recording`, a transcript-only asset, the file
+may name a new namespace, created when the upload finishes). With `recording`, a text-only asset, the file
 becomes that asset's audio instead of an asset of its own (editors of its namespace; `namespace` can then be left
 out; 409 when it has audio already; 400 for anything but audio or video). [Processing](processing.md#importing-transcripts) says what runs then. `pipeline`
 runs instead of the namespace's once a new asset is made, and `collection` is where it goes (neither with
@@ -843,24 +843,24 @@ GET    /api/v1/graph
 GET    /api/v1/mentions
 ```
 
-`GET /search?q=` finds the moments where the words are said (or shown on screen in a video, or written in a resource's
-supplementary transcripts, captions, translations and indexes, or in what a model said its shots and pages show) in the
+`GET /search?q=` finds the moments where the words appear (in an asset's text or transcript, on screen in a video, in a resource's
+supplementary transcripts, captions, translations and indexes, or in what a model says its shots and pages show) in the
 namespaces you can read, best first: every word
 (English stemming), "quoted phrases" as written, `OR` between alternatives; `ns`, `speaker`, `emotion` and `recording`
 narrow it, and `object` keeps to the assets a kind of object is seen in ([Objects](#objects));
 `limit`/`offset` page through it. `total` counts the moments ranked so far (`capped` when there may be more).
-With `facets=true` it also counts all the matching moments, whatever the page, by namespace, speaker, emotion and
+With `facets=true` it also counts all the matching moments, whatever the page, by namespace, person, emotion and
 asset (`facets`: up to 50 values each, most first, and `moments`), and lists the kinds of object seen in the
 assets they're in, with how many of those assets each is in (`objects`); past 20,000 moments the counts cover
 20,000 of them (`partial`).
 
-Each hit's `source` says where it was found: `said` (the transcript), `screen` (text on screen), `page` (a document's or an
+Each hit's `source` says where it was found: `said` (a line of the asset's text or transcript), `screen` (text on screen), `page` (a document's or an
 image's text: its `page`, from 0, and its `box` on it), `object` (a kind of object, where it's first seen: its time, or
 on a document's pages its `page`, with the `frame` and the `box` it's best seen in), `described` (what a shot or a page
 shows, [Descriptions](#descriptions): the shot's time, or the `page`, and its `frame`) or `file` (a line of a
 supplementary file: its `file`, `file_role` and `file_label`, and which `line`). A file's lines have no `t0` when the
 file doesn't say when they are; the web app opens those in the resource's Files tab. A `speaker` or `emotion` filter
-keeps to what was said.
+keeps to `said` hits.
 
 `mode` says how the words are matched ([search by meaning](processing.md#search-by-meaning)): `keyword` (BM25),
 `semantic` (passages an embedding model finds alike), `hybrid` (both, fused by rank) or `auto` (the default: hybrid
@@ -876,13 +876,13 @@ page through them. Each item says why it's alike in `match` (`meaning`, `words`,
 `similarity` by meaning, up to three `cites` (moments to open: `source`, `idx`, `t0` or `page`, and a `snippet` with the
 key words marked), the key `words` it says, and the `topics` and `entities` in common. The reply's `mode` is `meaning`
 when an embedding model compared them too, else `words`; `terms` are the key words looked for and `meaning` says why
-it wasn't by meaning when search by meaning is set up. A resource is never listed as like itself.
+it wasn't by meaning when search by meaning is set up. An asset is never listed as like itself.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
-words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
+words found in the namespaces you can read (`ns` for one) that start with it, the most frequent first, with how often and
 in how many assets (`limit`, default 8, at most 20); the web app offers them as "Try …".
 
-## speakers
+## people
 
 ```
 GET    /api/v1/speakers
@@ -895,12 +895,14 @@ POST   /api/v1/speakers/{sid}/unlink
 POST   /api/v1/speakers/{sid}/not-same
 ```
 
-`GET /speakers?ns=` lists the namespace's speakers (each with its suggested merges), its last merges (with `by`, the
+People (everyone recognised by voice or face) live under `/speakers`.
+
+`GET /speakers?ns=` lists the namespace's people (each with its suggested merges), its last merges (with `by`, the
 `recordings` and `segments` that moved, and `undone_by`/`undone_at`), its links to other namespaces, and `cross`:
 voices in other shared namespaces you can read that are likely the same person (`score`, best first). `not-same
-{with}` says two speakers aren't the same person (one namespace or two): the suggestion goes and isn't made again.
+{with}` says two entries aren't the same person (one namespace or two): the suggestion goes and isn't made again.
 `unlink {with}` removes a link (404 when there's none). Linking, unlinking, "not the same" and undoing a merge need
-editor access to both speakers' namespaces and are audited (`speaker.link`, `speaker.unlink`, `speaker.not_same`,
+editor access to both people's namespaces and are audited (`speaker.link`, `speaker.unlink`, `speaker.not_same`,
 `speaker.merge.undo`).
 
 ## entities
@@ -1117,7 +1119,7 @@ POST   /api/v1/watches/{wid}/scan
 
 A watched folder's `kinds` says what it picks up: `audio` (and video), `transcripts`, `both` of those, `documents`
 (documents and images) or `all` of them, the default. The three from before documents (`audio`, `transcripts`, `both`)
-read PDFs, Word and text files as transcripts, as they always did; `documents` and `all` take them as documents
+read PDFs, Word and text files as plain text, as they always did; `documents` and `all` take them as documents
 (subtitles and JSON stay transcripts). `POST /watches/preview
 {source, path, kinds?, include?, exclude?}` counts what a folder would pick up: `files`, `audio`, `transcripts`,
 `documents` and `images`.
@@ -1207,7 +1209,7 @@ DELETE /api/v1/views/{vid}
 
 Saved views of the Library: a `name` (unique among your views, ignoring case), the `namespace` it shows (`null`: every
 namespace you can read) and its `state`: the tab (`all`, `attention`, `processing`), the filter box `q`, `statuses`,
-a `speaker` by name (each namespace has its own speaker ids), the Library's `date` and `duration` ranges (kept as
+a `speaker` (a person, by name; each namespace has its own person ids), the Library's `date` and `duration` ranges (kept as
 ranges, so `30d` stays the last 30 days), `media`, `tags`, a `collection` of its namespace and `sort` (as
 `GET /resources` takes it). A view is its
 maker's; `shared: true` shows it to everyone with a role in its namespace (sharing needs editor access there, and a
@@ -1269,9 +1271,9 @@ all pages). Each asset is a card with the caller's `view` of it; `locked` cards 
 frame comes only with media the caller may play. A collection with nothing for the caller answers 404.
 
 `GET /public/search?q=` (`limit`, `offset`) finds the assets the caller sees by their title, and by the lines of
-the transcripts they may read (the same query syntax as `/search`: words, "phrases", OR). Title matches come first;
+text they may read (the same query syntax as `/search`: words, "phrases", OR). Title matches come first;
 each result is a card with up to three matching `hits` (`t0` and an HTML-escaped `snippet` with `<mark>`, and the
-`page` of a document's text). Restricted assets and closed transcripts match on the title only.
+`page` of a document's text). Restricted assets and closed text match on the title only.
 
 `GET /public/recordings/{rid}` is an asset's public page as the caller may see it. `view` says how:
 
@@ -1279,13 +1281,13 @@ each result is a card with up to three matching `hits` (`t0` and an HTML-escaped
   true), permission given on the asset (`granted`), or an address in an IP group that opens it (`network`, the
   group's name).
 * `public`: a public asset, for everyone else: its description (the metadata IIIF publishes) and only its open
-  parts: `media` (a signed link to the audio or video, with its waveform), `transcript` (speakers and lines, and the
-  transcript files to download when the transcript is open to everyone) and `chapters` (the index).
+  parts: `media` (a signed link to the audio or video, with its waveform), `transcript` (people and lines, and the
+  transcript files to download when the text is open to everyone) and `chapters` (the index).
 * `locked`: a restricted asset, for someone signed in without permission: its title and namespace only.
 
 A document's or an image's media are its pages and its file: `media.kind` is `document` or `image`, `media.pages`
 lists each page (`idx`, `width`, `height`, `label`, and signed links to its `image` and `thumb`), `media.url` is the
-file to save and `media.poster` the first page. Its transcript is its text: each segment has its page (`p`), and the
+file to save and `media.poster` the first page. Its `transcript` is its text: each segment has its page (`p`), and the
 downloads are its text (txt, md, json) without subtitles. A public document's page opens at `?page=<n>` (from 1).
 
 Parts the caller can't use are `null` and listed in `closed`. `files` are the supplementary files the caller may

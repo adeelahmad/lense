@@ -309,7 +309,7 @@ export const STEP_HELP: Record<StepKey, string> = {
   faces: "Detect people on screen (where the namespace allows it)",
   objects: "Find objects (people, cars, animals …) on the sampled frames or pages",
   describe: "Describe each shot or page with a model that can see images (needs one in Settings)",
-  analyze: "Entities, chapters, keywords, talk-time stats",
+  analyze: "Entities, chapters, keywords and stats (talk time for audio)",
   embed: "Index passages for search by meaning (needs an embedding model in Settings → Search)",
   summarize: "Summary, topics and action items (needs an LLM)",
   report: "Asset report",
@@ -341,9 +341,9 @@ export function reprocessOptions(opts: { video: boolean; hasAudio: boolean; page
   return STEP_ORDER.filter((k) => !left.includes(k)).map((key) => {
     let disabled: string | null = null;
     if (!opts.hasAudio && key === "transcribe")
-      disabled = "This asset has no audio: its transcript was imported, so there's nothing to transcribe.";
+      disabled = "This asset has no audio: its text was imported, so there's nothing to transcribe.";
     else if (!opts.hasAudio && key === "diarize")
-      disabled = "Speakers come from the imported transcript; diarizing needs the audio.";
+      disabled = "Speakers come from the imported text's labels; diarizing needs the audio.";
     return { key, disabled };
   });
 }

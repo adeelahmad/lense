@@ -76,7 +76,7 @@ const COLUMNS: Col[] = [
   },
   {
     key: "speakers",
-    label: "Speakers",
+    label: "People",
     width: 164,
     sort: "speakers",
     cell: (r) => <SpeakersCell speakers={r.speakers} />,

@@ -147,7 +147,7 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
       open
       onOpenChange={(o) => !o && onClose()}
       title="New namespace"
-      description="A namespace holds assets, speakers and a graph, with its own members."
+      description="A namespace holds assets, people and a graph, with its own members."
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>

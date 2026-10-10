@@ -54,7 +54,7 @@ Every span and metric carries `service.name` (Settings → Telemetry, default `l
 `service.instance.id` per process, and `lens.process.role` (`api`, `worker` or `watcher`). Model calls follow the
 OpenTelemetry [GenAI conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/).
 
-**Never sent:** transcript text, prompts or answers, file names, titles, namespace or speaker names, people, email
+**Never sent:** assets' text, prompts or answers, file names, titles, namespace or person names, people, email
 addresses, client IP addresses, request paths or query strings (only route templates), host names, or error messages
 (only the error's type, since a message can quote content).
 

@@ -39,7 +39,7 @@ describe("public recording page", () => {
 
   it("says when and what a card's recording is", () => {
     expect(cardLine({ recorded_at: "2025-09-12T10:00:00Z", media_kind: "video" })).toBe("12 Sept 2025 · Video");
-    expect(cardLine({ recorded_at: null, media_kind: "transcript" })).toBe("Transcript only");
+    expect(cardLine({ recorded_at: null, media_kind: "transcript" })).toBe("Text only");
     expect(cardLine({ media_kind: "audio" })).toBe("Audio");
   });
 

@@ -521,7 +521,7 @@ export function useRecordingActions(id: number) {
       void refresh();
       void qc.invalidateQueries({ queryKey: ["speakers"] });
     },
-    onError: fail("Couldn't rename the speaker"),
+    onError: fail("Couldn't rename the person"),
   });
   const mergeSpeaker = useMutation({
     mutationFn: (v: { sid: number; into: number }) =>
@@ -536,7 +536,7 @@ export function useRecordingActions(id: number) {
       void refresh();
       void qc.invalidateQueries({ queryKey: ["speakers"] });
       toast({
-        title: "Speakers merged",
+        title: "People merged",
         tone: "green",
         action: {
           label: "Undo",
@@ -550,7 +550,7 @@ export function useRecordingActions(id: number) {
         },
       });
     },
-    onError: fail("Couldn't merge the speakers"),
+    onError: fail("Couldn't merge the people"),
   });
   return {
     reprocess,

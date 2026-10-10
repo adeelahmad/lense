@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:c723f371e5e8dd5732708e60cd6c8bb708fc67e2475eb7c9a2133883ac46a7b7"
+prose_version: "threat-model.md@sha256:cd166f1d5db82c317d8d9392c7676d224a07c1e59f9f9b53b3da3515cb4b0b24"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -529,7 +529,7 @@ contract_dimensions:
 # ---------------------------------------------------------------- §1.8
 outputs:
   - component: authz
-    channel: "JSON API responses (titles, transcripts, notes, metadata)"
+    channel: "JSON API responses (titles, assets' text, notes, metadata)"
     taint: same-as-input
     x-taint-note: "as typed by people or produced by ASR/OCR; search snippet is HTML-escaped with <mark>"
     taint_provenance: {kind: documented, source: 'docs/api.md "an HTML-escaped `snippet`"'}
@@ -593,7 +593,7 @@ outputs:
     invariants:
       - {id: inv-mcp-person-reads, statement: "results contain only what the person can read", property_id: P-RETRIEVAL, provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
     downstream_must_not_assume:
-      - {id: dmna-mcp-text-as-instructions, statement: "that transcript text is safe to follow as instructions", provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
+      - {id: dmna-mcp-text-as-instructions, statement: "that an asset's text is safe to follow as instructions", provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
   - component: outbound
     channel: "Error text from remote servers (LLM, speech, rclone, IMAP callers)"
     taint: same-as-input
@@ -1092,7 +1092,7 @@ properties_claimed:
     components: [authz]
     tier: security-critical
     x-tier-question: Q37
-    conditions: "a closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link; a closed transcript's text stays out of search and downloads; only owners change access and open parts"
+    conditions: "a closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link; a closed text part stays out of search and downloads; only owners change access and open parts"
     violation_symptoms: [info-leak]
     x-voided-by: "an owner opening parts or making an asset public; a moved asset keeps its old access"
     provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}
@@ -1449,7 +1449,7 @@ properties_disclaimed:
   - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (transcripts, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
+  - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
   - {id: N-KEY-WITH-DATA, components: [outbound], tier: security-critical, false_friend: true, conditions: "key separation; unless ARCHIVE_SECRET_KEY comes from outside, secret.key lives in data_dir next to the sealed rows and the backups; a copy of data_dir opens sealed secrets and server-wrapped file keys", x-false-friend-note: "'stored encrypted' reads as safe in a stolen backup", provenance: {kind: inferred, question_id: Q14}}
   - {id: N-SIGNED-BEARER, components: [authz], tier: security-critical, false_friend: true, conditions: "identity binding or early revocation for signed links; a link opens its path for whoever holds it until it expires (6 h; IIIF 1 h); path, expiry and full are bound, extra query parameters are not; which fields get signed is P-MEDIA-LINK", x-false-friend-note: "a signed link is a capability, not a login", provenance: {kind: documented, source: 'core/security.py sign_path docstring "grants read access to exactly this path until it expires"'}}
   - {id: N-LINK-AFTER-ROLE, components: [authz], tier: security-critical, false_friend: false, conditions: "re-checks of share links and report links against the creator's current role; share links last until expiry or revocation", provenance: {kind: inferred, question_id: Q10}}
@@ -1510,11 +1510,11 @@ downstream_responsibilities:
   - {id: dr-firewall-sensor-ports, component: optional, statement: "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address", enforces: [P-SENSORS, N-MQTT-SUBSCRIBE, enable-and-firewall-sensors], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
   - {id: dr-bridge-own-account, component: outbound, statement: "Give the chat-room bridge its own low-role account", enforces: [N-BRIDGE], provenance: {kind: documented, source: 'docs/chat-rooms.md "it reads only what that account can read"'}}
   - {id: dr-trusted-worker-hosts, component: authz, statement: "Run workers only on trusted hosts; they hold the DB credential", enforces: [N-APP-LAYER, trusted-peer-hosts], provenance: {kind: inferred, question_id: Q9}}
-  - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with transcripts and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with your assets' text and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: dr-chromium-sandbox, component: ingest, statement: "Run conversion where Chromium can keep its sandbox (non-root, user namespaces)", enforces: [N-CHROMIUM], provenance: {kind: documented, source: 'docs/configuration.md "runs with its sandbox where it can"'}}
   - {id: dr-trusted-extensions-only, component: assistant, statement: "Enable another person's extension only when you trust its author", enforces: [N-PROMPT, enable-only-trusted-extensions], x-protects: "N-PROMPT, §1.14", provenance: {kind: inferred, question_id: Q27}}
   - {id: dr-escape-exports, component: authz, statement: "Escape exported text, RDF, IIIF metadata and assistant output for your own sink", enforces: [dmna-export-escaping, dmna-api-text-safe-for-sinks, dmna-assistant-grounded], x-protects: "§1.8", provenance: {kind: inferred, question_id: Q24}}
-  - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat transcript text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
+  - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat asset text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
   - {id: dr-iiif-over-https, component: authz, statement: "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS", enforces: [], x-protects: "IIIF cookie", provenance: {kind: documented, source: 'docs/iiif.md "its cookie is `SameSite=None; Secure`"'}}
   - {id: dr-verify-webhook-signature, component: outbound, statement: "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets", enforces: [dmna-chat-webhooks-signed], x-protects: "§1.8 webhook bodies", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
   - {id: dr-private-logs-push-tokens, component: optional, statement: "Keep logs that record request paths private when sensor push tokens are in use", enforces: [P-SENSORS], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
@@ -1534,7 +1534,7 @@ known_misuses:
   - {id: km-admin-for-python-tool, components: [assistant], pattern: "Making someone admin so they can write a Python tool", x-why-unsafe: "Admin equals host code execution", safer_alternative: "Use prompt, graph or http tools", x-provenance-basis: "§1.2 roles and trust; §1.13 'Make only fully trusted people admins'", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
-  - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Transcripts leave the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Assets' text leaves the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
 
 # ---------------------------------------------------------------- §1.15
 known_non_findings:

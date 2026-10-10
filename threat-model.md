@@ -2,7 +2,7 @@
 
 ## 1.1 Header
 
-- **Project**: Lens, a self-hosted archive for recordings, transcripts and documents (repository `adeelahmad/lense`).
+- **Project**: Lens, a self-hosted archive for documents, recordings, photos and messages (repository `adeelahmad/lense`).
 - **Modeled version**: commit `5f799f2ff8bb8a762d8151d9b10b535a17878b55` on `main`, dated 2026-10-05. The repository has
   no release tags. The manifests say 0.3.0, and everything since 0.3.0 sits under "Unreleased" in `CHANGELOG.md`.
 - **Date and authors**: 2026-10-05. Drafted with AI tooling (below). The maintainer, Adeel Ahmad, answered question
@@ -41,7 +41,7 @@
   the gaps raised Q36 to Q47.
 - **Sibling models**: none. One model covers the API, web app, workers, CLI and packaging.
 
-**What Lens is.** Lens stores people's recordings, transcripts and documents. It transcribes, indexes and publishes
+**What Lens is.** Lens stores people's documents, recordings, photos and messages. It reads, transcribes, indexes and publishes
 them, and people search and chat over them. An operator runs one instance for their own users: a FastAPI API, a
 Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB
 database. Content is split into **namespaces**; people get roles per namespace.
@@ -84,8 +84,8 @@ database. Content is split into **namespaces**; people get roles per namespace.
 
 ## 1.2 Scope and intended use
 
-**Intended use.** One operator (the instance admin) runs Lens for their own people. Recordings, transcripts and
-documents "matter most" *(documented, SECURITY.md "What counts")*. It is supported to expose an instance to the public
+**Intended use.** One operator (the instance admin) runs Lens for their own people. Documents, recordings, photos
+and messages "matter most" *(documented, SECURITY.md "What counts")*. It is supported to expose an instance to the public
 internet behind HTTPS, through a reverse proxy or a Cloudflare tunnel. Anonymous visitors then reach the sign-in page,
 share links, the embed player and public IIIF *(maintainer, 2026-10)*.
 
@@ -393,14 +393,14 @@ stored text for the consumer's format.
 
 | Output channel | Component | Taint | Downstream must not assume | Provenance |
 | --- | --- | --- | --- | --- |
-| JSON API responses (titles, transcripts, notes, metadata) | AuthZ | as typed by people or produced by ASR/OCR; search `snippet` is HTML-escaped with `<mark>` | that any text field is safe for HTML, Markdown, SQL or a shell | *(documented, docs/api.md "an HTML-escaped `snippet`")* |
+| JSON API responses (titles, assets' text, notes, metadata) | AuthZ | as typed by people or produced by ASR/OCR; search `snippet` is HTML-escaped with `<mark>` | that any text field is safe for HTML, Markdown, SQL or a shell | *(documented, docs/api.md "an HTML-escaped `snippet`")* |
 | Signed links in responses | `api/media.py` | server-written for allow-listed fields only; text that looks like a link is never signed | that a link is private: it is a bearer credential until expiry | *(documented, docs/architecture.md "is never signed")* |
 | Exports, RDF, JSON-LD, IIIF manifests, WebVTT, Dublin Core | linked data, IIIF | values as typed; RDF responses send `Access-Control-Allow-Origin: *` | escaping for the consumer's format | *(inferred, Q24)* |
 | Asset description | IIIF, public pages | "never a closed part"; anyone who may see the page sees it | that closing parts hides the description | *(documented, docs/access.md "never a closed part")* |
 | Embed player and `/s/<code>` pages | `api/pages.py` | HTML built from DB values under a strict CSP; framable only per `server.embed_frame_ancestors` | that titles are inert outside this page | *(documented, docs/configuration.md "Content-Security-Policy")* |
 | Report pages | `api/pages.py` | links re-signed on read for every asset of the namespace in the page | that a report link opens only the report | *(inferred, Q10)* |
 | Assistant answers, summaries, LLM-written notes | Assistant | model output over untrusted content | that it is grounded or free of injected instructions | *(inferred, Q26)* |
-| MCP tool results | `api/mcp_tools.py` | the person's readable data, as text | that transcript text is safe to follow as instructions | *(documented, docs/mcp.md "sees exactly what that person sees")* |
+| MCP tool results | `api/mcp_tools.py` | the person's readable data, as text | that an asset's text is safe to follow as instructions | *(documented, docs/mcp.md "sees exactly what that person sees")* |
 | Error text from remote servers | LLM, speech, rclone, IMAP callers | up to 300 characters of the remote reply and the URL as typed | that internal host names stay hidden | *(inferred, Q18)* |
 | Webhook bodies | `notify.py` | event data, HMAC-signed for the `webhook` kind only | that Slack or Discord messages are signed | *(documented, domain/notify.py docstring "signed the Standard Webhooks way")* |
 | Fedora export | `fedora.py` | every namespace's metadata and files | that the Fedora account is limited to one namespace | *(documented, domain/fedora.py docstring "every namespace, collection, recording")* |
@@ -463,7 +463,7 @@ Paths in the Voided by column are relative to `fastapi_backend/app/`. Searches c
 | ID | Property and conditions | Symptom | Tier | Provenance | Voided by |
 | --- | --- | --- | --- | --- | --- |
 | P-NS-ISOLATION | A principal with no role in a namespace and no grant for an asset cannot read or change anything in it, except what the asset's access level opens to anyone (P-ACCESS-PARTS). The namespace and its assets answer 404. Grants for one asset (permission, IP group, share or signed link) open only that asset's visitor pages and IIIF. | info-leak, integrity-bypass | security-critical | *(documented, SECURITY.md "reading or changing anything in a namespace you have no role in")* | Voided by: Admins own every namespace — `domain/auth.py:356-357`, `api/deps.py:160`. A share or signed link grants viewer on one asset — `api/deps.py:252`. A collection role adds to the namespace role — `api/deps.py:183`. Visitor-address trust — `api/deps.py:339-346`. Checks are per handler, with no central policy (Q8). |
-| P-ACCESS-PARTS | A closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link. A closed transcript's text stays out of search and downloads. Only owners change access and open parts. | info-leak | security-critical | *(documented, docs/access.md "the parts of a public asset anyone may use")* | Voided by: An owner opening parts or making an asset public; a moved asset keeps its old access *(documented, docs/access.md "the access it had from its old namespace is pinned")*. |
+| P-ACCESS-PARTS | A closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link. A closed text part stays out of search and downloads. Only owners change access and open parts. | info-leak | security-critical | *(documented, docs/access.md "the parts of a public asset anyone may use")* | Voided by: An owner opening parts or making an asset public; a moved asset keeps its old access *(documented, docs/access.md "the access it had from its old namespace is pinned")*. |
 | P-ROLE | A principal does no more than its role allows. Writes need a write-capable principal and editor or owner. Publishing and access changes need owner, through every API path. | integrity-bypass | security-critical | *(documented, SECURITY.md "doing more than your role allows")* | Voided by: Session tokens can write; API and app tokens need write scope — `api/deps.py:59-60`. Admins own everything — `domain/auth.py:357`. A collection admin is owner of its assets — `api/deps.py:183`. An admin's app token keeps namespace roles — `api/deps.py:96` — but not admin routes — `api/deps.py:124-125`. |
 | P-NO-INJECTION | Request text does not inject into database queries, a shell or the processing tools. | integrity-bypass | security-critical | *(documented, SECURITY.md "injection into the database queries, the shell")* | Voided by: nothing. Shell: `grep -rnE "shell=True\|os\.system\|os\.popen" fastapi_backend/app` — one hit, a deny-list string in `domain/code_tools.py`. Database binding is per call site: `grep -rnE 'f"[^"]*(SELECT\|UPDATE\|DELETE\|CREATE\|UPSERT)[^"]*\{' fastapi_backend/app/domain fastapi_backend/app/api` — 151 hits; about 35 read, all code-built fragments (Q8). `grep -rn protocol_whitelist fastapi_backend/app` — 0 hits (Q21). |
 | P-MEDIA-LINK | Media, frames, documents and reports open without a session only through a link the server signed for that path, or a live share link. Text people or models write is never signed. | info-leak | security-critical | *(documented, docs/architecture.md "is never signed")* | Voided by: Knowing `ACCESS_SECRET_KEY` signs any path — `core/security.py:43`; dev compose key — `docker-compose.yml:24`. Lifetime `MEDIA_URL_EXPIRE_SECONDS` — `config.py:30`. Report pages sign every asset of the namespace — `api/pages.py:140-141`. Signing is limited to allow-listed fields — `api/media.py:25-30`. |
@@ -514,7 +514,7 @@ Exported by phase 3.6 (backtest) and de-identified. Closing rows carry their sta
 | --- | --- | --- | --- | --- | --- |
 | An asset's title is set to look like a media path, and an API response then carries a working signed link to another namespace's audio | media link signing in API responses | editor in one namespace | info-leak | `VALID` | P-MEDIA-LINK, P-NS-ISOLATION |
 | Scanner: a signed media link still plays after the person lost their role | signed media link | holder of the link | info-leak | `KNOWN-NON-FINDING` **(closed)** | KNF-SIGNED-LINK (N-SIGNED-BEARER) |
-| Reviewer: text in a transcript steers the assistant into saving a note | `write_note` through chat | author of content the assistant reads | wrong-output | `BY-DESIGN: property-disclaimed` **(escalated)** | N-PROMPT, still **inferred** (Q26) |
+| Reviewer: text in an asset steers the assistant into saving a note | `write_note` through chat | author of content the assistant reads | wrong-output | `BY-DESIGN: property-disclaimed` **(escalated)** | N-PROMPT, still **inferred** (Q26) |
 | Admin points the model URL at an internal service | model `base_url` setting | the instance admin | info-leak | `OUT-OF-MODEL: trusted-input` **(closed)** | N-ADMIN *(maintainer, 2026-10)* |
 
 ## 1.12 Security properties the project does not provide
@@ -525,7 +525,7 @@ Exported by phase 3.6 (backtest) and de-identified. Closing rows carry their sta
 | N-EGRESS | An egress firewall. `netguard` guards web import, iCal feeds, extension `http` tools, notifications and Chromium; nothing else | Admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded | security-critical | yes: "public addresses only" reads as server-wide | *(maintainer, 2026-10)* |
 | N-CODE-GUARD | A sandbox for Python code tools. Audit hooks, rlimits and an optional network namespace "raise the bar" only | Admin-written code; runs as the Lens user | security-critical | yes: guard is not isolation | *(documented, domain/code_tools.py docstring "they aren't a wall")* |
 | N-DOWNLOADS | Integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and `hf:` models | Catalog GGUF files are still checked (P-MODEL-CHECKSUM) | security-critical | no | *(maintainer, 2026-10)* |
-| N-DB-PLAIN | Encryption of the SurrealDB content (transcripts, indexes), derived files, renditions, reports, exports and the storage-source cache | Stated limit | security-critical | yes: vaults cover files only | *(documented, docs/encryption.md "the SurrealDB database itself")* |
+| N-DB-PLAIN | Encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache | Stated limit | security-critical | yes: vaults cover files only | *(documented, docs/encryption.md "the SurrealDB database itself")* |
 | N-KEY-WITH-DATA | Key separation. Unless `ARCHIVE_SECRET_KEY` comes from outside, `secret.key` lives in `data_dir`, next to the sealed rows and the backups | A copy of `data_dir` opens sealed secrets and server-wrapped file keys | security-critical | yes: "stored encrypted" reads as safe in a stolen backup | *(inferred, Q14)* |
 | N-SIGNED-BEARER | Identity binding or early revocation for signed links. A link opens its path for whoever holds it until it expires (6 h; IIIF 1 h) | Path, expiry and `full` are bound; extra query parameters are not. Which fields get signed is P-MEDIA-LINK | security-critical | yes: a signed link is a capability, not a login | *(documented, core/security.py sign_path docstring "grants read access to exactly this path until it expires")* |
 | N-LINK-AFTER-ROLE | Re-checks of share links and report links against the creator's current role | Share links last until expiry or revocation | security-critical | no | *(inferred, Q10)* |
@@ -600,11 +600,11 @@ The operator (and, for the last rows, integrators that consume Lens output) must
 | When sensors are on, firewall ports 1883 and 5514 or bind them to a private address | P-SENSORS, N-MQTT-SUBSCRIBE | *(documented, docs/sensors.md "Ways in")* |
 | Give the chat-room bridge its own low-role account | N-BRIDGE | *(documented, docs/chat-rooms.md "it reads only what that account can read")* |
 | Run workers only on trusted hosts; they hold the DB credential | N-APP-LAYER | *(inferred, Q9)* |
-| Pick model and speech servers you trust with transcripts and audio | §1.8 prompts | *(maintainer, 2026-10)* |
+| Pick model and speech servers you trust with your assets' text and audio | §1.8 prompts | *(maintainer, 2026-10)* |
 | Run conversion where Chromium can keep its sandbox (non-root, user namespaces) | N-CHROMIUM | *(documented, docs/configuration.md "runs with its sandbox where it can")* |
 | Enable another person's extension only when you trust its author | N-PROMPT, §1.14 | *(inferred, Q27)* |
 | Escape exported text, RDF, IIIF metadata and assistant output for your own sink | §1.8 | *(inferred, Q24)* |
-| Treat transcript text and MCP results as untrusted prompt input in your agents | N-PROMPT | *(inferred, Q26)* |
+| Treat asset text and MCP results as untrusted prompt input in your agents | N-PROMPT | *(inferred, Q26)* |
 | Keep the IIIF cookie `SameSite=None; Secure` by serving IIIF over HTTPS | IIIF cookie | *(documented, docs/iiif.md "its cookie is `SameSite=None; Secure`")* |
 | Verify `webhook-signature` on receipt; treat Slack and Discord target URLs as secrets | §1.8 webhook bodies | *(documented, domain/notify.py docstring "signed the Standard Webhooks way")* |
 | Keep logs that record request paths private when sensor push tokens are in use | P-SENSORS | *(documented, docs/sensors.md "Ways in")* |
@@ -623,7 +623,7 @@ The operator (and, for the last rows, integrators that consume Lens output) must
 | Making someone admin so they can write a Python tool | Admin equals host code execution | Use prompt, graph or `http` tools |
 | Wide `LENS_WEB_NETWORKS` | Editors, and iCal feed redirects, can then reach those networks | List single hosts |
 | Webhook push token in a URL that proxies log | The token is a credential in the path | Use the header form |
-| Pointing the assistant at a hosted model for sensitive archives | Transcripts leave the machine | Use a local model server |
+| Pointing the assistant at a hosted model for sensitive archives | Assets' text leaves the machine | Use a local model server |
 
 ## 1.15 Known non-findings
 
@@ -876,7 +876,7 @@ here. This model is a strict superset, except S14, which the maintainer's 2026-1
 | S6 | Include attacker position (no account, viewer or editor, admin) | §1.10 |
 | S7 | Include steps or a proof of concept | §1.1 quick-start (process only) |
 | S8 | Private project, no bug bounty, credit in release notes | §1.1 reporting (process only) |
-| S9 | Recordings, transcripts and documents "matter most" | §1.2 intended use |
+| S9 | Documents, recordings, photos and messages "matter most" | §1.2 intended use |
 | S10 | Reading or changing a namespace you have no role in; doing more than your role allows | §1.11 P-NS-ISOLATION, P-ACCESS-PARTS, P-ROLE |
 | S11 | A working media link you weren't given; only server-signed links work | §1.11 P-MEDIA-LINK; §1.12 N-SIGNED-BEARER |
 | S12 | Authentication and sessions: login, setup code, tokens, API keys | §1.11 P-AUTH-REQ, P-SETUP-ONCE, P-ONCE, P-REUSE, P-OAUTH |

@@ -71,7 +71,7 @@ export function NotFoundState({ className }: { className?: string }) {
         </>
       }
     >
-      The asset, speaker or page may have been deleted or moved, or the link has a typo. Namespaces you don’t belong to
+      The asset, person or page may have been deleted or moved, or the link has a typo. Namespaces you don’t belong to
       are never shown here.
     </ErrorState>
   );

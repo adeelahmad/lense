@@ -98,7 +98,7 @@ export function importSummary(r: RdfImportResult): string {
   const same = r.matched - r.changed;
   return [
     changed,
-    same ? `${n(same, "description")} already said` : "",
+    same ? `${n(same, "description")} already up to date` : "",
     r.unmatched.length ? `${n(r.unmatched.length, "description")} matched nothing` : "",
   ]
     .filter(Boolean)
@@ -278,7 +278,7 @@ export function SparqlDialog({ ns, open, onClose }: { ns: string; open: boolean;
       onOpenChange={(o) => !o && onClose()}
       wide
       title={`Query ${ns} with SPARQL`}
-      description="Read-only: SELECT, ASK, CONSTRUCT or DESCRIBE over this namespace's assets (Dublin Core), collections, entities and speakers. dcterms, skos, foaf, owl, rdfs, xsd and lens are known prefixes."
+      description="Read-only: SELECT, ASK, CONSTRUCT or DESCRIBE over this namespace's assets (Dublin Core), collections, entities and people. dcterms, skos, foaf, owl, rdfs, xsd and lens are known prefixes."
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>

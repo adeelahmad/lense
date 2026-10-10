@@ -150,7 +150,7 @@ export function useRecordingActions() {
       }
       if (done)
         toast({
-          title: `Exported ${plural(done, "transcript")}`,
+          title: `Exported ${plural(done, "asset")}`,
           tone: "green",
         });
     },

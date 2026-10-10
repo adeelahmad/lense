@@ -158,7 +158,7 @@ export function savedSearchHref(s: Saved): string {
 export function savedSearchFilters(s: Saved): string {
   return [
     s.namespace,
-    s.speaker != null ? (s.speaker_name ?? `Speaker #${s.speaker}`) : null,
+    s.speaker != null ? (s.speaker_name ?? `Person #${s.speaker}`) : null,
     s.emotion,
     s.recording != null ? (s.recording_title ?? `Asset #${s.recording}`) : null,
     s.object ? `with ${s.object}` : null,

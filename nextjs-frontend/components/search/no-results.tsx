@@ -44,7 +44,7 @@ function PrefixHint({
               <button
                 type="button"
                 className={LINK}
-                title={`Said ${plural(w.count, "time")} in ${plural(w.recordings, "asset")}`}
+                title={`Found ${plural(w.count, "time")} in ${plural(w.recordings, "asset")}`}
                 onClick={() => onSearch(replacePrefix(q, word, w.word))}
               >
                 {w.word}
@@ -126,7 +126,7 @@ export function NoResults({
       key: "spk",
       node: (
         <>
-          The filter <b>speaker: {labels.speaker ?? filters.speaker}</b> keeps only what they said.{" "}
+          The filter <b>speaker: {labels.speaker ?? filters.speaker}</b> keeps only their lines.{" "}
           <button type="button" className={LINK} onClick={() => onClearFilter("speaker")}>
             Search everyone
           </button>

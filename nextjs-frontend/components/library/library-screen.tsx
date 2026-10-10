@@ -264,7 +264,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
     setPendingSpeaker(null);
     if (!choice)
       toast({
-        title: `No one called ${pendingSpeaker.name} speaks in ${namespace ?? "your namespaces"} now`,
+        title: `No one called ${pendingSpeaker.name} appears in ${namespace ?? "your namespaces"} now`,
         body: "The view shows everyone’s assets instead.",
       });
   }, [pendingSpeaker, namespace, speakers.loading, speakers.choices, toast]);
@@ -477,8 +477,8 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
             <Eye className="size-[15px] shrink-0" aria-hidden />
             <span className="flex-1">
               You’re a <b className="font-bold">viewer</b> in {namespace ?? namespaces.map((n) => n.name).join(", ")}:
-              you can read, listen, search and chat. Import, reprocess and edits are turned off — ask an owner for
-              editor access.
+              you can open, search and chat. Import, reprocess and edits are turned off — ask an owner for editor
+              access.
             </span>
           </div>
         )}

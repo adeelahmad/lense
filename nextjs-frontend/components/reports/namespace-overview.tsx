@@ -110,7 +110,7 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
 
   const months = useMemo(() => monthBars(totals?.months), [totals?.months]);
   const top = (totals?.top_speakers ?? [])
-    .map((s) => ({ name: s.name ?? `Speaker ${s.id}`, ms: s.talk_ms ?? 0 }))
+    .map((s) => ({ name: s.name ?? `Person ${s.id}`, ms: s.talk_ms ?? 0 }))
     .filter((s) => s.ms > 0);
   const note = undatedNote(totals?.undated, range);
   const everything = namespaces.find((n) => n.name === ns)?.recordings ?? 0;
@@ -232,7 +232,7 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
               value={totals ? totalDuration(totals.ms).replace("0 min", "0 h") : ""}
               label="of audio"
             />
-            <Kpi loading={loading} value={count(totals?.speakers)} label="speakers" />
+            <Kpi loading={loading} value={count(totals?.speakers)} label="people" />
             <Kpi loading={entities.isLoading || !days} value={count(entities.data?.total)} label="entities" />
           </div>
           {note && <p className="-mt-2 text-[12.5px] text-fg-muted">{note}</p>}
@@ -247,7 +247,7 @@ export function NamespaceOverview({ ns, onNamespace }: { ns: string; onNamespace
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
               {loading ? <Skeleton className="h-[200px] rounded-md" /> : <MonthBars months={months} />}
               <div className="flex flex-col gap-2">
-                <h3 className="text-[13px] font-bold leading-none text-fg">Top speakers</h3>
+                <h3 className="text-[13px] font-bold leading-none text-fg">Top people</h3>
                 {loading ? (
                   <Skeleton className="w-3/4" />
                 ) : top.length ? (

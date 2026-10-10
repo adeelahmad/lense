@@ -237,7 +237,7 @@ describe("saved searches", () => {
   });
   it("say their filters by name", () => {
     expect(savedSearchFilters(saved)).toBe("podcasts · Alice · Happy · Episode 12");
-    expect(savedSearchFilters({ q: "x", speaker: 7, recording: 3 })).toBe("Speaker #7 · Asset #3");
+    expect(savedSearchFilters({ q: "x", speaker: 7, recording: 3 })).toBe("Person #7 · Asset #3");
     expect(savedSearchFilters({ q: "x" })).toBe("");
   });
 });

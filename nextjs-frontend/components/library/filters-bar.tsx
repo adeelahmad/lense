@@ -182,8 +182,8 @@ export const FilterInput = forwardRef<
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Filter by title or speaker"
-        aria-label="Filter assets by title, namespace or speaker"
+        placeholder="Filter by title or person"
+        aria-label="Filter assets by title, namespace or person"
         aria-keyshortcuts="/"
         className="h-8 w-full rounded-sm border border-border bg-background pl-8 pr-2.5 text-[13px] text-fg outline-none placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] max-md:h-11 max-md:rounded-[10px] max-md:border-transparent max-md:bg-surface-neutral max-md:pl-10 max-md:text-[15px]"
       />
@@ -505,10 +505,10 @@ export function FiltersBar({
         )}
       </Chip>
       {isPartial(namespace) ? (
-        <OffChip label="Speaker" reason={`Speakers are listed for people with a role in ${namespace}`} />
+        <OffChip label="Person" reason={`People are listed for those with a role in ${namespace}`} />
       ) : (
         <Chip
-          label={filters.speaker ? `Speaker: ${filters.speaker.name}` : "Speaker"}
+          label={filters.speaker ? `Person: ${filters.speaker.name}` : "Person"}
           active={Boolean(filters.speaker)}
           onClear={() => set({ speaker: null })}
           width={260}
@@ -518,8 +518,8 @@ export function FiltersBar({
               <input
                 value={spkQuery}
                 onChange={(e) => setSpkQuery(e.target.value)}
-                placeholder="Find a speaker"
-                aria-label="Find a speaker"
+                placeholder="Find a person"
+                aria-label="Find a person"
                 className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
               />
               <div role="menu" className="max-h-64 overflow-y-auto">
@@ -545,7 +545,7 @@ export function FiltersBar({
                   ))}
                 {!speakers.length && (
                   <p className="px-2.5 py-3 text-[13px] text-fg-muted">
-                    {speakersLoading ? "Loading speakers…" : "No speakers yet."}
+                    {speakersLoading ? "Loading people…" : "No people yet."}
                   </p>
                 )}
               </div>

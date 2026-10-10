@@ -53,7 +53,7 @@ export function DetailsTab() {
             ? "Video"
             : model.audio
               ? "Audio"
-              : "Transcript only (no audio)",
+              : "Text only (no audio)",
     ],
     ["Content type", <ContentTypePicker key="ct" rid={id} editable={canEdit} />],
     paged ? ["Pages", count(model.pages.length)] : ["Duration", tc(model.durationMs)],
@@ -66,7 +66,7 @@ export function DetailsTab() {
             .join(" · "),
         ]
       : [
-          "Transcript",
+          video || model.audio ? "Transcript" : "Text",
           [plural(model.segments.length, "line"), transcriptOrigin(rec.engine)].filter(Boolean).join(" · "),
         ],
     ["Language", rec.language && !["none", "nospeech"].includes(rec.language) ? rec.language.toUpperCase() : null],

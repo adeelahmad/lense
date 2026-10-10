@@ -2,7 +2,7 @@
 
 ## Chat
 
-Conversations belong to one person and can be scoped to namespaces, assets, collections, speakers and dates. A
+Conversations belong to one person and can be scoped to namespaces, assets, collections, people and dates. A
 collection in the scope is read each time the assistant answers, so it draws on the collection's assets as they are
 then.
 
@@ -44,7 +44,7 @@ then.
   on by default) and text highlighted on the page (Ask about this, above any selection). The model reads them with the
   question (up to 12,000 characters of page text and 4,000 of the highlight) as what the person is looking at, not as
   citable excerpts. The question keeps the page's address, title and highlight, shown above it; the page's text isn't
-  stored. An asset's transcript and document keep their own selection toolbar, whose Ask in chat goes to the
+  stored. An asset's text and pages keep their own selection toolbar, whose Ask in chat goes to the
   asset's chat.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
   is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
@@ -91,15 +91,15 @@ engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `PO
 
 When the configured model supports function calling, chat becomes an agent.
 
-- **What it can look things up with:** transcripts (including on-screen text), assets, transcript passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, speakers, and content similar to a text,
+- **What it can look things up with:** assets' text (transcripts and documents, and on-screen text), assets, passages,
+  outputs, entities and their mentions and timelines, the knowledge graph, people, and content similar to a text,
   an asset, a topic or an entity (`find_similar`).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
   `ai.max_steps` and `ai.max_transcript_reads`.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
 - **Approvals:** running a template on assets and changing entities (merging, renaming, retyping, describing one
-  and the other ways it's said, hiding one, or adding one to a namespace's fixed list) don't happen directly.
+  and its other names, hiding one, or adding one to a namespace's fixed list) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
   (`POST /api/v1/approvals/<id>`). Viewers only get the read tools.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it
@@ -118,7 +118,7 @@ When the configured model supports function calling, chat becomes an agent.
 
 Each namespace can have its own assistant that remembers from one conversation to the next. It is off until an owner
 of the namespace turns it on (`PATCH /api/v1/namespaces/<name>/assistant` with `enabled`, `name` and `instructions`).
-Then every conversation scoped to that namespace alone, picked by hand or chosen from the first question, talks to it.
+Then every conversation scoped to that namespace alone, picked by hand or chosen from the first question, uses it.
 It is the same assistant with the same tools, extensions and approvals; what it adds:
 
 - **A name and instructions** from the namespace's owners, read with every question.
@@ -252,12 +252,12 @@ Laya isn't available, and the LLM provider takes the choices. **Test** takes one
 ## Collections, batch runs and collection reports
 
 **Collections** are named sets of assets. A collection is either a filter that stays up to date (namespaces,
-speakers, entities, dates, a search, audio/video/transcript, status) or a fixed list. Each person gets their own, and
+people, entities, dates, a search, audio/video/text, status) or a fixed list. Each person gets their own, and
 they can be shared. A collection only ever shows the assets the viewer can read. Collections scope chat, batch runs
 and reports.
 
 **Batch runs** apply a pipeline, some steps, or one template to many assets. The assets can come from a list, a
-collection, a namespace, a filter, an entity or a speaker.
+collection, a namespace, a filter, an entity or a person.
 
 - `POST /api/v1/batches/estimate` answers first, with:
   - how many assets (by kind) and hours

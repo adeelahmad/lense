@@ -46,7 +46,7 @@ export function PublicHomeView() {
       <header className="flex flex-col gap-2">
         <h1 className="text-[28px] font-bold leading-[1.15] text-fg sm:text-[34px]">Explore the archive</h1>
         <p className="max-w-[62ch] text-[15px] leading-[1.55] text-fg-secondary">
-          Listen to and read the assets their owners have made public.
+          Browse the assets their owners have made public.
         </p>
         <PublicSearchForm className="mt-2 max-w-[560px]" />
       </header>

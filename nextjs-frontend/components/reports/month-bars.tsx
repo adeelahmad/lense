@@ -153,7 +153,7 @@ export function MonthBars({ months }: { months: MonthBucket[] }) {
 export function SpeakerBars({ rows }: { rows: { name: string; ms: number }[] }) {
   const max = Math.max(1, ...rows.map((r) => r.ms));
   return (
-    <ul className="flex flex-col gap-2" aria-label="Top speakers by talk time">
+    <ul className="flex flex-col gap-2" aria-label="Top people by talk time">
       {rows.map((r) => (
         <li
           key={r.name}

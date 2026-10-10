@@ -327,7 +327,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
               Nothing here yet.{" "}
               {can("editor", namespace) ? (
                 <Link href="/import" className="font-semibold text-fg-accent hover:underline">
-                  Import transcripts
+                  Import files
                 </Link>
               ) : (
                 "New assets show up here as they arrive."
@@ -359,7 +359,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
                       <span className="truncate text-[12px] leading-none text-fg-muted">
                         {[
                           r.namespace,
-                          r.media_kind === "transcript" ? "transcript" : r.media_kind,
+                          r.media_kind === "transcript" ? "text" : r.media_kind,
                           r.duration_ms ? tc(r.duration_ms) : null,
                         ]
                           .filter(Boolean)

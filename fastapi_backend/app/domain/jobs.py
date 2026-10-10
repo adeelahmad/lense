@@ -56,7 +56,7 @@ def _transcribe(db, cfg, rid, say, spec=None):
     if rec.get("source") in ("document", "image"):  # a run queued before documents had a step of their own
         return _read(db, cfg, rid, say, spec)
     if rec.get("source") != "audio":
-        raise Skip("an imported transcript has nothing to transcribe")
+        raise Skip("imported text has nothing to transcribe")
     if str(rec.get("engine") or "").startswith("import:") and rec.get("status") != "new" and not (spec or {}).get("force"):
         if not rec.get("envelope"):  # its audio was attached after the transcript was imported
             ingest.add_envelope(db, cfg, rid)

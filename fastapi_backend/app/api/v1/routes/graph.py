@@ -1,5 +1,5 @@
 """The graph for people and agents (docs/graph.md): the archive as a property graph of namespaces, collections,
-recordings, speakers and entities, to walk (parents, children, ancestors, descendants, neighbours, paths) and to query
+assets, people and entities, to walk (parents, children, ancestors, descendants, neighbours, paths) and to query
 with read-only Cypher. Every call sees only the namespaces its caller can read: one (`ns:<name>`) or every shared one
 (`global`). Changes are proposed (or, for editors who ask, made) as graph changes that can be undone.
 """

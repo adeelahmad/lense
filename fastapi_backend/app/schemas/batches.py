@@ -10,7 +10,7 @@ from app.schemas.common import Ok, RequestModel, ResponseModel
 
 
 class BatchSelection(RequestModel):
-    """Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or speaker)."""
+    """Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or person)."""
 
     collection: int | None = None
     recordings: list[int] | None = None

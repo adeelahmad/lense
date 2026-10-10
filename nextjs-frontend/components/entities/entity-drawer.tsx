@@ -168,7 +168,7 @@ export function EntityDrawer({
               {[
                 ["Mentions", count(d.mentions)],
                 ["Assets", count(d.recordings)],
-                ["Last said", d.last ? shortDate(d.last) : "—"],
+                ["Last mentioned", d.last ? shortDate(d.last) : "—"],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-md border border-border px-2 py-2">
                   <dt className="text-[11.5px] font-semibold text-fg-muted">{k}</dt>
@@ -227,7 +227,7 @@ export function EntityDrawer({
                 )}
               </Field>
               {!builtin && (
-                <Field label="Also said as" optional hint="Other names and spellings, separated by commas.">
+                <Field label="Also known as" optional hint="Other names and spellings, separated by commas.">
                   {(ids) => (
                     <Input
                       id={ids.id}
@@ -295,7 +295,7 @@ export function EntityDrawer({
               </div>
             </form>
             <section className="flex flex-col gap-2">
-              <h3 className="m-0 text-[13px] font-bold text-fg-strong">Where it’s said</h3>
+              <h3 className="m-0 text-[13px] font-bold text-fg-strong">Where it’s mentioned</h3>
               {mentions.isLoading && <Skeleton className="h-24 w-full" />}
               {mentions.data && !mentions.data.items.length && (
                 <p className="m-0 text-[13px] text-fg-secondary">No mentions you can read.</p>

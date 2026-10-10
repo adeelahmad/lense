@@ -40,14 +40,14 @@ _S = {"type": "string"}
 TOOLS = [
     (
         "search_transcripts",
-        "Search what was said or written (transcripts, document text, and text shown on screen in videos) across the assets in scope.",
+        "Search the text of the assets in scope: transcripts of speech, document text, and text shown on screen in videos.",
         {"query": _S, "namespace": _S, "limit": _I},
         ["query"],
         False,
     ),
     (
         "find_similar",
-        "Find the recordings, documents and images in scope most like a text, a recording, a topic or an entity (give "
+        "Find the assets (recordings, documents and images) in scope most like a text, an asset, a topic or an entity (give "
         "one): close in meaning (when search by meaning is set up), sharing key words, about the same topics, mentioning "
         "the same entities; each with the moments that show it.",
         {"text": _S, "recording_id": _I, "topic_id": _I, "entity_id": _I, "limit": _I},
@@ -56,14 +56,14 @@ TOOLS = [
     ),
     (
         "list_recordings",
-        "List assets (recordings, documents, images and transcripts) in scope, newest first, optionally by namespace, dates (YYYY-MM-DD), speaker, entity or media.",
+        "List assets (recordings, documents, images and text) in scope, newest first, optionally by namespace, dates (YYYY-MM-DD), person, entity or media.",
         {"namespace": _S, "from": _S, "to": _S, "speaker_id": _I, "entity_id": _I, "media": _S, "limit": _I},
         [],
         False,
     ),
     (
         "read_transcript",
-        "Read part of one asset's transcript, by seconds.",
+        "Read part of one asset's text (its transcript, for audio and video), by seconds.",
         {"recording_id": _I, "start_seconds": {"type": "number"}, "end_seconds": {"type": "number"}, "max_lines": _I},
         ["recording_id"],
         False,
@@ -84,7 +84,7 @@ TOOLS = [
     ),
     (
         "entity_mentions",
-        "Where an entity was mentioned: asset, time, speaker and the line.",
+        "Where an entity was mentioned: asset, time, person and the line.",
         {"entity_id": _I, "limit": _I},
         ["entity_id"],
         False,
@@ -115,15 +115,21 @@ TOOLS = [
     ),
     (
         "graph_neighbours",
-        "Who and what is connected to an entity or speaker in the knowledge graph.",
+        "Who and what is connected to an entity or person in the knowledge graph.",
         {"entity_id": _I, "speaker_id": _I, "limit": _I},
         [],
         False,
     ),
-    ("speaker_stats", "Speakers in a namespace with talk time and the assets they speak in.", {"namespace": _S}, ["namespace"], False),
+    (
+        "speaker_stats",
+        "The people in a namespace (known individuals, recognised by voice or face) with their talk time and the assets they appear in.",
+        {"namespace": _S},
+        ["namespace"],
+        False,
+    ),
     (
         "find_notes",
-        "Find notes (free notes and the pages of assets, entities, collections and speakers) in scope by words in "
+        "Find notes (free notes and the pages of assets, entities, collections and people) in scope by words in "
         "their title, summary or text. Each has an id, title, one-line summary, where it's filed (PARA) and what it's "
         "the page of.",
         {"query": _S, "namespace": _S, "place": _S, "limit": _I},
@@ -175,7 +181,7 @@ TOOLS = [
     ),
     (
         "graph_schema",
-        "What the graph holds (namespaces, collections, assets as Recording nodes, speakers, entities, topics and how they link), with example "
+        "What the graph holds (namespaces, collections, assets as Recording nodes, people as Speaker nodes, entities, topics and how they link), with example "
         "Cypher. Read it before graph_query.",
         {"namespace": _S},
         [],
@@ -192,7 +198,7 @@ TOOLS = [
     (
         "graph_related",
         "A node's parents, children, ancestors, descendants (asset, collection, namespace...) or neighbours. Nodes "
-        "are n<id> namespaces, c<id> collections, r<id> assets, s<id> speakers, e<id> entities, t<id> topics.",
+        "are n<id> namespaces, c<id> collections, r<id> assets, s<id> people, e<id> entities, t<id> topics.",
         {
             "node": _S,
             "relation": {"type": "string", "enum": ["parents", "children", "ancestors", "descendants", "neighbours"]},
@@ -227,7 +233,7 @@ TOOLS = [
     (
         "propose_entity_change",
         "Propose a change to the entities, which needs the person's approval: merge others into an entity, rename or "
-        "retype it, describe it (a description and the other ways it's said), hide it, or define a new entity on a "
+        "retype it, describe it (a description and the other names it goes by), hide it, or define a new entity on a "
         "namespace's list (define: namespace, new_name, new_type; no entity_id).",
         {
             "action": {"type": "string", "enum": ["merge", "rename", "retype", "describe", "hide", "define"]},
@@ -701,7 +707,7 @@ class Toolbox(ops_tools.OpsTools):
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20
         if self.reads >= cap:
-            raise ValueError(f"the limit of {cap} transcript reads per question is reached; answer with what you have")
+            raise ValueError(f"the limit of {cap} text reads per question is reached; answer with what you have")
         row = self._ok(recording_id)
         self.reads += 1
         d = render.player_data(self.db, int(recording_id))
@@ -851,7 +857,7 @@ class Toolbox(ops_tools.OpsTools):
             {"id": s["id"], "name": s["display"], "talk": store.tc(s["talk_ms"]), "recordings": s["recordings"]}
             for s in spk.list_speakers(self.db, sid)[:30]
         ]
-        return {"speakers": out}, f"Read speaker stats for {namespace}"
+        return {"speakers": out}, f"Read the people in {namespace}"
 
     # ---- the graph as a property graph, in Cypher (graph_model.py, cypher.py) ----
     def _graph(self, namespace=None):
@@ -1107,7 +1113,7 @@ class Toolbox(ops_tools.OpsTools):
             "retype": f"Change {e['name']} to {new_type}",
             "describe": f"Describe {e['name']}"
             + (f" as “{description}”" if description else "")
-            + (f" (also said as {', '.join(also_said_as)})" if also_said_as else ""),
+            + (f" (also known as {', '.join(also_said_as)})" if also_said_as else ""),
             "hide": f"Hide {e['name']}",
         }[action]
         return self._approval("propose_entity_change", {**args, "entity_id": e["id"]}, what)

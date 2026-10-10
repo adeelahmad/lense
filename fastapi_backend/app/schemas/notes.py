@@ -13,7 +13,7 @@ class Note(ResponseModel):
     text: str
     t0: int | None = Field(None, description="the moment it's about, in ms from the start; null: the whole asset")
     t1: int | None = Field(None, description="where that moment ends, in ms")
-    quote: str | None = Field(None, description="the words picked in the transcript")
+    quote: str | None = Field(None, description="the words picked in the text")
     shared: bool = Field(False, description="everyone who can read the asset sees it")
     created_by: str | None = Field(None, description="its writer's email")
     created_by_name: str | None = Field(None, description="its writer's name, when they gave one")
@@ -28,7 +28,7 @@ class NoteCreate(RequestModel):
     text: str = Field(min_length=1, max_length=5000)
     t0: int | None = Field(None, ge=0, description="the moment it's about, in ms from the start; leave out for the whole asset")
     t1: int | None = Field(None, ge=0, description="where that moment ends, in ms (default: t0)")
-    quote: str | None = Field(None, max_length=1000, description="the words picked in the transcript")
+    quote: str | None = Field(None, max_length=1000, description="the words picked in the text")
     shared: bool = Field(False, description="share it with everyone who can read the asset (needs editor access)")
 
 

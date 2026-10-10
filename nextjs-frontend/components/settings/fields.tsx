@@ -258,7 +258,7 @@ export function SecretSetting({
 export function ZoneBar({
   match,
   review,
-  low = "New speaker",
+  low = "New person",
 }: {
   match: number | null;
   review: number | null;

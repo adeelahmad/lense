@@ -129,7 +129,7 @@ function ScopePicker({
         items={[
           { value: "namespaces", label: "Namespaces" },
           { value: "recordings", label: "Assets" },
-          { value: "speakers", label: "Speakers" },
+          { value: "speakers", label: "People" },
           { value: "dates", label: "Dates" },
           { value: "collection", label: "Collection" },
         ]}
@@ -190,7 +190,7 @@ function ScopePicker({
         )}
         {section === "speakers" && (
           <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {dir.isLoading && <li className="text-[13px] text-fg-muted">Loading speakers…</li>}
+            {dir.isLoading && <li className="text-[13px] text-fg-muted">Loading people…</li>}
             {dir.speakers
               .filter((s) => inNs(s.namespace) && (!f || s.display.toLowerCase().includes(f)))
               .sort((a, b) => (b.talk_ms ?? 0) - (a.talk_ms ?? 0))

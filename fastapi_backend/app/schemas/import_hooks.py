@@ -48,7 +48,7 @@ class HookPush(RequestModel):
     """What a JSON push carries: a web address or text (send a file as the raw body, or as multipart form files)."""
 
     url: HttpUrl | None = Field(None, description="a web page or PDF to keep as a document")
-    text: str | None = Field(None, max_length=5_000_000, description="text to import as a transcript, as pasted text is")
+    text: str | None = Field(None, max_length=5_000_000, description="text to import, as pasted text is")
     title: str | None = Field(None, max_length=200)
 
 

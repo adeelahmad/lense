@@ -30,7 +30,7 @@ export function PlayButton({ size = 38, noMediaReason }: { size?: number; noMedi
   const { hasMedia, playing, status } = usePlayerState();
   const off = !hasMedia || status === "error";
   const reason = !hasMedia
-    ? (noMediaReason ?? "No audio — this asset is a transcript only")
+    ? (noMediaReason ?? "No audio — this asset is text only")
     : status === "error"
       ? "The audio couldn't be loaded"
       : undefined;

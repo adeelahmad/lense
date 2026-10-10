@@ -146,7 +146,7 @@ export function SearchPage() {
     if (filters.object) out.object = filters.object;
     if (filters.speaker != null) {
       const hit = [...(baseData?.hits ?? []), ...hits].find((h) => h.speaker_id === filters.speaker);
-      out.speaker = hit?.speaker ?? `Speaker #${filters.speaker}`;
+      out.speaker = hit?.speaker ?? `Person #${filters.speaker}`;
     }
     if (filters.recording != null)
       out.recording =
@@ -212,9 +212,9 @@ export function SearchPage() {
       try {
         const id = await resolveSpeaker(typed.speaker, next.namespace);
         if (id != null) next.speaker = id;
-        else issues.push(`No speaker called “${typed.speaker}”${next.namespace ? ` in ${next.namespace}` : ""}.`);
+        else issues.push(`No person called “${typed.speaker}”${next.namespace ? ` in ${next.namespace}` : ""}.`);
       } catch {
-        issues.push(`Couldn’t look up the speaker “${typed.speaker}”.`);
+        issues.push(`Couldn’t look up the person “${typed.speaker}”.`);
       }
     }
     setProblem(issues.join(" ") || null);
@@ -513,7 +513,7 @@ function Intro({ onPick }: { onPick: (example: string) => void }) {
   return (
     <div className="flex max-w-[620px] flex-col gap-5 py-10">
       <div className="flex flex-col gap-1.5">
-        <h2 className="text-[20px] font-bold leading-tight text-fg">Search what was said</h2>
+        <h2 className="text-[20px] font-bold leading-tight text-fg">Search what’s in your assets</h2>
         <p className="m-0 text-[14px] leading-normal text-fg-secondary">
           Every word must appear in the same segment, and word forms match (English stemming). When search by meaning is
           set up, passages about the same thing in other words come too, marked Related. Results only come from

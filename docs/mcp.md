@@ -40,18 +40,18 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 
 | Tool | |
 |---|---|
-| `search` | moments where words are said, shown on screen or written, best first: the asset, speaker, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, speaker or asset |
+| `search` | moments where words appear (written, spoken or shown on screen), best first: the asset, person, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, person or asset |
 | `find_similar` | the assets (recordings, documents and images) most like a text, an asset, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
-| `list_namespaces` | the namespaces you can read, with their assets, hours, speakers and your role |
-| `list_recordings` | assets, newest first, by namespace, title words, dates, speaker, tag or kind |
-| `list_speakers` | the speakers of your namespaces, the ones who talk most first |
-| `get_recording` | one asset: when, how long, speakers, summary and key points, chapters, the entities and keywords most mentioned, its link |
-| `get_transcript` | an asset's lines in order (speaker, time, text, link), a page at a time, from a line or a time window |
+| `list_namespaces` | the namespaces you can read, with their assets, hours, people and your role |
+| `list_recordings` | assets, newest first, by namespace, title words, dates, person, tag or kind |
+| `list_speakers` | the people of your namespaces, the ones with the most talk time first |
+| `get_recording` | one asset: when, how long, people, summary and key points, chapters, the entities and keywords most mentioned, its link |
+| `get_transcript` | an asset's lines in order (who, time, text, link), a page at a time, from a line or a time window |
 | `fetch` | an asset's whole text at once, as `[m:ss] Speaker: …` lines |
-| `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said them, the asset and date, the time, the link, and all of it as Markdown |
+| `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said or wrote them, the asset and date, the time, the link, and all of it as Markdown |
 | `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or asset |
 | `get_entity` | one entity: its names, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
-| `explore_graph` | the knowledge graph around an entity (`e12`) or a speaker (`s3`), one or two steps out |
+| `explore_graph` | the knowledge graph around an entity (`e12`) or a person (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
 | `sparql` | a read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data ([RDF](rdf.md)): JSON results, or Turtle |
 | `graph_schema` | what the property graph holds (labels, relationships, properties, counts) and example Cypher ([The graph](graph.md)) |

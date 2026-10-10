@@ -141,7 +141,7 @@ export function CollectionDialog({
             </div>
             <span className="text-[12px] text-fg-muted">None ticked: every namespace the viewer can read.</span>
           </fieldset>
-          <Field label="Words said" optional hint="The same rules as Search: every word, “phrases”, OR.">
+          <Field label="Words" optional hint="The same rules as Search: every word, “phrases”, OR.">
             {({ id, describedBy }) => (
               <Input id={id} aria-describedby={describedBy} value={q} onChange={(e) => setQ(e.target.value)} mono />
             )}
@@ -163,14 +163,14 @@ export function CollectionDialog({
                     { value: "", label: "Any" },
                     { value: "audio", label: "Audio" },
                     { value: "video", label: "Video" },
-                    { value: "transcript", label: "Transcript only" },
+                    { value: "transcript", label: "Text only" },
                   ]}
                 />
               )}
             </Field>
           </div>
           {Boolean(f0.speakers?.length || f0.entities?.length) && (
-            <p className="m-0 text-[12.5px] text-fg-muted">This filter also keeps its speaker and entity conditions.</p>
+            <p className="m-0 text-[12.5px] text-fg-muted">This filter also keeps its person and entity conditions.</p>
           )}
         </div>
       ) : (

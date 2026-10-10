@@ -112,7 +112,7 @@ const SORT_LABEL: Record<SortKey, string> = {
   date: "date",
   title: "title",
   duration: "length",
-  speakers: "speakers",
+  speakers: "people",
   status: "status",
   importance: "importance",
 };

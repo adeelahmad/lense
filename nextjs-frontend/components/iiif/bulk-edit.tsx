@@ -23,7 +23,7 @@ const FIELDS: { value: BulkField; label: string }[] = [
   { value: "rights", label: "Rights" },
   { value: "attribution", label: "Required attribution" },
   { value: "provider", label: "Provider" },
-  { value: "language", label: "Languages spoken" },
+  { value: "language", label: "Languages" },
 ];
 
 /** The value to send for a field, or an error. */

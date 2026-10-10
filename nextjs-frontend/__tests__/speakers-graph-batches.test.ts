@@ -189,7 +189,7 @@ describe("graph model", () => {
 
   it("summarises the picture in words", () => {
     expect(summarize(nodes, edges, "podcasts")).toBe(
-      "4 nodes (2 speakers) and 3 links in podcasts. Most connected: Host A (2 links), Host B (2 links), Meridian (1 link).",
+      "4 nodes (2 people) and 3 links in podcasts. Most connected: Host A (2 links), Host B (2 links), Meridian (1 link).",
     );
     expect(summarize([], [], "podcasts")).toBe("The graph for podcasts is empty.");
   });

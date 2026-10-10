@@ -97,7 +97,7 @@ export function DefineDialog({
             />
           )}
         </Field>
-        <Field label="Also said as" optional hint="Other names, spellings or abbreviations, separated by commas.">
+        <Field label="Also known as" optional hint="Other names, spellings or abbreviations, separated by commas.">
           {(ids) => (
             <Input
               id={ids.id}

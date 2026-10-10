@@ -1,4 +1,4 @@
-"""Command line: batch steps, imports, speaker edits, search, reports and the server."""
+"""Command line: batch steps, imports, people edits, search, reports and the server."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def _main_base(argv=None):
         ("scan", "register new files in each namespace's folders"),
         ("transcribe", "transcribe new recordings"),
         ("diarize", "split speakers and match voice IDs within each namespace"),
-        ("analyze", "named things, keywords, sections and talk statistics"),
+        ("analyze", "named things, keywords, sections and speaking-time statistics"),
         ("embed", "index passages for search by meaning (with the configured embedding model)"),
         ("summarize", "optional LLM summaries"),
         ("run", "scan, transcribe, diarize, analyze, embed, summarize and report, resuming where it stopped"),
@@ -64,14 +64,16 @@ def _main_base(argv=None):
     p.add_argument("--ns")
     p.add_argument("--recording", type=int)
     p.add_argument("--audio", choices=["link", "embed", "none"])
-    p = sub.add_parser("import", help="import a transcript: txt, md, mdx, docx, doc, pdf, srt, vtt, json, chunk jsonl, or - for stdin")
+    p = sub.add_parser(
+        "import", help="import text or a transcript: txt, md, mdx, docx, doc, pdf, srt, vtt, json, chunk jsonl, or - for stdin"
+    )
     p.add_argument("ns")
     p.add_argument("transcript", help="a file, or - to read pasted text from stdin")
     p.add_argument("--format", default="auto", choices=list(ingest.FORMATS))
     p.add_argument("--audio")
     p.add_argument("--title")
     p.add_argument("--speakers", help='display names for labels, e.g. "F=Host A,M=Host B"')
-    p = sub.add_parser("speakers", help="list, rename, merge, undo or link speakers")
+    p = sub.add_parser("speakers", help="list, rename, merge, undo or link people")
     s2 = p.add_subparsers(dest="action", required=True)
     s2.add_parser("list").add_argument("ns")
     x = s2.add_parser("rename")
@@ -158,7 +160,7 @@ def _main_base(argv=None):
             if a.action == "list":
                 for s in spk.list_speakers(conn, store.ns_id(conn, a.ns, create=False)):
                     sug = "; maybe " + ", ".join(f"{x['name']} ({x['score']})" for x in s["suggestions"]) if s["suggestions"] else ""
-                    print(f"{s['id']:>5}  {s['display']:<24} {s['talk_ms'] / 60000:7.1f} min  {s['recordings']:>3} rec{sug}")
+                    print(f"{s['id']:>5}  {s['display']:<24} {s['talk_ms'] / 60000:7.1f} min  {s['recordings']:>3} asset(s){sug}")
             elif a.action == "rename":
                 spk.rename(conn, a.id, a.name)
             elif a.action == "merge":

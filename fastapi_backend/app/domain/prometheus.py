@@ -99,7 +99,7 @@ def _resources(db, out, now):
             "lens_resources",
             got.get(s, 0),
             {"status": s},
-            "Resources (recordings and documents) by status; error is failed imports or processing.",
+            "Assets (recordings, documents and more) by status; error is failed imports or processing.",
         )
     for name, span in WINDOWS:
         since = (now - span).isoformat(timespec="seconds")

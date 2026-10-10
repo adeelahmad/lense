@@ -66,9 +66,9 @@ def search_public(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ) -> PublicSearch:
-    """Search what this visitor may see: titles of the assets they see listed, and the lines of the transcripts
+    """Search what this visitor may see: titles of the assets they see listed, and the lines of the text of those
     they may read. Title matches come first. Restricted assets (for signed-in people) and public ones with the
-    transcript closed match on their title only."""
+    text closed match on their title only."""
     d = public.search(db, q, acl.who(), limit, offset)
     _signed(d["items"])
     return PublicSearch.model_validate(d)

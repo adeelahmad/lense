@@ -15,7 +15,7 @@ no passwords on a fresh install (`auth.passwords` is off), so there is nothing t
 * **The first admin** makes theirs on the setup page, with the setup code. Where the browser can't use passkeys (a
   plain `http://` address other than localhost, or an IP address) the code alone makes the admin, still without a
   password; they sign in later with a passkey at the `https://` address, or with a sign-in link.
-* **Everyone else** gets a one-time **sign-in link** from an admin (People › Send a sign-in link, or
+* **Everyone else** gets a one-time **sign-in link** from an admin (Members › Send a sign-in link, or
   `lens users link them@example.com` on the server). Opening it adds a passkey on that device and signs them in; on an
   address browsers won't use passkeys on, the link alone signs them in. A link lasts three days and works once; making
   another stops the last. The token is in the link's `#fragment`, so it never reaches a server log.

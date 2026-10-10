@@ -33,7 +33,7 @@ export function BatchList() {
       )}
       {list.data?.length === 0 && (
         <EmptyState icon={<Layers />} title="No batch runs yet">
-          Start one with “Run on…” from a Library selection, a namespace, a speaker, an entity in the graph, search
+          Start one with “Run on…” from a Library selection, a namespace, a person, an entity in the graph, search
           results or a saved collection.
         </EmptyState>
       )}

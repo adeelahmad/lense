@@ -346,7 +346,7 @@ export function NodeSettings({
             />
             <Lines
               label="Terms"
-              hint="One per line, as Name|TYPE: always found, wherever they’re said"
+              hint="One per line, as Name|TYPE: always found, wherever they appear"
               placeholder={"Acme Corp|ORG\nProject Falcon|PRODUCT"}
               value={(c.terms as string[] | undefined) ?? []}
               show={(v) => String(v)}

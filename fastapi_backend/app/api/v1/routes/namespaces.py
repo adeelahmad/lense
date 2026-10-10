@@ -33,7 +33,7 @@ R = store.R
 @router.get("")
 def list_namespaces(acl: Acl, user: CurrentUser, db: Db) -> list[Namespace]:
     """The namespaces you have a role in, with their counts, and those you see only some collections of (`partial`,
-    no `role`): counted over those collections, without the namespace-wide speakers and word cloud."""
+    no `role`): counted over those collections, without the namespace-wide people and word cloud."""
     rm, part = user.roles, acl.partial()
     agg: dict[int, dict[str, int]] = defaultdict(lambda: {"recordings": 0, "ms": 0, "analyzed": 0, "errors": 0})
     cond, p = library.in_scope(rm, part)
@@ -113,9 +113,9 @@ def get_namespace_stats(
     acl: Acl,
     user: CurrentUser,
     db: Db,
-    date_from: date | None = Query(None, alias="from", description="recorded on or after this day"),
-    date_to: date | None = Query(None, alias="to", description="recorded on or before this day"),
-    top: int = Query(5, ge=1, le=50, description="how many speakers in `top_speakers`"),
+    date_from: date | None = Query(None, alias="from", description="dated on or after this day"),
+    date_to: date | None = Query(None, alias="to", description="dated on or before this day"),
+    top: int = Query(5, ge=1, le=50, description="how many people in `top_speakers`"),
 ) -> NamespaceStats:
     """The namespace's numbers for the assets made in a range of days (the Reports overview): how many and how long,
     who was heard and for how long, and the same per month. Without a range, every asset."""

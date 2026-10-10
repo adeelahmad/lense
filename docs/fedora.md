@@ -1,7 +1,7 @@
 # Fedora repository
 
 Lens can keep a copy of the archive in [Fedora](https://wiki.lyrasis.org/display/FF) 6, the repository many libraries
-and archives use for preservation. Every namespace, collection, asset (with its file), entity and speaker becomes
+and archives use for preservation. Every namespace, collection, asset (with its file), entity and person becomes
 an LDP resource in Fedora, described in RDF with Dublin Core ([Linked data](rdf.md)). SurrealDB is still the working
 database, and Fedora holds a copy that is kept up to date with it.
 
@@ -34,7 +34,7 @@ Under `<url>/<root>` (the root is `lens` by default):
 | `<namespace>/recordings/<id>` | an asset: dcterms title, creator, subject, created, license and the rest |
 | `<namespace>/recordings/<id>/file` | its file (a binary), unless files are off or it is larger than the limit |
 | `<namespace>/entities/<id>` | an entity (`skos:Concept`) |
-| `<namespace>/speakers/<id>` | a speaker (`foaf:Person`) |
+| `<namespace>/speakers/<id>` | a person (`foaf:Person`) |
 
 Each resource gets the triples Lens has about it. Blank nodes become hash URIs (`…/recordings/12#b1`), and each
 resource also gets `owl:sameAs` pointing to its Lens URI. Links to other resources use their Lens URIs

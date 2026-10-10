@@ -147,7 +147,7 @@ function ChatPanel() {
           <MessagesSquare className="size-3.5" /> This asset
         </span>
         <span className="min-w-0 flex-1 truncate text-[12px] text-fg-muted">
-          Answers come only from its transcript and cite the moment.
+          Answers come only from its text and cite where they found it.
         </span>
         {chatId != null && (
           <Button
@@ -175,8 +175,8 @@ function ChatPanel() {
           <div className="flex flex-col gap-2 py-6 text-center">
             <p className="text-[14px] font-bold text-fg">Ask about this asset</p>
             <p className="text-[13px] leading-normal text-fg-secondary">
-              For example: “What did they decide?”, “Who raised the budget?”. Select text in the transcript and choose
-              Ask in chat to quote it.
+              For example: “What did they decide?”, “Who raised the budget?”. Select text in the asset and choose Ask in
+              chat to quote it.
             </p>
           </div>
         )}
@@ -215,7 +215,7 @@ function ChatPanel() {
             ) : (
               streaming && (
                 <p className="flex items-center gap-2 text-[13px] text-fg-secondary">
-                  <span aria-hidden className="size-2 animate-pulse rounded-full bg-blue" /> Reading the transcript…
+                  <span aria-hidden className="size-2 animate-pulse rounded-full bg-blue" /> Reading the text…
                 </p>
               )
             )}

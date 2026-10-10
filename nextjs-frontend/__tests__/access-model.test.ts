@@ -22,8 +22,8 @@ describe("access", () => {
   });
 
   it("lists the open parts in plain words", () => {
-    expect(partsText(ALL_PARTS)).toBe("Media, transcript and index");
-    expect(partsText(["index", "transcript"])).toBe("Transcript and index");
+    expect(partsText(ALL_PARTS)).toBe("Media, text and index");
+    expect(partsText(["index", "transcript"])).toBe("Text and index");
     expect(partsText(["media"])).toBe("Media");
     expect(partsText([])).toBe("Nothing");
     expect(partsText(null)).toBe("Nothing");
@@ -32,7 +32,7 @@ describe("access", () => {
   it("sums a recording's access up in one line", () => {
     expect(accessSummary({ access: "public", open: ALL_PARTS })).toBe("Public · everything open");
     expect(accessSummary({ access: "public", open: ["transcript", "index"], featured: true })).toBe(
-      "Public · transcript and index open to everyone · featured",
+      "Public · text and index open to everyone · featured",
     );
     expect(accessSummary({ access: "public", open: [] })).toBe("Public · page and description only");
     // parts and featured only mean something for a public recording
@@ -61,9 +61,7 @@ describe("access", () => {
     const draft: Meta = { access: "public", open: [], featured: false };
     expect(patchFor(draft, ["access", "open", "featured"])).toEqual({ access: "public", open: [], featured: false });
     expect(patchFor({ access: "public" }, ["open"])).toEqual({ open: null });
-    expect(describeChange("open", ["media", "transcript"], [])).toBe(
-      "Open to everyone: Media and transcript → Nothing",
-    );
+    expect(describeChange("open", ["media", "transcript"], [])).toBe("Open to everyone: Media and text → Nothing");
     expect(describeChange("open", undefined, ["index"])).toBe("Open to everyone: default → Index");
     expect(describeChange("open", ["index"], null)).toBe("Open to everyone cleared");
     expect(describeChange("featured", false, true)).toBe("Featured");

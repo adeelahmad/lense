@@ -221,7 +221,7 @@ export function localProblem(
       return {
         code: "unsupported",
         title: `This server can’t read ${uploadKindName(kind, file.name).toLowerCase()}s`,
-        body: canBeTranscript(file.name) ? `${convert} Import it as a transcript instead.` : convert,
+        body: canBeTranscript(file.name) ? `${convert} Import it as text instead.` : convert,
       };
     if (!limits.extensions.includes(ext))
       return {
@@ -331,7 +331,7 @@ export function parseMapping(text: string, known: string[] = []): Mapping {
     if (!line || line.startsWith("#")) return;
     const eq = line.indexOf("=");
     if (eq < 0) {
-      errors.push(`Line ${i + 1}: write it as “label = speaker”.`);
+      errors.push(`Line ${i + 1}: write it as “label = name”.`);
       return;
     }
     const label = line.slice(0, eq).trim();
@@ -341,7 +341,7 @@ export function parseMapping(text: string, known: string[] = []): Mapping {
       return;
     }
     if (/[=,]/.test(name)) {
-      errors.push(`Line ${i + 1}: a speaker name can’t contain “=” or “,”.`);
+      errors.push(`Line ${i + 1}: a name can’t contain “=” or “,”.`);
       return;
     }
     if (label.includes(",")) {

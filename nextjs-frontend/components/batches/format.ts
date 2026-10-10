@@ -59,7 +59,7 @@ export function describeSelection(
   if (s.entity || (f.entities as unknown[] | undefined)?.length)
     parts.push(`every asset that mentions ${names.entity ?? "the entity"}`);
   if (s.speaker || (f.speakers as unknown[] | undefined)?.length)
-    parts.push(`every asset with ${names.speaker ?? "the speaker"}`);
+    parts.push(`every asset with ${names.speaker ?? "the person"}`);
   if (typeof f.q === "string" && f.q) parts.push(`assets matching “${f.q}”`);
   const ns = s.namespace ?? (Array.isArray(f.namespaces) ? (f.namespaces as string[]).join(", ") : null);
   if (ns) parts.push(parts.length ? `in ${ns}` : `every asset in ${ns}`);

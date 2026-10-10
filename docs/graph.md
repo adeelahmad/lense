@@ -34,7 +34,7 @@ Graph in the sidebar shows the graph of the scope picked at the top (one namespa
 | Namespace | `n<id>` | name, shared |
 | Collection | `c<id>` | name, namespace |
 | Recording | `r<id>` | name (the title), date, media, namespace |
-| Speaker | `s<id>` | name, seconds (talk time), namespace |
+| Speaker | `s<id>` | a person: name, seconds (talk time), namespace |
 | Entity | `e<id>`, or `e:<key>` in the global scope | name, type, key, mentions, namespaces, ids |
 | Topic | `t<id>`, or `t:<key>` in the global scope | name (the label), alt, definition, recordings, namespaces, ids |
 
@@ -48,16 +48,16 @@ and quiet types (dates and numbers) are left out, as in the overview graph.
 | HAS_SPEAKER | Recording → Speaker | seconds |
 | MENTIONS | Recording → Entity | count |
 | SAID | Speaker → Entity | count |
-| MENTIONED_WITH | Entity → Entity (said in the same line) | count |
-| SPOKE_WITH | Speaker → Speaker (in the same recording) | recordings |
-| SAME_AS | Speaker → Speaker (said to be one person) | |
+| MENTIONED_WITH | Entity → Entity (in the same line) | count |
+| SPOKE_WITH | Speaker → Speaker (in the same asset) | recordings |
+| SAME_AS | Speaker → Speaker (marked as one person) | |
 | SAME_THING | Entity → Entity (linked across namespaces) | |
 | ABOUT | Recording → Topic | source, weight |
 | NARROWER | Topic → Topic (from the broader one) | |
 | RELATED | Topic → Topic | |
 
 CONTAINS, HAS_SPEAKER, MENTIONS, SAID, ABOUT and NARROWER are the hierarchy: an entity's parents are the assets that
-mention it and the speakers who said it; its ancestors go on up to collections and the namespace. A topic's parents
+mention it and the people who said or wrote it; its ancestors go on up to collections and the namespace. A topic's parents
 are its broader topics and the assets about it. Topics are each namespace's vocabulary ([Topics](topics.md)).
 
 ## Scope and rights
@@ -140,7 +140,7 @@ MATCH (e:Person) RETURN e.name, e.mentions ORDER BY e.mentions DESC LIMIT 10
 MATCH (r:Recording)-[m:MENTIONS]->(e:Entity) WHERE toLower(e.name) = 'acme'
 RETURN r.name, r.date, m.count ORDER BY r.date
 
-// who talks about Acme
+// who mentions Acme
 MATCH (s:Speaker)-[x:SAID]->(:Entity {name: 'Acme'}) RETURN s.name, x.count ORDER BY x.count DESC
 
 // how Alice is connected to Acme

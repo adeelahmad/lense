@@ -92,7 +92,7 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
 provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
-video, OCR, faces and objects, workers, sign-in, components, access and embedding (embed frame ancestors, transcript
+video, OCR, faces and objects, workers, sign-in, components, access and embedding (embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
 telemetry, the Fedora repository, sensors, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
@@ -114,7 +114,7 @@ After changing the engine or stemming, run `lens reindex` (or Settings → Searc
 
 ## Search by meaning
 
-Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
+Passages of assets' text and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
 /embeddings`), so search can find moments by meaning ([how it works](processing.md#search-by-meaning)). By default it
 asks the LLM provider's server (`llm.base_url`, with its key) for `nomic-embed-text`, a small model that runs offline
 in Ollama (`ollama pull nomic-embed-text`); set `embeddings.base_url` to use another server, such as Ollama next to
@@ -179,7 +179,7 @@ uploaded in the web app (Import → Upload) go up in pieces
 
 Pieces are written straight to `data_dir/uploads/.partial`, never held in memory; finished files are kept in
 `data_dir/uploads/<namespace>/`, so give `data_dir` room for them (an upload is refused when it would leave less than
-512 MB free). Transcript files have their own limit, `server.max_upload_mb` (Settings → Access & embedding), which
+512 MB free). Text and transcript imports have their own limit, `server.max_upload_mb` (Settings → Access & embedding), which
 also caps a resource's supplementary files ([API](api.md#files)), kept in `data_dir/files/<resource>/`; watched
 folders have none.
 
@@ -195,8 +195,8 @@ Other documents are made into PDFs first ([API](api.md#documents-and-images)): W
 OpenDocument and RTF by LibreOffice; text, Markdown, saved web pages (HTML) and emails by Chromium printing a page Lens
 makes of them, or by LibreOffice where there's no Chromium. Outlook `.msg` emails also need the `msg` extra
 (`pip install -e ".[msg]"`; extract-msg is GPL-3.0). The `lens:full` Docker image has LibreOffice and Chromium
-([Deployment](deployment.md)); without them, PDFs and images are read as before, and files that can be transcripts
-(Word, text, Markdown) are imported as transcripts. Settings → Documents:
+([Deployment](deployment.md)); without them, PDFs and images are read as before, and files that can be read as plain
+text (Word, text, Markdown) are imported as text. Settings → Documents:
 
 | Setting | Default | |
 |---|---|---|
@@ -290,7 +290,7 @@ made of a document is `data_dir/renditions/<resource>.pdf`; both go when the res
 ## Text on screen and scans (OCR)
 
 The OCR engine of `video.ocr_engine` reads text on a video's sampled frames (the ocr step) and on a document's pages
-without text and on images (when they're transcribed, [above](#documents-and-images)):
+without text and on images (when they're read, [above](#documents-and-images)):
 
 * `auto`, the default: Apple Vision on a Mac worker, else Tesseract, else RapidOCR, whichever is there first.
 * `tesseract`: Tesseract (in the Docker images), in the languages of `video.ocr_languages`.

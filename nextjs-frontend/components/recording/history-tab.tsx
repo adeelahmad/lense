@@ -43,8 +43,8 @@ export function HistoryTab() {
         <p className="text-[12.5px] text-fg-muted">{jobs.length - shown.length} older runs are in Activity.</p>
       )}
       {!jobs.length && <ProcessingRecord rec={rec} />}
-      <section className="flex flex-col gap-1.5" aria-label="Transcript corrections">
-        <Label as="h3">Transcript corrections</Label>
+      <section className="flex flex-col gap-1.5" aria-label="Text corrections">
+        <Label as="h3">Text corrections</Label>
         <ChangeHistoryList />
       </section>
       <ActivityPanel resource={`recording:${rec.id}`} title="Costs and activity" />

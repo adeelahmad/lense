@@ -141,7 +141,7 @@ export function SaveSearchDialog({
         )}
         {filters.speaker != null && (
           <>
-            <dt className="text-fg-secondary">Speaker</dt>
+            <dt className="text-fg-secondary">Person</dt>
             <dd className="m-0 text-fg">{labels.speaker ?? filters.speaker}</dd>
           </>
         )}

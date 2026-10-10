@@ -4,7 +4,7 @@
   "commit": "5f799f2ff8bb8a762d8151d9b10b535a17878b55",
   "date": "2026-10-05",
   "scope_subpath": null,
-  "description": "Lens is a self-hosted archive for recordings, transcripts and documents: it transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
+  "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
     "documented": 246,
     "inferred": 99
@@ -714,7 +714,7 @@
       "property": "P-ACCESS-PARTS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "a closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link; a closed transcript's text stays out of search and downloads; only owners change access and open parts",
+      "conditions": "a closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link; a closed text part stays out of search and downloads; only owners change access and open parts",
       "provenance": "documented",
       "source": "docs/access.md \"the parts of a public asset anyone may use\""
     },
@@ -1086,7 +1086,7 @@
     },
     {
       "property": "N-DB-PLAIN",
-      "reason": "encryption of the SurrealDB content (transcripts, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit",
+      "reason": "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit",
       "false_friend": true,
       "provenance": "documented",
       "source": "docs/encryption.md \"the SurrealDB database itself\""
@@ -1374,11 +1374,11 @@
     "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address",
     "Give the chat-room bridge its own low-role account",
     "Run workers only on trusted hosts; they hold the DB credential",
-    "Pick model and speech servers you trust with transcripts and audio",
+    "Pick model and speech servers you trust with your assets' text and audio",
     "Run conversion where Chromium can keep its sandbox (non-root, user namespaces)",
     "Enable another person's extension only when you trust its author",
     "Escape exported text, RDF, IIIF metadata and assistant output for your own sink",
-    "Treat transcript text and MCP results as untrusted prompt input in your agents",
+    "Treat asset text and MCP results as untrusted prompt input in your agents",
     "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS",
     "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets",
     "Keep logs that record request paths private when sensor push tokens are in use"
@@ -1436,7 +1436,7 @@
     },
     {
       "pattern": "Pointing the assistant at a hosted model for sensitive archives",
-      "why_unsafe": "Transcripts leave the machine",
+      "why_unsafe": "Assets' text leaves the machine",
       "instead": "Use a local model server"
     }
   ],

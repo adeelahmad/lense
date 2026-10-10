@@ -60,7 +60,7 @@ export function useInlinePlayer() {
           setNoAudio((s) => new Set(s).add(m.recordingId));
           toast({
             title: "No audio to play",
-            body: "This asset is a transcript only. Open it to read the moment.",
+            body: "This asset has text only. Open it to read the passage.",
             tone: "gate",
           });
           return;

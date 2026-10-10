@@ -282,7 +282,7 @@ export const MEDIA_LABEL: Record<MediaFilter, string> = {
   any: "Any",
   audio: "Audio",
   video: "Video",
-  transcript: "Transcript only",
+  transcript: "Text only",
   document: "Document",
   image: "Image",
 };

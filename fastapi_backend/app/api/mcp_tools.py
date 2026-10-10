@@ -302,14 +302,14 @@ def _recording(ctx: Context, rid: int) -> dict[str, Any]:
 @tool(
     "search",
     "Search the archive",
-    "Full-text search for moments in the archive: what was said in recordings (transcripts), text shown on screen in "
-    "videos or written in documents and images, supplementary files, and kinds of object seen. Words are all required "
+    "Full-text search for moments in the archive: the text of every asset — speech in audio and video (transcripts), "
+    "text shown on screen in videos or written in documents and images, supplementary files, and kinds of object seen. Words are all required "
     '(matched after stemming), "quoted phrases" must appear as written, OR separates alternatives. Results are the best '
-    "moments first, each with the asset, who said it, when in it, the matching text (matches in **bold**) "
+    "moments first, each with the asset, the person (who said or wrote it), where in it, the matching text (matches in **bold**) "
     "and a url that opens the asset at that moment. Use get_transcript for the lines around a moment.",
     Arg("query", "string", 'what to look for: words, "a phrase", or alternatives separated by OR', required=True, max_length=500),
     Arg("namespace", "string", "only this namespace (see list_namespaces)"),
-    Arg("speaker_id", "integer", "only what this speaker said (ids from list_speakers or get_recording)"),
+    Arg("speaker_id", "integer", "only lines from this person (ids from list_speakers or get_recording)"),
     Arg("recording_id", "integer", "only within this asset"),
     Arg("limit", "integer", "how many moments", default=10, minimum=1, maximum=50),
     Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
@@ -367,16 +367,16 @@ def search(
 @tool(
     "find_similar",
     "Find similar content",
-    "The recordings, documents and images most like a text (a sentence, a passage, a title), a recording, a topic or "
+    "The assets (recordings, documents and images) most like a text (a sentence, a passage, a title), an asset, a topic or "
     "an entity: give exactly one. Best first, each with why it's alike: `match` (meaning: close in meaning, when an "
     "embedding model is set up; words: shares key words; topics: about the same topics; entities: mentions the same "
     "people, organisations, places...), the moments that show it (text with the key words in **bold**, and a url that "
-    "opens it there), and the words, topics and entities in common. A recording is never listed as like itself.",
+    "opens it there), and the words, topics and entities in common. An asset is never listed as like itself.",
     Arg("text", "string", "what to find more like: a sentence, a passage, a title", max_length=2000),
-    Arg("recording_id", "integer", "a recording: the others most like it"),
+    Arg("recording_id", "integer", "an asset: the others most like it"),
     Arg("topic_id", "integer", "a topic (from list_topics): what's most like its labels and definition, and about it"),
     Arg("entity_id", "integer", "an entity (from list_entities): what's most like its name and description, and mentions it"),
-    Arg("exclude_recording_id", "integer", "leave this recording out too (the one the text is from)"),
+    Arg("exclude_recording_id", "integer", "leave this asset out too (the one the text is from)"),
     Arg("limit", "integer", "how many", default=10, minimum=1, maximum=50),
     Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
 )
@@ -475,13 +475,13 @@ MEDIA = ("audio", "video", "transcript", "document", "image")
 @tool(
     "list_recordings",
     "List assets",
-    "Assets (and documents, images and transcripts) you can read, newest first by default, with filters. `query` "
-    "matches words in the title, the namespace or a speaker's name; use search for what is said in them.",
+    "Assets (audio, video, documents, images and text) you can read, newest first by default, with filters. `query` "
+    "matches words in the title, the namespace or a person's name; use search for what is in them.",
     Arg("namespace", "string", "only this namespace"),
-    Arg("query", "string", "words that must all appear in the title, the namespace or a speaker's name", max_length=200),
-    Arg("date_from", "string", "recorded on or after this day (YYYY-MM-DD)"),
-    Arg("date_to", "string", "recorded on or before this day (YYYY-MM-DD)"),
-    Arg("speaker_id", "integer", "only assets this speaker is in"),
+    Arg("query", "string", "words that must all appear in the title, the namespace or a person's name", max_length=200),
+    Arg("date_from", "string", "dated on or after this day (YYYY-MM-DD)"),
+    Arg("date_to", "string", "dated on or before this day (YYYY-MM-DD)"),
+    Arg("speaker_id", "integer", "only assets this person is in"),
     Arg("tag", "string", "only assets with this tag", max_length=100),
     Arg("media", "string", "only this kind", enum=MEDIA),
     Arg("sort", "string", "order: date, title or duration; - first for descending", default="-date", enum=SORTS),
@@ -543,11 +543,12 @@ def list_recordings(
 
 @tool(
     "list_speakers",
-    "List speakers",
-    "The speakers (voices) of the namespaces you have a role in, the ones who talk most first: their ids filter search "
+    "List people",
+    "The people (recognised by voice and face) of the namespaces you have a role in, the most present first: their ids "
+    "filter search "
     "and list_recordings.",
     Arg("namespace", "string", "only this namespace"),
-    Arg("query", "string", "only speakers whose name contains this", max_length=100),
+    Arg("query", "string", "only people whose name contains this", max_length=100),
     Arg("limit", "integer", "how many", default=50, minimum=1, maximum=500),
 )
 def list_speakers(ctx: Context, namespace: str | None, query: str | None, limit: int) -> dict[str, Any]:
@@ -574,8 +575,8 @@ def list_speakers(ctx: Context, namespace: str | None, query: str | None, limit:
 @tool(
     "get_recording",
     "Get an asset",
-    "One asset: what it is, when it was recorded, its speakers, summary, chapters (sections), the entities and "
-    "keywords most mentioned in it, and a url to it. Read what was said with get_transcript.",
+    "One asset: what it is, its date, the people in it, summary, chapters (sections), the entities and "
+    "keywords most mentioned in it, and a url to it. Read its text with get_transcript.",
     Arg("recording_id", "integer", "the asset", required=True),
 )
 def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
@@ -631,13 +632,14 @@ def get_recording(ctx: Context, recording_id: int) -> dict[str, Any]:
 
 @tool(
     "get_transcript",
-    "Read a transcript",
-    "The lines of an asset's transcript (or a document's or image's text), in order: who said what, when, each with "
+    "Read an asset's text",
+    "The lines of an asset's text (the transcript of audio or video, or a document's or image's text), in order: who "
+    "said or wrote what, and when, each with "
     "a url that opens the asset at that line. Read a long one in pages: from_line (next_line of the last page) or "
     "a time window in seconds.",
     Arg("recording_id", "integer", "the asset", required=True),
     Arg("from_line", "integer", "start at this line (0 is the first)", minimum=0),
-    Arg("start_seconds", "number", "start at the line being said at this second", minimum=0),
+    Arg("start_seconds", "number", "start at the line at this second", minimum=0),
     Arg("end_seconds", "number", "stop before the lines that start after this second", minimum=0),
     Arg("limit", "integer", "the most lines", default=200, minimum=1, maximum=1000),
 )
@@ -717,8 +719,8 @@ def fetch(ctx: Context, id: str) -> dict[str, Any]:
 @tool(
     "cite",
     "Cite a moment",
-    "A citation for a moment of an asset: the exact words (one line, or a few from there), who said them, the "
-    "asset, when it was recorded, the time in it, a url that opens it there, and the whole citation as Markdown. "
+    "A citation for a moment of an asset: the exact words (one line, or a few from there), who said or wrote them, "
+    "the asset, its date, the time in it, a url that opens it there, and the whole citation as Markdown. "
     "Name the moment by line (from search or get_transcript) or by second.",
     Arg("recording_id", "integer", "the asset", required=True),
     Arg("line", "integer", "the line (from search or get_transcript)", minimum=0),
@@ -738,7 +740,7 @@ def cite(ctx: Context, recording_id: int, line: int | None, seconds: float | Non
         # the line being said then, else the next one
         segs = _segments(ctx.db, recording_id, " AND t1 > $ms", lines, ms=ms)
         if not segs:
-            raise ToolError(f"nothing is said in asset {recording_id} at or after {store.tc(ms)}")
+            raise ToolError(f"asset {recording_id} has no line at or after {store.tc(ms)}")
     names = _names(ctx.db, [s.get("speaker") for s in segs])
     first = segs[0]
     who = list(dict.fromkeys(names[s["speaker"]] for s in segs if s.get("speaker") and s["speaker"] in names))
@@ -923,7 +925,7 @@ def get_entity(ctx: Context, entity_id: int, mentions: int, mentions_offset: int
 def _node(n: str | None, entity_id: int | None, speaker_id: int | None, name: str) -> str:
     if n:
         if not re.fullmatch(r"[es]\d+", n):
-            raise ToolError(f"{name} is a node id: e<entity id> or s<speaker id>, like e12")
+            raise ToolError(f"{name} is a node id: e<entity id> or s<person id>, like e12")
         return n
     if entity_id is not None:
         return f"e{entity_id}"
@@ -939,12 +941,12 @@ def _scope(namespace: str | None) -> str:
 @tool(
     "explore_graph",
     "Explore the knowledge graph",
-    "The knowledge graph around an entity or a speaker: what and who it is connected to (mentioned together, or "
+    "The knowledge graph around an entity or a person: what and who it is connected to (mentioned together, or "
     "mentioned by), the strongest first, one or two steps out. Without a namespace it covers the namespaces that share "
     "their graph; a namespace with an isolated graph is explored on its own (namespace=...).",
-    Arg("node", "string", "the node: e<entity id> or s<speaker id>", max_length=20),
+    Arg("node", "string", "the node: e<entity id> or s<person id>", max_length=20),
     Arg("entity_id", "integer", "or the entity"),
-    Arg("speaker_id", "integer", "or the speaker"),
+    Arg("speaker_id", "integer", "or the person"),
     Arg("namespace", "string", "only this namespace's graph"),
     Arg("depth", "integer", "how many steps out", default=1, minimum=1, maximum=2),
     Arg("types", "string[]", "only entities of these types", enum=ENTITY_TYPES),
@@ -984,9 +986,9 @@ def explore_graph(
 @tool(
     "find_path",
     "Find how two things connect",
-    "The shortest chain of links between two entities or speakers in the knowledge graph, with lines from the "
+    "The shortest chain of links between two entities or people in the knowledge graph, with lines from the "
     "assets that show each link (each with a url to that moment).",
-    Arg("from_node", "string", "one end: e<entity id> or s<speaker id>", required=True, max_length=20),
+    Arg("from_node", "string", "one end: e<entity id> or s<person id>", required=True, max_length=20),
     Arg("to_node", "string", "the other end", required=True, max_length=20),
     Arg("namespace", "string", "only this namespace's graph"),
 )
@@ -1010,9 +1012,9 @@ def find_path(ctx: Context, from_node: str, to_node: str, namespace: str | None)
 @tool(
     "sparql",
     "Query the archive with SPARQL",
-    "A read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data: recordings "
+    "A read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data: assets "
     "described with Dublin Core (dcterms:title, creator, subject, created, references the entities they mention, …), "
-    "collections, entities (skos:Concept with skos:prefLabel) and speakers (foaf:Person). Prefixes dcterms, dcmitype, "
+    "collections, entities (skos:Concept with skos:prefLabel) and people (foaf:Person). Prefixes dcterms, dcmitype, "
     "foaf, skos, owl, rdf, rdfs, xsd and lens are known. SELECT and ASK give SPARQL JSON results; CONSTRUCT and "
     "DESCRIBE give Turtle.",
     Arg("namespace", "string", "the namespace to query", required=True),
@@ -1237,7 +1239,7 @@ def _note_url(ctx: Context, pid: int) -> str:
     "find_notes",
     "Find notes",
     "Notes in the namespaces you can read: free notes and the pages of assets, entities, topics, collections and "
-    "speakers, found by words in their title, one-line summary or text (title matches first, then the latest). Each "
+    "people, found by words in their title, one-line summary or text (title matches first, then the latest). Each "
     "has its id, one-line summary, where it is filed (PARA: project, area, resource, archive), what it is the page of, "
     "and a url.",
     Arg("query", "string", "words to look for", max_length=200),

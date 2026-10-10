@@ -36,7 +36,7 @@ export function PublicSearchForm({ initial = "", className }: { initial?: string
     <form role="search" onSubmit={submit} className={cn("flex min-w-0 gap-2", className)}>
       <SearchInput
         aria-label="Search the archive"
-        placeholder="Search titles and transcripts"
+        placeholder="Search titles and text"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         className="min-w-0 flex-1"
@@ -69,7 +69,7 @@ export function PublicSearchView({ q }: { q: string }) {
       <PublicSearchForm initial={q} />
       {!query ? (
         <EmptyState icon={<Search />} title="What are you looking for?">
-          Search finds assets by their title, and by what’s said in the transcripts open to you.
+          Search finds assets by their title, and by the text open to you.
         </EmptyState>
       ) : res.isError ? (
         <LoadError what="the results" message={res.error.message} retry={() => res.refetch()} />

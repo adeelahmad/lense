@@ -301,8 +301,8 @@ def iiif_probe(rid: int, what: str, request: Request, db: Db, cfg: Cfg) -> JSONR
                 loc = {"id": f"{base}/iiif/{rid}/files/{fid}?{sig}", "type": iiif.file_type(f), "format": filemod.served_type(f)}
         return result(302, loc)
     if acct:
-        return result(403, heading="No access", note="Your account doesn't have access to this recording.")
-    return result(401, heading="Sign in to listen", note="This recording needs an account with access to its collection.")
+        return result(403, heading="No access", note="Your account doesn't have access to this asset.")
+    return result(401, heading="Sign in to view", note="This asset needs an account with access to its collection.")
 
 
 @router.get("/iiif/auth/access")

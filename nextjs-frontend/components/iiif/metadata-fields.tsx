@@ -313,7 +313,7 @@ export function DateLanguages({
         )}
       </FormField>
       <FormField
-        label="Languages spoken"
+        label="Languages"
         hint={
           errors.language
             ? undefined
@@ -450,7 +450,7 @@ export function People({
             />
             {r.speaker ? (
               <span className="self-center text-[12px] leading-[1.3] text-fg-muted">
-                linked to speaker {speakerName(r.speaker) ?? `#${r.speaker}`} ✓
+                linked to person {speakerName(r.speaker) ?? `#${r.speaker}`} ✓
               </span>
             ) : (
               <Input
@@ -478,7 +478,7 @@ export function People({
           <AddButton onClick={() => write([...rows, { name: "", role: null, kind: "creators" }])}>Add person</AddButton>
           {unlinked.length > 0 && (
             <Select
-              aria-label="Add a speaker from this recording"
+              aria-label="Add a person from this asset"
               size="sm"
               value=""
               onChange={(e) => {
@@ -495,7 +495,7 @@ export function People({
                   ]);
               }}
               options={[
-                { value: "", label: "Add a speaker…" },
+                { value: "", label: "Add a person…" },
                 ...unlinked.map((s) => ({
                   value: String(s.id),
                   label: s.name,
@@ -1009,7 +1009,7 @@ export function Pairs({ draft, set, errors, readOnly, lang }: FieldProps & { lan
       <SectionHead title="Label / value pairs" maps="metadata[] · shown in viewers, in this order" />
       {pairs.length === 0 && (
         <p className="text-[13px] text-fg-muted">
-          None yet. Viewers also list the date, duration, speakers and subjects on their own.
+          None yet. Viewers also list the date, duration, people and subjects on their own.
         </p>
       )}
       {pairs.map((p, i) => (

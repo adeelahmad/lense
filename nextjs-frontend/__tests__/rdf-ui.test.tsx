@@ -79,7 +79,7 @@ describe("RDF helpers", () => {
       importSummary(
         result({ dry_run: false, matched: 3, changed: 2, unmatched: [{ subject: "https://e/1", title: null }] }),
       ),
-    ).toBe("2 assets changed, 1 description already said, 1 description matched nothing");
+    ).toBe("2 assets changed, 1 description already up to date, 1 description matched nothing");
   });
 });
 

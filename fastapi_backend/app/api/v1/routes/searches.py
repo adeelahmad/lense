@@ -22,7 +22,7 @@ R = store.R
 
 
 def _out(db: DB, rows: list[dict[str, Any]], user: Principal, roles: dict[int, str]) -> list[SavedSearch]:
-    """With the names of their speakers and recordings, where you can read them."""
+    """With the names of their people and assets, where you can read them."""
     out = common(db, rows, user, roles)
     spk = sorted({c["state"]["speaker"] for c in out if c["state"].get("speaker") is not None})
     rec = sorted({c["state"]["recording"] for c in out if c["state"].get("recording") is not None})
@@ -67,7 +67,7 @@ def list_searches(user: CurrentUser, acl: Acl, db: Db) -> list[SavedSearch]:
 
 @router.post("")
 def create_search(body: SearchCreate, user: Writer, acl: Acl, db: Db) -> SavedSearch:
-    """Save a search (its words, namespace, speaker, emotion, asset and object) under a name unique among yours. Sharing it
+    """Save a search (its words, namespace, person, emotion, asset and object) under a name unique among yours. Sharing it
     with its namespace needs editor access there."""
     sid = acl.namespace(body.namespace) if body.namespace else None
     if body.recording is not None:

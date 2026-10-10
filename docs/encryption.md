@@ -52,7 +52,7 @@ once it starts, the keys it needs stay open until it's done. A file another name
 IIIF import in both) keeps its key. A file a move couldn't re-encrypt (a crash half way, a disk error) is moved to
 its namespace's key by the next `lens encrypt`, which also never turns a vault's files back to plain with `--off`.
 
-What isn't encrypted by Lens: the SurrealDB database itself, including transcripts and the vectors that search by
+What isn't encrypted by Lens: the SurrealDB database itself, including assets' text and the vectors that search by
 meaning needs; the word search index, which by default is a SQLite file in `<data_dir>/search/` (SurrealDB's own index
 with `search.engine: surrealdb`, or an OpenSearch cluster with `opensearch`); and your own folders that Lens scans (it
 only reads them). Put the data volume on an
@@ -76,7 +76,7 @@ Owners turn one on in Admin › Namespaces › the namespace › **Vault** with 
   never get the key, so they skip vault jobs.
 * **More than one passkey.** While it's open, owners add their passkeys with "Add one of my passkeys". The last
   passkey that opens a vault can't be removed, from the vault or from the account, and an admin removing someone's
-  passkeys (Admin › People) is refused while they are the only way into a vault.
+  passkeys (Admin › Members) is refused while they are the only way into a vault.
 * **No other way in.** There is no recovery code, password or admin override. If every passkey that opens a vault is
   lost, its files can't be recovered by anyone. Add a second passkey (a phone or a security key) right away.
 * **Its files are always encrypted.** Turning a namespace into a vault encrypts its files that aren't yet (when
@@ -85,7 +85,7 @@ Owners turn one on in Admin › Namespaces › the namespace › **Vault** with 
 * **Turning it back.** "Make it ordinary again" (while it's open) wraps the key for the server again and drops the
   passkey wrappers. Its files stay encrypted, now with a key the server can open.
 
-A vault covers its files. Its transcripts, search indexes and other details are in the database like every other
+A vault covers its files. Its text, search indexes and other details are in the database like every other
 namespace's (see above).
 
 Keep `ARCHIVE_SECRET_KEY` (or `secret.key`) safe and backed up separately from the data. Without it, nothing

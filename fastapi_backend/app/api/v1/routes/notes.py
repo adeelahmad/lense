@@ -91,7 +91,7 @@ def list_notes(rid: int, user: CurrentUser, acl: Acl, db: Db) -> list[Note]:
 
 @router.post("")
 def create_note(rid: int, body: NoteCreate, user: Writer, acl: Acl, db: Db) -> Note:
-    """Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole asset.
+    """Write a note about a moment (`t0`–`t1`, with the `quote` picked in the text) or about the whole asset.
     Anyone who can read the asset can; only you see it unless you share it with everyone who can read the
     asset, which needs editor access. Up to 500 each on an asset. Sharing is audited (`note.share`)."""
     rec = _recording(acl, db, rid, "editor" if body.shared else "viewer")

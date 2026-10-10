@@ -1036,7 +1036,7 @@ export type BatchRun = {
 /**
  * BatchSelection
  *
- * Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or speaker).
+ * Which assets: a collection, a list, or a filter (optionally narrowed to a namespace, entity or person).
  */
 export type BatchSelection = {
   /**
@@ -3388,7 +3388,7 @@ export type EntityDefine = {
   /**
    * Aliases
    *
-   * other ways it's said
+   * other ways it's written
    */
   aliases?: Array<string>;
   /**
@@ -3622,7 +3622,7 @@ export type EntityRename = {
   /**
    * Correct
    *
-   * also correct the transcript lines that say the old name
+   * also correct the lines of text that have the old name
    */
   correct?: boolean;
   /**
@@ -3889,7 +3889,7 @@ export type EntityUpdate = {
   /**
    * Aliases
    *
-   * the other ways it's said (these replace the ones it has)
+   * the other ways it's written (these replace the ones it has)
    */
   aliases?: Array<string> | null;
   /**
@@ -4986,7 +4986,7 @@ export type FileLine = {
   /**
    * Speaker
    *
-   * who says it, as the file names them
+   * who says or writes it, as the file names them
    */
   speaker?: string | null;
   /**
@@ -7838,7 +7838,7 @@ export type NamespaceAssistant = {
   /**
    * Enabled
    *
-   * conversations scoped to this namespace alone talk to its assistant
+   * conversations scoped to this namespace alone go to its assistant
    */
   enabled: boolean;
   /**
@@ -8019,7 +8019,7 @@ export type NamespaceStats = {
   /**
    * Speakers
    *
-   * speakers heard in them
+   * people in them
    */
   speakers: number;
   /**
@@ -8049,7 +8049,7 @@ export type NamespaceStats = {
   /**
    * Top Speakers
    *
-   * by talk time in the range, most first
+   * by speaking time in the range, most first
    */
   top_speakers?: Array<SpeakerStats>;
   [key: string]: unknown;
@@ -8254,7 +8254,7 @@ export type Note = {
   /**
    * Quote
    *
-   * the words picked in the transcript
+   * the words picked in the text
    */
   quote?: string | null;
   /**
@@ -8350,7 +8350,7 @@ export type NoteCreate = {
   /**
    * Quote
    *
-   * the words picked in the transcript
+   * the words picked in the text
    */
   quote?: string | null;
   /**
@@ -9654,7 +9654,7 @@ export type Passage = {
   /**
    * Time
    *
-   * when it was said ("12:34"), or for a document its page ("p. 3")
+   * where it is: a time ("12:34"), or for a document its page ("p. 3")
    */
   time?: string | null;
   /**
@@ -10275,7 +10275,7 @@ export type Placed = {
 /**
  * Player
  *
- * Everything the player shows: transcript, speakers, sections, entities and, for videos, shots and faces; for
+ * Everything the player shows: text, people, sections, entities and, for videos, shots and faces; for
  * documents and images, their pages.
  */
 export type Player = {
@@ -10314,7 +10314,7 @@ export type Player = {
   /**
    * Segments
    *
-   * the lines: t0, t1 (ms), s (speaker key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace
+   * the lines: t0, t1 (ms), s (person key), text, e (emotion), v (event), and w, the timed words as [c0, c1, t0, t1] (a character range of text, ms) when transcription gave them; a document's or an image's blocks of text have p, their page (from 0), and b, where they are on it ([x, y, w, h] as fractions of the page), and times that are only a reading pace
    */
   segments?: Array<{
     [key: string]: unknown;
@@ -10348,7 +10348,7 @@ export type Player = {
   /**
    * Media
    *
-   * kind: audio, video, document or image (audio for a transcript without media), and its size
+   * kind: audio, video, document or image (audio for text without media), and its size
    */
   media?: {
     [key: string]: unknown;
@@ -11000,7 +11000,7 @@ export type PublicDownload = {
  * PublicFile
  *
  * A supplementary file a visitor may download: it follows the part its role does (transcripts, captions and
- * translations the transcript, indexes the index, thumbnails the media); attachments need permission.
+ * translations the text, indexes the index, thumbnails the media); attachments need permission.
  */
 export type PublicFile = {
   /**
@@ -11392,7 +11392,7 @@ export type PublicResult = {
   /**
    * Hits
    *
-   * matching transcript lines, best first; none where the transcript is closed
+   * matching lines of text, best first; none where the text is closed
    */
   hits?: Array<PublicHit>;
   [key: string]: unknown;
@@ -11444,7 +11444,7 @@ export type PublicSegment = {
   /**
    * S
    *
-   * the speaker's key
+   * the person's key
    */
   s?: string | null;
   /**
@@ -11494,7 +11494,7 @@ export type PublicTranscript = {
   /**
    * Downloads
    *
-   * transcript files; offered when the transcript is open to everyone
+   * text files; offered when the text is open to everyone
    */
   downloads: Array<PublicDownload>;
   [key: string]: unknown;
@@ -11789,7 +11789,7 @@ export type RecordingAccess = {
   /**
    * Open
    *
-   * the parts anyone may use when it is public: media, transcript, index
+   * the parts anyone may use when it is public: media, transcript (the text), index
    */
   open: Array<"media" | "transcript" | "index">;
   /**
@@ -11975,7 +11975,7 @@ export type RecordingMove = {
   /**
    * Rediarize
    *
-   * identify its speakers again from their voices in the new namespace (audio only); else matched by name
+   * identify its people again from their voices in the new namespace (audio only); else matched by name
    */
   rediarize?: boolean;
   /**
@@ -12141,7 +12141,7 @@ export type RecordingSummary = {
   /**
    * Speakers
    *
-   * speaker names, comma separated
+   * names of the people in it, comma separated
    */
   speakers?: string;
   /**
@@ -12501,7 +12501,7 @@ export type ResourceFile = {
  */
 export type ResourceFiles = {
   /**
-   * none for a transcript without audio or video
+   * none for text without audio or video
    */
   primary?: PrimaryFile | null;
   /**
@@ -13021,7 +13021,7 @@ export type SavedSearch = {
   /**
    * Speaker Name
    *
-   * the speaker's name, when you can read their namespace
+   * the person's name, when you can read their namespace
    */
   speaker_name?: string | null;
   /**
@@ -13199,8 +13199,8 @@ export type SearchCreate = {
 /**
  * SearchFacets
  *
- * How many of all the matching moments are in each namespace, speaker, emotion and asset (up to 50 of each,
- * most first), and the kinds of object seen in the assets they're in. Text on screen has no speaker or emotion.
+ * How many of all the matching moments are in each namespace, person, emotion and asset (up to 50 of each,
+ * most first), and the kinds of object seen in the assets they're in. Text on screen has no person or emotion.
  */
 export type SearchFacets = {
   /**
@@ -13245,7 +13245,7 @@ export type SearchHit = {
   /**
    * Id
    *
-   * segment id (int) for transcript hits, OCR span or file line id (str) for the others
+   * segment id (int) for hits in an asset's text, OCR span or file line id (str) for the others
    */
   id: number | string;
   /**
@@ -13299,7 +13299,7 @@ export type SearchHit = {
   /**
    * Source
    *
-   * "said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file), "page" (text on a page of a document or an image, whose times are only a reading pace), "object" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or "described" (what a model that can see said a shot of a video, or a page, shows)
+   * "said" (a line of a transcript or other text), "screen" (text on screen in a video), "file" (a line of a supplementary file), "page" (text on a page of a document or an image, whose times are only a reading pace), "object" (a kind of object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or "described" (what a model that can see said a shot of a video, or a page, shows)
    */
   source: "said" | "screen" | "file" | "page" | "object" | "described";
   /**
@@ -13495,13 +13495,13 @@ export type SegmentSplit = {
   /**
    * T
    *
-   * when the second part starts, in ms (default: when its first word was said)
+   * when the second part starts, in ms (default: when its first word starts)
    */
   t?: number | null;
   /**
    * Speaker
    *
-   * the second part's speaker (an id in the namespace, or null); leave out to keep the line's
+   * the second part's person (an id in the namespace, or null); leave out to keep the line's
    */
   speaker?: number | null;
 };
@@ -13509,7 +13509,7 @@ export type SegmentSplit = {
 /**
  * SegmentUpdate
  *
- * Send ``text``, ``speaker`` (a speaker id in the same namespace, or null), or both.
+ * Send ``text``, ``speaker`` (a person id in the same namespace, or null), or both.
  */
 export type SegmentUpdate = {
   /**
@@ -14851,7 +14851,7 @@ export type SourceImportRequest = {
   /**
    * Documents As
    *
-   * PDFs, Word and text files become documents (their pages kept and read), or transcripts (their text only)
+   * PDFs, Word and text files become documents (their pages kept and read), or text only (`transcript`)
    */
   documents_as?: "document" | "transcript";
 };
@@ -14997,13 +14997,13 @@ export type SpeakerCandidate = {
   /**
    * A
    *
-   * this namespace's speaker
+   * this namespace's person
    */
   a: number;
   /**
    * B
    *
-   * the speaker in another namespace
+   * the person in another namespace
    */
   b: number;
   /**
@@ -15050,7 +15050,7 @@ export type SpeakerDirectory = {
   /**
    * Cross
    *
-   * likely the same voice in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not said to be different
+   * likely the same person in another shared namespace you can read (speakers.cross_namespace: suggest), best first; not linked, and not marked as different
    */
   cross?: Array<SpeakerCandidate>;
   [key: string]: unknown;
@@ -15119,7 +15119,7 @@ export type SpeakerLinkRequest = {
   /**
    * With
    *
-   * a speaker in another namespace: the same person
+   * a person in another namespace: the same person
    */
   with: number;
 };
@@ -15169,7 +15169,7 @@ export type SpeakerMerge = {
   /**
    * Recordings
    *
-   * how many recordings' lines moved to the remaining speaker
+   * how many assets' lines moved to the remaining person
    */
   recordings?: number | null;
   /**
@@ -15196,7 +15196,7 @@ export type SpeakerMergeRequest = {
   /**
    * Into
    *
-   * the speaker that remains
+   * the person that remains
    */
   into: number;
 };
@@ -15223,7 +15223,7 @@ export type SpeakerPair = {
   /**
    * With
    *
-   * the other speaker
+   * the other person
    */
   with: number;
 };
@@ -15282,13 +15282,13 @@ export type SpeakerStats = {
   /**
    * Talk Ms
    *
-   * how long they talk in the range's recordings
+   * how long they speak in the range's assets
    */
   talk_ms?: number;
   /**
    * Recordings
    *
-   * how many of the range's recordings they talk in
+   * how many of the range's assets they are in
    */
   recordings?: number;
   [key: string]: unknown;
@@ -15952,7 +15952,7 @@ export type TermSuggestion = {
   /**
    * Count
    *
-   * how often it's said
+   * how often it appears
    */
   count: number;
   /**
@@ -16578,7 +16578,7 @@ export type Upload = {
   /**
    * Attach
    *
-   * the transcript-only asset it becomes the audio of
+   * the text-only asset it becomes the audio of
    */
   attach?: number | null;
   /**
@@ -16663,7 +16663,7 @@ export type UploadStart = {
   /**
    * Recording
    *
-   * attach the file to this transcript-only asset as its audio, instead of making an asset of it
+   * attach the file to this text-only asset as its audio, instead of making an asset of it
    */
   recording?: number | null;
   /**
@@ -17058,7 +17058,7 @@ export type ViewState = {
   /**
    * Speaker
    *
-   * a speaker's name: whoever has it in the namespaces shown
+   * a person's name: whoever has it in the namespaces shown
    */
   speaker?: string | null;
   /**
@@ -17339,7 +17339,7 @@ export type WatchCreate = {
   /**
    * Kinds
    *
-   * what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)
+   * what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)
    */
   kinds?: "audio" | "transcripts" | "both" | "documents" | "all" | null;
   /**
@@ -17440,7 +17440,7 @@ export type WatchPreviewRequest = {
   /**
    * Kinds
    *
-   * what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)
+   * what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)
    */
   kinds?: "audio" | "transcripts" | "both" | "documents" | "all" | null;
   /**
@@ -17460,7 +17460,7 @@ export type WatchUpdate = {
   /**
    * Kinds
    *
-   * what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and images), or all of them (PDFs as documents; the default)
+   * what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and images), or all of them (PDFs as documents; the default)
    */
   kinds?: "audio" | "transcripts" | "both" | "documents" | "all" | null;
   /**
@@ -20595,19 +20595,19 @@ export type GetNamespaceStatsData = {
     /**
      * From
      *
-     * recorded on or after this day
+     * dated on or after this day
      */
     from?: string | null;
     /**
      * To
      *
-     * recorded on or before this day
+     * dated on or before this day
      */
     to?: string | null;
     /**
      * Top
      *
-     * how many speakers in `top_speakers`
+     * how many people in `top_speakers`
      */
     top?: number;
   };
@@ -21242,7 +21242,7 @@ export type ListRecordingsData = {
     /**
      * Q
      *
-     * words that must all appear in the title, the namespace or a speaker's name
+     * words that must all appear in the title, the namespace or a person's name
      */
     q?: string | null;
     /**
@@ -21254,7 +21254,7 @@ export type ListRecordingsData = {
     /**
      * Attention
      *
-     * only assets that need a person: errored, latest job failed, or a voice match to review
+     * only assets that need attention: errored, latest job failed, or a person match to review
      */
     attention?: boolean;
     /**
@@ -21266,7 +21266,7 @@ export type ListRecordingsData = {
     /**
      * Speaker
      *
-     * speaker ids; repeat for several (any of them matches)
+     * person ids; repeat for several (any of them matches)
      */
     speaker?: Array<number> | null;
     /**
@@ -21296,7 +21296,7 @@ export type ListRecordingsData = {
     /**
      * Media
      *
-     * audio, video, transcript (no media), document or image
+     * audio, video, `transcript` (text without media), document or image
      */
     media?: "audio" | "video" | "transcript" | "document" | "image" | null;
     /**
@@ -21338,7 +21338,7 @@ export type ListRecordingsData = {
     /**
      * Edited By
      *
-     * me: assets you edited (corrected the transcript, changed the catalogue record or renamed)
+     * me: assets you edited (corrected the text, changed the catalogue record or renamed)
      */
     edited_by?: "me" | null;
     /**
@@ -21362,7 +21362,7 @@ export type ListRecordingsData = {
     /**
      * Sort
      *
-     * date, title, duration, speakers, status or importance; prefix - for descending
+     * date, title, duration, speakers (number of people), status or importance; prefix - for descending
      */
     sort?:
       | "date"
@@ -24519,7 +24519,7 @@ export type SearchTranscriptsData = {
     /**
      * Facets
      *
-     * also count all the matching moments by namespace, speaker, emotion and asset, and list their kinds of object
+     * also count all the matching moments by namespace, person, emotion and asset, and list their kinds of object
      */
     facets?: boolean;
     /**
@@ -32596,7 +32596,7 @@ export type PushToImportHookData = {
     /**
      * Text
      *
-     * text to import as a transcript, as pasted text is
+     * text to import, as pasted text is
      */
     text?: string | null;
     /**
@@ -32656,7 +32656,7 @@ export type PushToImportHookTokenData = {
     /**
      * Text
      *
-     * text to import as a transcript, as pasted text is
+     * text to import, as pasted text is
      */
     text?: string | null;
     /**

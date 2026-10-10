@@ -272,8 +272,8 @@ export function GraphPage() {
         </div>
         {missing && (
           <Banner tone="warning" className="m-3 mb-0" onDismiss={() => setMissing(null)}>
-            That {missing.startsWith("s") ? "speaker" : "entity"} isn’t in this graph. It may have too few links to
-            show, or be hidden.
+            That {missing.startsWith("s") ? "person" : "entity"} isn’t in this graph. It may have too few links to show,
+            or be hidden.
           </Banner>
         )}
         {graph.isLoading && (
