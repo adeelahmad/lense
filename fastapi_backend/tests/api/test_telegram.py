@@ -149,6 +149,14 @@ def test_only_people_let_in_are_answered(db, cfg, bot, llm):
     assert run(db, cfg) == 0 and len(bot.sent) == 2
 
 
+def test_clear_works_in_telegram(db, cfg, bot, llm):
+    bot.updates = [update("hi")]
+    run(db, cfg)
+    bot.updates = [update("/clear@lens_test_bot")]
+    assert run(db, cfg) == 1
+    assert bot.sent[-1]["text"].startswith("Cleared.")
+
+
 def test_a_chat_given_to_a_namespace_assistant(db, cfg, bot, llm):
     cfg["telegram"]["rooms"] = ["-100 = pods"]
     bot.updates = [update("Lens, when do episodes ship?", chat_id=-100, chat_type="group", title="Team")]

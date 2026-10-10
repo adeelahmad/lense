@@ -99,7 +99,8 @@ That's all. Without an account given, it answers as the admin who turned it on.
   said yes.
 - **Conversations.** Each person in each room is a conversation of that account's, titled
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
-  and older messages are folded into a running summary ([Long conversations](assistant.md)).
+  and older messages are folded into a running summary ([Long conversations](assistant.md)). `Lens /clear` starts
+  the conversation afresh and `Lens /compact` summarises it now.
 - **A namespace's own assistant.** **Rooms for a namespace's assistant** gives a room to a namespace
   (`team = pods`, or one channel: `team/general = pods`). Conversations there are scoped to that namespace, so when its
   assistant is on ([A namespace's own assistant](assistant.md#a-namespaces-own-assistant)) it answers with its
