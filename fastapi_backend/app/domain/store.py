@@ -280,6 +280,7 @@ DEFAULTS = {
         "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
+        "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
