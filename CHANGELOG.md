@@ -4,10 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **The graph as files.** Namespaces, collections, topics and entities are folders, and each asset is its own file, a
-  `.json` with its metadata and a `.txt` with its text, in every folder it belongs to; everyone sees what the web app
-  shows them. Browse and read it through the API (`/api/v1/tree`) and the MCP tools `list_files` and `read_file`
-  ([The graph as files](docs/file-tree.md)). The S3, SMB and NFS servers that share it are in progress.
+- **Assets as files.** Namespaces and collections are folders, and each asset is its own file with a `.json` sidecar
+  of its metadata and a `.txt` of its text, in its collection's folder; everyone sees what the web app shows them.
+  Browse and read it through the API (`/api/v1/tree`) and the MCP tools `list_files` and `read_file`
+  ([Assets as files](docs/file-tree.md)). S3, WebDAV, SMB and NFS servers that share it are in progress.
 
 - **Install on Windows, or by double-clicking.** `install.ps1` installs Lens on Windows: it gets Python 3 if needed and
   opens the web installer, which installs Docker Desktop (and WSL) and runs Lens in it. Each release now carries

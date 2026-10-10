@@ -1,5 +1,5 @@
-"""The graph as folders and files (docs/file-tree.md): browse the tree the S3, SMB and NFS servers serve, and read
-its files. Everyone sees what the web app shows them; the tree only reads."""
+"""Assets as folders and files (docs/file-tree.md): browse the tree the S3, WebDAV, SMB and NFS servers serve, and
+read its files. Everyone sees what the web app shows them; the tree only reads."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from app.domain.store import DB
 from app.schemas.filetree import TreeEntry, TreeFolder
 
 router = APIRouter(prefix="/tree", tags=["tree"])
-PATH = Query("", max_length=4000, description="a folder or file, from the top: namespace/Collections/…")
+PATH = Query("", max_length=4000, description="a folder or file, from the top: namespace/collection/…")
 
 
 def tree_of(db: DB, cfg: dict[str, Any], user: Principal) -> filetree.Tree:
@@ -24,8 +24,8 @@ def tree_of(db: DB, cfg: dict[str, Any], user: Principal) -> filetree.Tree:
 
 @router.get("")
 def list_folder(user: CurrentUser, db: Db, cfg: Cfg, path: str = PATH) -> TreeFolder:
-    """A folder's files and folders: '' lists your namespaces; each has Collections, Topics, Entities and
-    namespace.json. A file answers 400 (read it at /tree/file)."""
+    """A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'
+    files. A file answers 400 (read it at /tree/file)."""
     t = tree_of(db, cfg, user)
     try:
         entries = t.list(path)

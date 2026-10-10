@@ -1,21 +1,16 @@
-"""The graph as folders and files (docs/file-tree.md): what the S3, SMB and NFS servers serve, and the API browses.
+"""Assets as folders and files (docs/file-tree.md): what the S3, WebDAV, SMB and NFS servers serve, and the API browses.
 
-    /<namespace>/
-        namespace.json                          the namespace: its collections, topic and entity counts
-        Collections/<collection>/<…>/<asset>    every asset in its collection's folder
-        Topics/<topic>/<asset>                  the assets about a topic (accepted ones)
-        Entities/<type>/<name>/<asset>          the assets that mention an entity
+    /<namespace>/<collection>/<sub-collection>/…/<asset files>
 
-An asset (a recording, document or image) shows as up to four files named after it, `<title> [<id>]`:
-its own file (`.mp3`, `.pdf`, …), `.json` beside it with its metadata (Dublin Core terms, its topics and entities),
-`.txt` with its text (the transcript, or what was read off its pages), and `.pdf` for a document converted to one.
-An own file that is itself `.txt` or `.json` (an imported transcript) is `<title> [<id>].original.txt`.
-The same asset shows in every folder it belongs to.
+An asset (a recording, document or image) shows as up to four files in its collection's folder, named after it,
+`<title> [<id>]`: its own file (`.mp3`, `.pdf`, …), `.json` beside it with its metadata (Dublin Core terms, its
+collection, topics and entities, the description saved on it), `.txt` with its text (the transcript, or what was read
+off its pages), and `.pdf` for a document converted to one. An own file that is itself `.txt` or `.json` (an imported
+transcript) is `<title> [<id>].original.txt`.
 
 What someone sees is what the web app shows them: the namespaces they have a role in (admins: all of them), and in a
-namespace where they only have roles on some collections, those collections and the topics and entities of the
-assets in them. The tree only reads; names are made safe for every file system (no `/ \\ : * ? " < > |`) and unique
-in their folder, ignoring case.
+namespace where they only have roles on some collections, those collections. The tree only reads; names are made
+safe for every file system (no `/ \\ : * ? " < > |`) and unique in their folder, ignoring case.
 """
 
 from __future__ import annotations
@@ -33,8 +28,6 @@ from typing import Any
 from . import auth, convert, documents, entity_setup, hierarchy, keyring, metadata, render, store, video
 
 R = store.R
-COLLECTIONS, TOPICS, ENTITIES = "Collections", "Topics", "Entities"
-NS_FILE = "namespace.json"
 NAME_MAX = 120
 CHUNK = 1 << 16
 ASSET_ID = re.compile(r" \[(\d+)\](?:\.[^.\[\]]+)+$")
@@ -183,7 +176,6 @@ class Tree:
         self._spaces = viewer.spaces(db)
         self._names = {sid: n for sid, n in store.space_names(db).items() if sid in self._spaces}
         self._cols: dict[int, list[dict[str, Any]]] = {}
-        self._seen: dict[int, set[int]] = {}
         self._only: int | None = None
 
     # ---------- walking ----------
@@ -203,41 +195,16 @@ class Tree:
     def _list(self, parts: list[str]) -> list[Entry]:
         if not parts:
             return [_folder(n) for n in sorted(self._names.values(), key=str.casefold)]
-        sid = self._space(parts[0])
-        rest = parts[1:]
-        if not rest:
-            return [_folder(COLLECTIONS), _folder(ENTITIES), self._ns_file(sid), _folder(TOPICS)]
-        head, rest = rest[0], rest[1:]
-        if head == COLLECTIONS:
-            return self._list_collection(sid, rest)
-        if head == TOPICS:
-            topics = self._topics(sid)
-            if not rest:
-                return [_folder(n) for n in topics]
-            if len(rest) == 1 and rest[0] in topics:
-                return self._assets(self._topic_recordings(sid, topics[rest[0]]))
-        if head == ENTITIES:
-            types = self._types(sid)
-            if not rest:
-                return [_folder(n) for n in types]
-            if rest[0] in types:
-                ents = self._entities(sid, types[rest[0]])
-                if len(rest) == 1:
-                    return [_folder(n) for n in ents]
-                if len(rest) == 2 and rest[1] in ents:
-                    return self._assets(self._entity_recordings(sid, ents[rest[1]]))
-        raise NotFound("/".join(parts))
+        return self._list_collection(self._space(parts[0]), parts[1:])
 
     def stat(self, path: str) -> Entry:
         """One file or folder; NotFound when there's none (or it isn't this person's to see)."""
         parts = self.split(path)
         if not parts:
             return _folder("")
-        sid = self._space(parts[0])
+        self._space(parts[0])
         if len(parts) == 1:
             return _folder(parts[0])
-        if len(parts) == 2 and parts[1] == NS_FILE:
-            return self._ns_file(sid)
         *up, name = parts
         m = ASSET_ID.search(name)
         self._only = int(m.group(1)) if m else None  # one asset's files: don't make the whole folder's
@@ -298,86 +265,6 @@ class Tree:
         if cid is not None:
             out += self._assets(self.db.rows(f"SELECT {REC_FIELDS} FROM recording WHERE collection = $c", c=cid))
         return sorted(out, key=lambda e: e.name.casefold())
-
-    def _visible(self, sid: int, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        seen = self._spaces.get(sid)
-        return [r for r in rows if r.get("space") == sid and (seen is None or r.get("collection") in seen)]
-
-    def _recordings(self, sid: int, rids: list[int]) -> list[dict[str, Any]]:
-        if not rids:
-            return []
-        rows = self.db.rows(f"SELECT {REC_FIELDS} FROM recording WHERE id IN $ids", ids=[R("recording", int(r)) for r in set(rids)])
-        return self._visible(sid, rows)
-
-    def _ns_file(self, sid: int) -> Entry:
-        cols = hierarchy.tree(self.db, sid, only=self._spaces[sid])
-        d = {
-            "namespace": self._names[sid],
-            "collections": [{"path": "/".join(c["path"]), "assets": c["recordings"], "id": c["id"]} for c in cols],
-            "topics": len(self._topics(sid)),
-            "entity_types": list(self._types(sid)),
-            "layout": {
-                COLLECTIONS: "every asset in its collection's folder",
-                TOPICS: "the assets about each topic",
-                ENTITIES: "the assets that mention each entity, by type",
-            },
-        }
-        data = _json(d)
-        return Entry(NS_FILE, False, len(data), None, "application/json", data=data)
-
-    # ---------- topics and entities ----------
-    def _topics(self, sid: int) -> dict[str, int]:
-        rows = self.db.rows("SELECT record::id(id) AS id, label FROM topic WHERE space = $s", s=sid)
-        if self._spaces[sid] is not None:  # seen in part: the topics of the assets they see
-            have = {
-                a["topic"]
-                for a in self.db.rows("SELECT topic, recording FROM topic_about WHERE space = $s AND status = 'accepted'", s=sid)
-                if a["recording"] in self._seen_recordings(sid)
-            }
-            rows = [t for t in rows if t["id"] in have]
-        return dict(_unique([(clean(t["label"]), t["id"]) for t in rows]))
-
-    def _topic_recordings(self, sid: int, tid: int) -> list[dict[str, Any]]:
-        rids = self.db.values("SELECT VALUE recording FROM topic_about WHERE topic = $t AND status = 'accepted'", t=tid)
-        return self._recordings(sid, rids)
-
-    def _seen_recordings(self, sid: int) -> set[int]:
-        if sid not in self._seen:
-            self._seen[sid] = hierarchy.recordings_in(self.db, self._spaces[sid] or [])
-        return self._seen[sid]
-
-    def _entity_rows(self, sid: int) -> list[dict[str, Any]]:
-        from .entities import QUIET
-
-        rows = [
-            e
-            for e in self.db.rows("SELECT record::id(id) AS id, name, type, hidden FROM entity WHERE space = $s", s=sid)
-            if not e.get("hidden") and e.get("type") not in QUIET
-        ]
-        if self._spaces[sid] is not None:
-            seen = self._seen_recordings(sid)
-            have = {
-                m["entity"]
-                for m in self.db.rows("SELECT entity, recording FROM mentions WHERE space = $s GROUP BY entity, recording", s=sid)
-                if m["recording"] in seen
-            }
-            rows = [e for e in rows if e["id"] in have]
-        return rows
-
-    def _types(self, sid: int) -> dict[str, str]:
-        """{folder name: entity type} for the types this namespace's entities have."""
-        from .entities import TYPES
-
-        own = entity_setup.labels(self.db, {sid}).get(sid, {})
-        codes = sorted({e["type"] for e in self._entity_rows(sid)})
-        return dict(_unique([(clean(TYPES.get(c) or own.get(c) or c.title()), c) for c in codes]))
-
-    def _entities(self, sid: int, code: str) -> dict[str, int]:
-        return dict(_unique([(clean(e["name"]), e["id"]) for e in self._entity_rows(sid) if e["type"] == code]))
-
-    def _entity_recordings(self, sid: int, eid: int) -> list[dict[str, Any]]:
-        rids = [m["recording"] for m in self.db.rows("SELECT recording FROM mentions WHERE entity = $e GROUP BY recording", e=eid)]
-        return self._recordings(sid, rids)
 
     # ---------- assets ----------
     def _primary(self, rec: dict[str, Any]) -> Entry | None:

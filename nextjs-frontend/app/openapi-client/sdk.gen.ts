@@ -4686,8 +4686,8 @@ export class Tree {
   /**
    * List Folder
    *
-   * A folder's files and folders: '' lists your namespaces; each has Collections, Topics, Entities and
-   * namespace.json. A file answers 400 (read it at /tree/file).
+   * A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'
+   * files. A file answers 400 (read it at /tree/file).
    */
   public static listFolder<ThrowOnError extends boolean = false>(
     options?: Options<ListFolderData, ThrowOnError>,

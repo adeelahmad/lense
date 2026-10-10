@@ -1358,7 +1358,7 @@ def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
     )
 
 
-# ---------- the graph as files ----------
+# ---------- assets as files ----------
 FILE_CHARS = 100_000  # the most of a file read_file returns at once; offset pages through the rest
 
 
@@ -1369,11 +1369,10 @@ def _tree(ctx: Context) -> filetree.Tree:
 @tool(
     "list_files",
     "List a folder of the file tree",
-    "The archive as folders and files, the tree its S3 server serves: '' lists your namespaces; a namespace has "
-    "Collections/<collection>/…, Topics/<topic>/ and Entities/<type>/<name>/ holding its assets, and namespace.json. "
-    "Each asset is files named '<title> [<id>]': its own file (.mp3, .pdf, …), .json with its metadata, topics and "
-    "entities, and .txt with its text.",
-    Arg("path", "string", "the folder, from the top (e.g. pods/Topics/Gene therapy)", default="", max_length=4000),
+    "The archive's assets as folders and files: '' lists your namespaces, then each one's collections and the "
+    "collections inside them. Each asset is files named '<title> [<id>]' in its collection's folder: its own file "
+    "(.mp3, .pdf, …), .json with its metadata, topics and entities, and .txt with its text.",
+    Arg("path", "string", "the folder, from the top (e.g. pods/General)", default="", max_length=4000),
 )
 def list_files(ctx: Context, path: str) -> dict[str, Any]:
     t = _tree(ctx)
@@ -1389,7 +1388,7 @@ def list_files(ctx: Context, path: str) -> dict[str, Any]:
 @tool(
     "read_file",
     "Read a file of the file tree",
-    "A text file of the tree (an asset's .txt or .json, or namespace.json), from list_files. Media and documents' own "
+    "A text file of the tree (an asset's .txt or .json), from list_files. Media and documents' own "
     f"files are only their size and type here: download them from the API (/api/v1/tree/file?path=). At most "
     f"{FILE_CHARS} characters at a time; next_offset continues.",
     Arg("path", "string", "the file, from the top", required=True, max_length=4000),

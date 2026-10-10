@@ -23330,7 +23330,7 @@ export type ListFolderData = {
     /**
      * Path
      *
-     * a folder or file, from the top: namespace/Collections/…
+     * a folder or file, from the top: namespace/collection/…
      */
     path?: string;
   };
@@ -23362,7 +23362,7 @@ export type ReadFileData = {
     /**
      * Path
      *
-     * a folder or file, from the top: namespace/Collections/…
+     * a folder or file, from the top: namespace/collection/…
      */
     path?: string;
   };

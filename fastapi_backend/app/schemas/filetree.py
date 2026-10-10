@@ -1,4 +1,4 @@
-"""The graph as folders and files (docs/file-tree.md)."""
+"""Assets as folders and files (docs/file-tree.md)."""
 
 from __future__ import annotations
 

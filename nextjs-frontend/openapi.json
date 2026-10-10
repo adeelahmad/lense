@@ -9475,7 +9475,7 @@
           "tree"
         ],
         "summary": "List Folder",
-        "description": "A folder's files and folders: '' lists your namespaces; each has Collections, Topics, Entities and\nnamespace.json. A file answers 400 (read it at /tree/file).",
+        "description": "A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'\nfiles. A file answers 400 (read it at /tree/file).",
         "operationId": "list_folder",
         "parameters": [
           {
@@ -9485,11 +9485,11 @@
             "schema": {
               "type": "string",
               "maxLength": 4000,
-              "description": "a folder or file, from the top: namespace/Collections/\u2026",
+              "description": "a folder or file, from the top: namespace/collection/\u2026",
               "default": "",
               "title": "Path"
             },
-            "description": "a folder or file, from the top: namespace/Collections/\u2026"
+            "description": "a folder or file, from the top: namespace/collection/\u2026"
           }
         ],
         "responses": {
@@ -9532,11 +9532,11 @@
             "schema": {
               "type": "string",
               "maxLength": 4000,
-              "description": "a folder or file, from the top: namespace/Collections/\u2026",
+              "description": "a folder or file, from the top: namespace/collection/\u2026",
               "default": "",
               "title": "Path"
             },
-            "description": "a folder or file, from the top: namespace/Collections/\u2026"
+            "description": "a folder or file, from the top: namespace/collection/\u2026"
           }
         ],
         "responses": {
