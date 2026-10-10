@@ -84,6 +84,12 @@ describe("connections", () => {
       text: "OK · checked 14:02",
     });
     expect(
+      healthOf({ ok: true, checked_at: "2026-09-30T14:02:00", limited: "Google Drive is rate limiting" }, now),
+    ).toEqual({
+      tone: "limited",
+      text: "Works, slowly · Google Drive is rate limiting · checked 14:02",
+    });
+    expect(
       healthOf(
         {
           ok: false,

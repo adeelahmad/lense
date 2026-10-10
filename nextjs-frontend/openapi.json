@@ -10881,6 +10881,154 @@
         }
       }
     },
+    "/api/v1/similar": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Find Similar",
+        "description": "The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you\ncan read and the collections you were given a role on, each with why: its closest passages by meaning (when\nsearch by meaning is set up), the lines with the key words it shares, and the topics and entities in common.\nEach cited moment can be opened. A resource is never listed as like itself.",
+        "operationId": "find_similar",
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "what was selected: a sentence, a passage, a title",
+              "title": "Text"
+            },
+            "description": "what was selected: a sentence, a passage, a title"
+          },
+          {
+            "name": "recording",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a resource: the others most like it",
+              "title": "Recording"
+            },
+            "description": "a resource: the others most like it"
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a topic: the resources most like its labels and definition, and about it",
+              "title": "Topic"
+            },
+            "description": "a topic: the resources most like its labels and definition, and about it"
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "an entity: the resources most like its name and description, and mentioning it",
+              "title": "Entity"
+            },
+            "description": "an entity: the resources most like its name and description, and mentioning it"
+          },
+          {
+            "name": "exclude",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "leave out this resource too (the one the text was selected in)",
+              "title": "Exclude"
+            },
+            "description": "leave out this resource too (the one the text was selected in)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilarResults"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/search/terms": {
       "get": {
         "tags": [
@@ -33729,6 +33877,18 @@
               }
             ],
             "title": "Error"
+          },
+          "limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited",
+            "description": "the connection is rate limiting: reads work, new files are kept here"
           }
         },
         "additionalProperties": true,
@@ -50087,6 +50247,341 @@
         ],
         "title": "SigninLinkToken"
       },
+      "SimilarCite": {
+        "properties": {
+          "match": {
+            "type": "string",
+            "enum": [
+              "meaning",
+              "words"
+            ],
+            "title": "Match",
+            "description": "found by meaning (a close passage) or by the shared words"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "said",
+              "page",
+              "described"
+            ],
+            "title": "Source",
+            "description": "\"said\" (the transcript), \"page\" (text on a page of a document or an image) or \"described\" (what a shot or a page shows)"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "description": "HTML: escaped text with <mark> around the key words"
+          },
+          "idx": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idx",
+            "description": "the line it starts at (from 0)"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "ms; None on a page"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "on a document or an image: which page (from 0)"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "found by meaning: how alike it is (cosine, up to 1)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "match",
+          "source",
+          "snippet"
+        ],
+        "title": "SimilarCite",
+        "description": "A moment that shows why a resource is alike: one of its passages closest in meaning, or a line with shared words."
+      },
+      "SimilarEntity": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SimilarEntity"
+      },
+      "SimilarItem": {
+        "properties": {
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "media_kind": {
+            "type": "string",
+            "title": "Media Kind",
+            "description": "audio, video, transcript, document or image"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "reciprocal-rank fusion of the lists it's in; only for ordering"
+          },
+          "match": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "meaning",
+                "words",
+                "topics",
+                "entities"
+              ]
+            },
+            "type": "array",
+            "title": "Match",
+            "description": "why it's alike: close in meaning, shares key words, about the same topics, mentions the same entities"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "by meaning: how alike its closest passage is (cosine, up to 1)"
+          },
+          "cites": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarCite"
+            },
+            "type": "array",
+            "title": "Cites",
+            "description": "up to 3 moments that show it, to open"
+          },
+          "words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words",
+            "description": "the key words it says"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarTopic"
+            },
+            "type": "array",
+            "title": "Topics",
+            "description": "topics both are about"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarEntity"
+            },
+            "type": "array",
+            "title": "Entities",
+            "description": "entities both mention"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording_id",
+          "media_kind",
+          "score",
+          "match"
+        ],
+        "title": "SimilarItem"
+      },
+      "SimilarResults": {
+        "properties": {
+          "basis": {
+            "type": "string",
+            "enum": [
+              "text",
+              "recording",
+              "topic",
+              "entity"
+            ],
+            "title": "Basis",
+            "description": "what the results are like"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "the text's start, or the resource's title, the topic's label, the entity's name"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the text compared by meaning (a topic's labels and definition, an entity's name and description)"
+          },
+          "terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Terms",
+            "description": "the key words looked for"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "meaning",
+              "words"
+            ],
+            "title": "Mode",
+            "description": "\"meaning\": an embedding model compared it too; \"words\": only by key words, topics and entities"
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning",
+            "description": "why it wasn't compared by meaning, when search by meaning is set up"
+          },
+          "semantic": {
+            "type": "boolean",
+            "title": "Semantic",
+            "description": "search by meaning is set up and indexed",
+            "default": false
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "basis",
+          "mode",
+          "total",
+          "items"
+        ],
+        "title": "SimilarResults"
+      },
+      "SimilarTopic": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "SimilarTopic"
+      },
       "Source": {
         "properties": {
           "id": {
@@ -50300,6 +50795,18 @@
               }
             ],
             "title": "Error"
+          },
+          "limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited",
+            "description": "the service is rate limiting the account; it still works"
           }
         },
         "additionalProperties": true,

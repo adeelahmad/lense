@@ -742,7 +742,11 @@ function StorageBody({ ctx }: { ctx: BodyCtx }) {
         <span className="text-[12px] text-fg-muted">Writes a small file there, reads it back and removes it</span>
       </div>
       {test.data &&
-        (test.data.ok ? (
+        (test.data.ok && test.data.limited ? (
+          <Banner tone="warning" title="It works, but it’s rate limited.">
+            The connection is {test.data.limited}.
+          </Banner>
+        ) : test.data.ok ? (
           <Banner tone="success" title="It works.">
             Written, read back and removed in {test.data.seconds} s.
           </Banner>
