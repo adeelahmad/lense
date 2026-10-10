@@ -268,6 +268,9 @@ class Runner:
         self.fails = 0
         self.next_try = 0.0
         self.lock = threading.Lock()
+        # snapshot and write together: otherwise an older snapshot (tick's, taken as cloudflared starts) can reach the
+        # database after a newer one (the log reader's), and the row keeps saying there is no error
+        self.saving = threading.Lock()
 
     def _lease(self):
         now = _now()
@@ -282,16 +285,17 @@ class Runner:
         )
 
     def _save(self, **extra):
-        with self.lock:
-            d = {
-                "running": self.proc is not None and self.proc.poll() is None,
-                "connected": self.connected,
-                "url": self.url,
-                "error": self.error,
-                "log": json.dumps(self.lines[-LOG_LINES:]),
-                **extra,
-            }
-        self.db.q("UPDATE $r MERGE $d WHERE owner = $me", r=ROW, d=d, me=self.name)
+        with self.saving:
+            with self.lock:
+                d = {
+                    "running": self.proc is not None and self.proc.poll() is None,
+                    "connected": self.connected,
+                    "url": self.url,
+                    "error": self.error,
+                    "log": json.dumps(self.lines[-LOG_LINES:]),
+                    **extra,
+                }
+            self.db.q("UPDATE $r MERGE $d WHERE owner = $me", r=ROW, d=d, me=self.name)
 
     def _signature(self, cfg):
         t = conf(cfg)
