@@ -290,8 +290,20 @@ def answer(db, cfg, base, account, cid, q):
     steps, approvals, notice = [], [], None
     wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
     if llm.configured(cfg) and cfg["ai"].get("tools"):
+        # anyone in a room with no list of who may talk to Lens is someone the account doesn't vouch for
+        anyone = not [u for u in cfg["bridge"].get("users") or [] if u.strip()]
         box = ai_tools.Toolbox(
-            db, cfg, {"id": account["id"], "email": account["email"]}, readable, editable, scope, cid, base, account["admin"], said=q
+            db,
+            cfg,
+            {"id": account["id"], "email": account["email"]},
+            readable,
+            editable,
+            scope,
+            cid,
+            base,
+            account["admin"],
+            said=q,
+            outside=(["chat room"] if anyone else []) + ai_tools.read_before(past, summary),
         )
         try:
             text = None

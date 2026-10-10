@@ -91,7 +91,7 @@ function NamespaceNotes({
     onSuccess: (p, parent) => {
       if (parent != null && !open.has(parent)) toggle(parent);
       qc.invalidateQueries({ queryKey: ["notes-tree", ns] });
-      router.push(`/notes/${p.id}`);
+      router.push(`/notes/${p.id}?new=1`);
       onNavigate?.();
     },
     onError: fail("Couldn’t add a note"),

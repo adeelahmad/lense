@@ -271,6 +271,8 @@ function viewRun() {
 // 3. AI model ---------------------------------------------------------------------------------------------------
 async function detect() {
   try { S.servers = (await api("/api/models/detect")).servers; } catch { S.servers = []; }
+  // One model server running here and nothing picked yet: take it, as Lens's own setup does (another is a click away)
+  if (S.servers.length === 1 && !S.llm.preset) return pickLocal(S.servers[0]);
   if (S.step === 2) render();
 }
 function pickLocal(s) {
