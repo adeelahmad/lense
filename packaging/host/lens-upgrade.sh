@@ -9,6 +9,7 @@
 # It takes a release tag (vX.Y.Z), or the branch this install already follows; nothing else, whoever wrote the
 # request. Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
 set -eu
+umask 022 # the containers read the status and the log
 
 # All in a function: install.sh replaces this file while it runs
 main() {

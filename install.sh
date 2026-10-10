@@ -393,6 +393,7 @@ PLIST
   fi
   if [ -n "$agent" ]; then
     echo "kind=$agent" >.lens-control/agent
+    chmod 644 .lens-control/agent # the containers read it (a first install writes with umask 077, for .env)
   else
     rm -f .lens-control/agent # the web app shows the line to run instead
   fi
