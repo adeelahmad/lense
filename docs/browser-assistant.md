@@ -31,8 +31,9 @@ are listed above the answer, and anything it proposes (an import, say) waits in 
 **Decline**. <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line and <kbd>Esc</kbd> stops the
 answer.
 
-Safari has no side panel and doesn't let extensions show a sign-in page, so there **Ask Lens** opens in a tab, and you
-sign in with a write API token you make in Lens (your account's API tokens). Firefox's sidebar comes with its build.
+Firefox shows the panel in its sidebar (also under **View → Sidebar → Ask Lens**) and signs in the same way. Safari
+has no side panel and doesn't let extensions show a sign-in page, so there **Ask Lens** opens in a tab, and you sign in
+with a write API token you make in Lens (your account's API tokens).
 
 ## How it works
 

@@ -114,7 +114,8 @@ that. The code reaches the extension API as `globalThis.browser ?? globalThis.ch
 ### Firefox
 
 Firefox 128 or later (desktop). `targets/firefox.json` runs the background as a script instead of a service worker
-and gives the add-on its id, `lens-clipper@adeelahmad.github.io`. To try a build, open `about:debugging`, choose
+and gives the add-on its id, `lens-clipper@adeelahmad.github.io`; the assistant opens in Firefox's sidebar
+(`sidebar_action`) instead of a side panel. To try a build, open `about:debugging`, choose
 **This Firefox**, then **Load Temporary Add-on…** and pick `dist/firefox/manifest.json`; it stays until Firefox
 restarts.
 
