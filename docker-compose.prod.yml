@@ -109,7 +109,7 @@ services:
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/tcp"
       # the file tree over SMB (docs/smb.md), served only once it's turned on in Settings → SMB share, and then only
       # to the networks allowed there. 1445 on this machine so an SMB server the host runs on 445 is never in the way
-      # (Windows only connects to 445: set LENS_SMB_PORT=445 for it).
+      # (Windows only connects to 445: install with LENS_SMB_PORT=445 for it; install.sh keeps it).
       - "${LENS_SHARE_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SMB_PORT:-1445}:4445"
     healthcheck:
       disable: true

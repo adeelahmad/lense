@@ -942,7 +942,7 @@ function SmbBody({ ctx }: { ctx: BodyCtx }) {
         With Docker, the worker container publishes it on port {s?.port ?? 1445} of this machine, reachable from this
         machine only unless <code className="font-mono">LENS_BIND</code> or{" "}
         <code className="font-mono">LENS_SHARE_BIND</code> opens it to the network. Windows only connects to port 445:
-        set <code className="font-mono">LENS_SMB_PORT=445</code> in .env for it.
+        install with <code className="font-mono">LENS_SMB_PORT=445</code> in front of the install line for it.
       </p>
     </>
   );

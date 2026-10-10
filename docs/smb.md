@@ -20,7 +20,7 @@ within 30 seconds.
 | --- | --- |
 | macOS | Finder → Go → Connect to Server → `smb://<lens-machine>:1445/LENS` |
 | Linux | `sudo mount -t cifs -o port=1445,username=<key id>,ro,vers=2.0 //<lens-machine>/LENS /mnt/lens`, or `smb://<lens-machine>:1445/LENS` in Files |
-| Windows | Explorer only connects to port 445: set `LENS_SMB_PORT=445` in `.env` first, then open `\\<lens-machine>\LENS` |
+| Windows | Explorer only connects to port 445: install with `LENS_SMB_PORT=445` in front of the install line (kept for later upgrades), then open `\\<lens-machine>\LENS` |
 
 | Setting | Default | What it does |
 | --- | --- | --- |
@@ -28,8 +28,8 @@ within 30 seconds.
 | `smb.allowed_networks` | private networks (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `100.64.0.0/10` for Tailscale, `fc00::/7`, `::1/128`) | Machines anywhere else are turned away before they can sign in; changes apply without a restart |
 | `smb.bind`, `smb.port` | `127.0.0.1`, `4445` | Startup settings only: where the worker listens (`LENS_SMB_LISTEN`, `LENS_SMB_LISTEN_PORT`). In Docker it listens on `0.0.0.0:4445` inside the worker container |
 
-With Docker, the worker container publishes the share on port **1445** of the host (`LENS_SMB_PORT` in `.env` picks
-another), so an SMB server the host already runs on 445 is never in the way. Like the web app, it's reachable from
+With Docker, the worker container publishes the share on port **1445** of the host (`LENS_SMB_PORT=<port>` in front of
+the install line picks another), so an SMB server the host already runs on 445 is never in the way. Like the web app, it's reachable from
 this machine only unless `LENS_BIND=0.0.0.0` (what `install.sh` sets on a server); `LENS_SHARE_BIND` opens the file
 shares on their own while the web app stays local.
 
