@@ -14,7 +14,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Acl, AdminWriter, Cfg, Db, Writer, domain_errors
-from app.domain import auth, convert, ingest, jobs, library, links, mediaurl, pipelines, sources, store, webcapture
+from app.domain import auth, convert, ingest, jobs, links, mediaurl, pipelines, sources, store, webcapture
 from app.domain.store import DB
 from app.schemas.imports import (
     ImportPreview,
@@ -192,8 +192,8 @@ def import_video(body: VideoImportRequest, acl: Acl, user: Writer, db: Db, cfg: 
 
 @router.post("/web/links")
 def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> LinksImport:
-    """Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a
-    file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
+    """Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per
+    line, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes
     a page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in
     (`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that
     can't be is skipped, saying why. Audited as `import.web` once, with how many were queued."""
@@ -202,8 +202,9 @@ def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, c
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
     if not convert.chromium(cfg):
         raise HTTPException(400, "capturing web pages needs Chromium on the server (the lens:full image)")
-    if bool(body.data) == bool((body.text or "").strip()):
-        raise HTTPException(400, "paste the links or send a file, not both")
+    given = [bool(body.data), bool((body.text or "").strip()), bool(body.urls)]
+    if sum(given) != 1:
+        raise HTTPException(400, "paste the links, list them in urls, or send a file: one of them")
     check_pipeline(db, body.pipeline)
     sid: int | None
     try:
@@ -214,35 +215,15 @@ def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, c
             raise HTTPException(403, "only admins can create namespaces") from None
         sid = None
     check_collection(db, sid, body.collection)
-    found = links.read(_decode(body.data, cfg) if body.data else body.text or "")
+    found = links.read(_decode(body.data, cfg) if body.data else "\n".join(body.urls or []) or body.text or "")
     if not found:
         raise HTTPException(400, "there are no http:// or https:// links in it")
     if len(found) > links.MAX:
         raise HTTPException(400, f"import {links.MAX} links at most at once; this has {len(found)}")
     sid = sid if sid is not None else store.ns_id(db, ns)
-    have = {
-        (r.get("web") or {}).get("url"): r["id"]
-        for r in db.rows("SELECT record::id(id) AS id, web FROM recording WHERE space = $s AND web != NONE", s=sid)
-    }
-    out = []
-    for link in found:
-        try:
-            url = webcapture.check_url(cfg, link["url"])
-        except ValueError as e:
-            out.append(LinkImportResult(url=link["url"], status="skipped", detail=str(e)))
-            continue
-        if url in have:
-            out.append(LinkImportResult(url=url, status="already", recording=have[url]))
-            continue
-        rid = webcapture.create(db, sid, url, link["title"], body.collection, by=user.email)
-        have[url] = rid
-        if body.folders_as_tags and link["folders"]:
-            try:
-                library.set_tags(db, rid, links.tags(link["folders"]))
-            except ValueError:
-                pass  # tags are a nicety: the page is captured without them
-        job = jobs.enqueue(db, rid, None, by=user.email, pipeline=body.pipeline)
-        out.append(LinkImportResult(url=url, status="queued", recording=rid, job=job))
+    out = [
+        LinkImportResult(**r) for r in links.queue(db, cfg, sid, found, user.email, body.collection, body.pipeline, body.folders_as_tags)
+    ]
     queued = sum(r.status == "queued" for r in out)
     auth.audit(db, user.as_audit(), "import.web", f"space:{sid}", {"links": queued, "namespace": ns})
     return LinksImport(results=out)

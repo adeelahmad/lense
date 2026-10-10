@@ -14,7 +14,7 @@ from app.domain.store import R
 
 # Every step that has shipped, in order. A database remembers steps by name, so these may never be renamed, reordered
 # or removed: add new steps to the end of migrations.steps() and here.
-SHIPPED = ["access-levels", "collection-homes", "tour-seen"]
+SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step"]
 
 
 def test_steps_are_append_only():
@@ -62,8 +62,8 @@ def test_steps_an_older_lens_counted_are_not_run_again(db):
     db.q("DELETE migration")
     db.q("UPSERT $r SET n = 1", r=R("seq", "migrations"))
     rid = _old_shape(db)
-    assert migrations.pending(db) == ["collection-homes", "tour-seen"]
-    assert store.migrate(db) == ["collection-homes", "tour-seen"]
+    assert migrations.pending(db) == ["collection-homes", "tour-seen", "document-read-step"]
+    assert store.migrate(db) == ["collection-homes", "tour-seen", "document-read-step"]
     row = db.one("SELECT meta_json, collection FROM $r", r=R("recording", rid))
     assert json.loads(row["meta_json"]) == {"access": "signed-in"}  # access-levels was counted as done, so not rerun
     assert row["collection"] == store.default_collection(db, store.ns_id(db, "pods"))
@@ -139,7 +139,7 @@ def test_lens_migrations_lists_and_runs(tmp_path, monkeypatch, capsys):
     assert "pending  access-levels" in out and "pending  collection-homes" in out
     cli.main(["--config", str(cfg_path), "migrations", "--run"])
     out = capsys.readouterr().out
-    assert "ran 3 upgrade(s): access-levels, collection-homes, tour-seen" in out
+    assert "ran 4 upgrade(s): access-levels, collection-homes, tour-seen, document-read-step" in out
     assert "done     access-levels" in out
 
 
@@ -240,3 +240,28 @@ def test_people_who_signed_in_before_the_tour_skip_it(db):
     db.q("UPDATE $r SET last_login_at = $t", r=R("account", old), t=store.now())
     dict(migrations.steps())["tour-seen"](db)
     assert auth.toured_at(db, old) and auth.toured_at(db, new) is None
+
+
+def test_documents_waiting_to_be_transcribed_are_read_instead(db):
+    sid = "pods"
+    ids = {}
+    for name, source in (("doc", "document"), ("failed", "document"), ("song", "audio")):
+        ids[name] = db.next_id("recording")
+        db.q("CREATE $r CONTENT {source: $s, status: 'new', space: $sp}", r=R("recording", ids[name]), s=source, sp=sid)
+    old = ["transcribe", "diarize", "analyze", "report"]
+    for name, status in (("doc", "queued"), ("failed", "failed"), ("song", "queued")):
+        db.q(
+            "CREATE $j CONTENT {recording: $r, space: $sp, steps: $st, step_index: 0, next_step: 'transcribe', status: $s}",
+            j=R("job", ids[name]),
+            r=ids[name],
+            sp=sid,
+            st=[{"type": t} for t in old],
+            s=status,
+        )
+    dict(migrations.steps())["document-read-step"](db)
+    dict(migrations.steps())["document-read-step"](db)  # safe to run twice
+    job = {n: db.one("SELECT steps, next_step, status FROM $j", j=R("job", i)) for n, i in ids.items()}
+    for n in ("doc", "failed"):
+        assert [s["type"] for s in job[n]["steps"]] == ["read", "analyze", "report"]
+        assert (job[n]["next_step"], job[n]["status"]) == ("read", "queued")
+    assert job["song"]["next_step"] == "transcribe" and len(job["song"]["steps"]) == 4

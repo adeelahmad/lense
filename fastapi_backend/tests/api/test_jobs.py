@@ -377,3 +377,26 @@ def test_a_steps_list_from_before_the_video_steps_runs_them_too(db, cfg):
     w = jobs.Worker(db, lambda: {**cfg, "workers": {**cfg["workers"], "steps": [*old, "shots"]}}, name="chosen", log=said.append)
     assert "ocr" not in w.can and "leaves out describe, faces, objects, ocr" in said[0]
     assert jobs.Worker(db, lambda: cfg, name="mac", steps=["transcribe"], log=said.append).can == {"transcribe"} and len(said) == 1
+
+
+def test_a_document_is_read_not_transcribed(db, cfg, folder):
+    """The standard pipeline (or any pipeline) on a document or an image reads its pages: no transcribe or diarize
+    step is queued for it, so no speech or voice model is fetched and it never waits for one."""
+    _, _, _ = seed(db, cfg, folder)
+    rid = db.next_id("recording")
+    db.q(
+        "CREATE $r CONTENT {source: 'document', status: 'new', space: (SELECT VALUE space FROM recording LIMIT 1)[0]}",
+        r=store.R("recording", rid),
+    )
+    jid = jobs.enqueue(db, rid)
+    steps = [s["type"] for s in db.one("SELECT steps FROM $j", j=store.R("job", jid))["steps"]]
+    assert steps[0] == "read" and "transcribe" not in steps and "diarize" not in steps
+    assert db.values("SELECT VALUE next_step FROM job WHERE status = 'queued'") == ["read"]
+    # audio keeps transcribe; an explicit read on it has nothing to do
+    assert jobs.for_source([{"type": "transcribe"}, {"type": "diarize"}], "audio") == [{"type": "transcribe"}, {"type": "diarize"}]
+    assert jobs.for_source([{"type": "transcribe"}, {"type": "read"}, {"type": "report"}], "image") == [
+        {"type": "read"},
+        {"type": "report"},
+    ]
+    # a worker whose steps list predates the read step runs it too
+    assert "read" in jobs.Worker(db, lambda: {**cfg, "workers": {**cfg["workers"], "steps": ["transcribe"]}}, name="old").can

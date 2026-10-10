@@ -48,7 +48,7 @@ LEGACY = ("access-levels", "collection-homes")
 
 def steps():
     """[(name, fn(db))] in the order they run. Append only."""
-    from . import access, auth, hierarchy
+    from . import access, auth, hierarchy, jobs
 
     return [
         # IIIF-only access levels (public, transcript, signed-in, private) become the access setting
@@ -57,6 +57,8 @@ def steps():
         ("collection-homes", hierarchy.migrate_homes),
         # people who signed in before the first-sign-in welcome tour existed don't get it
         ("tour-seen", auth.migrate_tours),
+        # documents and images queued to be transcribed are read instead, and those that failed there run again
+        ("document-read-step", jobs.migrate_document_steps),
     ]
 
 

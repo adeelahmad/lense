@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.3.0"
+    "version": "0.6.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -2591,7 +2591,7 @@
             "required": true,
             "schema": {
               "type": "string",
-              "pattern": "^(openai|elevenlabs|assemblyai|deepgram)$",
+              "pattern": "^(openai|elevenlabs|assemblyai|deepgram|gemini)$",
               "title": "Provider"
             }
           }
@@ -2888,6 +2888,221 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Started"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Updates",
+        "description": "The version running, the latest release, and how the last upgrade went.",
+        "operationId": "get_updates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates/check": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Check Updates",
+        "description": "Ask GitHub for the latest release now.",
+        "operationId": "check_updates",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/updates/upgrade": {
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Start Upgrade",
+        "description": "Back the database up, then have this machine install the release (the latest unless one is named). Lens\nrestarts on the new version; GET /admin/updates follows along.",
+        "operationId": "start_upgrade",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/UpgradeRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "List Backups",
+        "description": "The database backups in <data_dir>/backups, newest first.",
+        "operationId": "list_backups",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Backups"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Take Backup",
+        "description": "Back the database up now (it can take a while on a big archive).",
+        "operationId": "take_backup",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Backup"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/backups/{name}": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Download Backup",
+        "description": "Download a backup (exports only: an embedded database's folder is copied from the data folder).",
+        "operationId": "download_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/gzip": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Delete Backup",
+        "description": "Delete a backup.",
+        "operationId": "delete_backup",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -10006,7 +10221,7 @@
           "imports"
         ],
         "summary": "Import Web Links",
-        "description": "Capture many web pages at once (editors; admins may name a new namespace): pasted addresses, one per line, or a\nfile: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
+        "description": "Capture one or many web pages at once (editors; admins may name a new namespace): pasted addresses, one per\nline, a JSON list of them (`urls`), or a file: a list of addresses, a browser's bookmark export (HTML) or Chrome's Bookmarks file (JSON). Each link becomes\na page captured as a document, as `POST /import/web` does, tagged with the bookmark folders it was in\n(`folders_as_tags`). At most 500 links; a link already captured in the namespace isn't captured again, and one that\ncan't be is skipped, saying why. Audited as `import.web` once, with how many were queued.",
         "operationId": "import_web_links",
         "requestBody": {
           "content": {
@@ -10604,6 +10819,154 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PhotoResults"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/similar": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Find Similar",
+        "description": "The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you\ncan read and the collections you were given a role on, each with why: its closest passages by meaning (when\nsearch by meaning is set up), the lines with the key words it shares, and the topics and entities in common.\nEach cited moment can be opened. A resource is never listed as like itself.",
+        "operationId": "find_similar",
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "what was selected: a sentence, a passage, a title",
+              "title": "Text"
+            },
+            "description": "what was selected: a sentence, a passage, a title"
+          },
+          {
+            "name": "recording",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a resource: the others most like it",
+              "title": "Recording"
+            },
+            "description": "a resource: the others most like it"
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a topic: the resources most like its labels and definition, and about it",
+              "title": "Topic"
+            },
+            "description": "a topic: the resources most like its labels and definition, and about it"
+          },
+          {
+            "name": "entity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "an entity: the resources most like its name and description, and mentioning it",
+              "title": "Entity"
+            },
+            "description": "an entity: the resources most like its name and description, and mentioning it"
+          },
+          {
+            "name": "exclude",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "leave out this resource too (the one the text was selected in)",
+              "title": "Exclude"
+            },
+            "description": "leave out this resource too (the one the text was selected in)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimilarResults"
                 }
               }
             }
@@ -18915,7 +19278,8 @@
                     "tool",
                     "skill",
                     "hook",
-                    "plugin"
+                    "plugin",
+                    "mcp"
                   ],
                   "type": "string"
                 },
@@ -19019,6 +19383,106 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ManifestChecked"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/import": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Import Link",
+        "description": "A plugin or skill in Anthropic's format from a link: a GitHub or GitLab repository or folder, or a .zip. With\n`preview`, what it would add and leave out; else installed as your own (importing it again: a new version).",
+        "operationId": "import_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionImportLink"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ExtensionImportPreview"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ExtensionImported"
+                    }
+                  ],
+                  "title": "Response Extensions-Import Link"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/extensions/import/archive": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Import Archive",
+        "description": "A plugin or skill from a .zip, .skill or .tar.gz you send (as base64).",
+        "operationId": "import_archive",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtensionImportArchive"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ExtensionImportPreview"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ExtensionImported"
+                    }
+                  ],
+                  "title": "Response Extensions-Import Archive"
                 }
               }
             }
@@ -19292,6 +19756,333 @@
         }
       }
     },
+    "/api/v1/marketplaces": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "List Marketplaces",
+        "operationId": "list_marketplaces",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Marketplace"
+                  },
+                  "type": "array",
+                  "title": "Response Extensions-List Marketplaces"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Add Marketplace",
+        "description": "Add a marketplace by its address; its list of plugins is read now.",
+        "operationId": "add_marketplace",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarketplaceCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Created"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/suggested": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Suggested Marketplaces",
+        "description": "Anthropic's marketplaces, when they aren't added yet.",
+        "operationId": "suggested_marketplaces",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MarketplaceSuggestion"
+                  },
+                  "type": "array",
+                  "title": "Response Extensions-Suggested Marketplaces"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}/refresh": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Refresh Marketplace",
+        "description": "Read its list of plugins again.",
+        "operationId": "refresh_marketplace",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}": {
+      "delete": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Delete Marketplace",
+        "description": "Takes it away; what was installed from it stays.",
+        "operationId": "delete_marketplace",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}/plugins": {
+      "get": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "List Marketplace Plugins",
+        "operationId": "list_marketplace_plugins",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MarketplacePlugin"
+                  },
+                  "title": "Response Extensions-List Marketplace Plugins"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}/plugins/{name}/preview": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Preview Marketplace Plugin",
+        "description": "What installing it would add to the assistant, and what Lens leaves out.",
+        "operationId": "preview_marketplace_plugin",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionImportPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/marketplaces/{mid}/plugins/{name}/install": {
+      "post": {
+        "tags": [
+          "extensions"
+        ],
+        "summary": "Install Marketplace Plugin",
+        "description": "Install it as your own plugin, private until you share it; installing it again brings its new version.",
+        "operationId": "install_marketplace_plugin",
+        "parameters": [
+          {
+            "name": "mid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Mid"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionImported"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chats": {
       "get": {
         "tags": [
@@ -19526,7 +20317,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.",
         "operationId": "send_message",
         "parameters": [
           {
@@ -23471,6 +24262,57 @@
         }
       }
     },
+    "/api/v1/voice/voices": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "List Voices",
+        "description": "The voices a text-to-speech provider (else the one in the voice settings) reads in, from the provider when it\nlists them (ElevenLabs, Deepgram, macOS say, OpenAI-compatible servers that do), else the ones it's known to have.",
+        "operationId": "list_voices",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say|styletts2)$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/vault": {
       "get": {
         "tags": [
@@ -25195,6 +26037,68 @@
           "secrets"
         ],
         "title": "Backend"
+      },
+      "Backup": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "manual, or before-upgrade"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "export",
+              "folder"
+            ],
+            "title": "Kind",
+            "description": "export: a SurrealDB export (.surql.gz); folder: an embedded database's copy"
+          },
+          "bytes": {
+            "type": "integer",
+            "title": "Bytes"
+          },
+          "taken_at": {
+            "type": "string",
+            "title": "Taken At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "kind",
+          "bytes",
+          "taken_at"
+        ],
+        "title": "Backup"
+      },
+      "Backups": {
+        "properties": {
+          "folder": {
+            "type": "string",
+            "title": "Folder"
+          },
+          "backups": {
+            "items": {
+              "$ref": "#/components/schemas/Backup"
+            },
+            "type": "array",
+            "title": "Backups"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "folder",
+          "backups"
+        ],
+        "title": "Backups"
       },
       "Batch": {
         "properties": {
@@ -30916,7 +31820,8 @@
               "job.failed",
               "job.cancelled",
               "batch.finished",
-              "recording.added"
+              "recording.added",
+              "lens.release"
             ],
             "title": "Type"
           },
@@ -30950,7 +31855,8 @@
               "tool",
               "skill",
               "hook",
-              "plugin"
+              "plugin",
+              "mcp"
             ],
             "title": "Kind"
           },
@@ -31039,7 +31945,20 @@
               }
             ],
             "title": "Origin",
-            "description": "how this version was made: code, canvas or chat"
+            "description": "how this version was made: code, canvas, chat or import"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "where it was imported from: a marketplace's plugin, a link or a file"
           },
           "updated_at": {
             "anyOf": [
@@ -31130,7 +32049,8 @@
               "tool",
               "skill",
               "hook",
-              "plugin"
+              "plugin",
+              "mcp"
             ],
             "title": "Kind"
           },
@@ -31219,7 +32139,20 @@
               }
             ],
             "title": "Origin",
-            "description": "how this version was made: code, canvas or chat"
+            "description": "how this version was made: code, canvas, chat or import"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "where it was imported from: a marketplace's plugin, a link or a file"
           },
           "updated_at": {
             "anyOf": [
@@ -31259,6 +32192,140 @@
           "manifest"
         ],
         "title": "ExtensionDetail"
+      },
+      "ExtensionImportArchive": {
+        "properties": {
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "data": {
+            "type": "string",
+            "maxLength": 28000000,
+            "title": "Data",
+            "description": "a .zip, .skill or .tar.gz with a plugin or a skill, as base64 (20 MB at most)"
+          },
+          "preview": {
+            "type": "boolean",
+            "title": "Preview",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "ExtensionImportArchive"
+      },
+      "ExtensionImportLink": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "a plugin or skill: a GitHub or GitLab repository or folder, or a .zip or .tar.gz link"
+          },
+          "preview": {
+            "type": "boolean",
+            "title": "Preview",
+            "description": "say what it would install, without installing it",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ExtensionImportLink"
+      },
+      "ExtensionImportPreview": {
+        "properties": {
+          "manifest": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Manifest",
+            "description": "the plugin as Lens would install it"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/ExtensionSkipped"
+            },
+            "type": "array",
+            "title": "Skipped",
+            "default": []
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "manifest",
+          "source"
+        ],
+        "title": "ExtensionImportPreview"
+      },
+      "ExtensionImported": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/ExtensionSkipped"
+            },
+            "type": "array",
+            "title": "Skipped",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "version"
+        ],
+        "title": "ExtensionImported"
+      },
+      "ExtensionSkipped": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "what was left out: hooks, mcp, skill, command, agent or file"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "why": {
+            "type": "string",
+            "title": "Why"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "name",
+          "why"
+        ],
+        "title": "ExtensionSkipped"
       },
       "ExtensionTest": {
         "properties": {
@@ -32606,6 +33673,18 @@
               }
             ],
             "title": "Error"
+          },
+          "limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited",
+            "description": "the connection is rate limiting: reads work, new files are kept here"
           }
         },
         "additionalProperties": true,
@@ -35709,6 +36788,22 @@
             "title": "Text",
             "description": "addresses, one per line"
           },
+          "urls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urls",
+            "description": "addresses, as a list"
+          },
           "filename": {
             "anyOf": [
               {
@@ -35769,7 +36864,7 @@
           "namespace"
         ],
         "title": "LinksImportRequest",
-        "description": "Links pasted as ``text`` (one per line), or a file (``filename`` + base64 ``data``): a list of addresses, a\nbrowser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."
+        "description": "Links pasted as ``text`` (one per line), listed in ``urls``, or a file (``filename`` + base64 ``data``): a list of addresses, a\nbrowser's bookmark export (HTML) or Chrome's Bookmarks file (JSON)."
       },
       "LlmEstimate": {
         "properties": {
@@ -36335,6 +37430,230 @@
           "manifest"
         ],
         "title": "ManifestChecked"
+      },
+      "Marketplace": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the name its marketplace.json gives it"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "where it is: a repository, or a link to its marketplace.json"
+          },
+          "plugins": {
+            "type": "integer",
+            "title": "Plugins",
+            "description": "how many plugins it lists"
+          },
+          "added_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Added By"
+          },
+          "fetched_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fetched At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "source",
+          "plugins"
+        ],
+        "title": "Marketplace"
+      },
+      "MarketplaceCreate": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "owner/repo on GitHub, a GitHub or GitLab link, or a link to a marketplace.json"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "MarketplaceCreate"
+      },
+      "MarketplacePlugin": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "homepage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Homepage"
+          },
+          "installable": {
+            "type": "boolean",
+            "title": "Installable",
+            "description": "whether Lens can read it (why_not says why when it can't)"
+          },
+          "why_not": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why Not"
+          },
+          "installed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installed",
+            "description": "your extension installed from it, if you installed it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "installable"
+        ],
+        "title": "MarketplacePlugin"
+      },
+      "MarketplaceSuggestion": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "title",
+          "source"
+        ],
+        "title": "MarketplaceSuggestion"
       },
       "MatterbridgeRoom": {
         "properties": {
@@ -39347,7 +40666,8 @@
                 "job.failed",
                 "job.cancelled",
                 "batch.finished",
-                "recording.added"
+                "recording.added",
+                "lens.release"
               ]
             },
             "type": "array",
@@ -39495,7 +40815,8 @@
                     "job.failed",
                     "job.cancelled",
                     "batch.finished",
-                    "recording.added"
+                    "recording.added",
+                    "lens.release"
                   ]
                 },
                 "type": "array"
@@ -39624,7 +40945,8 @@
                     "job.failed",
                     "job.cancelled",
                     "batch.finished",
-                    "recording.added"
+                    "recording.added",
+                    "lens.release"
                   ]
                 },
                 "type": "array"
@@ -44848,6 +46170,49 @@
         ],
         "title": "RefreshRequest"
       },
+      "Release": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "title": "Tag",
+            "description": "vX.Y.Z"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the release's page on GitHub"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "description": "what changed, in Markdown",
+            "default": ""
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "tag",
+          "name",
+          "url"
+        ],
+        "title": "Release"
+      },
       "Removed": {
         "properties": {
           "removed": {
@@ -48791,6 +50156,341 @@
         ],
         "title": "SigninLinkToken"
       },
+      "SimilarCite": {
+        "properties": {
+          "match": {
+            "type": "string",
+            "enum": [
+              "meaning",
+              "words"
+            ],
+            "title": "Match",
+            "description": "found by meaning (a close passage) or by the shared words"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "said",
+              "page",
+              "described"
+            ],
+            "title": "Source",
+            "description": "\"said\" (the transcript), \"page\" (text on a page of a document or an image) or \"described\" (what a shot or a page shows)"
+          },
+          "snippet": {
+            "type": "string",
+            "title": "Snippet",
+            "description": "HTML: escaped text with <mark> around the key words"
+          },
+          "idx": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idx",
+            "description": "the line it starts at (from 0)"
+          },
+          "t0": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T0",
+            "description": "ms; None on a page"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "on a document or an image: which page (from 0)"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "found by meaning: how alike it is (cosine, up to 1)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "match",
+          "source",
+          "snippet"
+        ],
+        "title": "SimilarCite",
+        "description": "A moment that shows why a resource is alike: one of its passages closest in meaning, or a line with shared words."
+      },
+      "SimilarEntity": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SimilarEntity"
+      },
+      "SimilarItem": {
+        "properties": {
+          "recording_id": {
+            "type": "integer",
+            "title": "Recording Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "media_kind": {
+            "type": "string",
+            "title": "Media Kind",
+            "description": "audio, video, transcript, document or image"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "reciprocal-rank fusion of the lists it's in; only for ordering"
+          },
+          "match": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "meaning",
+                "words",
+                "topics",
+                "entities"
+              ]
+            },
+            "type": "array",
+            "title": "Match",
+            "description": "why it's alike: close in meaning, shares key words, about the same topics, mentions the same entities"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "by meaning: how alike its closest passage is (cosine, up to 1)"
+          },
+          "cites": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarCite"
+            },
+            "type": "array",
+            "title": "Cites",
+            "description": "up to 3 moments that show it, to open"
+          },
+          "words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Words",
+            "description": "the key words it says"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarTopic"
+            },
+            "type": "array",
+            "title": "Topics",
+            "description": "topics both are about"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarEntity"
+            },
+            "type": "array",
+            "title": "Entities",
+            "description": "entities both mention"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "recording_id",
+          "media_kind",
+          "score",
+          "match"
+        ],
+        "title": "SimilarItem"
+      },
+      "SimilarResults": {
+        "properties": {
+          "basis": {
+            "type": "string",
+            "enum": [
+              "text",
+              "recording",
+              "topic",
+              "entity"
+            ],
+            "title": "Basis",
+            "description": "what the results are like"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "the text's start, or the resource's title, the topic's label, the entity's name"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "the text compared by meaning (a topic's labels and definition, an entity's name and description)"
+          },
+          "terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Terms",
+            "description": "the key words looked for"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "meaning",
+              "words"
+            ],
+            "title": "Mode",
+            "description": "\"meaning\": an embedding model compared it too; \"words\": only by key words, topics and entities"
+          },
+          "meaning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meaning",
+            "description": "why it wasn't compared by meaning, when search by meaning is set up"
+          },
+          "semantic": {
+            "type": "boolean",
+            "title": "Semantic",
+            "description": "search by meaning is set up and indexed",
+            "default": false
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SimilarItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "basis",
+          "mode",
+          "total",
+          "items"
+        ],
+        "title": "SimilarResults"
+      },
+      "SimilarTopic": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "SimilarTopic"
+      },
       "Source": {
         "properties": {
           "id": {
@@ -49004,6 +50704,18 @@
               }
             ],
             "title": "Error"
+          },
+          "limited": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited",
+            "description": "the service is rate limiting the account; it still works"
           }
         },
         "additionalProperties": true,
@@ -49243,6 +50955,19 @@
             "type": "string",
             "maxLength": 8000,
             "title": "Text"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice",
+            "description": "read in this voice (an id from GET /voice/voices); else the settings'"
           }
         },
         "additionalProperties": false,
@@ -51732,6 +53457,256 @@
         ],
         "title": "Undone"
       },
+      "UpdateStatus": {
+        "properties": {
+          "current": {
+            "type": "string",
+            "title": "Current",
+            "description": "the version running"
+          },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Release"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "latest is newer than current"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the last check failed"
+          },
+          "check": {
+            "type": "boolean",
+            "title": "Check",
+            "description": "updates.check: the daily check is on"
+          },
+          "auto_install": {
+            "type": "boolean",
+            "title": "Auto Install"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what upgrades this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that upgrades it by hand, on the machine Lens runs on"
+          },
+          "upgrade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpgradeRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the last upgrade asked for"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "current",
+          "available",
+          "check",
+          "auto_install",
+          "manual"
+        ],
+        "title": "UpdateStatus"
+      },
+      "UpgradeRequest": {
+        "properties": {
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref",
+            "description": "a release tag; default: the latest release"
+          },
+          "backup": {
+            "type": "boolean",
+            "title": "Backup",
+            "description": "back the database up first",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UpgradeRequest"
+      },
+      "UpgradeRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "ref": {
+            "type": "string",
+            "title": "Ref",
+            "description": "the release tag (or branch) being installed"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "backing-up",
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "State"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "queued_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued At"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "backup": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backup",
+            "description": "the backup taken first, in Backups"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "the version installed, once done"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "the last lines install.sh printed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "ref",
+          "state"
+        ],
+        "title": "UpgradeRun"
+      },
       "Upload": {
         "properties": {
           "id": {
@@ -52826,6 +54801,84 @@
           "speak"
         ],
         "title": "VoiceInfo"
+      },
+      "VoiceList": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current",
+            "description": "the voice answers are read in now (null: the provider's default)"
+          },
+          "voices": {
+            "items": {
+              "$ref": "#/components/schemas/VoiceOption"
+            },
+            "type": "array",
+            "title": "Voices"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why the provider's voices couldn't be listed"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "provider",
+          "voices"
+        ],
+        "title": "VoiceList"
+      },
+      "VoiceOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "what voice.tts_voice is set to"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail",
+            "description": "what the provider says about it: accent, gender, style, language"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "VoiceOption"
       },
       "Watch": {
         "properties": {

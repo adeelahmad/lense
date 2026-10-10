@@ -172,3 +172,4 @@ local-shared-data/*
 /.local-ci/
 .lens-build
 .lens-sandbox
+.lens-control/

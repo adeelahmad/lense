@@ -51,6 +51,7 @@ TABLES = {  # the API's path segments, and the table a number after one names
     "spaces": "space",
     "collections": "collection",
     "extensions": "extension",
+    "marketplaces": "marketplace",
     "sources": "watch_path",
     "watches": "watch_path",
     "sensors": "sensor",

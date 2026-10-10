@@ -7,6 +7,7 @@ import {
   imapHost,
   nextScan,
   parseRcloneToken,
+  parseServiceAccountKey,
   pickupText,
   sourceSubtitle,
   splitPatterns,
@@ -83,6 +84,12 @@ describe("connections", () => {
       text: "OK · checked 14:02",
     });
     expect(
+      healthOf({ ok: true, checked_at: "2026-09-30T14:02:00", limited: "Google Drive is rate limiting" }, now),
+    ).toEqual({
+      tone: "limited",
+      text: "Works, slowly · Google Drive is rate limiting · checked 14:02",
+    });
+    expect(
       healthOf(
         {
           ok: false,
@@ -131,6 +138,46 @@ describe("connections", () => {
     expect(buildPayload(DROPBOX, tok, "dropbox").secrets).toEqual({
       token: '{"access_token":"a"}',
     });
+  });
+  it("signs Google Drive in with a token or a service account key file", () => {
+    const DRIVE: BackendSpec = {
+      label: "Google Drive",
+      fields: { scope: "drive.readonly", root_folder_id: "", team_drive: "", impersonate: "" },
+      secrets: ["token", "service_account_credentials"],
+      oauth: "rclone authorize drive",
+    };
+    const key = JSON.stringify({
+      type: "service_account",
+      client_email: "lens@p.iam.gserviceaccount.com",
+      private_key: "K",
+    });
+    expect(parseServiceAccountKey(key)).toEqual({ ok: true, email: "lens@p.iam.gserviceaccount.com" });
+    expect(parseServiceAccountKey("nope").ok).toBe(false);
+    expect(parseServiceAccountKey('{"access_token":"a"}').ok).toBe(false);
+
+    const sa = { ...emptyForm(DRIVE), driveAuth: "service_account" as const };
+    expect(Object.keys(validateForm("drive", DRIVE, sa, false))).toEqual(["service_account_credentials"]);
+    const withKey = { ...sa, secrets: { service_account_credentials: key } };
+    expect(validateForm("drive", DRIVE, withKey, false)).toEqual({});
+    expect(validateForm("drive", DRIVE, sa, true, (k) => k === "service_account_credentials")).toEqual({});
+    expect(buildPayload(DRIVE, withKey, "drive").secrets).toEqual({ service_account_credentials: key, token: null });
+
+    // a pasted token replaces a saved key, and the form opens on whichever is saved
+    const tok = {
+      ...emptyForm(DRIVE),
+      secrets: { service_account_credentials: key },
+      tokenText: '{"access_token":"a"}',
+    };
+    expect(buildPayload(DRIVE, tok, "drive").secrets).toEqual({
+      token: '{"access_token":"a"}',
+      service_account_credentials: null,
+    });
+    const saved = {
+      name: "d",
+      params: {},
+      secrets: { token: { secret: true, set: false }, service_account_credentials: { secret: true, set: true } },
+    };
+    expect(emptyForm(DRIVE, saved).driveAuth).toBe("service_account");
   });
   it("takes email accounts and calendar feeds", () => {
     const IMAP: BackendSpec = {

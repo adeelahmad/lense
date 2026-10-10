@@ -35,7 +35,7 @@ import yaml
 from . import activity, auth, store
 
 R = store.R
-KINDS = ("tool", "skill", "hook", "plugin")
+KINDS = ("tool", "skill", "hook", "plugin", "mcp")
 VISIBILITY = ("private", "namespace", "everyone")
 NAME_RX = re.compile(r"^[a-z][a-z0-9_]{1,40}$")
 PARAM_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
@@ -53,6 +53,10 @@ ACTIONS = {
 HOOK_VARS = {"message": {"said"}, "before_tool": {"said", "tool"}, "after_tool": {"said", "tool", "result"}, "answer": {"said", "answer"}}
 VAR_RX = re.compile(r"\{\{\s*([a-z][a-z0-9_]*)\s*\}\}")
 MAX_TEXT = 20000
+MAX_SKILL = 200_000  # a skill's instructions: Anthropic's own run to 100,000 characters
+MAX_FILES = 100  # files a skill carries besides its instructions (references, examples, scripts to read)
+MAX_FILES_CHARS = 500_000
+FILE_RX = re.compile(r"^(?!/)(?!.*(?:^|/)\.\.(?:/|$))[^\x00-\x1f\\]{1,200}$")
 MAX_PARAMS = 20
 MAX_ITEMS = 50
 MAX_REPLY = 200_000  # the most of a web reply that is read
@@ -180,18 +184,34 @@ def _check_tool(spec, me, db=None):
 
 
 def _check_skill(spec, me, db=None):
-    if set(spec) - {"when", "instructions", "tools"}:
-        raise ValueError("a skill is {when, instructions, tools}")
+    if set(spec) - {"when", "instructions", "tools", "files"}:
+        raise ValueError("a skill is {when, instructions, tools, files}")
     tools = spec.get("tools") or []
     if not isinstance(tools, list) or not all(isinstance(t, str) for t in tools):
         raise ValueError("a skill's tools are a list of tool names")
     return store.clean(
         {
-            "when": _text(spec.get("when"), "when to use the skill", 500, required=True),
-            "instructions": _text(spec.get("instructions"), "the skill's instructions", MAX_TEXT, required=True),
+            "when": _text(spec.get("when"), "when to use the skill", 1024, required=True),
+            "instructions": _text(spec.get("instructions"), "the skill's instructions", MAX_SKILL, required=True),
             "tools": tools[:30] or None,
+            "files": _check_files(spec.get("files")),
         }
     )
+
+
+def _check_files(files):
+    """A skill's other files, {path: text}, as a skill folder has them next to its SKILL.md: the assistant reads one
+    when the instructions point at it (use_skill with the file)."""
+    if not files:
+        return None
+    if not isinstance(files, dict) or len(files) > MAX_FILES:
+        raise ValueError(f"a skill's files are at most {MAX_FILES}, each a path and its text")
+    for path, text in files.items():
+        if not isinstance(path, str) or not FILE_RX.match(path) or not isinstance(text, str):
+            raise ValueError(f"a skill's file is a path inside its folder and the file's text: {str(path)[:80]}")
+    if sum(len(t) for t in files.values()) > MAX_FILES_CHARS:
+        raise ValueError(f"a skill's files come to at most {MAX_FILES_CHARS} characters")
+    return dict(sorted(files.items()))
 
 
 def _check_hook(spec, me, db=None):
@@ -243,6 +263,71 @@ def _check_hook(spec, me, db=None):
     )
 
 
+def _check_mcp(spec, me, db=None):
+    """An MCP server: its address, the headers it needs (a token), and its tools as it listed them (mcp_client.py)."""
+    if set(spec) - {"url", "headers", "tools"}:
+        raise ValueError("an MCP server is {url, headers, tools}")
+    if not me["admin"]:
+        raise ValueError("only admins add MCP servers")
+    url = _text(spec.get("url"), "the MCP server's address", 2000, required=True)
+    if not re.match(r"^https?://[^/?#\s]+", url):
+        raise ValueError("an MCP server's address starts with http:// or https:// (servers that run as a program aren't run)")
+    headers = spec.get("headers") or {}
+    if not isinstance(headers, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in headers.items()):
+        raise ValueError("headers are names and text values")
+    tools = spec.get("tools")
+    if tools is None:  # asked of the server: what it offers now
+        from . import mcp_client
+
+        tools = mcp_client.discover({"url": url, "headers": headers})
+    if tools is not None:
+        if not isinstance(tools, list) or len(tools) > 100:
+            raise ValueError("an MCP server's tools are a list of at most 100")
+        for t in tools:
+            if not isinstance(t, dict) or not isinstance(t.get("name"), str) or not isinstance(t.get("schema", {}), dict):
+                raise ValueError("an MCP tool is {name, description, schema, read_only}")
+        tools = [
+            store.clean(
+                {
+                    "name": t["name"][:64],
+                    "description": _text(t.get("description"), "an MCP tool's description", 1024),
+                    "schema": t.get("schema") or {"type": "object"},
+                    "read_only": bool(t.get("read_only")),
+                }
+            )
+            for t in tools
+        ]
+    return store.clean({"url": url, "headers": headers or None, "tools": tools})
+
+
+def mcp_tools(item):
+    """An MCP server's tools as the assistant calls them, `<server>__<tool>`: [{name, description, spec}]. Its own
+    readOnlyHint is the only thing that lets one answer without asking."""
+    s, out = item["spec"], []
+    for t in s.get("tools") or []:
+        name = re.sub(r"[^A-Za-z0-9_-]", "_", f"{item['name']}__{t['name']}")[:64]
+        run = store.clean({"type": "mcp", "url": s["url"], "headers": s.get("headers"), "tool": t["name"]})
+        spec = {
+            "params": [],
+            "schema": t.get("schema") or {"type": "object"},
+            "effect": "read" if t.get("read_only") else "change",
+            "run": run,
+        }
+        out.append({"kind": "tool", "name": name, "description": t.get("description"), "spec": spec})
+    return out
+
+
+def tool_items(g):
+    """An extension's tools, a plugin's and an MCP server's included: [{kind: tool, name, description, spec}]."""
+    out = []
+    for it in g["spec"]["items"] if g["kind"] == "plugin" else [g]:
+        if it["kind"] == "tool":
+            out.append(it)
+        elif it["kind"] == "mcp":
+            out += mcp_tools(it)
+    return out
+
+
 def _check_plugin(spec, me, db=None):
     if set(spec) - {"items"}:
         raise ValueError("a plugin is {items}")
@@ -251,8 +336,8 @@ def _check_plugin(spec, me, db=None):
         raise ValueError(f"a plugin has 1 to {MAX_ITEMS} items: tools, skills and hooks")
     out, names = [], set()
     for it in items:
-        if not isinstance(it, dict) or it.get("kind") not in ("tool", "skill", "hook"):
-            raise ValueError("a plugin's items are tools, skills and hooks, each {kind, name, description, ...}")
+        if not isinstance(it, dict) or it.get("kind") not in ("tool", "skill", "hook", "mcp"):
+            raise ValueError("a plugin's items are tools, skills, hooks and MCP servers, each {kind, name, description, ...}")
         m = check_manifest({**it}, me, db)
         if m["name"] in names:
             raise ValueError(f"the plugin has two items called {m['name']}")
@@ -261,7 +346,7 @@ def _check_plugin(spec, me, db=None):
     return {"items": out}
 
 
-CHECKS = {"tool": _check_tool, "skill": _check_skill, "hook": _check_hook, "plugin": _check_plugin}
+CHECKS = {"tool": _check_tool, "skill": _check_skill, "hook": _check_hook, "plugin": _check_plugin, "mcp": _check_mcp}
 
 
 def check_spec(kind, spec, me, db=None):
@@ -291,7 +376,7 @@ def check_manifest(m, me, db=None):
             "name": name,
             "kind": head["kind"],
             "title": _text(head["title"], "the title", 80),
-            "description": _text(head["description"], "the description", 1000, required=head["kind"] != "hook"),
+            "description": _text(head["description"], "the description", 1024, required=head["kind"] not in ("hook", "mcp")),
             "visibility": head["visibility"],
             "namespaces": head["namespaces"],
             "spec": check_spec(head["kind"], spec, me, db),
@@ -352,6 +437,12 @@ def to_manifest(ext):
         body = spec.pop("instructions")
     elif ext["kind"] == "tool" and spec["run"]["type"] == "prompt":
         body = spec["run"].pop("prompt")
+    elif ext["kind"] == "mcp":
+        spec.pop("tools", None)  # listed by the server again when it's saved
+    elif ext["kind"] == "plugin":
+        for it in spec["items"]:
+            if it["kind"] == "mcp":
+                it["spec"].pop("tools", None)
     text = yaml.dump({**head, **spec}, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=120)
     return f"---\n{text}---\n\n{body}\n" if body is not None else text
 
@@ -409,8 +500,9 @@ def _check_share(db, me, visibility, namespaces):
     return vis, sorted(set(sids))
 
 
-def create(db, me, manifest, enabled=True, origin="code"):
-    """A new extension from a manifest; its id. `origin` says how it was made: code, canvas or chat."""
+def create(db, me, manifest, enabled=True, origin="code", source=None):
+    """A new extension from a manifest; its id. `origin` says how it was made: code, canvas or chat (or import, from a
+    marketplace or a link, when `source` says where from: marketplace.py)."""
     m = check_manifest(manifest, me, db)
     _check_names(db, m["kind"], m["name"], m["spec"])
     vis, sids = _check_share(db, me, m.get("visibility"), m.get("namespaces"))
@@ -427,6 +519,7 @@ def create(db, me, manifest, enabled=True, origin="code"):
                 "visibility": vis,
                 "namespaces": sids,
                 "enabled": bool(enabled),
+                "source": source,
                 "owner": me["id"],
                 "owner_email": me["email"],
                 "current": 1,
@@ -460,7 +553,7 @@ def _save(db, me, eid, n, spec, notes, origin):
 def _row(db, eid):
     d = db.one(
         "SELECT record::id(id) AS id, name, kind, title, description, visibility, namespaces, enabled, owner, owner_email, "
-        "current, created_at, updated_at, deleted_at FROM $r",
+        "current, source, created_at, updated_at, deleted_at FROM $r",
         r=R("extension", int(eid)),
     )
     if not d:
@@ -514,7 +607,7 @@ def update(db, me, eid, **meta):
     if "title" in meta:
         out["title"] = _text(meta["title"], "the title", 80)
     if "description" in meta and meta["description"] is not None:
-        out["description"] = _text(meta["description"], "the description", 1000)
+        out["description"] = _text(meta["description"], "the description", 1024)
     if meta.get("enabled") is not None:
         out["enabled"] = bool(meta["enabled"])
     if meta.get("visibility") is not None or meta.get("namespaces") is not None:
@@ -594,7 +687,11 @@ class Active:
             # hooks see what's said and what tools give back, so only one's own run, or those an admin shared
             trusted = g.get("owner") == me["id"] or _owner_admin(db, g)
             items = g["spec"]["items"] if g["kind"] == "plugin" else [g]
+            if _owner_admin(db, g):  # MCP servers are reached while an admin owns them
+                items = [x for it in items for x in (mcp_tools(it) if it["kind"] == "mcp" else [it])]
             for it in items:
+                if it["kind"] == "mcp":
+                    continue
                 if it["kind"] == "hook" and not trusted:
                     continue
                 if it["kind"] == "tool" and it["spec"]["run"]["type"] == "python" and not _owner_admin(db, g):
@@ -625,6 +722,9 @@ class Active:
             if t["spec"]["effect"] == "change" and not can_change:
                 continue
             props, req = {}, []
+            if "schema" in t["spec"]:  # an MCP tool: its own JSON schema
+                props = dict(t["spec"]["schema"].get("properties") or {})
+                req = [r for r in t["spec"]["schema"].get("required") or [] if r in props]
             for p in t["spec"]["params"]:
                 s = {"type": PARAM_KINDS[p["kind"]]}
                 if p.get("description"):
@@ -637,12 +737,15 @@ class Active:
             desc = (t["description"] or name) + (" Needs the person's approval." if t["spec"]["effect"] == "change" else "")
             out.append((name, desc, props, req, t["spec"]["effect"] == "change"))
         if self.skills:
+            props = {"name": {"type": "string", "enum": list(self.skills)}}
+            if any(s["spec"].get("files") for s in self.skills.values()):
+                props["file"] = {"type": "string", "description": "one of the skill's files, when its instructions point at one"}
             out.append(
                 (
                     "use_skill",
                     "Read a skill's instructions before doing what it's for. Skills: "
                     + "; ".join(f"{n} ({s['spec']['when']})" for n, s in self.skills.items()),
-                    {"name": {"type": "string", "enum": list(self.skills)}},
+                    props,
                     ["name"],
                     False,
                 )
@@ -689,6 +792,10 @@ def fill_json(value, values):
 
 def tool_args(spec, args):
     """A tool's arguments, checked against its parameters, with defaults filled in."""
+    if "schema" in spec:  # an MCP tool: the server checks its own arguments
+        if not isinstance(args, dict):
+            raise ValueError("the tool's arguments are an object")
+        return dict(args)
     out = {}
     params = {p["name"]: p for p in spec["params"]}
     for k in args:
@@ -722,6 +829,10 @@ def run_tool(db, cfg, spec, args, model=None, toolbox=None):
         from . import tool_nodes
 
         return {"result": tool_nodes.run(db, cfg, run["graph"], args, toolbox)}
+    if run["type"] == "mcp":
+        from . import mcp_client
+
+        return mcp_client.call(run, args)
     if run["type"] == "python":
         from . import code_tools
 

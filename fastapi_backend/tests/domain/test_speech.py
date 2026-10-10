@@ -3,12 +3,16 @@ ElevenLabs, AssemblyAI and Deepgram at custom addresses; their speakers in speak
 
 from __future__ import annotations
 
+import base64
 import http.server
+import io
 import json
 import shutil
+import subprocess
 import sys
 import threading
 import urllib.parse
+import wave
 
 import numpy as np
 import pytest
@@ -57,6 +61,25 @@ class Fake(http.server.BaseHTTPRequestHandler):
                     ],
                 }
             )
+        if self.path.startswith("/el/v1/voices"):
+            return self._send(
+                {"voices": [{"voice_id": "v42", "name": "Ada", "category": "premade", "labels": {"gender": "female", "accent": "british"}}]}
+            )
+        if self.path == "/dg/v1/models":
+            return self._send(
+                {
+                    "stt": [],
+                    "tts": [
+                        {"name": "thalia", "canonical_name": "aura-2-thalia-en", "languages": ["en"], "metadata": {"accent": "American"}}
+                    ],
+                }
+            )
+        if self.path.startswith("/gm/v1beta/models"):
+            return self._send({"models": [{"name": "models/gemini-2.5-flash-preview-tts"}, {"name": "models/gemini-2.5-pro"}]})
+        if self.path == "/st/v1/audio/voices":
+            return self._send({"voices": ["default", "grandpa"]})
+        if self.path == "/oai/v1/audio/voices":
+            return self._send({"voices": ["af_heart", "am_adam"]})
         if self.path.endswith("/models") or self.path.endswith("/v1/models"):
             return self._send({"data": [{"id": "whisper-1"}]} if "/oai/" in self.path else [{"model_id": "scribe_v1"}])
         if "/v2/transcript" in self.path or self.path.endswith("/v1/projects"):
@@ -117,6 +140,13 @@ class Fake(http.server.BaseHTTPRequestHandler):
                     }
                 }
             )
+        if p == "/st/v1/audio/speech":
+            return self._send(speech.wav(b"\x00\x00" * 24, 24000), "audio/wav")
+        if p.startswith("/gm/v1beta/models/"):
+            pcm = base64.b64encode(b"\x00\x01" * 2400).decode()
+            return self._send(
+                {"candidates": [{"content": {"parts": [{"inlineData": {"mimeType": "audio/L16;codec=pcm;rate=24000", "data": pcm}}]}}]}
+            )
         if p.startswith("/el/v1/text-to-speech/") or p.startswith("/dg/v1/speak"):
             return self._send(b"ID3", "audio/mpeg")
         self.send_error(404)
@@ -145,6 +175,8 @@ def provided(db, cfg, base):
             "assemblyai_api_key": "aai-key",
             "deepgram_base_url": base + "/dg",
             "deepgram_api_key": "dg-key",
+            "gemini_base_url": base + "/gm",
+            "gemini_api_key": "gm-key",
         },
         "t",
     )
@@ -280,6 +312,121 @@ def test_answers_are_read_by_elevenlabs_or_deepgram(db, cfg, fake):
     assert "model=aura-2-thalia-en" in path and headers["Authorization"] == "Token dg-key"
     settings.save(db, cfg, "speech", {"deepgram_base_url": "http://127.0.0.1:9/dg"}, "t")
     assert voice.speak(settings.effective(db, cfg), "Hello") is None  # unreachable: the browser reads it
+
+
+def test_answers_are_read_by_gemini_in_a_voice_picked(db, cfg, fake):
+    provided(db, cfg, fake)
+    settings.save(db, cfg, "voice", {"tts_provider": "gemini"}, "t")
+    eff = settings.effective(db, cfg)
+    assert voice.can_speak(eff) and speech.tts_voice(eff) == "Kore"
+    data, ctype = voice.speak(eff, "Hello", voice="Puck")
+    assert ctype == "audio/wav" and data[:4] == b"RIFF"
+    with wave.open(io.BytesIO(data)) as w:
+        assert (w.getframerate(), w.getnframes()) == (24000, 2400)
+    method, path, headers, body = Fake.seen[-1]
+    assert (
+        path == "/gm/v1beta/models/gemini-2.5-flash-preview-tts:generateContent"
+        and {k.lower(): v for k, v in headers.items()}["x-goog-api-key"] == "gm-key"
+    )
+    cfg_ = json.loads(body)["generationConfig"]
+    assert cfg_["responseModalities"] == ["AUDIO"]
+    assert cfg_["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]["voiceName"] == "Puck"
+    found, err = speech.voices(eff)
+    assert err is None and {"id": "Kore", "name": "Kore", "detail": "Firm"} in found and len(found) == 30
+    assert speech.check(eff, "gemini") == (True, "signed in; 1 speech model(s)")
+
+
+def test_each_provider_lists_its_voices(db, cfg, fake):
+    assert speech.voices(cfg, "elevenlabs") == ([], "ElevenLabs has no API key yet: add it in Settings → Speech providers")
+    assert [v["id"] for v in speech.voices(cfg, "openai")[0]][:2] == ["alloy", "ash"]  # OpenAI's own
+    eff = provided(db, cfg, fake)
+    assert speech.voices(eff, "elevenlabs") == ([{"id": "v42", "name": "Ada", "detail": "female, british"}], None)
+    assert speech.voices(eff, "deepgram") == ([{"id": "aura-2-thalia-en", "name": "Thalia", "detail": "American, en"}], None)
+    assert Fake.seen[-1][2]["Authorization"] == "Token dg-key"
+    settings.save(db, cfg, "voice", {"tts_base_url": fake + "/oai/v1", "tts_model": "kokoro"}, "t")
+    found, _ = speech.voices(settings.effective(db, cfg), "openai")  # a server that lists its own
+    assert [v["id"] for v in found] == ["af_heart", "am_adam"]
+    settings.save(db, cfg, "speech", {"elevenlabs_base_url": "http://127.0.0.1:9/el"}, "t")
+    found, err = speech.voices(settings.effective(db, cfg), "elevenlabs")
+    assert found == [] and err.startswith("can't reach 127.0.0.1:9")
+    with pytest.raises(ValueError):
+        speech.voices(eff, "nope")
+
+
+def test_styletts2_reads_aloud_from_its_own_service(db, cfg, fake):
+    settings.save(db, cfg, "voice", {"tts_provider": "styletts2"}, "t")
+    eff = settings.effective(db, cfg)
+    assert eff["voice"]["styletts2_url"] == "http://styletts2:8880" and voice.can_speak(eff)  # the compose service
+    settings.save(db, cfg, "voice", {"styletts2_url": fake + "/st/"}, "t")
+    eff = settings.effective(db, cfg)
+    data, ctype = voice.speak(eff, "Hello", voice="grandpa")
+    assert ctype == "audio/wav" and data[:4] == b"RIFF"
+    method, path, headers, body = Fake.seen[-1]
+    assert path == "/st/v1/audio/speech" and json.loads(body) == {
+        "model": "styletts2",
+        "input": "Hello",
+        "voice": "grandpa",
+        "response_format": "wav",
+    }
+    voice.speak(eff, "Hi")
+    assert json.loads(Fake.seen[-1][3])["voice"] == "default"
+    assert speech.voices(eff) == (
+        [
+            {"id": "default", "name": "default", "detail": "its own reader"},
+            {"id": "grandpa", "name": "grandpa", "detail": "from your clip"},
+        ],
+        None,
+    )
+    settings.save(db, cfg, "voice", {"styletts2_url": "http://127.0.0.1:9"}, "t")
+    eff = settings.effective(db, cfg)
+    found, err = speech.voices(eff)
+    assert found == [] and err.startswith("StyleTTS2 isn't running") and "--profile styletts2" in err
+    assert voice.speak(eff, "Hello") is None  # not running: the browser reads it
+    with pytest.raises(ValueError):
+        settings.save(db, cfg, "voice", {"styletts2_url": "styletts2:8880"}, "t")
+
+
+SAY_VOICES = """Albert              en_US    # Hello! My name is Albert.
+Eddy (English (UK)) en_GB    # Hello! My name is Eddy.
+Bad News            en_US    # Hello! My name is Bad News.
+"""
+
+
+def test_macos_say_reads_aloud_on_a_mac(db, cfg, monkeypatch):
+    settings.save(db, cfg, "voice", {"tts_provider": "say"}, "t")
+    eff = settings.effective(db, cfg)
+    monkeypatch.setattr(speech, "say_available", lambda: False)
+    assert not voice.can_speak(eff)
+    assert speech.voices(eff) == ([], "macOS say reads aloud only when Lens runs on a Mac itself, not in Docker")
+    with pytest.raises(speech.ProviderError, match="only when Lens runs on a Mac"):
+        speech.speak(eff, "Hi")
+    monkeypatch.setattr(speech, "say_available", lambda: True)
+    ran = []
+
+    def run(cmd, input=None, **kw):
+        ran.append((cmd, input))
+        if cmd[1:] == ["-v", "?"]:
+            return subprocess.CompletedProcess(cmd, 0, SAY_VOICES.encode(), b"")
+        out = cmd[cmd.index("-o") + 1]
+        with open(out, "wb") as f:
+            f.write(speech.wav(b"\x00\x00" * 10, 22050))
+        return subprocess.CompletedProcess(cmd, 0, b"", b"")
+
+    monkeypatch.setattr(speech.subprocess, "run", run)
+    assert voice.can_speak(eff) and speech.tts_voice(eff) is None
+    data, ctype = voice.speak(eff, "-v Bad News? no, text", voice="Eddy (English (UK))")
+    assert ctype == "audio/wav" and data[:4] == b"RIFF"
+    cmd, sent = ran[-1]
+    assert cmd[-2:] == ["-v", "Eddy (English (UK))"] and sent == b"-v Bad News? no, text"  # text on stdin, never an option
+    voice.speak(eff, "Hi")
+    assert "-v" not in ran[-1][0]  # the Mac's own voice
+    assert speech.voices(eff)[0] == [
+        {"id": "Albert", "name": "Albert", "detail": "en_US"},
+        {"id": "Eddy (English (UK))", "name": "Eddy (English (UK))", "detail": "en_GB"},
+        {"id": "Bad News", "name": "Bad News", "detail": "en_US"},
+    ]
+    with pytest.raises(speech.ProviderError, match="isn't a voice"):
+        speech.speak(eff, "Hi", voice="--help")
 
 
 def test_voice_chat_can_use_its_own_engine(db, cfg, fake):

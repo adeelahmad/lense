@@ -26,6 +26,7 @@ import {
   clampPage,
   facesOn,
   marksOn,
+  pageAtOffset,
   pageNumber,
   pagesSummary,
   pageStart,
@@ -56,12 +57,18 @@ import { EmptyState } from "@/components/ui/states";
 import { needRole } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-/** The page shown, the block of text marked on it, and the zoom; turning pages and choosing blocks. */
+/**
+ * The page being read, the block of text marked on it, and the zoom; turning pages and choosing blocks. `jump` counts
+ * the moves made elsewhere (a page turned, a block chosen, the clock moved), which bring the page into view; `see` is
+ * the reader scrolling to a page, which doesn't.
+ */
 export type DocView = {
   page: number;
   selected: number | null;
   zoom: number;
+  jump: number;
   turn: (page: number) => void;
+  see: (page: number) => void;
   choose: (block: number) => void;
   setZoom: (z: number) => void;
 };
@@ -78,6 +85,7 @@ export function useDocView(): DocView {
   const [page, setPage] = useState(() => clampPage(startPage ?? 0, count));
   const [selected, setSelected] = useState<number | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [jump, setJump] = useState(0);
   const quiet = useRef(false);
 
   useEffect(() => {
@@ -95,6 +103,7 @@ export function useDocView(): DocView {
       if (i < 0 || !segs[i]) return;
       setPage(segs[i].page ?? 0);
       setSelected(i);
+      setJump((n) => n + 1);
     });
   }, [api, segs]);
 
@@ -103,6 +112,7 @@ export function useDocView(): DocView {
       const to = clampPage(p, count);
       setPage(to);
       setSelected(null);
+      setJump((n) => n + 1);
       const t0 = pageStart(segs, to);
       if (t0 != null) {
         quiet.current = true;
@@ -127,7 +137,9 @@ export function useDocView(): DocView {
     turn(startPage);
   }, [startPage, turn]);
 
-  return { page, selected, zoom, turn, choose, setZoom };
+  const see = useCallback((p: number) => setPage(clampPage(p, count)), [count]);
+
+  return { page, selected, zoom, jump, turn, see, choose, setZoom };
 }
 
 const MARK: Record<Mark["kind"], string> = {
@@ -276,25 +288,129 @@ function PageField({ view, count }: { view: DocView; count: number }) {
   );
 }
 
-/** The page shown, with a toolbar to turn pages and zoom; `object` is the kind of object whose boxes to draw. */
-function PageStage({ view, compact, object = null }: { view: DocView; compact?: boolean; object?: string | null }) {
-  const { model, state, find } = useRec();
-  const count = model.pages.length;
-  const p = model.pages[view.page];
+/** A page in the pages scrolled one under another: drawn once it's near the view, a blank its size until then. */
+function StagePage({
+  page,
+  view,
+  near,
+  object,
+}: {
+  page: PageInfo;
+  view: DocView;
+  near: boolean;
+  object: string | null;
+}) {
+  const { model, find } = useRec();
+  const idx = page.idx;
   const marks = useMemo(
-    () => marksOn(model.segments, view.page, view.selected, find.hits, find.index),
-    [model.segments, view.page, view.selected, find.hits, find.index],
+    () => (near ? marksOn(model.segments, idx, view.selected, find.hits, find.index) : []),
+    [near, model.segments, idx, view.selected, find.hits, find.index],
   );
   const faces = useMemo(
-    () => (model.facesMode === "off" ? [] : facesOn(model.faces, view.page)),
-    [model.faces, model.facesMode, view.page],
+    () => (near && model.facesMode !== "off" ? facesOn(model.faces, idx) : []),
+    [near, model.faces, model.facesMode, idx],
   );
   const things = useMemo(() => {
-    const t = object ? model.objects.find((o) => o.label === object) : undefined;
-    return t ? boxesOnPage(t, view.page) : [];
-  }, [model.objects, object, view.page]);
-  const name = `Page ${pageNumber(model.pages, view.page)}`;
-  const shows = descriptionOf(model.descriptions, view.page, true); // what it shows, for screen readers
+    const t = near && object ? model.objects.find((o) => o.label === object) : undefined;
+    return t ? boxesOnPage(t, idx) : [];
+  }, [near, model.objects, object, idx]);
+  if (!near)
+    return (
+      <div
+        aria-hidden
+        className="mx-auto rounded-[2px] bg-surface shadow-2"
+        style={{
+          width: `${view.zoom * 100}%`,
+          maxWidth: page.width ? `${Math.round(page.width * view.zoom)}px` : undefined,
+          aspectRatio: page.width && page.height ? `${page.width} / ${page.height}` : "3 / 4",
+        }}
+      />
+    );
+  const name = `Page ${pageNumber(model.pages, idx)}`;
+  const shows = descriptionOf(model.descriptions, idx, true); // what it shows, for screen readers
+  return (
+    <PageImage
+      page={page}
+      marks={marks}
+      faces={faces}
+      things={things}
+      thing={object ?? ""}
+      zoom={view.zoom}
+      name={shows ? `${name}: ${shows.text}` : name}
+    />
+  );
+}
+
+/**
+ * Every page, one under another, with a toolbar to turn pages and zoom; `object` is the kind of object whose boxes to
+ * draw. Scrolling turns the page being read; turning a page, or choosing a block, scrolls to it. Pages are drawn as
+ * they near the view, and kept once drawn.
+ */
+function PageStage({ view, compact, object = null }: { view: DocView; compact?: boolean; object?: string | null }) {
+  const { model, state } = useRec();
+  const count = model.pages.length;
+  const p = model.pages[view.page];
+  const box = useRef<HTMLDivElement>(null);
+  const els = useRef(new Map<number, HTMLElement>());
+  const [drawn, setDrawn] = useState<ReadonlySet<number>>(() => new Set());
+  const quiet = useRef(false); // the next scroll is ours: not the reader turning the page
+  const frame = useRef(0);
+
+  // pages near the view are drawn (where the browser can tell; the page being read and its neighbours always are)
+  useEffect(() => {
+    const root = box.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const add = entries
+          .filter((e) => e.isIntersecting)
+          .map((e) => Number((e.target as HTMLElement).dataset.pageAt));
+        if (add.length) setDrawn((was) => (add.every((i) => was.has(i)) ? was : new Set([...was, ...add])));
+      },
+      { root, rootMargin: "100% 0px" },
+    );
+    for (const el of els.current.values()) io.observe(el);
+    return () => io.disconnect();
+  }, [count]);
+
+  // a page turned, a block chosen or the zoom changed: the page, or the block marked on it, comes into view
+  const { jump, zoom, page, selected, see } = view;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      if (!jump) return;
+    }
+    const root = box.current;
+    const el = els.current.get(page);
+    if (!root || !el) return;
+    const mark = selected != null ? el.querySelector<HTMLElement>("[data-mark=selected]") : null;
+    const r = root.getBoundingClientRect();
+    const t = (mark ?? el).getBoundingClientRect();
+    const top = mark
+      ? root.scrollTop + t.top - r.top - Math.max(16, (root.clientHeight - t.height) / 2)
+      : root.scrollTop + t.top - r.top - 12;
+    quiet.current = true;
+    root.scrollTo?.({ top: Math.max(0, top) });
+  }, [jump, zoom]); // only on a move, not as the reader scrolls
+
+  const onScroll = () => {
+    if (quiet.current) {
+      quiet.current = false;
+      return;
+    }
+    if (frame.current) return;
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0;
+      const root = box.current;
+      if (!root) return;
+      const tops = model.pages.map((x) => els.current.get(x.idx)?.offsetTop ?? 0);
+      const at = model.pages[pageAtOffset(tops, root.scrollTop + root.clientHeight / 3)]?.idx;
+      if (at != null && at !== page) see(at);
+    });
+  };
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
+
   return (
     <section aria-label="Pages" className="flex min-h-0 min-w-0 flex-col bg-surface-neutral">
       <div className="flex flex-wrap items-center gap-1.5 border-b border-border bg-background px-3 py-2">
@@ -338,17 +454,29 @@ function PageStage({ view, compact, object = null }: { view: DocView; compact?: 
           <Plus />
         </IconButton>
       </div>
-      <div className={cn("min-h-0 flex-1 overflow-auto p-4", compact && "max-h-[58dvh] min-h-[320px] p-3")}>
-        {p ? (
-          <PageImage
-            page={p}
-            marks={marks}
-            faces={faces}
-            things={things}
-            thing={object ?? ""}
-            zoom={view.zoom}
-            name={shows ? `${name}: ${shows.text}` : name}
-          />
+      <div
+        ref={box}
+        onScroll={onScroll}
+        className={cn(
+          "relative flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-4",
+          compact && "max-h-[58dvh] min-h-[320px] gap-3 p-3",
+        )}
+      >
+        {count > 0 ? (
+          model.pages.map((x) => (
+            <div
+              key={x.idx}
+              data-page-at={x.idx}
+              aria-current={x.idx === page ? "page" : undefined}
+              ref={(el) => {
+                if (el) els.current.set(x.idx, el);
+                else els.current.delete(x.idx);
+              }}
+              className="shrink-0"
+            >
+              <StagePage page={x} view={view} near={Math.abs(x.idx - page) <= 1 || drawn.has(x.idx)} object={object} />
+            </div>
+          ))
         ) : state.phase === "processing" || state.phase === "analyzing" ? (
           <EmptyState icon={<Loader2 className="animate-spin" />} title="Drawing its pages" className="py-16">
             Its pages appear here as soon as they&apos;re drawn and read.
