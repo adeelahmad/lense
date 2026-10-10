@@ -431,6 +431,7 @@ third-party source; dependencies come from `uv.lock`, the pnpm lockfile and cont
 | cloudflared, llama.cpp, `hf:` models, pip packages | integrity only as far as HTTPS and the publisher | upstream; tampered downloads are disclaimed (N-DOWNLOADS) | *(maintainer, 2026-10)* |
 | Catalog GGUF models | pinned revision and SHA-256 | in model (P-MODEL-CHECKSUM) | *(documented, docs/local-models.md "checked against their SHA-256")* |
 | Optional ML extras (whisper, pyannote, speechbrain, insightface, doctr) | model inference; some fetch weights on their own | upstream | *(inferred, Q19)* |
+| StyleTTS2 service (`styletts2/`, opt-in Compose profile) and macOS `say` | text to speech; StyleTTS2 fetches its weights from Hugging Face and GitHub on first use and listens only on the Compose network; `say` gets the text on stdin, never as arguments | upstream for the model and synthesis; the argument handling in model | *(maintainer, 2026-10)* |
 | Build, lint and codegen toolchain (frontend dev dependencies, openapi-ts, linters) | building the images; in no running service | upstream; a report must show the code ships | *(inferred, Q45)* |
 | OIDC providers, SMTP, model and speech providers | honest responses over TLS | the admin chose them; trusted input | *(maintainer, 2026-10)* |
 
@@ -506,6 +507,7 @@ Paths in the Voided by column are relative to `fastapi_backend/app/`. Searches c
 | P-NOTIFY | Each notification event is claimed once across processes and retried with backoff. | wrong-output | correctness-only | *(documented, docs/notifications.md "claimed once")* | Voided by: none identified (not required for this symptom; no exhaustive search) |
 | P-HIERARCHY | Collections nest at most 8 deep, without cycles, 5000 per namespace. | bad-data-accepted | correctness-only | *(documented, docs/api.md "at most 8 deep")* | Voided by: Checks only in `_check_parent` — `domain/hierarchy.py:132`, `:142-143`. `grep -rln '"parent"\]' fastapi_backend/app/domain` — only `domain/hierarchy.py` writes it (Q34 covers unread movers). |
 | P-FLOW | Flow and tool graphs never loop back and run within a step budget. | hang | correctness-only | *(documented, domain/flow.py docstring "Graphs never loop back")* | Voided by: none identified (not required for this symptom; no exhaustive search) |
+| P-BROWSER | The assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected (seen in the last 20 seconds, not closed). Only that person sees the session's actions and answers them, once each. `ai.browser` off refuses new sessions and offers no browser tools. | integrity-bypass | security-critical | *(documented, docs/browser-assistant.md "Only you")* | Voided by: The side panel carries out what it's asked: which sites it acts on, and what it asks the person first, is the extension's (docs/browser-assistant.md); an agent holding the person's write token can ask too — `api/v1/routes/browser.py`. |
 
 
 ### Worked routing examples

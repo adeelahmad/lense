@@ -1,7 +1,7 @@
 # Web clipper
 
-**Status: built (Chrome).** Firefox, Edge and Safari builds come from the same code; each gets a target in
-`extensions/browser/targets/`.
+**Status: built (Chrome, Edge and Firefox); Safari in progress.** Every browser's build comes from the same code;
+each gets a target in `extensions/browser/targets/`.
 
 The Lens web clipper is a browser extension that turns what you're reading into Markdown and sends it to your Lens,
 where it's imported like pasted text and runs through the namespace's pipeline. It works like MarkDownload: you
@@ -96,6 +96,10 @@ npm test            # templates, metadata, Markdown, sending (jsdom)
 npm run build       # dist/<target>/ for every target; --target chrome for one
 ```
 
+From the repository root, `pnpm exec nx run-many -t test build -p clipper` does the same (installing first when the
+lockfile changed), and CI runs it in **Other projects** when a change affects the clipper
+([Monorepo and CI](contributing.md#monorepo-and-ci-nx)).
+
 Load `dist/chrome` with **Load unpacked** on `chrome://extensions` (Developer mode on). The Browser extension workflow
 builds every target on each pull request that changes the clipper and keeps `lens-clipper-<target>.zip` with the run;
 a release gets them attached.
@@ -103,6 +107,20 @@ a release gets them attached.
 A target is `extensions/browser/targets/<name>.json`, merged over `src/manifest.json` (a `null` removes a key), so a
 browser that needs something different (Firefox's `browser_specific_settings` and background `scripts`, say) adds only
 that. The code reaches the extension API as `globalThis.browser ?? globalThis.chrome`.
+
+### Firefox
+
+Firefox 128 or later (desktop). `targets/firefox.json` runs the background as a script instead of a service worker
+and gives the add-on its id, `lens-clipper@adeelahmad.github.io`. To try a build, open `about:debugging`, choose
+**This Firefox**, then **Load Temporary Add-on…** and pick `dist/firefox/manifest.json`; it stays until Firefox
+restarts.
+
+The Browser extension (Firefox) workflow runs Mozilla's linter, `web-ext lint` (the checks addons.mozilla.org runs),
+on every pull request that changes the clipper, and keeps `lens-clipper-firefox.zip` (ready to upload to
+addons.mozilla.org) with the run. On a release, if the `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` secrets hold an
+[addons.mozilla.org API key](https://addons.mozilla.org/developers/addon/api/key/), Mozilla signs it as an unlisted
+add-on and the release gets `lens-clipper-firefox.xpi`, which any Firefox installs by opening it. That copy is built
+from `dist/firefox-selfhosted`, so it updates itself from the newest release (see below).
 
 ## Releases and updates
 
@@ -116,7 +134,7 @@ are set, and is skipped otherwise:
 | Edge | Microsoft Edge Add-ons: each release is uploaded and submitted | `EDGE_PRODUCT_ID`, `EDGE_CLIENT_ID`, `EDGE_API_KEY` |
 | Chrome, Edge (self-hosted) | `lens-clipper-<browser>.crx`, which checks `lens-clipper-<browser>-updates.xml` on the newest release | `CRX_PRIVATE_KEY` |
 | Firefox | the Mozilla-signed `lens-clipper-firefox.xpi`, which checks `lens-clipper-firefox-updates.json` on the newest release | `AMO_JWT_ISSUER`, `AMO_JWT_SECRET` |
-| Safari | the App Store, from the Safari build | see the Safari section |
+| Safari | the App Store, from the Safari build | `APPLE_*`, see [Safari](#safari) |
 
 - Chrome and Edge only install a `.crx` from outside their stores through policy (`ExtensionInstallForcelist`
   with the update XML's address) or on Linux. For everyone else the stores are the way to get updates.
@@ -124,3 +142,26 @@ are set, and is skipped otherwise:
   key makes a different extension.
 - The self-hosted builds are `dist/<browser>-selfhosted`. They are built when `EXT_UPDATE_BASE` is set, which a release
   sets to its `releases/latest/download` address, so every installed copy finds the newest version.
+
+## Safari
+
+Safari runs the same clipper, carried inside a small macOS app (**Lens Clipper.app**). Each release has
+`lens-clipper-safari-app.zip` attached; to build it yourself on a Mac with Xcode, run `extensions/browser/safari/build.sh`.
+
+To install the zip: unzip it, move **Lens Clipper.app** to Applications and open it once. In Safari, turn on
+**Settings > Advanced > Show features for web developers** and **Develop > Allow Unsigned Extensions**, then enable
+Lens Clipper in **Settings > Extensions**. The zip is unsigned, so Safari forgets that allowance each time it restarts.
+Safari asks before the clipper reads a site; allow your Lens server and the pages you clip.
+
+**Updates:** Safari extensions update only through the App Store. When the repository has the App Store Connect
+secrets, the Safari clipper workflow signs each release and uploads it there:
+
+| Secret | What it is |
+| --- | --- |
+| `APPLE_TEAM_ID` | Your Apple Developer team id |
+| `APPLE_API_KEY_ID`, `APPLE_API_ISSUER` | An App Store Connect API key with the Admin role (Users and Access > Integrations), and its issuer id |
+| `APPLE_API_KEY_P8` | The contents of that key's `AuthKey_….p8` file |
+
+Create the app's record in App Store Connect once, with the bundle id `dev.lens.clipper`. Each upload then shows up in
+TestFlight, which keeps testers up to date; submit a build for review to release it on the Mac App Store, where Safari
+updates it for everyone. Without the secrets the upload is skipped and only the zip is attached.

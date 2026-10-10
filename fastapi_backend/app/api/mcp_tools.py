@@ -12,6 +12,7 @@ import datetime as dt
 import html
 import json
 import re
+import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -26,7 +27,7 @@ from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
-from app.domain import analyze, auth, blobs, feeds, graph_history, library, notebook, rdf, render, settings, sources, store
+from app.domain import analyze, auth, blobs, feeds, filetree, graph_history, library, notebook, rdf, render, settings, sources, store
 from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
@@ -359,6 +360,85 @@ def search(
     out: dict[str, Any] = {"query": found.query, "total": found.total, "results": results}
     if found.capped:
         out["capped"] = True
+    if offset + len(results) < found.total:
+        out["next_offset"] = offset + len(results)
+    return out
+
+
+@tool(
+    "find_similar",
+    "Find similar content",
+    "The recordings, documents and images most like a text (a sentence, a passage, a title), a recording, a topic or "
+    "an entity: give exactly one. Best first, each with why it's alike: `match` (meaning: close in meaning, when an "
+    "embedding model is set up; words: shares key words; topics: about the same topics; entities: mentions the same "
+    "people, organisations, places...), the moments that show it (text with the key words in **bold**, and a url that "
+    "opens it there), and the words, topics and entities in common. A recording is never listed as like itself.",
+    Arg("text", "string", "what to find more like: a sentence, a passage, a title", max_length=2000),
+    Arg("recording_id", "integer", "a recording: the others most like it"),
+    Arg("topic_id", "integer", "a topic (from list_topics): what's most like its labels and definition, and about it"),
+    Arg("entity_id", "integer", "an entity (from list_entities): what's most like its name and description, and mentions it"),
+    Arg("exclude_recording_id", "integer", "leave this recording out too (the one the text is from)"),
+    Arg("limit", "integer", "how many", default=10, minimum=1, maximum=50),
+    Arg("offset", "integer", "skip this many (for the next page)", default=0, minimum=0, maximum=10000),
+)
+def find_similar(
+    ctx: Context,
+    text: str | None,
+    recording_id: int | None,
+    topic_id: int | None,
+    entity_id: int | None,
+    exclude_recording_id: int | None,
+    limit: int,
+    offset: int,
+) -> dict[str, Any]:
+    if sum(x is not None for x in (text, recording_id, topic_id, entity_id)) != 1:
+        raise ToolError("give one of text, recording_id, topic_id or entity_id")
+    found = search_routes.find_similar(
+        ctx.acl,
+        ctx.user,
+        ctx.db,
+        ctx.cfg,
+        text=text,
+        recording=recording_id,
+        topic=topic_id,
+        entity=entity_id,
+        exclude=exclude_recording_id,
+        limit=limit,
+        offset=offset,
+    )
+    results = []
+    for x in found.items:
+        moments = []
+        for c in x.cites:
+            m: dict[str, Any] = {
+                "found": c.match,
+                "at": store.tc(c.t0) if c.t0 is not None and c.page is None else None,
+                "seconds": _seconds(c.t0) if c.page is None else None,
+                "line": c.idx,
+                "page": c.page + 1 if c.page is not None else None,
+                "similarity": c.similarity,
+                "text": _plain(c.snippet),
+                "url": ctx.link(x.recording_id, c.t0 if c.page is None else None) + (f"?page={c.page}" if c.page is not None else ""),
+            }
+            moments.append({k: v for k, v in m.items() if v is not None})
+        item: dict[str, Any] = {
+            "recording_id": x.recording_id,
+            "title": x.title,
+            "namespace": x.namespace,
+            "recorded_at": x.recorded_at,
+            "media": x.media_kind,
+            "match": x.match,
+            "similarity": x.similarity,
+            "moments": moments,
+            "words": x.words or None,
+            "topics": [{"id": t.id, "label": t.label} for t in x.topics] or None,
+            "entities": [{"id": e.id, "name": e.name} for e in x.entities] or None,
+            "url": ctx.link(x.recording_id),
+        }
+        results.append({k: v for k, v in item.items() if v is not None})
+    out: dict[str, Any] = {"like": found.label, "by": found.mode, "key_words": found.terms, "total": found.total, "results": results}
+    if found.meaning:
+        out["note"] = found.meaning
     if offset + len(results) < found.total:
         out["next_offset"] = offset + len(results)
     return out
@@ -1355,6 +1435,60 @@ def get_podcast(ctx: Context, episode_id: int) -> dict[str, Any]:
             "url": ctx.link(episode_id),
         }
     )
+
+
+# ---------- the graph as files ----------
+FILE_CHARS = 100_000  # the most of a file read_file returns at once; offset pages through the rest
+
+
+def _tree(ctx: Context) -> filetree.Tree:
+    return filetree.Tree(ctx.db, ctx.cfg, filetree.Viewer(ctx.user.admin, ctx.user.roles, ctx.user.collections))
+
+
+@tool(
+    "list_files",
+    "List a folder of the file tree",
+    "The graph as folders and files: '' lists your namespaces; each has Collections/<collection>/<inside it>/…, "
+    "Topics/<topic>/<narrower topic>/… and Entities/<type>/<name>/, each folder holding its assets' files, named "
+    "'<title> [<id>]': its own file (.mp3, .pdf, …), .json with its metadata, topics and entities, and .txt with its text.",
+    Arg("path", "string", "the folder, from the top (e.g. pods/Topics/Gene therapy)", default="", max_length=4000),
+)
+def list_files(ctx: Context, path: str) -> dict[str, Any]:
+    t = _tree(ctx)
+    try:
+        entries = t.list(path)
+    except filetree.NotFound:
+        raise KeyError(path) from None
+    except filetree.NotAFolder:
+        raise ToolError("that's a file: read it with read_file") from None
+    return {"path": "/".join(t.split(path)), "entries": [e.out() for e in entries]}
+
+
+@tool(
+    "read_file",
+    "Read a file of the file tree",
+    "A text file of the tree (an asset's .txt or .json), from list_files. Media and documents' own "
+    f"files are only their size and type here: download them from the API (/api/v1/tree/file?path=). At most "
+    f"{FILE_CHARS} characters at a time; next_offset continues.",
+    Arg("path", "string", "the file, from the top", required=True, max_length=4000),
+    Arg("offset", "integer", "start at this character", default=0, minimum=0),
+)
+def read_file(ctx: Context, path: str, offset: int) -> dict[str, Any]:
+    try:
+        e = _tree(ctx).stat(path)
+    except filetree.NotFound:
+        raise KeyError(path) from None
+    if e.folder:
+        raise ToolError("that's a folder: list it with list_files")
+    out: dict[str, Any] = {"path": path, "size": e.size, "content_type": e.content_type, "modified": e.modified}
+    if e.data is None:
+        out["download"] = f"{store.API}/tree/file?path={urllib.parse.quote(path)}"
+        return out
+    text = e.data.decode("utf-8", "replace")
+    out["text"] = text[offset : offset + FILE_CHARS]
+    if offset + FILE_CHARS < len(text):
+        out["next_offset"] = offset + FILE_CHARS
+    return out
 
 
 # ---------- where files are kept (admins) ----------

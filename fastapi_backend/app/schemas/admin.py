@@ -251,6 +251,7 @@ class FileStoreTestResult(ResponseModel):
     store: Literal["local", "connection"] | None = None
     seconds: float | None = None
     error: str | None = None
+    limited: str | None = Field(default=None, description="the connection is rate limiting: reads work, new files are kept here")
 
 
 class AuditEntry(ResponseModel):

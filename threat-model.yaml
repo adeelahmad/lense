@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:0647ba2329f20585ed3cabc256ed0ca822b55437d90c39ddb1b30da4807a0eab"
+prose_version: "threat-model.md@sha256:ef17797f3dd5d28c081de2f02832f136ab225345941643bf907eadb792cb846a"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1445,6 +1445,14 @@ properties_claimed:
     violation_symptoms: [hang]
     x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
     provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}
+  - id: P-BROWSER
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "the assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected; only they see and answer that session's actions; ai.browser off turns it off"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the side panel carries out what it's asked (which sites, what it asks first: the extension's); an agent with the person's write token can ask too (api/v1/routes/browser.py)"
+    provenance: {kind: documented, source: 'docs/browser-assistant.md "Only you"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]

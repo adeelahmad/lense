@@ -41,6 +41,7 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | Tool | |
 |---|---|
 | `search` | moments where words are said, shown on screen or written, best first: the recording, speaker, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, speaker or recording |
+| `find_similar` | the recordings, documents and images most like a text, a recording, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
 | `list_namespaces` | the namespaces you can read, with their recordings, hours, speakers and your role |
 | `list_recordings` | recordings, newest first, by namespace, title words, dates, speaker, tag or kind |
 | `list_speakers` | the speakers of your namespaces, the ones who talk most first |
@@ -65,6 +66,8 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about recordings or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |
 | `get_podcast` | an episode: how far it has got, its script with each line's speaker and the sources it cites (links), and what the fact-check changed |
+| `list_files` | a folder of [the graph as files](file-tree.md): your namespaces, then their collections, topics (nested by narrower topics) and entities, each holding its assets' files |
+| `read_file` | a text file of that tree (an asset's `.txt` text or `.json` metadata), a page at a time; other files' download link |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |

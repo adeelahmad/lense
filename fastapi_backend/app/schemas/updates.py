@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from app.schemas.backups import BackupSchedule, CopyWork, RestoreWork
 from app.schemas.common import RequestModel, ResponseModel
 
 
@@ -61,3 +62,20 @@ class Backup(ResponseModel):
 class Backups(ResponseModel):
     folder: str
     backups: list[Backup]
+    database: Literal["server", "embedded", "memory"] | None = Field(
+        None, description="the database this Lens uses: a restore needs a backup of the same kind (export or folder)"
+    )
+    in_progress: list[str] = Field(default_factory=list, description="backups being written now, by any Lens process")
+    restore: RestoreWork | None = Field(None, description="the restore running on this server, or the last one")
+    schedule: BackupSchedule | None = None
+
+
+class RemoteBackups(ResponseModel):
+    connection: int | None = Field(None, description="backups.connection: where copies go, or none")
+    folder: str | None = None
+    backups: list[Backup] = Field(default_factory=list, description="the copies there, newest first")
+    error: str | None = Field(None, description="why the connection couldn't be listed")
+    last_at: str | None = Field(None, description="when the last backup was copied there (or tried)")
+    last_name: str | None = None
+    last_error: str | None = Field(None, description="why copying the last backup failed")
+    copying: CopyWork

@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # by hand: every project, not only the affected ones
+  workflow_dispatch:
 
 # Pushes to a pull request cancel its older runs
 concurrency:
@@ -12,12 +14,70 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read # to find main's last green run, the base a push to main is compared with
+
+# Nx (nx.json, and each project's project.json) runs the checks. The first job asks it which projects the change
+# affects; each job below runs only when its project is one of them, and a job that doesn't run counts as passed.
+# A pull request is compared with the main it merges into, a push to main with main's last green CI run.
+#
+# Each task runs fresh here: Nx's cache is for a contributor's machine, and CI neither reads nor fills one.
+env:
+  NX_SKIP_NX_CACHE: "true"
 
 # Every workflow runs on GitHub's ubuntu-latest. To use a self-hosted runner instead, set the repository variable
 # CI_RUNNER (Settings → Secrets and variables → Actions → Variables) to its labels as JSON: ["self-hosted","Linux","X64"]
 jobs:
+  affected:
+    name: Affected projects
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    outputs:
+      projects: ${{ steps.affected.outputs.projects }}
+      others: ${{ steps.affected.outputs.others }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the history back to the base the change is compared with
+          filter: tree:0
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install Nx
+        run: pnpm install --frozen-lockfile
+      - name: The commits to compare
+        if: github.event_name != 'workflow_dispatch'
+        uses: nrwl/nx-set-shas@v5
+      - name: The projects the change affects
+        id: affected
+        run: |
+          # anything but two JSON lists fails this job, and then every job runs
+          set -o pipefail
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            projects=$(pnpm exec nx show projects --json | jq -c .)
+            others=$(pnpm exec nx show projects --exclude=backend,frontend --json | jq -c .)
+          else
+            projects=$(pnpm exec nx show projects --affected --json | jq -c .)
+            others=$(pnpm exec nx show projects --affected --exclude=backend,frontend --json | jq -c .)
+          fi
+          jq -en --argjson p "$projects" --argjson o "$others" '($p | type) == "array" and ($o | type) == "array"' >/dev/null
+          echo "projects=$projects" >> "$GITHUB_OUTPUT"
+          echo "others=$others" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Affected projects"
+            if [ -n "${NX_BASE:-}" ]; then echo "Comparing \`${NX_BASE:0:12}\` with \`${NX_HEAD:0:12}\`."; else echo "Run by hand: every project."; fi
+            echo
+            echo "$projects" | jq -r 'if length == 0 then "None: nothing to build or test." else map("- " + .) | join("\n") end'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   backend:
     name: FastAPI (embedded SurrealDB)
+    needs: affected
+    # when the affected job itself fails, run anyway
+    if: ${{ !cancelled() && (needs.affected.result != 'success' || contains(needs.affected.outputs.projects, '"backend"')) }}
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     defaults:
       run:
@@ -67,26 +127,37 @@ jobs:
           cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
           python-version: "3.12"
 
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install Nx
+        working-directory: .
+        run: pnpm install --frozen-lockfile
+
       - name: Install
         run: uv sync --frozen
 
+      # the commands are the targets in fastapi_backend/project.json
       - name: Lint
-        run: uv run ruff check . && uv run ruff format --check .
+        run: pnpm exec nx run backend:lint
 
       - name: Type check
-        run: uv run mypy
+        run: pnpm exec nx run backend:typecheck
 
       - name: OpenAPI schema is up to date
-        run: |
-          OPENAPI_OUTPUT_FILE=/tmp/openapi.json uv run python -m commands.generate_openapi_schema
-          diff -u ../nextjs-frontend/openapi.json /tmp/openapi.json
+        run: pnpm exec nx run backend:openapi-check
 
       - name: Tests
         # the suite took 28 min on the self-hosted runner at 544 tests (3 min on a laptop); it keeps growing
         timeout-minutes: 60
         run: |
           set -o pipefail
-          uv run pytest -n auto -p no:cacheprovider --durations=20 --cov=app --cov-report=xml:coverage.xml --cov-report=term | tee pytest.txt
+          pnpm exec nx run backend:test:ci | tee pytest.txt
           { echo "### Backend coverage"; echo '```'; grep -E '^(Name|TOTAL)' pytest.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
@@ -96,6 +167,8 @@ jobs:
 
   backend-surrealdb-server:
     name: FastAPI (SurrealDB server)
+    needs: affected
+    if: ${{ !cancelled() && (needs.affected.result != 'success' || contains(needs.affected.outputs.projects, '"backend"')) }}
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     defaults:
       run:
@@ -152,48 +225,99 @@ jobs:
           # a cache that outlives the job on the self-hosted runner (the default is in the job's temp folder)
           cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
           python-version: "3.12"
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install Nx
+        working-directory: .
+        run: pnpm install --frozen-lockfile
       - run: uv sync --frozen
       - name: Tests against the server
         # slower than the embedded run: 30 min covered two thirds of it on the self-hosted runner
         timeout-minutes: 75
-        run: uv run pytest -n 4 --durations=20
+        run: pnpm exec nx run backend:test:server
       - name: Remove SurrealDB
         if: always()
         run: docker rm -f "$SURREAL_CONTAINER" || true
 
   frontend:
     name: Next.js
+    needs: affected
+    if: ${{ !cancelled() && (needs.affected.result != 'success' || contains(needs.affected.outputs.projects, '"frontend"')) }}
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
-    defaults:
-      run:
-        working-directory: ./nextjs-frontend
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6
         with:
-          # the pnpm version comes from packageManager in the frontend's package.json
-          package_json_file: nextjs-frontend/package.json
+          # the pnpm version comes from packageManager in package.json (the same in the frontend's)
           run_install: false
       - uses: actions/setup-node@v7
         with:
           node-version: "22"
           # on the self-hosted runner pnpm's store stays on disk; saving it to GitHub's cache took minutes
           cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          cache-dependency-path: nextjs-frontend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm tsc
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            nextjs-frontend/pnpm-lock.yaml
+      - name: Install Nx
+        run: pnpm install --frozen-lockfile
+      - name: Install
+        working-directory: ./nextjs-frontend
+        run: pnpm install --frozen-lockfile
+      # the commands are the targets in nextjs-frontend/project.json
+      - name: Lint
+        run: pnpm exec nx run frontend:lint
+      - name: Type check
+        run: pnpm exec nx run frontend:typecheck
       - name: Tests
         run: |
           set -o pipefail
-          pnpm coverage --coverageReporters=text-summary --coverageReporters=lcov | tee coverage.txt
+          pnpm exec nx run frontend:test:ci | tee coverage.txt
           { echo "### Frontend coverage"; echo '```'; sed -n '/Coverage summary/,/^=*$/p' coverage.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
           name: frontend-coverage
           path: nextjs-frontend/coverage/lcov.info
       - name: Build
-        run: pnpm build
+        run: pnpm exec nx run frontend:build
         env:
           API_BASE_URL: http://localhost:8000
           AUTH_SECRET: ci-auth-secret
+
+  projects:
+    name: Other projects
+    needs: affected
+    # every other project with lint, typecheck, test or build targets: a new project.json is all it takes to join
+    if: ${{ !cancelled() && (needs.affected.result != 'success' || needs.affected.outputs.others != '[]') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    env:
+      OTHERS: ${{ needs.affected.outputs.others }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install Nx
+        run: pnpm install --frozen-lockfile
+      - uses: astral-sh/setup-uv@v7
+        with:
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
+          python-version: "3.12"
+      - name: Lint, type check, test and build them
+        run: |
+          # all of them when the affected job didn't say
+          if [ -n "$OTHERS" ]; then
+            pnpm exec nx run-many -t lint typecheck test build --outputStyle=static -p "$(echo "$OTHERS" | jq -r 'join(",")')"
+          else
+            pnpm exec nx run-many -t lint typecheck test build --outputStyle=static --exclude=backend,frontend
+          fi

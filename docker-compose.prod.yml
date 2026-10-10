@@ -143,6 +143,20 @@ services:
     restart: unless-stopped
     networks: [lens]
 
+  # StyleTTS2 (docs/speech-providers.md#styletts2): spoken answers and podcasts read on this machine, in a voice like a
+  # short clip you put in its voices volume. Heavy (PyTorch and a 1 GB model, fetched on first use), so opt-in:
+  # `docker compose --profile styletts2 up -d`, then Settings → AI assistant → Voice → StyleTTS2.
+  styletts2:
+    security_opt: ["no-new-privileges:true"]
+    image: lens-styletts2:${LENS_VERSION:-prod}
+    build: ./styletts2
+    profiles: [styletts2]
+    volumes:
+      - styletts2-data:/data
+      - styletts2-voices:/voices
+    restart: unless-stopped
+    networks: [lens]
+
   # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
   # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
   # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
@@ -176,6 +190,8 @@ services:
 volumes:
   surreal-data:
   matterbridge-data:
+  styletts2-data:
+  styletts2-voices:
   archive-data:
   fedora-data:
   opensearch-data:

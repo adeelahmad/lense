@@ -1,0 +1,12 @@
+{
+  "name": "lens-clicks",
+  "private": true,
+  "description": "Counts the clicks and keystrokes each Lens journey takes, so changes can be compared with a baseline",
+  "type": "module",
+  "scripts": {
+    "survey": "node survey.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.56.1"
+  }
+}

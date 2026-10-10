@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pathlib
+import re
 import wave
 
 import numpy as np
@@ -205,3 +206,13 @@ def login(client, email, password):
     r = client.post("/api/v1/auth/login", json={"email": email, "password": password})
     assert r.status_code == 200, r.text
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def unmark(text):
+    """Prompt text with each marker's random code (untrusted.py) written as X, to compare with `marked`."""
+    return re.sub(r"(</?untrusted-)[0-9a-f]+", r"\1X", text or "")
+
+
+def marked(text, source):
+    """`text` as the model reads it, marked as data from `source`, with its code written as X (unmark)."""
+    return f'<untrusted-X source="{source}">\n{text}\n</untrusted-X>'

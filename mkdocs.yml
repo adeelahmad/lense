@@ -61,47 +61,56 @@ markdown_extensions:
 
 nav:
   - Home: README.md
-  - Get started: get-started.md
-  - Architecture: architecture.md
-  - Web app: frontend.md
-  - Authentication: authentication.md
-  - Access: access.md
-  - Database: database.md
-  - Configuration: configuration.md
-  - Processing: processing.md
-  - Components: components.md
-  - Video: video.md
-  - Speech providers: speech-providers.md
-  - Local models: local-models.md
-  - Chat and batch runs: assistant.md
-  - Podcasts: podcasts.md
-  - Notifications: notifications.md
-  - Chat rooms: chat-rooms.md
-  - Sensors: sensors.md
-  - Telemetry: telemetry.md
-  - Prometheus: prometheus.md
-  - Activity and costs: activity.md
-  - Budgets: budgets.md
-  - IIIF: iiif.md
-  - Graph and Cypher: graph.md
-  - Graph history: graph-history.md
-  - Topics: topics.md
-  - Notes: notes.md
-  - Web clipper: web-clipper.md
-  - Storage: storage.md
-  - Linked data (RDF): rdf.md
-  - Fedora repository: fedora.md
-  - File shares: file-shares.md
-  - API: api.md
-  - MCP server: mcp.md
-  - API work the design needs: backend-gaps.md
-  - Encryption: encryption.md
-  - Remote access: remote-access.md
-  - Deployment: deployment.md
-  - Updates and backups: updates.md
-  - microsandbox: microsandbox.md
-  - Technology: technology-selection.md
-  - Contributing: contributing.md
+  - Start:
+      - Get started: get-started.md
+      - Deployment: deployment.md
+      - microsandbox: microsandbox.md
+      - Configuration: configuration.md
+      - Components: components.md
+      - Updates and backups: updates.md
+      - Remote access: remote-access.md
+  - Agents and apps:
+      - MCP server: mcp.md
+      - API: api.md
+      - Authentication: authentication.md
+      - Access: access.md
+  - Use:
+      - Chat and batch runs: assistant.md
+      - Chat rooms: chat-rooms.md
+      - Podcasts: podcasts.md
+      - Notes: notes.md
+      - Web clipper: web-clipper.md
+      - The assistant in your browser: browser-assistant.md
+      - Sensors: sensors.md
+      - Processing: processing.md
+      - Video: video.md
+      - Notifications: notifications.md
+  - Knowledge:
+      - Graph and Cypher: graph.md
+      - Graph history: graph-history.md
+      - Topics: topics.md
+      - The graph as files: file-tree.md
+      - File shares: file-shares.md
+      - Linked data (RDF): rdf.md
+      - IIIF: iiif.md
+      - Fedora repository: fedora.md
+  - Models and cost:
+      - Local models: local-models.md
+      - Speech providers: speech-providers.md
+      - Activity and costs: activity.md
+      - Budgets: budgets.md
+  - Operate:
+      - Encryption: encryption.md
+      - Storage: storage.md
+      - Database: database.md
+      - Telemetry: telemetry.md
+      - Prometheus: prometheus.md
+  - Build:
+      - Architecture: architecture.md
+      - Web app: frontend.md
+      - Technology: technology-selection.md
+      - API work the design needs: backend-gaps.md
+      - Contributing: contributing.md
   - Changelog: CHANGELOG.md
 
 plugins:
@@ -112,6 +121,7 @@ hooks:
 
 exclude_docs: |
   brand/README.md
+  project.json
 
 extra_css:
   - stylesheets/extra.css

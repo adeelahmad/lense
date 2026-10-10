@@ -52,6 +52,14 @@ export type FieldSpec = {
   unit?: string;
 };
 
+/** backups.schedule: cron expressions offered in one click (any other can be typed). */
+export const BACKUP_SCHEDULES: Opt[] = [
+  { value: "0 3 * * *", label: "Every night at 3:00" },
+  { value: "0 */6 * * *", label: "Every 6 hours" },
+  { value: "0 * * * *", label: "Every hour" },
+  { value: "0 3 * * 0", label: "Every Sunday at 3:00" },
+];
+
 export type SectionId =
   | "transcription"
   | "speaker-separation"
@@ -79,6 +87,7 @@ export type SectionId =
   | "nfs"
   | "uploads"
   | "storage"
+  | "backups"
   | "documents"
   | "tokens"
   | "iiif"
@@ -267,6 +276,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["uploads"],
     description:
       "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
+    id: "backups",
+    label: "Backups",
+    backend: ["backups"],
+    description:
+      "Back the database up now or on a schedule, download a backup to keep somewhere else, and restore one. Backups are kept in the server’s data folder, under backups.",
   },
   {
     id: "storage",
@@ -752,6 +768,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "untrusted_marking",
+    label: "Treat what the assistant reads as data, not instructions",
+    kind: "switch",
+    hint: "Recordings, documents, web pages, chat rooms and what tools send back reach the model marked as material to read and cite, so instructions written in them aren't followed.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
@@ -764,6 +787,21 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 50,
+  },
+  {
+    section: "ai",
+    key: "browser",
+    label: "Let the assistant use a connected browser",
+    kind: "switch",
+    hint: "From the Lens extension's side panel, the assistant can open, read and click in that browser, only on sites the person allows, asking before anything that sends, deletes or buys.",
+  },
+  {
+    section: "ai",
+    key: "browser_steps",
+    label: "Tool steps when using the browser",
+    kind: "int",
+    min: 1,
+    max: 100,
   },
   {
     section: "ai",
@@ -1072,6 +1110,7 @@ export const FIELDS: FieldSpec[] = [
       { value: "deepgram", label: "Deepgram Aura (provider)" },
       { value: "gemini", label: "Google Gemini (provider)" },
       { value: "say", label: "macOS say (Lens running on a Mac)" },
+      { value: "styletts2", label: "StyleTTS2 (on this machine)" },
     ],
   },
   {
@@ -1103,6 +1142,14 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "the LLM provider’s",
   },
   { section: "voice", key: "tts_api_key", label: "Speech server API key", kind: "secret" },
+  {
+    section: "voice",
+    key: "styletts2_url",
+    label: "StyleTTS2 service",
+    kind: "text",
+    mono: true,
+    hint: "http://styletts2:8880 in Docker Compose",
+  },
   // Local model
   { section: "local_llm", key: "enabled", label: "Run a model here", kind: "switch" },
   {
@@ -1712,6 +1759,52 @@ export const FIELDS: FieldSpec[] = [
     hint: "One per line, like 192.168.1.0/24. NFS has no login, so machines anywhere else are turned away",
   },
   { section: "nfs", key: "port", label: "Port inside Lens", kind: "int", min: 1, max: 65535 },
+  // Backups (docs/database.md#backups)
+  {
+    section: "backups",
+    key: "schedule",
+    label: "Back up on a schedule",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "Off",
+    hint: "Minute, hour, day of month, month, day of week: 30 2 * * 1-5 is 2:30 on weekdays. Empty: off",
+  },
+  {
+    section: "backups",
+    key: "timezone",
+    label: "Time zone",
+    kind: "text",
+    placeholder: "UTC",
+    hint: "For the schedule, like Europe/London",
+  },
+  {
+    section: "backups",
+    key: "connection",
+    label: "Also copy each backup to",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "Encrypted with this server’s secret key before it leaves the machine",
+  },
+  {
+    section: "backups",
+    key: "folder",
+    label: "Folder there",
+    kind: "text",
+    mono: true,
+    placeholder: "lens-backups",
+    hint: "For S3, the bucket and a path (my-bucket/lens-backups); for a folder on this machine, its full path",
+  },
+  {
+    section: "backups",
+    key: "keep",
+    label: "Scheduled backups kept",
+    kind: "int",
+    min: 1,
+    max: 365,
+    hint: "The oldest go when a new one is taken. Backups you take yourself stay until you delete them",
+  },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -2372,7 +2465,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     case "select":
       if (f.key === "frame_width") return { value: Number(ui) };
       if (f.section === "nfs" && f.key === "account") return { value: ui === "" || ui == null ? null : Number(ui) };
-      if (f.section === "files" && f.key === "connection")
+      if ((f.section === "files" || f.section === "backups") && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };
       return { value: ui === "" && f.nullable ? null : ui };
     default: {
