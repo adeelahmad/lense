@@ -22,6 +22,10 @@ xcrun safari-web-extension-converter "$here/dist/safari" \
   --macos-only --swift --copy-resources --no-open --no-prompt --force
 
 project=$(find "$out/xcode" -maxdepth 2 -name '*.xcodeproj' | head -n 1)
+# The converter gives the extension $bundle_id.Extension but names the app from the app name (dev.lens.Lens-Clipper),
+# and Xcode refuses an extension whose id doesn't start with its app's; make the app $bundle_id.
+bundle_id=$bundle_id perl -pi -e 's/(PRODUCT_BUNDLE_IDENTIFIER = )(?!"?[^;]*\.Extension"?;)[^;]*;/$1"$ENV{bundle_id}";/' \
+  "$project/project.pbxproj"
 if [ -n "${SAFARI_TEAM_ID:-}" ]; then
   set -- DEVELOPMENT_TEAM="$SAFARI_TEAM_ID" CODE_SIGN_STYLE=Automatic
 else
