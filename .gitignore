@@ -170,3 +170,5 @@ local-shared-data/*
 
 # ci/local-ci.sh logs
 /.local-ci/
+.lens-build
+.lens-sandbox
