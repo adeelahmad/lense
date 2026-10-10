@@ -137,7 +137,7 @@ ENUMS = {
     ("decisions", "engine"): {"auto", "jev", "laya", "llm", "off"},
     ("voice", "input"): {"auto", "server", "browser"},
     ("voice", "stt"): {"same", "sensevoice", "whisper", "mlx-whisper", "openai", "elevenlabs", "assemblyai", "deepgram"},
-    ("voice", "tts_provider"): {"openai", "elevenlabs", "deepgram", "gemini", "say"},
+    ("voice", "tts_provider"): {"openai", "elevenlabs", "deepgram", "gemini", "say", "styletts2"},
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
@@ -425,6 +425,10 @@ def _check(section, key, value, default):
             return None
         if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
             raise ValueError("voice.tts_base_url is the http(s) address of an OpenAI-compatible server with /audio/speech")
+        return value.strip().rstrip("/")
+    if (section, key) == ("voice", "styletts2_url"):
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("voice.styletts2_url is the http(s) address of the styletts2 service")
         return value.strip().rstrip("/")
     if section == "voice" and key in ("tts_model", "tts_voice", "tts_api_key"):
         if value in (None, ""):

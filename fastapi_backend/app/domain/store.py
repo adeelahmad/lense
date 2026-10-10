@@ -292,7 +292,8 @@ DEFAULTS = {
     # browser's; spoken answers come from tts_model (an OpenAI-compatible /audio/speech), else the browser reads them
     # stt: the engine that hears voice chat ("same": the transcription engine); tts_provider: who reads answers aloud
     # (openai: the OpenAI-compatible speech server below; elevenlabs, deepgram, gemini: the keys in speech; say: macOS's
-    # own voices, when Lens runs on a Mac itself); tts_voice: the voice they read in (null: the provider's default)
+    # own voices, when Lens runs on a Mac itself; styletts2: the optional service at styletts2_url); tts_voice: the
+    # voice they read in (null: the provider's default)
     "voice": {
         "input": "auto",
         "stt": "same",
@@ -301,6 +302,7 @@ DEFAULTS = {
         "tts_model": None,
         "tts_voice": None,
         "tts_api_key": None,
+        "styletts2_url": "http://styletts2:8880",
     },
     # podcast episodes made from what someone picked (domain/podcasts.py): where they go, the hosts' names, how much
     # source text the model reads (characters), the longest episode (minutes), the speaking pace, and a model for

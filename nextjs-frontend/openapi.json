@@ -23661,7 +23661,7 @@
               "anyOf": [
                 {
                   "type": "string",
-                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say)$"
+                  "pattern": "^(openai|elevenlabs|deepgram|gemini|say|styletts2)$"
                 },
                 {
                   "type": "null"

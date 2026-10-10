@@ -12,11 +12,12 @@ Todo:
 
 - [x] Gemini TTS and macOS `say` as text-to-speech providers; `GET /voice/voices` lists each provider's voices;
       `POST /voice/speak` takes a voice to try
-- [ ] StyleTTS2 as an opt-in local service (off by default; heavy)
+- [x] StyleTTS2 as an opt-in local service (`styletts2/`, Compose profile `styletts2`; voices are clips in a volume)
 - [x] Settings → AI assistant → Voice: pick a voice from the list and hear it; Gemini in Speech providers
 
 Refine later: pick a second `say` voice for podcast hosts from what the Mac has; Gemini's multi-speaker mode for a
-whole podcast in one call; ElevenLabs voice settings (stability, style); cache the voice lists.
+whole podcast in one call; ElevenLabs voice settings (stability, style); cache the voice lists; upload StyleTTS2 voice
+clips from Settings (or use a speaker's own voiceprint clips); start the StyleTTS2 service from Settings; GPU build.
 
 ## 2026-10-10 · Podcasts from picked knowledge
 
