@@ -308,7 +308,7 @@ export const JOURNEYS = [
       await go(ctx, "Sensors");
       await meter.click(page.getByRole("main").getByRole("button", { name: "Add sensor" }).first(), "Add sensor");
       await meter.click(page.getByRole("dialog").getByRole("button", { name: "Make webhook" }), "Make webhook");
-      await page.getByText(/token/i).first().waitFor();
+      await page.getByRole("dialog").getByText(/token/i).first().waitFor();
     },
   },
   {
@@ -460,6 +460,8 @@ export const JOURNEYS = [
       const { page, meter } = ctx;
       await go(ctx, "Entities");
       await meter.type(page.getByRole("searchbox", { name: "Find entities" }), "rasp", "part of its name");
+      // the list filters as you type: the other entity leaves it
+      await page.getByRole("main").getByRole("table").getByText("Lens", { exact: true }).waitFor({ state: "hidden" });
       await meter.click(page.getByRole("main").getByRole("button", { name: "Raspberry Pi", exact: true }), "Raspberry Pi");
       await page.waitForURL(/entity=\d+/);
       await page.getByText(/Raspberry Pi can run Lens/).first().waitFor();

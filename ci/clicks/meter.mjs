@@ -61,7 +61,15 @@ export class Meter {
   /** On a phone, 1 when the control is off the screen (a swipe brings it into view); otherwise 0. */
   async swipesTo(locator) {
     if (!this.touch) return 0;
-    const box = await locator.boundingBox();
+    // Where it settles, not where an opening dialog or a late layout has it for a moment
+    let box = await locator.boundingBox();
+    for (let i = 0; i < 10; i++) {
+      await this.page.waitForTimeout(100);
+      const next = await locator.boundingBox();
+      const same = box && next && box.x === next.x && box.y === next.y && box.width === next.width;
+      box = next;
+      if (same) break;
+    }
     const view = this.page.viewportSize();
     if (!box || !view) return 0;
     const off = box.y < 0 || box.y + box.height > view.height || box.x < 0 || box.x + box.width > view.width;

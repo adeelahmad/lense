@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T21:56:33.215Z",
+  "surveyed": "2026-10-10T22:24:38.726Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -90,7 +90,7 @@
         }
       ],
       "id": "install",
-      "ms": 2589,
+      "ms": 3441,
       "ok": true
     },
     {
@@ -128,7 +128,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 697,
+      "ms": 859,
       "ok": true
     },
     {
@@ -176,7 +176,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 828,
+      "ms": 1316,
       "ok": true
     },
     {
@@ -214,7 +214,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2944,
+      "ms": 2957,
       "ok": true
     },
     {
@@ -277,7 +277,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4017,
+      "ms": 4960,
       "ok": true
     },
     {
@@ -315,7 +315,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3017,
+      "ms": 3226,
       "ok": true
     },
     {
@@ -361,7 +361,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3518,
+      "ms": 3843,
       "ok": true
     },
     {
@@ -399,7 +399,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2451,
+      "ms": 2581,
       "ok": true
     },
     {
@@ -453,7 +453,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3170,
+      "ms": 3670,
       "ok": true
     },
     {
@@ -507,7 +507,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3802,
+      "ms": 4436,
       "ok": true
     },
     {
@@ -561,7 +561,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3716,
+      "ms": 4049,
       "ok": true
     },
     {
@@ -615,7 +615,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 3124,
+      "ms": 3512,
       "ok": true
     },
     {
@@ -670,7 +670,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3156,
+      "ms": 3443,
       "ok": true
     },
     {
@@ -717,7 +717,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 8257,
+      "ms": 8661,
       "ok": true
     },
     {
@@ -763,7 +763,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2909,
+      "ms": 3264,
       "ok": true
     },
     {
@@ -819,7 +819,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 8925,
+      "ms": 9692,
       "ok": true
     },
     {
@@ -889,7 +889,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3279,
+      "ms": 4057,
       "ok": true
     },
     {
@@ -943,7 +943,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 2785,
+      "ms": 3285,
       "ok": true
     },
     {
@@ -956,7 +956,7 @@
       "swipes": 0,
       "steps": [],
       "id": "namespace-switch",
-      "ms": 7243,
+      "ms": 7245,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
@@ -987,7 +987,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3155,
+      "ms": 3278,
       "ok": true
     },
     {
@@ -1034,14 +1034,14 @@
         {
           "page": "/import",
           "kind": "tap",
-          "what": "Import",
+          "what": "Import (covered by something else on the page)",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
         }
       ],
       "id": "import-file",
-      "ms": 3487,
+      "ms": 9166,
       "ok": true
     },
     {
@@ -1136,7 +1136,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 5309,
+      "ms": 5764,
       "ok": true
     },
     {
@@ -1182,7 +1182,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 3824,
+      "ms": 4878,
       "ok": true
     },
     {
@@ -1212,7 +1212,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 9592,
+      "ms": 9648,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
@@ -1276,7 +1276,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 8905,
+      "ms": 9428,
       "ok": true
     },
     {
@@ -1330,7 +1330,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3577,
+      "ms": 4058,
       "ok": true
     },
     {
@@ -1392,7 +1392,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3362,
+      "ms": 3882,
       "ok": true
     },
     {
@@ -1455,7 +1455,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3073,
+      "ms": 3743,
       "ok": true
     },
     {
@@ -1517,7 +1517,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3119,
+      "ms": 3577,
       "ok": true
     },
     {
@@ -1579,7 +1579,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4092,
+      "ms": 4460,
       "ok": true
     },
     {
@@ -1651,7 +1651,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 8559,
+      "ms": 9323,
       "ok": true
     }
   ],
@@ -1717,6 +1717,12 @@
       "controls": 7
     },
     {
+      "page": "/costs",
+      "label": "Costs",
+      "reach": 2,
+      "controls": 12
+    },
+    {
       "page": "/pipelines",
       "label": "Pipelines",
       "reach": 2,
@@ -1762,7 +1768,7 @@
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 3,
-      "controls": 8
+      "controls": 9
     },
     {
       "page": "/extensions",
@@ -1840,7 +1846,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 3,
-      "controls": 52
+      "controls": 55
     },
     {
       "page": "/settings/search",
@@ -1937,6 +1943,12 @@
       "label": "Settings › Uploads",
       "reach": 3,
       "controls": 23
+    },
+    {
+      "page": "/settings/backups",
+      "label": "Settings › Backups",
+      "reach": 3,
+      "controls": 9
     },
     {
       "page": "/settings/storage",
