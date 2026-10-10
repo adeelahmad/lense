@@ -1,7 +1,8 @@
 # Podcasts
 
-**Status: in progress.** The backend that writes a cited, fact-checked script and records it in two voices, its API
-and its MCP tools are built. The web app's dialog and episode page are planned (see the [dev log](https://github.com/adeelahmad/lense/blob/main/DEVLOG.md)).
+**Status: phase 1 built.** Lens writes a cited, fact-checked script, records it in two voices, and serves it over the
+API, MCP and the web app. Picking search hits, topics, notes and graph concepts comes next (see the
+[dev log](https://github.com/adeelahmad/lense/blob/main/DEVLOG.md)).
 
 Pick resources (and passages in them) and Lens makes a two-host learning episode about them: one host explains, the
 other asks the questions a smart learner would ask, with analogies and a recap. Every claim in the script cites the
@@ -18,6 +19,17 @@ the excerpts the model read, the outline, the lines' citations, and what the fac
 An episode goes in the podcasts namespace only when everyone who can read that namespace can also read every source's
 namespace, and no source is in a [vault](encryption.md). Otherwise it goes in the sources' own namespace (when they
 are all in one the person may add to), so an episode never shows content to someone who couldn't read its sources.
+
+## In the web app
+
+- **Library:** select recordings or documents and choose **Podcast** in the bar at the bottom.
+- **A resource's page:** **Create podcast…** in its **⋯** menu.
+
+Either opens a dialog for the angle (what to focus on, or who it's for), the length (about 5, 10 or 20 minutes), the
+style (deep dive, quick recap, compare and contrast, for a beginner) and an optional title. **Podcasts** in the
+navigation lists the episodes you can read. An episode's page shows each stage while it's made, then the player, the
+script with numbered citation chips that open the source at the cited moment or page, the sources it drew on, and the
+lines the fact-check rewrote or dropped. Editors of its namespace can remake or delete it.
 
 ## How it's made
 
@@ -77,5 +89,7 @@ the job when it's over.
 
 ## Refine later
 
+- Pick passages in the web app (search hits, selected lines); the API takes them already.
+- Choose the hosts' voices in the dialog; the API takes them already.
 - Write long episodes in sections, for small local models.
 - Check claims in batches when a script has many.

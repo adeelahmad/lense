@@ -8,8 +8,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   explains, the other asks what a learner would ask, every claim is cited to the passage it comes from and checked
   against it before it's kept, and the script is read aloud in two voices by your text-to-speech provider (a local
   OpenAI-compatible server works). Episodes are recordings in a `podcasts` namespace, so they're searchable and on the
-  graph. Start one with `POST /api/v1/podcasts` or the MCP tool `create_podcast`; the web app's dialog comes next
-  ([Podcasts](docs/podcasts.md)).
+  graph. Start one from the Library's selection bar or a resource's menu, with `POST /api/v1/podcasts`, or with the MCP
+  tool `create_podcast`; each episode's page plays it beside its cited script ([Podcasts](docs/podcasts.md)).
 
 ## 0.4.2 <small>October 9, 2026</small> {id="0.4.2"}
 

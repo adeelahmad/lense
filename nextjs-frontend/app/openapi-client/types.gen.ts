@@ -10134,8 +10134,16 @@ export type Podcast = {
   checks?: Array<PodcastCheck>;
   /**
    * Audio
+   *
+   * a signed link to the episode's audio, once it has some
    */
-  audio?: {
+  audio?: string | null;
+  /**
+   * Voicing
+   *
+   * who read it: the provider, the hosts' voices, its length
+   */
+  voicing?: {
     [key: string]: unknown;
   } | null;
   /**
