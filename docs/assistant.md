@@ -132,8 +132,17 @@ apart from what the person asks:
   chose, what a change tool reports) aren't marked. Turn it off only for a model the markers confuse.
 - **Control tokens broken up:** chat templates' control tokens in that text (`<|im_start|>`, `[INST]`,
   `<start_of_turn>`, `<tool_call>` and the like) and anything that looks like a marker get a space inside, so a local
-  model server that reads them in a message can't be made to end the turn and speak as the system.
-
+  model server that reads them in a message can't be made to end the turn and speak as the system. Unicode's
+  invisible tag characters, which can spell out instructions nobody sees on screen, are taken out.
+- **Flagged when it reads like instructions** (`ai.injection_check`; Settings → AI assistant → Flag text that reads
+  like instructions to an AI): text that says "ignore previous instructions", claims to be new instructions or a new
+  role, addresses an AI reading it, asks to hide something from you, to reveal the system prompt, to call a tool or
+  to put data into a link, or carries control tokens or hidden characters, gets a warning on its marker for the
+  model, and the step in the answer says so ("Read 12 line(s) of Mallory's talk (reads like instructions to an AI:
+  ignore previous instructions)"). `patterns` (the default) is free and kept narrow, so it misses rephrased attacks; `model` also
+  asks the decision model about each tool result the patterns let through (one routine call each, in the activity
+  ledger, falling back to the chat model when no decision model is set up); `off` turns flagging off. A flag is a
+  warning, not a block: the approvals below are what stop an action.
 - **Asks first once it has read it** (`ai.untrusted_asks`, on by default; Settings → AI assistant → Ask before
   sending data out after reading third-party text): once an answer has read text from outside Lens (a tool's result
   other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room

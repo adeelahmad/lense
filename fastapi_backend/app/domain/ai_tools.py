@@ -531,7 +531,10 @@ class Toolbox(ops_tools.OpsTools):
                 extra += self._hook(h, {"said": self.said, "tool": name, "result": result[:4000]})
         if model:
             if self.untrusted(name):
-                result = untrusted.wrap(result, f"tool {name}", self.cfg)
+                why = untrusted.flags(result, self.cfg, model=True)
+                if why:  # the person sees it on the step, the model on the marker
+                    summary = f"{summary} (reads like instructions to an AI: {'; '.join(why)})"
+                result = untrusted.wrap(result, f"tool {name}", self.cfg, why=why)
             return result + (f"\n\n{extra.strip()}" if extra else ""), summary
         if extra:  # what hooks add, next to what the tool gave back
             try:
