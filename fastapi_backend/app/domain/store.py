@@ -471,6 +471,9 @@ DEFAULTS = {
     # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
     # default; reads: log API reads (GET) too; keep_days: how long rows are kept
     "activity": {"enabled": True, "reads": False, "keep_days": 365},
+    # database backups taken on a schedule (docs/database.md, Backups): schedule is a cron expression in timezone, or
+    # none (the default) for none; the newest `keep` scheduled backups are kept
+    "backups": {"schedule": None, "timezone": "UTC", "keep": 7},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -1198,6 +1201,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",
     "DEFINE TABLE IF NOT EXISTS approval SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS approval_chat ON approval FIELDS chat",
+    # the scheduled backup (domain/backups.py): backup_schedule:next holds when it's next due and how the last went
+    "DEFINE TABLE IF NOT EXISTS backup_schedule SCHEMALESS",
 ]
 
 
@@ -1274,15 +1279,21 @@ def connect(cfg, upgrade=True):
     """Open the database, apply the schema and, unless upgrade=False (for `lens migrations`), bring its data up to
     date (domain/migrations.py)."""
     db = DB(cfg)
-    # one round trip, not one per statement: against a server that was over a second for every test's database
-    db.run([_analyzer(cfg), *SCHEMA], transaction=False)
-    _search_engine(db, cfg)
-    for name, spec in cfg["namespaces"].items():
-        sid = ns_id(db, name)
-        db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
+    prepare(db, cfg)
     if upgrade:
         migrate(db)
     return db
+
+
+def prepare(db, cfg):
+    """The schema, word search and the namespaces archive.yaml names: on every start, and after a restore
+    (domain/backups.py)."""
+    # one round trip, not one per statement: against a server that was over a second for every test's database
+    db.run([_analyzer(cfg), *SCHEMA], transaction=False)
+    _search_engine(db, cfg, rebuild=getattr(db, "textindex", None) is not None)
+    for name, spec in cfg["namespaces"].items():
+        sid = ns_id(db, name)
+        db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
 
 
 def migrate(db):

@@ -52,6 +52,15 @@ export type FieldSpec = {
   unit?: string;
 };
 
+/** backups.schedule: cron expressions people pick from (any other saved one is shown too). */
+export const BACKUP_SCHEDULES: Opt[] = [
+  { value: "", label: "Off" },
+  { value: "0 3 * * *", label: "Every night at 3:00" },
+  { value: "0 */6 * * *", label: "Every 6 hours" },
+  { value: "0 * * * *", label: "Every hour" },
+  { value: "0 3 * * 0", label: "Every Sunday at 3:00" },
+];
+
 export type SectionId =
   | "transcription"
   | "speaker-separation"
@@ -78,6 +87,7 @@ export type SectionId =
   | "sensors"
   | "uploads"
   | "storage"
+  | "backups"
   | "documents"
   | "tokens"
   | "iiif"
@@ -259,6 +269,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["uploads"],
     description:
       "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
+    id: "backups",
+    label: "Backups",
+    backend: ["backups"],
+    description:
+      "Back the database up now or on a schedule, download a backup to keep somewhere else, and restore one. Backups are kept in the server’s data folder, under backups.",
   },
   {
     id: "storage",
@@ -1643,6 +1660,32 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 1440,
     unit: "minutes",
+  },
+  // Backups (docs/database.md#backups)
+  {
+    section: "backups",
+    key: "schedule",
+    label: "Back up on a schedule",
+    kind: "select",
+    nullable: true,
+    options: BACKUP_SCHEDULES,
+  },
+  {
+    section: "backups",
+    key: "timezone",
+    label: "Time zone",
+    kind: "text",
+    placeholder: "UTC",
+    hint: "For the schedule, like Europe/London",
+  },
+  {
+    section: "backups",
+    key: "keep",
+    label: "Scheduled backups kept",
+    kind: "int",
+    min: 1,
+    max: 365,
+    hint: "The oldest go when a new one is taken. Backups you take yourself stay until you delete them",
   },
   // Sensors (opt-in)
   {

@@ -50,6 +50,7 @@ EDITABLE = {
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
     "updates": ("check", "check_hours", "auto_install"),
     "activity": None,
+    "backups": None,
     "encryption": None,
     "fedora": None,
     "tunnel": None,
@@ -400,6 +401,8 @@ def _check(section, key, value, default):
         return _updates_setting(key, value)
     if section == "activity":
         return _activity_setting(key, value)
+    if section == "backups":
+        return _backup_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
     if section == "sensors":
@@ -741,6 +744,34 @@ def _activity_setting(key, value):
             raise ValueError("activity.keep_days is a whole number of days from 1 to 3650")
         return value
     raise ValueError(f"unknown setting activity.{key}")
+
+
+def _backup_setting(key, value):
+    from . import schedule
+
+    if key == "schedule":
+        if value in (None, ""):
+            return None
+        if not isinstance(value, str):
+            raise ValueError("backups.schedule is a cron expression, like 0 3 * * * (every night at 3), or empty for none")
+        try:
+            schedule.parse(value.strip())
+        except ValueError as e:
+            raise ValueError(f"backups.schedule: {e}") from None
+        return value.strip()
+    if key == "timezone":
+        if not isinstance(value, str):
+            raise ValueError("backups.timezone is a time zone name, like Europe/London")
+        try:
+            schedule.zone(value)
+        except ValueError as e:
+            raise ValueError(f"backups.timezone: {e}") from None
+        return value
+    if key == "keep":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("backups.keep is a whole number of scheduled backups from 1 to 365")
+        return value
+    raise ValueError(f"unknown setting backups.{key}")
 
 
 EMBED_RANGES = {"passage_chars": (200, 4000), "batch_size": (1, 256), "neighbours": (5, 500), "timeout": (5, 600)}

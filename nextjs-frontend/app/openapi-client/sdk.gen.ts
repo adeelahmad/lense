@@ -49,6 +49,12 @@ import type {
   AskGraphData,
   AskGraphErrors,
   AskGraphResponses,
+  BackupFileData,
+  BackupFileErrors,
+  BackupFileResponses,
+  BackupLinkData,
+  BackupLinkErrors,
+  BackupLinkResponses,
   BridgeStatusData,
   BridgeStatusResponses,
   BrowseSourceData,
@@ -1056,6 +1062,9 @@ import type {
   ResourceTotalsData,
   ResourceTotalsErrors,
   ResourceTotalsResponses,
+  RestoreBackupData,
+  RestoreBackupErrors,
+  RestoreBackupResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -2772,7 +2781,8 @@ export class Updates {
   /**
    * List Backups
    *
-   * The database backups in <data_dir>/backups, newest first.
+   * The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or
+   * the last one); and the backup schedule.
    */
   public static listBackups<ThrowOnError extends boolean = false>(
     options?: Options<ListBackupsData, ThrowOnError>,
@@ -2821,6 +2831,53 @@ export class Updates {
   ): RequestResult<DownloadBackupResponses, DownloadBackupErrors, ThrowOnError> {
     return (options.client ?? client).get<DownloadBackupResponses, DownloadBackupErrors, ThrowOnError>({
       url: "/api/v1/admin/backups/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Backup
+   *
+   * Replace the whole database with this backup, in the background (GET /admin/backups follows it). What it held
+   * is backed up first (before-restore), and put back if the restore fails. Sign-ins made since the backup end.
+   */
+  public static restoreBackup<ThrowOnError extends boolean = false>(
+    options: Options<RestoreBackupData, ThrowOnError>,
+  ): RequestResult<RestoreBackupResponses, RestoreBackupErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreBackupResponses, RestoreBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/restore",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Backup Link
+   *
+   * A link that downloads the backup for the next couple of minutes, for the browser to open.
+   */
+  public static backupLink<ThrowOnError extends boolean = false>(
+    options: Options<BackupLinkData, ThrowOnError>,
+  ): RequestResult<BackupLinkResponses, BackupLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<BackupLinkResponses, BackupLinkErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/link",
+      ...options,
+    });
+  }
+
+  /**
+   * Backup File
+   *
+   * The backup itself, through a link from POST /admin/backups/{name}/link.
+   */
+  public static backupFile<ThrowOnError extends boolean = false>(
+    options: Options<BackupFileData, ThrowOnError>,
+  ): RequestResult<BackupFileResponses, BackupFileErrors, ThrowOnError> {
+    return (options.client ?? client).get<BackupFileResponses, BackupFileErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/file",
       ...options,
     });
   }

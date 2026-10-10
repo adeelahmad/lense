@@ -705,6 +705,64 @@ export type Backup = {
 };
 
 /**
+ * BackupLink
+ */
+export type BackupLink = {
+  /**
+   * Url
+   *
+   * opens the download, without signing in, until it expires
+   */
+  url: string;
+  /**
+   * Expires In
+   *
+   * seconds
+   */
+  expires_in: number;
+  [key: string]: unknown;
+};
+
+/**
+ * BackupSchedule
+ */
+export type BackupSchedule = {
+  /**
+   * Schedule
+   *
+   * backups.schedule: a cron expression, or none
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Keep
+   *
+   * how many scheduled backups are kept
+   */
+  keep?: number;
+  /**
+   * Next At
+   */
+  next_at?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Backups
  */
 export type Backups = {
@@ -716,6 +774,23 @@ export type Backups = {
    * Backups
    */
   backups: Array<Backup>;
+  /**
+   * Database
+   *
+   * the database this Lens uses: a restore needs a backup of the same kind (export or folder)
+   */
+  database?: "server" | "embedded" | "memory" | null;
+  /**
+   * In Progress
+   *
+   * backups being written now, by any Lens process
+   */
+  in_progress?: Array<string>;
+  /**
+   * the restore running on this server, or the last one
+   */
+  restore?: RestoreWork | null;
+  schedule?: BackupSchedule | null;
   [key: string]: unknown;
 };
 
@@ -12293,6 +12368,53 @@ export type ResourceSpend = {
 };
 
 /**
+ * RestoreStart
+ */
+export type RestoreStart = {
+  /**
+   * Confirm
+   *
+   * the backup's name again, to show this is meant: restoring replaces everything
+   */
+  confirm: string;
+};
+
+/**
+ * RestoreWork
+ */
+export type RestoreWork = {
+  /**
+   * Running
+   *
+   * a restore is running on this server now
+   */
+  running?: boolean;
+  /**
+   * Name
+   *
+   * the backup being (or last) restored
+   */
+  name?: string | null;
+  /**
+   * Error
+   *
+   * why the last restore here failed (what was there was put back)
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Before
+   *
+   * the before-restore backup of what the database held
+   */
+  before?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Reviewed
  */
 export type Reviewed = {
@@ -19456,6 +19578,105 @@ export type DownloadBackupResponses = {
 };
 
 export type DownloadBackupResponse = DownloadBackupResponses[keyof DownloadBackupResponses];
+
+export type RestoreBackupData = {
+  body: RestoreStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/restore";
+};
+
+export type RestoreBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreBackupError = RestoreBackupErrors[keyof RestoreBackupErrors];
+
+export type RestoreBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type RestoreBackupResponse = RestoreBackupResponses[keyof RestoreBackupResponses];
+
+export type BackupLinkData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/link";
+};
+
+export type BackupLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupLinkError = BackupLinkErrors[keyof BackupLinkErrors];
+
+export type BackupLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: BackupLink;
+};
+
+export type BackupLinkResponse = BackupLinkResponses[keyof BackupLinkResponses];
+
+export type BackupFileData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Exp
+     */
+    exp?: string | null;
+    /**
+     * Sig
+     */
+    sig?: string | null;
+  };
+  url: "/api/v1/admin/backups/{name}/file";
+};
+
+export type BackupFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupFileError = BackupFileErrors[keyof BackupFileErrors];
+
+export type BackupFileResponses = {
+  /**
+   * the backup (an embedded one as a .tar.gz)
+   */
+  200: Blob | File;
+};
+
+export type BackupFileResponse = BackupFileResponses[keyof BackupFileResponses];
 
 export type ResourceHistoryData = {
   body?: never;

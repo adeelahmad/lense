@@ -7,6 +7,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { Admin, Fedora, Metadata, Sensors, Sources } from "@/app/openapi-client";
 import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
+import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -18,6 +19,7 @@ import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import {
   AI_TOOLS,
+  BACKUP_SCHEDULES,
   SPEECH_PROVIDERS,
   type FieldSpec,
   type SectionId,
@@ -375,6 +377,25 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       );
     case "encryption":
       return <EncryptionBody ctx={ctx} />;
+    case "backups": {
+      const saved = ctx.view.backups?.values.schedule;
+      const options =
+        typeof saved === "string" && saved && !BACKUP_SCHEDULES.some((o) => o.value === saved)
+          ? [...BACKUP_SCHEDULES, { value: saved, label: saved }]
+          : BACKUP_SCHEDULES;
+      return (
+        <>
+          <BackupsPanel />
+          <F ctx={ctx} id="backups.schedule" options={options} />
+          {Boolean(raw("backups.schedule")) && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="backups.timezone" />
+              <F ctx={ctx} id="backups.keep" />
+            </div>
+          )}
+        </>
+      );
+    }
     case "storage":
       return <StorageBody ctx={ctx} />;
     case "telemetry":
