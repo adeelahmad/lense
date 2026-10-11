@@ -33,8 +33,8 @@ Docker Hub, which need no sign-in; Docker Hub itself last). Inside it,
 [`microsandbox/run.sh`](https://github.com/adeelahmad/lense/blob/main/microsandbox/run.sh) does what the Docker images
 do:
 
-1. Installs the system packages, the same ones as the backend image (`LENS_TARGET=lean` leaves out LibreOffice and
-   Chromium).
+1. Waits until the names it downloads from resolve (see [Name lookups](#name-lookups)), then installs the system
+   packages, the same ones as the backend image (`LENS_TARGET=lean` leaves out LibreOffice and Chromium).
 2. Fetches SurrealDB 3.2.4, rclone, Node 22 and uv.
 3. Builds the backend and the web app from the code, read-only at `/lens`. It builds again only when the code
    changes.
@@ -52,6 +52,24 @@ sensor ports are published, on the same addresses Docker would use (`LENS_BIND`,
 
 On Linux with systemd, the installer adds a `lens-microsandbox` service that runs `.lens-sandbox` when the machine
 starts. On a Mac, it adds a LaunchAgent that runs it at sign-in.
+
+### Name lookups
+
+microsandbox answers the sandbox's name lookups itself, from this machine's resolvers. When those don't answer inside
+the sandbox (the first build once stopped with uv's `dns error ... No address associated with hostname`), the steps
+that download would fail, so the sandbox:
+
+- waits for `deb.debian.org`, `files.pythonhosted.org` and `registry.npmjs.org` to resolve before it downloads;
+- after about 15 seconds without an answer, looks names up with public resolvers instead (Cloudflare's 1.1.1.1 and
+  Quad9's 9.9.9.9), and says so in its log;
+- runs each download step (the system packages, the backend's and the web app's packages) up to three times, with
+  fewer downloads at once after a failure;
+- when Lens starts, goes back to this machine's resolvers if they answer by then, so names on your own network
+  resolve. Otherwise it keeps the public ones until the sandbox is replaced, and logs that.
+
+If nothing answers within a minute or two, it stops with the name that didn't resolve and why. To use other public
+resolvers, or none, set `LENS_DNS_FALLBACK` on the install line (`... | LENS_DNS_FALLBACK=8.8.8.8,8.8.4.4 sh`, or
+`LENS_DNS_FALLBACK= sh` for none); it is kept in `.env` for later runs.
 
 ## Day to day
 
