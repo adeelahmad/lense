@@ -1,5 +1,5 @@
 // The extension's background: context menus, shortcuts, and every push to Lens (so a send finishes even when the
-// popup closes).
+// popup closes). The assistant lives in the side panel (ui/sidepanel.js); this only opens it.
 import { fetchImages, push } from "./core/lens.js";
 import * as settingsStore from "./core/settings.js";
 
@@ -11,6 +11,7 @@ const MENU = [
   { id: "pick", title: "Pick part of the page to clip…", contexts: ["page", "selection"] },
   { id: "clip-link", title: "Send this link to Lens", contexts: ["link"] },
   { id: "clip-image", title: "Send this image to Lens", contexts: ["image"] },
+  { id: "open-assistant", title: "Ask Lens…", contexts: ["page", "selection", "link", "image"] },
 ];
 
 ext.runtime.onInstalled.addListener(async ({ reason }) => {
@@ -21,6 +22,15 @@ ext.runtime.onInstalled.addListener(async ({ reason }) => {
     if (!s.destinations.length) ext.runtime.openOptionsPage();
   }
 });
+
+// ---------- the assistant ----------
+// Called straight from the person's click or shortcut (browsers open a side panel only then): beside the page where
+// the browser has a side panel or sidebar, else in a tab of its own.
+function openAssistant(tab) {
+  if (ext.sidePanel?.open && tab?.windowId != null) return ext.sidePanel.open({ windowId: tab.windowId });
+  if (ext.sidebarAction?.open) return ext.sidebarAction.open();
+  return ext.tabs.create({ url: ext.runtime.getURL("sidepanel.html") });
+}
 
 // ---------- running the clipper in a tab ----------
 async function inject(tabId) {
@@ -112,6 +122,7 @@ async function quick(tab, mode) {
 
 ext.contextMenus.onClicked.addListener(async (info, tab) => {
   try {
+    if (info.menuItemId === "open-assistant") return await openAssistant(tab);
     if (info.menuItemId === "clip-page") return quick(tab, "page");
     if (info.menuItemId === "clip-selection") return quick(tab, "selection");
     if (info.menuItemId === "pick") return startPicker(tab.id, "quick");
@@ -136,6 +147,7 @@ ext.contextMenus.onClicked.addListener(async (info, tab) => {
 });
 
 ext.commands.onCommand.addListener(async (command, tab) => {
+  if (command === "open-assistant") return openAssistant(tab);
   tab ??= (await ext.tabs.query({ active: true, currentWindow: true }))[0];
   if (!tab) return;
   if (command === "clip-page") return quick(tab, "page");

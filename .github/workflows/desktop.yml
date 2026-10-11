@@ -34,27 +34,9 @@ jobs:
         run: |
           sh -n desktop/resources/lens-app.sh
           test -x desktop/resources/lens-app.sh
-          shellcheck -s sh desktop/resources/lens-app.sh
-      - name: Puts a microsandbox bundle where install.microsandbox.dev would
-        run: |
-          s="$(mktemp -d)"
-          mkdir -p "$s/b"
-          printf '#!/bin/sh\necho msb 0.0.0\n' >"$s/b/msb"
-          chmod +x "$s/b/msb"
-          echo krun >"$s/b/libkrunfw.5.dylib"
-          tar -czf "$s/m.tar.gz" -C "$s/b" .
-          HOME="$s/home" LENS_MSB_BUNDLE="$s/m.tar.gz" sh desktop/resources/lens-app.sh setup-msb
-          test "$("$s/home/.local/bin/msb")" = "msb 0.0.0"
-          test "$(readlink "$s/home/.microsandbox/lib/libkrunfw.dylib")" = libkrunfw.5.dylib
-      - name: Says what to do when Lens isn't there or doesn't start
-        run: |
-          s="$(mktemp -d)"
-          mkdir -p "$s/lens"
-          printf 'LENS_PORT=3999\nLENS_BACKEND=microsandbox\n' >"$s/lens/.env"
-          test "$(HOME="$s" sh desktop/resources/lens-app.sh url)" = "http://localhost:3999/"
-          out="$(HOME="$s" sh desktop/resources/lens-app.sh start || true)"
-          echo "$out"
-          echo "$out" | grep -q '^@error .*\.lens-sandbox is missing'
+          shellcheck -s sh desktop/resources/lens-app.sh desktop/resources/check-lens-app.sh
+      - name: Run its checks (as `nx test desktop` does)
+        run: sh desktop/resources/check-lens-app.sh
 
   macos:
     name: Build Lens.app

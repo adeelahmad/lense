@@ -632,10 +632,11 @@ def read_eml(path):
 
     with open(path, "rb") as f:
         msg = email.message_from_binary_file(f, policy=policy.default)
-    return _message(msg)
+    return parse_email(msg)
 
 
-def _message(msg):
+def parse_email(msg):
+    """A parsed email (email.message.EmailMessage) in read_eml's shape."""
     out = {
         "subject": str(msg.get("subject") or "").strip(),
         "from": _people(msg.get("from")),

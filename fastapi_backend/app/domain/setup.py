@@ -30,7 +30,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-from . import auth, settings, sources, store
+from . import auth, budgets, settings, sources, store
 
 R = store.R
 WIZARD = ("setup", "wizard")
@@ -107,6 +107,14 @@ def apply_settings(db, cfg):
         return []
     saved = []
     for section, values in wanted.items():
+        if section == "budget":  # the overall budget, not a settings section
+            try:
+                save_budget(db, cfg, user="install", **{k: v for k, v in values.items() if k in BUDGET_FIELDS})
+            except (ValueError, TypeError) as e:
+                log.error("LENS_SETUP_SETTINGS budget: %s; set it in Settings › Budgets instead", e)
+            else:
+                saved.append(section)
+            continue
         keep = {k: v for k, v in values.items() if k not in settings.locked(section)}  # the environment wins anyway
         if not keep:
             continue
@@ -179,6 +187,7 @@ def view(db, cfg):
             "endpoint": shown["telemetry"].get("endpoint"),
             "locked": [k for k in settings.locked("telemetry") if k in ("enabled", "endpoint")],
         },
+        "budget": budget_view(db, shown),
         "oauth": {
             "enabled": bool(shown["tokens"].get("oauth_enabled", True)),
             "access_minutes": int(shown["tokens"]["oauth_access_minutes"]),
@@ -204,6 +213,49 @@ def save_llm(db, cfg, values, user=None):
     if keep:
         settings.save(db, cfg, "llm", keep, user)
     return sorted(keep)
+
+
+BUDGET_FIELDS = ("hard_usd", "soft_usd", "period", "on_over", "price_in", "price_out")
+
+
+def budget_view(db, shown):
+    b = budgets.get(db, budgets.ALL) or {}
+    hard = b.get("usd")
+    return {
+        "hard_usd": hard,
+        "soft_usd": round(hard * (b.get("warn_at") or 0.8), 2) if hard is not None else None,
+        "period": b.get("period") or "month",
+        "on_over": b.get("on_over") or "ask",
+        "price_in": shown["ai"].get("price_in"),
+        "price_out": shown["ai"].get("price_out"),
+        "model": shown["llm"].get("model"),
+    }
+
+
+def save_budget(db, cfg, hard_usd=None, soft_usd=None, period="month", on_over="ask", price_in=None, price_out=None, user=None):
+    """The overall AI budget (budgets.ALL): a soft limit that warns and a hard limit where runs wait (or are skipped)
+    and paid model calls stop, per day, week or month. No hard limit: no budget. With the chat model's price (USD per
+    million tokens), so the money it spends is counted. Returns what was saved."""
+    saved = []
+    if price_in is not None or price_out is not None:
+        if price_in is None or price_out is None:
+            raise ValueError("give the model's price for both input and output tokens")
+        settings.save(db, cfg, "ai", {"price_in": float(price_in), "price_out": float(price_out)}, user)
+        saved.append("price")
+    if hard_usd is None:
+        if budgets.get(db, budgets.ALL):
+            budgets.remove(db, budgets.ALL)
+            saved.append("budget")
+        return saved
+    hard = float(hard_usd)
+    if hard < 0 or (soft_usd is not None and float(soft_usd) < 0):
+        raise ValueError("limits are 0 or more")
+    if soft_usd is not None and float(soft_usd) > hard:
+        raise ValueError("the soft limit is at most the hard limit")
+    warn_at = 0.8 if soft_usd is None else (float(soft_usd) / hard if hard else 1.0)
+    budgets.put(db, budgets.ALL, usd=hard, period=period, on_over=on_over, warn_at=min(1.0, max(0.1, warn_at)), by=user)
+    saved.append("budget")
+    return saved
 
 
 def save_telemetry(db, cfg, enabled, endpoint, user=None):
@@ -244,6 +296,61 @@ def save_storage(db, cfg, max_upload_mb=None, folder=None, namespace=None, user=
     if src is None:
         src = sources.create(db, cfg, "Folders on this machine", "local", {}, {}, user)
     return sources.create_watch(db, cfg, src, folder, sid, user)
+
+
+# Cloud providers with an OpenAI-compatible API: picking one fills in its address and a model, so only the key is
+# pasted. `models` are suggestions (the model stays editable); `key_url` is where the provider hands out keys.
+CLOUD_PROVIDERS = (
+    {
+        "name": "OpenAI",
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-5-mini",
+        "models": ["gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-4.1-mini"],
+        "key_url": "https://platform.openai.com/api-keys",
+    },
+    {
+        "name": "Anthropic",
+        "base_url": "https://api.anthropic.com/v1",
+        "model": "claude-opus-5-5",
+        "models": ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"],
+        "key_url": "https://console.anthropic.com/settings/keys",
+    },
+    {
+        "name": "Google Gemini",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "model": "gemini-flash-latest",
+        "models": ["gemini-flash-latest", "gemini-2.5-pro", "gemini-2.5-flash-lite"],
+        "key_url": "https://aistudio.google.com/apikey",
+    },
+    {
+        "name": "OpenRouter",
+        "base_url": "https://openrouter.ai/api/v1",
+        "model": "openrouter/auto",
+        "models": ["openrouter/auto", "openai/gpt-5-mini", "google/gemini-2.5-flash", "meta-llama/llama-3.3-70b-instruct"],
+        "key_url": "https://openrouter.ai/keys",
+    },
+    {
+        "name": "Groq",
+        "base_url": "https://api.groq.com/openai/v1",
+        "model": "llama-3.3-70b-versatile",
+        "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-120b"],
+        "key_url": "https://console.groq.com/keys",
+    },
+    {
+        "name": "Mistral",
+        "base_url": "https://api.mistral.ai/v1",
+        "model": "mistral-small-latest",
+        "models": ["mistral-small-latest", "mistral-medium-latest", "mistral-large-latest"],
+        "key_url": "https://console.mistral.ai/api-keys",
+    },
+    {
+        "name": "DeepSeek",
+        "base_url": "https://api.deepseek.com/v1",
+        "model": "deepseek-chat",
+        "models": ["deepseek-chat", "deepseek-reasoner"],
+        "key_url": "https://platform.deepseek.com/api_keys",
+    },
+)
 
 
 # Model servers people run themselves, on the ports they listen on by default. Looked for on this machine, on the

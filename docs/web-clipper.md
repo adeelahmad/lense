@@ -1,7 +1,7 @@
 # Web clipper
 
-**Status: built (Chrome).** Firefox, Edge and Safari builds come from the same code; each gets a target in
-`extensions/browser/targets/`.
+**Status: built (Chrome, Edge, Firefox and Safari).** Every browser's build comes from the same code;
+each gets a target in `extensions/browser/targets/`.
 
 The Lens web clipper is a browser extension that turns what you're reading into Markdown and sends it to your Lens,
 where it's imported like pasted text and runs through the namespace's pipeline. It works like MarkDownload: you
@@ -41,6 +41,9 @@ network.
 | Right-click **Pick part of the page**, or <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>K</kbd> | the picker, then send |
 
 With **Right-click and shortcut clips open the popup** on, those open the popup to look over first instead.
+
+The same extension has the Lens assistant in a side panel: **Ask Lens** in the popup, or **Ask Lens…** on the
+right-click menu. See [The assistant in your browser](browser-assistant.md).
 
 ## Templates
 
@@ -96,6 +99,10 @@ npm test            # templates, metadata, Markdown, sending (jsdom)
 npm run build       # dist/<target>/ for every target; --target chrome for one
 ```
 
+From the repository root, `pnpm exec nx run-many -t test build -p clipper` does the same (installing first when the
+lockfile changed), and CI runs it in **Other projects** when a change affects the clipper
+([Monorepo and CI](contributing.md#monorepo-and-ci-nx)).
+
 Load `dist/chrome` with **Load unpacked** on `chrome://extensions` (Developer mode on). The Browser extension workflow
 builds every target on each pull request that changes the clipper and keeps `lens-clipper-<target>.zip` with the run;
 a release gets them attached.
@@ -103,6 +110,21 @@ a release gets them attached.
 A target is `extensions/browser/targets/<name>.json`, merged over `src/manifest.json` (a `null` removes a key), so a
 browser that needs something different (Firefox's `browser_specific_settings` and background `scripts`, say) adds only
 that. The code reaches the extension API as `globalThis.browser ?? globalThis.chrome`.
+
+### Firefox
+
+Firefox 128 or later (desktop). `targets/firefox.json` runs the background as a script instead of a service worker
+and gives the add-on its id, `lens-clipper@adeelahmad.github.io`; the assistant opens in Firefox's sidebar
+(`sidebar_action`) instead of a side panel. To try a build, open `about:debugging`, choose
+**This Firefox**, then **Load Temporary Add-on…** and pick `dist/firefox/manifest.json`; it stays until Firefox
+restarts.
+
+The Browser extension (Firefox) workflow runs Mozilla's linter, `web-ext lint` (the checks addons.mozilla.org runs),
+on every pull request that changes the clipper, and keeps `lens-clipper-firefox.zip` (ready to upload to
+addons.mozilla.org) with the run. On a release, if the `AMO_JWT_ISSUER` and `AMO_JWT_SECRET` secrets hold an
+[addons.mozilla.org API key](https://addons.mozilla.org/developers/addon/api/key/), Mozilla signs it as an unlisted
+add-on and the release gets `lens-clipper-firefox.xpi`, which any Firefox installs by opening it. That copy is built
+from `dist/firefox-selfhosted`, so it updates itself from the newest release (see below).
 
 ## Releases and updates
 

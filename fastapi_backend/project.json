@@ -1,0 +1,77 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "backend",
+  "projectType": "application",
+  "sourceRoot": "fastapi_backend/app",
+  "tags": ["lang:python"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": ["uv run ruff check .", "uv run ruff format --check ."],
+        "parallel": false
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": ["uv run ruff check --fix .", "uv run ruff format ."],
+        "parallel": false
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "uv run mypy"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "inputs": ["default", { "env": "LENS_TEST_SURREAL_URL" }],
+      "outputs": ["{projectRoot}/coverage.xml"],
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "uv run pytest -n auto"
+      },
+      "configurations": {
+        "ci": {
+          "command": "uv run --with pytest-split==0.11.0 pytest -n auto -p no:cacheprovider --durations=20 --splitting-algorithm=least_duration --durations-path=tests/durations.json --cov=app --cov-report=xml:coverage.xml --cov-report=term",
+          "env": { "COVERAGE_CORE": "sysmon" }
+        },
+        "server": {
+          "command": "uv run --with pytest-split==0.11.0 pytest -n 4 --durations=20 --splitting-algorithm=least_duration --durations-path=tests/durations.json"
+        }
+      }
+    },
+    "test-durations": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "uv run --with pytest-split==0.11.0 pytest -n auto -p no:cacheprovider --store-durations --clean-durations --durations-path=tests/durations.json"
+      }
+    },
+    "openapi-check": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "{workspaceRoot}/nextjs-frontend/openapi.json"],
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "f=$(mktemp) && OPENAPI_OUTPUT_FILE=$f uv run python -m commands.generate_openapi_schema && diff -u ../nextjs-frontend/openapi.json $f; s=$?; rm -f $f; exit $s"
+      }
+    },
+    "openapi": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          "uv run python -m commands.generate_openapi_schema",
+          "cd ../nextjs-frontend && pnpm run generate-client"
+        ],
+        "parallel": false
+      }
+    }
+  }
+}

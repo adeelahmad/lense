@@ -24,5 +24,6 @@
   optional [pyannote](https://github.com/pyannote/pyannote-audio), Tesseract / Apple Vision / RapidOCR, OpenCV YuNet + SFace,
   ONNX models on [ONNX Runtime](https://onnxruntime.ai/) (YOLOX objects, RapidOCR),
   [rclone](https://rclone.org/) for remote storage, Jinja2 (sandboxed) for templates
-- [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/), [Ruff](https://docs.astral.sh/ruff/), mypy, ESLint,
-  pytest, Jest, Docker Compose, pre-commit, [mkdocs-material](https://squidfunk.github.io/mkdocs-material/)
+- [Nx](https://nx.dev/) (monorepo tasks and CI, local cache only), [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io/),
+  [Ruff](https://docs.astral.sh/ruff/), mypy, ESLint, pytest, Jest, Docker Compose, pre-commit,
+  [mkdocs-material](https://squidfunk.github.io/mkdocs-material/)
