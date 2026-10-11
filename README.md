@@ -25,7 +25,9 @@ defaults in one click (with a model server it finds on the computer) or asks how
 missing (Docker included), starts Lens and opens its setup page ([details](docs/get-started.md#the-web-installer)).
 Run it again to update. On Windows, run `irm https://raw.githubusercontent.com/adeelahmad/lense/main/install.ps1 | iex`
 in PowerShell; or skip the terminal and double-click the launcher for your system from the
-[latest release](https://github.com/adeelahmad/lense/releases/latest).
+[latest release](https://github.com/adeelahmad/lense/releases/latest). On a Mac with Apple silicon,
+[Lens.app](docs/get-started.md#the-mac-app) from the same release installs Lens, runs it without Docker and keeps it in
+the menu bar (built, early: not signed yet).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
 [Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
 
@@ -154,8 +156,6 @@ These are open pull requests, not yet part of Lens:
   ([#284](https://github.com/adeelahmad/lense/pull/284)), and built-in usage analytics
   ([#274](https://github.com/adeelahmad/lense/pull/274)).
 - **People:** email invitations, and removing someone for good ([#286](https://github.com/adeelahmad/lense/pull/286)).
-- **Lens.app for macOS:** a menu-bar app that carries microsandbox
-  ([#280](https://github.com/adeelahmad/lense/pull/280)).
 - **Assets and people** rather than recordings and speakers, unless it is audio
   ([#273](https://github.com/adeelahmad/lense/pull/273)).
 - **Reading documents** with an Apache Tika server ([#292](https://github.com/adeelahmad/lense/pull/292)).
