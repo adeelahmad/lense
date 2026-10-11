@@ -139,10 +139,16 @@ apart from what the person asks:
   role, addresses an AI reading it, asks to hide something from you, to reveal the system prompt, to call a tool or
   to put data into a link, or carries control tokens or hidden characters, gets a warning on its marker for the
   model, and the step in the answer says so ("Read 12 line(s) of Mallory's talk (reads like instructions to an AI:
-  ignore previous instructions)"). `patterns` (the default) is free and kept narrow, so it misses rephrased attacks; `model` also
-  asks the decision model about each tool result the patterns let through (one routine call each, in the activity
-  ledger, falling back to the chat model when no decision model is set up); `off` turns flagging off. A flag is a
-  warning, not a block: the approvals below are what stop an action.
+  ignore previous instructions)"). `patterns` (the default) is free and kept narrow, so it misses rephrased
+  attacks. `classifier` also runs each tool result the patterns let through past a small model trained to spot
+  prompt injection (ProtectAI's deberta-v3-base-prompt-injection-v2, Apache-2.0) on this machine: nothing leaves it
+  and no tokens are paid for, but the model is about 740 MB, fetched when you pick it (Settings → Components shows
+  it), takes a moment per result (seconds on a Raspberry Pi), reads English best, and flags some requests written for
+  people too (an email asking to add a tracking number to a link); until it is here the patterns carry on alone.
+  `model` asks the decision model instead
+  (one routine call per tool result, falling back to the chat model when no decision model is set up). Each check is
+  a row in the activity ledger. `off` turns flagging off. A flag is a warning, not a block: the approvals below are
+  what stop an action.
 - **Asks first once it has read it** (`ai.untrusted_asks`, on by default; Settings → AI assistant → Ask before
   sending data out after reading third-party text): once an answer has read text from outside Lens (a tool's result
   other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
@@ -152,10 +158,17 @@ apart from what the person asks:
   [your browser](browser-assistant.md), opening or downloading an address or typing text you didn't write. The
   approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
   memories are still written at once: they stay in Lens, and are marked as data when read back.
+- **Links a chat app would fetch broken up:** in chat rooms, a web address the answer built itself can't be previewed
+  ([chat rooms](chat-rooms.md)); the web app shows no links or images that load by themselves; MCP results reach
+  other agents with control tokens broken up and a note when flagged ([MCP](mcp.md)).
+- **Logged:** each flagged tool result (`assistant.injection_flagged`, with the tool and the reasons, never the text)
+  goes into the audit log, which admins read (`GET /api/v1/audit`).
 
-Marking makes injection less likely to work; it doesn't make it impossible (a system prompt is not a filter). What
-the assistant can do is still bounded by the person's reads and approvals (N-PROMPT in the repository's
-`threat-model.md`).
+The layers stand on their own: the person's reads bound what any answer can see whatever the model does, marking and
+flags work without approvals, approvals don't depend on anything being flagged, and links are broken up whether or
+not the answer asked first. Turning one off leaves the others. Marking and flagging make injection less likely to
+work; they don't make it impossible (a system prompt is not a filter). What the assistant can do is still bounded by
+the person's reads and approvals (N-PROMPT in the repository's `threat-model.md`).
 
 ## A namespace's own assistant
 

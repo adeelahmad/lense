@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 
 import { Admin, Jobs } from "@/app/openapi-client";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { grafanaAddress, MonitoringSwitch, useMonitoring } from "@/components/admin/monitoring-switch";
 import { isUnreachable, ServerUnreachable } from "@/components/errors/error-states";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
@@ -103,6 +104,7 @@ export function HealthPage() {
     queryFn: () => data(Admin.getHealth({ client })),
     refetchInterval: REFRESH_MS,
   });
+  const monitoring = useMonitoring();
   const settings = useQuery({
     queryKey: ["settings"],
     queryFn: async () =>
@@ -326,7 +328,14 @@ export function HealthPage() {
           </span>
         </section>
       </div>
-      <ServerNow machine={h.machine} grafana={settings.data?.telemetry?.values?.grafana_url as string | undefined} />
+      <ServerNow
+        machine={h.machine}
+        grafana={grafanaAddress(
+          settings.data?.telemetry?.values?.grafana_url as string | undefined,
+          monitoring.data,
+          typeof window === "undefined" ? "" : window.location.hostname,
+        )}
+      />
     </AdminFrame>
   );
 }
@@ -386,16 +395,9 @@ function ServerNow({ machine: m, grafana }: { machine?: Machine | null; grafana?
           >
             Charts and history in Grafana
           </a>
-        ) : (
-          <span className="text-[12.5px] text-fg-muted">
-            For charts and history, run Prometheus and Grafana with the monitoring profile and set its address in{" "}
-            <Link href="/settings/telemetry" className="text-fg-accent hover:underline">
-              Settings → Telemetry
-            </Link>
-            .
-          </span>
-        )}
+        ) : null}
       </div>
+      {!grafana && <MonitoringSwitch />}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {tiles.map(([name, value, detail]) => (
           <div key={name} className="flex flex-col gap-1 rounded-md border border-border px-3.5 py-3">

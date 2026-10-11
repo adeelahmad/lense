@@ -19,6 +19,7 @@ import {
   HardDrive,
   FileLock,
   FileType,
+  FolderTree,
   Fingerprint,
   Globe,
   ScanText,
@@ -36,6 +37,7 @@ import {
   Send,
   PackageCheck,
   RadioTower,
+  Network,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
@@ -85,6 +87,9 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   telemetry: Activity,
   fedora: Archive,
   sensors: RadioTower,
+  nfs: FolderTree,
+  smb: Network,
+  shares: FolderTree,
   uploads: Upload,
   storage: Database,
   backups: DatabaseBackup,

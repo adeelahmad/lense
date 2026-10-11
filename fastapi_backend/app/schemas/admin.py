@@ -46,6 +46,19 @@ class BridgeStatus(ResponseModel):
     matterbridge: MatterbridgeStatus | None = Field(None, description="the Matterbridge Lens runs, when it runs one")
 
 
+class SmbStatus(ResponseModel):
+    enabled: bool
+    phase: Literal["off", "starting", "running", "error"]
+    port: int = Field(description="the port clients connect to (where Docker publishes it)")
+    share: str = Field(description="the share's name")
+    allowed_networks: list[str]
+    error: str | None = None
+    process: str | None = Field(None, description="the worker serving it")
+    installed: bool = Field(description="whether the SMB server (impacket) is installed here; it's fetched when the share is turned on")
+    address: str = Field(description="the address Finder and Linux file managers open (the machine's name filled in by the caller)")
+    mount: str = Field(description="the command that mounts it on Linux")
+
+
 class TunnelStatus(ResponseModel):
     mode: Literal["off", "quick", "token", "managed"]
     running: bool = Field(description="cloudflared is running in a server process")
@@ -125,6 +138,20 @@ class LocalLlmStatus(ResponseModel):
     catalog: list[LocalModel]
     files: list[LocalModelFile]
     machine: dict[str, Any]
+
+
+class NfsStatus(ResponseModel):
+    enabled: bool
+    phase: Literal["off", "running", "error"]
+    port: int
+    allowed_networks: list[str]
+    account: str | None = Field(None, description="whose view of the file tree the share shows, while running")
+    error: str | None = None
+    refused: int = Field(0, description="connections refused since it started, from outside the allowed networks")
+    log: list[str] = Field(default_factory=list, description="rclone's last lines")
+    process: str | None = Field(None, description="the worker running it")
+    mount: str = Field(description="the command that mounts it on Linux")
+    rclone: bool = Field(description="whether rclone is installed here")
 
 
 class Removed(ResponseModel):

@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:73cc12e1632f90dbfb2df410a76a2a13e4180cc4a7fe8526092039807913e2ed"
+prose_version: "threat-model.md@sha256:57e26a9c01bd711bdc650f3647f22a7e7929c4f8ccb15c7b3428d46dd77ffb67"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -398,6 +398,26 @@ entry_points:
         obligation_id: enable-and-firewall-sensors
         caller_must_enforce: "admin enables; operator firewalls"
         provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: "NFS share (port 12049 on the host, 2049 in the worker)"
+    component: optional
+    parameters:
+      - name: "NFS and MOUNT RPCs, client address"
+        attacker_controllable: true
+        x-condition: "once enabled, from nfs.allowed_networks"
+        control_kinds: [data, x-network-source]
+        obligation_id: enable-and-limit-nfs
+        caller_must_enforce: "admin enables and picks the account; operator firewalls"
+        provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}
+  - id: "SMB share (port 1445 on the host, 4445 in the worker)"
+    component: optional
+    parameters:
+      - name: "SMB2 requests, NTLM sign-in with a file access key, client address"
+        attacker_controllable: true
+        x-condition: "once enabled, from smb.allowed_networks"
+        control_kinds: [data, x-credential, x-network-source]
+        obligation_id: enable-and-limit-smb
+        caller_must_enforce: "admin enables; operator firewalls"
+        provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -418,6 +438,23 @@ entry_points:
         obligation_id: trusted-peer-hosts
         caller_must_enforce: "run peers on trusted hosts"
         provenance: {kind: inferred, question_id: Q9}
+  - id: "host control inbox and the monitoring scrape token"
+    component: authz
+    parameters:
+      - name: "inbox/upgrade request: release ref, or action=services with monitoring=on|off"
+        attacker_controllable: true
+        x-condition: "writable by the containers and local users"
+        control_kinds: [x-env-config]
+        obligation_id: agent-allow-list
+        caller_must_enforce: "the agent installs only a release tag or the install's branch, and only toggles the monitoring profile"
+        provenance: {kind: documented, source: "docs/updates.md"}
+      - name: "/metrics scrape token, .lens-control/prometheus-token"
+        attacker_controllable: true
+        x-condition: "anyone reaching the web app; the file is world-readable on the host"
+        control_kinds: [credential]
+        obligation_id: metrics-token
+        caller_must_enforce: "token compared in constant time; metrics carry no personal content"
+        provenance: {kind: documented, source: "docs/prometheus.md Privacy"}
 
 # ---------------------------------------------------------------- §1.7 contract-dimension matrix
 # Every in-scope component × the eight required dimensions appears exactly once.
@@ -532,6 +569,8 @@ contract_dimensions:
   - {component: optional, dimension: serialization-reconstruction, status: not-applicable, conditions: "readings stored as data; no object reconstruction", provenance: {kind: inferred, question_id: Q34}}
   - {component: optional, dimension: callback-execution, status: claimed, property_id: P-CHILD-SECRETS, conditions: "tunnel token and llama-server key stay off command lines", provenance: {kind: documented, source: 'docs/remote-access.md "in its environment, not on its command line"'}}
   - {component: optional, dimension: reference-lifecycle, status: claimed, property_id: P-SENSORS, conditions: "each service off until an admin turns it on", provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}}
+  - {component: optional, dimension: confidentiality, status: claimed, property_id: P-NFS, conditions: "NFS share off until an admin turns it on; read-only; one account's view; allowed networks only", provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
+  - {component: optional, dimension: confidentiality, status: claimed, property_id: P-SMB, conditions: "SMB share off until an admin turns it on; read-only; each key sees its owner's view; allowed networks only", provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {component: optional, dimension: concurrency-reentrancy, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
   - {component: optional, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
 
@@ -1033,6 +1072,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SENSORS, effect: narrows}
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - name: "shares.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "opens the read-only S3 and WebDAV servers for the asset tree on shares.s3_port and shares.webdav_port"
+    affects_properties:
+      - {property_id: P-SHARES, effect: narrows}
+    provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
   - name: "https.enabled"
     default: "off"
     security_relevant: true
@@ -1401,6 +1448,30 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "sensors.mqtt_anonymous (domain/sensors.py:984); sensors.syslog_networks, sensors.bind"
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: P-NFS
+    kind: confidentiality
+    components: [optional]
+    tier: security-critical
+    conditions: "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks"
+    violation_symptoms: [info-leak]
+    x-voided-by: "nfs.allowed_networks set wide, or a spoofed client address on the local network (domain/share_relay.py); Docker publishing that rewrites client addresses"
+    provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}
+  - id: P-SMB
+    kind: confidentiality
+    components: [optional]
+    tier: security-critical
+    conditions: "the SMB share is off until an admin turns it on; read-only; per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only"
+    violation_symptoms: [info-leak]
+    x-voided-by: "smb.allowed_networks set wide; SMB 2.0 has no encryption on the wire (domain/smb_share.py)"
+    provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
+  - id: P-SHARES
+    kind: authentication
+    components: [optional]
+    tier: security-critical
+    conditions: "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes"
+    violation_symptoms: [info-leak, integrity-bypass]
+    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0 (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py)"
+    provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
   - id: P-CHILD-SECRETS
     kind: confidentiality
     components: [optional]
@@ -1541,6 +1612,7 @@ downstream_responsibilities:
   - {id: dr-revoke-after-password-change, component: identity, statement: "After a password change or suspected theft, revoke API tokens and app grants, or disable the account", enforces: [N-REVOKE-TOKENS], provenance: {kind: inferred, question_id: Q3}}
   - {id: dr-private-networks-on-purpose, component: outbound, statement: "List private networks in documents.web_networks or notifications.networks only on purpose", enforces: [P-SSRF-GUARD, P-ADMIN-GUARD], provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: dr-firewall-sensor-ports, component: optional, statement: "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address", enforces: [P-SENSORS, N-MQTT-SUBSCRIBE, enable-and-firewall-sensors], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
+  - {id: dr-limit-smb-share, component: optional, statement: "When the SMB share is on, list only your own networks, keep its port off the internet, and revoke file access keys you no longer use", enforces: [P-SMB, enable-and-limit-smb], provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {id: dr-bridge-own-account, component: outbound, statement: "Give the chat-room bridge its own low-role account", enforces: [N-BRIDGE], provenance: {kind: documented, source: 'docs/chat-rooms.md "it reads only what that account can read"'}}
   - {id: dr-trusted-worker-hosts, component: authz, statement: "Run workers only on trusted hosts; they hold the DB credential", enforces: [N-APP-LAYER, trusted-peer-hosts], provenance: {kind: inferred, question_id: Q9}}
   - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with transcripts and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
@@ -1550,6 +1622,7 @@ downstream_responsibilities:
   - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat transcript text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
   - {id: dr-iiif-over-https, component: authz, statement: "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS", enforces: [], x-protects: "IIIF cookie", provenance: {kind: documented, source: 'docs/iiif.md "its cookie is `SameSite=None; Secure`"'}}
   - {id: dr-verify-webhook-signature, component: outbound, statement: "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets", enforces: [dmna-chat-webhooks-signed], x-protects: "§1.8 webhook bodies", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
+  - {id: dr-limit-nfs-share, component: optional, statement: "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show", enforces: [P-NFS, enable-and-limit-nfs], provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
   - {id: dr-private-logs-push-tokens, component: optional, statement: "Keep logs that record request paths private when sensor push tokens are in use", enforces: [P-SENSORS], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
 
 # ---------------------------------------------------------------- §1.14
