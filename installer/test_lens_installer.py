@@ -16,6 +16,7 @@ import threading
 import time
 import unittest
 from http.server import ThreadingHTTPServer
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -133,6 +134,13 @@ class Pure(unittest.TestCase):
         if sys.platform.startswith("linux"):
             self.assertEqual(items, [{"what": "Docker Engine with Compose (from get.docker.com)", "admin": True}])
         self.assertEqual(li.plan("docker", {**docker, "installed": True, "running": True, "compose": True}, "root"), [])
+
+    def test_lens_app_offers_microsandbox_first_where_it_runs(self):
+        inst = li.Installer("/tmp/lens-x", "adeelahmad/lense", "main", token="t")
+        for wanted, can, expect in (("microsandbox", True, "microsandbox"), ("microsandbox", False, "docker"), ("", True, "docker")):
+            with mock.patch.dict(os.environ, {"LENS_BACKEND_DEFAULT": wanted}), mock.patch.object(li, "msb_ok", return_value=can):
+                inst._facts = None
+                self.assertEqual(inst.facts()["backend_default"], expect)
 
 
 class Server(unittest.TestCase):

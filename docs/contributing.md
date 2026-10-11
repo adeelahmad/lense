@@ -21,6 +21,7 @@ Lens is one repository with several projects, and [Nx](https://nx.dev/) runs the
 | `installer` | `installer/` | `test` |
 | `docs` | `docs/` (with `mkdocs.yml`, `overrides/`, `README.md`, `CHANGELOG.md`) | `build` (strict, as CI), `serve` |
 | `clipper` | `extensions/browser/` | `install` (`npm ci` when the lockfile is newer than `node_modules`), `test`, `build` (every browser target, checked) |
+| `desktop` | `desktop/` | `lint` (`sh -n` and shellcheck on `lens-app.sh`), `test` (`lens-app.sh` checks on Linux; the Mac build stays in the Desktop workflow) |
 
 ```bash
 pnpm exec nx run backend:test                          # one target (make test-backend)

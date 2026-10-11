@@ -421,6 +421,8 @@ class Installer:
             "docker": docker,
             "msb_ok": msb_ok(),
             "msb_installed": have("msb") or os.path.exists(os.path.expanduser("~/.microsandbox/bin/msb")),
+            # what to offer first: Lens.app, which carries microsandbox, asks for microsandbox (desktop/README.md)
+            "backend_default": "microsandbox" if os.environ.get("LENS_BACKEND_DEFAULT") == "microsandbox" and msb_ok() else "docker",
             "sudo": sudo,
             "plan": {"docker": plan("docker", docker, sudo), "microsandbox": plan("microsandbox", docker, sudo)},
             "dir": self.dir,
@@ -719,7 +721,7 @@ def main(argv=None):
     print(f"\033[1mLens's installer is open in your browser.\033[0m If it isn't, open:\n\n  {link}\n", flush=True)
     if public:
         print("  (from another computer on this network too; the link carries a one-time key)\n", flush=True)
-    if not args.no_browser and desktop():
+    if not args.no_browser and desktop() and os.environ.get("LENS_NO_OPEN") != "1":
         threading.Timer(0.3, lambda: webbrowser.open(f"http://localhost:{port}/?t={inst.token}")).start()
 
     def idle_stop():  # once installed, the page's Open Lens closes it; else it goes after a while on its own

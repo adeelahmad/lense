@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A Mac app.** Lens.app (`Lens-macOS-arm64.dmg`, Apple silicon) installs Lens in the web installer shown in its
+  window, with microsandbox inside it so no Docker is needed, then lives in the menu bar: open, start, stop and update
+  Lens, and show its logs. Lens itself opens in the browser, where passkeys work
+  ([Get started](docs/get-started.md#the-mac-app)).
+
 - **Slack, built in.** Settings › Slack creates a Slack app from Lens's manifest in one click; paste its two tokens
   and the assistant answers direct messages, what's said to it in channels and `/lens …`, over Socket Mode: no
   Matterbridge, no public address. Voice clips are heard, files are held for the assistant to import, and everything

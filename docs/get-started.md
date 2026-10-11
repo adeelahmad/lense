@@ -72,6 +72,17 @@ They open the web installer in the browser; if something stops them before it op
 say so in a window. On a Mac without Apple's Command Line Tools (which bring Python), it asks macOS to install them
 first, then you open it again.
 
+### The Mac app
+
+On a Mac with Apple silicon, **Lens.app** (`Lens-macOS-arm64.dmg` in each release) installs Lens, starts it and keeps
+it in the menu bar. It carries [microsandbox](microsandbox.md), so Lens runs without Docker. The first time it opens,
+it shows the web installer in its window (microsandbox is already chosen); after that it starts Lens if it isn't
+running and opens it in the browser, where passkeys work. Its menu-bar item opens, starts, stops and updates Lens,
+and shows the logs. It isn't signed or notarized yet: drag it to Applications, right-click it and choose **Open**, then
+**Open** again. See [desktop/README.md](https://github.com/adeelahmad/lense/blob/main/desktop/README.md).
+
+**Status: built, early.** Not yet: starting with the Mac, signing, an Intel build.
+
 ### Windows
 
 ```powershell
