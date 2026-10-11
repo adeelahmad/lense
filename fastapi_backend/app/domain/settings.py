@@ -144,7 +144,7 @@ ENUMS = {
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
-    ("ai", "injection_check"): {"patterns", "model", "off"},
+    ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},

@@ -779,10 +779,11 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     options: [
       { value: "patterns", label: "Patterns (free)" },
+      { value: "classifier", label: "Patterns, then a local classifier (downloads 740 MB)" },
       { value: "model", label: "Patterns, then the decision model" },
       { value: "off", label: "Off" },
     ],
-    hint: "Flagged tool results carry a warning to the model and on the step you see. The decision model also checks what the patterns let through, one call per tool result.",
+    hint: "Flagged tool results carry a warning to the model and on the step you see. The local classifier (a model trained to spot prompt injection, run on this machine) or the decision model also checks each tool result the patterns let through.",
   },
   {
     section: "ai",
@@ -2093,7 +2094,7 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     mono: true,
     placeholder: "http://localhost:3001",
-    hint: "Where Grafana shows Lens's charts; System health links to it. The monitoring profile runs one at :3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. Empty: the one Charts and history runs, on this host at :3001",
   },
   {
     section: "telemetry",

@@ -26,6 +26,7 @@ from app.domain import (
     local_llm,
     machine,
     matterbridge,
+    monitoring,
     semantic,
     settings,
     sources,
@@ -92,6 +93,8 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
     with domain_errors():
         settings.save(db, request.app.state.archive.base, section, body, user.email)
     auth.audit(db, user.as_audit(), "settings.save", section, sorted(body))
+    if section == "telemetry" and "prometheus_token" in body:
+        monitoring.sync_token(request.app.state.settings.current())  # the monitoring Prometheus scrapes with the new one
     if section == "encryption" and "files" in body and bool(body["files"]) != bool(files_were):
         cfg = request.app.state.settings.current()
         keyring.convert(db, cfg, bool(cfg["encryption"].get("files")))  # the files already kept follow, in the background

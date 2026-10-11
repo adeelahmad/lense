@@ -2,6 +2,16 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-10 · Pasted transcripts fetch no speech model
+
+Found by the clicks survey: on a fresh install, importing a pasted transcript queued the standard pipeline from
+transcribe, so the worker fetched PyTorch and SenseVoice (about 1 GB) before analysing it, only for transcribe to skip.
+`jobs.for_source` now leaves transcribe and diarize out for a `transcript` source, as it does for documents and images.
+
+Refine later: transcript jobs queued before the upgrade still wait for that fetch once (a migration step would back up
+the whole database for a queue that drains on its own); a run of only transcribe or diarize on a transcript still
+queues them, to say why they skip, and may fetch the model; a batch of only diarize over documents fails its enqueue.
+
 ## 2026-10-10 · The assistant in your browser
 
 Goal (Adeel): chat with the assistant from the browser extension, and let it do things by using the browser, like the
