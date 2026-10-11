@@ -2624,6 +2624,50 @@
         }
       }
     },
+    "/api/v1/settings/slack": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Slack Status",
+        "description": "How the assistant's Slack app is doing, its slash command, and the link that creates the app from its manifest.",
+        "operationId": "slack_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/slack/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Slack",
+        "description": "Check both Slack tokens, and that the account to answer as exists.",
+        "operationId": "test_slack",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/mailbox": {
       "get": {
         "tags": [
@@ -53365,6 +53409,111 @@
           "label"
         ],
         "title": "SimilarTopic"
+      },
+      "SlackStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has connected yet); running; error (the connection or the last message failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process connected to Slack"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last heard from Slack"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team",
+            "description": "the Slack workspace it's connected to"
+          },
+          "bot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot",
+            "description": "the app's bot user"
+          },
+          "command": {
+            "type": "string",
+            "title": "Command",
+            "description": "the slash command, such as /lens"
+          },
+          "create_url": {
+            "type": "string",
+            "title": "Create Url",
+            "description": "where the Slack app is created from its manifest, in one click"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state",
+          "command",
+          "create_url"
+        ],
+        "title": "SlackStatus"
       },
       "SmbStatus": {
         "properties": {

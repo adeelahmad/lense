@@ -31,6 +31,7 @@ from app.domain import (
     nfs_share,
     semantic,
     settings,
+    slack,
     smb_share,
     sources,
     speech,
@@ -61,6 +62,7 @@ from app.schemas.admin import (
     NfsStatus,
     Removed,
     SemanticStatus,
+    SlackStatus,
     SmbStatus,
     SpeechTestResult,
     Started,
@@ -91,7 +93,7 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
         if "*" not in hosts and here not in hosts:
             raise HTTPException(400, f"that list leaves out {here}, the address you're using, and would lock you out")
     if (
-        section in ("bridge", "telegram", "mailbox")
+        section in ("bridge", "telegram", "slack", "mailbox")
         and body.get("enabled")
         and "account" not in body
         and not (request.app.state.archive.current().get(section) or {}).get("account")
@@ -236,6 +238,19 @@ def telegram_status(user: AdminReader, cfg: Cfg, db: Db) -> TelegramStatus:
 def test_telegram(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
     """Check that Telegram knows the bot's token, and that the account to answer as exists."""
     error = telegram.TELEGRAM.check(db, cfg)
+    return BridgeTestResult(ok=error is None, error=error)
+
+
+@router.get("/settings/slack")
+def slack_status(user: AdminReader, cfg: Cfg, db: Db) -> SlackStatus:
+    """How the assistant's Slack app is doing, its slash command, and the link that creates the app from its manifest."""
+    return SlackStatus(**slack.status(db, cfg))
+
+
+@router.post("/settings/slack/test")
+def test_slack(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
+    """Check both Slack tokens, and that the account to answer as exists."""
+    error = slack.SLACK.check(db, cfg)
     return BridgeTestResult(ok=error is None, error=error)
 
 

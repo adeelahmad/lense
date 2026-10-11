@@ -575,10 +575,6 @@ class Matterbridge(channels.Channel):
     def send(self, cfg, m, text):
         post(cfg, m.get("gateway"), text, m.get("channel"))
 
-    def outside(self, cfg, m):
-        # anyone in a room with no list of who may talk to Lens is someone the account doesn't vouch for
-        return [] if [u for u in cfg["bridge"].get("users") or [] if u.strip()] else ["chat room"]
-
 
 MATTERBRIDGE = Matterbridge()
 

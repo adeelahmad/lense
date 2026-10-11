@@ -394,6 +394,20 @@ DEFAULTS = {
         # a Bot API server of your own (telegram-bot-api), else Telegram's
         "api_url": None,
     },
+    # Slack through an app of your own over Socket Mode (slack.py), made from the manifest in Settings › Slack:
+    # bot_token is its xoxb- token, app_token its app-level xapp- token (connections:write); the room settings are
+    # bridge's: account, name, answer, users (Slack usernames or ids), rooms ("slack/<channel> = namespace"), approve
+    "slack": {
+        "enabled": False,
+        "bot_token": None,
+        "app_token": None,
+        "account": None,
+        "name": "Lens",
+        "answer": "mention",
+        "users": [],
+        "rooms": [],
+        "approve": "low_risk",
+    },
     # the assistant's own email address (mailbox.py): mail sent or forwarded to it is answered by email and what's
     # attached imported, with the room settings bridge has: account, name, users (the addresses it answers) and
     # approve. The servers are guessed from the address when not set; the ports follow the security when not set.
