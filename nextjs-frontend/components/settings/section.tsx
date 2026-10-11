@@ -276,7 +276,8 @@ export function SettingsSection({
       </div>
 
       {id !== "startup" && (dirty || errorCount > 0) && (
-        <div className="phone-actions sticky bottom-0 z-10 mt-auto flex flex-wrap items-center gap-2.5 border-t border-border bg-background px-4 py-3 sm:px-8">
+        // sm:pr: Save stays clear of the floating Ask button on a wider screen too (phone-actions does it on a phone)
+        <div className="phone-actions sticky bottom-0 z-10 mt-auto flex flex-wrap items-center gap-2.5 border-t border-border bg-background px-4 py-3 sm:px-8 sm:pr-[120px]">
           <span aria-hidden className={cn("size-2 rounded-full", errorCount ? "bg-red" : "bg-blue")} />
           <span className="min-w-0 flex-1 text-[13.5px] font-medium" aria-live="polite">
             {changes.length + nsChanges.length} change
