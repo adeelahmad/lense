@@ -52,6 +52,17 @@ FILES = {
         "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4",
         1,
     ),
+    # ProtectAI's prompt-injection classifier (injection_model.py), at a pinned revision
+    "prompt-injection-v2.onnx": (
+        "https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2/resolve/90c9989b1a342275dd0d1a95aad283c04e075671/onnx/model.onnx",
+        "f0ea7f239f765aedbde7c9e163a7cb38a79c5b8853d3f76db5152172047b228c",
+        739,
+    ),
+    "prompt-injection-v2-tokenizer.json": (
+        "https://huggingface.co/protectai/deberta-v3-base-prompt-injection-v2/resolve/90c9989b1a342275dd0d1a95aad283c04e075671/onnx/tokenizer.json",
+        "752fe5f0d5678ad563e1bd2ecc1ddf7a3ba7e2024d0ac1dba1a72975e26dff2f",
+        9,
+    ),
     "face_recognition_sface_2021dec.onnx": (
         "https://huggingface.co/opencv/face_recognition_sface/resolve/main/face_recognition_sface_2021dec.onnx",
         "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
@@ -412,6 +423,28 @@ class Objects(Component):
         fetch_file(cfg, "yolox_s.onnx", say)
 
 
+class InjectionModel(Component):
+    """The prompt-injection classifier (injection_model.py), fetched when ai.injection_check asks for it."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        return (cfg.get("ai") or {}).get("injection_check") == "classifier"
+
+    def present(self, cfg):
+        from . import injection_model
+
+        return injection_model.ready(cfg)
+
+    def fetch(self, cfg, m, say):
+        from . import injection_model
+
+        if not importable("onnxruntime", "tokenizers"):
+            pip_install(cfg, "injection", say)
+        for n in (injection_model.TOKENIZER, injection_model.MODEL):
+            fetch_file(cfg, n, say)
+
+
 class Anytopdf(Component):
     """The anytopdf program (anytopdf.py), fetched when Settings → Documents asks for it to run here, or Settings →
     Analysis asks it for places and dates (enrich.py), or Settings → Video for objects (objects.py) or faces."""
@@ -494,6 +527,19 @@ class Msg(Component):
 
     def fetch(self, cfg, m, say):
         pip_install(cfg, "msg", say)
+
+
+class Smb(Component):
+    """impacket, for the SMB share of the file tree (smb_share.py): fetched when the share is turned on."""
+
+    def needed(self, cfg, m):
+        return bool((cfg.get("smb") or {}).get("enabled"))
+
+    def present(self, cfg):
+        return importable("impacket.smbserver")
+
+    def fetch(self, cfg, m, say):
+        pip_install(cfg, "smb", say)
 
 
 class Laya(Component):
@@ -640,8 +686,16 @@ COMPONENTS = [
     Faces("faces", "Face models", "finds and recognises faces in video (YuNet and SFace)", steps={"faces"}, size_mb=80),
     Objects("objects", "Object model", "finds objects in frames and pages (YOLOX-s)", steps={"objects"}, size_mb=50),
     LAYA,
+    InjectionModel(
+        "injection-model",
+        "Prompt-injection classifier",
+        "checks what the assistant's tools read for instructions to an AI (ai.injection_check classifier)",
+        size_mb=750,
+        license="Apache-2.0",
+    ),
     OllamaModel("llm-model", "Chat model", "the LLM provider's model, pulled on Ollama", section="llm"),
     OllamaModel("embedding-model", "Embedding model", "search by meaning's model, pulled on Ollama", section="embeddings", steps={"embed"}),
+    Smb("smb", "SMB server", "shares the file tree over SMB, read-only (smb.enabled; impacket)", size_mb=15, license="Apache-1.1"),
     Msg("msg", "Outlook .msg emails", "reads Outlook .msg files (extract-msg)", optional=True, license="GPL-3.0", size_mb=5),
 ]
 BY_ID = {c.id: c for c in COMPONENTS}

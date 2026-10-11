@@ -97,9 +97,11 @@ Everything below is built and merged. Work that is still in a pull request is li
   notifications to webhooks, Slack, Discord and Matterbridge. ([Processing](docs/processing.md#workflows-and-the-canvas),
   [notifications](docs/notifications.md))
 - **See what it costs.** An activity ledger of every model call, with reports, charts and budgets that cap spending.
-  A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and what
-  cost most. Routine choices go to small decision models, and the LLM only when it adds value.
-  ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#the-meter-and-the-costs-page))
+  Setup asks for one overall budget after a cloud model, with a soft limit that warns and a hard limit that stops paid
+  calls. A meter in the top bar shows spend against the budget, and the Costs page breaks it down by day, model and
+  what cost most. Routine choices go to small decision models, and the LLM only when it adds value.
+  ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#one-budget-for-everything),
+  [the meter](docs/budgets.md#the-meter-and-the-costs-page))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
   notification, and upgrades itself through a small agent on the machine, from the API; nothing installs unless an
   admin says so. Settings › Backups takes, lists, downloads and restores backups, takes them on any schedule, and can
@@ -110,11 +112,14 @@ Everything below is built and merged. Work that is still in a pull request is li
   Grafana next to Lens, already connected, with the Lens dashboard as Grafana's home. ([Telemetry](docs/telemetry.md),
   [Prometheus](docs/prometheus.md))
 - **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
-  namespace, and an audit log. What the assistant reads (recordings, documents, web pages, tool results) reaches the
-  model marked as data, not instructions, and once an answer has read such text, sending anything out waits for your
-  yes. Serve Lens over HTTPS with certificates from Let's Encrypt or ZeroSSL that
-  renew on their own, or reach it from anywhere through a Cloudflare tunnel with nothing opened on your router.
-  ([Encryption](docs/encryption.md), [access](docs/access.md),
+  namespace, and an audit log. Prompt injection meets several layers: what the assistant reads (recordings,
+  documents, web pages, tool results) reaches the model marked as data, not instructions, and text that reads like
+  instructions to an AI is flagged (by free patterns, or an optional classifier model that runs on your machine and is
+  fetched only when you pick it). Once an answer has read such text, sending anything out, or the browser opening or
+  typing what the assistant wrote, waits for your yes. Chat-room answers have links they built themselves broken up,
+  agents over MCP get the archive as data, and what Lens caught goes into the audit log. Serve Lens over HTTPS with
+  certificates from Let's Encrypt or ZeroSSL that renew on their own, or reach it from anywhere through a Cloudflare
+  tunnel with nothing opened on your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
@@ -137,20 +142,19 @@ These are open pull requests, not yet part of Lens:
   ([#287](https://github.com/adeelahmad/lense/pull/287)), without Matterbridge; and the assistant's own email address,
   over IMAP and SMTP ([#314](https://github.com/adeelahmad/lense/pull/314)).
 - **Assistant safety:** running MCP servers that are programs (stdio) in a sandbox
-  ([#304](https://github.com/adeelahmad/lense/pull/304)); flagging third-party text that reads like instructions to an
-  AI ([#329](https://github.com/adeelahmad/lense/pull/329)); and asking before the browser opens or types what the
-  assistant wrote after reading a page ([#333](https://github.com/adeelahmad/lense/pull/333)).
+  ([#304](https://github.com/adeelahmad/lense/pull/304)).
 - **Cloud model presets** in Settings and the setup wizard ([#334](https://github.com/adeelahmad/lense/pull/334)).
 - **Search:** a Similar tab, and similar content for text selected anywhere
   ([#307](https://github.com/adeelahmad/lense/pull/307)); NSFW pictures classified by a local model, per namespace
   ([#306](https://github.com/adeelahmad/lense/pull/306)).
-- **Budget in setup:** an overall AI budget with soft and hard limits, asked for in setup
-  ([#281](https://github.com/adeelahmad/lense/pull/281)).
+- **Sources:** watching a local folder in four clicks ([#341](https://github.com/adeelahmad/lense/pull/341)).
+- **On a phone:** the web app made usable on a phone ([#346](https://github.com/adeelahmad/lense/pull/346)).
 - **Running it:** an upgrade page with live steps that rolls back when the new version doesn't start
   ([#262](https://github.com/adeelahmad/lense/pull/262)), HTTPS set up in Settings
   ([#326](https://github.com/adeelahmad/lense/pull/326)), structured logs with a log viewer and syslog output
-  ([#284](https://github.com/adeelahmad/lense/pull/284)), and built-in usage analytics
-  ([#274](https://github.com/adeelahmad/lense/pull/274)).
+  ([#284](https://github.com/adeelahmad/lense/pull/284)), built-in usage analytics
+  ([#274](https://github.com/adeelahmad/lense/pull/274)), and turning Prometheus and Grafana on from the web app
+  ([#337](https://github.com/adeelahmad/lense/pull/337)).
 - **People:** email invitations, and removing someone for good ([#286](https://github.com/adeelahmad/lense/pull/286)).
 - **Lens.app for macOS:** a menu-bar app that carries microsandbox
   ([#280](https://github.com/adeelahmad/lense/pull/280)).

@@ -13,21 +13,26 @@ endpoint: Lens sends nothing anywhere. For pushing traces and metrics to an Open
 Lens doesn't build its own charts: with Docker, the `monitoring` profile runs [Prometheus](https://prometheus.io/),
 [node-exporter](https://github.com/prometheus/node_exporter) (the machine's CPU, memory, disk and network) and
 [Grafana](https://grafana.com/oss/grafana/) next to Lens, already connected, with the Lens dashboard as Grafana's home
-page. Add to `.env`:
+page.
 
-```sh
-COMPOSE_PROFILES=monitoring                 # with others, comma-separated (matterbridge,monitoring)
-LENS_PROMETHEUS=on
-LENS_PROMETHEUS_TOKEN=3f9c...               # openssl rand -hex 32
-LENS_GRAFANA_URL=http://localhost:3001      # the address you open Grafana at; System health links to it
-# GRAFANA_ADMIN_PASSWORD=...                # optional; otherwise admin/admin, and Grafana asks to change it
-# LENS_METRICS_DAYS=30                      # how long Prometheus keeps history
-```
+**Turn it on in the web app**: **Admin → System health** or **Settings → Telemetry → Prometheus**, switch on
+**Charts and history**. That's all: Lens turns `/metrics` on, makes a scrape token if there is none, and the machine's
+upgrade agent (the one that [installs new releases](updates.md)) adds `monitoring` to `COMPOSE_PROFILES` in `.env` and
+starts the three containers; the page shows how it goes and then links to Grafana. Off stops and removes them (their
+history stays in the `prometheus-data` volume) and turns `/metrics` off again if this switch turned it on. Agents do
+the same with `PUT /api/v1/admin/monitoring` (`{"on": true}`) or the MCP tools `monitoring` and `set_monitoring`.
 
-then `docker compose -f docker-compose.prod.yml up -d`. Grafana listens where the web app does (`LENS_BIND`: this
-machine only unless Lens was opened to the network) on port 3001 (`LENS_GRAFANA_PORT`). Anyone who reaches it can view
-the dashboards, which hold no personal content; only Grafana's admin can change them. Prometheus and node-exporter are
-reachable only inside Lens's Docker network.
+Grafana listens where the web app does (`LENS_BIND`: this machine only unless Lens was opened to the network) on port
+3001 (`LENS_GRAFANA_PORT`), and System health links to it on the address you opened Lens at, unless
+**Grafana address** says otherwise. Anyone who reaches it can view the dashboards, which hold no personal content;
+only Grafana's admin can change them (admin/admin until changed, or `GRAFANA_ADMIN_PASSWORD`). Prometheus and
+node-exporter are reachable only inside Lens's Docker network. Prometheus reads the scrape token from
+`.lens-control/prometheus-token`, which Lens keeps in step with Settings (or from `LENS_PROMETHEUS_TOKEN` when set), and
+keeps 30 days of history (`LENS_METRICS_DAYS`).
+
+Without an agent (Lens not installed with `install.sh`, or it couldn't set one up) the switch shows the one line to
+run on the machine instead: `docker compose -f docker-compose.prod.yml --profile monitoring up -d`. An install in a
+microsandbox has no Docker to run them in.
 
 **Admin → System health** shows the server now (CPU, memory, load, uptime) and links to Grafana for history.
 
