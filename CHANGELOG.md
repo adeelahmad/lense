@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The installer stops waiting when Lens can't start, and shows why.** A microsandbox install that couldn't start Lens
+  waited 30 minutes at "Waiting for the web app..." and then named only a command to run. It now lists the sandbox's own
+  steps as they happen, and stops as soon as a step fails, the sandbox stops or a part of Lens keeps stopping, with the
+  last lines Lens logged; the web installer shows them under the reason. Running the line again stops the running
+  sandbox first and waits for its port ([microsandbox](docs/microsandbox.md#day-to-day)).
+
 - **A microsandbox install after the install folder was deleted comes up.** The data volume (`lens-data`) outlives
   `~/lens`, but its database opens only with the keys in that folder's `.env`. A first install made new keys, mounted
   the earlier volume anyway, and waited 30 minutes for a web app whose API couldn't open the database. It now leaves
