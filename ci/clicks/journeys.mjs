@@ -537,7 +537,9 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Library");
-      await meter.click(page.getByRole("main").getByRole("link", { name: /Welcome back/ }).first(), "the recording");
+      // the pasted transcript, not the uploaded file (pi-episode): its title is in the dialog, so its height depends on it
+      const recording = page.getByRole("main").getByRole("link", { name: /Welcome back/ }).filter({ hasNotText: "pi-episode" });
+      await meter.click(recording.first(), "the recording");
       await page.waitForURL(/\/(recordings|resources)\//);
       await meter.click(page.getByRole("main").getByRole("button", { name: "More actions" }), "More actions");
       await meter.click(page.getByRole("menuitem", { name: /Create podcast/ }), "Create podcast…");
