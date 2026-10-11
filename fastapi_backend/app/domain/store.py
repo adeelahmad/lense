@@ -439,6 +439,16 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # the read-only SMB share of the file tree (smb_share.py, docs/smb.md): off until an admin turns it on, then
+    # served by `lens worker` to people signing in with a file access key, from allowed_networks only. bind and port
+    # are startup settings only: in Docker it listens on 0.0.0.0:4445 inside the container, published where the web
+    # app is (LENS_SHARE_BIND, else LENS_BIND) on LENS_SMB_PORT.
+    "smb": {
+        "enabled": False,
+        "bind": os.environ.get("LENS_SMB_LISTEN") or "127.0.0.1",
+        "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
+        "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
+    },
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
@@ -1141,6 +1151,8 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
     "DEFINE TABLE IF NOT EXISTS sensor_service SCHEMALESS",
+    # the file-sharing servers running now (smb_share.py): one row per server and process, refreshed while it runs
+    "DEFINE TABLE IF NOT EXISTS share_service SCHEMALESS",
     # the chat-room bridge (bridge.py): which process reads Matterbridge (bridge_state:lease); its conversations are
     # chats with a `bridge` key (the room and person)
     "DEFINE TABLE IF NOT EXISTS bridge_state SCHEMALESS",

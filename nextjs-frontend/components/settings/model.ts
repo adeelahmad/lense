@@ -84,6 +84,7 @@ export type SectionId =
   | "telemetry"
   | "fedora"
   | "sensors"
+  | "smb"
   | "shares"
   | "uploads"
   | "storage"
@@ -262,6 +263,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["sensors"],
     description:
       "Off unless you turn it on. An MQTT hub and a syslog listener in Lens’s workers, so routers, DNS servers and devices can send to it; and how long what they send is kept.",
+  },
+  {
+    id: "smb",
+    label: "SMB share",
+    backend: ["smb"],
+    description:
+      "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
   },
   {
     id: "shares",
@@ -1806,6 +1814,22 @@ export const FIELDS: FieldSpec[] = [
     max: 365,
     hint: "The oldest go when a new one is taken. Backups you take yourself stay until you delete them",
   },
+  // SMB share (opt-in)
+  {
+    section: "smb",
+    key: "enabled",
+    label: "Share the file tree over SMB",
+    kind: "switch",
+    hint: "Read-only. Off: nothing listens",
+  },
+  {
+    section: "smb",
+    key: "allowed_networks",
+    label: "Networks it’s shared with",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. Machines anywhere else are turned away before they sign in",
+  },
   // File shares (opt-in)
   {
     section: "shares",
@@ -2592,6 +2616,10 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const nets = values["notifications.networks"] as string[] | undefined;
   const badNet = nets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNet) e["notifications.networks"] = `“${badNet}” isn’t a network like 192.168.1.0/24`;
+  const mNets = values["smb.allowed_networks"] as string[] | undefined;
+  const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;
+  else if (mNets && mNets.length === 0) e["smb.allowed_networks"] = "List at least one network";
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;

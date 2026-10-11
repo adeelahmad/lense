@@ -46,6 +46,19 @@ class BridgeStatus(ResponseModel):
     matterbridge: MatterbridgeStatus | None = Field(None, description="the Matterbridge Lens runs, when it runs one")
 
 
+class SmbStatus(ResponseModel):
+    enabled: bool
+    phase: Literal["off", "starting", "running", "error"]
+    port: int = Field(description="the port clients connect to (where Docker publishes it)")
+    share: str = Field(description="the share's name")
+    allowed_networks: list[str]
+    error: str | None = None
+    process: str | None = Field(None, description="the worker serving it")
+    installed: bool = Field(description="whether the SMB server (impacket) is installed here; it's fetched when the share is turned on")
+    address: str = Field(description="the address Finder and Linux file managers open (the machine's name filled in by the caller)")
+    mount: str = Field(description="the command that mounts it on Linux")
+
+
 class TunnelStatus(ResponseModel):
     mode: Literal["off", "quick", "token", "managed"]
     running: bool = Field(description="cloudflared is running in a server process")
