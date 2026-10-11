@@ -16,6 +16,9 @@
 #   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: full)
 #   LENS_BACKEND   docker or microsandbox (one microVM, no Docker: docs/microsandbox.md). Asked on a first install
 #                  when microsandbox can run here (Linux with KVM, or a Mac with Apple silicon); default: docker
+#   LENS_DNS_FALLBACK  in a microsandbox: the public resolvers it looks names up with when this machine's don't
+#                  answer there, comma-separated (default: 1.1.1.1,9.9.9.9; empty: none; docs/microsandbox.md).
+#                  Kept for later runs
 #   GITHUB_TOKEN   a GitHub token to use when downloading (not needed; avoids GitHub's rate limits)
 #   LENS_NO_OPEN   1: don't open a browser
 #   LENS_YES       1: install what Lens needs without asking (it only asks at a terminal)
@@ -361,6 +364,8 @@ fi
 setenv LENS_DIR "$DIR"
 # the SMB share's port on this machine (docs/smb.md), when the install line names one: kept for later runs
 case "${LENS_SMB_PORT:-}" in '' | *[!0-9]*) ;; *) setenv LENS_SMB_PORT "$LENS_SMB_PORT" ;; esac
+# the microsandbox's public resolvers (microsandbox/dns.sh), when the install line names them, empty included: kept
+[ -z "${LENS_DNS_FALLBACK+set}" ] || setenv LENS_DNS_FALLBACK "$(printf '%s' "$LENS_DNS_FALLBACK" | tr -s ' ' ',')"
 # from the web installer (docs/configuration.md): the first namespace, and settings Lens saves once at its first start
 for k in LENS_NAMESPACE LENS_SETUP_SETTINGS; do
   eval "v=\${$k:-}"

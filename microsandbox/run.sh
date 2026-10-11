@@ -37,6 +37,11 @@ esac
 mkdir -p "$OPT/bin" "$DATA/surreal" /tmp/lens
 export PATH="$OPT/bin:$OPT/node/bin:$OPT/venv/bin:$PATH"
 
+# Name lookups: wait for them before downloading, with public resolvers when this machine's don't answer here
+# shellcheck source=SCRIPTDIR/dns.sh
+. "$CODE/microsandbox/dns.sh"
+dns_ready
+
 # --- System packages: in the sandbox's own disk, installed on each start (install.sh replaces the sandbox), from
 # the packages kept in the volume, so only the first start downloads them ------------------------------------------
 packages="ffmpeg tesseract-ocr antiword poppler-utils ca-certificates curl xz-utils unzip"
@@ -48,9 +53,9 @@ if [ ! -f "$stamp" ]; then
   export DEBIAN_FRONTEND=noninteractive
   rm -f /etc/apt/apt.conf.d/docker-clean # the image's setting that deletes downloaded packages
   mkdir -p "$OPT/apt/partial"
-  apt-get update -q
+  retry apt-get update -q --error-on=any
   # shellcheck disable=SC2086
-  apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" $packages
+  retry apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" $packages
   rm -rf /var/lib/apt/lists/*
   id lens >/dev/null 2>&1 || useradd --create-home --uid 1000 lens
   touch "$stamp"
@@ -92,14 +97,14 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
 
   # shellcheck disable=SC2046
   (cd "$OPT/backend" &&
-    UV_PROJECT_ENVIRONMENT="$OPT/venv" UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
-      UV_HTTP_TIMEOUT=300 UV_HTTP_RETRIES=5 UV_CACHE_DIR="$OPT/uv-cache" \
-      uv sync --frozen --no-dev --python "$(command -v python3)" \
+    export UV_PROJECT_ENVIRONMENT="$OPT/venv" UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
+      UV_HTTP_TIMEOUT=300 UV_HTTP_RETRIES=5 UV_CACHE_DIR="$OPT/uv-cache" &&
+    retry uv sync --frozen --no-dev --python "$(command -v python3)" \
       $(for e in ${EXTRAS:-}; do printf -- '--extra %s ' "$e"; done))
 
   (cd "$OPT/web-src" &&
     export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" &&
-    corepack pnpm install --frozen-lockfile &&
+    retry corepack pnpm install --frozen-lockfile &&
     AUTH_SECRET=build-only NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone corepack pnpm build)
   rm -rf "$OPT/web" && mkdir -p "$OPT/web/.next"
   cp -a "$OPT/web-src/.next/standalone/." "$OPT/web/"
@@ -112,6 +117,9 @@ fi
 # the archive is the volume itself (data_dir: /data, as in the containers); the database is a folder in it
 chown lens:lens "$DATA"
 chown -R lens:lens "$DATA/surreal"
+
+# public resolvers stood in for the downloads: this machine's again if they answer now, so names on its network resolve
+dns_restore
 
 # --- Run ---------------------------------------------------------------------------------------------------------
 # The same settings docker-compose.prod.yml gives the containers, with every service on this sandbox's localhost

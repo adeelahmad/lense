@@ -1,0 +1,26 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "microsandbox",
+  "projectType": "application",
+  "tags": ["lang:shell"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "commands": [
+          "sh -n run.sh && sh -n dns.sh && sh -n test-dns.sh",
+          "uvx --from shellcheck-py shellcheck -s sh -x run.sh dns.sh test-dns.sh"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-bookworm sh /lens/microsandbox/test-dns.sh"
+      }
+    }
+  }
+}

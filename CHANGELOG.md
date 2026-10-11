@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A microsandbox install gets past name lookups that fail.** The first build in a microsandbox could stop at the
+  backend's packages with `dns error ... No address associated with hostname` when this machine's resolvers didn't
+  answer inside the sandbox. The sandbox now waits for the names it downloads from, looks them up with public
+  resolvers (1.1.1.1 and 9.9.9.9; `LENS_DNS_FALLBACK` changes or turns that off) when this machine's don't answer
+  there, and runs each download step up to three times ([microsandbox](docs/microsandbox.md#name-lookups)).
+
 - **A Mac app.** Lens.app (`Lens-macOS-arm64.dmg`, Apple silicon) installs Lens in the web installer shown in its
   window, with microsandbox inside it so no Docker is needed, then lives in the menu bar: open, start, stop and update
   Lens, and show its logs. Lens itself opens in the browser, where passkeys work
