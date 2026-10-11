@@ -220,7 +220,8 @@ Other documents are made into PDFs first ([API](api.md#documents-and-images)): W
 OpenDocument and RTF by LibreOffice; text, Markdown, saved web pages (HTML) and emails by Chromium printing a page Lens
 makes of them, or by LibreOffice where there's no Chromium. Outlook `.msg` emails also need the `msg` extra
 (`pip install -e ".[msg]"`; extract-msg is GPL-3.0). The `lens:full` Docker image has LibreOffice and Chromium
-([Deployment](deployment.md)); without them, PDFs and images are read as before, and files that can be transcripts
+([Deployment](deployment.md)), and a [microsandbox](microsandbox.md#libreoffice-and-chromium)'s full edition installs
+each the first time it's needed; without them, PDFs and images are read as before, and files that can be transcripts
 (Word, text, Markdown) are imported as transcripts. Settings → Documents:
 
 | Setting | Default | |

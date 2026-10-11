@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A microsandbox's full edition installs LibreOffice and Chromium the first time they're needed.** They were
+  installed at every start, so a first start downloaded them before it built Lens, whether or not anything used them.
+  A sandbox now starts without them; the first Office file, email or web page that needs one waits while it's
+  installed, and later starts install it again in the background from the packages kept in the volume. An install that
+  already had them keeps them ([microsandbox](docs/microsandbox.md#libreoffice-and-chromium)).
 - **A microsandbox install gets past name lookups that fail.** The first build in a microsandbox could stop at the
   backend's packages with `dns error ... No address associated with hostname` when this machine's resolvers didn't
   answer inside the sandbox. The sandbox now waits for the names it downloads from, looks them up with public

@@ -50,7 +50,8 @@
         "media, report, embed, IIIF content",
         "/iiif/auth/token, /probe, /logout",
         "workers and DB peers",
-        "host control inbox and the monitoring scrape token"
+        "host control inbox and the monitoring scrape token",
+        "microsandbox program requests"
       ],
       "touches": [
         "filesystem"
@@ -507,6 +508,15 @@
       "caller_must_enforce": "the agent installs only a release tag or the install's branch and only toggles the monitoring profile; the token is compared in constant time and grants metrics only",
       "provenance": "documented",
       "source": "docs/updates.md, docs/prometheus.md"
+    },
+    {
+      "entry_point": "microsandbox program requests",
+      "parameter": "ask/NAME.want in /data/.lens/programs: a program's name",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "the start script installs only libreoffice or chromium, each a fixed list of signed Debian packages, answers in a folder only root writes, and reads nothing but the name",
+      "provenance": "documented",
+      "source": "docs/microsandbox.md"
     }
   ],
   "environment": {

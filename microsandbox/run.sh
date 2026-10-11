@@ -43,20 +43,21 @@ export PATH="$OPT/bin:$OPT/node/bin:$OPT/venv/bin:$PATH"
 dns_ready
 
 # --- System packages: in the sandbox's own disk, installed on each start (install.sh replaces the sandbox), from
-# the packages kept in the volume, so only the first start downloads them ------------------------------------------
-packages="ffmpeg tesseract-ocr antiword poppler-utils ca-certificates curl xz-utils unzip"
-[ "$TARGET" = full ] && packages="$packages libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui
-  chromium fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-cjk"
-stamp="/var/lib/lens-packages.$TARGET"
-if [ ! -f "$stamp" ]; then
-  log "Installing system packages ($TARGET)..."
+# the packages kept in the volume, so only the first start downloads them. LibreOffice and Chromium aren't among them:
+# the full edition installs each the first time Lens needs it (Programs, below) ------------------------------------
+# apt_install PACKAGE...: from the packages kept in the volume, downloading only what isn't there yet
+apt_install() {
   export DEBIAN_FRONTEND=noninteractive
   rm -f /etc/apt/apt.conf.d/docker-clean # the image's setting that deletes downloaded packages
   mkdir -p "$OPT/apt/partial"
-  retry apt-get update -q --error-on=any
-  # shellcheck disable=SC2086
-  retry apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" $packages
-  rm -rf /var/lib/apt/lists/*
+  retry apt-get update -q --error-on=any &&
+    retry apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" "$@" &&
+    rm -rf /var/lib/apt/lists/*
+}
+stamp=/var/lib/lens-packages
+if [ ! -f "$stamp" ]; then
+  log "Installing system packages..."
+  apt_install ffmpeg tesseract-ocr antiword poppler-utils ca-certificates curl xz-utils unzip
   id lens >/dev/null 2>&1 || useradd --create-home --uid 1000 lens
   touch "$stamp"
 fi
@@ -85,8 +86,8 @@ if [ ! -x "$OPT/bin/uv" ]; then
   cp /tmp/lens/uv/bin/uv "$OPT/bin/uv" && rm -rf /tmp/lens/uv
 fi
 
-# --- Build: the backend and the web app, again only when the code changed ----------------------------------------
-build_id="$(cat "$CODE/.lens-build" 2>/dev/null || echo unknown)-$TARGET"
+# --- Build: the backend and the web app, again only when the code changed (the edition doesn't change them) -------
+build_id="$(cat "$CODE/.lens-build" 2>/dev/null || echo unknown)"
 if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   log "Building Lens (the first build takes a few minutes)..."
   # copies, so the build writes nothing into the code on the host; the backend is installed where it runs (the
@@ -181,6 +182,21 @@ keep() {
 }
 
 surreal_ready() { surreal is-ready --endpoint http://127.0.0.1:8001 >/dev/null 2>&1; }
+
+# --- Programs: LibreOffice and Chromium, installed the first time Lens needs one (the full edition; a lean install
+# never fetches them) --------------------------------------------------------------------------------------------
+PROGRAMS="$OPT/programs"
+# shellcheck source=SCRIPTDIR/programs.sh
+. "$CODE/microsandbox/programs.sh"
+if [ "$TARGET" = full ]; then
+  programs_prepare
+  (
+    set +e # a failed install is answered, and the loop goes on
+    programs_loop
+  ) &
+  pids="$pids $!"
+  export LENS_PROGRAMS="$PROGRAMS"
+fi
 
 keep surrealdb "$DATA" surreal start --log info --bind 127.0.0.1:8001 --user "$SURREAL_USER" --pass "$SURREAL_PASS" \
   "surrealkv:$DATA/surreal/lens.db"

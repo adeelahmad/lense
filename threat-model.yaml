@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:bb686bd7057c8b2adb8de0a3e6ccc249002acb2927bdeca8bcba998e06fc273c"
+prose_version: "threat-model.md@sha256:275791b79d131205c80bd3e1ea47b5c20ebbe620940f45a9cb3e2c4a1aba90db"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -455,6 +455,16 @@ entry_points:
         obligation_id: metrics-token
         caller_must_enforce: "token compared in constant time; metrics carry no personal content"
         provenance: {kind: documented, source: "docs/prometheus.md Privacy"}
+  - id: "microsandbox program requests"
+    component: authz
+    parameters:
+      - name: "ask/NAME.want in /data/.lens/programs: a program's name"
+        attacker_controllable: true
+        x-condition: "writable by the Lens user inside the sandbox"
+        control_kinds: [x-env-config]
+        obligation_id: program-allow-list
+        caller_must_enforce: "the start script installs only libreoffice or chromium (fixed Debian package lists), answers in a root-only folder, reads only the name"
+        provenance: {kind: documented, source: "docs/microsandbox.md LibreOffice and Chromium"}
 
 # ---------------------------------------------------------------- §1.7 contract-dimension matrix
 # Every in-scope component × the eight required dimensions appears exactly once.
