@@ -263,6 +263,7 @@ def platform_main(argv, config):
     from .domain import (
         auth,
         bridge,
+        https,
         jobs,
         local_llm,
         nfs_share,
@@ -271,6 +272,7 @@ def platform_main(argv, config):
         routines,
         sensors,
         settings,
+        shares,
         sources,
         telemetry,
         tunnel,
@@ -379,8 +381,10 @@ def platform_main(argv, config):
                 if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
                     routines.start(db, C, stop, log=print)
                     sensors.start(db, C, stop, log=print, name=wk.name)  # and the sensor hub, while sensors are on
+                    shares.start(db, C, stop, log=print, name=wk.name)  # and the file shares (S3, WebDAV), while they're on
                     bridge.start(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat-room bridge, while it's on
                     tunnel.start(db, C, stop, name=wk.name, log=print)  # and the Cloudflare tunnel, while it's on
+                    https.start(db, C, stop, name=wk.name, log=print)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
                     local_llm.start(db, C, stop, name=wk.name, log=print)  # and the local chat model, while it's on
                     nfs_share.start(db, C, stop, name=wk.name, log=print)  # and the file tree over NFS, while it's on
                     updates.start(db, C, stop, log=print)  # and the daily check for a new release (docs/updates.md)

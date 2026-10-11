@@ -88,6 +88,14 @@
     <p class="hint">Shortcuts: Alt+Shift+L opens the clipper, Alt+Shift+P clips the page, Alt+Shift+S the selection, Alt+Shift+K picks. Change them in
       your browser's extension shortcuts.</p>
 
+    <h2>The assistant</h2>
+    <p class="hint">Ask Lens from its side panel: <strong>Ask Lens</strong> in the popup or on the right-click menu. While the panel is open, the
+      assistant can open, read and act on pages in that window, only on sites you allowed, and it asks you before anything that sends,
+      deletes, buys or posts.</p>
+    <label class="check"><input id="agentEnabled" type="checkbox" /> Let the assistant use this browser while its side panel is open</label>
+    <label>Sites it may read and act on <span class="hint">added when you allow one in the side panel</span></label>
+    <div id="agentSites"></div>
+
     <p id="saved" class="status" role="status"></p>
     <script src="options.js"></script>
   </body>

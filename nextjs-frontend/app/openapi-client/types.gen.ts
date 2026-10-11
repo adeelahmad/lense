@@ -5722,6 +5722,10 @@ export type Health = {
   sources: Array<HealthSource>;
   disk: HealthDisk;
   counts: HealthCounts;
+  /**
+   * CPU, memory, load and uptime now
+   */
+  machine?: HealthMachine | null;
   [key: string]: unknown;
 };
 
@@ -5785,6 +5789,65 @@ export type HealthDisk = {
    * Total Gb
    */
   total_gb: number;
+  [key: string]: unknown;
+};
+
+/**
+ * HealthMachine
+ */
+export type HealthMachine = {
+  /**
+   * Cpu Pct
+   *
+   * busy share of all CPUs, 0-100; null where /proc isn't there
+   */
+  cpu_pct?: number | null;
+  /**
+   * Cpus
+   */
+  cpus?: number | null;
+  /**
+   * Mem Used
+   *
+   * bytes
+   */
+  mem_used?: number | null;
+  /**
+   * Mem Total
+   *
+   * bytes
+   */
+  mem_total?: number | null;
+  /**
+   * Load1
+   */
+  load1?: number | null;
+  /**
+   * Load5
+   */
+  load5?: number | null;
+  /**
+   * Load15
+   */
+  load15?: number | null;
+  /**
+   * Rss
+   *
+   * the API process's memory, bytes
+   */
+  rss?: number | null;
+  /**
+   * Uptime
+   *
+   * seconds since the API started
+   */
+  uptime: number;
+  /**
+   * Host Uptime
+   *
+   * seconds since the machine started
+   */
+  host_uptime?: number | null;
   [key: string]: unknown;
 };
 
@@ -6020,6 +6083,128 @@ export type HookPushed = {
    * Items
    */
   items: Array<HookItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsCertificate
+ */
+export type HttpsCertificate = {
+  /**
+   * Names
+   *
+   * the domain names it's for
+   */
+  names: Array<string>;
+  /**
+   * Expires
+   *
+   * when it runs out (Caddy renews it about a month before)
+   */
+  expires: string;
+  /**
+   * Issuer
+   *
+   * the certificate authority that issued it
+   */
+  issuer: string;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsProvider
+ */
+export type HttpsProvider = {
+  /**
+   * Name
+   *
+   * the caddy-dns plugin's name, like cloudflare
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Fields
+   */
+  fields: Array<HttpsProviderField>;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsProviderField
+ */
+export type HttpsProviderField = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Secret
+   */
+  secret: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsStatus
+ */
+export type HttpsStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Running
+   *
+   * Caddy is running in a server process
+   */
+  running: boolean;
+  /**
+   * Ports Open
+   *
+   * a server process has the HTTPS ports (install.sh opened them)
+   */
+  ports_open: boolean;
+  /**
+   * Url
+   *
+   * the https:// address people open Lens at
+   */
+  url?: string | null;
+  /**
+   * Certificates
+   */
+  certificates?: Array<HttpsCertificate>;
+  /**
+   * Error
+   *
+   * why there's no certificate yet, when there isn't
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * Caddy's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Origin
+   *
+   * where Caddy sends visitors: the web app, as the server reaches it
+   */
+  origin: string;
+  /**
+   * Process
+   *
+   * the server process with the HTTPS ports
+   */
+  process?: string | null;
   [key: string]: unknown;
 };
 
@@ -8052,6 +8237,67 @@ export type ModelSpend = {
    */
   estimate: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * Monitoring
+ */
+export type Monitoring = {
+  /**
+   * On
+   *
+   * the monitoring profile (Prometheus, node-exporter, Grafana) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Grafana Port
+   *
+   * the port Grafana listens on, where the web app does
+   */
+  grafana_port?: number;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that turns it on by hand, on the machine Lens runs on
+   */
+  manual: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MonitoringRequest
+ */
+export type MonitoringRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) Prometheus, node-exporter and Grafana
+   */
+  on: boolean;
 };
 
 /**
@@ -13463,6 +13709,149 @@ export type RoutineUpdate = {
 };
 
 /**
+ * S3Key
+ */
+export type S3Key = {
+  /**
+   * Id
+   *
+   * the access key id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  /**
+   * Email
+   *
+   * its owner (the list of everyone's keys)
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * S3KeyCreate
+ */
+export type S3KeyCreate = {
+  /**
+   * Name
+   */
+  name?: string;
+  /**
+   * Days
+   *
+   * how long it lasts (the API keys' limits); none: their default
+   */
+  days?: number | null;
+};
+
+/**
+ * S3KeyCreated
+ */
+export type S3KeyCreated = {
+  /**
+   * Id
+   *
+   * the access key id
+   */
+  id: string;
+  /**
+   * Secret
+   *
+   * the secret access key, shown this once
+   */
+  secret: string;
+  /**
+   * Port
+   *
+   * the S3 server's port
+   */
+  port: number;
+  /**
+   * Webdav Port
+   */
+  webdav_port: number;
+  [key: string]: unknown;
+};
+
+/**
+ * S3Service
+ */
+export type S3Service = {
+  /**
+   * Process
+   */
+  process?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Running
+   */
+  running?: boolean | null;
+  /**
+   * Port
+   */
+  port?: number | null;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * S3Status
+ *
+ * The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both).
+ */
+export type S3Status = {
+  /**
+   * Enabled
+   *
+   * whether an admin turned it on (shares.enabled and its own switch)
+   */
+  enabled: boolean;
+  /**
+   * Port
+   *
+   * the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)
+   */
+  port: number;
+  /**
+   * what the process running it says; none while it's off
+   */
+  service?: S3Service | null;
+  webdav: ShareServer;
+  /**
+   * Keys
+   *
+   * your access keys
+   */
+  keys: Array<S3Key>;
+  [key: string]: unknown;
+};
+
+/**
  * SavedSearch
  */
 export type SavedSearch = {
@@ -14481,6 +14870,71 @@ export type SetupAdmin = {
 };
 
 /**
+ * SetupBudget
+ */
+export type SetupBudget = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: "day" | "week" | "month";
+  /**
+   * On Over
+   */
+  on_over?: "ask" | "skip";
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+};
+
+/**
+ * SetupBudgetView
+ */
+export type SetupBudgetView = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: string;
+  /**
+   * On Over
+   */
+  on_over?: string;
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * SetupFinish
  */
 export type SetupFinish = {
@@ -14728,6 +15182,7 @@ export type SetupView = {
   storage: SetupStorageView;
   telemetry: SetupTelemetryView;
   oauth: SetupOAuthView;
+  budget: SetupBudgetView;
   [key: string]: unknown;
 };
 
@@ -14834,6 +15289,29 @@ export type ShareLink = {
    * "/s/<code>": a short address for the same player; it expires and is revoked with the link
    */
   short?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ShareServer
+ */
+export type ShareServer = {
+  /**
+   * Enabled
+   *
+   * whether an admin turned it on (shares.enabled and its own switch)
+   */
+  enabled: boolean;
+  /**
+   * Port
+   *
+   * the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)
+   */
+  port: number;
+  /**
+   * what the process running it says; none while it's off
+   */
+  service?: S3Service | null;
   [key: string]: unknown;
 };
 
@@ -20105,6 +20583,40 @@ export type TunnelStatusResponses = {
 
 export type TunnelStatusResponse = TunnelStatusResponses[keyof TunnelStatusResponses];
 
+export type HttpsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/status";
+};
+
+export type HttpsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: HttpsStatus;
+};
+
+export type HttpsStatusResponse = HttpsStatusResponses[keyof HttpsStatusResponses];
+
+export type HttpsProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/providers";
+};
+
+export type HttpsProvidersResponses = {
+  /**
+   * Response Admin-Https Providers
+   *
+   * Successful Response
+   */
+  200: Array<HttpsProvider>;
+};
+
+export type HttpsProvidersResponse = HttpsProvidersResponses[keyof HttpsProvidersResponses];
+
 export type TestBridgeData = {
   body?: never;
   path?: never;
@@ -20670,6 +21182,47 @@ export type StartUpgradeResponses = {
 
 export type StartUpgradeResponse = StartUpgradeResponses[keyof StartUpgradeResponses];
 
+export type GetMonitoringData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/monitoring";
+};
+
+export type GetMonitoringResponses = {
+  /**
+   * Successful Response
+   */
+  200: Monitoring;
+};
+
+export type GetMonitoringResponse = GetMonitoringResponses[keyof GetMonitoringResponses];
+
+export type SetMonitoringData = {
+  body: MonitoringRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/monitoring";
+};
+
+export type SetMonitoringErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetMonitoringError = SetMonitoringErrors[keyof SetMonitoringErrors];
+
+export type SetMonitoringResponses = {
+  /**
+   * Successful Response
+   */
+  202: Monitoring;
+};
+
+export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
+
 export type ListBackupsData = {
   body?: never;
   path?: never;
@@ -20929,7 +21482,7 @@ export type RemoveBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -20979,7 +21532,7 @@ export type SetBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -21055,7 +21608,7 @@ export type BudgetStatusData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -21245,6 +21798,31 @@ export type SaveTelemetryResponses = {
 };
 
 export type SaveTelemetryResponse = SaveTelemetryResponses[keyof SaveTelemetryResponses];
+
+export type SaveBudgetData = {
+  body: SetupBudget;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/budget";
+};
+
+export type SaveBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveBudgetError = SaveBudgetErrors[keyof SaveBudgetErrors];
+
+export type SaveBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveBudgetResponse = SaveBudgetResponses[keyof SaveBudgetResponses];
 
 export type SaveOauthData = {
   body: SetupOAuth;
@@ -33468,6 +34046,95 @@ export type PushStreamResponses = {
 };
 
 export type PushStreamResponse = PushStreamResponses[keyof PushStreamResponses];
+
+export type S3StatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3";
+};
+
+export type S3StatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: S3Status;
+};
+
+export type S3StatusResponse = S3StatusResponses[keyof S3StatusResponses];
+
+export type AllS3KeysData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3/keys";
+};
+
+export type AllS3KeysResponses = {
+  /**
+   * Response Shares-All S3 Keys
+   *
+   * Successful Response
+   */
+  200: Array<S3Key>;
+};
+
+export type AllS3KeysResponse = AllS3KeysResponses[keyof AllS3KeysResponses];
+
+export type CreateS3KeyData = {
+  body: S3KeyCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3/keys";
+};
+
+export type CreateS3KeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateS3KeyError = CreateS3KeyErrors[keyof CreateS3KeyErrors];
+
+export type CreateS3KeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: S3KeyCreated;
+};
+
+export type CreateS3KeyResponse = CreateS3KeyResponses[keyof CreateS3KeyResponses];
+
+export type RevokeS3KeyData = {
+  body?: never;
+  path: {
+    /**
+     * Key Id
+     */
+    key_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shares/s3/keys/{key_id}";
+};
+
+export type RevokeS3KeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RevokeS3KeyError = RevokeS3KeyErrors[keyof RevokeS3KeyErrors];
+
+export type RevokeS3KeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RevokeS3KeyResponse = RevokeS3KeyResponses[keyof RevokeS3KeyResponses];
 
 export type ListImportHooksData = {
   body?: never;

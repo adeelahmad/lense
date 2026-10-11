@@ -98,6 +98,18 @@ $("download").addEventListener("click", () => {
 });
 
 $("options").addEventListener("click", () => ext.runtime.openOptionsPage());
+$("assistant").addEventListener("click", () => {
+  // opened straight from the click: browsers open a side panel only from the person's own action
+  const opened = ext.sidePanel?.open && tab
+    ? ext.sidePanel.open({ windowId: tab.windowId })
+    : ext.sidebarAction?.open
+      ? ext.sidebarAction.open()
+      : ext.tabs.create({ url: ext.runtime.getURL("sidepanel.html") });
+  Promise.resolve(opened).then(
+    () => window.close(),
+    (e) => status(e.message, "bad"),
+  );
+});
 for (const b of document.querySelectorAll(".seg button")) b.addEventListener("click", () => run(b.dataset.mode));
 
 (async () => {

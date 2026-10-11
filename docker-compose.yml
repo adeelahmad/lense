@@ -89,6 +89,9 @@ services:
       - "${LENS_SENSOR_BIND:-127.0.0.1}:${LENS_SYSLOG_PORT:-5514}:5514/udp"
       - "${LENS_SENSOR_BIND:-127.0.0.1}:${LENS_SYSLOG_PORT:-5514}:5514/tcp"
       - "${LENS_SHARE_BIND:-127.0.0.1}:${LENS_NFS_PORT:-12049}:2049"  # the file tree over NFS, once turned on
+      # the graph as files over S3 and WebDAV (docs/file-tree.md), once File shares are on; LENS_S3_PORT / LENS_WEBDAV_PORT
+      - "${LENS_SHARE_BIND:-127.0.0.1}:${LENS_S3_PORT:-9555}:9555"
+      - "${LENS_SHARE_BIND:-127.0.0.1}:${LENS_WEBDAV_PORT:-9556}:9556"
     healthcheck:
       disable: true
 

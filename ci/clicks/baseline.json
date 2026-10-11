@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T20:28:52.714Z",
+  "surveyed": "2026-10-10T22:47:49.235Z",
   "commit": "",
   "viewport": "1400x900",
   "journeys": [
@@ -7,7 +7,7 @@
       "module": "Setup",
       "feature": "Install with the web installer (defaults, local model found)",
       "note": "The install line in a terminal, then the browser installer. The browser opens on its own on a desktop; on a server the link is opened by hand (counted). A computer missing Docker also asks for its password.",
-      "clicks": 8,
+      "clicks": 3,
       "keys": 2,
       "prompts": 0,
       "steps": [
@@ -30,47 +30,7 @@
         {
           "page": "installer:/",
           "kind": "click",
-          "what": "Continue (this computer)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "click",
-          "what": "Continue (how it runs)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "click",
-          "what": "pick the model server found on this computer",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "click",
-          "what": "Continue (AI model)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "click",
-          "what": "Continue (extras)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "click",
-          "what": "Install Lens",
+          "what": "Install with the defaults",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -85,14 +45,14 @@
         }
       ],
       "id": "install",
-      "ms": 1925,
+      "ms": 2000,
       "ok": true
     },
     {
       "module": "Setup",
       "feature": "Create the first admin (passkey)",
       "note": "From the setup link, which fills in the setup code.",
-      "clicks": 2,
+      "clicks": 1,
       "keys": 17,
       "prompts": 1,
       "steps": [
@@ -100,7 +60,7 @@
           "page": "/setup",
           "kind": "type",
           "what": "email",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 17,
           "prompts": 0
         },
@@ -122,7 +82,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 515,
+      "ms": 423,
       "ok": true
     },
     {
@@ -167,7 +127,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 690,
+      "ms": 572,
       "ok": true
     },
     {
@@ -175,7 +135,7 @@
       "feature": "Ask the first question from the welcome tour",
       "note": "",
       "clicks": 0,
-      "keys": 44,
+      "keys": 43,
       "prompts": 0,
       "steps": [
         {
@@ -193,18 +153,10 @@
           "clicks": 0,
           "keys": 1,
           "prompts": 0
-        },
-        {
-          "page": "/chat",
-          "kind": "key",
-          "what": "Enter again: the question waits in Chat's composer",
-          "clicks": 0,
-          "keys": 1,
-          "prompts": 0
         }
       ],
       "id": "first-question",
-      "ms": 2409,
+      "ms": 2207,
       "ok": true
     },
     {
@@ -242,14 +194,14 @@
         {
           "page": "/import",
           "kind": "click",
-          "what": "Import (covered by something else on the page)",
+          "what": "Import",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
         }
       ],
       "id": "import-paste",
-      "ms": 7044,
+      "ms": 4107,
       "ok": true
     },
     {
@@ -278,14 +230,14 @@
         }
       ],
       "id": "library-open",
-      "ms": 2819,
+      "ms": 2525,
       "ok": true
     },
     {
       "module": "Search",
       "feature": "Search for a word and see where it was said",
       "note": "",
-      "clicks": 2,
+      "clicks": 1,
       "keys": 10,
       "prompts": 0,
       "steps": [
@@ -301,7 +253,7 @@
           "page": "/search",
           "kind": "type",
           "what": "the word",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 9,
           "prompts": 0
         },
@@ -315,7 +267,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3260,
+      "ms": 3176,
       "ok": true
     },
     {
@@ -352,14 +304,14 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2357,
+      "ms": 2251,
       "ok": true
     },
     {
       "module": "Chat",
       "feature": "Ask the assistant in Chat",
       "note": "",
-      "clicks": 3,
+      "clicks": 1,
       "keys": 34,
       "prompts": 0,
       "steps": [
@@ -373,17 +325,9 @@
         },
         {
           "page": "/chat",
-          "kind": "click",
-          "what": "New conversation",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/chat",
           "kind": "type",
           "what": "question",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 33,
           "prompts": 0
         },
@@ -397,14 +341,14 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3638,
+      "ms": 3390,
       "ok": true
     },
     {
       "module": "Notes",
       "feature": "Write a note",
       "note": "",
-      "clicks": 4,
+      "clicks": 2,
       "keys": 36,
       "prompts": 0,
       "steps": [
@@ -428,21 +372,29 @@
           "page": "/notes/:id",
           "kind": "replace",
           "what": "title",
-          "clicks": 1,
-          "keys": 9,
+          "clicks": 0,
+          "keys": 8,
+          "prompts": 0
+        },
+        {
+          "page": "/notes/:id",
+          "kind": "key",
+          "what": "Enter to go to the first line",
+          "clicks": 0,
+          "keys": 1,
           "prompts": 0
         },
         {
           "page": "/notes/:id",
           "kind": "type",
           "what": "first line",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 27,
           "prompts": 0
         }
       ],
       "id": "note-create",
-      "ms": 3515,
+      "ms": 3254,
       "ok": true
     },
     {
@@ -487,15 +439,15 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3026,
+      "ms": 3368,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a pipeline from the standard steps",
       "note": "",
-      "clicks": 3,
-      "keys": 14,
+      "clicks": 2,
+      "keys": 1,
       "prompts": 0,
       "steps": [
         {
@@ -516,31 +468,23 @@
         },
         {
           "page": "/pipelines/new",
-          "kind": "type",
-          "what": "name",
+          "kind": "key",
+          "what": "Enter to create",
           "clicks": 0,
-          "keys": 14,
-          "prompts": 0
-        },
-        {
-          "page": "/pipelines/new",
-          "kind": "click",
-          "what": "Create pipeline",
-          "clicks": 1,
-          "keys": 0,
+          "keys": 1,
           "prompts": 0
         }
       ],
       "id": "pipeline-create",
-      "ms": 2909,
+      "ms": 2548,
       "ok": true
     },
     {
       "module": "Routines",
       "feature": "Make a nightly routine (sync sources, the default action)",
       "note": "",
-      "clicks": 3,
-      "keys": 12,
+      "clicks": 2,
+      "keys": 1,
       "prompts": 0,
       "steps": [
         {
@@ -561,23 +505,15 @@
         },
         {
           "page": "/routines/new",
-          "kind": "type",
-          "what": "name",
+          "kind": "key",
+          "what": "Enter to create",
           "clicks": 0,
-          "keys": 12,
-          "prompts": 0
-        },
-        {
-          "page": "/routines/new",
-          "kind": "click",
-          "what": "Create routine",
-          "clicks": 1,
-          "keys": 0,
+          "keys": 1,
           "prompts": 0
         }
       ],
       "id": "routine-create",
-      "ms": 2735,
+      "ms": 3298,
       "ok": true
     },
     {
@@ -614,7 +550,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2637,
+      "ms": 2533,
       "ok": true
     },
     {
@@ -651,7 +587,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2687,
+      "ms": 2822,
       "ok": true
     },
     {
@@ -696,7 +632,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3646,
+      "ms": 3430,
       "ok": true
     },
     {
@@ -757,14 +693,14 @@
         }
       ],
       "id": "person-add",
-      "ms": 3268,
+      "ms": 3059,
       "ok": true
     },
     {
       "module": "Account",
       "feature": "Make an API token",
       "note": "",
-      "clicks": 4,
+      "clicks": 3,
       "keys": 6,
       "prompts": 0,
       "steps": [
@@ -780,14 +716,6 @@
           "page": "/",
           "kind": "click",
           "what": "API tokens",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/account/tokens",
-          "kind": "click",
-          "what": "New token",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -810,7 +738,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 2869,
+      "ms": 3137,
       "ok": true
     },
     {
@@ -839,7 +767,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2348,
+      "ms": 2256,
       "ok": true
     }
   ],
@@ -905,6 +833,12 @@
       "controls": 4
     },
     {
+      "page": "/costs",
+      "label": "Costs",
+      "reach": 1,
+      "controls": 4
+    },
+    {
       "page": "/pipelines",
       "label": "Pipelines",
       "reach": 1,
@@ -950,13 +884,13 @@
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 2,
-      "controls": 3
+      "controls": 6
     },
     {
       "page": "/extensions",
       "label": "Extensions",
       "reach": 1,
-      "controls": 6
+      "controls": 7
     },
     {
       "page": "/sensors",
@@ -998,7 +932,7 @@
       "page": "/settings/speech-providers",
       "label": "Settings › Speech providers",
       "reach": 2,
-      "controls": 18
+      "controls": 22
     },
     {
       "page": "/settings/voice-ids",
@@ -1028,7 +962,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 2,
-      "controls": 48
+      "controls": 56
     },
     {
       "page": "/settings/search",
@@ -1106,7 +1040,7 @@
       "page": "/settings/telemetry",
       "label": "Settings › Telemetry",
       "reach": 2,
-      "controls": 10
+      "controls": 13
     },
     {
       "page": "/settings/fedora",
@@ -1125,6 +1059,12 @@
       "label": "Settings › Uploads",
       "reach": 2,
       "controls": 23
+    },
+    {
+      "page": "/settings/backups",
+      "label": "Settings › Backups",
+      "reach": 2,
+      "controls": 9
     },
     {
       "page": "/settings/storage",
@@ -1178,7 +1118,7 @@
       "page": "/admin/health",
       "label": "Admin › System health",
       "reach": 2,
-      "controls": 10
+      "controls": 11
     }
   ]
 }

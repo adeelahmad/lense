@@ -40,7 +40,7 @@ describe("welcome tour", () => {
     const qc = show();
     fireEvent.change(screen.getByLabelText("Ask the assistant"), { target: { value: "what's new?" } });
     fireEvent.click(screen.getByRole("button", { name: "Ask" }));
-    expect(push).toHaveBeenCalledWith("/chat?global=1&q=what%27s+new%3F");
+    expect(push).toHaveBeenCalledWith("/chat?global=1&q=what%27s+new%3F&send=1");
     await waitFor(() => expect(finishTour).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(qc.getQueryData(["me"])).toMatchObject({ toured_at: expect.any(String) }));
   });

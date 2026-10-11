@@ -1,4 +1,4 @@
-# File shares
+# NFS share
 
 Lens can show the archive as folders and files ([the file tree](file-tree.md)) to other machines, so a file manager,
 a media player or a script reads it like any other share: namespaces, collections, topics and entities are folders,

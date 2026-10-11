@@ -19,11 +19,14 @@ from app.domain import (
     blobs,
     bridge,
     decide,
+    https,
     jobs,
     keyring,
     llm,
     local_llm,
+    machine,
     matterbridge,
+    monitoring,
     nfs_share,
     semantic,
     settings,
@@ -45,6 +48,8 @@ from app.schemas.admin import (
     FileStoreTestResult,
     FileStoreTry,
     Health,
+    HttpsProvider,
+    HttpsStatus,
     IndexQueued,
     LlmTestResult,
     LocalLlmStatus,
@@ -90,6 +95,8 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
     with domain_errors():
         settings.save(db, request.app.state.archive.base, section, body, user.email)
     auth.audit(db, user.as_audit(), "settings.save", section, sorted(body))
+    if section == "telemetry" and "prometheus_token" in body:
+        monitoring.sync_token(request.app.state.settings.current())  # the monitoring Prometheus scrapes with the new one
     if section == "encryption" and "files" in body and bool(body["files"]) != bool(files_were):
         cfg = request.app.state.settings.current()
         keyring.convert(db, cfg, bool(cfg["encryption"].get("files")))  # the files already kept follow, in the background
@@ -184,6 +191,20 @@ def tunnel_status(user: AdminReader, cfg: Cfg, db: Db) -> TunnelStatus:
     """How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
     cloudflared's last lines."""
     return TunnelStatus(**tunnel.status(db, cfg))
+
+
+@router.get("/settings/https/status")
+def https_status(user: AdminReader, cfg: Cfg, db: Db) -> HttpsStatus:
+    """How HTTPS (Settings › HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it
+    holds and when they run out, and Caddy's last lines."""
+    return HttpsStatus(**https.status(db, cfg))
+
+
+@router.get("/settings/https/providers")
+def https_providers(user: AdminReader) -> list[HttpsProvider]:
+    """The DNS providers Settings › HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns
+    plugin works too, by name."""
+    return [HttpsProvider(**p) for p in https.providers()]
 
 
 @router.post("/settings/bridge/test")
@@ -334,6 +355,7 @@ def get_health(user: AdminReader, request: Request, db: Db) -> Health:
             "sources": [{"id": x["id"], "name": x["name"], "type": x["type"], "health": x.get("health")} for x in sources.list_sources(db)],
             "disk": {"path": data_dir, "free_gb": round(disk.free / 1e9, 1), "total_gb": round(disk.total / 1e9, 1)},
             "counts": {"recordings": n("recording"), "speakers": n("speaker"), "accounts": n("account")},
+            "machine": machine.live(),
         }
     )
 
