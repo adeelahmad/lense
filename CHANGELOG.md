@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A microsandbox install after the install folder was deleted comes up.** The data volume (`lens-data`) outlives
+  `~/lens`, but its database opens only with the keys in that folder's `.env`. A first install made new keys, mounted
+  the earlier volume anyway, and waited 30 minutes for a web app whose API couldn't open the database. It now leaves
+  that volume as it is and starts on one of its own (`lens-data-2`, kept in `.env` as `LENS_VOLUME`); put the earlier
+  `.env` back to use the earlier data, or remove it with `msb volume rm lens-data`
+  ([microsandbox](docs/microsandbox.md#how-it-runs)).
+
 ## 0.8.0 <small>October 11, 2026</small> {id="0.8.0"}
 
 - **A microsandbox's full edition installs LibreOffice and Chromium the first time they're needed.** They were
