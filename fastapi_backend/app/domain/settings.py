@@ -45,6 +45,7 @@ EDITABLE = {
     "mail": None,
     "bridge": None,
     "telegram": None,
+    "slack": None,
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
@@ -125,6 +126,7 @@ SECRETS = {
     "mail": ("password",),
     "bridge": ("token",),
     "telegram": ("token",),
+    "slack": ("bot_token", "app_token"),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers", "prometheus_token"),
     "fedora": ("password",),
@@ -155,6 +157,8 @@ ENUMS = {
     ("telegram", "answer"): {"mention", "all"},
     ("telegram", "approve"): {"off", "low_risk"},
     ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
+    ("slack", "answer"): {"mention", "all"},
+    ("slack", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},
@@ -451,6 +455,8 @@ def _check(section, key, value, default):
         return _bridge_setting(key, value)
     if section == "telegram" and key not in ("answer", "enabled", "approve"):
         return _telegram_setting(key, value)
+    if section == "slack" and key not in ("answer", "enabled", "approve"):
+        return _slack_setting(key, value)
     if section == "matterbridge" and key != "run":
         return _matterbridge_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
@@ -718,6 +724,18 @@ def _telegram_setting(key, value):
     if key in ("url", "gateway", "poll_seconds"):  # Matterbridge's own; Telegram waits on getUpdates instead
         raise ValueError(f"unknown setting telegram.{key}")
     return _bridge_setting(key, value, "telegram")
+
+
+def _slack_setting(key, value):
+    prefix = {"bot_token": "xoxb-", "app_token": "xapp-"}.get(key)
+    if prefix:
+        value = (value or "").strip() if isinstance(value, str) or value is None else value
+        if value and not (isinstance(value, str) and value.startswith(prefix) and len(value) <= 500 and " " not in value):
+            raise ValueError(f"slack.{key} is the Slack app's token starting {prefix}")
+        return value or None
+    if key in ("url", "token", "gateway", "poll_seconds"):  # Matterbridge's own; Slack keeps a socket open instead
+        raise ValueError(f"unknown setting slack.{key}")
+    return _bridge_setting(key, value, "slack")
 
 
 def _matterbridge_setting(key, value):
@@ -1155,7 +1173,11 @@ def save(db, base, section, changes, user=None):
                     telemetry.parse_headers(v)  # ValueError when malformed
                 if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
                     raise ValueError(f"matterbridge.{k} is one line of text")
-                if (section, k) in (("documents", "anytopdf_token"), ("telemetry", "prometheus_token"), ("telegram", "token")):
+                if (section, k) in (
+                    ("documents", "anytopdf_token"),
+                    ("telemetry", "prometheus_token"),
+                    ("telegram", "token"),
+                ) or section == "slack":
                     v = _check(section, k, v, None)
                 if (section, k) == ("https", "dns_credentials"):
                     from . import https

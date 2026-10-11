@@ -59,6 +59,21 @@ class SmbStatus(ResponseModel):
     mount: str = Field(description="the command that mounts it on Linux")
 
 
+class SlackStatus(ResponseModel):
+    state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
+        description="off; incomplete (`error` says what's missing); starting (no server process has connected yet); "
+        "running; error (the connection or the last message failed, `error` says why)"
+    )
+    error: str | None = None
+    holder: str | None = Field(None, description="the server process connected to Slack")
+    at: str | None = Field(None, description="when it last heard from Slack")
+    answered: int | None = Field(None, description="messages it answered")
+    team: str | None = Field(None, description="the Slack workspace it's connected to")
+    bot: str | None = Field(None, description="the app's bot user")
+    command: str = Field(description="the slash command, such as /lens")
+    create_url: str = Field(description="where the Slack app is created from its manifest, in one click")
+
+
 class TunnelStatus(ResponseModel):
     mode: Literal["off", "quick", "token", "managed"]
     running: bool = Field(description="cloudflared is running in a server process")

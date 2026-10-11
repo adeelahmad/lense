@@ -394,6 +394,20 @@ DEFAULTS = {
         # a Bot API server of your own (telegram-bot-api), else Telegram's
         "api_url": None,
     },
+    # Slack through an app of your own over Socket Mode (slack.py), made from the manifest in Settings › Slack:
+    # bot_token is its xoxb- token, app_token its app-level xapp- token (connections:write); the room settings are
+    # bridge's: account, name, answer, users (Slack usernames or ids), rooms ("slack/<channel> = namespace"), approve
+    "slack": {
+        "enabled": False,
+        "bot_token": None,
+        "app_token": None,
+        "account": None,
+        "name": "Lens",
+        "answer": "mention",
+        "users": [],
+        "rooms": [],
+        "approve": "low_risk",
+    },
     # Matterbridge run by Lens (matterbridge.py): with `run` on, the matterbridge service in Docker Compose gets its
     # config from these, a gateway per room, and the bridge talks to it; off, bridge.url is a Matterbridge of your own
     "matterbridge": {
