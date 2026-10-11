@@ -894,18 +894,34 @@
     {
       "module": "Agents",
       "feature": "Connect an AI assistant (Claude, ChatGPT, Cursor) over MCP",
-      "note": "In the assistant: add a connector and give it Lens's MCP address; the assistant opens Lens's consent page, where the person allows it. After setup Lens shows the MCP address nowhere, so it is typed (counted as typed).",
-      "clicks": 3,
-      "keys": 25,
+      "note": "Copy MCP address in the account menu; in the assistant: add a connector and paste the address; the assistant opens Lens's consent page, where the person allows it.",
+      "clicks": 5,
+      "keys": 1,
       "prompts": 0,
       "swipes": 0,
       "steps": [
         {
           "page": "/",
+          "kind": "tap",
+          "what": "Account menu",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Copy MCP address",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
           "kind": "outside",
-          "what": "in the assistant: add a connector, type Lens's MCP address, add it",
+          "what": "in the assistant: add a connector, paste Lens's MCP address, add it",
           "clicks": 2,
-          "keys": 25,
+          "keys": 1,
           "prompts": 0
         },
         {
@@ -918,7 +934,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 2710,
+      "ms": 3259,
       "ok": true
     },
     {

@@ -409,12 +409,18 @@ export const JOURNEYS = [
     ns: "",
     module: "Agents",
     feature: "Connect an AI assistant (Claude, ChatGPT, Cursor) over MCP",
-    note: "In the assistant: add a connector and give it Lens's MCP address; the assistant opens Lens's consent page, where the person allows it. After setup Lens shows the MCP address nowhere, so it is typed (counted as typed).",
+    note: "Copy MCP address in the account menu; in the assistant: add a connector and paste the address; the assistant opens Lens's consent page, where the person allows it.",
     from: "/",
     async run(ctx) {
       const { page, meter, base } = ctx;
       const mcp = `${base}/mcp`;
-      meter.record("outside", "in the assistant: add a connector, type Lens's MCP address, add it", 2, mcp.length);
+      await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: base });
+      await meter.click(page.getByRole("button", { name: "Account menu" }), "Account menu");
+      await meter.click(page.getByRole("menuitem", { name: "Copy MCP address" }), "Copy MCP address");
+      await page.getByText("MCP address copied").waitFor();
+      const copied = await page.evaluate(() => navigator.clipboard.readText());
+      if (copied !== mcp) throw new Error(`copied ${copied}, not ${mcp}`);
+      meter.record("outside", "in the assistant: add a connector, paste Lens's MCP address, add it", 2, 1);
       // What the assistant does by itself (RFC 7591 registration, PKCE), then it opens the consent page
       const redirect = "http://127.0.0.1:9/callback";
       const r = await fetch(`${base}/api/v1/oauth/register`, {
