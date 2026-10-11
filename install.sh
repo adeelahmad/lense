@@ -586,13 +586,25 @@ sandbox_progress() {
   lines="$(msb logs lens --since "$since" --grep '\[lens\]' </dev/null 2>/dev/null | grep '^\[lens\] ' || true)"
   n="$(printf '%s\n' "$lines" | grep -c . || true)"
   if [ "$n" -gt "$seen" ]; then
-    printf '%s\n' "$lines" | sed -n "$((seen + 1)),\$p" | sed 's/^\[lens\]/ /'
+    # as steps of their own (the web installer lists them)
+    printf '%s\n' "$lines" | sed -n "$((seen + 1)),\$p" | sed 's/^\[lens\] //' | while IFS= read -r line; do say "  $line"; done
     seen=$n
     shown=$now
     step="$(printf '%s\n' "$lines" | tail -n 1 | sed 's/^\[lens\] //; s/[.][.][.]$//')"
   fi
   failed="$(printf '%s\n' "$lines" | sed -n 's/^\[lens\] \(Failed.*\)/\1/p' | tail -n 1)"
   [ -z "$failed" ] || stuck "Lens couldn't start in its microsandbox. $failed."
+  # a part that stops again and again (run.sh starts it again each time) won't start by waiting longer
+  looping="$(printf '%s\n' "$lines" | sed -n 's/^\[lens\] \([a-z]*\) stopped; starting it again.*/\1/p' | sort | uniq -c |
+    awk '$1 >= 3 {print $2; exit}')"
+  case "$looping" in
+    '') ;;
+    surrealdb) stuck "Lens's database keeps stopping in its microsandbox." ;;
+    api) stuck "Lens's API keeps stopping in its microsandbox." ;;
+    web) stuck "Lens's web app keeps stopping in its microsandbox." ;;
+    worker) stuck "Lens's job worker keeps stopping in its microsandbox." ;;
+    *) stuck "Lens's $looping keeps stopping in its microsandbox." ;;
+  esac
   if running="$(msb ls --running -q </dev/null 2>/dev/null)"; then # twice in a row, as it may be booting
     if printf '%s\n' "$running" | grep -qx lens; then down=0; else down=$((down + 1)); fi
   fi

@@ -103,8 +103,9 @@ msb exec lens -- sh   # a shell inside it
 To update, run the install line again. It stops the running sandbox first (giving the database up to a minute to
 close cleanly) and waits for its port to be free, then starts Lens in a new one. While it waits for the web app, it
 shows the steps the sandbox logs (installing packages, building, starting the database). If the sandbox stops, a step
-fails, or the web app doesn't answer within 30 minutes (`LENS_WAIT`, in seconds), it stops waiting and shows the last
-lines the sandbox logged and why, for example a port that another program holds.
+fails, a part of Lens keeps stopping (run.sh starts it again three times), or the web app doesn't answer within 30
+minutes (`LENS_WAIT`, in seconds), it stops waiting and shows the last lines the sandbox logged and why, for example a
+port that another program holds. The web installer shows those lines under the reason.
 
 ## Not yet
 

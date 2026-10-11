@@ -503,6 +503,9 @@ function viewInstall() {
       : "You can leave this page open and come back. Closing it doesn't stop the install."),
     el("ul", { class: "progress" }, steps.map((t, i) => el("li", { class: i === steps.length - 1 && !done ? (failed ? "fail" : "now") : "" }, t))));
   if (failed) box.append(el("div", { class: "msg err" }, P.error || "install.sh stopped"));
+  // what Lens itself logged last, when install.sh stopped waiting for it: usually the reason in Lens's own words
+  if (failed && P.tail && P.tail.length) box.append(el("p", { class: "muted" }, "What Lens logged last:"),
+    el("pre", { class: "log" }, P.tail.join("\n")));
   const pre = el("pre", { class: "log" }, S.log.join("\n") || "…");
   box.append(el("details", { open: failed }, el("summary", {}, "Details"), pre));
   if (done) box.append(el("div", { class: "nav" }, el("button", { class: "primary big", onclick: async () => {

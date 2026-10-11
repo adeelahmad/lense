@@ -257,7 +257,7 @@ jobs:
       - name: Running it again updates in place and keeps the secrets
         run: |
           # while it waited, it showed the steps the sandbox logged
-          grep -q '^  Building Lens' install.log || { echo "install.sh didn't show the sandbox's progress"; exit 1; }
+          grep -q '  Building Lens' install.log || { echo "install.sh didn't show the sandbox's progress"; exit 1; }
           before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           LENS_BACKEND='' sh < install.sh | tee again.log
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
@@ -284,6 +284,20 @@ jobs:
           LENS_BACKEND='' LENS_TARGET='' sh < install.sh >/dev/null # the full edition is kept, and Chromium with it
           for _ in $(seq 60); do msb exec lens -- test -f /data/.lens/programs/got/chromium.ok && break; sleep 5; done
           msb exec lens -- chromium --version
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: A part of Lens that keeps stopping ends the wait at once, with what Lens logged
+        run: |
+          # keys that don't open the database: the API stops at each start, as after a reinstall with new keys
+          cp "$LENS_DIR/.env" env.bak
+          sed -i 's/^SURREAL_PASS=.*/SURREAL_PASS=not-the-one/' "$LENS_DIR/.env"
+          if LENS_BACKEND='' sh < install.sh >loop.log 2>&1; then cat loop.log; echo "it didn't stop waiting"; exit 1; fi
+          cat loop.log
+          grep -q "keeps stopping in its microsandbox" loop.log
+          grep -q 'The last lines Lens logged:' loop.log
+          grep -q 'cannot open SurrealDB' loop.log # the reason, in Lens's own words
+          cp env.bak "$LENS_DIR/.env"
+          LENS_BACKEND='' sh < install.sh >/dev/null
           curl -fsS -o /dev/null "$(cat setup-url)"
 
       - name: A start that takes too long stops waiting and says why

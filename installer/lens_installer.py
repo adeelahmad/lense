@@ -381,6 +381,21 @@ def step_of(line):
     return ANSI.sub("", line).strip() if line.startswith("\x1b[1m") else None
 
 
+# install.sh prints this, then the last lines Lens logged, when it stops waiting for Lens; then why (the last line)
+TAIL_HEAD = "The last lines Lens logged:"
+
+
+def log_tail(lines, error=None):
+    """The last lines Lens logged, as install.sh showed them when it stopped waiting, without its reason after them."""
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip() == TAIL_HEAD:
+            tail = lines[i + 1 :]
+            while tail and (not tail[-1].strip() or tail[-1] == error):
+                tail.pop()
+            return tail
+    return []
+
+
 class Installer:
     def __init__(self, folder, repo, ref, script=None, token=None):
         self.dir, self.repo, self.ref, self.script = folder, repo, ref, script
@@ -388,6 +403,7 @@ class Installer:
         self.lock = threading.Lock()
         self.lines, self.steps = [], []
         self.state, self.url, self.error, self.code = "idle", None, None, None
+        self.tail = []
         self.password = None
         self.proc = None
         self.tmp = tempfile.mkdtemp(prefix="lens-installer-")
@@ -490,6 +506,7 @@ class Installer:
         self.dir = env_vars["LENS_DIR"]
         with self.lock:
             self.lines, self.steps, self.state, self.url, self.error, self.code = [], [], "running", None, None, None
+            self.tail = []
         threading.Thread(target=self._run, args=(env_vars,), daemon=True, name="install").start()
 
     def _run(self, env_vars):
@@ -533,6 +550,8 @@ class Installer:
             self._finish("done")
         else:
             last = next((ln for ln in reversed(self.lines) if ln.strip()), "")
+            with self.lock:
+                self.tail = log_tail(self.lines, last)
             self._finish("failed", last or f"install.sh stopped (exit {code})")
 
     def _finish(self, state, error=None):
@@ -551,6 +570,7 @@ class Installer:
                 "next": offset + len(self.lines),
                 "url": self.url,
                 "error": self.error,
+                "tail": list(self.tail),
             }
 
 

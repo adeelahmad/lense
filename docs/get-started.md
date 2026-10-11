@@ -44,8 +44,9 @@ above opens an installer in your browser instead of asking anything in the termi
 4. **Review**, then **Install**: **More options** under the review holds what's optional, each with its default: the
    first namespace, search by meaning (an embeddings server), the typesafe.ai decision model's key, cloud
    transcription and its key, email (SMTP), remote access through a Cloudflare tunnel, anytopdf, and telemetry.
-   **Install** runs `install.sh` with those answers and shows its progress (and the full output under **Details**). If
-   something fails, it says what, and **Try again** runs it again (what's done stays done).
+   **Install** runs `install.sh` with those answers and shows its progress, in a microsandbox step by step as the
+   sandbox installs and builds (and the full output under **Details**). If something fails, it says what, with the
+   last lines Lens logged when Lens itself didn't start, and **Try again** runs it again (what's done stays done).
 5. **Open Lens** goes to the setup page with the setup code filled in, where you create the admin account with a
    passkey.
 
