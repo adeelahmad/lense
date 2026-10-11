@@ -15645,6 +15645,65 @@ export type SimilarTopic = {
 };
 
 /**
+ * SmbStatus
+ */
+export type SmbStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Phase
+   */
+  phase: "off" | "starting" | "running" | "error";
+  /**
+   * Port
+   *
+   * the port clients connect to (where Docker publishes it)
+   */
+  port: number;
+  /**
+   * Share
+   *
+   * the share's name
+   */
+  share: string;
+  /**
+   * Allowed Networks
+   */
+  allowed_networks: Array<string>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Process
+   *
+   * the worker serving it
+   */
+  process?: string | null;
+  /**
+   * Installed
+   *
+   * whether the SMB server (impacket) is installed here; it's fetched when the share is turned on
+   */
+  installed: boolean;
+  /**
+   * Address
+   *
+   * the address Finder and Linux file managers open (the machine's name filled in by the caller)
+   */
+  address: string;
+  /**
+   * Mount
+   *
+   * the command that mounts it on Linux
+   */
+  mount: string;
+  [key: string]: unknown;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -20566,6 +20625,22 @@ export type NfsStatusResponses = {
 };
 
 export type NfsStatusResponse = NfsStatusResponses[keyof NfsStatusResponses];
+
+export type SmbStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/smb/status";
+};
+
+export type SmbStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: SmbStatus;
+};
+
+export type SmbStatusResponse = SmbStatusResponses[keyof SmbStatusResponses];
 
 export type TunnelStatusData = {
   body?: never;

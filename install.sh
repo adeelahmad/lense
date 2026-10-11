@@ -359,6 +359,8 @@ if [ "$LENS_HTTPS" = 1 ]; then
   setenv LENS_HTTP_PORT "$HTTP_PORT"
 fi
 setenv LENS_DIR "$DIR"
+# the SMB share's port on this machine (docs/smb.md), when the install line names one: kept for later runs
+case "${LENS_SMB_PORT:-}" in '' | *[!0-9]*) ;; *) setenv LENS_SMB_PORT "$LENS_SMB_PORT" ;; esac
 # from the web installer (docs/configuration.md): the first namespace, and settings Lens saves once at its first start
 for k in LENS_NAMESPACE LENS_SETUP_SETTINGS; do
   eval "v=\${$k:-}"

@@ -58,6 +58,8 @@ EDITABLE = {
     # bind is a startup setting only
     "nfs": ("enabled", "port", "allowed_networks", "account"),
     # bind is a startup setting only
+    # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
+    "smb": ("enabled", "allowed_networks"),
     "sensors": (
         "enabled",
         "mqtt",
@@ -435,6 +437,8 @@ def _check(section, key, value, default):
         return _sensor_setting(key, value)
     if section == "nfs":
         return _nfs_setting(key, value)
+    if section == "smb":
+        return _smb_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "mail" and key != "security":
@@ -948,6 +952,22 @@ def _nfs_setting(key, value):
         if net.prefixlen == 0:  # NFS has no sign-in: the whole internet is never a sensible default to type
             raise ValueError(f"nfs.allowed_networks: {v} is every address; list the networks your machines are on")
         out.append(str(net))
+    return list(dict.fromkeys(out))
+
+
+def _smb_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("smb.enabled is true or false")
+        return value
+    if not isinstance(value, list) or len(value) > 100:
+        raise ValueError("smb.allowed_networks is a list of networks like 192.168.1.0/24")
+    out = []
+    for v in value:
+        try:
+            out.append(str(ipaddress.ip_network(str(v).strip(), strict=False)))
+        except ValueError:
+            raise ValueError(f"smb.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
     return list(dict.fromkeys(out))
 
 

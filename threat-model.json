@@ -125,7 +125,8 @@
     {
       "name": "optional",
       "entry_points": [
-        "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}"
+        "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
+        "SMB share (port 1445 on the host, 4445 in the worker)"
       ],
       "touches": [
         "network",
@@ -470,6 +471,15 @@
       "caller_must_enforce": "admin enables and picks the account; operator firewalls",
       "provenance": "documented",
       "source": "docs/file-shares.md \"NFS has no login\""
+    },
+    {
+      "entry_point": "SMB share (port 1445 on the host, 4445 in the worker)",
+      "parameter": "SMB2 requests, NTLM sign-in with a file access key, client address",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables; operator firewalls",
+      "provenance": "documented",
+      "source": "docs/smb.md \"What keeps it safe\""
     },
     {
       "entry_point": ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY",
@@ -1036,6 +1046,14 @@
       "source": "docs/file-shares.md \"NFS has no login\""
     },
     {
+      "property": "P-SMB",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "the SMB share is off until an admin turns it on; read-only; per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only",
+      "provenance": "documented",
+      "source": "docs/smb.md \"What keeps it safe\""
+    },
+    {
       "property": "P-SHARES",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
@@ -1433,6 +1451,7 @@
     "After a password change or suspected theft, revoke API tokens and app grants, or disable the account",
     "List private networks in documents.web_networks or notifications.networks only on purpose",
     "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address",
+    "When the SMB share is on, list only your own networks, keep its port off the internet, and revoke file access keys you no longer use",
     "Give the chat-room bridge its own low-role account",
     "Run workers only on trusted hosts; they hold the DB credential",
     "Pick model and speech servers you trust with transcripts and audio",
