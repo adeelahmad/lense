@@ -156,6 +156,7 @@ ENUMS = {
     ("mailbox", "approve"): {"off", "low_risk"},
     ("mailbox", "check"): {"authenticated", "off"},
     ("mailbox", "imports"): {"auto", "ask"},
+    ("ai", "injection_check"): {"patterns", "model", "off"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},

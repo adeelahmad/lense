@@ -208,7 +208,22 @@ function viewComputer() {
     f.actions.length ? el("div", {}, el("h3", {}, "Other things to do"),
       f.actions.map((a) => el("button", { class: "small", title: a.detail, onclick: () => runAction(a) }, a.label))) : null,
     el("div", { id: "msg", class: "msg" }),
-    nav(() => go(1), { disabled: !f.supported || (!f.curl && !f.windows) }));
+    quickNav(!f.supported || (!f.curl && !f.windows), !ex));
+}
+// The first page's way out: install now with the defaults (and the model server found here, if there's one), or
+// go through the choices. A first install only; going on from an existing one goes through the steps.
+function quickNav(blocked, quick) {
+  if (!quick) return nav(() => go(1), { disabled: blocked });
+  return el("div", { class: "nav" },
+    el("button", { onclick: () => go(1), disabled: blocked, id: "next" }, "Choose options"),
+    el("button", { class: "primary", onclick: quickInstall, disabled: blocked, id: "quick" }, "Install with the defaults"));
+}
+async function quickInstall() {
+  if (needsPassword()) { go(1); return msg("info", "Installing what's missing needs your password first."); }
+  $("#quick").disabled = true;
+  if (S.servers === null) await detect();
+  await install();
+  if (S.step !== 5 && $("#quick")) $("#quick").disabled = false;
 }
 async function runAction(a) {
   try { await api("/api/action", { id: a.id }); S.step = 5; render(); poll(); } catch (e) { msg("err", e.message); }

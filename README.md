@@ -19,12 +19,13 @@ cost-aware.
 curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | sh
 ```
 
-That one line is all: it opens an installer in your browser that checks the computer, asks how Lens should run (in
-Docker or a [microsandbox](docs/microsandbox.md) microVM), the AI model and its key and any extras, then installs
-what's missing (Docker included), starts Lens and opens its setup page
-([details](docs/get-started.md#the-web-installer)). Run it again to update. On Windows, run
-`irm https://raw.githubusercontent.com/adeelahmad/lense/main/install.ps1 | iex` in PowerShell; or skip the terminal and
-double-click the launcher for your system from the [latest release](https://github.com/adeelahmad/lense/releases/latest).
+That one line is all: it opens an installer in your browser that checks the computer, then either installs with the
+defaults in one click (with a model server it finds on the computer) or asks how Lens should run (in Docker or a
+[microsandbox](docs/microsandbox.md) microVM), the AI model and its key and any extras. Either way it installs what's
+missing (Docker included), starts Lens and opens its setup page ([details](docs/get-started.md#the-web-installer)).
+Run it again to update. On Windows, run `irm https://raw.githubusercontent.com/adeelahmad/lense/main/install.ps1 | iex`
+in PowerShell; or skip the terminal and double-click the launcher for your system from the
+[latest release](https://github.com/adeelahmad/lense/releases/latest).
 [Deployment](docs/deployment.md) covers servers and Cloudron; there are also packages for
 [Synology](packaging/synology/README.md), [QNAP](packaging/qnap/README.md) and [Proxmox](proxmox/README.md).
 
@@ -79,7 +80,10 @@ Everything below is built and merged. Work that is still in a pull request is li
   [import webhooks](docs/api.md#import-webhooks))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
   part you pick into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies
-  through the browser's store or a self-hosted update file. ([Web clipper](docs/web-clipper.md))
+  through the browser's store or a self-hosted update file. In Chrome and Edge, its side panel is a chat with the
+  assistant, which can also use that browser on the sites you allow (open, read, click, type), asking before anything
+  that sends, deletes, buys or posts. ([Web clipper](docs/web-clipper.md),
+  [the assistant in your browser](docs/browser-assistant.md))
 - **Understand it.** Transcription and speaker recognition, text on screen and in scans, faces (off by default),
   entities and topics in a knowledge graph you can explore, query with Cypher or SPARQL, and see as it was at any
   version. Find what is most like a passage, a resource, a topic or an entity, and, with anytopdf, photos by what
@@ -101,12 +105,14 @@ Everything below is built and merged. Work that is still in a pull request is li
   admin says so. Settings › Backups takes, lists, downloads and restores backups, takes them on any schedule, and can
   copy each one, encrypted, to a storage connection. ([Updates and backups](docs/updates.md),
   [backups](docs/database.md#backups))
-- **Watch it run.** OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint with a sample Grafana
-  dashboard. Both are off until you turn them on, and send nothing anywhere else. ([Telemetry](docs/telemetry.md),
+- **Watch it run.** OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint. Both are off until you
+  turn them on, and send nothing anywhere else. An opt-in `monitoring` profile runs Prometheus, node-exporter and
+  Grafana next to Lens, already connected, with the Lens dashboard as Grafana's home. ([Telemetry](docs/telemetry.md),
   [Prometheus](docs/prometheus.md))
 - **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
   namespace, and an audit log. What the assistant reads (recordings, documents, web pages, tool results) reaches the
-  model marked as data, not instructions. Serve Lens over HTTPS with certificates from Let's Encrypt or ZeroSSL that
+  model marked as data, not instructions, and once an answer has read such text, sending anything out waits for your
+  yes. Serve Lens over HTTPS with certificates from Let's Encrypt or ZeroSSL that
   renew on their own, or reach it from anywhere through a Cloudflare tunnel with nothing opened on your router.
   ([Encryption](docs/encryption.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
@@ -130,24 +136,21 @@ These are open pull requests, not yet part of Lens:
   ([#293](https://github.com/adeelahmad/lense/pull/293)) and a Slack app over Socket Mode
   ([#287](https://github.com/adeelahmad/lense/pull/287)), without Matterbridge; and the assistant's own email address,
   over IMAP and SMTP ([#314](https://github.com/adeelahmad/lense/pull/314)).
-- **The assistant in your browser:** the side panel in the Lens extension where you ask the assistant and it uses your
-  browser ([#322](https://github.com/adeelahmad/lense/pull/322)); the server side is built
-  ([guide](docs/browser-assistant.md)).
-- **Assistant safety:** asking before sending data out once an answer has read third-party text
-  ([#309](https://github.com/adeelahmad/lense/pull/309)), and running MCP servers that are programs (stdio) in a sandbox
-  ([#304](https://github.com/adeelahmad/lense/pull/304)).
+- **Assistant safety:** running MCP servers that are programs (stdio) in a sandbox
+  ([#304](https://github.com/adeelahmad/lense/pull/304)); flagging third-party text that reads like instructions to an
+  AI ([#329](https://github.com/adeelahmad/lense/pull/329)); and asking before the browser opens or types what the
+  assistant wrote after reading a page ([#333](https://github.com/adeelahmad/lense/pull/333)).
+- **Cloud model presets** in Settings and the setup wizard ([#334](https://github.com/adeelahmad/lense/pull/334)).
 - **Search:** a Similar tab, and similar content for text selected anywhere
   ([#307](https://github.com/adeelahmad/lense/pull/307)); NSFW pictures classified by a local model, per namespace
   ([#306](https://github.com/adeelahmad/lense/pull/306)).
-- **Costs and setup:** an overall AI budget with soft and hard limits, asked for in setup
-  ([#281](https://github.com/adeelahmad/lense/pull/281)); fewer clicks in setup, Chat, Search and Notes
-  ([#315](https://github.com/adeelahmad/lense/pull/315)).
+- **Budget in setup:** an overall AI budget with soft and hard limits, asked for in setup
+  ([#281](https://github.com/adeelahmad/lense/pull/281)).
 - **Running it:** an upgrade page with live steps that rolls back when the new version doesn't start
   ([#262](https://github.com/adeelahmad/lense/pull/262)), HTTPS set up in Settings
   ([#326](https://github.com/adeelahmad/lense/pull/326)), structured logs with a log viewer and syslog output
-  ([#284](https://github.com/adeelahmad/lense/pull/284)), built-in usage analytics
-  ([#274](https://github.com/adeelahmad/lense/pull/274)), and Prometheus and Grafana as an opt-in service
-  ([#297](https://github.com/adeelahmad/lense/pull/297)).
+  ([#284](https://github.com/adeelahmad/lense/pull/284)), and built-in usage analytics
+  ([#274](https://github.com/adeelahmad/lense/pull/274)).
 - **People:** email invitations, and removing someone for good ([#286](https://github.com/adeelahmad/lense/pull/286)).
 - **Lens.app for macOS:** a menu-bar app that carries microsandbox
   ([#280](https://github.com/adeelahmad/lense/pull/280)).

@@ -290,6 +290,17 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
           setTitle(e.target.value);
           change({ title: e.target.value });
         }}
+        onKeyDown={(e) => {
+          // Enter goes on to the page's first line, as in a document
+          if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+          // (the page root is what takes the focus; the caret goes in its first paragraph, not the hidden title line)
+          const root = document.querySelector<HTMLElement>(".lens-block-editor affine-page-root");
+          const line = root?.querySelector(".inline-editor");
+          if (!root || !line) return;
+          e.preventDefault();
+          root.focus();
+          window.getSelection()?.collapse(line, 0);
+        }}
         placeholder="Untitled"
         className="w-full bg-transparent text-[30px] font-bold leading-tight tracking-[-.015em] text-fg outline-none placeholder:text-fg-muted"
       />
