@@ -79,3 +79,18 @@ class RemoteBackups(ResponseModel):
     last_name: str | None = None
     last_error: str | None = Field(None, description="why copying the last backup failed")
     copying: CopyWork
+
+
+class Monitoring(ResponseModel):
+    on: bool = Field(description="the monitoring profile (Prometheus, node-exporter, Grafana) as last asked")
+    state: Literal["queued", "running", "done", "failed"] | None = Field(None, description="how the machine's last change went")
+    error: str | None = None
+    asked_at: str | None = None
+    finished_at: str | None = None
+    grafana_port: int = Field(3001, description="the port Grafana listens on, where the web app does")
+    agent: str | None = Field(None, description="what changes it on this machine (systemd, launchd); none: run `manual` there")
+    manual: str = Field(description="the line that turns it on by hand, on the machine Lens runs on")
+
+
+class MonitoringRequest(RequestModel):
+    on: bool = Field(description="start (true) or stop (false) Prometheus, node-exporter and Grafana")

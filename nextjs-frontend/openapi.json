@@ -3354,6 +3354,68 @@
         }
       }
     },
+    "/api/v1/admin/monitoring": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Monitoring",
+        "description": "Whether Prometheus, node-exporter and Grafana run next to Lens (the monitoring profile), and how the machine's\nlast change went.",
+        "operationId": "get_monitoring",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Monitoring"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Set Monitoring",
+        "description": "Have this machine start or stop Prometheus, node-exporter and Grafana. On also turns /metrics on with a scrape\ntoken when it has none. GET /admin/monitoring follows along.",
+        "operationId": "set_monitoring",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitoringRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Monitoring"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/backups": {
       "get": {
         "tags": [
@@ -39951,6 +40013,111 @@
           "estimate"
         ],
         "title": "ModelSpend"
+      },
+      "Monitoring": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "the monitoring profile (Prometheus, node-exporter, Grafana) as last asked"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "done",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "how the machine's last change went"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "grafana_port": {
+            "type": "integer",
+            "title": "Grafana Port",
+            "description": "the port Grafana listens on, where the web app does",
+            "default": 3001
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what changes it on this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that turns it on by hand, on the machine Lens runs on"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "on",
+          "manual"
+        ],
+        "title": "Monitoring"
+      },
+      "MonitoringRequest": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "start (true) or stop (false) Prometheus, node-exporter and Grafana"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "MonitoringRequest"
       },
       "MonthStats": {
         "properties": {

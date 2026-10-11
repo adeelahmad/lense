@@ -2094,7 +2094,7 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     mono: true,
     placeholder: "http://localhost:3001",
-    hint: "Where Grafana shows Lens's charts; System health links to it. The monitoring profile runs one at :3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. Empty: the one Charts and history runs, on this host at :3001",
   },
   {
     section: "telemetry",

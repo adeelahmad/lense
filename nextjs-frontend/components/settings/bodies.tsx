@@ -7,6 +7,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { Admin, Fedora, Metadata, Sensors, Sources } from "@/app/openapi-client";
 import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
+import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
@@ -617,9 +618,11 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
       <p className="-mt-2 text-[12.5px] leading-[1.45] text-fg-secondary">
         For Grafana and other Prometheus tools: jobs, imports, model calls, cost, budgets, workers and disk, served at{" "}
         <code className="font-mono">/metrics</code> on this address with the same privacy as telemetry. A scraper sends
-        the token as <code className="font-mono">Authorization: Bearer</code>. The monitoring profile runs Prometheus
-        and Grafana next to Lens, ready made, with charts of Lens and this machine (docs/prometheus.md).
+        the token as <code className="font-mono">Authorization: Bearer</code>. Charts and history runs Prometheus and
+        Grafana next to Lens, ready made, with charts of Lens and this machine, and sets up the token itself
+        (docs/prometheus.md).
       </p>
+      <MonitoringSwitch />
       {Boolean(saved.prometheus) && !promSecret.set && !promToken.value && (
         <Banner tone="error" title="On, but there is no scrape token.">
           Set one below; until then /metrics answers no one.
