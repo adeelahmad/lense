@@ -650,14 +650,16 @@ export const JOURNEYS = [
     ns: "",
     module: "Setup",
     feature: "Switch to a cloud model with an API key",
-    note: "What a Raspberry Pi install does after the installer: an OpenAI-compatible cloud provider, its model and a pasted key.",
+    note: "What a Raspberry Pi install does after the installer: a cloud provider picked from the presets fills in its address and model, then a pasted key.",
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Settings");
       await section(ctx, "LLM provider");
-      await meter.replace(page.getByRole("textbox", { name: "Base URL (OpenAI-compatible)" }), "https://api.openai.com/v1", "the provider's address");
-      await meter.replace(page.getByRole("textbox", { name: "Model", exact: true }), "gpt-4o-mini", "the model");
+      const cloud = page.getByRole("group", { name: "Cloud providers" }).getByRole("button", { name: "OpenAI" });
+      await meter.click(cloud, "OpenAI (fills in the address and the model)");
+      // The key field takes the focus: a person sees the cursor land there before pasting
+      await page.waitForFunction(() => document.activeElement?.type === "password", null, { timeout: 3000 }).catch(() => {});
       await meter.paste(page.getByRole("textbox", { name: "API key" }), "sk-survey-0000000000000000", "paste the API key");
       await save(ctx);
       await page.getByText(/Saved|Last saved/).first().waitFor();
