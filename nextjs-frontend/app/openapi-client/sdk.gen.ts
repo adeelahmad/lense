@@ -942,6 +942,8 @@ import type {
   LostPasskeyData,
   LostPasskeyErrors,
   LostPasskeyResponses,
+  MailboxStatusData,
+  MailboxStatusResponses,
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
@@ -1349,6 +1351,8 @@ import type {
   TestFileStoreResponses,
   TestLlmData,
   TestLlmResponses,
+  TestMailboxData,
+  TestMailboxResponses,
   TestMailData,
   TestMailResponses,
   TestNotifyTargetData,
@@ -2719,6 +2723,36 @@ export class Admin {
   ): RequestResult<TestSlackResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestSlackResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/slack/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Mailbox Status
+   *
+   * How the assistant's mailbox is doing, and who has written to it (whether each is let in, and their mail vouched
+   * for by their provider).
+   */
+  public static mailboxStatus<ThrowOnError extends boolean = false>(
+    options?: Options<MailboxStatusData, ThrowOnError>,
+  ): RequestResult<MailboxStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MailboxStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mailbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Mailbox
+   *
+   * Check that Lens can sign in to read the mailbox (IMAP) and to send from it (SMTP), and that the account to
+   * answer as exists. Nothing is read or sent.
+   */
+  public static testMailbox<ThrowOnError extends boolean = false>(
+    options?: Options<TestMailboxData, ThrowOnError>,
+  ): RequestResult<TestMailboxResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestMailboxResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mailbox/test",
       ...options,
     });
   }

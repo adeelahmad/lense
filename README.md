@@ -67,9 +67,10 @@ Everything below is built and merged. Work that is still in a pull request is li
   meaning, once turned on), reads it, cites it and acts on it with tools: changes wait for your approval. It reads
   answers aloud with a speech provider, macOS `say` or StyleTTS2 on this machine (opt-in), and `/clear` and
   `/compact` keep long conversations short. Each namespace can have its own assistant with its own name, instructions
-  and memory, answering in Telegram and Slack (built in, with voice notes and files), and in Discord, Matrix,
-  WhatsApp and other chat rooms through Matterbridge.
-  ([Chat](docs/assistant.md), [chat rooms](docs/chat-rooms.md), [speech providers](docs/speech-providers.md))
+  and memory, answering in Telegram and Slack (built in, with voice notes and files), in Discord, Matrix, WhatsApp
+  and other chat rooms through Matterbridge, and by email at an address of its own that you email or forward things
+  to. ([Chat](docs/assistant.md), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md),
+  [speech providers](docs/speech-providers.md))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
   skills, hooks and remote MCP servers, by code, on the canvas or just by asking. Install skills and plugins from
   marketplaces in the open plugin format, or from a repository or an archive.
@@ -140,8 +141,6 @@ lives in the web app. ([Components](docs/components.md), [speech providers](docs
 
 These are open pull requests, not yet part of Lens:
 
-- **Email:** the assistant's own email address, over IMAP and SMTP
-  ([#314](https://github.com/adeelahmad/lense/pull/314)).
 - **Assistant safety:** running MCP servers that are programs (stdio) in a sandbox
   ([#304](https://github.com/adeelahmad/lense/pull/304)).
 - **Search:** a Similar tab, and similar content for text selected anywhere
@@ -180,8 +179,9 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [updates and backups](docs/updates.md), [remote access](docs/remote-access.md), [HTTPS](docs/https.md)
 - **Agents and apps:** [MCP server](docs/mcp.md), [API](docs/api.md), [authentication](docs/authentication.md),
   [access](docs/access.md)
-- **Use:** [chat and batch runs](docs/assistant.md), [chat rooms](docs/chat-rooms.md), [podcasts](docs/podcasts.md),
-  [notes](docs/notes.md), [web clipper](docs/web-clipper.md),
+- **Use:** [chat and batch runs](docs/assistant.md), [chat rooms](docs/chat-rooms.md),
+  [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
+  [web clipper](docs/web-clipper.md),
   [the assistant in your browser](docs/browser-assistant.md), [sensors](docs/sensors.md),
   [processing](docs/processing.md), [video](docs/video.md), [notifications](docs/notifications.md)
 - **Knowledge:** [graph and Cypher](docs/graph.md), [graph history](docs/graph-history.md), [topics](docs/topics.md),

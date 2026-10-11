@@ -7722,6 +7722,100 @@ export type MailTestResult = {
 };
 
 /**
+ * MailboxPerson
+ */
+export type MailboxPerson = {
+  /**
+   * Id
+   *
+   * their email address, for mailbox.users
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Allowed
+   *
+   * in mailbox.users: Lens answers their mail
+   */
+  allowed: boolean;
+  /**
+   * Vouched
+   *
+   * how their last message was known to be theirs (DMARC, DKIM, SPF, or From with mailbox.check off); none: it wasn't
+   */
+  vouched?: string | null;
+  /**
+   * Waiting
+   *
+   * their messages held, answered once they're let in
+   */
+  waiting?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * MailboxStatus
+ */
+export type MailboxStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at the mailbox failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process reading the mailbox
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last looked
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Address
+   *
+   * the assistant's address
+   */
+  address?: string | null;
+  /**
+   * Imap
+   *
+   * the server it reads mail from (host:port and security), set or guessed
+   */
+  imap?: string | null;
+  /**
+   * Smtp
+   *
+   * the server it sends from (host:port and security), set or guessed
+   */
+  smtp?: string | null;
+  /**
+   * People
+   *
+   * who has written to it, latest first
+   */
+  people?: Array<MailboxPerson>;
+  [key: string]: unknown;
+};
+
+/**
  * ManifestCheck
  */
 export type ManifestCheck = {
@@ -20950,6 +21044,38 @@ export type TestSlackResponses = {
 };
 
 export type TestSlackResponse = TestSlackResponses[keyof TestSlackResponses];
+
+export type MailboxStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/mailbox";
+};
+
+export type MailboxStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: MailboxStatus;
+};
+
+export type MailboxStatusResponse = MailboxStatusResponses[keyof MailboxStatusResponses];
+
+export type TestMailboxData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/mailbox/test";
+};
+
+export type TestMailboxResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestMailboxResponse = TestMailboxResponses[keyof TestMailboxResponses];
 
 export type TestConversionNodeData = {
   body?: never;

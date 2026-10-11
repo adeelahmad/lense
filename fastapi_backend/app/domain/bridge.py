@@ -275,11 +275,15 @@ def route(db, cfg, account, cid, q, ns=None):
 
 
 # ---------- answering ----------
-def answer(db, cfg, base, account, cid, q, files=()):
+def answer(db, cfg, base, account, cid, q, files=(), act_on=(), outside=None):
     """Answer a question in a conversation as the account would be answered in the web app (without streaming), with
-    the files sent with it (held uploads: channels.hold).
-    Returns (text, approvals): the text as the room gets it, its links safe to preview (`safe_links`)."""
-    text, approvals, keep = _answer(db, cfg, base, account, cid, q, files)
+    the files sent with it (held uploads: channels.hold); `act_on` are the changes made at once (Channel.acts), and
+    `outside` where the question's text came from outside Lens (Channel.outside, a Matterbridge room's by default), so
+    that changes ask first. Returns (text, approvals): the text as the room gets it, its links safe to preview
+    (`safe_links`)."""
+    if outside is None:
+        outside = MATTERBRIDGE.outside(cfg, {})
+    text, approvals, keep = _answer(db, cfg, base, account, cid, q, files, act_on, outside)
     safe = safe_links(cfg, db, text, keep)
     if safe != text:  # what an injection may have tried, for admins to see
         broken = len(untrusted.links(text) - untrusted.links(safe))
@@ -298,7 +302,7 @@ def safe_links(cfg, db, text, keep=()):
     return untrusted.defang(text, keep, [app_url(cfg, db)])
 
 
-def _answer(db, cfg, base, account, cid, q, files=()):
+def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
     roles = auth.roles(db, account)
     readable = set(roles)
     editable = {s for s in roles if auth.allows(roles, s, "editor")}
@@ -317,8 +321,6 @@ def _answer(db, cfg, base, account, cid, q, files=()):
     steps, approvals, notice = [], [], None
     wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
     if llm.configured(cfg) and cfg["ai"].get("tools"):
-        # anyone in a room with no list of who may talk to Lens is someone the account doesn't vouch for
-        anyone = not [u for u in cfg["bridge"].get("users") or [] if u.strip()]
         box = ai_tools.Toolbox(
             db,
             cfg,
@@ -330,7 +332,8 @@ def _answer(db, cfg, base, account, cid, q, files=()):
             base,
             account["admin"],
             said=q,
-            outside=(["chat room"] if anyone else []) + ai_tools.read_before(past, summary),
+            outside=list(outside) + ai_tools.read_before(past, summary),
+            act_on=act_on,
         )
         try:
             text = None
@@ -446,6 +449,23 @@ def reply_text(cfg, text, approvals, cid, db=None):
     return out
 
 
+def sources(db, cfg, cid):
+    """The excerpts the conversation's last answer cites, a line each with its link into the web app, for a channel
+    that shows them under the answer (Channel.sources); "" when it cites none."""
+    from app.email import app_url
+
+    row = db.one("SELECT id, passages FROM chat_message WHERE chat = $c AND role = 'assistant' ORDER BY id DESC LIMIT 1", c=cid) or {}
+    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and p.get("recording_id")]
+    if not used:
+        return ""
+    base, lines = app_url(cfg, db), []
+    for p in used:
+        at = f"?page={p['page'] + 1}" if p.get("page") is not None else f"?t={int((p.get('t0') or 0) // 1000)}"
+        where = ", ".join(str(x) for x in (p.get("title") or "Untitled", p.get("time")) if x)
+        lines.append(f"[{p['n']}] {where}: {base}/resources/{p['recording_id']}{at}")
+    return "Sources:\n" + "\n".join(lines)
+
+
 def _media(db, cfg, ch, m):
     """A message's voice note as its text (when it has none and is for Lens), and a note when there's nothing to say
     but files: the message as handle() reads it, and what to say instead of answering (or None)."""
@@ -484,7 +504,7 @@ def handle(db, cfg, base, m, ch=None):
             ch.send(cfg, m, cant)
             return True
         return False
-    ns = room_namespace(cfg, m)
+    ns = m.get("namespace") or room_namespace(cfg, m)
     sid = {v: k for k, v in store.space_names(db).items()}.get(ns) if ns else None
     home = ns_assistant.profile(db, sid) if sid is not None else None
     by_name = named(db, cfg, m) if sid is None else None
@@ -518,7 +538,7 @@ def handle(db, cfg, base, m, ch=None):
                 chat.add(db, cid, "assistant", said)
                 ch.send(cfg, m, said)
                 return True
-        text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS], files)
+        text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS], files, ch.acts(cfg), ch.outside(cfg, m))
     except Exception:  # noqa: BLE001 - still say something in the room
         log.exception("%s: answering failed", ch.key)
         text, approvals, note = "Something went wrong while answering. Try again.", [], None
@@ -526,7 +546,8 @@ def handle(db, cfg, base, m, ch=None):
     if m.get("heard"):  # what the voice note was heard as, so a mishearing shows
         out = f"(Heard: “{q}”)\n\n{out}"
     out = "\n".join([*failed, out]) if failed else out
-    ch.send(cfg, m, out + (f"\n\n{note}" if note else ""))
+    cites = sources(db, cfg, cid) if ch.sources else ""
+    ch.send(cfg, m, out + (f"\n\n{cites}" if cites else "") + (f"\n\n{note}" if note else ""))
     try:  # a room conversation goes on for good: older messages are folded into its summary
         chat.compact(db, cfg, cid)
     except Exception:  # noqa: BLE001 - tried again after the next answer

@@ -19,7 +19,7 @@ import secrets
 import threading
 import urllib.parse
 
-from . import convert, ipgroups, objects, store, telemetry
+from . import convert, ipgroups, mail_routes, objects, store, telemetry
 
 R = store.R
 EDITABLE = {
@@ -46,6 +46,7 @@ EDITABLE = {
     "bridge": None,
     "telegram": None,
     "slack": None,
+    "mailbox": None,
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
@@ -116,6 +117,7 @@ EDITABLE = {
         "anytopdf_token",
     ),
 }
+MAIL_SECURITY = ("ssl", "starttls", "none")
 SECRETS = {
     "search": ("opensearch_password",),
     "llm": ("api_key",),
@@ -127,6 +129,7 @@ SECRETS = {
     "bridge": ("token",),
     "telegram": ("token",),
     "slack": ("bot_token", "app_token"),
+    "mailbox": ("password",),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers", "prometheus_token"),
     "fedora": ("password",),
@@ -156,6 +159,11 @@ ENUMS = {
     ("bridge", "approve"): {"off", "low_risk"},
     ("telegram", "answer"): {"mention", "all"},
     ("telegram", "approve"): {"off", "low_risk"},
+    ("mailbox", "imap_security"): set(MAIL_SECURITY),
+    ("mailbox", "smtp_security"): set(MAIL_SECURITY),
+    ("mailbox", "approve"): {"off", "low_risk"},
+    ("mailbox", "check"): {"authenticated", "off"},
+    ("mailbox", "imports"): {"auto", "ask"},
     ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
     ("slack", "answer"): {"mention", "all"},
     ("slack", "approve"): {"off", "low_risk"},
@@ -457,6 +465,8 @@ def _check(section, key, value, default):
         return _telegram_setting(key, value)
     if section == "slack" and key not in ("answer", "enabled", "approve"):
         return _slack_setting(key, value)
+    if section == "mailbox" and key not in ("enabled", "approve", "imap_security", "smtp_security", "check", "imports"):
+        return _mailbox_setting(key, value)
     if section == "matterbridge" and key != "run":
         return _matterbridge_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
@@ -736,6 +746,67 @@ def _slack_setting(key, value):
     if key in ("url", "token", "gateway", "poll_seconds"):  # Matterbridge's own; Slack keeps a socket open instead
         raise ValueError(f"unknown setting slack.{key}")
     return _bridge_setting(key, value, "slack")
+
+
+HOST_RX = re.compile(r"^[A-Za-z0-9.\-\[\]:]{1,253}$")
+
+
+def _mailbox_setting(key, value):
+    """The assistant's mailbox (mailbox.py), and the room settings every chat channel shares."""
+    if key in ("imap_port", "smtp_port"):
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+            raise ValueError(f"mailbox.{key} is a port number, such as 993 for IMAP or 587 for SMTP")
+        return value
+    if key == "poll_seconds":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 10 <= value <= 3600):
+            raise ValueError("mailbox.poll_seconds is a whole number of seconds from 10 to 3600")
+        return value
+    if key == "users":
+        if not (isinstance(value, list) and len(value) <= 500 and all(isinstance(v, str) and len(v) <= 300 for v in value)):
+            raise ValueError("mailbox.users is a list of email addresses")
+        out = [v.strip().strip("<>").lower() for v in value if v.strip()]
+        bad = next((v for v in out if not EMAIL_RX.match(v)), None)
+        if bad:
+            raise ValueError(f"mailbox.users is a list of email addresses: {bad} isn't one")
+        return list(dict.fromkeys(out))
+    if key == "routes":
+        if not (
+            isinstance(value, list) and len(value) <= mail_routes.MAX_RULES and all(isinstance(v, str) and len(v) <= 2000 for v in value)
+        ):
+            raise ValueError(f"mailbox.routes is a list of up to {mail_routes.MAX_RULES} rules, like from: *@acme.com = acme")
+        out = []
+        for v in value:
+            if not v.strip():
+                continue
+            rule = mail_routes.parse_line(v)
+            if not rule.get("skip") and not store.NS_RX.match(rule["namespace"]):
+                raise ValueError(f"mailbox.routes: {rule['namespace']} isn't a namespace's name")
+            out.append(mail_routes.line(rule))
+        return list(dict.fromkeys(out))
+    if key in ("account", "name"):
+        return _bridge_setting(key, value, "mailbox")
+    if key not in ("address", "username", "imap_host", "smtp_host", "folder", "auth_server"):
+        raise ValueError(f"unknown setting mailbox.{key}")
+    if value in (None, ""):
+        return "INBOX" if key == "folder" else None
+    if not (isinstance(value, str) and len(value.strip()) <= 300):
+        raise ValueError(f"mailbox.{key} is text")
+    value = value.strip()
+    if key == "address":
+        if not EMAIL_RX.match(value):
+            raise ValueError("mailbox.address is the assistant's email address, such as lens@example.org")
+        return value.lower()
+    if key in ("imap_host", "smtp_host") and not HOST_RX.match(value):
+        raise ValueError(f"mailbox.{key} is the mail server's host name, such as {key[:4]}.example.org")
+    if key == "auth_server":
+        if not re.match(r"^[A-Za-z0-9.\-]{1,253}$", value):
+            raise ValueError("mailbox.auth_server is the name your mail server signs Authentication-Results with, such as mx.google.com")
+        return value.lower()
+    if key == "folder" and ("\n" in value or "\r" in value):
+        raise ValueError("mailbox.folder is a folder's name, such as INBOX")
+    return value
 
 
 def _matterbridge_setting(key, value):

@@ -67,6 +67,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   ([Chat rooms](docs/chat-rooms.md#telegram-built-in)). Chat apps now share one channel layer, so the next one is an
   adapter.
 
+- **The assistant by email.** Give it an address of its own in Settings › Assistant email (the address and an app
+  password; the servers are guessed) and the people you let in can email or forward things to it: it answers by
+  email in the same thread, lists the excerpts it cites with links, and imports what's attached, a forwarded email
+  whole. It answers only mail their provider vouched for (DMARC, DKIM or SPF), never automatic mail, and holds a
+  stranger's mail until you let them in. `lens+pods@…` or a routing rule sends mail to a namespace's assistant
+  ([The assistant by email](docs/assistant-email.md)).
+
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,

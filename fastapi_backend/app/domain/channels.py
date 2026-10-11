@@ -4,8 +4,8 @@
 An adapter (a Channel) knows only its own connection: whether it's set up (ready), checking it (check), what was said
 since the last look (fetch), posting a reply (send) and fetching a voice note or file sent with a message
 (download). Its settings section holds the room settings bridge.py reads: account, name, answer, users, rooms,
-approve. Matterbridge (bridge.MATTERBRIDGE), Telegram (telegram.py) and Slack (slack.py) are adapters; each has its own thread, lease
-and status, so one being down doesn't stop the other.
+approve. Matterbridge (bridge.MATTERBRIDGE), Telegram (telegram.py), Slack (slack.py) and the assistant's mailbox
+(mailbox.py) are adapters; each has its own thread, lease and status, so one being down doesn't stop the other.
 
 Messages are dicts in Matterbridge's shape (gateway, channel, account, username, userid, text, event), and may say:
 
@@ -13,6 +13,7 @@ Messages are dicts in Matterbridge's shape (gateway, channel, account, username,
 - voice: a voice note to transcribe (the adapter's reference to it, for download)
 - files: [{ref, filename, size}], files sent with it, held for the assistant to import (import_files)
 - thread: what identifies the conversation (else gateway, channel, account and username)
+- namespace: the namespace it's for, when the adapter knows (else the channel's rooms setting says, or Lens picks)
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ class Channel:
     key = "bridge"
     label = "Chat"
     lease = "lease"
+    sources = False  # whether answers list the excerpts they cite, with links (bridge.sources)
 
     def ready(self, cfg):
         """Why it can't run, or None when it can ("off" while it's turned off)."""
@@ -61,6 +63,16 @@ class Channel:
     def download(self, cfg, ref):
         """The bytes of a voice note or file sent with a message."""
         raise ChannelError("this chat can't send files to Lens")
+
+    def acts(self, cfg):
+        """The assistant's changes made at once in this channel rather than waiting for approval (none by default)."""
+        return ()
+
+    def outside(self, cfg, m):
+        """Where the text of `m` came from outside Lens (Toolbox.outside), so that changes ask first: anyone in a room
+        with no list of who may talk to Lens is someone the account doesn't vouch for. An adapter can add its own, such
+        as what was forwarded."""
+        return [] if [u for u in cfg["bridge"].get("users") or [] if u.strip()] else ["chat room"]
 
     def pause(self, cfg, reading, failed):
         """Seconds to wait before the next look: `reading` when this process holds the lease, `failed` after an error."""
@@ -226,9 +238,9 @@ def start(db, cfg_fn, stop, ch, base_fn=None, name=None, log_fn=None):
 
 def every():
     """Every channel Lens has."""
-    from . import bridge, slack, telegram
+    from . import bridge, mailbox, slack, telegram
 
-    return [bridge.MATTERBRIDGE, telegram.TELEGRAM, slack.SLACK]
+    return [bridge.MATTERBRIDGE, telegram.TELEGRAM, slack.SLACK, mailbox.MAILBOX]
 
 
 def start_all(db, cfg_fn, stop, base_fn=None, name=None, log_fn=None):
