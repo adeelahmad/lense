@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-11T00:48:55.719Z",
+  "surveyed": "2026-10-11T01:50:54.212Z",
   "commit": "",
   "viewport": "1400x900",
   "device": "desktop",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 4116,
+      "ms": 2561,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 454,
+      "ms": 422,
       "ok": true
     },
     {
@@ -131,7 +131,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 588,
+      "ms": 572,
       "ok": true
     },
     {
@@ -161,7 +161,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2274,
+      "ms": 2196,
       "ok": true
     },
     {
@@ -207,7 +207,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4177,
+      "ms": 4093,
       "ok": true
     },
     {
@@ -237,7 +237,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2548,
+      "ms": 2522,
       "ok": true
     },
     {
@@ -275,7 +275,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3344,
+      "ms": 3096,
       "ok": true
     },
     {
@@ -313,7 +313,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2251,
+      "ms": 2245,
       "ok": true
     },
     {
@@ -351,7 +351,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3328,
+      "ms": 3280,
       "ok": true
     },
     {
@@ -405,7 +405,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3171,
+      "ms": 3052,
       "ok": true
     },
     {
@@ -451,7 +451,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3191,
+      "ms": 3206,
       "ok": true
     },
     {
@@ -489,7 +489,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2482,
+      "ms": 2517,
       "ok": true
     },
     {
@@ -527,7 +527,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2559,
+      "ms": 2516,
       "ok": true
     },
     {
@@ -565,7 +565,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2578,
+      "ms": 2513,
       "ok": true
     },
     {
@@ -603,7 +603,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2539,
+      "ms": 2568,
       "ok": true
     },
     {
@@ -649,7 +649,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3291,
+      "ms": 3218,
       "ok": true
     },
     {
@@ -711,7 +711,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3222,
+      "ms": 2983,
       "ok": true
     },
     {
@@ -757,7 +757,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3217,
+      "ms": 3061,
       "ok": true
     },
     {
@@ -787,24 +787,40 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2272,
+      "ms": 2242,
       "ok": true
     },
     {
       "module": "Agents",
       "feature": "Connect an AI assistant (Claude, ChatGPT, Cursor) over MCP",
-      "note": "In the assistant: add a connector and give it Lens's MCP address; the assistant opens Lens's consent page, where the person allows it. After setup Lens shows the MCP address nowhere, so it is typed (counted as typed).",
-      "clicks": 3,
-      "keys": 25,
+      "note": "Copy MCP address in the account menu; in the assistant: add a connector and paste the address; the assistant opens Lens's consent page, where the person allows it.",
+      "clicks": 5,
+      "keys": 1,
       "prompts": 0,
       "swipes": 0,
       "steps": [
         {
           "page": "/",
+          "kind": "click",
+          "what": "Account menu",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "click",
+          "what": "Copy MCP address",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
           "kind": "outside",
-          "what": "in the assistant: add a connector, type Lens's MCP address, add it",
+          "what": "in the assistant: add a connector, paste Lens's MCP address, add it",
           "clicks": 2,
-          "keys": 25,
+          "keys": 1,
           "prompts": 0
         },
         {
@@ -817,7 +833,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 2572,
+      "ms": 2761,
       "ok": true
     },
     {
@@ -855,7 +871,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 8713,
+      "ms": 8592,
       "ok": true
     },
     {
@@ -941,7 +957,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 8482,
+      "ms": 10678,
       "ok": true
     },
     {
@@ -979,7 +995,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 11323,
+      "ms": 11282,
       "ok": true
     },
     {
@@ -1017,7 +1033,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4309,
+      "ms": 4153,
       "ok": true
     },
     {
@@ -1071,7 +1087,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 3466,
+      "ms": 3347,
       "ok": true
     },
     {
@@ -1117,7 +1133,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3327,
+      "ms": 3299,
       "ok": true
     },
     {
@@ -1171,7 +1187,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 2900,
+      "ms": 2944,
       "ok": true
     },
     {
@@ -1225,7 +1241,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 2791,
+      "ms": 2846,
       "ok": true
     },
     {
@@ -1279,7 +1295,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 2828,
+      "ms": 2835,
       "ok": true
     },
     {
@@ -1333,15 +1349,15 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 3891,
+      "ms": 3808,
       "ok": true
     },
     {
       "module": "Setup",
       "feature": "Switch to a cloud model with an API key",
-      "note": "What a Raspberry Pi install does after the installer: an OpenAI-compatible cloud provider, its model and a pasted key.",
-      "clicks": 5,
-      "keys": 40,
+      "note": "What a Raspberry Pi install does after the installer: a cloud provider picked from the presets fills in its address and model, then a pasted key.",
+      "clicks": 3,
+      "keys": 2,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -1363,25 +1379,17 @@
         },
         {
           "page": "/settings/llm",
-          "kind": "replace",
-          "what": "the provider's address",
+          "kind": "click",
+          "what": "OpenAI (fills in the address and the model)",
           "clicks": 1,
-          "keys": 26,
-          "prompts": 0
-        },
-        {
-          "page": "/settings/llm",
-          "kind": "replace",
-          "what": "the model",
-          "clicks": 1,
-          "keys": 12,
+          "keys": 0,
           "prompts": 0
         },
         {
           "page": "/settings/llm",
           "kind": "paste",
           "what": "paste the API key",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 1,
           "prompts": 0
         },
@@ -1395,7 +1403,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 2847,
+      "ms": 2711,
       "ok": true
     }
   ],
@@ -1578,7 +1586,7 @@
       "page": "/settings/llm",
       "label": "Settings › LLM provider",
       "reach": 2,
-      "controls": 11
+      "controls": 20
     },
     {
       "page": "/settings/local-model",
@@ -1681,6 +1689,24 @@
       "label": "Settings › Sensors",
       "reach": 2,
       "controls": 15
+    },
+    {
+      "page": "/settings/nfs",
+      "label": "Settings › NFS share",
+      "reach": 2,
+      "controls": 4
+    },
+    {
+      "page": "/settings/smb",
+      "label": "Settings › SMB share",
+      "reach": 2,
+      "controls": 2
+    },
+    {
+      "page": "/settings/shares",
+      "label": "Settings › File shares",
+      "reach": 2,
+      "controls": 6
     },
     {
       "page": "/settings/uploads",
