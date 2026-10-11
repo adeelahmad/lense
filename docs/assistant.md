@@ -139,10 +139,16 @@ apart from what the person asks:
   role, addresses an AI reading it, asks to hide something from you, to reveal the system prompt, to call a tool or
   to put data into a link, or carries control tokens or hidden characters, gets a warning on its marker for the
   model, and the step in the answer says so ("Read 12 line(s) of Mallory's talk (reads like instructions to an AI:
-  ignore previous instructions)"). `patterns` (the default) is free and kept narrow, so it misses rephrased attacks; `model` also
-  asks the decision model about each tool result the patterns let through (one routine call each, in the activity
-  ledger, falling back to the chat model when no decision model is set up); `off` turns flagging off. A flag is a
-  warning, not a block: the approvals below are what stop an action.
+  ignore previous instructions)"). `patterns` (the default) is free and kept narrow, so it misses rephrased
+  attacks. `classifier` also runs each tool result the patterns let through past a small model trained to spot
+  prompt injection (ProtectAI's deberta-v3-base-prompt-injection-v2, Apache-2.0) on this machine: nothing leaves it
+  and no tokens are paid for, but the model is about 740 MB, fetched when you pick it (Settings → Components shows
+  it), takes a moment per result (seconds on a Raspberry Pi), reads English best, and flags some requests written for
+  people too (an email asking to add a tracking number to a link); until it is here the patterns carry on alone.
+  `model` asks the decision model instead
+  (one routine call per tool result, falling back to the chat model when no decision model is set up). Each check is
+  a row in the activity ledger. `off` turns flagging off. A flag is a warning, not a block: the approvals below are
+  what stop an action.
 - **Asks first once it has read it** (`ai.untrusted_asks`, on by default; Settings → AI assistant → Ask before
   sending data out after reading third-party text): once an answer has read text from outside Lens (a tool's result
   other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
