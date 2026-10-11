@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T23:20:59.350Z",
+  "surveyed": "2026-10-11T00:53:00.799Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 2292,
+      "ms": 2213,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 606,
+      "ms": 583,
       "ok": true
     },
     {
@@ -133,7 +133,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 1300,
+      "ms": 1211,
       "ok": true
     },
     {
@@ -163,7 +163,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1183,
+      "ms": 1197,
       "ok": true
     },
     {
@@ -226,7 +226,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4332,
+      "ms": 4796,
       "ok": true
     },
     {
@@ -264,7 +264,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3127,
+      "ms": 3173,
       "ok": true
     },
     {
@@ -310,7 +310,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3763,
+      "ms": 3758,
       "ok": true
     },
     {
@@ -348,7 +348,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2525,
+      "ms": 2450,
       "ok": true
     },
     {
@@ -402,7 +402,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6600,
+      "ms": 6305,
       "ok": true
     },
     {
@@ -464,7 +464,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 4179,
+      "ms": 3712,
       "ok": true
     },
     {
@@ -518,7 +518,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 4084,
+      "ms": 3726,
       "ok": true
     },
     {
@@ -564,7 +564,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 3081,
+      "ms": 3030,
       "ok": true
     },
     {
@@ -610,7 +610,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3144,
+      "ms": 3090,
       "ok": true
     },
     {
@@ -657,7 +657,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 8603,
+      "ms": 8436,
       "ok": true
     },
     {
@@ -703,7 +703,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3242,
+      "ms": 3093,
       "ok": true
     },
     {
@@ -759,7 +759,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 9470,
+      "ms": 9344,
       "ok": true
     },
     {
@@ -829,7 +829,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3842,
+      "ms": 3706,
       "ok": true
     },
     {
@@ -875,7 +875,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3446,
+      "ms": 3445,
       "ok": true
     },
     {
@@ -888,7 +888,7 @@
       "swipes": 0,
       "steps": [],
       "id": "namespace-switch",
-      "ms": 7266,
+      "ms": 7198,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
@@ -989,7 +989,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 3782,
+      "ms": 3691,
       "ok": true
     },
     {
@@ -1084,7 +1084,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 5836,
+      "ms": 5665,
       "ok": true
     },
     {
@@ -1130,15 +1130,15 @@
         }
       ],
       "id": "entity-find",
-      "ms": 12131,
+      "ms": 12012,
       "ok": true
     },
     {
       "module": "Graph",
       "feature": "Find a speaker in the graph of what was imported",
       "note": "The first namespace keeps its graph to itself, so the graph opens empty until it is picked as the namespace.",
-      "clicks": 2,
-      "keys": 0,
+      "clicks": 4,
+      "keys": 7,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -1157,12 +1157,43 @@
           "clicks": 1,
           "keys": 0,
           "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "tap",
+          "what": "Filters",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "type",
+          "what": "part of the name",
+          "clicks": 0,
+          "keys": 6,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "key",
+          "what": "Enter to pick it",
+          "clicks": 0,
+          "keys": 1,
+          "prompts": 0
+        },
+        {
+          "page": "/graph",
+          "kind": "tap",
+          "what": "close the filters (they stay open over the node)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
         }
       ],
       "id": "graph-find",
-      "ms": 9662,
-      "ok": false,
-      "error": "the namespace switcher isn't on the screen on a phone"
+      "ms": 5205,
+      "ok": true
     },
     {
       "module": "Podcasts",
@@ -1171,7 +1202,7 @@
       "clicks": 6,
       "keys": 0,
       "prompts": 0,
-      "swipes": 0,
+      "swipes": 1,
       "steps": [
         {
           "page": "/",
@@ -1216,14 +1247,15 @@
         {
           "page": "/resources/:id",
           "kind": "tap",
-          "what": "Create podcast",
+          "what": "Create podcast (covered by something else on the page)",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0
+          "prompts": 0,
+          "swipes": 1
         }
       ],
       "id": "podcast-create",
-      "ms": 4182,
+      "ms": 9333,
       "ok": true
     },
     {
@@ -1277,7 +1309,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 4035,
+      "ms": 3978,
       "ok": true
     },
     {
@@ -1339,7 +1371,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3838,
+      "ms": 3773,
       "ok": true
     },
     {
@@ -1402,7 +1434,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3937,
+      "ms": 3624,
       "ok": true
     },
     {
@@ -1464,7 +1496,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3554,
+      "ms": 3451,
       "ok": true
     },
     {
@@ -1526,7 +1558,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4521,
+      "ms": 4635,
       "ok": true
     },
     {
@@ -1598,7 +1630,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 9165,
+      "ms": 9086,
       "ok": true
     }
   ],
@@ -1649,7 +1681,7 @@
       "page": "/graph",
       "label": "Graph",
       "reach": 2,
-      "controls": 4
+      "controls": 14
     },
     {
       "page": "/podcasts",
@@ -1715,7 +1747,7 @@
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 3,
-      "controls": 8
+      "controls": 9
     },
     {
       "page": "/extensions",
@@ -1871,7 +1903,7 @@
       "page": "/settings/telemetry",
       "label": "Settings › Telemetry",
       "reach": 3,
-      "controls": 13
+      "controls": 14
     },
     {
       "page": "/settings/fedora",
@@ -1953,7 +1985,7 @@
     },
     {
       "page": "/notes/:id",
-      "label": "Pi setup",
+      "label": "Untitled",
       "reach": 2,
       "controls": 9
     }

@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T23:16:44.807Z",
+  "surveyed": "2026-10-11T00:48:55.719Z",
   "commit": "",
   "viewport": "1400x900",
   "device": "desktop",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 1911,
+      "ms": 4116,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 451,
+      "ms": 454,
       "ok": true
     },
     {
@@ -131,7 +131,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 695,
+      "ms": 588,
       "ok": true
     },
     {
@@ -161,7 +161,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1237,
+      "ms": 2274,
       "ok": true
     },
     {
@@ -207,7 +207,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4191,
+      "ms": 4177,
       "ok": true
     },
     {
@@ -237,7 +237,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2637,
+      "ms": 2548,
       "ok": true
     },
     {
@@ -275,7 +275,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3163,
+      "ms": 3344,
       "ok": true
     },
     {
@@ -313,7 +313,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2296,
+      "ms": 2251,
       "ok": true
     },
     {
@@ -351,7 +351,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3492,
+      "ms": 3328,
       "ok": true
     },
     {
@@ -405,7 +405,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3365,
+      "ms": 3171,
       "ok": true
     },
     {
@@ -451,7 +451,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3376,
+      "ms": 3191,
       "ok": true
     },
     {
@@ -489,7 +489,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2523,
+      "ms": 2482,
       "ok": true
     },
     {
@@ -527,7 +527,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2615,
+      "ms": 2559,
       "ok": true
     },
     {
@@ -565,7 +565,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2539,
+      "ms": 2578,
       "ok": true
     },
     {
@@ -603,7 +603,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2633,
+      "ms": 2539,
       "ok": true
     },
     {
@@ -649,7 +649,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3352,
+      "ms": 3291,
       "ok": true
     },
     {
@@ -711,7 +711,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3150,
+      "ms": 3222,
       "ok": true
     },
     {
@@ -757,7 +757,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3381,
+      "ms": 3217,
       "ok": true
     },
     {
@@ -787,7 +787,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2331,
+      "ms": 2272,
       "ok": true
     },
     {
@@ -871,7 +871,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 8883,
+      "ms": 8713,
       "ok": true
     },
     {
@@ -957,7 +957,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 4908,
+      "ms": 8482,
       "ok": true
     },
     {
@@ -995,14 +995,14 @@
         }
       ],
       "id": "entity-find",
-      "ms": 11494,
+      "ms": 11323,
       "ok": true
     },
     {
       "module": "Graph",
       "feature": "Find a speaker in the graph of what was imported",
       "note": "The first namespace keeps its graph to itself, so the graph opens empty until it is picked as the namespace.",
-      "clicks": 4,
+      "clicks": 1,
       "keys": 7,
       "prompts": 0,
       "swipes": 0,
@@ -1017,25 +1017,9 @@
         },
         {
           "page": "/graph",
-          "kind": "click",
-          "what": "the namespace switcher",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/graph",
-          "kind": "click",
-          "what": "interviews",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/graph",
           "kind": "type",
           "what": "part of the name",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 6,
           "prompts": 0
         },
@@ -1049,7 +1033,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4532,
+      "ms": 4309,
       "ok": true
     },
     {
@@ -1103,7 +1087,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 3501,
+      "ms": 3466,
       "ok": true
     },
     {
@@ -1149,7 +1133,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3382,
+      "ms": 3327,
       "ok": true
     },
     {
@@ -1203,7 +1187,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3069,
+      "ms": 2900,
       "ok": true
     },
     {
@@ -1257,7 +1241,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3030,
+      "ms": 2791,
       "ok": true
     },
     {
@@ -1311,7 +1295,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3012,
+      "ms": 2828,
       "ok": true
     },
     {
@@ -1365,7 +1349,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 3962,
+      "ms": 3891,
       "ok": true
     },
     {
@@ -1427,7 +1411,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 3064,
+      "ms": 2847,
       "ok": true
     }
   ],
@@ -1442,7 +1426,7 @@
       "page": "/library",
       "label": "Library",
       "reach": 1,
-      "controls": 38
+      "controls": 39
     },
     {
       "page": "/search",
@@ -1478,7 +1462,7 @@
       "page": "/graph",
       "label": "Graph",
       "reach": 1,
-      "controls": 18
+      "controls": 29
     },
     {
       "page": "/podcasts",
@@ -1496,7 +1480,7 @@
       "page": "/costs",
       "label": "Costs",
       "reach": 1,
-      "controls": 11
+      "controls": 12
     },
     {
       "page": "/pipelines",
@@ -1544,7 +1528,7 @@
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 2,
-      "controls": 8
+      "controls": 9
     },
     {
       "page": "/extensions",
@@ -1628,7 +1612,7 @@
       "page": "/settings/search",
       "label": "Settings › Search",
       "reach": 2,
-      "controls": 18
+      "controls": 17
     },
     {
       "page": "/settings/reports",
@@ -1700,7 +1684,7 @@
       "page": "/settings/telemetry",
       "label": "Settings › Telemetry",
       "reach": 2,
-      "controls": 13
+      "controls": 14
     },
     {
       "page": "/settings/fedora",
