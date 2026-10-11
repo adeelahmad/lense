@@ -180,7 +180,17 @@ if [ "$BACKEND" = microsandbox ]; then
 if ! have msb; then
   say "Installing microsandbox (install.microsandbox.dev)..."
   have curl || fail "curl is needed to install microsandbox."
-  curl -fsSL https://install.microsandbox.dev | sh
+  msb_installer="$(curl -fsSL https://install.microsandbox.dev)" || fail "Couldn't download the microsandbox installer."
+  # Its installer asks GitHub's API for the latest release, which refuses busy shared addresses (CI, offices); the
+  # release page's redirect names it without that limit, so hand the installer the version when we can find it.
+  msb_repo="$(printf '%s\n' "$msb_installer" | sed -n 's/^GITHUB_REPO="\(.*\)"$/\1/p' | head -1)"
+  msb_tag=""
+  [ -n "$msb_repo" ] && msb_tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$msb_repo/releases/latest" 2>/dev/null | sed -n 's#.*/releases/tag/##p')"
+  if [ -n "$msb_tag" ]; then
+    printf '%s\n' "$msb_installer" | sed "s|^    get_latest_version\$|    VERSION=$msb_tag|" | sh
+  else
+    printf '%s\n' "$msb_installer" | sh
+  fi
   have msb || fail "microsandbox didn't install. See https://docs.microsandbox.dev, then run this again."
 fi
 if [ "$os" = Linux ] && [ ! -e /dev/kvm ]; then
@@ -389,11 +399,12 @@ if [ "$BACKEND" = microsandbox ]; then
   done
   [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-bookworm): $out"
   # The internet, this network (mail servers, model servers) and this machine (Ollama, LM Studio); only the web app
-  # and the sensor ports are published, as with Docker.
+  # the sensor ports and the file shares' ports (S3, WebDAV) are published, as with Docker.
   set -- run -d -q --name lens --replace -c "$cpus" -m "${mem}M" --root-disk 16G --net public,private,host \
     -p "$bind:$PORT:3000" \
     -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
-    -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp"
+    -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
+    -p "${LENS_SHARE_BIND:-$bind}:${LENS_S3_PORT:-9555}:9555" -p "${LENS_SHARE_BIND:-$bind}:${LENS_WEBDAV_PORT:-9556}:9556"
   if [ "$LENS_HTTPS" = 1 ]; then # Caddy listens on 8443 and 8080 inside (docs/https.md)
     set -- "$@" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTPS_PORT:8443" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTP_PORT:8080"
   fi

@@ -599,10 +599,16 @@ removes one.
 ```
 GET    /api/v1/tree?path=
 GET    /api/v1/tree/file?path=
+GET    /api/v1/shares/s3
+POST   /api/v1/shares/s3/keys
+DELETE /api/v1/shares/s3/keys/{key_id}
+GET    /api/v1/shares/s3/keys
 ```
 
 The archive as folders and files ([The graph as files](file-tree.md)): `tree` lists a folder (an empty path lists your
 namespaces; in each, `Collections`, `Topics` and `Entities`), `tree/file` reads a file with byte ranges. Read-only; everyone sees what they can read in the web app.
+`shares/s3` is the [S3](file-tree.md#s3) and [WebDAV](file-tree.md#webdav) servers' state and your access keys; keys are
+made only while signed in.
 
 ## comments
 

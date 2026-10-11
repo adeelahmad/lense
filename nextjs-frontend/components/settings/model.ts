@@ -85,6 +85,7 @@ export type SectionId =
   | "fedora"
   | "sensors"
   | "smb"
+  | "shares"
   | "uploads"
   | "storage"
   | "backups"
@@ -269,6 +270,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["smb"],
     description:
       "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
+  },
+  {
+    id: "shares",
+    label: "File shares",
+    backend: ["shares"],
+    description:
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
   },
   {
     id: "uploads",
@@ -787,10 +795,11 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     options: [
       { value: "patterns", label: "Patterns (free)" },
+      { value: "classifier", label: "Patterns, then a local classifier (downloads 740 MB)" },
       { value: "model", label: "Patterns, then the decision model" },
       { value: "off", label: "Off" },
     ],
-    hint: "Flagged tool results carry a warning to the model and on the step you see. The decision model also checks what the patterns let through, one call per tool result.",
+    hint: "Flagged tool results carry a warning to the model and on the step you see. The local classifier (a model trained to spot prompt injection, run on this machine) or the decision model also checks each tool result the patterns let through.",
   },
   {
     section: "ai",
@@ -1821,6 +1830,30 @@ export const FIELDS: FieldSpec[] = [
     mono: true,
     hint: "One per line, like 192.168.1.0/24. Machines anywhere else are turned away before they sign in",
   },
+  // File shares (opt-in)
+  {
+    section: "shares",
+    key: "enabled",
+    label: "Share the file tree",
+    kind: "switch",
+    hint: "Off: nothing listens. The API and the MCP tools read the tree either way",
+  },
+  {
+    section: "shares",
+    key: "s3",
+    label: "S3",
+    kind: "switch",
+    hint: "Read-only; each person signs in with their own access key",
+  },
+  { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "shares",
+    key: "webdav",
+    label: "WebDAV",
+    kind: "switch",
+    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+  },
+  { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -2117,7 +2150,7 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     mono: true,
     placeholder: "http://localhost:3001",
-    hint: "Where Grafana shows Lens's charts; System health links to it. The monitoring profile runs one at :3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. Empty: the one Charts and history runs, on this host at :3001",
   },
   {
     section: "telemetry",

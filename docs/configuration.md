@@ -96,7 +96,7 @@ Admins can change, in Settings: transcription, speaker separation, speech provid
 provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
 video, OCR, faces and objects, workers, sign-in, components, access and embedding (embed frame ancestors, transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
-telemetry, the Fedora repository, sensors, uploads, storage, documents, API keys, and IIIF and metadata. The API
+telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
 
 ## Word search

@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:466467aa3629d1070006fac6049050e66cc4f1d24a914153d1ac5c4335ea2189"
+prose_version: "threat-model.md@sha256:a536fdd8e9967fcb017be91f86bf127fb17cd47ded03bb4b5646816eae0706d0"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -428,6 +428,23 @@ entry_points:
         obligation_id: trusted-peer-hosts
         caller_must_enforce: "run peers on trusted hosts"
         provenance: {kind: inferred, question_id: Q9}
+  - id: "host control inbox and the monitoring scrape token"
+    component: authz
+    parameters:
+      - name: "inbox/upgrade request: release ref, or action=services with monitoring=on|off"
+        attacker_controllable: true
+        x-condition: "writable by the containers and local users"
+        control_kinds: [x-env-config]
+        obligation_id: agent-allow-list
+        caller_must_enforce: "the agent installs only a release tag or the install's branch, and only toggles the monitoring profile"
+        provenance: {kind: documented, source: "docs/updates.md"}
+      - name: "/metrics scrape token, .lens-control/prometheus-token"
+        attacker_controllable: true
+        x-condition: "anyone reaching the web app; the file is world-readable on the host"
+        control_kinds: [credential]
+        obligation_id: metrics-token
+        caller_must_enforce: "token compared in constant time; metrics carry no personal content"
+        provenance: {kind: documented, source: "docs/prometheus.md Privacy"}
 
 # ---------------------------------------------------------------- §1.7 contract-dimension matrix
 # Every in-scope component × the eight required dimensions appears exactly once.
@@ -1044,6 +1061,14 @@ build_flags:
     affects_properties:
       - {property_id: P-SENSORS, effect: narrows}
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - name: "shares.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "opens the read-only S3 and WebDAV servers for the asset tree on shares.s3_port and shares.webdav_port"
+    affects_properties:
+      - {property_id: P-SHARES, effect: narrows}
+    provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
   - name: "https.enabled"
     default: "off"
     security_relevant: true
@@ -1420,6 +1445,14 @@ properties_claimed:
     violation_symptoms: [info-leak]
     x-voided-by: "smb.allowed_networks set wide; SMB 2.0 has no encryption on the wire (domain/smb_share.py)"
     provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
+  - id: P-SHARES
+    kind: authentication
+    components: [optional]
+    tier: security-critical
+    conditions: "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes"
+    violation_symptoms: [info-leak, integrity-bypass]
+    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0 (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py)"
+    provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
   - id: P-CHILD-SECRETS
     kind: confidentiality
     components: [optional]

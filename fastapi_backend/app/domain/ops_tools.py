@@ -41,8 +41,10 @@ SECTIONS = (
     "matterbridge",
     "telemetry",
     "sensors",
+    "shares",
 )
-ALWAYS_ASK = {"telemetry", "sensors", "files"}  # sensors open ports on the network; files moves where new files go
+# sensors and shares open ports on the network; files moves where new files go
+ALWAYS_ASK = {"telemetry", "sensors", "shares", "files"}
 
 ADMIN_TOOLS = [
     (

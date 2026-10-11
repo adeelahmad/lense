@@ -74,6 +74,8 @@ EDITABLE = {
         "max_per_minute",
         "triage",
     ),
+    # bind is a startup setting only
+    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port"),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -146,7 +148,7 @@ ENUMS = {
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
-    ("ai", "injection_check"): {"patterns", "model", "off"},
+    ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},
@@ -427,6 +429,8 @@ def _check(section, key, value, default):
         return _backup_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
+    if section == "shares":
+        return _share_setting(key, value)
     if section == "sensors":
         return _sensor_setting(key, value)
     if section == "smb":
@@ -932,6 +936,16 @@ def _smb_setting(key, value):
         except ValueError:
             raise ValueError(f"smb.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
     return list(dict.fromkeys(out))
+
+
+def _share_setting(key, value):
+    if key in ("enabled", "s3", "webdav"):
+        if not isinstance(value, bool):
+            raise ValueError(f"shares.{key} is true or false")
+        return value
+    if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+        raise ValueError(f"shares.{key} is a port number from 1 to 65535")
+    return value
 
 
 TELEMETRY_RANGES = {"export_seconds": (5, 3600)}

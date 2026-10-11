@@ -284,7 +284,7 @@ DEFAULTS = {
         "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
         "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
         "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
-        "injection_check": "patterns",  # flag third-party text that reads like instructions to an AI: patterns, model, off
+        "injection_check": "patterns",  # flag text that reads like instructions to an AI: patterns, classifier, model, off
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -439,7 +439,7 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
-    # the read-only SMB share of the file tree (smb_share.py, docs/file-sharing.md): off until an admin turns it on, then
+    # the read-only SMB share of the file tree (smb_share.py, docs/smb.md): off until an admin turns it on, then
     # served by `lens worker` to people signing in with a file access key, from allowed_networks only. bind and port
     # are startup settings only: in Docker it listens on 0.0.0.0:4445 inside the container, published where the web
     # app is (LENS_SHARE_BIND, else LENS_BIND) on LENS_SMB_PORT.
@@ -470,6 +470,9 @@ DEFAULTS = {
         "max_per_minute": 600,
         "triage": False,
     },
+    # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
+    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
+    "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
@@ -1066,6 +1069,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS external_identity_account ON external_identity FIELDS account",
     "DEFINE INDEX IF NOT EXISTS external_identity_provider ON external_identity FIELDS provider",
     "DEFINE TABLE IF NOT EXISTS external_flow SCHEMALESS",
+    # access keys for the file tree's S3 server (s3.py): id is the key id, the secret sealed
+    "DEFINE TABLE IF NOT EXISTS file_key SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS file_key_account ON file_key FIELDS account",
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",
