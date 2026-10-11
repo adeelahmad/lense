@@ -47,6 +47,26 @@ Application `.p12`), `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, and
 `APPLE_PASSWORD` (an app-specific password) and `APPLE_TEAM_ID`. Without them the app is unsigned: right-click it and
 choose **Open** the first time.
 
+## Updates
+
+The app updates itself with [Tauri's updater](https://v2.tauri.app/plugin/updater/): a minute after it starts and
+every six hours, it reads `latest.json` from the latest release, and when that names a newer version it downloads
+`Lens-macOS-arm64.app.tar.gz`, checks its signature against the public key built into the app, replaces itself and
+restarts quietly in the menu bar (Lens keeps running meanwhile). **Check for App Updates** in the menu does the same
+now. It doesn't update while the web installer is open. Lens itself is updated separately, with **Update Lens**.
+
+The Desktop workflow signs the update and writes `latest.json` on each release when the repository has an update key.
+Make one once, on any computer with Node and the GitHub CLI:
+
+```bash
+npx @tauri-apps/cli signer generate --ci -p "" -w lens-updater.key &&
+  gh secret set TAURI_SIGNING_PRIVATE_KEY -R adeelahmad/lense < lens-updater.key &&
+  gh variable set LENS_UPDATER_PUBKEY -R adeelahmad/lense < lens-updater.key.pub
+```
+
+Keep `lens-updater.key` somewhere safe: an app built with its public key accepts only updates signed with it. Without
+the key, the app is built without updates and its menu says so.
+
 ## Not yet
 
 - Starting with the Mac (install.sh's LaunchAgent already starts the sandbox at sign-in).
