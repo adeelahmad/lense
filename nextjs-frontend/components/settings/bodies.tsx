@@ -5,7 +5,7 @@ import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 
-import { Admin, Fedora, Metadata, Sensors, Shares, Sources } from "@/app/openapi-client";
+import { Admin, Fedora, Metadata, Sensors, Shares, Sources, Users } from "@/app/openapi-client";
 import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
 import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
@@ -389,6 +389,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <FedoraBody ctx={ctx} />;
     case "sensors":
       return <SensorsBody ctx={ctx} />;
+    case "nfs":
+      return <NfsBody ctx={ctx} />;
     case "smb":
       return <SmbBody ctx={ctx} />;
     case "shares":
@@ -1013,6 +1015,55 @@ function SensorsBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <F ctx={ctx} id="sensors.max_per_minute" />
       <F ctx={ctx} id="sensors.triage" />
+    </>
+  );
+}
+
+function NfsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const status = useQuery({
+    queryKey: ["nfs-status"],
+    queryFn: () => data(Admin.nfsStatus({ client })),
+    refetchInterval: 10_000,
+  });
+  const users = useQuery({ queryKey: ["users"], queryFn: () => data(Users.listUsers({ client })), staleTime: 15_000 });
+  const s = status.data;
+  return (
+    <>
+      {s && s.enabled && (
+        <Banner
+          tone={s.phase === "running" ? "success" : s.phase === "error" ? "error" : "info"}
+          title={s.phase === "running" ? `Sharing as ${s.account}` : s.phase === "error" ? "Not sharing" : "Starting"}
+        >
+          {s.phase === "running" ? (
+            <>
+              Mount it on Linux with <code className="font-mono">{s.mount}</code>
+              {s.refused
+                ? `. Turned away ${s.refused} connection${s.refused === 1 ? "" : "s"} from other networks.`
+                : "."}
+            </>
+          ) : (
+            (s.error ?? "A worker starts it within seconds.")
+          )}
+        </Banner>
+      )}
+      <F ctx={ctx} id="nfs.enabled" />
+      <F
+        ctx={ctx}
+        id="nfs.account"
+        options={[
+          { value: "", label: "The first admin" },
+          ...(users.data ?? []).filter((u) => !u.disabled).map((u) => ({ value: String(u.id), label: u.email })),
+        ]}
+      />
+      <F ctx={ctx} id="nfs.allowed_networks" />
+      <F ctx={ctx} id="nfs.port" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        With Docker, the worker container publishes it on port {s?.port ?? 12049} of this machine, reachable from this
+        machine only unless <code className="font-mono">LENS_BIND</code> or{" "}
+        <code className="font-mono">LENS_SHARE_BIND</code> opens it to the network; set{" "}
+        <code className="font-mono">LENS_NFS_PORT</code> in .env to use another port.
+      </p>
     </>
   );
 }

@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The file tree over NFS.** Settings → NFS share serves the archive's folders and files (namespaces, collections,
+  topics and entities as folders, assets as files) read-only over NFS, to the networks you allow, showing what one
+  chosen account sees. Off until turned on; published on port 12049 of the host ([File shares](docs/file-shares.md)).
+
 - **The graph as files over SMB.** Settings → SMB share serves the file tree read-only to Finder, Linux and (on port
   445) Windows: each person signs in with a file access key and sees what the web app shows them, from the networks
   an admin allows. Off by default; the SMB server (impacket) is fetched when it's turned on ([SMB share](docs/smb.md)).

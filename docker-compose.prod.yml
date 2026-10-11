@@ -28,6 +28,7 @@ x-backend: &backend
     LENS_TUNNEL_ORIGIN: http://frontend:3000
     # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
     LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
+    LENS_NFS_PORT: ${LENS_NFS_PORT:-12049}  # where the NFS share is published, for the mount command Settings shows
     # the SMB share of the file tree (docs/smb.md): listens on 4445 in the container; LENS_SMB_PORT is where it's
     # published, for the address Settings shows
     LENS_SMB_LISTEN: 0.0.0.0
@@ -112,6 +113,9 @@ services:
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_MQTT_PORT:-1883}:1883"
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/udp"
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/tcp"
+      # the file tree over NFS (docs/file-tree.md), served only once it's turned on in Settings → NFS share, and then
+      # only to the networks allowed there. 12049 on this machine so a host NFS server on 2049 is never in the way.
+      - "${LENS_SHARE_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_NFS_PORT:-12049}:2049"
       # the file tree over SMB (docs/smb.md), served only once it's turned on in Settings → SMB share, and then only
       # to the networks allowed there. 1445 on this machine so an SMB server the host runs on 445 is never in the way
       # (Windows only connects to 445: install with LENS_SMB_PORT=445 for it; install.sh keeps it).

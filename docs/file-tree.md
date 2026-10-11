@@ -9,8 +9,8 @@ Lens without learning its API.
 | --- | --- |
 | The API (`GET /api/v1/tree`, `GET /api/v1/tree/file`) and the MCP tools `list_files` and `read_file` | built |
 | An [S3 server](#s3) and a [WebDAV server](#webdav) (read-only, off until turned on) | built |
+| An [NFS share](file-shares.md) (read-only, off until turned on, allowed networks only) | built |
 | An [SMB share](smb.md) (read-only, off until turned on) | built |
-| An NFS share | in progress |
 
 Every way in serves the same tree, built by `app/domain/filetree.py`.
 

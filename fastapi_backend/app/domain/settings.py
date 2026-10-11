@@ -56,6 +56,8 @@ EDITABLE = {
     "tunnel": None,
     "https": None,
     # bind is a startup setting only
+    "nfs": ("enabled", "port", "allowed_networks", "account"),
+    # bind is a startup setting only
     # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
     "smb": ("enabled", "allowed_networks"),
     "sensors": (
@@ -433,6 +435,8 @@ def _check(section, key, value, default):
         return _share_setting(key, value)
     if section == "sensors":
         return _sensor_setting(key, value)
+    if section == "nfs":
+        return _nfs_setting(key, value)
     if section == "smb":
         return _smb_setting(key, value)
     if section == "components":
@@ -920,6 +924,35 @@ def _sensor_setting(key, value):
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"sensors.{key} is a whole number from {lo} to {hi}")
     return value
+
+
+def _nfs_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("nfs.enabled is true or false")
+        return value
+    if key == "port":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+            raise ValueError("nfs.port is a whole number from 1 to 65535")
+        return value
+    if key == "account":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+            raise ValueError("nfs.account is an account's id, or empty for the first admin")
+        return value
+    if not isinstance(value, list) or not value:
+        raise ValueError("nfs.allowed_networks is a list of networks like 192.168.1.0/24 (at least one)")
+    out = []
+    for v in value:
+        try:
+            net = ipaddress.ip_network(str(v).strip(), strict=False)
+        except ValueError:
+            raise ValueError(f"nfs.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
+        if net.prefixlen == 0:  # NFS has no sign-in: the whole internet is never a sensible default to type
+            raise ValueError(f"nfs.allowed_networks: {v} is every address; list the networks your machines are on")
+        out.append(str(net))
+    return list(dict.fromkeys(out))
 
 
 def _smb_setting(key, value):

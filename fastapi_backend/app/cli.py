@@ -266,6 +266,7 @@ def platform_main(argv, config):
         https,
         jobs,
         local_llm,
+        nfs_share,
         notify,
         passkeys,
         routines,
@@ -387,6 +388,7 @@ def platform_main(argv, config):
                     tunnel.start(db, C, stop, name=wk.name, log=print)  # and the Cloudflare tunnel, while it's on
                     https.start(db, C, stop, name=wk.name, log=print)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
                     local_llm.start(db, C, stop, name=wk.name, log=print)  # and the local chat model, while it's on
+                    nfs_share.start(db, C, stop, name=wk.name, log=print)  # and the file tree over NFS, while it's on
                     updates.start(db, C, stop, log=print)  # and the daily check for a new release (docs/updates.md)
                 _stop_on_term()
                 try:

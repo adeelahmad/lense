@@ -85,6 +85,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   telemetry: Activity,
   fedora: Archive,
   sensors: RadioTower,
+  nfs: FolderTree,
   smb: Network,
   shares: FolderTree,
   uploads: Upload,

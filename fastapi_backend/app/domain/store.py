@@ -470,6 +470,15 @@ DEFAULTS = {
         "max_per_minute": 600,
         "triage": False,
     },
+    # the file tree over NFS (domain/nfs_share.py, docs/file-tree.md): off until turned on; read-only, shown as `account`
+    # (an account id; null: the first admin), to the machines in allowed_networks. bind is a startup setting only.
+    "nfs": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "port": 2049,
+        "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
+        "account": None,
+    },
     # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
     # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
     "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
