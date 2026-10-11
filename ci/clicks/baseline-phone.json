@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-11T00:53:00.799Z",
+  "surveyed": "2026-10-11T01:55:01.175Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 2213,
+      "ms": 2184,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 583,
+      "ms": 518,
       "ok": true
     },
     {
@@ -95,7 +95,7 @@
       "clicks": 4,
       "keys": 0,
       "prompts": 0,
-      "swipes": 2,
+      "swipes": 1,
       "steps": [
         {
           "page": "/welcome",
@@ -112,8 +112,7 @@
           "what": "Save and continue (Storage)",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         },
         {
           "page": "/welcome",
@@ -133,7 +132,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 1211,
+      "ms": 1195,
       "ok": true
     },
     {
@@ -163,7 +162,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1197,
+      "ms": 1114,
       "ok": true
     },
     {
@@ -226,7 +225,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4796,
+      "ms": 4748,
       "ok": true
     },
     {
@@ -264,7 +263,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3173,
+      "ms": 3045,
       "ok": true
     },
     {
@@ -310,7 +309,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3758,
+      "ms": 3671,
       "ok": true
     },
     {
@@ -348,7 +347,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2450,
+      "ms": 2422,
       "ok": true
     },
     {
@@ -402,7 +401,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6305,
+      "ms": 6251,
       "ok": true
     },
     {
@@ -464,7 +463,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3712,
+      "ms": 3556,
       "ok": true
     },
     {
@@ -518,7 +517,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3726,
+      "ms": 3699,
       "ok": true
     },
     {
@@ -564,7 +563,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 3030,
+      "ms": 2993,
       "ok": true
     },
     {
@@ -610,7 +609,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3090,
+      "ms": 2982,
       "ok": true
     },
     {
@@ -657,7 +656,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 8436,
+      "ms": 8345,
       "ok": true
     },
     {
@@ -703,7 +702,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3093,
+      "ms": 3098,
       "ok": true
     },
     {
@@ -759,7 +758,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 9344,
+      "ms": 9321,
       "ok": true
     },
     {
@@ -829,7 +828,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3706,
+      "ms": 3764,
       "ok": true
     },
     {
@@ -875,7 +874,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3445,
+      "ms": 3435,
       "ok": true
     },
     {
@@ -888,7 +887,7 @@
       "swipes": 0,
       "steps": [],
       "id": "namespace-switch",
-      "ms": 7198,
+      "ms": 7184,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
@@ -919,7 +918,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 2724,
+      "ms": 2710,
       "ok": true
     },
     {
@@ -973,7 +972,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 3691,
+      "ms": 4123,
       "ok": true
     },
     {
@@ -1068,7 +1067,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 5665,
+      "ms": 5586,
       "ok": true
     },
     {
@@ -1114,7 +1113,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 12012,
+      "ms": 11897,
       "ok": true
     },
     {
@@ -1176,7 +1175,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 5205,
+      "ms": 5005,
       "ok": true
     },
     {
@@ -1239,7 +1238,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 9333,
+      "ms": 9255,
       "ok": true
     },
     {
@@ -1293,7 +1292,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3978,
+      "ms": 4039,
       "ok": true
     },
     {
@@ -1355,7 +1354,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3773,
+      "ms": 3669,
       "ok": true
     },
     {
@@ -1418,7 +1417,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3624,
+      "ms": 3614,
       "ok": true
     },
     {
@@ -1480,7 +1479,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3451,
+      "ms": 3416,
       "ok": true
     },
     {
@@ -1542,17 +1541,17 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4635,
+      "ms": 4235,
       "ok": true
     },
     {
       "module": "Setup",
       "feature": "Switch to a cloud model with an API key",
-      "note": "What a Raspberry Pi install does after the installer: an OpenAI-compatible cloud provider, its model and a pasted key.",
-      "clicks": 7,
-      "keys": 39,
+      "note": "What a Raspberry Pi install does after the installer: a cloud provider picked from the presets fills in its address and model, then a pasted key.",
+      "clicks": 5,
+      "keys": 1,
       "prompts": 0,
-      "swipes": 2,
+      "swipes": 1,
       "steps": [
         {
           "page": "/",
@@ -1581,28 +1580,19 @@
         },
         {
           "page": "/settings/llm",
-          "kind": "replace",
-          "what": "the provider's address",
+          "kind": "tap",
+          "what": "OpenAI (fills in the address and the model)",
           "clicks": 1,
-          "keys": 26,
-          "prompts": 0
-        },
-        {
-          "page": "/settings/llm",
-          "kind": "replace",
-          "what": "the model",
-          "clicks": 1,
-          "keys": 12,
+          "keys": 0,
           "prompts": 0
         },
         {
           "page": "/settings/llm",
           "kind": "paste",
           "what": "paste the API key",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 1,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         },
         {
           "page": "/settings/llm",
@@ -1614,7 +1604,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 9086,
+      "ms": 9453,
       "ok": true
     }
   ],
@@ -1797,7 +1787,7 @@
       "page": "/settings/llm",
       "label": "Settings › LLM provider",
       "reach": 3,
-      "controls": 11
+      "controls": 20
     },
     {
       "page": "/settings/local-model",
@@ -1900,6 +1890,24 @@
       "label": "Settings › Sensors",
       "reach": 3,
       "controls": 15
+    },
+    {
+      "page": "/settings/nfs",
+      "label": "Settings › NFS share",
+      "reach": 3,
+      "controls": 4
+    },
+    {
+      "page": "/settings/smb",
+      "label": "Settings › SMB share",
+      "reach": 3,
+      "controls": 2
+    },
+    {
+      "page": "/settings/shares",
+      "label": "Settings › File shares",
+      "reach": 3,
+      "controls": 6
     },
     {
       "page": "/settings/uploads",
