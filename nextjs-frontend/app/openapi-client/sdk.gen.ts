@@ -509,6 +509,8 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMonitoringData,
+  GetMonitoringResponses,
   GetNamespaceAssistantData,
   GetNamespaceAssistantErrors,
   GetNamespaceAssistantResponses,
@@ -1247,6 +1249,9 @@ import type {
   SetMemberData,
   SetMemberErrors,
   SetMemberResponses,
+  SetMonitoringData,
+  SetMonitoringErrors,
+  SetMonitoringResponses,
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
@@ -2985,6 +2990,40 @@ export class Updates {
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Monitoring
+   *
+   * Whether Prometheus, node-exporter and Grafana run next to Lens (the monitoring profile), and how the machine's
+   * last change went.
+   */
+  public static getMonitoring<ThrowOnError extends boolean = false>(
+    options?: Options<GetMonitoringData, ThrowOnError>,
+  ): RequestResult<GetMonitoringResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetMonitoringResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/monitoring",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Monitoring
+   *
+   * Have this machine start or stop Prometheus, node-exporter and Grafana. On also turns /metrics on with a scrape
+   * token when it has none. GET /admin/monitoring follows along.
+   */
+  public static setMonitoring<ThrowOnError extends boolean = false>(
+    options: Options<SetMonitoringData, ThrowOnError>,
+  ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
+      url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
       },
     });
   }

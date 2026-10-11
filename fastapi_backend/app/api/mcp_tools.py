@@ -40,6 +40,7 @@ from app.domain import (
     filetree,
     graph_history,
     library,
+    monitoring,
     notebook,
     rdf,
     render,
@@ -244,10 +245,9 @@ def _neutral(value: Any) -> Any:
     return value
 
 
-def _text(out: dict[str, Any], error: bool = False, cfg: dict[str, Any] | None = None) -> dict[str, Any]:
-    text = json.dumps(out, ensure_ascii=False, default=str)
-    why = [] if error else untrusted.flags(text, cfg)
-    out = _neutral(json.loads(text))
+def _text(out: dict[str, Any], error: bool = False, why: list[str] | None = None) -> dict[str, Any]:
+    """A tool's result as MCP has it, control tokens broken up, with a note when `why` says it reads like instructions."""
+    out = _neutral(json.loads(json.dumps(out, ensure_ascii=False, default=str)))
     result: dict[str, Any] = {"content": [{"type": "text", "text": json.dumps(out, ensure_ascii=False)}], "isError": error}
     if not error:
         result["structuredContent"] = out
@@ -273,7 +273,11 @@ def call(ctx: Context, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             raise ToolError(f"unknown argument {', '.join(unknown)}; {name} takes {', '.join(a.name for a in t.args) or 'none'}")
         values = {a.name: a.parse(arguments.get(a.name)) for a in t.args}
         with graph_history.acting(via="mcp", tool=name):
-            return _text(t.run(ctx, **values), cfg=ctx.cfg)
+            out = t.run(ctx, **values)
+            why = untrusted.flags(json.dumps(out, ensure_ascii=False, default=str), ctx.cfg)
+            if why:  # for admins to see what an agent was handed
+                auth.audit(ctx.db, ctx.user.as_audit(), "mcp.injection_flagged", f"tool:{name}", {"why": why})
+            return _text(out, why=why)
     except ToolError as e:
         return _text({"error": str(e)}, error=True)
     except HTTPException as e:
@@ -1600,3 +1604,38 @@ def set_file_storage(
     settings.save(ctx.db, ctx.request.app.state.archive.base, "files", changes, ctx.user.email)
     auth.audit(ctx.db, ctx.user.as_audit(), "settings.save", "files", sorted(changes) + ["mcp"])
     return {"saved": changes, "check": checked}
+
+
+# ---------- monitoring: Prometheus and Grafana next to Lens (admins) ----------
+@tool(
+    "monitoring",
+    "Monitoring",
+    "Whether Prometheus, node-exporter and Grafana run next to Lens (charts of Lens and this machine over time), how "
+    "the machine's last change went, and Grafana's port. Admins only.",
+)
+def monitoring_status(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change monitoring")
+    return monitoring.view(ctx.db) | {"settings": f"{ctx.web}/settings/telemetry"}
+
+
+@tool(
+    "set_monitoring",
+    "Turn monitoring on or off",
+    "Have this machine start (on true) or stop Prometheus, node-exporter and Grafana. On also turns /metrics on with "
+    "a scrape token when it has none. The machine's upgrade agent does it; monitoring follows along. Admins only, with "
+    "a token that has the write scope.",
+    Arg("on", "boolean", "start (true) or stop (false)", required=True),
+    writes=True,
+)
+def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change monitoring")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change monitoring")
+    try:
+        got = monitoring.turn(ctx.db, ctx.request.app.state.archive.base, ctx.cfg, bool(on), by=ctx.user.email)
+    except monitoring.MonitoringError as e:
+        raise ToolError(str(e)) from None
+    auth.audit(ctx.db, ctx.user.as_audit(), "lens.monitoring", None, {"on": bool(on), "via": "mcp"})
+    return got

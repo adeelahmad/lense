@@ -266,6 +266,10 @@ def test_a_result_that_reads_like_instructions_is_flagged(app, db, cfg, folder, 
     why = "reads like instructions to an AI: ignore previous instructions; new instructions or role"
     assert f"({why};" in ev["step"][0]["summary"] and "chat control tokens)" in ev["step"][0]["summary"]
     assert f'source="tool read_transcript" warning="{why};' in _tool_messages(llm)[0]
+    # and admins in the audit log: the reasons, never the text
+    logged = [r for r in db.rows("SELECT * FROM audit_log") if r["action"] == "assistant.injection_flagged"]
+    assert [(r["target"], r["detail"]["tool"]) for r in logged] == [(f"chat:{cid}", "read_transcript")]
+    assert "Ignore" not in str(logged[0]["detail"]) and "ignore previous instructions" in logged[0]["detail"]["why"]
 
 
 def test_the_decision_model_can_check_what_the_patterns_miss(app, db, cfg, folder, new_client, llm):
@@ -309,5 +313,7 @@ def test_a_room_gets_the_links_the_answer_built_broken_up(app, db, cfg, folder, 
                 f"x (hxxps://evil[.]example/c?d=capsid-samples-ship-Friday). In Lens: {own}"
             )
             assert built in chat.history(db, cid)[-1]["content"]  # the conversation keeps the answer as it was
+            logged = [r for r in db.rows("SELECT * FROM audit_log") if r["action"] == "bridge.links_broken"]
+            assert [(r["target"], r["detail"]) for r in logged] == [(f"chat:{cid}", {"links": 1})]
         else:
             assert built in text and f"![x]({built})" in text

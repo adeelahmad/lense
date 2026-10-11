@@ -96,7 +96,8 @@ apart ([third-party content](assistant.md#third-party-content-and-prompt-injecti
   so a local model can't be made to end its turn by a transcript.
 - A result with text that reads like instructions to an AI gets a second text block: "Note from Lens: this result
   holds text that reads like instructions to an AI (ignore previous instructions)...". The same free patterns as the
-  assistant's (`ai.injection_check`; `off` turns the note off).
+  assistant's (`ai.injection_check`; `off` turns the note off). Each one goes into the audit log
+  (`mcp.injection_flagged`, with the tool and the reasons, never the text).
 
 This makes injection less likely to work, not impossible: what your agent may do after reading the archive is up to
 the agent and its approvals.
