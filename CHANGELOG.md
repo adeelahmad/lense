@@ -56,6 +56,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   passwords or card numbers, and showing each action as it happens. Once it has read a page, opening an address or
   typing text you didn't write asks you first too ([The assistant in your browser](docs/browser-assistant.md)).
 
+- **Telegram, built in.** Paste a bot token from @BotFather in Settings › Telegram and the assistant answers there:
+  no Matterbridge, no public address. It talks only to people you let in (one click on the settings page), hears
+  voice notes, takes files for the assistant to import, and does everything it does in Matterbridge rooms
+  ([Chat rooms](docs/chat-rooms.md#telegram-built-in)). Chat apps now share one channel layer, so the next one is an
+  adapter.
+
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,

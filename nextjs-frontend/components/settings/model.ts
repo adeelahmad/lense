@@ -81,6 +81,7 @@ export type SectionId =
   | "notifications"
   | "mail"
   | "bridge"
+  | "telegram"
   | "telemetry"
   | "fedora"
   | "sensors"
@@ -236,6 +237,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["bridge", "matterbridge"],
     description:
       "The assistant in Slack, Discord, Telegram, Matrix and other chat rooms, through Matterbridge: it answers what’s said to it there.",
+  },
+  {
+    id: "telegram",
+    label: "Telegram",
+    backend: ["telegram"],
+    description:
+      "The assistant in Telegram through a bot of your own: paste its token from @BotFather. No Matterbridge and no public address needed.",
   },
   {
     id: "notifications",
@@ -1041,6 +1049,65 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 300,
     unit: "s",
+  },
+  // Telegram (telegram.py)
+  { section: "telegram", key: "enabled", label: "Answer in Telegram", kind: "switch" },
+  {
+    section: "telegram",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  { section: "telegram", key: "name", label: "Its name in groups", kind: "text" },
+  {
+    section: "telegram",
+    key: "answer",
+    label: "In groups, answers",
+    kind: "select",
+    options: [
+      { value: "mention", label: "Messages that name it, mention the bot or reply to it" },
+      { value: "all", label: "Every message (turn off the bot’s privacy mode in @BotFather)" },
+    ],
+  },
+  {
+    section: "telegram",
+    key: "users",
+    label: "People it talks to",
+    kind: "lines",
+    mono: true,
+    hint: "Telegram user ids or usernames, one per line. Anyone can find a bot, so it answers nobody else; people who write to it show above, to let in with one click.",
+  },
+  {
+    section: "telegram",
+    key: "approve",
+    label: "Approving in the chat",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these in Telegram. Settings, imports, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "telegram",
+    key: "rooms",
+    label: "Chats for a namespace’s assistant",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like -1001234567890 = pods (the chats it has seen are listed above with their ids): conversations there talk to that namespace’s own assistant. Elsewhere Lens picks the namespace for each question.",
+  },
+  {
+    section: "telegram",
+    key: "api_url",
+    label: "Bot API server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "https://api.telegram.org",
+    hint: "Leave empty unless you run your own telegram-bot-api server.",
   },
   // Matterbridge run by Lens (Chat rooms)
   { section: "matterbridge", key: "run", label: "Run Matterbridge here", kind: "switch" },

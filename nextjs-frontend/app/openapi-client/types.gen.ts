@@ -16655,6 +16655,99 @@ export type TagsChanged = {
 };
 
 /**
+ * TelegramChat
+ */
+export type TelegramChat = {
+  /**
+   * Id
+   *
+   * the chat's id, for telegram.rooms (like -1001234567890 = pods)
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TelegramPerson
+ */
+export type TelegramPerson = {
+  /**
+   * Id
+   *
+   * their Telegram user id, for telegram.users
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Allowed
+   *
+   * in telegram.users: Lens talks to them
+   */
+  allowed: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * TelegramStatus
+ */
+export type TelegramStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Telegram failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process reading the bot's messages
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last looked
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Bot
+   *
+   * the bot's username, once Lens has asked Telegram
+   */
+  bot?: string | null;
+  /**
+   * Chats
+   *
+   * the chats it has seen, latest first
+   */
+  chats?: Array<TelegramChat>;
+  /**
+   * People
+   *
+   * who has written to it, latest first
+   */
+  people?: Array<TelegramPerson>;
+  [key: string]: unknown;
+};
+
+/**
  * TelemetryExport
  */
 export type TelemetryExport = {
@@ -20734,6 +20827,38 @@ export type TestBridgeResponses = {
 };
 
 export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
+
+export type TelegramStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/telegram";
+};
+
+export type TelegramStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: TelegramStatus;
+};
+
+export type TelegramStatusResponse = TelegramStatusResponses[keyof TelegramStatusResponses];
+
+export type TestTelegramData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/telegram/test";
+};
+
+export type TestTelegramResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestTelegramResponse = TestTelegramResponses[keyof TestTelegramResponses];
 
 export type TestConversionNodeData = {
   body?: never;

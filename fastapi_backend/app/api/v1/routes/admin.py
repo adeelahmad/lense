@@ -34,6 +34,7 @@ from app.domain import (
     sources,
     speech,
     store,
+    telegram,
     telemetry,
     tunnel,
 )
@@ -61,6 +62,7 @@ from app.schemas.admin import (
     SmbStatus,
     SpeechTestResult,
     Started,
+    TelegramStatus,
     TelemetryStatus,
     TelemetryTestResult,
     TunnelStatus,
@@ -87,10 +89,10 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
         if "*" not in hosts and here not in hosts:
             raise HTTPException(400, f"that list leaves out {here}, the address you're using, and would lock you out")
     if (
-        section == "bridge"
+        section in ("bridge", "telegram")
         and body.get("enabled")
         and "account" not in body
-        and not request.app.state.archive.current()["bridge"].get("account")
+        and not (request.app.state.archive.current().get(section) or {}).get("account")
     ):
         body = {**body, "account": user.email}  # turned on without saying who it answers as: the admin who turned it on
     files_were = request.app.state.settings.current()["encryption"].get("files") if section == "encryption" else None
@@ -219,6 +221,19 @@ def https_providers(user: AdminReader) -> list[HttpsProvider]:
 def test_bridge(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
     """Check that Matterbridge answers at its address with its token, and that the account to answer as exists."""
     error = bridge.check(db, cfg)
+    return BridgeTestResult(ok=error is None, error=error)
+
+
+@router.get("/settings/telegram")
+def telegram_status(user: AdminReader, cfg: Cfg, db: Db) -> TelegramStatus:
+    """How the assistant's Telegram bot is doing, and the chats it has seen (their ids are what telegram.rooms names)."""
+    return TelegramStatus(**telegram.status(db, cfg))
+
+
+@router.post("/settings/telegram/test")
+def test_telegram(user: AdminWriter, cfg: Cfg, db: Db) -> BridgeTestResult:
+    """Check that Telegram knows the bot's token, and that the account to answer as exists."""
+    error = telegram.TELEGRAM.check(db, cfg)
     return BridgeTestResult(ok=error is None, error=error)
 
 

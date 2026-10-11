@@ -158,6 +158,31 @@ class Removed(ResponseModel):
     removed: bool
 
 
+class TelegramChat(ResponseModel):
+    id: str = Field(description="the chat's id, for telegram.rooms (like -1001234567890 = pods)")
+    title: str
+
+
+class TelegramPerson(ResponseModel):
+    id: str = Field(description="their Telegram user id, for telegram.users")
+    name: str
+    allowed: bool = Field(description="in telegram.users: Lens talks to them")
+
+
+class TelegramStatus(ResponseModel):
+    state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
+        description="off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); "
+        "running; error (the last look at Telegram failed, `error` says why)"
+    )
+    error: str | None = None
+    holder: str | None = Field(None, description="the server process reading the bot's messages")
+    at: str | None = Field(None, description="when it last looked")
+    answered: int | None = Field(None, description="messages it answered")
+    bot: str | None = Field(None, description="the bot's username, once Lens has asked Telegram")
+    chats: list[TelegramChat] = Field(default_factory=list, description="the chats it has seen, latest first")
+    people: list[TelegramPerson] = Field(default_factory=list, description="who has written to it, latest first")
+
+
 class BridgeTestResult(ResponseModel):
     ok: bool
     error: str | None = None

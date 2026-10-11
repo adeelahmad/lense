@@ -2580,6 +2580,50 @@
         }
       }
     },
+    "/api/v1/settings/telegram": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Telegram Status",
+        "description": "How the assistant's Telegram bot is doing, and the chats it has seen (their ids are what telegram.rooms names).",
+        "operationId": "telegram_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/telegram/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Telegram",
+        "description": "Check that Telegram knows the bot's token, and that the account to answer as exists.",
+        "operationId": "test_telegram",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/documents/node/test": {
       "post": {
         "tags": [
@@ -54783,6 +54827,149 @@
           "changed"
         ],
         "title": "TagsChanged"
+      },
+      "TelegramChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the chat's id, for telegram.rooms (like -1001234567890 = pods)"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "TelegramChat"
+      },
+      "TelegramPerson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "their Telegram user id, for telegram.users"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed",
+            "description": "in telegram.users: Lens talks to them"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "allowed"
+        ],
+        "title": "TelegramPerson"
+      },
+      "TelegramStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Telegram failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process reading the bot's messages"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last looked"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "bot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot",
+            "description": "the bot's username, once Lens has asked Telegram"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TelegramChat"
+            },
+            "type": "array",
+            "title": "Chats",
+            "description": "the chats it has seen, latest first"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/TelegramPerson"
+            },
+            "type": "array",
+            "title": "People",
+            "description": "who has written to it, latest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "TelegramStatus"
       },
       "TelemetryExport": {
         "properties": {

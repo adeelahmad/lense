@@ -1327,6 +1327,8 @@ import type {
   TagRecordingsResponses,
   TakeBackupData,
   TakeBackupResponses,
+  TelegramStatusData,
+  TelegramStatusResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestBridgeData,
@@ -1356,6 +1358,8 @@ import type {
   TestSpeechData,
   TestSpeechErrors,
   TestSpeechResponses,
+  TestTelegramData,
+  TestTelegramResponses,
   TestTelemetryData,
   TestTelemetryResponses,
   TokenData,
@@ -2655,6 +2659,34 @@ export class Admin {
   ): RequestResult<TestBridgeResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestBridgeResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Telegram Status
+   *
+   * How the assistant's Telegram bot is doing, and the chats it has seen (their ids are what telegram.rooms names).
+   */
+  public static telegramStatus<ThrowOnError extends boolean = false>(
+    options?: Options<TelegramStatusData, ThrowOnError>,
+  ): RequestResult<TelegramStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<TelegramStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telegram",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Telegram
+   *
+   * Check that Telegram knows the bot's token, and that the account to answer as exists.
+   */
+  public static testTelegram<ThrowOnError extends boolean = false>(
+    options?: Options<TestTelegramData, ThrowOnError>,
+  ): RequestResult<TestTelegramResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestTelegramResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telegram/test",
       ...options,
     });
   }

@@ -380,6 +380,20 @@ DEFAULTS = {
         "safe_links": True,
         "poll_seconds": 2,
     },
+    # the assistant in Telegram through a bot of your own (telegram.py), with the room settings bridge has: account,
+    # name, answer, users (Telegram usernames or user ids), rooms ("<chat id> = namespace") and approve
+    "telegram": {
+        "enabled": False,
+        "token": None,
+        "account": None,
+        "name": "Lens",
+        "answer": "mention",
+        "users": [],
+        "rooms": [],
+        "approve": "low_risk",
+        # a Bot API server of your own (telegram-bot-api), else Telegram's
+        "api_url": None,
+    },
     # Matterbridge run by Lens (matterbridge.py): with `run` on, the matterbridge service in Docker Compose gets its
     # config from these, a gateway per room, and the bridge talks to it; off, bridge.url is a Matterbridge of your own
     "matterbridge": {
