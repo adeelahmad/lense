@@ -19,6 +19,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   essentials: the folder, port and network under **Advanced**, the optional extras under **More options** on the
   review.
 
+- **Cloud model presets.** Settings → LLM provider and the setup wizard offer OpenAI, Anthropic, Google Gemini,
+  OpenRouter, Groq, Mistral and DeepSeek next to the model servers found nearby: one click fills in the address and a
+  model and puts the cursor in the API key field, with a link to where the provider hands out keys, so switching to a
+  cloud model is a click and a paste. Agents get the same list from `GET /api/v1/setup/llm/providers` and the
+  assistant's `find_model_servers` tool ([Cloud model providers](docs/configuration.md#cloud-model-providers)).
+
 - **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
   inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API

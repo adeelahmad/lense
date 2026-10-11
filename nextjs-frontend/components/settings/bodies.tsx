@@ -3,7 +3,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Admin, Fedora, Metadata, Sensors, Shares, Sources, Users } from "@/app/openapi-client";
 import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
@@ -15,6 +15,13 @@ import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
+import {
+  KeyLink,
+  ModelProviderPicker,
+  providerAt,
+  useModelProviders,
+  type ModelProvider,
+} from "@/components/settings/model-providers";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { VoicePicker } from "@/components/settings/voice-picker";
 import { AddConnection } from "@/components/storage/add-connection";
@@ -56,6 +63,7 @@ function F({
   hint,
   options,
   className,
+  suggestions,
 }: {
   ctx: BodyCtx;
   id: string;
@@ -63,6 +71,7 @@ function F({
   hint?: ReactNode;
   options?: FieldSpec["options"];
   className?: string;
+  suggestions?: string[];
 }) {
   const spec = ctx.spec(id);
   return (
@@ -72,6 +81,7 @@ function F({
       label={label}
       hint={hint}
       className={className}
+      suggestions={suggestions}
     />
   );
 }
@@ -442,18 +452,28 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
   const llm = ctx.view.llm?.values ?? {};
   const secret = (llm.api_key ?? {}) as { set?: boolean };
   const key = ctx.state("llm.api_key");
+  const baseUrl = ctx.state("llm.base_url");
+  const model = ctx.state("llm.model");
   const test = useMutation({
     mutationFn: () => data(Admin.testLlm({ client })),
   });
+  // The setup wizard's provider step: a server found nearby or a cloud provider fills in the address and the model,
+  // and a cloud provider's key is asked for next
+  const canPick = !baseUrl.locked && !model.locked;
+  const { servers, cloud, looking } = useModelProviders(canPick);
+  const at = String(baseUrl.value ?? "");
+  const here = providerAt([...servers, ...cloud], at);
+  const [askKey, setAskKey] = useState(0);
+  const pick = (p: ModelProvider) => {
+    if (p.key_url && !key.locked && !providerAt([p], at)) setAskKey((n) => n + 1); // a new provider: its key next
+    baseUrl.onChange(p.base_url);
+    model.onChange(p.model);
+  };
   return (
     <>
+      {canPick && <ModelProviderPicker servers={servers} cloud={cloud} looking={looking} baseUrl={at} onPick={pick} />}
       <F ctx={ctx} id="llm.base_url" />
-      <F ctx={ctx} id="llm.model" />
-      <F ctx={ctx} id="llm.chat_models" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <F ctx={ctx} id="llm.vision_model" />
-        <F ctx={ctx} id="llm.describe_max" />
-      </div>
+      <F ctx={ctx} id="llm.model" suggestions={here?.models} />
       <SecretSetting
         key={ctx.view.llm?.updated_at ?? "none"}
         label="API key"
@@ -462,8 +482,15 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
         updatedAt={ctx.view.llm?.updated_at}
         value={key.value as string | undefined}
         onChange={(x) => key.onChange(x)}
+        hint={here?.key_url ? <KeyLink provider={here} /> : undefined}
+        focus={askKey}
       />
       <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
+      <F ctx={ctx} id="llm.chat_models" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="llm.vision_model" />
+        <F ctx={ctx} id="llm.describe_max" />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="llm.max_chars" />
         <F ctx={ctx} id="llm.timeout" />

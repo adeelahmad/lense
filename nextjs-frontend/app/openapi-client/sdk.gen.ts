@@ -926,6 +926,8 @@ import type {
   ListWorkersResponses,
   ListWorkflowsData,
   ListWorkflowsResponses,
+  LlmProvidersData,
+  LlmProvidersResponses,
   LocalLlmStatusData,
   LocalLlmStatusResponses,
   LockVaultData,
@@ -3354,6 +3356,21 @@ export class Setup {
   ): RequestResult<DetectLlmResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<DetectLlmResponses, unknown, ThrowOnError>({
       url: "/api/v1/setup/llm/detect",
+      ...options,
+    });
+  }
+
+  /**
+   * Llm Providers
+   *
+   * Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a
+   * model, so picking one leaves only the API key to paste.
+   */
+  public static llmProviders<ThrowOnError extends boolean = false>(
+    options?: Options<LlmProvidersData, ThrowOnError>,
+  ): RequestResult<LlmProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<LlmProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup/llm/providers",
       ...options,
     });
   }
