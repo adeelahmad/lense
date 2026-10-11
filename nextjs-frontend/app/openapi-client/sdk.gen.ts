@@ -1293,6 +1293,8 @@ import type {
   SkipTopicCandidateData,
   SkipTopicCandidateErrors,
   SkipTopicCandidateResponses,
+  SlackStatusData,
+  SlackStatusResponses,
   SmbStatusData,
   SmbStatusResponses,
   SpeakTextData,
@@ -1352,6 +1354,8 @@ import type {
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
+  TestSlackData,
+  TestSlackResponses,
   TestSourceData,
   TestSourceErrors,
   TestSourceResponses,
@@ -2687,6 +2691,34 @@ export class Admin {
   ): RequestResult<TestTelegramResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestTelegramResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/telegram/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Slack Status
+   *
+   * How the assistant's Slack app is doing, its slash command, and the link that creates the app from its manifest.
+   */
+  public static slackStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SlackStatusData, ThrowOnError>,
+  ): RequestResult<SlackStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SlackStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/slack",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Slack
+   *
+   * Check both Slack tokens, and that the account to answer as exists.
+   */
+  public static testSlack<ThrowOnError extends boolean = false>(
+    options?: Options<TestSlackData, ThrowOnError>,
+  ): RequestResult<TestSlackResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestSlackResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/slack/test",
       ...options,
     });
   }

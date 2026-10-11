@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Slack, built in.** Settings › Slack creates a Slack app from Lens's manifest in one click; paste its two tokens
+  and the assistant answers direct messages, what's said to it in channels and `/lens …`, over Socket Mode: no
+  Matterbridge, no public address. Voice clips are heard, files are held for the assistant to import, and everything
+  Matterbridge rooms do works there ([Chat rooms](docs/chat-rooms.md#slack-built-in)).
+
 - **The file tree over NFS.** Settings → NFS share serves the archive's folders and files (namespaces, collections,
   topics and entities as folders, assets as files) read-only over NFS, to the networks you allow, showing what one
   chosen account sees. Off until turned on; published on port 12049 of the host ([File shares](docs/file-shares.md)).

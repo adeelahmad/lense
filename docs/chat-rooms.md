@@ -26,6 +26,28 @@ Give Lens a bot of its own: a bot that Matterbridge also reads answers neither r
 Telegram is one adapter of the chat-channel layer (`app/domain/channels.py`) that Matterbridge is another of; a new
 chat app adds an adapter (reading, sending, files) and gets everything in a room for free.
 
+## Slack, built in
+
+Slack needs no Matterbridge and no public address either: Lens connects to a Slack app of your own over Socket Mode
+and answers there.
+
+1. Open **Settings → Slack** and click **Create the Slack app**. Slack opens with the app already described (Lens's
+   manifest: its permissions, the `/lens` command, Socket Mode); pick the workspace and create it.
+2. In the app's page, **Install to Workspace**, then copy the **Bot User OAuth Token** (`xoxb-…`, under OAuth &
+   Permissions). Under **Basic Information → App-Level Tokens**, generate one with `connections:write` and copy it
+   (`xapp-…`).
+3. Paste both tokens in Settings → Slack and turn on **Answer in Slack**. **Check the app** says whether both work.
+
+Message the app directly (always for Lens), invite it to a channel with `/invite @Lens` and say "Lens, …" or
+@mention it, or type `/lens what did we decide about the launch?` anywhere (the answer shows in that channel).
+`/lens clear` and `/lens compact` are the [chat commands](assistant.md). In a thread it answers in the thread. Voice
+clips are transcribed by the server's speech-to-text and files posted with a message are held for the assistant to
+import, as with Telegram. **People it talks to** (Slack usernames or member ids) limits who it answers, and lets them
+approve by replying "yes"; **Channels for a namespace's assistant** gives a channel to a namespace (`slack/general =
+pods`). Slack is an adapter of the same chat-channel layer as Telegram and Matterbridge (`app/domain/slack.py`).
+
+Give Lens an app of its own: an app whose bot token Matterbridge also uses answers twice (**Check the app** says so).
+
 ## Set it up in the web app
 
 Lens can run Matterbridge for you, so adding Slack or WhatsApp takes no config file:

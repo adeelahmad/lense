@@ -318,6 +318,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <BridgeBody ctx={ctx} />;
     case "telegram":
       return <TelegramBody ctx={ctx} />;
+    case "slack":
+      return <SlackBody ctx={ctx} />;
     case "remote-access":
       return <TunnelBody ctx={ctx} />;
     case "components":
@@ -1517,6 +1519,105 @@ function TelegramBody({ ctx }: { ctx: BodyCtx }) {
         (test.data.ok ? (
           <Banner tone="success" title="Telegram knows the bot.">
             The token and the account it answers as check out.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function SlackToken({ ctx, id, label }: { ctx: BodyCtx; id: "bot_token" | "app_token"; label: string }) {
+  const sl = ctx.view.slack;
+  const st = ctx.state(`slack.${id}`);
+  return (
+    <SecretSetting
+      key={sl?.updated_at ?? "none"}
+      label={label}
+      isSet={Boolean(((sl?.values?.[id] ?? {}) as { set?: boolean }).set)}
+      updatedBy={sl?.updated_by}
+      updatedAt={sl?.updated_at}
+      value={st.value as string | undefined}
+      onChange={(x) => st.onChange(x)}
+    />
+  );
+}
+
+function SlackBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const sl = ctx.view.slack;
+  const status = useQuery({
+    queryKey: ["slack-status", sl?.updated_at ?? null],
+    queryFn: () => data(Admin.slackStatus({ client })),
+    refetchInterval: 10_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testSlack({ client })) });
+  const s = status.data;
+  return (
+    <>
+      {s?.state === "running" ? (
+        <Banner tone="success" title={s.team ? `Connected to ${s.team}.` : "Connected."}>
+          {s.answered ? `Answered ${s.answered} message${s.answered === 1 ? "" : "s"} so far. ` : ""}
+          Message {s.bot ? `@${s.bot}` : "the app"}, invite it to a channel with /invite, or type {s.command}. Each
+          person’s conversation is in Chat for the account it answers as.
+        </Banner>
+      ) : s?.state === "error" ? (
+        <Banner tone="error" title="Slack isn’t answering.">
+          {s.error}
+        </Banner>
+      ) : s?.state === "incomplete" ? (
+        <Banner tone="error" title="On, but not ready.">
+          It needs {s.error}.
+        </Banner>
+      ) : s?.state === "starting" ? (
+        <Banner title="Starting.">A server process connects to Slack within a few seconds.</Banner>
+      ) : (
+        <Banner title="Off.">
+          <a className="underline" href={s?.create_url} target="_blank" rel="noreferrer">
+            Create the Slack app
+          </a>{" "}
+          (one click: it’s made from Lens’s manifest), install it to your workspace, then paste its two tokens below and
+          turn this on.
+        </Banner>
+      )}
+      <F ctx={ctx} id="slack.enabled" />
+      <SlackToken ctx={ctx} id="bot_token" label="Bot token (xoxb-…, from OAuth & Permissions)" />
+      <SlackToken
+        ctx={ctx}
+        id="app_token"
+        label="App-level token (xapp-…, from Basic Information, with connections:write)"
+      />
+      {s?.create_url && s.state !== "off" && (
+        <p className="text-[12.5px] text-fg-muted">
+          <a className="underline" href={s.create_url} target="_blank" rel="noreferrer">
+            Create the Slack app again
+          </a>{" "}
+          from Lens’s manifest, for another workspace or to get new permissions.
+        </p>
+      )}
+      <F ctx={ctx} id="slack.account" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="slack.name" />
+        <F ctx={ctx} id="slack.answer" />
+      </div>
+      <F ctx={ctx} id="slack.users" />
+      <F ctx={ctx} id="slack.approve" />
+      <F ctx={ctx} id="slack.rooms" />
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check the app"}
+        </Button>
+        {ctx.dirty && (
+          <span className="text-[12px] text-fg-muted">Uses the saved settings, not your unsaved changes</span>
+        )}
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Slack knows the app.">
+            Both tokens and the account it answers as check out.
           </Banner>
         ) : (
           <Banner tone="error" title="Not yet.">

@@ -15672,6 +15672,65 @@ export type SimilarTopic = {
 };
 
 /**
+ * SlackStatus
+ */
+export type SlackStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has connected yet); running; error (the connection or the last message failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process connected to Slack
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last heard from Slack
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Team
+   *
+   * the Slack workspace it's connected to
+   */
+  team?: string | null;
+  /**
+   * Bot
+   *
+   * the app's bot user
+   */
+  bot?: string | null;
+  /**
+   * Command
+   *
+   * the slash command, such as /lens
+   */
+  command: string;
+  /**
+   * Create Url
+   *
+   * where the Slack app is created from its manifest, in one click
+   */
+  create_url: string;
+  [key: string]: unknown;
+};
+
+/**
  * SmbStatus
  */
 export type SmbStatus = {
@@ -20859,6 +20918,38 @@ export type TestTelegramResponses = {
 };
 
 export type TestTelegramResponse = TestTelegramResponses[keyof TestTelegramResponses];
+
+export type SlackStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/slack";
+};
+
+export type SlackStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: SlackStatus;
+};
+
+export type SlackStatusResponse = SlackStatusResponses[keyof SlackStatusResponses];
+
+export type TestSlackData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/slack/test";
+};
+
+export type TestSlackResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestSlackResponse = TestSlackResponses[keyof TestSlackResponses];
 
 export type TestConversionNodeData = {
   body?: never;

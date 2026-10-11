@@ -4,7 +4,7 @@
 An adapter (a Channel) knows only its own connection: whether it's set up (ready), checking it (check), what was said
 since the last look (fetch), posting a reply (send) and fetching a voice note or file sent with a message
 (download). Its settings section holds the room settings bridge.py reads: account, name, answer, users, rooms,
-approve. Matterbridge (bridge.MATTERBRIDGE) and Telegram (telegram.py) are adapters; each has its own thread, lease
+approve. Matterbridge (bridge.MATTERBRIDGE), Telegram (telegram.py) and Slack (slack.py) are adapters; each has its own thread, lease
 and status, so one being down doesn't stop the other.
 
 Messages are dicts in Matterbridge's shape (gateway, channel, account, username, userid, text, event), and may say:
@@ -226,9 +226,9 @@ def start(db, cfg_fn, stop, ch, base_fn=None, name=None, log_fn=None):
 
 def every():
     """Every channel Lens has."""
-    from . import bridge, telegram
+    from . import bridge, slack, telegram
 
-    return [bridge.MATTERBRIDGE, telegram.TELEGRAM]
+    return [bridge.MATTERBRIDGE, telegram.TELEGRAM, slack.SLACK]
 
 
 def start_all(db, cfg_fn, stop, base_fn=None, name=None, log_fn=None):

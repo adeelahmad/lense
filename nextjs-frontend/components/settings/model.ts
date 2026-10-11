@@ -82,6 +82,7 @@ export type SectionId =
   | "mail"
   | "bridge"
   | "telegram"
+  | "slack"
   | "telemetry"
   | "fedora"
   | "sensors"
@@ -244,6 +245,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telegram"],
     description:
       "The assistant in Telegram through a bot of your own: paste its token from @BotFather. No Matterbridge and no public address needed.",
+  },
+  {
+    id: "slack",
+    label: "Slack",
+    backend: ["slack"],
+    description:
+      "The assistant in Slack through an app of your own, created in one click: direct messages, channels and /lens. No Matterbridge and no public address needed.",
   },
   {
     id: "notifications",
@@ -1108,6 +1116,55 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     placeholder: "https://api.telegram.org",
     hint: "Leave empty unless you run your own telegram-bot-api server.",
+  },
+  // Slack (slack.py)
+  { section: "slack", key: "enabled", label: "Answer in Slack", kind: "switch" },
+  {
+    section: "slack",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  { section: "slack", key: "name", label: "Its name in channels", kind: "text" },
+  {
+    section: "slack",
+    key: "answer",
+    label: "In channels, answers",
+    kind: "select",
+    options: [
+      { value: "mention", label: "Messages that name it or @mention the app" },
+      { value: "all", label: "Every message in the channels it’s in" },
+    ],
+  },
+  {
+    section: "slack",
+    key: "users",
+    label: "People it talks to",
+    kind: "lines",
+    mono: true,
+    hint: "Slack usernames or member ids, one per line; empty answers everyone in the workspace.",
+  },
+  {
+    section: "slack",
+    key: "approve",
+    label: "Approving in Slack",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these in Slack (only when the list isn’t empty). Settings, imports, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "slack",
+    key: "rooms",
+    label: "Channels for a namespace’s assistant",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like slack/general = pods: conversations there talk to that namespace’s own assistant. Elsewhere Lens picks the namespace for each question.",
   },
   // Matterbridge run by Lens (Chat rooms)
   { section: "matterbridge", key: "run", label: "Run Matterbridge here", kind: "switch" },
