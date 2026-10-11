@@ -357,7 +357,7 @@ class OpsTools:
         given = [bool(urls), bool((text or "").strip()), bool(upload_id)]
         if sum(given) != 1:
             raise ValueError("give the addresses as urls, as text, or as an attached file's upload_id: one of them")
-        if not convert.chromium(self.cfg):
+        if not convert.web_capture(self.cfg):
             raise ValueError("capturing web pages needs Chromium on the server (the lens:full image)")
         if upload_id:
             try:

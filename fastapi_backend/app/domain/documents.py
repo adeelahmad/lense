@@ -468,7 +468,7 @@ def transcribe(db, cfg, rid, say):
     if source == "document" and convert.needs(path):
         pdf = convert.rendition_path(cfg, rid)
         try:
-            learnt = convert.to_pdf(cfg, path, pdf)
+            learnt = convert.to_pdf(cfg, path, pdf, say)
         except convert.Unavailable as e:
             raise ValueError(f"this {convert.word(path)} can't be read here: {e}") from None
         say(f"made into a PDF by {BY[learnt['by']]}")

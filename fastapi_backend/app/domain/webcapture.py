@@ -96,10 +96,10 @@ def file_name(url, title):
     return f"{render.slug(title or placeholder(url))}.pdf"
 
 
-def capture(cfg, url, out):
-    """The page at `url` kept as the PDF `out`: a PDF as it is, anything else printed by Chromium. Returns {how
-    ("pdf" or "printed"), final (the address it ended at), title}. ValueError when it can't be reached or read;
-    convert.Unavailable without Chromium for a page."""
+def capture(cfg, url, out, say=None):
+    """The page at `url` kept as the PDF `out`: a PDF as it is, anything else printed by Chromium (installed first
+    where it's installed when needed, which `say` tells). Returns {how ("pdf" or "printed"), final (the address it
+    ended at), title}. ValueError when it can't be reached or read; convert.Unavailable without Chromium for a page."""
     seconds = (cfg.get("documents") or {}).get("convert_seconds") or 300
     most = cfg["uploads"]["max_mb"] * MB
     with netguard.Guard(forward=True, networks=networks(cfg), max_bytes=most) as guard:
@@ -121,6 +121,8 @@ def capture(cfg, url, out):
             why = getattr(e, "reason", e)
             raise ValueError(f"the page couldn't be reached ({why}){_refused(guard)}") from None
         exe = convert.chromium(cfg)
+        if not exe and convert.fetchable("chromium"):
+            exe = convert.fetch_program(cfg, "chromium", say)
         if not exe:
             raise convert.Unavailable("capturing web pages needs Chromium on the server (the lens:full image)")
         convert.print_pdf(exe, guard, final, out, seconds, settle_ms=10000)
@@ -148,7 +150,7 @@ def ensure(db, cfg, rid, rec, say):
     have = store.resolve_path(cfg, rec.get("path"))
     if have and pathlib.Path(have).is_file():
         return keyring.working_copy(db, cfg, have)
-    got = capture(cfg, web["url"], folder(cfg, rid) / "capture.pdf")
+    got = capture(cfg, web["url"], folder(cfg, rid) / "capture.pdf", say)
     out = folder(cfg, rid) / file_name(got["final"], got["title"])
     (folder(cfg, rid) / "capture.pdf").replace(out)
     st = out.stat()

@@ -34,7 +34,8 @@ Docker Hub, which need no sign-in; Docker Hub itself last). Inside it,
 do:
 
 1. Waits until the names it downloads from resolve (see [Name lookups](#name-lookups)), then installs the system
-   packages, the same ones as the backend image (`LENS_TARGET=lean` leaves out LibreOffice and Chromium).
+   packages, the same ones as the backend image except LibreOffice and Chromium, which the full edition installs the
+   first time Lens needs one (see [LibreOffice and Chromium](#libreoffice-and-chromium)).
 2. Fetches SurrealDB 3.2.4, rclone, Node 22 and uv.
 3. Builds the backend and the web app from the code, read-only at `/lens`. It builds again only when the code
    changes.
@@ -70,6 +71,20 @@ that download would fail, so the sandbox:
 If nothing answers within a minute or two, it stops with the name that didn't resolve and why. To use other public
 resolvers, or none, set `LENS_DNS_FALLBACK` on the install line (`... | LENS_DNS_FALLBACK=8.8.8.8,8.8.4.4 sh`, or
 `LENS_DNS_FALLBACK= sh` for none); it is kept in `.env` for later runs.
+
+### LibreOffice and Chromium
+
+LibreOffice (Word, PowerPoint and spreadsheet files) and Chromium (web pages, and text, Markdown and emails printed to
+PDF) are the heavy part of the full edition, so a sandbox starts without them. The first document or web page that
+needs one waits while the sandbox installs it (a few minutes the first time; its job's log says
+`installing LibreOffice, the first time it's needed`), then Lens reads it as usual. From then on each start installs it
+again in the background, from the packages kept in `lens-data`. Uploads and imports are accepted before it's there,
+and Settings → Components says it's installed the first time it's needed. PDFs, images and links to PDFs need neither.
+
+Lens runs as an ordinary user in the sandbox, so it asks for a program by name and the start script, which runs as
+root, installs it: only these two, each a fixed list of Debian packages
+([`microsandbox/programs.sh`](https://github.com/adeelahmad/lense/blob/main/microsandbox/programs.sh)). An install
+from before keeps the ones it already had. A lean install (`LENS_TARGET=lean`) never installs them.
 
 ## Day to day
 

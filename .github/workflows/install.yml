@@ -268,6 +268,21 @@ jobs:
           grep -q '^LENS_TARGET=lean$' "$LENS_DIR/.env" || { echo "the run without LENS_TARGET changed the edition"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
 
+      - name: The full edition installs Chromium the first time Lens needs it, and again at each start
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          LENS_BACKEND='' LENS_TARGET=full sh < install.sh >/dev/null
+          if msb exec lens -- sh -c 'command -v chromium || command -v soffice'; then echo "it started with them"; exit 1; fi
+          # as Lens asks for it: as the lens user, through convert.fetch_program
+          msb exec lens -- setpriv --reuid lens --regid lens --init-groups -- \
+            env LENS_PROGRAMS=/data/.lens/programs PYTHONPATH=/data/.lens/backend /data/.lens/venv/bin/python \
+            -c 'from app.domain import convert; print(convert.fetch_program({}, "chromium", print))'
+          msb exec lens -- chromium --version
+          LENS_BACKEND='' LENS_TARGET='' sh < install.sh >/dev/null # the full edition is kept, and Chromium with it
+          for _ in $(seq 60); do msb exec lens -- test -f /data/.lens/programs/got/chromium.ok && break; sleep 5; done
+          msb exec lens -- chromium --version
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
       - name: What the sandbox said
         if: failure()
         run: |

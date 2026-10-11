@@ -5,7 +5,8 @@ objects, the models on an Ollama server) is checked against what's installed, an
 background: Python packages into the data folder (at the versions in uv.lock; PyTorch's CPU build when there's no
 GPU), and models into data_dir/models, where they outlast container rebuilds. Steps that need something still being
 fetched wait for it instead of failing. Programs the image provides (ffmpeg, Chromium, LibreOffice) are only checked:
-a container can't install them, and the full image has them all.
+a container can't install them, and the full image has them all. In a microsandbox's full edition, Chromium and
+LibreOffice are installed the first time a document or a web page needs one (convert.fetch_program).
 
 `components.auto` (on by default) lets it fetch on its own; `components.also` names optional ones (Outlook .msg
 support, which is GPL-3.0) to fetch too. What a job step needs is fetched on first use: when a job is waiting for that
@@ -271,6 +272,10 @@ class Component:
         """The job steps that wait for it: what makes it fetched on first use."""
         return self.steps
 
+    def advice(self):
+        """How to get it when it isn't here, for the app."""
+        return self.hint
+
     fetch = None
 
 
@@ -307,6 +312,11 @@ class Converter(Program):
 
     def present(self, cfg):
         return self.check(cfg)
+
+    def advice(self):
+        from . import convert
+
+        return "installed the first time it's needed" if convert.fetchable(self.id) else self.hint
 
 
 class Pytorch(Component):
@@ -904,7 +914,7 @@ def catalog(cfg):
             "optional": c.optional,
             "license": c.license,
             "needed": needed,
-            "hint": c.hint,
+            "hint": c.advice(),
         }
         if c.kind == "program":
             row["here"] = c.present(cfg)

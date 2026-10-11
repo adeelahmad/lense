@@ -9,8 +9,8 @@
       "options": {
         "cwd": "{projectRoot}",
         "commands": [
-          "sh -n run.sh && sh -n dns.sh && sh -n test-dns.sh",
-          "uvx --from shellcheck-py shellcheck -s sh -x run.sh dns.sh test-dns.sh"
+          "sh -n run.sh && sh -n dns.sh && sh -n test-dns.sh && sh -n programs.sh && sh -n test-programs.sh",
+          "uvx --from shellcheck-py shellcheck -s sh -x run.sh dns.sh test-dns.sh programs.sh test-programs.sh"
         ],
         "parallel": false
       }
@@ -19,7 +19,11 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": "{workspaceRoot}",
-        "command": "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-bookworm sh /lens/microsandbox/test-dns.sh"
+        "commands": [
+          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-bookworm sh /lens/microsandbox/test-dns.sh",
+          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-bookworm sh /lens/microsandbox/test-programs.sh"
+        ],
+        "parallel": false
       }
     }
   }
