@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.8.0 <small>October 11, 2026</small> {id="0.8.0"}
+
 - **A microsandbox's full edition installs LibreOffice and Chromium the first time they're needed.** They were
   installed at every start, so a first start downloaded them before it built Lens, whether or not anything used them.
   A sandbox now starts without them; the first Office file, email or web page that needs one waits while it's
@@ -94,6 +96,37 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   whole. It answers only mail their provider vouched for (DMARC, DKIM or SPF), never automatic mail, and holds a
   stranger's mail until you let them in. `lens+pods@…` or a routing rule sends mail to a namespace's assistant
   ([The assistant by email](docs/assistant-email.md)).
+
+### Features
+
+- **assistant:** mark third-party text as data in the model's prompts ([#302](https://github.com/adeelahmad/lense/pull/302))
+- **backups:** restore, download, any schedule and copies to an rclone connection from the web app ([#263](https://github.com/adeelahmad/lense/pull/263))
+- **assistant:** let the assistant use a browser connected through the Lens side panel ([#311](https://github.com/adeelahmad/lense/pull/311))
+- **clipper:** build the web clipper for Firefox ([#282](https://github.com/adeelahmad/lense/pull/282))
+- **assistant:** ask before sending data out once an answer read third-party text ([#309](https://github.com/adeelahmad/lense/pull/309))
+- **monitoring:** Prometheus, node-exporter and Grafana as an opt-in compose profile ([#297](https://github.com/adeelahmad/lense/pull/297))
+- **install:** install with the defaults in one click; the API token form opens itself ([#331](https://github.com/adeelahmad/lense/pull/331))
+- **assistant:** flag third-party text that reads like instructions to an AI ([#329](https://github.com/adeelahmad/lense/pull/329))
+- **ui:** new pipelines and routines are named for you and Enter creates them; Enter in a note's title goes to its first line ([#336](https://github.com/adeelahmad/lense/pull/336))
+- **bridge:** break up links a chat-room answer built from what it read ([#338](https://github.com/adeelahmad/lense/pull/338))
+- **mcp:** hand agents what the archive says as data ([#343](https://github.com/adeelahmad/lense/pull/343))
+- **audit:** log what Lens caught of prompt injection ([#344](https://github.com/adeelahmad/lense/pull/344))
+- **assistant:** an optional local classifier for prompt injection ([#347](https://github.com/adeelahmad/lense/pull/347))
+- turn Prometheus and Grafana on from the web app ([#337](https://github.com/adeelahmad/lense/pull/337))
+- **ui:** copy the MCP address from the account menu after setup ([#340](https://github.com/adeelahmad/lense/pull/340))
+
+### Fixes
+
+- **release:** keep the API schema's version in step with each release ([#310](https://github.com/adeelahmad/lense/pull/310))
+- **ui:** fewer clicks in setup, Chat, Search and Notes ([#315](https://github.com/adeelahmad/lense/pull/315))
+- **jobs:** skip transcribe and diarize for imported transcripts ([#345](https://github.com/adeelahmad/lense/pull/345))
+- **ui:** open the graph on the namespace that has one ([#339](https://github.com/adeelahmad/lense/pull/339))
+- **desktop:** check the update's signature against the repository's key at build time ([#354](https://github.com/adeelahmad/lense/pull/354))
+
+### Dependencies
+
+- bump the python-minor group ([#253](https://github.com/adeelahmad/lense/pull/253))
+- bump the javascript-minor group ([#316](https://github.com/adeelahmad/lense/pull/316))
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
