@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Request
 from app.api.deps import AdminReader, AdminWriter, Db
 from app.domain import auth, setup
 from app.schemas.setup import (
+    CloudModelProvider,
     LocalModelServer,
     SetupBudget,
     SetupFinish,
@@ -67,6 +68,13 @@ def detect_llm(user: AdminWriter) -> list[LocalModelServer]:
     """Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with
     their models, so the wizard can offer one instead of asking for an address."""
     return [LocalModelServer(**s) for s in setup.detect_llm()]
+
+
+@router.get("/llm/providers")
+def llm_providers(user: AdminReader) -> list[CloudModelProvider]:
+    """Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a
+    model, so picking one leaves only the API key to paste."""
+    return [CloudModelProvider(**p) for p in setup.CLOUD_PROVIDERS]
 
 
 @router.put("/storage")

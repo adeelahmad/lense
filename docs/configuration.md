@@ -50,7 +50,7 @@ A fresh install (no accounts when the API first starts) walks its first admin th
 2. **Namespace**: the first one, with its knowledge graph shared or isolated. Already done when archive.yaml or
    `LENS_NAMESPACE` names namespaces, or an install script made one.
 3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,
-   with a test.
+   with a test. Servers running nearby and [cloud providers](#cloud-model-providers) are a click.
 4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), where Lens keeps its own files (this
    machine or a storage connection, [Storage](storage.md)), the largest upload, and optionally a folder inside
    `sources.local_roots` to watch.
@@ -62,7 +62,8 @@ A fresh install (no accounts when the API first starts) walks its first admin th
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
 `POST /api/v1/setup/namespace`, `PUT /api/v1/setup/llm`, `GET /api/v1/setup/llm/detect` (model servers running on
-this machine or the Docker host, with their models), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
+this machine or the Docker host, with their models), `GET /api/v1/setup/llm/providers` (the
+[cloud providers](#cloud-model-providers)), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
 `PUT /api/v1/setup/telemetry` and `POST /api/v1/setup/finish`
 (admins); `GET /api/v1/auth/status` says whether it is still pending (`wizard_pending`).
 
@@ -144,6 +145,28 @@ embeddings:
 Changing the model drops the stored vectors (another model's can't be compared) until recordings are indexed again. When the server fails to index (it's down, or
 doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
 waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
+
+## Cloud model providers
+
+The setup wizard's model provider step and Settings → LLM provider offer the model servers running nearby (Ollama, LM
+Studio, llama.cpp, vLLM, LocalAI) and these cloud providers, each through its OpenAI-compatible API. Picking one fills
+in the address and a model, and a cloud provider's API key field takes the focus, with a link to where the provider
+hands out keys: paste the key and save. The model stays editable, with the provider's other models suggested.
+
+| Provider | Address | Model filled in |
+|---|---|---|
+| OpenAI | `https://api.openai.com/v1` | `gpt-5-mini` |
+| Anthropic | `https://api.anthropic.com/v1` | `claude-opus-5-5` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-flash-latest` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `openrouter/auto` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-small-latest` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
+
+The list is `GET /api/v1/setup/llm/providers` (admins), and the assistant's `find_model_servers` tool returns it with
+the servers it finds, so an agent setting Lens up uses the same addresses. Any other OpenAI-compatible service works
+by typing its address. Picking a provider changes nothing until you save; from then on, what Lens asks its model
+(summaries, chat, descriptions, with the text they need) goes to that provider.
 
 ## Chat models
 

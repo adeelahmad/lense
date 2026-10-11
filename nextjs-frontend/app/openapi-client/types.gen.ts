@@ -2033,6 +2033,33 @@ export type ClientRegistration = {
 };
 
 /**
+ * CloudModelProvider
+ */
+export type CloudModelProvider = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Base Url
+   */
+  base_url: string;
+  /**
+   * Model
+   */
+  model: string;
+  /**
+   * Models
+   */
+  models: Array<string>;
+  /**
+   * Key Url
+   */
+  key_url: string;
+  [key: string]: unknown;
+};
+
+/**
  * Collection
  */
 export type Collection = {
@@ -21823,6 +21850,24 @@ export type DetectLlmResponses = {
 };
 
 export type DetectLlmResponse = DetectLlmResponses[keyof DetectLlmResponses];
+
+export type LlmProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm/providers";
+};
+
+export type LlmProvidersResponses = {
+  /**
+   * Response Setup-Llm Providers
+   *
+   * Successful Response
+   */
+  200: Array<CloudModelProvider>;
+};
+
+export type LlmProvidersResponse = LlmProvidersResponses[keyof LlmProvidersResponses];
 
 export type SaveStorageData = {
   body: SetupStorage;

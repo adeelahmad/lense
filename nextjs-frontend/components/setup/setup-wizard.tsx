@@ -16,6 +16,13 @@ import {
 } from "@/app/openapi-client";
 import { AuthAlert, AuthBrand } from "@/components/auth/auth-card";
 import { SegmentedChoice } from "@/components/settings/controls";
+import {
+  KeyLink,
+  ModelProviderPicker,
+  providerAt,
+  useModelProviders,
+  type ModelProvider,
+} from "@/components/settings/model-providers";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
 import { Button } from "@/components/ui/button";
@@ -405,23 +412,24 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean, b
     onSuccess: setTested,
   });
   const allLocked = ["base_url", "model", "api_key"].every((k) => locked.has(k));
-  // Model servers already running nearby (Ollama, LM Studio, ...): the first fills the form in, the rest are a click.
+  // Model servers already running nearby (Ollama, LM Studio, ...) fill the form in; they and cloud providers are a click.
   const canPick = !locked.has("base_url") && !locked.has("model");
-  const nearby = useQuery({
-    queryKey: ["setup", "llm", "detect"],
-    queryFn: () => data(Setup.detectLlm({ client })),
-    enabled: canPick,
-    staleTime: Infinity,
-  });
-  const servers = nearby.data ?? [];
+  const { servers, cloud, looking } = useModelProviders(canPick);
   const filled = useRef(false);
   useEffect(() => {
     if (filled.current || !servers.length || v.base_url) return;
     filled.current = true;
     setBaseUrl(servers[0].base_url);
-    setModel(servers[0].suggested);
+    setModel(servers[0].model);
   }, [servers, v.base_url]);
-  const here = servers.find((s) => s.base_url === baseUrl);
+  const here = providerAt([...servers, ...cloud], baseUrl);
+  const keyRef = useRef<HTMLInputElement>(null);
+  const pick = (p: ModelProvider) => {
+    setBaseUrl(p.base_url);
+    setModel(p.model);
+    // a cloud provider needs its key next: the field is ready for the paste
+    if (p.key_url && !locked.has("api_key")) requestAnimationFrame(() => keyRef.current?.focus());
+  };
 
   const field = (
     key: "base_url" | "model",
@@ -460,36 +468,12 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean, b
   return (
     <>
       <StepHead title="Connect a model provider">
-        Summaries, chat and descriptions use any OpenAI-compatible server: OpenAI, or one you run yourself such as
-        Ollama, llama.cpp, LM Studio or vLLM. Transcription runs on this server and needs none.
+        Summaries, chat and descriptions use any OpenAI-compatible server: a cloud provider such as OpenAI or Anthropic
+        (pick it and paste its key), or one you run yourself such as Ollama, llama.cpp, LM Studio or vLLM. Transcription
+        runs on this server and needs none.
       </StepHead>
-      {canPick && nearby.isPending && <p className="text-[12.5px] text-fg-muted">Looking for model servers nearby…</p>}
-      {servers.length > 0 && (
-        <div className="flex flex-col gap-1.5" role="group" aria-label="Model servers found">
-          <p className="text-[12.5px] font-semibold text-fg">Found running nearby</p>
-          <div className="flex flex-wrap gap-2">
-            {servers.map((s) => (
-              <button
-                key={s.base_url}
-                type="button"
-                onClick={() => {
-                  setBaseUrl(s.base_url);
-                  setModel(s.suggested);
-                }}
-                aria-pressed={s.base_url === baseUrl}
-                className={cn(
-                  "flex flex-col rounded-md border px-3 py-1.5 text-left text-[12.5px]",
-                  s.base_url === baseUrl ? "border-blue bg-blue-surface" : "border-border hover:border-blue-border",
-                )}
-              >
-                <span className="font-semibold text-fg">{s.kind}</span>
-                <span className="text-fg-muted">
-                  {s.models.length} model{s.models.length === 1 ? "" : "s"} · {s.base_url}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
+      {canPick && (
+        <ModelProviderPicker servers={servers} cloud={cloud} looking={looking} baseUrl={baseUrl} onPick={pick} />
       )}
       {field("base_url", "Base URL", baseUrl, setBaseUrl, "For example http://localhost:11434/v1 (Ollama)")}
       {field(
@@ -498,7 +482,9 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean, b
         model,
         setModel,
         here
-          ? `Pick one of the ${here.models.length} on ${here.kind}, or type another`
+          ? here.key_url
+            ? `Suggested for ${here.name}; type another if you like`
+            : `Pick one of the ${here.models.length} on ${here.name}, or type another`
           : "The model's name on that server, for example llama3.1",
         here?.models,
       )}
@@ -510,6 +496,10 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean, b
             <LockedHint env={LLM_ENV.api_key} />
           ) : v.api_key?.set ? (
             "A key is saved; leave this empty to keep it"
+          ) : here?.key_url ? (
+            <>
+              <KeyLink provider={here} />. Stored encrypted and never shown again.
+            </>
           ) : (
             "Local servers usually need none. Stored encrypted and never shown again."
           )
@@ -517,6 +507,7 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean, b
       >
         {({ id, describedBy }) => (
           <Input
+            ref={keyRef}
             id={id}
             aria-describedby={describedBy}
             type="password"
