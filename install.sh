@@ -68,6 +68,15 @@ msb_ok() {
   esac
 }
 tty_ok() { [ "${LENS_YES:-0}" != 1 ] && (: </dev/tty) 2>/dev/null; }
+# has_db VOLUME: whether a microsandbox volume may hold a Lens database. Only one it can see has none counts as without:
+# empty, or with run.sh's tools (.lens) and no database (surreal/lens.db) next to them. One it can't look into (not
+# where microsandbox keeps them by default) counts as with.
+has_db() {
+  vol="$HOME/.microsandbox/volumes/$1"
+  [ -d "$vol" ] || return 0
+  [ -n "$(ls -A "$vol" 2>/dev/null)" ] || return 1
+  ! { [ -d "$vol/.lens" ] && [ ! -e "$vol/surreal/lens.db" ]; }
+}
 
 # --- The web installer: a first install at a terminal continues in the browser ----------------------------------------
 # It asks everything there (what to install, how Lens runs, the AI model and its key, the extras), then runs this
@@ -347,7 +356,9 @@ setenv() { # key value: replace the line, or add it
     printf '%s=%s\n' "$1" "$2" >>.env
   fi
 }
+fresh=0 # a first install: its keys are new
 if [ ! -f .env ]; then
+  fresh=1
   umask 077
   printf '# Written by install.sh. Keep it with the volumes.\n' >.env
   setenv ACCESS_SECRET_KEY "$(secret)"
@@ -419,7 +430,29 @@ if [ "$BACKEND" = microsandbox ]; then
   if [ "$LENS_HTTPS" = 1 ]; then # Caddy listens on 8443 and 8080 inside (docs/https.md)
     set -- "$@" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTPS_PORT:8443" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTP_PORT:8080"
   fi
-  set -- "$@" -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named lens-data:/data \
+  # The volume its data is kept in (the database, the archive, the builds). A database opens only with the keys of
+  # the install that made it, which are in that install's .env. So a first install that finds the volume of an earlier
+  # one whose folder is gone (deleted, or installed elsewhere) starts on a volume of its own, and leaves that one as it
+  # is: its data is still there for that install's .env. A volume without a database yet is used as it is.
+  VOLUME="$(grep '^LENS_VOLUME=' .env | cut -d= -f2- || true)"
+  if [ -z "$VOLUME" ]; then
+    VOLUME=lens-data
+    if [ "$fresh" = 1 ]; then
+      volumes="$(msb volume ls -q </dev/null 2>/dev/null || true)"
+      n=1
+      while printf '%s\n' "$volumes" | grep -qx "$VOLUME" && has_db "$VOLUME"; do
+        n=$((n + 1))
+        VOLUME="lens-data-$n"
+      done
+      if [ "$VOLUME" != lens-data ]; then
+        say "Starting Lens on a microsandbox volume of its own, $VOLUME..."
+        echo "  The volume lens-data holds an earlier install's data, which opens only with that install's .env. It's left"
+        echo "  as it is: msb volume rm lens-data removes it."
+      fi
+    fi
+    setenv LENS_VOLUME "$VOLUME"
+  fi
+  set -- "$@" -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named "$VOLUME:/data" \
     --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
   say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
   # The command that starts it, kept for a restart of the machine: a sandbox started again (msb start) boots without

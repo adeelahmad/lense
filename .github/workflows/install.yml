@@ -283,6 +283,25 @@ jobs:
           msb exec lens -- chromium --version
           curl -fsS -o /dev/null "$(cat setup-url)"
 
+      - name: Installing again after the install folder is deleted starts Lens on a volume of its own
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          # the folder held the keys that open lens-data's database; an empty volume of the next name is used as it is
+          msb volume create lens-data-2
+          rm -rf "$LENS_DIR"
+          sh < install.sh | tee fresh.log
+          grep -q 'Starting Lens on a microsandbox volume of its own, lens-data-2' fresh.log
+          grep -q '^LENS_VOLUME=lens-data-2$' "$LENS_DIR/.env" || { echo "the new install didn't start on a volume of its own"; exit 1; }
+          msb volume ls -q | grep -qx lens-data || { echo "the earlier install's volume is gone"; exit 1; }
+          url="$(grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' fresh.log | head -1)"
+          test -n "$url" || { echo "install.sh didn't hand over a setup address"; exit 1; }
+          base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
+          # running the line again keeps that volume
+          LENS_BACKEND='' sh < install.sh >/dev/null
+          grep -q '^LENS_VOLUME=lens-data-2$' "$LENS_DIR/.env"
+          curl -fsS -o /dev/null "$url"
+
       - name: What the sandbox said
         if: failure()
         run: |

@@ -47,6 +47,12 @@ the sandbox. A sandbox that is started again boots without running Lens, so Lens
 which takes several minutes (longer on a Raspberry Pi). Later starts install the packages from the volume and reuse the
 build, so they take a minute or two.
 
+The database opens only with the keys in the `.env` of the install that made it, and the volume outlives the install
+folder. So a first install (one with no `.env` yet) that finds `lens-data` holding an earlier install's database, say
+after `~/lens` was deleted, leaves it as it is and starts on a volume of its own: `lens-data-2`, or the next free name.
+`.env` keeps that name (`LENS_VOLUME`), so running the line again uses the same one. Put the earlier `.env` back in the
+folder to use the earlier data again, or remove it with `msb volume rm lens-data`.
+
 The sandbox can reach the internet, your network (mail servers, model servers) and this machine. On this machine,
 Ollama or LM Studio are at `host.docker.internal`, the same address as with Docker. Only the web app's port and the
 sensor ports are published, on the same addresses Docker would use (`LENS_BIND`, `LENS_SENSOR_BIND`).
