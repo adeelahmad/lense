@@ -132,11 +132,37 @@ apart from what the person asks:
   chose, what a change tool reports) aren't marked. Turn it off only for a model the markers confuse.
 - **Control tokens broken up:** chat templates' control tokens in that text (`<|im_start|>`, `[INST]`,
   `<start_of_turn>`, `<tool_call>` and the like) and anything that looks like a marker get a space inside, so a local
-  model server that reads them in a message can't be made to end the turn and speak as the system.
+  model server that reads them in a message can't be made to end the turn and speak as the system. Unicode's
+  invisible tag characters, which can spell out instructions nobody sees on screen, are taken out.
+- **Flagged when it reads like instructions** (`ai.injection_check`; Settings → AI assistant → Flag text that reads
+  like instructions to an AI): text that says "ignore previous instructions", claims to be new instructions or a new
+  role, addresses an AI reading it, asks to hide something from you, to reveal the system prompt, to call a tool or
+  to put data into a link, or carries control tokens or hidden characters, gets a warning on its marker for the
+  model, and the step in the answer says so ("Read 12 line(s) of Mallory's talk (reads like instructions to an AI:
+  ignore previous instructions)"). `patterns` (the default) is free and kept narrow, so it misses rephrased attacks; `model` also
+  asks the decision model about each tool result the patterns let through (one routine call each, in the activity
+  ledger, falling back to the chat model when no decision model is set up); `off` turns flagging off. A flag is a
+  warning, not a block: the approvals below are what stop an action.
+- **Asks first once it has read it** (`ai.untrusted_asks`, on by default; Settings → AI assistant → Ask before
+  sending data out after reading third-party text): once an answer has read text from outside Lens (a tool's result
+  other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
+  open to anyone, or an earlier answer in the conversation that read any of these), anything that could carry what
+  it read out of Lens waits for your approval, even where it would otherwise run at once: your own `read` web tools,
+  other servers' MCP tools and Python tools with the network, the changes a setup conversation makes itself, and, in
+  [your browser](browser-assistant.md), opening or downloading an address or typing text you didn't write. The
+  approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
+  memories are still written at once: they stay in Lens, and are marked as data when read back.
+- **Links a chat app would fetch broken up:** in chat rooms, a web address the answer built itself can't be previewed
+  ([chat rooms](chat-rooms.md)); the web app shows no links or images that load by themselves; MCP results reach
+  other agents with control tokens broken up and a note when flagged ([MCP](mcp.md)).
+- **Logged:** each flagged tool result (`assistant.injection_flagged`, with the tool and the reasons, never the text)
+  goes into the audit log, which admins read (`GET /api/v1/audit`).
 
-Marking makes injection less likely to work; it doesn't make it impossible (a system prompt is not a filter). What
-the assistant can do is still bounded by the person's reads and approvals (N-PROMPT in the repository's
-`threat-model.md`).
+The layers stand on their own: the person's reads bound what any answer can see whatever the model does, marking and
+flags work without approvals, approvals don't depend on anything being flagged, and links are broken up whether or
+not the answer asked first. Turning one off leaves the others. Marking and flagging make injection less likely to
+work; they don't make it impossible (a system prompt is not a filter). What the assistant can do is still bounded by
+the person's reads and approvals (N-PROMPT in the repository's `threat-model.md`).
 
 ## A namespace's own assistant
 
@@ -244,7 +270,8 @@ Admins also get the server tools: `server_status` (what's set up and what's miss
 (`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
 connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
 changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
-Turning telemetry on or off always asks first.
+Turning telemetry on or off always asks first, and so does every change once the answer has read text from outside
+Lens ([third-party content](#third-party-content-and-prompt-injection)).
 
 ### Routine choices
 

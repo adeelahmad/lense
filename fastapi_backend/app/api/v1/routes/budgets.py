@@ -13,7 +13,7 @@ from app.schemas.budgets import BudgetMeter, BudgetSet, BudgetStatus
 from app.schemas.common import Ok
 
 router = APIRouter(tags=["budgets"])
-RESOURCE = Query(description="routine:<id>, pipeline:<id>, workflow:<id> or space:<id>")
+RESOURCE = Query(description="all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>")
 
 
 @router.get("/budgets")
@@ -46,7 +46,7 @@ def budget_meter(
         resource = f"space:{acl.namespace(ns)}"
         ref = resource
     elif user.admin:
-        resource, ref = None, budgets.GLOBAL
+        resource, ref = None, budgets.ALL
     else:
         raise HTTPException(403, "only admins see what all of Lens spent; pick a namespace")
     out = budgets.meter(db, resource, ref, period, detail)

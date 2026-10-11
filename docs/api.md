@@ -700,7 +700,9 @@ POST   /api/v1/import/web/links
 `POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
 `GET /pipelines`; 400 for one that doesn't exist, before anything is saved). Every import takes a `collection` of the
 namespace to put the recordings in (default: its default collection; 404 for one of another namespace): `POST /import`,
-`POST /import/source`, `POST /uploads` and `POST /import/iiif`.
+`POST /import/source`, `POST /uploads` and `POST /import/iiif`. A transcript imported without its audio has nothing to
+transcribe and its speakers came with it, so its pipeline's transcribe and diarize steps are left out and no speech or
+voice model is fetched for it.
 
 `POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, documents_as?}` imports chosen files of
 a storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as

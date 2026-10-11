@@ -5,6 +5,8 @@ name: Install
 # It builds every image from scratch, so it runs only when what it installs changes, weekly, and by hand.
 on:
   pull_request:
+    # closed: a pull request that's merged or closed cancels its runs that are still waiting or going (every job skips)
+    types: [opened, synchronize, reopened, closed]
     paths:
       - install.sh
       - install.ps1
@@ -44,6 +46,7 @@ permissions:
 jobs:
   installer-tests:
     name: Web installer tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    if: github.event.action != 'closed'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -57,7 +60,7 @@ jobs:
           - { os: macos-latest, python: "3.12" }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -v installer
@@ -71,6 +74,7 @@ jobs:
 
   web-installer:
     name: Install from the web installer
+    if: github.event.action != 'closed'
     # a runner of its own: the one-line install job builds the same images
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -93,7 +97,8 @@ jobs:
       - name: Answer it and install
         run: |
           jq -n --arg dir "$LENS_DIR" --arg ref "$LENS_REF" '{backend: "docker", target: "lean", dir: $dir, ref: $ref,
-            settings: {llm: {base_url: "http://localhost:11434/v1", model: "llama3", api_key: "sk-ci"}}}' >answers.json
+            settings: {llm: {base_url: "http://localhost:11434/v1", model: "llama3", api_key: "sk-ci"},
+            budget: {hard_usd: 25, period: "month", price_in: 3, price_out: 15}}}' >answers.json
           curl -fsS -b jar -H 'X-Lens-Installer: 1' -H 'Content-Type: application/json' -d @answers.json \
             http://127.0.0.1:3990/api/install
           since=0
@@ -116,7 +121,7 @@ jobs:
           curl -fsS -o /dev/null "$url"
           curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
           cd "$LENS_DIR"
-          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm"
+          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm, budget"
           # saved in Lens: the key doesn't stay in .env
           ! grep -q '^LENS_SETUP_SETTINGS=' .env
 
@@ -137,6 +142,7 @@ jobs:
 
   install:
     name: One-line install
+    if: github.event.action != 'closed'
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     timeout-minutes: 60
     env:
@@ -206,6 +212,7 @@ jobs:
 
   microsandbox:
     name: One-line install in a microsandbox
+    if: github.event.action != 'closed'
     # GitHub's own Linux runners: they have KVM, which microsandbox needs
     runs-on: ubuntu-latest
     timeout-minutes: 60

@@ -7,6 +7,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **The graph as files over SMB.** Settings → SMB share serves the file tree read-only to Finder, Linux and (on port
   445) Windows: each person signs in with a file access key and sees what the web app shows them, from the networks
   an admin allows. Off by default; the SMB server (impacket) is fetched when it's turned on ([SMB share](docs/smb.md)).
+- **A spending limit from the start.** The setup wizard has a Budget step, and the web installer asks for one with a
+  cloud provider: a scale for a hard limit on everything Lens spends on AI, with a soft limit at 80% that warns. At
+  the hard limit runs wait (or are skipped) and paid model calls stop until it goes up; models on your own computer
+  keep working. The model's price comes with it, so the spending is counted. It's the new `all` budget, changeable in
+  Settings › Budgets ([Budgets](docs/budgets.md#one-budget-for-everything)). The web installer now asks only the
+  essentials: the folder, port and network under **Advanced**, the optional extras under **More options** on the
+  review.
+
 - **The graph as files.** Graph nodes are folders, nested along its links: collections inside collections, topics
   inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API
@@ -23,6 +31,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
   month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
   ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
+
+- **Ask Lens from your browser.** The web clipper extension has the Lens assistant in a side panel: **Ask Lens** in
+  its popup or on the right-click menu. It signs in with one click through Lens's own sign-in page (OAuth, nothing to
+  copy), and the conversations are the same ones Lens's chat shows, with cited answers, the steps taken and approvals.
+  While the panel is open, the assistant can use that browser: open, read, click, type and download files into the
+  conversation, only on sites you allow, asking before anything that sends, deletes, buys or posts, never typing
+  passwords or card numbers, and showing each action as it happens. Once it has read a page, opening an address or
+  typing text you didn't write asks you first too ([The assistant in your browser](docs/browser-assistant.md)).
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
