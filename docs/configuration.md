@@ -31,7 +31,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_ADMIN_PASSWORD` | | give that admin a password instead (passwords stay on) |
 | `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
 | `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
-| `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here |
+| `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here; a `budget` section (`hard_usd`, `soft_usd`, `period`, `on_over`, `price_in`, `price_out`) sets [the overall budget](budgets.md#one-budget-for-everything) |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
 | `LENS_TELEMETRY` / `LENS_TELEMETRY_ENDPOINT` / `LENS_TELEMETRY_HEADERS` | off | opt-in OpenTelemetry traces and metrics, sent only to this OTLP/HTTP endpoint ([Telemetry](telemetry.md)); `LENS_TELEMETRY=off` keeps it off whatever Settings say |
 | `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
@@ -96,7 +96,7 @@ Admins can change, in Settings: transcription, speaker separation, speech provid
 provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
 video, OCR, faces and objects, workers, sign-in, components, access and embedding (embed frame ancestors, transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
-telemetry, the Fedora repository, sensors, uploads, storage, documents, API keys, and IIIF and metadata. The API
+telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
 
 ## Word search

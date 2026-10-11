@@ -84,6 +84,9 @@ export type SectionId =
   | "telemetry"
   | "fedora"
   | "sensors"
+  | "nfs"
+  | "smb"
+  | "shares"
   | "uploads"
   | "storage"
   | "backups"
@@ -261,6 +264,27 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["sensors"],
     description:
       "Off unless you turn it on. An MQTT hub and a syslog listener in Lens’s workers, so routers, DNS servers and devices can send to it; and how long what they send is kept.",
+  },
+  {
+    id: "nfs",
+    label: "NFS share",
+    backend: ["nfs"],
+    description:
+      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
+  },
+  {
+    id: "smb",
+    label: "SMB share",
+    backend: ["smb"],
+    description:
+      "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
+  },
+  {
+    id: "shares",
+    label: "File shares",
+    backend: ["shares"],
+    description:
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
   },
   {
     id: "uploads",
@@ -779,10 +803,11 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     options: [
       { value: "patterns", label: "Patterns (free)" },
+      { value: "classifier", label: "Patterns, then a local classifier (downloads 740 MB)" },
       { value: "model", label: "Patterns, then the decision model" },
       { value: "off", label: "Off" },
     ],
-    hint: "Flagged tool results carry a warning to the model and on the step you see. The decision model also checks what the patterns let through, one call per tool result.",
+    hint: "Flagged tool results carry a warning to the model and on the step you see. The local classifier (a model trained to spot prompt injection, run on this machine) or the decision model also checks each tool result the patterns let through.",
   },
   {
     section: "ai",
@@ -992,6 +1017,13 @@ export const FIELDS: FieldSpec[] = [
       { value: "off", label: "Only in the web app" },
     ],
     hint: "The people above can reply “yes” or “no” to these in the room. Settings, imports, runs and extensions are always approved in the web app. Needs the list of usernames.",
+  },
+  {
+    section: "bridge",
+    key: "safe_links",
+    label: "Break up links the answer made itself",
+    kind: "switch",
+    hint: "Chat apps open links to preview them, so a web address the model built from what it read would send that out before anyone clicks. Addresses you, the archive or a tool wrote, and Lens’s own, stay as they are.",
   },
   {
     section: "bridge",
@@ -1744,6 +1776,32 @@ export const FIELDS: FieldSpec[] = [
     max: 1440,
     unit: "minutes",
   },
+  // NFS share (opt-in)
+  {
+    section: "nfs",
+    key: "enabled",
+    label: "Share the file tree over NFS",
+    kind: "switch",
+    hint: "Read-only. Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "account",
+    label: "Show it as",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "The share shows what this person sees in the web app, and nothing else",
+  },
+  {
+    section: "nfs",
+    key: "allowed_networks",
+    label: "Networks it’s shared with",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. NFS has no login, so machines anywhere else are turned away",
+  },
+  { section: "nfs", key: "port", label: "Port inside Lens", kind: "int", min: 1, max: 65535 },
   // Backups (docs/database.md#backups)
   {
     section: "backups",
@@ -1790,6 +1848,46 @@ export const FIELDS: FieldSpec[] = [
     max: 365,
     hint: "The oldest go when a new one is taken. Backups you take yourself stay until you delete them",
   },
+  // SMB share (opt-in)
+  {
+    section: "smb",
+    key: "enabled",
+    label: "Share the file tree over SMB",
+    kind: "switch",
+    hint: "Read-only. Off: nothing listens",
+  },
+  {
+    section: "smb",
+    key: "allowed_networks",
+    label: "Networks it’s shared with",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. Machines anywhere else are turned away before they sign in",
+  },
+  // File shares (opt-in)
+  {
+    section: "shares",
+    key: "enabled",
+    label: "Share the file tree",
+    kind: "switch",
+    hint: "Off: nothing listens. The API and the MCP tools read the tree either way",
+  },
+  {
+    section: "shares",
+    key: "s3",
+    label: "S3",
+    kind: "switch",
+    hint: "Read-only; each person signs in with their own access key",
+  },
+  { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "shares",
+    key: "webdav",
+    label: "WebDAV",
+    kind: "switch",
+    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+  },
+  { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -2086,7 +2184,7 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     mono: true,
     placeholder: "http://localhost:3001",
-    hint: "Where Grafana shows Lens's charts; System health links to it. The monitoring profile runs one at :3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. Empty: the one Charts and history runs, on this host at :3001",
   },
   {
     section: "telemetry",
@@ -2459,6 +2557,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     }
     case "select":
       if (f.key === "frame_width") return { value: Number(ui) };
+      if (f.section === "nfs" && f.key === "account") return { value: ui === "" || ui == null ? null : Number(ui) };
       if ((f.section === "files" || f.section === "backups") && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };
       return { value: ui === "" && f.nullable ? null : ui };
@@ -2552,6 +2651,14 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const nets = values["notifications.networks"] as string[] | undefined;
   const badNet = nets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNet) e["notifications.networks"] = `“${badNet}” isn’t a network like 192.168.1.0/24`;
+  const nNets = values["nfs.allowed_networks"] as string[] | undefined;
+  const badNNet = nNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badNNet) e["nfs.allowed_networks"] = `“${badNNet}” isn’t a network like 192.168.1.0/24`;
+  else if (nNets && nNets.length === 0) e["nfs.allowed_networks"] = "List at least one network";
+  const mNets = values["smb.allowed_networks"] as string[] | undefined;
+  const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;
+  else if (mNets && mNets.length === 0) e["smb.allowed_networks"] = "List at least one network";
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;
