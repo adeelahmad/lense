@@ -620,7 +620,8 @@ until up; do
     sandbox_progress
   fi
   if [ $((now - start)) -ge "$WAIT" ]; then
-    why="Lens didn't answer on port $PORT within $(((now - start) / 60)) min${step:+ (its last step: $step)}."
+    if [ "$WAIT" -lt 120 ]; then within="$WAIT seconds"; else within="$((WAIT / 60)) minutes"; fi
+    why="Lens didn't answer on port $PORT within $within${step:+ (its last step: $step)}."
     # up in the sandbox, but not on this machine's port: the port is the problem, not Lens
     if [ "$BACKEND" = microsandbox ] &&
       msb exec lens -- curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:3000/login </dev/null >/dev/null 2>&1; then

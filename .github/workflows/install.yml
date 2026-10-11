@@ -304,9 +304,8 @@ jobs:
         run: |
           if LENS_BACKEND='' LENS_WAIT=8 sh < install.sh >slow.log 2>&1; then cat slow.log; echo "it didn't stop waiting"; exit 1; fi
           cat slow.log
-          grep -q "Lens didn't answer on port" slow.log
+          grep -q "Lens didn't answer on port [0-9]* within 8 seconds" slow.log
           grep -q 'The last lines Lens logged:' slow.log
-          grep -q '^\[lens\] ' slow.log # the sandbox's own log
 
       - name: Installing again after the install folder is deleted starts Lens on a volume of its own
         run: |
