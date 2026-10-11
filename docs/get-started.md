@@ -14,7 +14,8 @@ code already filled in. On a server without a desktop, Lens is reachable from th
 server's address. Run the same line again to update: the secrets, the database and the archive are kept. Settings go
 before `sh`: `LENS_DIR`, `LENS_PORT`, `LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET`
 (`lean` for the smaller image, kept when the line runs again) and `LENS_REF` (a branch or tag) change the defaults;
-the top of `install.sh` lists them.
+the top of `install.sh` lists them. If Lens doesn't answer in time (`LENS_WAIT`, in seconds: 10 minutes with Docker,
+30 in a microsandbox), the installer stops waiting and shows the last lines Lens logged and why.
 
 Where it can (Linux with KVM, or a Mac with Apple silicon), a first install asks whether to run Lens in Docker (the
 default) or in a [microsandbox](microsandbox.md) microVM, which needs no Docker; `LENS_BACKEND=microsandbox` chooses
@@ -43,8 +44,9 @@ above opens an installer in your browser instead of asking anything in the termi
 4. **Review**, then **Install**: **More options** under the review holds what's optional, each with its default: the
    first namespace, search by meaning (an embeddings server), the typesafe.ai decision model's key, cloud
    transcription and its key, email (SMTP), remote access through a Cloudflare tunnel, anytopdf, and telemetry.
-   **Install** runs `install.sh` with those answers and shows its progress (and the full output under **Details**). If
-   something fails, it says what, and **Try again** runs it again (what's done stays done).
+   **Install** runs `install.sh` with those answers and shows its progress, in a microsandbox step by step as the
+   sandbox installs and builds (and the full output under **Details**). If something fails, it says what, with the
+   last lines Lens logged when Lens itself didn't start, and **Try again** runs it again (what's done stays done).
 5. **Open Lens** goes to the setup page with the setup code filled in, where you create the admin account with a
    passkey.
 
