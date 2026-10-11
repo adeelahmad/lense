@@ -126,8 +126,8 @@ jobs:
           if [ -n "$TAG" ]; then
             config="$(echo "$config" | python3 -c 'import json,sys; c=json.load(sys.stdin); c["version"]=sys.argv[1].lstrip("v"); print(json.dumps(c))' "$TAG")"
           fi
-          if [ "${LENS_UPDATES:-0}" = 1 ]; then # the signed .app.tar.gz the updater downloads
-            config="$(echo "$config" | python3 -c 'import json,sys; c=json.load(sys.stdin); c["bundle"]["createUpdaterArtifacts"]=True; print(json.dumps(c))')"
+          if [ "${LENS_UPDATES:-0}" = 1 ]; then # the signed .app.tar.gz the updater downloads, checked against the key
+            config="$(echo "$config" | python3 -c 'import json,os,sys; c=json.load(sys.stdin); c["bundle"]["createUpdaterArtifacts"]=True; c["plugins"]={"updater":{"pubkey":os.environ["LENS_UPDATER_PUBKEY"].strip()}}; print(json.dumps(c))')"
           fi
           npx tauri build --config "$config" --bundles app,dmg
           mkdir -p ../dist/desktop
