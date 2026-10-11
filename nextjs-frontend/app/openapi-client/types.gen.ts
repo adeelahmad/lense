@@ -5722,6 +5722,10 @@ export type Health = {
   sources: Array<HealthSource>;
   disk: HealthDisk;
   counts: HealthCounts;
+  /**
+   * CPU, memory, load and uptime now
+   */
+  machine?: HealthMachine | null;
   [key: string]: unknown;
 };
 
@@ -5785,6 +5789,65 @@ export type HealthDisk = {
    * Total Gb
    */
   total_gb: number;
+  [key: string]: unknown;
+};
+
+/**
+ * HealthMachine
+ */
+export type HealthMachine = {
+  /**
+   * Cpu Pct
+   *
+   * busy share of all CPUs, 0-100; null where /proc isn't there
+   */
+  cpu_pct?: number | null;
+  /**
+   * Cpus
+   */
+  cpus?: number | null;
+  /**
+   * Mem Used
+   *
+   * bytes
+   */
+  mem_used?: number | null;
+  /**
+   * Mem Total
+   *
+   * bytes
+   */
+  mem_total?: number | null;
+  /**
+   * Load1
+   */
+  load1?: number | null;
+  /**
+   * Load5
+   */
+  load5?: number | null;
+  /**
+   * Load15
+   */
+  load15?: number | null;
+  /**
+   * Rss
+   *
+   * the API process's memory, bytes
+   */
+  rss?: number | null;
+  /**
+   * Uptime
+   *
+   * seconds since the API started
+   */
+  uptime: number;
+  /**
+   * Host Uptime
+   *
+   * seconds since the machine started
+   */
+  host_uptime?: number | null;
   [key: string]: unknown;
 };
 
@@ -8174,6 +8237,67 @@ export type ModelSpend = {
    */
   estimate: boolean;
   [key: string]: unknown;
+};
+
+/**
+ * Monitoring
+ */
+export type Monitoring = {
+  /**
+   * On
+   *
+   * the monitoring profile (Prometheus, node-exporter, Grafana) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Grafana Port
+   *
+   * the port Grafana listens on, where the web app does
+   */
+  grafana_port?: number;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that turns it on by hand, on the machine Lens runs on
+   */
+  manual: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MonitoringRequest
+ */
+export type MonitoringRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) Prometheus, node-exporter and Grafana
+   */
+  on: boolean;
 };
 
 /**
@@ -14683,6 +14807,71 @@ export type SetupAdmin = {
 };
 
 /**
+ * SetupBudget
+ */
+export type SetupBudget = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: "day" | "week" | "month";
+  /**
+   * On Over
+   */
+  on_over?: "ask" | "skip";
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+};
+
+/**
+ * SetupBudgetView
+ */
+export type SetupBudgetView = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: string;
+  /**
+   * On Over
+   */
+  on_over?: string;
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * SetupFinish
  */
 export type SetupFinish = {
@@ -14930,6 +15119,7 @@ export type SetupView = {
   storage: SetupStorageView;
   telemetry: SetupTelemetryView;
   oauth: SetupOAuthView;
+  budget: SetupBudgetView;
   [key: string]: unknown;
 };
 
@@ -20913,6 +21103,47 @@ export type StartUpgradeResponses = {
 
 export type StartUpgradeResponse = StartUpgradeResponses[keyof StartUpgradeResponses];
 
+export type GetMonitoringData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/monitoring";
+};
+
+export type GetMonitoringResponses = {
+  /**
+   * Successful Response
+   */
+  200: Monitoring;
+};
+
+export type GetMonitoringResponse = GetMonitoringResponses[keyof GetMonitoringResponses];
+
+export type SetMonitoringData = {
+  body: MonitoringRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/monitoring";
+};
+
+export type SetMonitoringErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetMonitoringError = SetMonitoringErrors[keyof SetMonitoringErrors];
+
+export type SetMonitoringResponses = {
+  /**
+   * Successful Response
+   */
+  202: Monitoring;
+};
+
+export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
+
 export type ListBackupsData = {
   body?: never;
   path?: never;
@@ -21172,7 +21403,7 @@ export type RemoveBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -21222,7 +21453,7 @@ export type SetBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -21298,7 +21529,7 @@ export type BudgetStatusData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -21488,6 +21719,31 @@ export type SaveTelemetryResponses = {
 };
 
 export type SaveTelemetryResponse = SaveTelemetryResponses[keyof SaveTelemetryResponses];
+
+export type SaveBudgetData = {
+  body: SetupBudget;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/budget";
+};
+
+export type SaveBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveBudgetError = SaveBudgetErrors[keyof SaveBudgetErrors];
+
+export type SaveBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveBudgetResponse = SaveBudgetResponses[keyof SaveBudgetResponses];
 
 export type SaveOauthData = {
   body: SetupOAuth;

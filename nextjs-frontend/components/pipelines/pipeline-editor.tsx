@@ -218,6 +218,9 @@ export function PipelineEditor({ id }: { id?: number }) {
   const base: Pipeline | undefined = q.data;
   const [steps, setSteps] = useState<StepSpec[]>([]);
   const [name, setName] = useState("");
+  // A new pipeline is named for you unless you type one, so Enter creates it straight away
+  const suggested = `Pipeline ${(catalog.data?.pipelines.length ?? 0) + 1}`;
+  const named = name.trim() || suggested;
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [sel, setSel] = useState(0);
@@ -268,7 +271,7 @@ export function PipelineEditor({ id }: { id?: number }) {
               Pipelines.createPipeline({
                 client,
                 body: {
-                  name: name.trim(),
+                  name: named,
                   description: description.trim() || null,
                   steps: body,
                 },
@@ -291,7 +294,7 @@ export function PipelineEditor({ id }: { id?: number }) {
       void qc.invalidateQueries({ queryKey: ["pipeline", r.id] });
       setNotes("");
       if (creating) {
-        toast({ tone: "green", title: "Pipeline created", body: name });
+        toast({ tone: "green", title: "Pipeline created", body: named });
         router.push(`/pipelines/${r.id}`);
         return;
       }
@@ -407,9 +410,12 @@ export function PipelineEditor({ id }: { id?: number }) {
         {creating ? (
           <Input
             aria-label="Pipeline name"
-            placeholder="Name, e.g. Podcast standard"
+            placeholder={suggested}
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !publishReason && !save.isPending) save.mutate(true);
+            }}
             className="h-9 w-[280px] text-[16px] font-bold"
             autoFocus
           />
@@ -499,8 +505,8 @@ export function PipelineEditor({ id }: { id?: number }) {
         <Button
           size="sm"
           variant="approve"
-          disabled={Boolean(publishReason) || save.isPending || (creating && !name.trim())}
-          disabledReason={publishReason ?? "Give the pipeline a name"}
+          disabled={Boolean(publishReason) || save.isPending}
+          disabledReason={publishReason}
           onClick={() => save.mutate(true)}
         >
           {creating ? "Create pipeline" : `Publish v${nextV}`}

@@ -400,3 +400,21 @@ def test_a_document_is_read_not_transcribed(db, cfg, folder):
     ]
     # a worker whose steps list predates the read step runs it too
     assert "read" in jobs.Worker(db, lambda: {**cfg, "workers": {**cfg["workers"], "steps": ["transcribe"]}}, name="old").can
+
+
+def test_a_pasted_transcript_never_waits_for_a_speech_model(db, cfg):
+    """A pasted or imported transcript (no audio) has nothing to transcribe and its speakers came with it: the standard
+    pipeline queues no transcribe or diarize step for it, so no worker fetches PyTorch, SenseVoice or voice IDs (about
+    a gigabyte) before analysing it."""
+    rid = ingest.import_text(db, cfg, "pods", "[00:00] Ann: One.\n[00:02] Ben: Two.", title="Pasted")
+    jid = jobs.enqueue(db, rid)
+    steps = [s["type"] for s in db.one("SELECT steps FROM $j", j=store.R("job", jid))["steps"]]
+    assert "transcribe" not in steps and "diarize" not in steps and "analyze" in steps
+    assert "transcribe" not in db.values("SELECT VALUE next_step FROM job WHERE status = 'queued'")
+    # steps added later leave them out too; asked for on their own, they still run (and say why they skip)
+    assert jobs.for_source([{"type": "diarize"}, {"type": "report"}], "transcript") == [{"type": "report"}]
+    assert jobs.for_source([{"type": "transcribe"}], "transcript") == [{"type": "transcribe"}]
+    # a worker whose speech and voice steps wait for their models to be fetched still runs it
+    w = jobs.Worker(db, lambda: cfg, name="small")
+    w.keeper = type("Fetching", (), {"blocked": lambda self: {"transcribe", "diarize"}})()
+    assert w.run_once() and db.one("SELECT status FROM $j", j=store.R("job", jid))["status"] == "succeeded"

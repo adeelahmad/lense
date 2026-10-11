@@ -514,6 +514,8 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMonitoringData,
+  GetMonitoringResponses,
   GetNamespaceAssistantData,
   GetNamespaceAssistantErrors,
   GetNamespaceAssistantResponses,
@@ -1192,6 +1194,9 @@ import type {
   RunWorkflowResponses,
   S3StatusData,
   S3StatusResponses,
+  SaveBudgetData,
+  SaveBudgetErrors,
+  SaveBudgetResponses,
   SaveCollectionFieldsData,
   SaveCollectionFieldsErrors,
   SaveCollectionFieldsResponses,
@@ -1254,6 +1259,9 @@ import type {
   SetMemberData,
   SetMemberErrors,
   SetMemberResponses,
+  SetMonitoringData,
+  SetMonitoringErrors,
+  SetMonitoringResponses,
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
@@ -2997,6 +3005,40 @@ export class Updates {
   }
 
   /**
+   * Get Monitoring
+   *
+   * Whether Prometheus, node-exporter and Grafana run next to Lens (the monitoring profile), and how the machine's
+   * last change went.
+   */
+  public static getMonitoring<ThrowOnError extends boolean = false>(
+    options?: Options<GetMonitoringData, ThrowOnError>,
+  ): RequestResult<GetMonitoringResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetMonitoringResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/monitoring",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Monitoring
+   *
+   * Have this machine start or stop Prometheus, node-exporter and Grafana. On also turns /metrics on with a scrape
+   * token when it has none. GET /admin/monitoring follows along.
+   */
+  public static setMonitoring<ThrowOnError extends boolean = false>(
+    options: Options<SetMonitoringData, ThrowOnError>,
+  ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
+      url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * List Backups
    *
    * The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or
@@ -3312,6 +3354,26 @@ export class Setup {
   ): RequestResult<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError> {
     return (options.client ?? client).put<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError>({
       url: "/api/v1/setup/telemetry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Budget
+   *
+   * The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop
+   * (docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard
+   * limit: no budget.
+   */
+  public static saveBudget<ThrowOnError extends boolean = false>(
+    options: Options<SaveBudgetData, ThrowOnError>,
+  ): RequestResult<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/setup/budget",
       ...options,
       headers: {
         "Content-Type": "application/json",

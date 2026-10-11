@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, KeyRound, Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Tokens } from "@/app/openapi-client";
@@ -37,7 +38,8 @@ export function TokensPage() {
     queryKey: ["tokens"],
     queryFn: () => data(Tokens.listTokens({ client })),
   });
-  const [creating, setCreating] = useState(false);
+  // ?new=1 (the account menu, when there are no tokens yet): the new token's form is open on arrival
+  const [creating, setCreating] = useState(useSearchParams().get("new") === "1");
   const [created, setCreated] = useState<Created | null>(null);
   const [revoking, setRevoking] = useState<ApiToken | null>(null);
 

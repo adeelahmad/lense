@@ -24,7 +24,9 @@ from app.domain import (
     keyring,
     llm,
     local_llm,
+    machine,
     matterbridge,
+    monitoring,
     semantic,
     settings,
     sources,
@@ -91,6 +93,8 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
     with domain_errors():
         settings.save(db, request.app.state.archive.base, section, body, user.email)
     auth.audit(db, user.as_audit(), "settings.save", section, sorted(body))
+    if section == "telemetry" and "prometheus_token" in body:
+        monitoring.sync_token(request.app.state.settings.current())  # the monitoring Prometheus scrapes with the new one
     if section == "encryption" and "files" in body and bool(body["files"]) != bool(files_were):
         cfg = request.app.state.settings.current()
         keyring.convert(db, cfg, bool(cfg["encryption"].get("files")))  # the files already kept follow, in the background
@@ -343,6 +347,7 @@ def get_health(user: AdminReader, request: Request, db: Db) -> Health:
             "sources": [{"id": x["id"], "name": x["name"], "type": x["type"], "health": x.get("health")} for x in sources.list_sources(db)],
             "disk": {"path": data_dir, "free_gb": round(disk.free / 1e9, 1), "total_gb": round(disk.total / 1e9, 1)},
             "counts": {"recordings": n("recording"), "speakers": n("speaker"), "accounts": n("account")},
+            "machine": machine.live(),
         }
     )
 

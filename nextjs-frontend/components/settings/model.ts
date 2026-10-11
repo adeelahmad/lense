@@ -782,6 +782,19 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "injection_check",
+    label: "Flag text that reads like instructions to an AI",
+    kind: "select",
+    options: [
+      { value: "patterns", label: "Patterns (free)" },
+      { value: "classifier", label: "Patterns, then a local classifier (downloads 740 MB)" },
+      { value: "model", label: "Patterns, then the decision model" },
+      { value: "off", label: "Off" },
+    ],
+    hint: "Flagged tool results carry a warning to the model and on the step you see. The local classifier (a model trained to spot prompt injection, run on this machine) or the decision model also checks each tool result the patterns let through.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
@@ -988,6 +1001,13 @@ export const FIELDS: FieldSpec[] = [
       { value: "off", label: "Only in the web app" },
     ],
     hint: "The people above can reply “yes” or “no” to these in the room. Settings, imports, runs and extensions are always approved in the web app. Needs the list of usernames.",
+  },
+  {
+    section: "bridge",
+    key: "safe_links",
+    label: "Break up links the answer made itself",
+    kind: "switch",
+    hint: "Chat apps open links to preview them, so a web address the model built from what it read would send that out before anyone clicks. Addresses you, the archive or a tool wrote, and Lens’s own, stay as they are.",
   },
   {
     section: "bridge",
@@ -2098,6 +2118,16 @@ export const FIELDS: FieldSpec[] = [
     hint: "Serve /metrics for a Prometheus scraper; off by default, and answered only with the scrape token",
   },
   { section: "telemetry", key: "prometheus_token", label: "Scrape token", kind: "secret" },
+  {
+    section: "telemetry",
+    key: "grafana_url",
+    label: "Grafana address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://localhost:3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. Empty: the one Charts and history runs, on this host at :3001",
+  },
   {
     section: "telemetry",
     key: "prices",

@@ -7,6 +7,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { Admin, Fedora, Metadata, Sensors, Shares, Sources } from "@/app/openapi-client";
 import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
+import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
@@ -619,9 +620,11 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
       <p className="-mt-2 text-[12.5px] leading-[1.45] text-fg-secondary">
         For Grafana and other Prometheus tools: jobs, imports, model calls, cost, budgets, workers and disk, served at{" "}
         <code className="font-mono">/metrics</code> on this address with the same privacy as telemetry. A scraper sends
-        the token as <code className="font-mono">Authorization: Bearer</code>; see docs/prometheus.md for a scrape
-        config and a sample dashboard.
+        the token as <code className="font-mono">Authorization: Bearer</code>. Charts and history runs Prometheus and
+        Grafana next to Lens, ready made, with charts of Lens and this machine, and sets up the token itself
+        (docs/prometheus.md).
       </p>
+      <MonitoringSwitch />
       {Boolean(saved.prometheus) && !promSecret.set && !promToken.value && (
         <Banner tone="error" title="On, but there is no scrape token.">
           Set one below; until then /metrics answers no one.
@@ -640,6 +643,7 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
         value={promToken.value as string | undefined}
         onChange={(x) => promToken.onChange(x)}
       />
+      <F ctx={ctx} id="telemetry.grafana_url" />
     </>
   );
 }
@@ -1258,6 +1262,7 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="bridge.gateway" />
       <F ctx={ctx} id="bridge.users" />
       <F ctx={ctx} id="bridge.approve" />
+      <F ctx={ctx} id="bridge.safe_links" />
       <F ctx={ctx} id="bridge.rooms" />
       <F ctx={ctx} id="bridge.poll_seconds" />
       <div className="flex flex-wrap items-center gap-2.5">
@@ -1385,6 +1390,7 @@ function AiBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="ai.tools" />
       <F ctx={ctx} id="ai.untrusted_marking" />
       <F ctx={ctx} id="ai.untrusted_asks" />
+      <F ctx={ctx} id="ai.injection_check" />
       <F ctx={ctx} id="ai.compact" />
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="ai.compact_model" />
