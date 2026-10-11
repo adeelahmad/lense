@@ -13,7 +13,8 @@
 #   LENS_PORT      the web app's port (default: 3000, or the next free one)
 #   LENS_PUBLIC    1: reachable from other machines on the network, 0: this machine only (default: 1 on a server
 #                  without a desktop, else 0)
-#   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: full)
+#   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: as the last run
+#                  left it, else full)
 #   LENS_BACKEND   docker or microsandbox (one microVM, no Docker: docs/microsandbox.md). Asked on a first install
 #                  when microsandbox can run here (Linux with KVM, or a Mac with Apple silicon); default: docker
 #   LENS_DNS_FALLBACK  in a microsandbox: the public resolvers it looks names up with when this machine's don't
@@ -36,7 +37,7 @@ main() {
 REPO="${LENS_REPO:-adeelahmad/lense}"
 DIR="${LENS_DIR:-$HOME/lens}"
 REF="${LENS_REF:-main}"
-TARGET="${LENS_TARGET:-full}"
+TARGET="${LENS_TARGET:-}"
 
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 fail() {
@@ -289,6 +290,11 @@ else
     fail "Couldn't get the code from GitHub ($REF). Check the network and LENS_REF, and try again."
 fi
 cd "$DIR"
+
+# --- The edition: the one asked for, else the one this install already has (a lean install stays lean), else full ---
+[ -n "$TARGET" ] || TARGET="$( [ -f .env ] && grep '^LENS_TARGET=' .env | cut -d= -f2- || true)"
+TARGET="${TARGET:-full}"
+case "$TARGET" in full | lean) ;; *) fail "LENS_TARGET is full or lean, not $TARGET." ;; esac
 
 # --- The port: the one asked for, else the one this install already uses, else the first free one from 3000 -------
 free() { # nothing listening: curl can't connect (exit 7)
