@@ -336,7 +336,8 @@ def test_a_forward_is_held_whole_and_its_text_marked_as_data(db, cfg, box, llm):
     arrive(imap, mail(text, subject="Fwd: Berth change"))
     assert run(db, cfg) == 1
     q = next(a for a in asked(llm) if a.startswith("Can you keep this?\n\nWhat I forwarded"))
-    assert re.search(r'<untrusted-\w+ source="forwarded email">\nFrom: Port office', q)  # someone else's words, marked
+    # someone else's words, marked, with a warning when they read like instructions to an AI
+    assert re.search(r'<untrusted-\w+ source="forwarded email" warning="reads like instructions[^"]*">\nFrom: Port office', q)
     held = db.rows("SELECT filename, state FROM upload")
     assert held == [{"filename": "Berth change.eml", "state": "held"}]
     # what was forwarded may be what asks for a change, so even an import waits for approval

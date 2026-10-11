@@ -65,6 +65,8 @@ SETTINGS = {
     "tunnel": {"mode", "token", "hostname", "api_token"},
     "documents": {"anytopdf_url", "anytopdf_token"},
     "telemetry": {"enabled", "endpoint"},
+    # not a settings section: Lens's overall budget (Settings › Budgets), with the chat model's price
+    "budget": {"hard_usd", "soft_usd", "period", "on_over", "price_in", "price_out"},
 }
 # Things the installer can do for an existing install besides installing again, by id: {"label", "detail", "run":
 # fn(installer) -> None}. Empty for now: the upgrade and backup work adds its actions here, and the page shows a

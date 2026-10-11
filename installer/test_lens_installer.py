@@ -50,6 +50,7 @@ class Pure(unittest.TestCase):
                 "server": {"allowed_hosts": "*"},  # not something the installer sets
                 "mail": {"port": 587, "password": {"nested": 1}},
                 "embeddings": {"enabled": False},
+                "budget": {"hard_usd": 25, "period": "month", "price_in": 3.0, "price_out": 15, "usd": 1},
             }
         )
         self.assertEqual(
@@ -58,6 +59,7 @@ class Pure(unittest.TestCase):
                 "llm": {"base_url": "http://host.docker.internal:11434/v1", "model": "llama3"},
                 "mail": {"port": 587},
                 "embeddings": {"enabled": False},
+                "budget": {"hard_usd": 25, "period": "month", "price_in": 3.0, "price_out": 15},
             },
         )
 

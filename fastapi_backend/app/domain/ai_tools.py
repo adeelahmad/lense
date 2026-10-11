@@ -11,6 +11,7 @@ import json
 import logging
 
 from . import (
+    auth,
     batches,
     cypher,
     entities,
@@ -374,6 +375,7 @@ class Toolbox(ops_tools.OpsTools):
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
         # ask first, even where they'd act at once (wary)
         self.outside = list(dict.fromkeys(outside))
+        self.links = set()  # web addresses the tools gave back, as written (untrusted.defang)
         self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
@@ -551,6 +553,7 @@ class Toolbox(ops_tools.OpsTools):
                 extra += self._hook(h, {"said": self.said, "tool": name})
         asked = len(self.approvals)
         result, summary = self._run(name, fn, args)
+        self.links |= untrusted.links(result)
         if self.untrusted(name) and len(self.approvals) == asked:  # it read something, rather than asking for a yes
             self.read_outside(f"tool {name}")
         if hooks:
@@ -559,8 +562,9 @@ class Toolbox(ops_tools.OpsTools):
         if model:
             if self.untrusted(name):
                 why = untrusted.flags(result, self.cfg, model=True)
-                if why:  # the person sees it on the step, the model on the marker
+                if why:  # the person sees it on the step, the model on the marker, admins in the audit log
                     summary = f"{summary} (reads like instructions to an AI: {'; '.join(why)})"
+                    auth.audit(self.db, self.user, "assistant.injection_flagged", f"chat:{self.chat}", {"tool": name, "why": why})
                 result = untrusted.wrap(result, f"tool {name}", self.cfg, why=why)
             return result + (f"\n\n{extra.strip()}" if extra else ""), summary
         if extra:  # what hooks add, next to what the tool gave back
