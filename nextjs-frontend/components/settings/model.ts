@@ -84,6 +84,7 @@ export type SectionId =
   | "telemetry"
   | "fedora"
   | "sensors"
+  | "shares"
   | "uploads"
   | "storage"
   | "backups"
@@ -261,6 +262,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["sensors"],
     description:
       "Off unless you turn it on. An MQTT hub and a syslog listener in Lens’s workers, so routers, DNS servers and devices can send to it; and how long what they send is kept.",
+  },
+  {
+    id: "shares",
+    label: "File shares",
+    backend: ["shares"],
+    description:
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
   },
   {
     id: "uploads",
@@ -1798,6 +1806,30 @@ export const FIELDS: FieldSpec[] = [
     max: 365,
     hint: "The oldest go when a new one is taken. Backups you take yourself stay until you delete them",
   },
+  // File shares (opt-in)
+  {
+    section: "shares",
+    key: "enabled",
+    label: "Share the file tree",
+    kind: "switch",
+    hint: "Off: nothing listens. The API and the MCP tools read the tree either way",
+  },
+  {
+    section: "shares",
+    key: "s3",
+    label: "S3",
+    kind: "switch",
+    hint: "Read-only; each person signs in with their own access key",
+  },
+  { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "shares",
+    key: "webdav",
+    label: "WebDAV",
+    kind: "switch",
+    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+  },
+  { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
   // Sensors (opt-in)
   {
     section: "sensors",

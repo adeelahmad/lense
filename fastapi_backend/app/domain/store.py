@@ -460,6 +460,9 @@ DEFAULTS = {
         "max_per_minute": 600,
         "triage": False,
     },
+    # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
+    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
+    "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
@@ -1056,6 +1059,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS external_identity_account ON external_identity FIELDS account",
     "DEFINE INDEX IF NOT EXISTS external_identity_provider ON external_identity FIELDS provider",
     "DEFINE TABLE IF NOT EXISTS external_flow SCHEMALESS",
+    # access keys for the file tree's S3 server (s3.py): id is the key id, the secret sealed
+    "DEFINE TABLE IF NOT EXISTS file_key SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS file_key_account ON file_key FIELDS account",
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",

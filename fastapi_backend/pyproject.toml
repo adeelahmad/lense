@@ -77,6 +77,7 @@ dev = [
     "onnx>=1.23.2",  # ... which they build
     "tokenizers>=0.20",  # the injection classifier tests run a tiny model and tokenizer
     "mcp>=2.3.0",  # the official MCP client, to test the MCP server with
+    "botocore>=1.43.111",
 ]
 
 [tool.hatch.build.targets.wheel]

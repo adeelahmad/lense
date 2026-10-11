@@ -24466,6 +24466,137 @@
         }
       }
     },
+    "/api/v1/shares/s3": {
+      "get": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "S3 Status",
+        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your\naccess keys.",
+        "operationId": "s3_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/s3/keys": {
+      "get": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "All S3 Keys",
+        "description": "Everyone's access keys, with their owners (admins).",
+        "operationId": "all_s3_keys",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/S3Key"
+                  },
+                  "type": "array",
+                  "title": "Response Shares-All S3 Keys"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Create S3 Key",
+        "description": "An access key that reads the file tree as you, over S3 and WebDAV. Only while signed in to the web app (with your passkey),\nnot with an API token. The secret is in this answer only.",
+        "operationId": "create_s3_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/S3KeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3KeyCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/s3/keys/{key_id}": {
+      "delete": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Revoke S3 Key",
+        "description": "Revoke one of your keys (admins: anyone's). It stops working at once.",
+        "operationId": "revoke_s3_key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/import-hooks": {
       "get": {
         "tags": [
@@ -49429,6 +49560,248 @@
         "type": "object",
         "title": "RoutineUpdate"
       },
+      "S3Key": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the access key id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "its owner (the list of everyone's keys)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "S3Key"
+      },
+      "S3KeyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name",
+            "default": "S3 key"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days",
+            "description": "how long it lasts (the API keys' limits); none: their default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "S3KeyCreate"
+      },
+      "S3KeyCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the access key id"
+          },
+          "secret": {
+            "type": "string",
+            "title": "Secret",
+            "description": "the secret access key, shown this once"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the S3 server's port"
+          },
+          "webdav_port": {
+            "type": "integer",
+            "title": "Webdav Port"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "secret",
+          "port",
+          "webdav_port"
+        ],
+        "title": "S3KeyCreated"
+      },
+      "S3Service": {
+        "properties": {
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "running": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "S3Service"
+      },
+      "S3Status": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether an admin turned it on (shares.enabled and its own switch)"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/S3Service"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the process running it says; none while it's off"
+          },
+          "webdav": {
+            "$ref": "#/components/schemas/ShareServer"
+          },
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/S3Key"
+            },
+            "type": "array",
+            "title": "Keys",
+            "description": "your access keys"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "port",
+          "webdav",
+          "keys"
+        ],
+        "title": "S3Status",
+        "description": "The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."
+      },
       "SavedSearch": {
         "properties": {
           "id": {
@@ -52002,6 +52375,38 @@
           "embed"
         ],
         "title": "ShareLink"
+      },
+      "ShareServer": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether an admin turned it on (shares.enabled and its own switch)"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/S3Service"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the process running it says; none while it's off"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "port"
+        ],
+        "title": "ShareServer"
       },
       "ShareSite": {
         "properties": {

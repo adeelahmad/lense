@@ -16,7 +16,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   inside their broader topics, entities by type. Each folder holds its assets' files, with a `.json` sidecar of
   metadata and a `.txt` of the text; everyone sees what the web app shows them. Browse and read it through the API
   (`/api/v1/tree`) and the MCP tools `list_files` and `read_file` ([The graph as files](docs/file-tree.md)).
-  S3, WebDAV, SMB and NFS servers that share it are in progress.
+  SMB and NFS shares are in progress.
 
 - **HTTPS with automatic certificates.** Lens can serve itself at `https://` your domain with a certificate it gets
   and renews on its own from Let's Encrypt or ZeroSSL (or any ACME authority), proving the domain over HTTP, TLS-ALPN
@@ -28,6 +28,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or
   month. **Costs** in the left menu shows spend by day, model and resource, and sets the namespace's budget
   ([Budgets](docs/budgets.md#the-meter-and-the-costs-page)).
+
+- **The graph over S3 and WebDAV.** Turn on Settings, File shares, and any S3 client (rclone, Cyberduck, the AWS CLI) or
+  WebDAV client (Finder, Windows Explorer, file managers) lists and reads the graph as folders and files,
+  read-only, with access keys each person makes on their API tokens page ([S3](docs/file-tree.md#s3),
+  [WebDAV](docs/file-tree.md#webdav)). Docker publishes S3 on port 9555 (`LENS_S3_PORT`) and WebDAV on 9556
+  (`LENS_WEBDAV_PORT`), where the web app is.
 
 - **Ask Lens from your browser.** The web clipper extension has the Lens assistant in a side panel: **Ask Lens** in
   its popup or on the right-click menu. It signs in with one click through Lens's own sign-in page (OAuth, nothing to
