@@ -262,6 +262,12 @@ jobs:
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
 
+      - name: A lean install stays lean when the line runs again without LENS_TARGET
+        run: |
+          LENS_BACKEND='' LENS_TARGET='' sh < install.sh >/dev/null
+          grep -q '^LENS_TARGET=lean$' "$LENS_DIR/.env" || { echo "the run without LENS_TARGET changed the edition"; exit 1; }
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
       - name: What the sandbox said
         if: failure()
         run: |

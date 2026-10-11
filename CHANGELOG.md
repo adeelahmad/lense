@@ -9,6 +9,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   answer inside the sandbox. The sandbox now waits for the names it downloads from, looks them up with public
   resolvers (1.1.1.1 and 9.9.9.9; `LENS_DNS_FALLBACK` changes or turns that off) when this machine's don't answer
   there, and runs each download step up to three times ([microsandbox](docs/microsandbox.md#name-lookups)).
+- **Running the install line again keeps the lean edition.** An install made lean (`LENS_TARGET=lean`, or the web
+  installer's pick on a computer with less than 4 GB of memory) became full again when the line ran without
+  `LENS_TARGET`, so the next start installed LibreOffice and Chromium. It now keeps the edition the install has, as it
+  does the port and the network setting ([Get started](docs/get-started.md)).
 
 - **A Mac app.** Lens.app (`Lens-macOS-arm64.dmg`, Apple silicon) installs Lens in the web installer shown in its
   window, with microsandbox inside it so no Docker is needed, then lives in the menu bar: open, start, stop and update
