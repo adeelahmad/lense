@@ -12,9 +12,10 @@ that out (threat-model.md, N-PROMPT), so the assistant's prompts keep it apart:
 - `RULES`, added to the system prompt, tells the model that marked text is material to read, quote and cite, never
   instructions to follow, and that what it read never goes into a web address or a tool's arguments unasked.
 - `flags` says why a piece reads like instructions to an AI ("ignore previous instructions", control tokens, text
-  hidden in invisible characters, data to be put into a link...): free patterns, and with ai.injection_check "model"
-  the decision model's view of what they miss (decide.py: a call per tool result, through the activity ledger). A
-  flagged piece's marker carries a warning, and the answer's step says so.
+  hidden in invisible characters, data to be put into a link...): free patterns, and for what they miss in a tool's
+  result, with ai.injection_check "classifier" a local model trained to spot injection (injection_model.py), or with
+  "model" the decision model (decide.py), a call per tool result, through the activity ledger. A flagged piece's
+  marker carries a warning, and the answer's step says so.
 
 ai.untrusted_marking (on by default) turns marking off, for a model that the markers confuse; ai.injection_check "off"
 turns the flags off. What the assistant may do with its tools after reading such text is ai_tools.py's
@@ -96,7 +97,7 @@ _PATTERNS = [
     ),
 ]
 _PATTERNS = [(why, re.compile(rx, re.I | re.M)) for why, rx in _PATTERNS]
-CHECKS = ("patterns", "model", "off")
+CHECKS = ("patterns", "classifier", "model", "off")
 MODEL_CHARS = 4000  # of a piece, for the decision model
 
 
@@ -112,14 +113,15 @@ def neutral(text):
 
 
 def check(cfg):
-    """How text is checked for instructions to an AI: patterns (free, the default), model, or off."""
+    """How text is checked for instructions to an AI: patterns (free, the default), classifier, model, or off."""
     got = ((cfg or {}).get("ai") or {}).get("injection_check") or "patterns"
     return got if got in CHECKS else "patterns"
 
 
 def flags(text, cfg=None, model=False):
     """Why `text` reads like instructions to an AI, as short reasons ([] when it doesn't). The patterns cost nothing;
-    `model` adds the decision model's view of what they miss, when ai.injection_check is "model"."""
+    `model` adds a second opinion on what they miss: the local injection classifier's when ai.injection_check is
+    "classifier" (injection_model.py), the decision model's when it is "model"."""
     how = check(cfg)
     if how == "off" or not text:
         return []
@@ -131,6 +133,10 @@ def flags(text, cfg=None, model=False):
         out.append("hidden characters")
     if not out and model and how == "model":
         out += _model_flags(text, cfg)
+    elif not out and model and how == "classifier":
+        from . import injection_model
+
+        out += injection_model.flags(cfg, text)
     return out
 
 

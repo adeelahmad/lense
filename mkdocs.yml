@@ -91,6 +91,8 @@ nav:
       - Graph history: graph-history.md
       - Topics: topics.md
       - The graph as files: file-tree.md
+      - NFS share: file-shares.md
+      - SMB share: smb.md
       - Linked data (RDF): rdf.md
       - IIIF: iiif.md
       - Fedora repository: fedora.md

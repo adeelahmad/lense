@@ -56,6 +56,10 @@ EDITABLE = {
     "tunnel": None,
     "https": None,
     # bind is a startup setting only
+    "nfs": ("enabled", "port", "allowed_networks", "account"),
+    # bind is a startup setting only
+    # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
+    "smb": ("enabled", "allowed_networks"),
     "sensors": (
         "enabled",
         "mqtt",
@@ -72,6 +76,8 @@ EDITABLE = {
         "max_per_minute",
         "triage",
     ),
+    # bind is a startup setting only
+    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port"),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -144,7 +150,7 @@ ENUMS = {
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
-    ("ai", "injection_check"): {"patterns", "model", "off"},
+    ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},
@@ -425,8 +431,14 @@ def _check(section, key, value, default):
         return _backup_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
+    if section == "shares":
+        return _share_setting(key, value)
     if section == "sensors":
         return _sensor_setting(key, value)
+    if section == "nfs":
+        return _nfs_setting(key, value)
+    if section == "smb":
+        return _smb_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "mail" and key != "security":
@@ -911,6 +923,61 @@ def _sensor_setting(key, value):
         return None  # kept for good
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"sensors.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
+def _nfs_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("nfs.enabled is true or false")
+        return value
+    if key == "port":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+            raise ValueError("nfs.port is a whole number from 1 to 65535")
+        return value
+    if key == "account":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+            raise ValueError("nfs.account is an account's id, or empty for the first admin")
+        return value
+    if not isinstance(value, list) or not value:
+        raise ValueError("nfs.allowed_networks is a list of networks like 192.168.1.0/24 (at least one)")
+    out = []
+    for v in value:
+        try:
+            net = ipaddress.ip_network(str(v).strip(), strict=False)
+        except ValueError:
+            raise ValueError(f"nfs.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
+        if net.prefixlen == 0:  # NFS has no sign-in: the whole internet is never a sensible default to type
+            raise ValueError(f"nfs.allowed_networks: {v} is every address; list the networks your machines are on")
+        out.append(str(net))
+    return list(dict.fromkeys(out))
+
+
+def _smb_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("smb.enabled is true or false")
+        return value
+    if not isinstance(value, list) or len(value) > 100:
+        raise ValueError("smb.allowed_networks is a list of networks like 192.168.1.0/24")
+    out = []
+    for v in value:
+        try:
+            out.append(str(ipaddress.ip_network(str(v).strip(), strict=False)))
+        except ValueError:
+            raise ValueError(f"smb.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
+    return list(dict.fromkeys(out))
+
+
+def _share_setting(key, value):
+    if key in ("enabled", "s3", "webdav"):
+        if not isinstance(value, bool):
+            raise ValueError(f"shares.{key} is true or false")
+        return value
+    if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+        raise ValueError(f"shares.{key} is a port number from 1 to 65535")
     return value
 
 

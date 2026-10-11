@@ -3,10 +3,11 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlugZap, RefreshCw, Terminal } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Admin, Fedora, Metadata, Sensors, Sources } from "@/app/openapi-client";
+import { Admin, Fedora, Metadata, Sensors, Shares, Sources, Users } from "@/app/openapi-client";
 import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
+import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
 import { AllTokens } from "@/components/account/all-tokens";
@@ -14,6 +15,13 @@ import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
 import { hubText } from "@/components/sensors/sensor-model";
 import { SecretSetting, SettingField, ZoneBar, type FieldState } from "@/components/settings/fields";
+import {
+  KeyLink,
+  ModelProviderPicker,
+  providerAt,
+  useModelProviders,
+  type ModelProvider,
+} from "@/components/settings/model-providers";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
 import { VoicePicker } from "@/components/settings/voice-picker";
 import { AddConnection } from "@/components/storage/add-connection";
@@ -55,6 +63,7 @@ function F({
   hint,
   options,
   className,
+  suggestions,
 }: {
   ctx: BodyCtx;
   id: string;
@@ -62,6 +71,7 @@ function F({
   hint?: ReactNode;
   options?: FieldSpec["options"];
   className?: string;
+  suggestions?: string[];
 }) {
   const spec = ctx.spec(id);
   return (
@@ -71,6 +81,7 @@ function F({
       label={label}
       hint={hint}
       className={className}
+      suggestions={suggestions}
     />
   );
 }
@@ -388,6 +399,12 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <FedoraBody ctx={ctx} />;
     case "sensors":
       return <SensorsBody ctx={ctx} />;
+    case "nfs":
+      return <NfsBody ctx={ctx} />;
+    case "smb":
+      return <SmbBody ctx={ctx} />;
+    case "shares":
+      return <SharesBody ctx={ctx} />;
     case "uploads":
       return (
         <>
@@ -435,18 +452,28 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
   const llm = ctx.view.llm?.values ?? {};
   const secret = (llm.api_key ?? {}) as { set?: boolean };
   const key = ctx.state("llm.api_key");
+  const baseUrl = ctx.state("llm.base_url");
+  const model = ctx.state("llm.model");
   const test = useMutation({
     mutationFn: () => data(Admin.testLlm({ client })),
   });
+  // The setup wizard's provider step: a server found nearby or a cloud provider fills in the address and the model,
+  // and a cloud provider's key is asked for next
+  const canPick = !baseUrl.locked && !model.locked;
+  const { servers, cloud, looking } = useModelProviders(canPick);
+  const at = String(baseUrl.value ?? "");
+  const here = providerAt([...servers, ...cloud], at);
+  const [askKey, setAskKey] = useState(0);
+  const pick = (p: ModelProvider) => {
+    if (p.key_url && !key.locked && !providerAt([p], at)) setAskKey((n) => n + 1); // a new provider: its key next
+    baseUrl.onChange(p.base_url);
+    model.onChange(p.model);
+  };
   return (
     <>
+      {canPick && <ModelProviderPicker servers={servers} cloud={cloud} looking={looking} baseUrl={at} onPick={pick} />}
       <F ctx={ctx} id="llm.base_url" />
-      <F ctx={ctx} id="llm.model" />
-      <F ctx={ctx} id="llm.chat_models" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <F ctx={ctx} id="llm.vision_model" />
-        <F ctx={ctx} id="llm.describe_max" />
-      </div>
+      <F ctx={ctx} id="llm.model" suggestions={here?.models} />
       <SecretSetting
         key={ctx.view.llm?.updated_at ?? "none"}
         label="API key"
@@ -455,8 +482,15 @@ function LlmBody({ ctx }: { ctx: BodyCtx }) {
         updatedAt={ctx.view.llm?.updated_at}
         value={key.value as string | undefined}
         onChange={(x) => key.onChange(x)}
+        hint={here?.key_url ? <KeyLink provider={here} /> : undefined}
+        focus={askKey}
       />
       <F ctx={ctx} id="llm.api_key_env" hint="Used only when no key is stored above" />
+      <F ctx={ctx} id="llm.chat_models" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="llm.vision_model" />
+        <F ctx={ctx} id="llm.describe_max" />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="llm.max_chars" />
         <F ctx={ctx} id="llm.timeout" />
@@ -617,9 +651,11 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
       <p className="-mt-2 text-[12.5px] leading-[1.45] text-fg-secondary">
         For Grafana and other Prometheus tools: jobs, imports, model calls, cost, budgets, workers and disk, served at{" "}
         <code className="font-mono">/metrics</code> on this address with the same privacy as telemetry. A scraper sends
-        the token as <code className="font-mono">Authorization: Bearer</code>. The monitoring profile runs Prometheus
-        and Grafana next to Lens, ready made, with charts of Lens and this machine (docs/prometheus.md).
+        the token as <code className="font-mono">Authorization: Bearer</code>. Charts and history runs Prometheus and
+        Grafana next to Lens, ready made, with charts of Lens and this machine, and sets up the token itself
+        (docs/prometheus.md).
       </p>
+      <MonitoringSwitch />
       {Boolean(saved.prometheus) && !promSecret.set && !promToken.value && (
         <Banner tone="error" title="On, but there is no scrape token.">
           Set one below; until then /metrics answers no one.
@@ -906,6 +942,47 @@ function FedoraBody({ ctx }: { ctx: BodyCtx }) {
   );
 }
 
+function SmbBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const status = useQuery({
+    queryKey: ["smb-status"],
+    queryFn: () => data(Admin.smbStatus({ client })),
+    refetchInterval: 10_000,
+  });
+  const s = status.data;
+  const host = typeof window === "undefined" ? "<lens-machine>" : window.location.hostname;
+  const fill = (x: string) => x.replaceAll("<lens-machine>", host);
+  return (
+    <>
+      {s && s.enabled && (
+        <Banner
+          tone={s.phase === "running" ? "success" : s.phase === "error" ? "error" : "info"}
+          title={s.phase === "running" ? "Sharing" : s.phase === "error" ? "Not sharing" : "Starting"}
+        >
+          {s.phase === "running" ? (
+            <>
+              Open <code className="font-mono">{fill(s.address)}</code> in Finder (Go › Connect to Server) or a Linux
+              file manager, or mount it with <code className="font-mono">{fill(s.mount)}</code>. Sign in with a file
+              access key: its id is the user name, its secret the password.
+            </>
+          ) : (
+            (s.error ??
+            (s.installed ? "A worker starts it within seconds." : "Fetching the SMB server, then a worker starts it."))
+          )}
+        </Banner>
+      )}
+      <F ctx={ctx} id="smb.enabled" />
+      <F ctx={ctx} id="smb.allowed_networks" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        With Docker, the worker container publishes it on port {s?.port ?? 1445} of this machine, reachable from this
+        machine only unless <code className="font-mono">LENS_BIND</code> or{" "}
+        <code className="font-mono">LENS_SHARE_BIND</code> opens it to the network. Windows only connects to port 445:
+        install with <code className="font-mono">LENS_SMB_PORT=445</code> in front of the install line for it.
+      </p>
+    </>
+  );
+}
+
 function SensorsBody({ ctx }: { ctx: BodyCtx }) {
   const client = useApiClient();
   const status = useQuery({
@@ -965,6 +1042,115 @@ function SensorsBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <F ctx={ctx} id="sensors.max_per_minute" />
       <F ctx={ctx} id="sensors.triage" />
+    </>
+  );
+}
+
+function NfsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const status = useQuery({
+    queryKey: ["nfs-status"],
+    queryFn: () => data(Admin.nfsStatus({ client })),
+    refetchInterval: 10_000,
+  });
+  const users = useQuery({ queryKey: ["users"], queryFn: () => data(Users.listUsers({ client })), staleTime: 15_000 });
+  const s = status.data;
+  return (
+    <>
+      {s && s.enabled && (
+        <Banner
+          tone={s.phase === "running" ? "success" : s.phase === "error" ? "error" : "info"}
+          title={s.phase === "running" ? `Sharing as ${s.account}` : s.phase === "error" ? "Not sharing" : "Starting"}
+        >
+          {s.phase === "running" ? (
+            <>
+              Mount it on Linux with <code className="font-mono">{s.mount}</code>
+              {s.refused
+                ? `. Turned away ${s.refused} connection${s.refused === 1 ? "" : "s"} from other networks.`
+                : "."}
+            </>
+          ) : (
+            (s.error ?? "A worker starts it within seconds.")
+          )}
+        </Banner>
+      )}
+      <F ctx={ctx} id="nfs.enabled" />
+      <F
+        ctx={ctx}
+        id="nfs.account"
+        options={[
+          { value: "", label: "The first admin" },
+          ...(users.data ?? []).filter((u) => !u.disabled).map((u) => ({ value: String(u.id), label: u.email })),
+        ]}
+      />
+      <F ctx={ctx} id="nfs.allowed_networks" />
+      <F ctx={ctx} id="nfs.port" />
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        With Docker, the worker container publishes it on port {s?.port ?? 12049} of this machine, reachable from this
+        machine only unless <code className="font-mono">LENS_BIND</code> or{" "}
+        <code className="font-mono">LENS_SHARE_BIND</code> opens it to the network; set{" "}
+        <code className="font-mono">LENS_NFS_PORT</code> in .env to use another port.
+      </p>
+    </>
+  );
+}
+
+type ShareServer = {
+  enabled: boolean;
+  port: number;
+  service?: { running?: boolean | null; port?: number | null; error?: string | null } | null;
+};
+
+function shareText(name: string, st: ShareServer): string {
+  const svc = st.service;
+  if (svc?.error) return `${name} can’t start: ${svc.error}`;
+  if (svc?.running) return `${name} is serving on port ${svc.port}`;
+  return st.enabled ? `${name} is starting…` : `${name} is off`;
+}
+
+function SharesBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const status = useQuery({
+    queryKey: ["shares", "s3", ctx.view.shares?.updated_at ?? null],
+    queryFn: () => data(Shares.s3Status({ client })),
+    refetchInterval: 15_000,
+  });
+  const st = status.data;
+  const failed = Boolean(st?.service?.error || st?.webdav.service?.error);
+  const running = Boolean(st?.service?.running || st?.webdav.service?.running);
+  const on = ctx.values["shares.enabled"] === true;
+  return (
+    <>
+      {st && (
+        <Banner
+          tone={failed ? "error" : running ? "success" : "info"}
+          title={running || failed ? "File shares" : "Not shared"}
+          action={
+            <Button asChild size="xs" variant="secondary">
+              <Link href="/account/tokens#s3">Your access keys</Link>
+            </Button>
+          }
+        >
+          {on
+            ? `${shareText("S3", st)}. ${shareText("WebDAV", st.webdav)}. People sign in with an access key from their API tokens page.`
+            : "Turn it on below; the workers start listening within seconds."}
+        </Banner>
+      )}
+      <F ctx={ctx} id="shares.enabled" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="shares.s3" />
+        <F ctx={ctx} id="shares.s3_port" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="shares.webdav" />
+        <F ctx={ctx} id="shares.webdav_port" />
+      </div>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        With Docker, the worker container publishes 9555 (S3) and 9556 (WebDAV) where the web app is; set{" "}
+        <code className="font-mono">LENS_S3_PORT</code> or <code className="font-mono">LENS_WEBDAV_PORT</code> in .env
+        to publish them on other ports of the host.
+        {on ? "" : " Nothing listens until it’s on."}
+      </p>
     </>
   );
 }

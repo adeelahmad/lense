@@ -18,6 +18,7 @@ import {
   findFocus,
   mergeGraph,
   NODE_GROUPS,
+  openingNamespace,
   summarize,
   type GraphData,
   type GraphNode,
@@ -63,15 +64,18 @@ export function GraphPage() {
   const router = useRouter();
   const pathname = usePathname();
   const client = useApiClient();
-  const { namespaces, namespace: topNs, admin } = useArchive();
+  const { namespaces, namespace: topNs, admin, loaded } = useArchive();
   const nsNames = namespaces.map((n) => n.name);
   const focusParam = params.get("focus");
   const urlNs = params.get("ns");
-  const scopeMode: "ns" | "all" = params.get("scope") === "all" ? "all" : urlNs ? "ns" : topNs ? "ns" : "all";
+  const allShared = params.get("scope") === "all";
+  // with no namespace picked, open where there is something to see
+  const opening = urlNs || topNs || allShared ? null : openingNamespace(namespaces);
+  const scopeMode: "ns" | "all" = allShared ? "all" : urlNs || topNs || opening ? "ns" : "all";
   const ns =
     urlNs && nsNames.includes(urlNs)
       ? urlNs
-      : (topNs ?? namespaces.find((n) => n.graph !== "isolated")?.name ?? nsNames[0] ?? null);
+      : (topNs ?? opening ?? namespaces.find((n) => n.graph !== "isolated")?.name ?? nsNames[0] ?? null);
   const scope = scopeMode === "all" || !ns ? "global" : `ns:${ns}`;
   const view = params.get("view") === "table" ? "table" : "graph";
   const asOf = params.get("as_of");
@@ -98,6 +102,8 @@ export function GraphPage() {
     queryKey: ["graph", scope, asOf],
     queryFn: async () =>
       (await data(Search.getGraph({ client, query: { scope, as_of: asOf } }))) as unknown as GraphData,
+    // the namespaces decide the scope, so wait for them rather than build a graph nobody looks at
+    enabled: loaded,
     staleTime: 60_000,
   });
   const settings = useQuery({
@@ -201,7 +207,8 @@ export function GraphPage() {
         (j.steps ?? []).some((s) => (typeof s === "string" ? s : (s as { type?: string })?.type) === "analyze")),
   ).length;
 
-  const filters = (
+  // the side column's find box takes the focus, so typing finds; the filters sheet on smaller screens doesn't
+  const filters = (focusFind: boolean) => (
     <GraphFilters
       nodes={all.nodes}
       scope={scope === "global" ? "all" : "ns"}
@@ -226,6 +233,7 @@ export function GraphPage() {
         setFiltersOpen(false); // on a phone the filters sheet would cover the node picked
       }}
       isolated={namespaces.filter((n) => n.graph === "isolated").map((n) => n.name)}
+      focusFind={focusFind}
     />
   );
   const viewSwitch = (
@@ -248,7 +256,7 @@ export function GraphPage() {
         aria-label="Graph filters"
         className="hidden min-h-0 flex-col gap-4 overflow-y-auto border-r border-border bg-surface p-4 lg:flex"
       >
-        {filters}
+        {filters(true)}
         <span className="flex-1" />
         <Link href="/routines/changes" className="text-[12.5px] font-semibold text-fg-accent hover:underline">
           Proposed changes to review
@@ -279,7 +287,7 @@ export function GraphPage() {
             show, or be hidden.
           </Banner>
         )}
-        {graph.isLoading && (
+        {(!loaded || graph.isLoading) && (
           <div className="flex flex-1 items-center justify-center p-10" aria-busy="true" aria-label="Loading the graph">
             <Skeleton className="size-64 rounded-full" />
           </div>
@@ -400,7 +408,7 @@ export function GraphPage() {
         </div>
       </Drawer>
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen} title="Graph filters">
-        {filters}
+        {filters(false)}
       </Dialog>
     </div>
   );

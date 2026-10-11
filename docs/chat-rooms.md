@@ -83,7 +83,8 @@ That's all. Without an account given, it answers as the admin who turned it on.
   is only when the person, the archive or a tool wrote it, or it is Lens's own; any other is broken up
   (`hxxps://evil[.]example/c?d=...`) and an image becomes its address, still readable to copy by hand.
   **Break up links the answer made itself** (`bridge.safe_links`, on) turns it off. The web app needs none of this:
-  its answers show no links or images that load by themselves.
+  its answers show no links or images that load by themselves. Each answer that had links broken up goes into the
+  audit log (`bridge.links_broken`, with how many).
 - **Conversations.** Each person in each room is a conversation of that account's, titled
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)). `Lens /clear` starts
