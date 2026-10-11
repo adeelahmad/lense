@@ -529,6 +529,19 @@ class Msg(Component):
         pip_install(cfg, "msg", say)
 
 
+class Smb(Component):
+    """impacket, for the SMB share of the file tree (smb_share.py): fetched when the share is turned on."""
+
+    def needed(self, cfg, m):
+        return bool((cfg.get("smb") or {}).get("enabled"))
+
+    def present(self, cfg):
+        return importable("impacket.smbserver")
+
+    def fetch(self, cfg, m, say):
+        pip_install(cfg, "smb", say)
+
+
 class Laya(Component):
     """laya-mlx and the chosen Laya model, for local decisions (decide.py) on Apple Silicon."""
 
@@ -682,6 +695,7 @@ COMPONENTS = [
     ),
     OllamaModel("llm-model", "Chat model", "the LLM provider's model, pulled on Ollama", section="llm"),
     OllamaModel("embedding-model", "Embedding model", "search by meaning's model, pulled on Ollama", section="embeddings", steps={"embed"}),
+    Smb("smb", "SMB server", "shares the file tree over SMB, read-only (smb.enabled; impacket)", size_mb=15, license="Apache-1.1"),
     Msg("msg", "Outlook .msg emails", "reads Outlook .msg files (extract-msg)", optional=True, license="GPL-3.0", size_mb=5),
 ]
 BY_ID = {c.id: c for c in COMPONENTS}

@@ -40,6 +40,8 @@ import type {
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
+  AllS3KeysData,
+  AllS3KeysResponses,
   AnswerActionData,
   AnswerActionErrors,
   AnswerActionResponses,
@@ -201,6 +203,9 @@ import type {
   CreateRoutineData,
   CreateRoutineErrors,
   CreateRoutineResponses,
+  CreateS3KeyData,
+  CreateS3KeyErrors,
+  CreateS3KeyResponses,
   CreateSearchData,
   CreateSearchErrors,
   CreateSearchResponses,
@@ -921,6 +926,8 @@ import type {
   ListWorkersResponses,
   ListWorkflowsData,
   ListWorkflowsResponses,
+  LlmProvidersData,
+  LlmProvidersResponses,
   LocalLlmStatusData,
   LocalLlmStatusResponses,
   LockVaultData,
@@ -973,6 +980,8 @@ import type {
   NewTokenData,
   NewTokenErrors,
   NewTokenResponses,
+  NfsStatusData,
+  NfsStatusResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -1160,6 +1169,9 @@ import type {
   RevokeGrantErrors,
   RevokeGrantResponses,
   RevokeResponses,
+  RevokeS3KeyData,
+  RevokeS3KeyErrors,
+  RevokeS3KeyResponses,
   RevokeShareData,
   RevokeShareErrors,
   RevokeShareResponses,
@@ -1184,6 +1196,8 @@ import type {
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
+  S3StatusData,
+  S3StatusResponses,
   SaveBudgetData,
   SaveBudgetErrors,
   SaveBudgetResponses,
@@ -1279,6 +1293,8 @@ import type {
   SkipTopicCandidateData,
   SkipTopicCandidateErrors,
   SkipTopicCandidateResponses,
+  SmbStatusData,
+  SmbStatusResponses,
   SpeakTextData,
   SpeakTextErrors,
   SpeakTextResponses,
@@ -2557,6 +2573,34 @@ export class Admin {
   }
 
   /**
+   * Nfs Status
+   *
+   * The file tree over NFS: whether it's serving, as whom, to which networks, and the command that mounts it.
+   */
+  public static nfsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<NfsStatusData, ThrowOnError>,
+  ): RequestResult<NfsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NfsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/nfs/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Smb Status
+   *
+   * The file tree over SMB (Settings › SMB share): whether it's serving, to which networks, and how to connect.
+   */
+  public static smbStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SmbStatusData, ThrowOnError>,
+  ): RequestResult<SmbStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SmbStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/smb/status",
+      ...options,
+    });
+  }
+
+  /**
    * Tunnel Status
    *
    * How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
@@ -3312,6 +3356,21 @@ export class Setup {
   ): RequestResult<DetectLlmResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).get<DetectLlmResponses, unknown, ThrowOnError>({
       url: "/api/v1/setup/llm/detect",
+      ...options,
+    });
+  }
+
+  /**
+   * Llm Providers
+   *
+   * Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a
+   * model, so picking one leaves only the API key to paste.
+   */
+  public static llmProviders<ThrowOnError extends boolean = false>(
+    options?: Options<LlmProvidersData, ThrowOnError>,
+  ): RequestResult<LlmProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<LlmProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup/llm/providers",
       ...options,
     });
   }
@@ -9529,6 +9588,70 @@ export class Sensors {
   ): RequestResult<PushStreamResponses, PushStreamErrors, ThrowOnError> {
     return (options.client ?? client).post<PushStreamResponses, PushStreamErrors, ThrowOnError>({
       url: "/api/v1/sensors/push/{token}/{stream}",
+      ...options,
+    });
+  }
+}
+
+export class Shares {
+  /**
+   * S3 Status
+   *
+   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your
+   * access keys.
+   */
+  public static s3Status<ThrowOnError extends boolean = false>(
+    options?: Options<S3StatusData, ThrowOnError>,
+  ): RequestResult<S3StatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<S3StatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/shares/s3",
+      ...options,
+    });
+  }
+
+  /**
+   * All S3 Keys
+   *
+   * Everyone's access keys, with their owners (admins).
+   */
+  public static allS3Keys<ThrowOnError extends boolean = false>(
+    options?: Options<AllS3KeysData, ThrowOnError>,
+  ): RequestResult<AllS3KeysResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<AllS3KeysResponses, unknown, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys",
+      ...options,
+    });
+  }
+
+  /**
+   * Create S3 Key
+   *
+   * An access key that reads the file tree as you, over S3 and WebDAV. Only while signed in to the web app (with your passkey),
+   * not with an API token. The secret is in this answer only.
+   */
+  public static createS3Key<ThrowOnError extends boolean = false>(
+    options: Options<CreateS3KeyData, ThrowOnError>,
+  ): RequestResult<CreateS3KeyResponses, CreateS3KeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateS3KeyResponses, CreateS3KeyErrors, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Revoke S3 Key
+   *
+   * Revoke one of your keys (admins: anyone's). It stops working at once.
+   */
+  public static revokeS3Key<ThrowOnError extends boolean = false>(
+    options: Options<RevokeS3KeyData, ThrowOnError>,
+  ): RequestResult<RevokeS3KeyResponses, RevokeS3KeyErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RevokeS3KeyResponses, RevokeS3KeyErrors, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys/{key_id}",
       ...options,
     });
   }

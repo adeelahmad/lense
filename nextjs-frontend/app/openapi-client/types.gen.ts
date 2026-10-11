@@ -2033,6 +2033,33 @@ export type ClientRegistration = {
 };
 
 /**
+ * CloudModelProvider
+ */
+export type CloudModelProvider = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Base Url
+   */
+  base_url: string;
+  /**
+   * Model
+   */
+  model: string;
+  /**
+   * Models
+   */
+  models: Array<string>;
+  /**
+   * Key Url
+   */
+  key_url: string;
+  [key: string]: unknown;
+};
+
+/**
  * Collection
  */
 export type Collection = {
@@ -8671,6 +8698,69 @@ export type NextRun = {
 };
 
 /**
+ * NfsStatus
+ */
+export type NfsStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Phase
+   */
+  phase: "off" | "running" | "error";
+  /**
+   * Port
+   */
+  port: number;
+  /**
+   * Allowed Networks
+   */
+  allowed_networks: Array<string>;
+  /**
+   * Account
+   *
+   * whose view of the file tree the share shows, while running
+   */
+  account?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Refused
+   *
+   * connections refused since it started, from outside the allowed networks
+   */
+  refused?: number;
+  /**
+   * Log
+   *
+   * rclone's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Process
+   *
+   * the worker running it
+   */
+  process?: string | null;
+  /**
+   * Mount
+   *
+   * the command that mounts it on Linux
+   */
+  mount: string;
+  /**
+   * Rclone
+   *
+   * whether rclone is installed here
+   */
+  rclone: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * NodeParam
  */
 export type NodeParam = {
@@ -13646,6 +13736,149 @@ export type RoutineUpdate = {
 };
 
 /**
+ * S3Key
+ */
+export type S3Key = {
+  /**
+   * Id
+   *
+   * the access key id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  /**
+   * Email
+   *
+   * its owner (the list of everyone's keys)
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * S3KeyCreate
+ */
+export type S3KeyCreate = {
+  /**
+   * Name
+   */
+  name?: string;
+  /**
+   * Days
+   *
+   * how long it lasts (the API keys' limits); none: their default
+   */
+  days?: number | null;
+};
+
+/**
+ * S3KeyCreated
+ */
+export type S3KeyCreated = {
+  /**
+   * Id
+   *
+   * the access key id
+   */
+  id: string;
+  /**
+   * Secret
+   *
+   * the secret access key, shown this once
+   */
+  secret: string;
+  /**
+   * Port
+   *
+   * the S3 server's port
+   */
+  port: number;
+  /**
+   * Webdav Port
+   */
+  webdav_port: number;
+  [key: string]: unknown;
+};
+
+/**
+ * S3Service
+ */
+export type S3Service = {
+  /**
+   * Process
+   */
+  process?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Running
+   */
+  running?: boolean | null;
+  /**
+   * Port
+   */
+  port?: number | null;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * S3Status
+ *
+ * The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both).
+ */
+export type S3Status = {
+  /**
+   * Enabled
+   *
+   * whether an admin turned it on (shares.enabled and its own switch)
+   */
+  enabled: boolean;
+  /**
+   * Port
+   *
+   * the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)
+   */
+  port: number;
+  /**
+   * what the process running it says; none while it's off
+   */
+  service?: S3Service | null;
+  webdav: ShareServer;
+  /**
+   * Keys
+   *
+   * your access keys
+   */
+  keys: Array<S3Key>;
+  [key: string]: unknown;
+};
+
+/**
  * SavedSearch
  */
 export type SavedSearch = {
@@ -15087,6 +15320,29 @@ export type ShareLink = {
 };
 
 /**
+ * ShareServer
+ */
+export type ShareServer = {
+  /**
+   * Enabled
+   *
+   * whether an admin turned it on (shares.enabled and its own switch)
+   */
+  enabled: boolean;
+  /**
+   * Port
+   *
+   * the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)
+   */
+  port: number;
+  /**
+   * what the process running it says; none while it's off
+   */
+  service?: S3Service | null;
+  [key: string]: unknown;
+};
+
+/**
  * ShareSite
  */
 export type ShareSite = {
@@ -15412,6 +15668,65 @@ export type SimilarTopic = {
    * Label
    */
   label: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SmbStatus
+ */
+export type SmbStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Phase
+   */
+  phase: "off" | "starting" | "running" | "error";
+  /**
+   * Port
+   *
+   * the port clients connect to (where Docker publishes it)
+   */
+  port: number;
+  /**
+   * Share
+   *
+   * the share's name
+   */
+  share: string;
+  /**
+   * Allowed Networks
+   */
+  allowed_networks: Array<string>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Process
+   *
+   * the worker serving it
+   */
+  process?: string | null;
+  /**
+   * Installed
+   *
+   * whether the SMB server (impacket) is installed here; it's fetched when the share is turned on
+   */
+  installed: boolean;
+  /**
+   * Address
+   *
+   * the address Finder and Linux file managers open (the machine's name filled in by the caller)
+   */
+  address: string;
+  /**
+   * Mount
+   *
+   * the command that mounts it on Linux
+   */
+  mount: string;
   [key: string]: unknown;
 };
 
@@ -20322,6 +20637,38 @@ export type RemoveLocalModelResponses = {
 
 export type RemoveLocalModelResponse = RemoveLocalModelResponses[keyof RemoveLocalModelResponses];
 
+export type NfsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/nfs/status";
+};
+
+export type NfsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: NfsStatus;
+};
+
+export type NfsStatusResponse = NfsStatusResponses[keyof NfsStatusResponses];
+
+export type SmbStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/smb/status";
+};
+
+export type SmbStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: SmbStatus;
+};
+
+export type SmbStatusResponse = SmbStatusResponses[keyof SmbStatusResponses];
+
 export type TunnelStatusData = {
   body?: never;
   path?: never;
@@ -21503,6 +21850,24 @@ export type DetectLlmResponses = {
 };
 
 export type DetectLlmResponse = DetectLlmResponses[keyof DetectLlmResponses];
+
+export type LlmProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm/providers";
+};
+
+export type LlmProvidersResponses = {
+  /**
+   * Response Setup-Llm Providers
+   *
+   * Successful Response
+   */
+  200: Array<CloudModelProvider>;
+};
+
+export type LlmProvidersResponse = LlmProvidersResponses[keyof LlmProvidersResponses];
 
 export type SaveStorageData = {
   body: SetupStorage;
@@ -33801,6 +34166,95 @@ export type PushStreamResponses = {
 };
 
 export type PushStreamResponse = PushStreamResponses[keyof PushStreamResponses];
+
+export type S3StatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3";
+};
+
+export type S3StatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: S3Status;
+};
+
+export type S3StatusResponse = S3StatusResponses[keyof S3StatusResponses];
+
+export type AllS3KeysData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3/keys";
+};
+
+export type AllS3KeysResponses = {
+  /**
+   * Response Shares-All S3 Keys
+   *
+   * Successful Response
+   */
+  200: Array<S3Key>;
+};
+
+export type AllS3KeysResponse = AllS3KeysResponses[keyof AllS3KeysResponses];
+
+export type CreateS3KeyData = {
+  body: S3KeyCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3/keys";
+};
+
+export type CreateS3KeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateS3KeyError = CreateS3KeyErrors[keyof CreateS3KeyErrors];
+
+export type CreateS3KeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: S3KeyCreated;
+};
+
+export type CreateS3KeyResponse = CreateS3KeyResponses[keyof CreateS3KeyResponses];
+
+export type RevokeS3KeyData = {
+  body?: never;
+  path: {
+    /**
+     * Key Id
+     */
+    key_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shares/s3/keys/{key_id}";
+};
+
+export type RevokeS3KeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RevokeS3KeyError = RevokeS3KeyErrors[keyof RevokeS3KeyErrors];
+
+export type RevokeS3KeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RevokeS3KeyResponse = RevokeS3KeyResponses[keyof RevokeS3KeyResponses];
 
 export type ListImportHooksData = {
   body?: never;

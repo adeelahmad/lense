@@ -75,6 +75,8 @@ def test_a_setup_conversation_sets_the_server_up(app, db, cfg, folder, new_clien
     ]
     status = json.loads(llm.seen[-1]["messages"][3]["content"])  # what server_status told the model
     assert status["namespaces"] == ["calls", "pods"] and "missing" in status
+    found = json.loads(llm.seen[-1]["messages"][4]["content"])  # and find_model_servers: nearby and cloud providers
+    assert found["servers"][0]["kind"] == "Ollama" and found["cloud"][0]["base_url"] == "https://api.openai.com/v1"
     asked = llm.seen[-6]["messages"]
     assert "setting up this Lens server" in asked[0]["content"]
     assert f"attachment id {up['id']}" in asked[-1]["content"]  # the model hears about the file

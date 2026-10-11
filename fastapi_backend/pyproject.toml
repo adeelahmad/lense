@@ -49,6 +49,9 @@ objects = ["onnxruntime"]
 injection = ["onnxruntime", "tokenizers"]
 # Checking IIIF manifests against the official schema
 validate = ["jsonschema"]
+# the SMB share of the file tree (smb_share.py): impacket's SMB server (a modified Apache 1.1 license); fetched when
+# Settings › SMB share is turned on
+smb = ["impacket>=0.13"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
 
@@ -77,6 +80,8 @@ dev = [
     "onnx>=1.23.2",  # ... which they build
     "tokenizers>=0.20",  # the injection classifier tests run a tiny model and tokenizer
     "mcp>=2.3.0",  # the official MCP client, to test the MCP server with
+    "impacket>=0.13",  # the SMB share's server, and the SMB client its tests sign in with
+    "botocore>=1.43.111",
 ]
 
 [tool.hatch.build.targets.wheel]

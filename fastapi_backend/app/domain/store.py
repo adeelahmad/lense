@@ -439,6 +439,16 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # the read-only SMB share of the file tree (smb_share.py, docs/smb.md): off until an admin turns it on, then
+    # served by `lens worker` to people signing in with a file access key, from allowed_networks only. bind and port
+    # are startup settings only: in Docker it listens on 0.0.0.0:4445 inside the container, published where the web
+    # app is (LENS_SHARE_BIND, else LENS_BIND) on LENS_SMB_PORT.
+    "smb": {
+        "enabled": False,
+        "bind": os.environ.get("LENS_SMB_LISTEN") or "127.0.0.1",
+        "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
+        "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
+    },
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
@@ -460,6 +470,18 @@ DEFAULTS = {
         "max_per_minute": 600,
         "triage": False,
     },
+    # the file tree over NFS (domain/nfs_share.py, docs/file-tree.md): off until turned on; read-only, shown as `account`
+    # (an account id; null: the first admin), to the machines in allowed_networks. bind is a startup setting only.
+    "nfs": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "port": 2049,
+        "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
+        "account": None,
+    },
+    # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
+    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
+    "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
@@ -1056,6 +1078,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS external_identity_account ON external_identity FIELDS account",
     "DEFINE INDEX IF NOT EXISTS external_identity_provider ON external_identity FIELDS provider",
     "DEFINE TABLE IF NOT EXISTS external_flow SCHEMALESS",
+    # access keys for the file tree's S3 server (s3.py): id is the key id, the secret sealed
+    "DEFINE TABLE IF NOT EXISTS file_key SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS file_key_account ON file_key FIELDS account",
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",
@@ -1135,6 +1160,8 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
     "DEFINE TABLE IF NOT EXISTS sensor_service SCHEMALESS",
+    # the file-sharing servers running now (smb_share.py): one row per server and process, refreshed while it runs
+    "DEFINE TABLE IF NOT EXISTS share_service SCHEMALESS",
     # the chat-room bridge (bridge.py): which process reads Matterbridge (bridge_state:lease); its conversations are
     # chats with a `bridge` key (the room and person)
     "DEFINE TABLE IF NOT EXISTS bridge_state SCHEMALESS",

@@ -2444,6 +2444,50 @@
         }
       }
     },
+    "/api/v1/settings/nfs/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Nfs Status",
+        "description": "The file tree over NFS: whether it's serving, as whom, to which networks, and the command that mounts it.",
+        "operationId": "nfs_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NfsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/smb/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Smb Status",
+        "description": "The file tree over SMB (Settings \u203a SMB share): whether it's serving, to which networks, and how to connect.",
+        "operationId": "smb_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmbStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/tunnel/status": {
       "get": {
         "tags": [
@@ -4272,6 +4316,32 @@
                   },
                   "type": "array",
                   "title": "Response Setup-Detect Llm"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/llm/providers": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Llm Providers",
+        "description": "Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a\nmodel, so picking one leaves only the API key to paste.",
+        "operationId": "llm_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CloudModelProvider"
+                  },
+                  "type": "array",
+                  "title": "Response Setup-Llm Providers"
                 }
               }
             }
@@ -24466,6 +24536,137 @@
         }
       }
     },
+    "/api/v1/shares/s3": {
+      "get": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "S3 Status",
+        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your\naccess keys.",
+        "operationId": "s3_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/s3/keys": {
+      "get": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "All S3 Keys",
+        "description": "Everyone's access keys, with their owners (admins).",
+        "operationId": "all_s3_keys",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/S3Key"
+                  },
+                  "type": "array",
+                  "title": "Response Shares-All S3 Keys"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Create S3 Key",
+        "description": "An access key that reads the file tree as you, over S3 and WebDAV. Only while signed in to the web app (with your passkey),\nnot with an API token. The secret is in this answer only.",
+        "operationId": "create_s3_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/S3KeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3KeyCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/s3/keys/{key_id}": {
+      "delete": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Revoke S3 Key",
+        "description": "Revoke one of your keys (admins: anyone's). It stops working at once.",
+        "operationId": "revoke_s3_key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/import-hooks": {
       "get": {
         "tags": [
@@ -29406,6 +29607,43 @@
         ],
         "title": "ClientRegistration",
         "description": "Dynamic client registration (RFC 7591). Metadata Lens has no use for is ignored, as the RFC asks."
+      },
+      "CloudModelProvider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "key_url": {
+            "type": "string",
+            "title": "Key Url"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "base_url",
+          "model",
+          "models",
+          "key_url"
+        ],
+        "title": "CloudModelProvider"
       },
       "Collection": {
         "properties": {
@@ -40719,6 +40957,104 @@
         ],
         "title": "NextRun"
       },
+      "NfsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "off",
+              "running",
+              "error"
+            ],
+            "title": "Phase"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port"
+          },
+          "allowed_networks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Networks"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account",
+            "description": "whose view of the file tree the share shows, while running"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "refused": {
+            "type": "integer",
+            "title": "Refused",
+            "description": "connections refused since it started, from outside the allowed networks",
+            "default": 0
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "rclone's last lines"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the worker running it"
+          },
+          "mount": {
+            "type": "string",
+            "title": "Mount",
+            "description": "the command that mounts it on Linux"
+          },
+          "rclone": {
+            "type": "boolean",
+            "title": "Rclone",
+            "description": "whether rclone is installed here"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "phase",
+          "port",
+          "allowed_networks",
+          "mount",
+          "rclone"
+        ],
+        "title": "NfsStatus"
+      },
       "NodeParam": {
         "properties": {
           "name": {
@@ -49429,6 +49765,248 @@
         "type": "object",
         "title": "RoutineUpdate"
       },
+      "S3Key": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the access key id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "its owner (the list of everyone's keys)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "S3Key"
+      },
+      "S3KeyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name",
+            "default": "S3 key"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days",
+            "description": "how long it lasts (the API keys' limits); none: their default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "S3KeyCreate"
+      },
+      "S3KeyCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the access key id"
+          },
+          "secret": {
+            "type": "string",
+            "title": "Secret",
+            "description": "the secret access key, shown this once"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the S3 server's port"
+          },
+          "webdav_port": {
+            "type": "integer",
+            "title": "Webdav Port"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "secret",
+          "port",
+          "webdav_port"
+        ],
+        "title": "S3KeyCreated"
+      },
+      "S3Service": {
+        "properties": {
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "running": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "S3Service"
+      },
+      "S3Status": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether an admin turned it on (shares.enabled and its own switch)"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/S3Service"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the process running it says; none while it's off"
+          },
+          "webdav": {
+            "$ref": "#/components/schemas/ShareServer"
+          },
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/S3Key"
+            },
+            "type": "array",
+            "title": "Keys",
+            "description": "your access keys"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "port",
+          "webdav",
+          "keys"
+        ],
+        "title": "S3Status",
+        "description": "The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."
+      },
       "SavedSearch": {
         "properties": {
           "id": {
@@ -52003,6 +52581,38 @@
         ],
         "title": "ShareLink"
       },
+      "ShareServer": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether an admin turned it on (shares.enabled and its own switch)"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/S3Service"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the process running it says; none while it's off"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "port"
+        ],
+        "title": "ShareServer"
+      },
       "ShareSite": {
         "properties": {
           "origin": {
@@ -52510,6 +53120,92 @@
           "label"
         ],
         "title": "SimilarTopic"
+      },
+      "SmbStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "off",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "Phase"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port clients connect to (where Docker publishes it)"
+          },
+          "share": {
+            "type": "string",
+            "title": "Share",
+            "description": "the share's name"
+          },
+          "allowed_networks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Networks"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the worker serving it"
+          },
+          "installed": {
+            "type": "boolean",
+            "title": "Installed",
+            "description": "whether the SMB server (impacket) is installed here; it's fetched when the share is turned on"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "the address Finder and Linux file managers open (the machine's name filled in by the caller)"
+          },
+          "mount": {
+            "type": "string",
+            "title": "Mount",
+            "description": "the command that mounts it on Linux"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "phase",
+          "port",
+          "share",
+          "allowed_networks",
+          "installed",
+          "address",
+          "mount"
+        ],
+        "title": "SmbStatus"
       },
       "Source": {
         "properties": {
