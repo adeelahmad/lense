@@ -659,6 +659,10 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  HttpsProvidersData,
+  HttpsProvidersResponses,
+  HttpsStatusData,
+  HttpsStatusResponses,
   ImportArchiveData,
   ImportArchiveErrors,
   ImportArchiveResponses,
@@ -1178,6 +1182,9 @@ import type {
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
+  SaveBudgetData,
+  SaveBudgetErrors,
+  SaveBudgetResponses,
   SaveCollectionFieldsData,
   SaveCollectionFieldsErrors,
   SaveCollectionFieldsResponses,
@@ -2560,6 +2567,36 @@ export class Admin {
   }
 
   /**
+   * Https Status
+   *
+   * How HTTPS (Settings › HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it
+   * holds and when they run out, and Caddy's last lines.
+   */
+  public static httpsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsStatusData, ThrowOnError>,
+  ): RequestResult<HttpsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Https Providers
+   *
+   * The DNS providers Settings › HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns
+   * plugin works too, by name.
+   */
+  public static httpsProviders<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsProvidersData, ThrowOnError>,
+  ): RequestResult<HttpsProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/providers",
+      ...options,
+    });
+  }
+
+  /**
    * Test Bridge
    *
    * Check that Matterbridge answers at its address with its token, and that the account to answer as exists.
@@ -3268,6 +3305,26 @@ export class Setup {
   ): RequestResult<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError> {
     return (options.client ?? client).put<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError>({
       url: "/api/v1/setup/telemetry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Budget
+   *
+   * The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop
+   * (docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard
+   * limit: no budget.
+   */
+  public static saveBudget<ThrowOnError extends boolean = false>(
+    options: Options<SaveBudgetData, ThrowOnError>,
+  ): RequestResult<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/setup/budget",
       ...options,
       headers: {
         "Content-Type": "application/json",

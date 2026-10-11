@@ -2466,6 +2466,54 @@
         }
       }
     },
+    "/api/v1/settings/https/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Status",
+        "description": "How HTTPS (Settings \u203a HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it\nholds and when they run out, and Caddy's last lines.",
+        "operationId": "https_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/https/providers": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Providers",
+        "description": "The DNS providers Settings \u203a HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns\nplugin works too, by name.",
+        "operationId": "https_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HttpsProvider"
+                  },
+                  "type": "array",
+                  "title": "Response Admin-Https Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/bridge/test": {
       "post": {
         "tags": [
@@ -3780,10 +3828,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "requestBody": {
@@ -3832,10 +3880,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "responses": {
@@ -3964,10 +4012,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "responses": {
@@ -4224,6 +4272,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SetupTelemetry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/budget": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Budget",
+        "description": "The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop\n(docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard\nlimit: no budget.",
+        "operationId": "save_budget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupBudget"
               }
             }
           },
@@ -35626,6 +35716,17 @@
           },
           "counts": {
             "$ref": "#/components/schemas/HealthCounts"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthMachine"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "CPU, memory, load and uptime now"
           }
         },
         "additionalProperties": true,
@@ -35723,6 +35824,125 @@
           "total_gb"
         ],
         "title": "HealthDisk"
+      },
+      "HealthMachine": {
+        "properties": {
+          "cpu_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Pct",
+            "description": "busy share of all CPUs, 0-100; null where /proc isn't there"
+          },
+          "cpus": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpus"
+          },
+          "mem_used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mem Used",
+            "description": "bytes"
+          },
+          "mem_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mem Total",
+            "description": "bytes"
+          },
+          "load1": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load1"
+          },
+          "load5": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load5"
+          },
+          "load15": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load15"
+          },
+          "rss": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rss",
+            "description": "the API process's memory, bytes"
+          },
+          "uptime": {
+            "type": "integer",
+            "title": "Uptime",
+            "description": "seconds since the API started"
+          },
+          "host_uptime": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Uptime",
+            "description": "seconds since the machine started"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "uptime"
+        ],
+        "title": "HealthMachine"
       },
       "HealthSource": {
         "properties": {
@@ -36113,6 +36333,171 @@
           "items"
         ],
         "title": "HookPushed"
+      },
+      "HttpsCertificate": {
+        "properties": {
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Names",
+            "description": "the domain names it's for"
+          },
+          "expires": {
+            "type": "string",
+            "title": "Expires",
+            "description": "when it runs out (Caddy renews it about a month before)"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer",
+            "description": "the certificate authority that issued it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "names",
+          "expires",
+          "issuer"
+        ],
+        "title": "HttpsCertificate"
+      },
+      "HttpsProvider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the caddy-dns plugin's name, like cloudflare"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/HttpsProviderField"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "fields"
+        ],
+        "title": "HttpsProvider"
+      },
+      "HttpsProviderField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "secret": {
+            "type": "boolean",
+            "title": "Secret"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "secret"
+        ],
+        "title": "HttpsProviderField"
+      },
+      "HttpsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "Caddy is running in a server process"
+          },
+          "ports_open": {
+            "type": "boolean",
+            "title": "Ports Open",
+            "description": "a server process has the HTTPS ports (install.sh opened them)"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "the https:// address people open Lens at"
+          },
+          "certificates": {
+            "items": {
+              "$ref": "#/components/schemas/HttpsCertificate"
+            },
+            "type": "array",
+            "title": "Certificates"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why there's no certificate yet, when there isn't"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "Caddy's last lines"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "description": "where Caddy sends visitors: the web app, as the server reaches it"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the server process with the HTTPS ports"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "running",
+          "ports_open",
+          "origin"
+        ],
+        "title": "HttpsStatus"
       },
       "HubLogin": {
         "properties": {
@@ -50705,6 +51090,156 @@
         ],
         "title": "SetupAdmin"
       },
+      "SetupBudget": {
+        "properties": {
+          "hard_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Usd"
+          },
+          "soft_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soft Usd"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period",
+            "default": "month"
+          },
+          "on_over": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "skip"
+            ],
+            "title": "On Over",
+            "default": "ask"
+          },
+          "price_in": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price In"
+          },
+          "price_out": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Out"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupBudget"
+      },
+      "SetupBudgetView": {
+        "properties": {
+          "hard_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Usd"
+          },
+          "soft_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soft Usd"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period",
+            "default": "month"
+          },
+          "on_over": {
+            "type": "string",
+            "title": "On Over",
+            "default": "ask"
+          },
+          "price_in": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price In"
+          },
+          "price_out": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Out"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "SetupBudgetView"
+      },
       "SetupFinish": {
         "properties": {
           "skipped": {
@@ -51117,6 +51652,9 @@
           },
           "oauth": {
             "$ref": "#/components/schemas/SetupOAuthView"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/SetupBudgetView"
           }
         },
         "additionalProperties": true,
@@ -51128,7 +51666,8 @@
           "llm",
           "storage",
           "telemetry",
-          "oauth"
+          "oauth",
+          "budget"
         ],
         "title": "SetupView"
       },

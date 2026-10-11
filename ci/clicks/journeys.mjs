@@ -40,6 +40,19 @@ async function openImport(ctx) {
   await page.waitForURL(/\/import/);
 }
 
+/** Waits, not counted, until the page at `where` shows `locator`: something made in the background, which a person
+ * would come back to later. Then back to `from`, where the journey starts. */
+async function madeInBackground({ page, base }, where, locator, from, what) {
+  for (let i = 0; !(await locator.isVisible()); i++) {
+    if (i === 60) throw new Error(`${what} wasn't there after 5 minutes`);
+    await page.goto(base + where, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(5000);
+  }
+  await page.goto(base + from, { waitUntil: "domcontentloaded" });
+  await page.getByRole("banner").waitFor();
+  await page.waitForTimeout(2000);
+}
+
 /** Fails the journey with the reason when a control isn't on the screen at all (on a phone some are hidden). */
 async function needs({ phone }, locator, what) {
   try {
@@ -77,17 +90,23 @@ export const JOURNEYS = [
       meter.record("terminal", "paste the install line and press Enter", 0, 2);
       meter.openLink("open the installer link");
       await page.goto(`${INSTALLER}/?t=survey-token`);
-      await meter.click(page.locator("#next"), "Continue (this computer)");
-      await page.getByRole("heading", { name: "How Lens runs" }).waitFor();
-      await meter.click(page.locator("#next"), "Continue (how it runs)");
-      const found = page.getByRole("button", { name: /Ollama · \d+ models/ });
-      await found.waitFor();
-      await meter.click(found, "pick the model server found on this computer");
-      await meter.click(page.locator("#next"), "Continue (AI model)");
-      await page.getByRole("heading", { name: "Extras" }).waitFor();
-      await meter.click(page.locator("#next"), "Continue (extras)");
-      await page.getByRole("heading", { name: "Ready to install" }).waitFor();
-      await meter.click(page.locator("#next"), "Install Lens");
+      const quick = page.locator("#quick");
+      await page.locator("#next").waitFor();
+      if (await quick.count()) {
+        await meter.click(quick, "Install with the defaults");
+      } else {
+        await meter.click(page.locator("#next"), "Continue (this computer)");
+        await page.getByRole("heading", { name: "How Lens runs" }).waitFor();
+        await meter.click(page.locator("#next"), "Continue (how it runs)");
+        const found = page.getByRole("button", { name: /Ollama · \d+ models/ });
+        await found.waitFor();
+        // picked already when it's the only one found
+        if (!(await found.evaluate((el) => el.classList.contains("on"))))
+          await meter.click(found, "pick the model server found on this computer");
+        await meter.click(page.locator("#next"), "Continue (AI model)");
+        await page.getByRole("heading", { name: "Ready to install" }).waitFor();
+        await meter.click(page.locator("#next"), "Install Lens");
+      }
       const open = page.getByRole("button", { name: "Open Lens" });
       await open.waitFor({ timeout: 60000 });
       await meter.click(open, "Open Lens");
@@ -219,8 +238,11 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Chat");
-      await meter.click(page.getByRole("button", { name: "New conversation" }), "New conversation");
-      await meter.type(page.getByRole("textbox", { name: "Your question" }), "Who said what about Raspberry Pi?", "question");
+      const question = page.getByRole("textbox", { name: "Your question" });
+      // A phone's Chat opens on the list of conversations once there is one
+      if (!(await question.waitFor({ timeout: 3000 }).then(() => true, () => false)))
+        await meter.click(page.getByRole("button", { name: "New conversation" }), "New conversation");
+      await meter.type(question, "Who said what about Raspberry Pi?", "question");
       await meter.press("Enter", "Enter to send");
       await page.getByText(ANSWER).first().waitFor({ timeout: 60000 });
     },
@@ -237,8 +259,9 @@ export const JOURNEYS = [
       await page.waitForURL(/\/notes\/\d+/);
       const title = page.getByRole("textbox", { name: "Title" });
       await meter.replace(title, "Pi setup", "title");
-      const body = page.locator("main affine-page-root [contenteditable=true]").first();
-      const editor = (await body.count()) ? body : page.locator("main .inline-editor").last();
+      const editor = page.locator("main affine-page-root .inline-editor").first();
+      await editor.waitFor(); // the page has loaded its editor
+      await meter.press("Enter", "Enter to go to the first line");
       await meter.type(editor, "Use cloud models on the Pi.", "first line");
       await page.getByText("Saved").first().waitFor();
     },
@@ -266,8 +289,9 @@ export const JOURNEYS = [
       const { page, meter } = ctx;
       await go(ctx, "Pipelines");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New pipeline" }), "New pipeline");
-      await meter.type(page.getByRole("textbox", { name: "Pipeline name" }), "Quick pipeline", "name");
-      await meter.click(page.getByRole("button", { name: "Create pipeline" }), "Create pipeline");
+      await page.getByRole("textbox", { name: "Pipeline name" }).waitFor(); // named for you
+      await page.waitForFunction(() => document.activeElement?.tagName === "INPUT");
+      await meter.press("Enter", "Enter to create");
       await page.waitForURL(/\/pipelines\/\d+/);
     },
   },
@@ -280,8 +304,9 @@ export const JOURNEYS = [
       const { page, meter } = ctx;
       await go(ctx, "Routines");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New routine" }), "New routine");
-      await meter.type(page.getByRole("textbox", { name: "Name" }), "Nightly sync", "name");
-      await meter.click(page.getByRole("button", { name: "Create routine" }), "Create routine");
+      await page.getByRole("textbox", { name: "Name" }).waitFor(); // named for you
+      await page.waitForFunction(() => document.activeElement?.tagName === "INPUT");
+      await meter.press("Enter", "Enter to create");
       await page.waitForURL(/\/routines\/\d+/);
     },
   },
@@ -352,8 +377,12 @@ export const JOURNEYS = [
       const { page, meter } = ctx;
       await meter.click(page.getByRole("button", { name: "Account menu" }), "Account menu");
       await meter.click(page.getByRole("menuitem", { name: /API tokens/ }), "API tokens");
-      await meter.click(page.getByRole("main").getByRole("button", { name: "New token" }).first(), "New token");
       const d = page.getByRole("dialog");
+      await page.waitForURL(/\/account\/tokens/);
+      await page.waitForTimeout(500);
+      // the form is open already when there are no tokens yet
+      if (!(await d.isVisible()))
+        await meter.click(page.getByRole("main").getByRole("button", { name: "New token" }).first(), "New token");
       await meter.type(d.getByRole("textbox", { name: "Name" }), "script", "name");
       await meter.click(d.getByRole("button", { name: "Create token" }), "Create token");
       await page.getByText(/copy/i).first().waitFor();
@@ -464,11 +493,13 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
+      const entity = page.getByRole("main").getByRole("button", { name: "Raspberry Pi", exact: true });
+      await madeInBackground(ctx, "/entities", entity, "/", "the entity the imports' analysis makes");
       await go(ctx, "Entities");
       await meter.type(page.getByRole("searchbox", { name: "Find entities" }), "rasp", "part of its name");
       // the list filters as you type: the other entity leaves it
       await page.getByRole("main").getByRole("table").getByText("Lens", { exact: true }).waitFor({ state: "hidden" });
-      await meter.click(page.getByRole("main").getByRole("button", { name: "Raspberry Pi", exact: true }), "Raspberry Pi");
+      await meter.click(entity, "Raspberry Pi");
       await page.waitForURL(/entity=\d+/);
       await page.getByText(/Raspberry Pi can run Lens/).first().waitFor();
     },

@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-10T22:24:38.726Z",
+  "surveyed": "2026-10-10T23:20:59.350Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -8,10 +8,10 @@
       "module": "Setup",
       "feature": "Install with the web installer (defaults, local model found)",
       "note": "The install line in a terminal, then the browser installer. The browser opens on its own on a desktop; on a server the link is opened by hand (counted). A computer missing Docker also asks for its password.",
-      "clicks": 8,
+      "clicks": 3,
       "keys": 2,
       "prompts": 0,
-      "swipes": 3,
+      "swipes": 0,
       "steps": [
         {
           "page": "(outside the browser)",
@@ -32,50 +32,7 @@
         {
           "page": "installer:/",
           "kind": "tap",
-          "what": "Continue (this computer)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "tap",
-          "what": "Continue (how it runs)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0,
-          "swipes": 1
-        },
-        {
-          "page": "installer:/",
-          "kind": "tap",
-          "what": "pick the model server found on this computer",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "installer:/",
-          "kind": "tap",
-          "what": "Continue (AI model)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0,
-          "swipes": 1
-        },
-        {
-          "page": "installer:/",
-          "kind": "tap",
-          "what": "Continue (extras)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0,
-          "swipes": 1
-        },
-        {
-          "page": "installer:/",
-          "kind": "tap",
-          "what": "Install Lens",
+          "what": "Install with the defaults",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -90,14 +47,14 @@
         }
       ],
       "id": "install",
-      "ms": 3441,
+      "ms": 2292,
       "ok": true
     },
     {
       "module": "Setup",
       "feature": "Create the first admin (passkey)",
       "note": "From the setup link, which fills in the setup code.",
-      "clicks": 2,
+      "clicks": 1,
       "keys": 17,
       "prompts": 1,
       "swipes": 0,
@@ -106,7 +63,7 @@
           "page": "/setup",
           "kind": "type",
           "what": "email",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 17,
           "prompts": 0
         },
@@ -128,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 859,
+      "ms": 606,
       "ok": true
     },
     {
@@ -176,7 +133,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 1316,
+      "ms": 1300,
       "ok": true
     },
     {
@@ -184,7 +141,7 @@
       "feature": "Ask the first question from the welcome tour",
       "note": "",
       "clicks": 0,
-      "keys": 44,
+      "keys": 43,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -203,18 +160,10 @@
           "clicks": 0,
           "keys": 1,
           "prompts": 0
-        },
-        {
-          "page": "/chat",
-          "kind": "key",
-          "what": "Enter again: the question waits in Chat's composer",
-          "clicks": 0,
-          "keys": 1,
-          "prompts": 0
         }
       ],
       "id": "first-question",
-      "ms": 2957,
+      "ms": 1183,
       "ok": true
     },
     {
@@ -277,7 +226,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4960,
+      "ms": 4332,
       "ok": true
     },
     {
@@ -315,7 +264,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3226,
+      "ms": 3127,
       "ok": true
     },
     {
@@ -361,7 +310,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3843,
+      "ms": 3763,
       "ok": true
     },
     {
@@ -399,7 +348,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2581,
+      "ms": 2525,
       "ok": true
     },
     {
@@ -453,14 +402,14 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3670,
+      "ms": 6600,
       "ok": true
     },
     {
       "module": "Notes",
       "feature": "Write a note",
       "note": "",
-      "clicks": 5,
+      "clicks": 3,
       "keys": 36,
       "prompts": 0,
       "swipes": 0,
@@ -493,21 +442,29 @@
           "page": "/notes/:id",
           "kind": "replace",
           "what": "title",
-          "clicks": 1,
-          "keys": 9,
+          "clicks": 0,
+          "keys": 8,
+          "prompts": 0
+        },
+        {
+          "page": "/notes/:id",
+          "kind": "key",
+          "what": "Enter to go to the first line",
+          "clicks": 0,
+          "keys": 1,
           "prompts": 0
         },
         {
           "page": "/notes/:id",
           "kind": "type",
           "what": "first line",
-          "clicks": 1,
+          "clicks": 0,
           "keys": 27,
           "prompts": 0
         }
       ],
       "id": "note-create",
-      "ms": 4436,
+      "ms": 4179,
       "ok": true
     },
     {
@@ -561,15 +518,15 @@
         }
       ],
       "id": "topic-add",
-      "ms": 4049,
+      "ms": 4084,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a pipeline from the standard steps",
       "note": "",
-      "clicks": 4,
-      "keys": 14,
+      "clicks": 3,
+      "keys": 1,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -599,33 +556,25 @@
         },
         {
           "page": "/pipelines/new",
-          "kind": "type",
-          "what": "name",
+          "kind": "key",
+          "what": "Enter to create",
           "clicks": 0,
-          "keys": 14,
-          "prompts": 0
-        },
-        {
-          "page": "/pipelines/new",
-          "kind": "tap",
-          "what": "Create pipeline",
-          "clicks": 1,
-          "keys": 0,
+          "keys": 1,
           "prompts": 0
         }
       ],
       "id": "pipeline-create",
-      "ms": 3512,
+      "ms": 3081,
       "ok": true
     },
     {
       "module": "Routines",
       "feature": "Make a nightly routine (sync sources, the default action)",
       "note": "",
-      "clicks": 4,
-      "keys": 12,
+      "clicks": 3,
+      "keys": 1,
       "prompts": 0,
-      "swipes": 1,
+      "swipes": 0,
       "steps": [
         {
           "page": "/",
@@ -653,24 +602,15 @@
         },
         {
           "page": "/routines/new",
-          "kind": "type",
-          "what": "name",
+          "kind": "key",
+          "what": "Enter to create",
           "clicks": 0,
-          "keys": 12,
+          "keys": 1,
           "prompts": 0
-        },
-        {
-          "page": "/routines/new",
-          "kind": "tap",
-          "what": "Create routine",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0,
-          "swipes": 1
         }
       ],
       "id": "routine-create",
-      "ms": 3443,
+      "ms": 3144,
       "ok": true
     },
     {
@@ -717,7 +657,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 8661,
+      "ms": 8603,
       "ok": true
     },
     {
@@ -763,7 +703,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3264,
+      "ms": 3242,
       "ok": true
     },
     {
@@ -819,7 +759,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 9692,
+      "ms": 9470,
       "ok": true
     },
     {
@@ -889,14 +829,14 @@
         }
       ],
       "id": "person-add",
-      "ms": 4057,
+      "ms": 3842,
       "ok": true
     },
     {
       "module": "Account",
       "feature": "Make an API token",
       "note": "",
-      "clicks": 4,
+      "clicks": 3,
       "keys": 6,
       "prompts": 0,
       "swipes": 0,
@@ -919,14 +859,6 @@
         },
         {
           "page": "/account/tokens",
-          "kind": "tap",
-          "what": "New token",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/account/tokens",
           "kind": "type",
           "what": "name",
           "clicks": 0,
@@ -943,7 +875,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3285,
+      "ms": 3446,
       "ok": true
     },
     {
@@ -956,41 +888,25 @@
       "swipes": 0,
       "steps": [],
       "id": "namespace-switch",
-      "ms": 7245,
+      "ms": 7266,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
     {
       "module": "Agents",
       "feature": "Connect an AI assistant (Claude, ChatGPT, Cursor) over MCP",
-      "note": "Copy MCP address in the account menu; in the assistant: add a connector and paste the address; the assistant opens Lens's consent page, where the person allows it.",
-      "clicks": 5,
-      "keys": 1,
+      "note": "In the assistant: add a connector and give it Lens's MCP address; the assistant opens Lens's consent page, where the person allows it. After setup Lens shows the MCP address nowhere, so it is typed (counted as typed).",
+      "clicks": 3,
+      "keys": 25,
       "prompts": 0,
       "swipes": 0,
       "steps": [
         {
           "page": "/",
-          "kind": "tap",
-          "what": "Account menu",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/",
-          "kind": "tap",
-          "what": "Copy MCP address",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/",
           "kind": "outside",
-          "what": "in the assistant: add a connector, paste Lens's MCP address, add it",
+          "what": "in the assistant: add a connector, type Lens's MCP address, add it",
           "clicks": 2,
-          "keys": 1,
+          "keys": 25,
           "prompts": 0
         },
         {
@@ -1003,7 +919,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3330,
+      "ms": 2809,
       "ok": true
     },
     {
@@ -1050,14 +966,14 @@
         {
           "page": "/import",
           "kind": "tap",
-          "what": "Import (covered by something else on the page)",
+          "what": "Import",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
         }
       ],
       "id": "import-file",
-      "ms": 9166,
+      "ms": 3782,
       "ok": true
     },
     {
@@ -1152,7 +1068,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 5764,
+      "ms": 5836,
       "ok": true
     },
     {
@@ -1198,7 +1114,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 4878,
+      "ms": 12131,
       "ok": true
     },
     {
@@ -1228,7 +1144,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 9648,
+      "ms": 9662,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
@@ -1239,7 +1155,7 @@
       "clicks": 6,
       "keys": 0,
       "prompts": 0,
-      "swipes": 1,
+      "swipes": 0,
       "steps": [
         {
           "page": "/",
@@ -1284,15 +1200,14 @@
         {
           "page": "/resources/:id",
           "kind": "tap",
-          "what": "Create podcast (covered by something else on the page)",
+          "what": "Create podcast",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         }
       ],
       "id": "podcast-create",
-      "ms": 9428,
+      "ms": 4182,
       "ok": true
     },
     {
@@ -1346,7 +1261,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 4058,
+      "ms": 4035,
       "ok": true
     },
     {
@@ -1408,7 +1323,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3882,
+      "ms": 3838,
       "ok": true
     },
     {
@@ -1471,7 +1386,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3743,
+      "ms": 3937,
       "ok": true
     },
     {
@@ -1533,7 +1448,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3577,
+      "ms": 3554,
       "ok": true
     },
     {
@@ -1595,7 +1510,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4460,
+      "ms": 4521,
       "ok": true
     },
     {
@@ -1667,7 +1582,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 9323,
+      "ms": 9165,
       "ok": true
     }
   ],
@@ -1784,7 +1699,7 @@
       "page": "/routines/history",
       "label": "Routines › History",
       "reach": 3,
-      "controls": 9
+      "controls": 8
     },
     {
       "page": "/extensions",
@@ -1862,7 +1777,7 @@
       "page": "/settings/ai",
       "label": "Settings › AI assistant",
       "reach": 3,
-      "controls": 55
+      "controls": 57
     },
     {
       "page": "/settings/search",
@@ -1928,7 +1843,7 @@
       "page": "/settings/bridge",
       "label": "Settings › Chat rooms",
       "reach": 3,
-      "controls": 13
+      "controls": 14
     },
     {
       "page": "/settings/notifications",
@@ -1940,7 +1855,7 @@
       "page": "/settings/telemetry",
       "label": "Settings › Telemetry",
       "reach": 3,
-      "controls": 12
+      "controls": 13
     },
     {
       "page": "/settings/fedora",
@@ -2018,7 +1933,7 @@
       "page": "/admin/health",
       "label": "Admin › System health",
       "reach": 3,
-      "controls": 10
+      "controls": 11
     },
     {
       "page": "/notes/:id",

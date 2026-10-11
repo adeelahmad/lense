@@ -87,7 +87,7 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
           </Link>
         </MenuItem>
         <MenuItem asChild className={ITEM}>
-          <Link href="/account/tokens">
+          <Link href={tokens.data?.length === 0 ? "/account/tokens?new=1" : "/account/tokens"}>
             <KeyRound />
             <span className="flex-1">API tokens</span>
             {tokens.data && <span className="tabular text-[12px] font-normal text-fg-muted">{tokens.data.length}</span>}

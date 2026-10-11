@@ -288,6 +288,8 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 user.admin,
                 act=setup,
                 said=q,
+                # what it read before any tool ran: the page it was asked from, and earlier answers' excerpts and tools
+                outside=(["page"] if page else []) + ai_tools.read_before(past, summary),
                 browser=body.browser,
             )
             try:

@@ -30,7 +30,8 @@ function merge(base, over) {
 
 function referenced(m) {
   const files = new Set([...Object.values(m.icons ?? {}), ...Object.values(m.action?.default_icon ?? {})]);
-  for (const f of [m.action?.default_popup, m.options_ui?.page, m.background?.service_worker, ...(m.background?.scripts ?? [])]) if (f) files.add(f);
+  const pages = [m.action?.default_popup, m.options_ui?.page, m.side_panel?.default_path, m.sidebar_action?.default_panel];
+  for (const f of [...pages, m.background?.service_worker, ...(m.background?.scripts ?? [])]) if (f) files.add(f);
   return [...files];
 }
 
@@ -49,8 +50,10 @@ for (const target of targets) {
     entryPoints: {
       background: join(root, "src/background.js"),
       content: join(root, "src/content.js"),
+      agent: join(root, "src/agent.js"),
       popup: join(root, "src/ui/popup.js"),
       options: join(root, "src/ui/options.js"),
+      sidepanel: join(root, "src/ui/sidepanel.js"),
     },
     outdir: out,
     bundle: true,
@@ -61,7 +64,7 @@ for (const target of targets) {
     define: { "process.env.NODE_ENV": '"production"' },
     logLevel: "warning",
   });
-  for (const f of ["popup.html", "options.html", "style.css"]) cpSync(join(root, "src/ui", f), join(out, f));
+  for (const f of ["popup.html", "options.html", "sidepanel.html", "style.css"]) cpSync(join(root, "src/ui", f), join(out, f));
   cpSync(join(root, "src/icons"), join(out, "icons"), { recursive: true });
   const manifest = merge({ ...base, version }, JSON.parse(readFileSync(join(root, "targets", `${target}.json`), "utf8")));
   writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);

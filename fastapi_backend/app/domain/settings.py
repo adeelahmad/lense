@@ -54,6 +54,7 @@ EDITABLE = {
     "encryption": None,
     "fedora": None,
     "tunnel": None,
+    "https": None,
     # bind is a startup setting only
     "sensors": (
         "enabled",
@@ -120,6 +121,7 @@ SECRETS = {
     "telemetry": ("headers", "prometheus_token"),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
+    "https": ("dns_credentials", "eab_hmac_key"),
     "documents": ("anytopdf_token",),
 }
 ENUMS = {
@@ -142,7 +144,10 @@ ENUMS = {
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
+    ("ai", "injection_check"): {"patterns", "model", "off"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
+    ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
+    ("https", "challenge"): {"http", "tls-alpn", "dns"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
 }
@@ -170,6 +175,7 @@ ENV_OVERRIDES = {
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
     ("telemetry", "prometheus"): "LENS_PROMETHEUS",
     ("telemetry", "prometheus_token"): "LENS_PROMETHEUS_TOKEN",
+    ("telemetry", "grafana_url"): "LENS_GRAFANA_URL",
     ("fedora", "enabled"): "LENS_FEDORA",
     ("fedora", "url"): "LENS_FEDORA_URL",
     ("fedora", "user"): "LENS_FEDORA_USER",
@@ -926,6 +932,12 @@ def _telemetry_setting(key, value):
         if not isinstance(value, bool):
             raise ValueError(f"telemetry.{key} is true or false")
         return value
+    if key == "grafana_url":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("telemetry.grafana_url is Grafana's http(s) address, like http://localhost:3001")
+        return value.strip().rstrip("/")
     if key == "endpoint":
         if value is None or value == "":
             return None
@@ -1050,6 +1062,10 @@ def save(db, base, section, changes, user=None):
                     raise ValueError(f"matterbridge.{k} is one line of text")
                 if (section, k) in (("documents", "anytopdf_token"), ("telemetry", "prometheus_token")):
                     v = _check(section, k, v, None)
+                if (section, k) == ("https", "dns_credentials"):
+                    from . import https
+
+                    https.parse_credentials(v)
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"
                 raise ValueError(f"{section}.{k} must be text")
@@ -1097,6 +1113,12 @@ def save(db, base, section, changes, user=None):
 
         merged = {**(base.get("tunnel") or {}), **data, **{k: "set" for k in sealed}}
         tunnel.check({"tunnel": merged})
+    if section == "https":
+        from . import https
+
+        merged = {**(base.get("https") or {}), **data, **{k: "set" for k in sealed}}
+        merged.pop("dns_credentials", None)  # its fields aren't needed to check the rest
+        https.check({"https": merged})
     if (
         section == "server"
         and "allowed_hosts" in data

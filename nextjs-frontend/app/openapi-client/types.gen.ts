@@ -5722,6 +5722,10 @@ export type Health = {
   sources: Array<HealthSource>;
   disk: HealthDisk;
   counts: HealthCounts;
+  /**
+   * CPU, memory, load and uptime now
+   */
+  machine?: HealthMachine | null;
   [key: string]: unknown;
 };
 
@@ -5785,6 +5789,65 @@ export type HealthDisk = {
    * Total Gb
    */
   total_gb: number;
+  [key: string]: unknown;
+};
+
+/**
+ * HealthMachine
+ */
+export type HealthMachine = {
+  /**
+   * Cpu Pct
+   *
+   * busy share of all CPUs, 0-100; null where /proc isn't there
+   */
+  cpu_pct?: number | null;
+  /**
+   * Cpus
+   */
+  cpus?: number | null;
+  /**
+   * Mem Used
+   *
+   * bytes
+   */
+  mem_used?: number | null;
+  /**
+   * Mem Total
+   *
+   * bytes
+   */
+  mem_total?: number | null;
+  /**
+   * Load1
+   */
+  load1?: number | null;
+  /**
+   * Load5
+   */
+  load5?: number | null;
+  /**
+   * Load15
+   */
+  load15?: number | null;
+  /**
+   * Rss
+   *
+   * the API process's memory, bytes
+   */
+  rss?: number | null;
+  /**
+   * Uptime
+   *
+   * seconds since the API started
+   */
+  uptime: number;
+  /**
+   * Host Uptime
+   *
+   * seconds since the machine started
+   */
+  host_uptime?: number | null;
   [key: string]: unknown;
 };
 
@@ -6020,6 +6083,128 @@ export type HookPushed = {
    * Items
    */
   items: Array<HookItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsCertificate
+ */
+export type HttpsCertificate = {
+  /**
+   * Names
+   *
+   * the domain names it's for
+   */
+  names: Array<string>;
+  /**
+   * Expires
+   *
+   * when it runs out (Caddy renews it about a month before)
+   */
+  expires: string;
+  /**
+   * Issuer
+   *
+   * the certificate authority that issued it
+   */
+  issuer: string;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsProvider
+ */
+export type HttpsProvider = {
+  /**
+   * Name
+   *
+   * the caddy-dns plugin's name, like cloudflare
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Fields
+   */
+  fields: Array<HttpsProviderField>;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsProviderField
+ */
+export type HttpsProviderField = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Secret
+   */
+  secret: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsStatus
+ */
+export type HttpsStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Running
+   *
+   * Caddy is running in a server process
+   */
+  running: boolean;
+  /**
+   * Ports Open
+   *
+   * a server process has the HTTPS ports (install.sh opened them)
+   */
+  ports_open: boolean;
+  /**
+   * Url
+   *
+   * the https:// address people open Lens at
+   */
+  url?: string | null;
+  /**
+   * Certificates
+   */
+  certificates?: Array<HttpsCertificate>;
+  /**
+   * Error
+   *
+   * why there's no certificate yet, when there isn't
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * Caddy's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Origin
+   *
+   * where Caddy sends visitors: the web app, as the server reaches it
+   */
+  origin: string;
+  /**
+   * Process
+   *
+   * the server process with the HTTPS ports
+   */
+  process?: string | null;
   [key: string]: unknown;
 };
 
@@ -14418,6 +14603,71 @@ export type SetupAdmin = {
 };
 
 /**
+ * SetupBudget
+ */
+export type SetupBudget = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: "day" | "week" | "month";
+  /**
+   * On Over
+   */
+  on_over?: "ask" | "skip";
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+};
+
+/**
+ * SetupBudgetView
+ */
+export type SetupBudgetView = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: string;
+  /**
+   * On Over
+   */
+  on_over?: string;
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * SetupFinish
  */
 export type SetupFinish = {
@@ -14665,6 +14915,7 @@ export type SetupView = {
   storage: SetupStorageView;
   telemetry: SetupTelemetryView;
   oauth: SetupOAuthView;
+  budget: SetupBudgetView;
   [key: string]: unknown;
 };
 
@@ -20026,6 +20277,40 @@ export type TunnelStatusResponses = {
 
 export type TunnelStatusResponse = TunnelStatusResponses[keyof TunnelStatusResponses];
 
+export type HttpsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/status";
+};
+
+export type HttpsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: HttpsStatus;
+};
+
+export type HttpsStatusResponse = HttpsStatusResponses[keyof HttpsStatusResponses];
+
+export type HttpsProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/providers";
+};
+
+export type HttpsProvidersResponses = {
+  /**
+   * Response Admin-Https Providers
+   *
+   * Successful Response
+   */
+  200: Array<HttpsProvider>;
+};
+
+export type HttpsProvidersResponse = HttpsProvidersResponses[keyof HttpsProvidersResponses];
+
 export type TestBridgeData = {
   body?: never;
   path?: never;
@@ -20850,7 +21135,7 @@ export type RemoveBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -20900,7 +21185,7 @@ export type SetBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -20976,7 +21261,7 @@ export type BudgetStatusData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -21166,6 +21451,31 @@ export type SaveTelemetryResponses = {
 };
 
 export type SaveTelemetryResponse = SaveTelemetryResponses[keyof SaveTelemetryResponses];
+
+export type SaveBudgetData = {
+  body: SetupBudget;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/budget";
+};
+
+export type SaveBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveBudgetError = SaveBudgetErrors[keyof SaveBudgetErrors];
+
+export type SaveBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveBudgetResponse = SaveBudgetResponses[keyof SaveBudgetResponses];
 
 export type SaveOauthData = {
   body: SetupOAuth;
