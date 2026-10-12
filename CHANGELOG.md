@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
+
 - **The installer stops waiting when Lens can't start, and shows why.** A microsandbox install that couldn't start Lens
   waited 30 minutes at "Waiting for the web app..." and then named only a command to run. It now lists the sandbox's own
   steps as they happen, and stops as soon as a step fails, the sandbox stops or a part of Lens keeps stopping, with the
