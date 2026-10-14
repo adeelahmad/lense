@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Similar content.** Every resource has a **Similar** tab, and selecting text anywhere (a transcript, a page, a
+  title, a graph label) shows the resources most like it, each citing the passages, words, topics and entities they
+  share, with **Find more** for the full list. Topics, entities and graph nodes list similar content too, and the
+  assistant and the MCP server can ask for it (`find_similar`). It works without search by meaning, by key words,
+  topics and entities ([Processing](docs/processing.md#similar-content)).
+
 - **MCP servers that run as a program.** Most MCP servers in marketplaces run as a program (`npx` or `uvx`), not on
   the network. Admins can now add one as an MCP server extension with its `command`, `args` and `env`, as in Claude's
   `.mcp.json`, and a plugin's such servers come along when an admin installs it. They run in the MCP runner, an opt-in
