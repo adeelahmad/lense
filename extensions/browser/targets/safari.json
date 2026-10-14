@@ -1,0 +1,16 @@
+{
+  "host_permissions": ["https://*/*", "http://*/*"],
+  "optional_host_permissions": null,
+  "side_panel": null,
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "storage"
+  ],
+  "browser_specific_settings": {
+    "safari": {
+      "strict_min_version": "16.4"
+    }
+  }
+}

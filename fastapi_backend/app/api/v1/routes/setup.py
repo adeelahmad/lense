@@ -12,7 +12,9 @@ from fastapi import APIRouter, HTTPException, Request
 from app.api.deps import AdminReader, AdminWriter, Db
 from app.domain import auth, setup
 from app.schemas.setup import (
+    CloudModelProvider,
     LocalModelServer,
+    SetupBudget,
     SetupFinish,
     SetupLlm,
     SetupNamespace,
@@ -68,6 +70,13 @@ def detect_llm(user: AdminWriter) -> list[LocalModelServer]:
     return [LocalModelServer(**s) for s in setup.detect_llm()]
 
 
+@router.get("/llm/providers")
+def llm_providers(user: AdminReader) -> list[CloudModelProvider]:
+    """Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a
+    model, so picking one leaves only the API key to paste."""
+    return [CloudModelProvider(**p) for p in setup.CLOUD_PROVIDERS]
+
+
 @router.put("/storage")
 def save_storage(body: SetupStorage, user: AdminWriter, request: Request, db: Db) -> SetupSaved:
     """The upload limit, and optionally a folder on this machine (inside sources.local_roots) to watch."""
@@ -93,6 +102,20 @@ def save_telemetry(body: SetupTelemetry, user: AdminWriter, request: Request, db
         raise HTTPException(400, str(e)) from None
     if saved:
         auth.audit(db, user.as_audit(), "settings.save", "telemetry", saved)
+    return SetupSaved(saved=saved)
+
+
+@router.put("/budget")
+def save_budget(body: SetupBudget, user: AdminWriter, request: Request, db: Db) -> SetupSaved:
+    """The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop
+    (docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard
+    limit: no budget."""
+    try:
+        saved = setup.save_budget(db, request.app.state.archive.base, user=user.email, **body.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if saved:
+        auth.audit(db, user.as_audit(), "budget.set", "all", body.model_dump(exclude_none=True))
     return SetupSaved(saved=saved)
 
 

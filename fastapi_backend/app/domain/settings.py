@@ -19,7 +19,7 @@ import secrets
 import threading
 import urllib.parse
 
-from . import convert, ipgroups, objects, store, telemetry
+from . import convert, ipgroups, logs, mail_routes, objects, store, telemetry
 
 R = store.R
 EDITABLE = {
@@ -44,16 +44,26 @@ EDITABLE = {
     "local_llm": ("enabled", "model", "use_as_provider", "context", "threads", "gpu_layers", "port", "host"),
     "mail": None,
     "bridge": None,
+    "telegram": None,
+    "slack": None,
+    "mailbox": None,
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
+    "logs": None,
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
     "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
+    "backups": None,
     "encryption": None,
     "fedora": None,
     "tunnel": None,
+    "https": None,
     # bind is a startup setting only
+    "nfs": ("enabled", "port", "allowed_networks", "account"),
+    # bind is a startup setting only
+    # the SMB share of the file tree (smb_share.py): bind and port are startup settings only (Docker publishes the port)
+    "smb": ("enabled", "allowed_networks"),
     "sensors": (
         "enabled",
         "mqtt",
@@ -70,6 +80,8 @@ EDITABLE = {
         "max_per_minute",
         "triage",
     ),
+    # bind is a startup setting only
+    "shares": ("enabled", "s3", "s3_port", "webdav", "webdav_port"),
     "video": (
         "sample_seconds",
         "scene_threshold",
@@ -105,8 +117,12 @@ EDITABLE = {
         "converter",
         "anytopdf_url",
         "anytopdf_token",
+        "tika_url",
+        "tika_text",
+        "tika_metadata",
     ),
 }
+MAIL_SECURITY = ("ssl", "starttls", "none")
 SECRETS = {
     "search": ("opensearch_password",),
     "llm": ("api_key",),
@@ -116,10 +132,14 @@ SECRETS = {
     "speech": ("openai_api_key", "elevenlabs_api_key", "assemblyai_api_key", "deepgram_api_key", "gemini_api_key"),
     "mail": ("password",),
     "bridge": ("token",),
+    "telegram": ("token",),
+    "slack": ("bot_token", "app_token"),
+    "mailbox": ("password",),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers", "prometheus_token"),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
+    "https": ("dns_credentials", "eab_hmac_key"),
     "documents": ("anytopdf_token",),
 }
 ENUMS = {
@@ -142,9 +162,28 @@ ENUMS = {
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
+    ("telegram", "answer"): {"mention", "all"},
+    ("telegram", "approve"): {"off", "low_risk"},
+    ("mailbox", "imap_security"): set(MAIL_SECURITY),
+    ("mailbox", "smtp_security"): set(MAIL_SECURITY),
+    ("mailbox", "approve"): {"off", "low_risk"},
+    ("mailbox", "check"): {"authenticated", "off"},
+    ("mailbox", "imports"): {"auto", "ask"},
+    ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
+    ("slack", "answer"): {"mention", "all"},
+    ("slack", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
+    ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
+    ("https", "challenge"): {"http", "tls-alpn", "dns"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
+    ("logs", "level"): set(logs.LEVELS),
+    ("logs", "syslog_level"): set(logs.LEVELS),
+    ("logs", "format"): {"text", "json"},
+    ("logs", "syslog_format"): {"text", "json"},
+    ("logs", "syslog_transport"): set(logs.TRANSPORTS),
+    ("logs", "syslog_facility"): set(logs.FACILITIES),
+    ("logs", "syslog_framing"): {"octet", "newline"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -168,8 +207,11 @@ ENV_OVERRIDES = {
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
+    ("logs", "level"): "LENS_LOG_LEVEL",
+    ("logs", "format"): "LENS_LOG_FORMAT",
     ("telemetry", "prometheus"): "LENS_PROMETHEUS",
     ("telemetry", "prometheus_token"): "LENS_PROMETHEUS_TOKEN",
+    ("telemetry", "grafana_url"): "LENS_GRAFANA_URL",
     ("fedora", "enabled"): "LENS_FEDORA",
     ("fedora", "url"): "LENS_FEDORA_URL",
     ("fedora", "user"): "LENS_FEDORA_USER",
@@ -306,6 +348,7 @@ class Settings:
             if self._cfg is None or v != self._ver:
                 self._cfg, self._ver = effective(self.db, self.base), v
                 telemetry.apply(self._cfg)  # turned on, changed or off in the app: this process follows
+                logs.apply(self._cfg)  # and its logging (level, file, syslog)
             return self._cfg
 
 
@@ -382,6 +425,10 @@ def _check(section, key, value, default):
         if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and 1024 <= value <= 2_000_000):
             raise ValueError("ai.context_tokens is a whole number of tokens from 1024 to 2000000")
         return value
+    if (section, key) == ("ai", "browser_steps"):
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 100):
+            raise ValueError("ai.browser_steps is a whole number of steps from 1 to 100")
+        return value
     if (section, key) == ("llm", "describe_max"):
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 1000):
             raise ValueError("llm.describe_max is a whole number from 1 to 1000")
@@ -407,14 +454,24 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "logs":
+        return _logs_setting(key, value)
     if section == "updates":
         return _updates_setting(key, value)
     if section == "activity":
         return _activity_setting(key, value)
+    if section == "backups":
+        return _backup_setting(key, value)
     if section == "fedora":
         return _fedora_setting(key, value)
+    if section == "shares":
+        return _share_setting(key, value)
     if section == "sensors":
         return _sensor_setting(key, value)
+    if section == "nfs":
+        return _nfs_setting(key, value)
+    if section == "smb":
+        return _smb_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
     if section == "nsfw":
@@ -423,6 +480,12 @@ def _check(section, key, value, default):
         return _mail_setting(key, value)
     if section == "bridge" and key not in ("answer", "enabled", "approve"):
         return _bridge_setting(key, value)
+    if section == "telegram" and key not in ("answer", "enabled", "approve"):
+        return _telegram_setting(key, value)
+    if section == "slack" and key not in ("answer", "enabled", "approve"):
+        return _slack_setting(key, value)
+    if section == "mailbox" and key not in ("enabled", "approve", "imap_security", "smtp_security", "check", "imports"):
+        return _mailbox_setting(key, value)
     if section == "matterbridge" and key != "run":
         return _matterbridge_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
@@ -449,7 +512,12 @@ def _check(section, key, value, default):
         return _local_llm_setting(key, value)
     if section == "decisions" and key != "engine":
         return _decision_setting(key, value)
-    if (section, key) in (("documents", "attachment_resources"), ("documents", "video_urls")):
+    if (section, key) in (
+        ("documents", "attachment_resources"),
+        ("documents", "video_urls"),
+        ("documents", "tika_text"),
+        ("documents", "tika_metadata"),
+    ):
         if not isinstance(value, bool):
             raise ValueError(f"documents.{key} is true or false")
         return value
@@ -460,6 +528,13 @@ def _check(section, key, value, default):
             return None
         if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
             raise ValueError("documents.anytopdf_url is a conversion node's http(s) address, such as https://convert.home:8640")
+        return value.strip().rstrip("/")
+    if (section, key) == ("documents", "tika_url"):
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
+            raise ValueError("documents.tika_url is a Tika server's http(s) address with no password in it, such as http://tika:9998")
         return value.strip().rstrip("/")
     if (section, key) == ("documents", "anytopdf_token"):
         if value in (None, ""):
@@ -573,7 +648,16 @@ def _speech_setting(key, value):
         if not (isinstance(value, int) and not isinstance(value, bool) and 30 <= value <= 86400):
             raise ValueError("speech.timeout is a whole number of seconds from 30 to 86400")
         return value
+    for end, (lo, hi), what in (("_max_minutes", SPEECH_MINUTES, "minutes"), ("_max_mb", SPEECH_MB, "MB")):
+        if key.endswith(end):
+            if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+                raise ValueError(f"speech.{key} is a whole number of {what} from {lo} to {hi}")
+            return value
     raise ValueError(f"unknown setting speech.{key}")
+
+
+SPEECH_MINUTES = (1, 1440)  # the longest piece of a recording sent to a speech provider at once
+SPEECH_MB = (1, 10_000)  # its largest file
 
 
 PODCAST_RANGES = {"context_chars": (2000, 400_000), "max_minutes": (1, 120), "words_per_minute": (80, 250)}
@@ -626,17 +710,21 @@ def _mail_setting(key, value):
     return value
 
 
-def _bridge_setting(key, value):
+TELEGRAM_TOKEN_RX = re.compile(r"^[0-9]{3,20}:[A-Za-z0-9_-]{30,64}$")
+
+
+def _bridge_setting(key, value, section="bridge"):
+    """bridge's settings, and the room settings every chat channel shares (channels.py: `section`)."""
     if key == "poll_seconds":
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 300):
-            raise ValueError("bridge.poll_seconds is a whole number of seconds from 1 to 300")
+            raise ValueError(f"{section}.poll_seconds is a whole number of seconds from 1 to 300")
         return value
     if key == "users":
         if not (isinstance(value, list) and all(isinstance(v, str) and len(v) <= 200 for v in value) and len(value) <= 500):
-            raise ValueError("bridge.users is a list of chat usernames")
-        return list(dict.fromkeys(v.strip() for v in value if v.strip()))
+            raise ValueError(f"{section}.users is a list of chat usernames")
+        return list(dict.fromkeys(v.strip().lstrip("@") if section != "bridge" else v.strip() for v in value if v.strip()))
     if key == "rooms":
-        bad = "bridge.rooms is a list of rooms and namespaces, like team = pods or team/general = pods"
+        bad = f"{section}.rooms is a list of rooms and namespaces, like team = pods or team/general = pods"
         if not (isinstance(value, list) and len(value) <= 200 and all(isinstance(v, str) and len(v) <= 300 for v in value)):
             raise ValueError(bad)
         out = []
@@ -650,11 +738,11 @@ def _bridge_setting(key, value):
             out.append(f"{where} = {ns}")
         return list(dict.fromkeys(out))
     if key not in ("url", "token", "gateway", "account", "name"):
-        raise ValueError(f"unknown setting bridge.{key}")
+        raise ValueError(f"unknown setting {section}.{key}")
     if value in (None, ""):
         return "Lens" if key == "name" else None
     if not (isinstance(value, str) and len(value.strip()) <= 500):
-        raise ValueError(f"bridge.{key} is text")
+        raise ValueError(f"{section}.{key} is text")
     value = value.strip() if key != "token" else value
     if key == "url":
         u = urllib.parse.urlsplit(value)
@@ -663,10 +751,101 @@ def _bridge_setting(key, value):
         return value.rstrip("/")
     if key == "account":
         if not EMAIL_RX.match(value):
-            raise ValueError("bridge.account is the email of the Lens account it answers as")
+            raise ValueError(f"{section}.account is the email of the Lens account it answers as")
         return value.lower()
     if key == "name" and not re.match(r"^[\w .-]{1,40}$", value):
-        raise ValueError("bridge.name is a short name, such as Lens")
+        raise ValueError(f"{section}.name is a short name, such as Lens")
+    return value
+
+
+def _telegram_setting(key, value):
+    if key == "token":
+        value = (value or "").strip()
+        if value and not TELEGRAM_TOKEN_RX.match(value):
+            raise ValueError("telegram.token is the bot's token from @BotFather, like 123456789:AAE…")
+        return value or None
+    if key == "api_url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not u or u.scheme not in ("http", "https") or not u.hostname:
+            raise ValueError("telegram.api_url is the http(s) address of a Bot API server, such as https://api.telegram.org")
+        return value.strip().rstrip("/")
+    if key in ("url", "gateway", "poll_seconds"):  # Matterbridge's own; Telegram waits on getUpdates instead
+        raise ValueError(f"unknown setting telegram.{key}")
+    return _bridge_setting(key, value, "telegram")
+
+
+def _slack_setting(key, value):
+    prefix = {"bot_token": "xoxb-", "app_token": "xapp-"}.get(key)
+    if prefix:
+        value = (value or "").strip() if isinstance(value, str) or value is None else value
+        if value and not (isinstance(value, str) and value.startswith(prefix) and len(value) <= 500 and " " not in value):
+            raise ValueError(f"slack.{key} is the Slack app's token starting {prefix}")
+        return value or None
+    if key in ("url", "token", "gateway", "poll_seconds"):  # Matterbridge's own; Slack keeps a socket open instead
+        raise ValueError(f"unknown setting slack.{key}")
+    return _bridge_setting(key, value, "slack")
+
+
+HOST_RX = re.compile(r"^[A-Za-z0-9.\-\[\]:]{1,253}$")
+
+
+def _mailbox_setting(key, value):
+    """The assistant's mailbox (mailbox.py), and the room settings every chat channel shares."""
+    if key in ("imap_port", "smtp_port"):
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+            raise ValueError(f"mailbox.{key} is a port number, such as 993 for IMAP or 587 for SMTP")
+        return value
+    if key == "poll_seconds":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 10 <= value <= 3600):
+            raise ValueError("mailbox.poll_seconds is a whole number of seconds from 10 to 3600")
+        return value
+    if key == "users":
+        if not (isinstance(value, list) and len(value) <= 500 and all(isinstance(v, str) and len(v) <= 300 for v in value)):
+            raise ValueError("mailbox.users is a list of email addresses")
+        out = [v.strip().strip("<>").lower() for v in value if v.strip()]
+        bad = next((v for v in out if not EMAIL_RX.match(v)), None)
+        if bad:
+            raise ValueError(f"mailbox.users is a list of email addresses: {bad} isn't one")
+        return list(dict.fromkeys(out))
+    if key == "routes":
+        if not (
+            isinstance(value, list) and len(value) <= mail_routes.MAX_RULES and all(isinstance(v, str) and len(v) <= 2000 for v in value)
+        ):
+            raise ValueError(f"mailbox.routes is a list of up to {mail_routes.MAX_RULES} rules, like from: *@acme.com = acme")
+        out = []
+        for v in value:
+            if not v.strip():
+                continue
+            rule = mail_routes.parse_line(v)
+            if not rule.get("skip") and not store.NS_RX.match(rule["namespace"]):
+                raise ValueError(f"mailbox.routes: {rule['namespace']} isn't a namespace's name")
+            out.append(mail_routes.line(rule))
+        return list(dict.fromkeys(out))
+    if key in ("account", "name"):
+        return _bridge_setting(key, value, "mailbox")
+    if key not in ("address", "username", "imap_host", "smtp_host", "folder", "auth_server"):
+        raise ValueError(f"unknown setting mailbox.{key}")
+    if value in (None, ""):
+        return "INBOX" if key == "folder" else None
+    if not (isinstance(value, str) and len(value.strip()) <= 300):
+        raise ValueError(f"mailbox.{key} is text")
+    value = value.strip()
+    if key == "address":
+        if not EMAIL_RX.match(value):
+            raise ValueError("mailbox.address is the assistant's email address, such as lens@example.org")
+        return value.lower()
+    if key in ("imap_host", "smtp_host") and not HOST_RX.match(value):
+        raise ValueError(f"mailbox.{key} is the mail server's host name, such as {key[:4]}.example.org")
+    if key == "auth_server":
+        if not re.match(r"^[A-Za-z0-9.\-]{1,253}$", value):
+            raise ValueError("mailbox.auth_server is the name your mail server signs Authentication-Results with, such as mx.google.com")
+        return value.lower()
+    if key == "folder" and ("\n" in value or "\r" in value):
+        raise ValueError("mailbox.folder is a folder's name, such as INBOX")
     return value
 
 
@@ -779,6 +958,44 @@ def _activity_setting(key, value):
     raise ValueError(f"unknown setting activity.{key}")
 
 
+def _backup_setting(key, value):
+    from . import schedule
+
+    if key == "schedule":
+        if value in (None, ""):
+            return None
+        if not isinstance(value, str):
+            raise ValueError("backups.schedule is a cron expression, like 0 3 * * * (every night at 3), or empty for none")
+        try:
+            schedule.parse(value.strip())
+        except ValueError as e:
+            raise ValueError(f"backups.schedule: {e}") from None
+        return value.strip()
+    if key == "timezone":
+        if not isinstance(value, str):
+            raise ValueError("backups.timezone is a time zone name, like Europe/London")
+        try:
+            schedule.zone(value)
+        except ValueError as e:
+            raise ValueError(f"backups.timezone: {e}") from None
+        return value
+    if key == "keep":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("backups.keep is a whole number of scheduled backups from 1 to 365")
+        return value
+    if key == "connection":
+        if value is not None and not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+            raise ValueError("backups.connection is a storage connection's id, or none")
+        return value
+    if key == "folder":
+        from . import blobs
+
+        if not isinstance(value, str) or not value.strip() or len(value) > 200:
+            raise ValueError("backups.folder is a folder (a bucket and path for S3), up to 200 characters")
+        return blobs._folder(value)
+    raise ValueError(f"unknown setting backups.{key}")
+
+
 EMBED_RANGES = {"passage_chars": (200, 4000), "batch_size": (1, 256), "neighbours": (5, 500), "timeout": (5, 600)}
 
 
@@ -885,6 +1102,109 @@ def _sensor_setting(key, value):
     return value
 
 
+LOG_RANGES = {"file_mb": (1, 100), "file_keep": (1, 10), "syslog_port": (1, 65535)}
+APP_NAME_RX = re.compile(r"^[!-~]{1,48}$")
+HOST_RX = re.compile(r"^[A-Za-z0-9.:_-]{1,253}$")
+
+
+def _logs_setting(key, value):
+    if ("logs", key) in ENUMS:  # checked against ENUMS already
+        return value
+    if key in ("file", "syslog", "syslog_verify"):
+        if not isinstance(value, bool):
+            raise ValueError(f"logs.{key} is true or false")
+        return value
+    if key == "levels":
+        if value is None:
+            return {}
+        if not isinstance(value, dict) or len(value) > 100:
+            raise ValueError('logs.levels gives loggers their own level, like {"httpx": "warning"}')
+        out = {}
+        for name, lvl in value.items():
+            if not logs.LOGGER_RX.match(str(name)) or str(lvl).lower() not in logs.LEVELS:
+                raise ValueError(f"logs.levels: {name} needs a logger name and one of: {', '.join(logs.LEVELS)}")
+            out[str(name)] = str(lvl).lower()
+        return out
+    if key == "syslog_host":
+        if value in (None, ""):
+            return None
+        v = str(value).strip().strip("[]")
+        if not HOST_RX.match(v):
+            raise ValueError("logs.syslog_host is the syslog server's host name or IP address, without a port")
+        try:
+            link_local = ipaddress.ip_address(v).is_link_local
+        except ValueError:
+            if ":" in v:  # only an IPv6 address has colons; the port is logs.syslog_port
+                raise ValueError("logs.syslog_host is the syslog server's host name or IP address, without a port") from None
+            link_local = False
+        if link_local:
+            raise ValueError("logs.syslog_host can't be a link-local address (169.254.0.0/16, fe80::/10)")
+        return v
+    if key == "syslog_app_name":
+        if not (isinstance(value, str) and APP_NAME_RX.match(value.strip())):
+            raise ValueError("logs.syslog_app_name is up to 48 printable characters, without spaces")
+        return value.strip()
+    lo, hi = LOG_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"logs.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
+def _nfs_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("nfs.enabled is true or false")
+        return value
+    if key == "port":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+            raise ValueError("nfs.port is a whole number from 1 to 65535")
+        return value
+    if key == "account":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, int) and not isinstance(value, bool) and value > 0):
+            raise ValueError("nfs.account is an account's id, or empty for the first admin")
+        return value
+    if not isinstance(value, list) or not value:
+        raise ValueError("nfs.allowed_networks is a list of networks like 192.168.1.0/24 (at least one)")
+    out = []
+    for v in value:
+        try:
+            net = ipaddress.ip_network(str(v).strip(), strict=False)
+        except ValueError:
+            raise ValueError(f"nfs.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
+        if net.prefixlen == 0:  # NFS has no sign-in: the whole internet is never a sensible default to type
+            raise ValueError(f"nfs.allowed_networks: {v} is every address; list the networks your machines are on")
+        out.append(str(net))
+    return list(dict.fromkeys(out))
+
+
+def _smb_setting(key, value):
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("smb.enabled is true or false")
+        return value
+    if not isinstance(value, list) or len(value) > 100:
+        raise ValueError("smb.allowed_networks is a list of networks like 192.168.1.0/24")
+    out = []
+    for v in value:
+        try:
+            out.append(str(ipaddress.ip_network(str(v).strip(), strict=False)))
+        except ValueError:
+            raise ValueError(f"smb.allowed_networks: {v} isn't a network like 192.168.1.0/24") from None
+    return list(dict.fromkeys(out))
+
+
+def _share_setting(key, value):
+    if key in ("enabled", "s3", "webdav"):
+        if not isinstance(value, bool):
+            raise ValueError(f"shares.{key} is true or false")
+        return value
+    if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+        raise ValueError(f"shares.{key} is a port number from 1 to 65535")
+    return value
+
+
 TELEMETRY_RANGES = {"export_seconds": (5, 3600)}
 SERVICE_RX = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 TOKEN_RX = re.compile(r"^[A-Za-z0-9._~-]+$")
@@ -903,6 +1223,12 @@ def _telemetry_setting(key, value):
         if not isinstance(value, bool):
             raise ValueError(f"telemetry.{key} is true or false")
         return value
+    if key == "grafana_url":
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
+            raise ValueError("telemetry.grafana_url is Grafana's http(s) address, like http://localhost:3001")
+        return value.strip().rstrip("/")
     if key == "endpoint":
         if value is None or value == "":
             return None
@@ -1025,8 +1351,16 @@ def save(db, base, section, changes, user=None):
                     telemetry.parse_headers(v)  # ValueError when malformed
                 if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
                     raise ValueError(f"matterbridge.{k} is one line of text")
-                if (section, k) in (("documents", "anytopdf_token"), ("telemetry", "prometheus_token")):
+                if (section, k) in (
+                    ("documents", "anytopdf_token"),
+                    ("telemetry", "prometheus_token"),
+                    ("telegram", "token"),
+                ) or section == "slack":
                     v = _check(section, k, v, None)
+                if (section, k) == ("https", "dns_credentials"):
+                    from . import https
+
+                    https.parse_credentials(v)
                 sealed[k] = seal(base, v, f"setting:{section}.{k}")
             elif not (isinstance(v, dict) and v.get("secret")):  # the mask echoed back means "unchanged"
                 raise ValueError(f"{section}.{k} must be text")
@@ -1040,6 +1374,8 @@ def save(db, base, section, changes, user=None):
             # the saved headers (an auth token) were for the old collector: they don't go to a new host
             if before:
                 sealed.pop("headers", None)
+    if section == "logs" and data.get("syslog") and not data.get("syslog_host", (base.get("logs") or {}).get("syslog_host")):
+        raise ValueError("set the syslog server's address (logs.syslog_host) to send logs to it")
     if section == "speakers":
         m = data.get("match_threshold", defaults["match_threshold"])
         r = data.get("review_threshold", defaults["review_threshold"])
@@ -1055,6 +1391,10 @@ def save(db, base, section, changes, user=None):
             "SELECT VALUE id FROM passkey WHERE account IN (SELECT VALUE record::id(id) FROM account WHERE admin = true AND disabled != true) LIMIT 1"
         ):
             raise ValueError("add a passkey for an admin before turning passwords off, or nobody could administer Lens")
+    if section == "backups" and data.get("connection"):
+        from . import blobs
+
+        blobs.check_connection(db, data["connection"])
     if section == "files" and data.get("store") == "connection":
         from . import blobs
 
@@ -1070,6 +1410,12 @@ def save(db, base, section, changes, user=None):
 
         merged = {**(base.get("tunnel") or {}), **data, **{k: "set" for k in sealed}}
         tunnel.check({"tunnel": merged})
+    if section == "https":
+        from . import https
+
+        merged = {**(base.get("https") or {}), **data, **{k: "set" for k in sealed}}
+        merged.pop("dns_credentials", None)  # its fields aren't needed to check the rest
+        https.check({"https": merged})
     if (
         section == "server"
         and "allowed_hosts" in data

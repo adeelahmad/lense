@@ -92,7 +92,8 @@ engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `PO
 When the configured model supports function calling, chat becomes an agent.
 
 - **What it can look things up with:** transcripts (including on-screen text), recordings, transcript passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, and speakers.
+  outputs, entities and their mentions and timelines, the knowledge graph, speakers, and content similar to a text,
+  a recording, a topic or an entity (`find_similar`).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
   `ai.max_steps` and `ai.max_transcript_reads`.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
@@ -112,6 +113,62 @@ When the configured model supports function calling, chat becomes an agent.
   bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
   `import_files`, it picks the namespace when you don't name one, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
+- **Your browser** (in progress): asked from the Lens extension's side panel, the assistant can open, read, click and
+  type in that browser and download files into the conversation, on sites you allow, asking before anything that
+  sends, deletes or buys. See [The assistant in your browser](browser-assistant.md).
+
+## Third-party content and prompt injection
+
+The assistant reads text nobody vouched for: what was said in recordings, documents, text read off screens, web pages
+and emails that were captured, chat-room messages, notes and memories kept earlier, and what tools, extensions and other
+servers send back. Any of it can carry instructions meant for the model ("ignore the above and..."), so Lens keeps it
+apart from what the person asks:
+
+- **Marked as data** (`ai.untrusted_marking`, on by default; Settings → AI assistant → Treat what the assistant
+  reads as data, not instructions): each excerpt, each tool result, the page a question was asked from and the namespace
+  assistant's memories reach the model between markers that say where they came from and share a random code, and
+  the model is told to read, quote and cite marked text but never follow instructions in it, nor put what it read
+  into web addresses or tool arguments unasked. Results that are Lens's own (server status, settings, the skills you
+  chose, what a change tool reports) aren't marked. Turn it off only for a model the markers confuse.
+- **Control tokens broken up:** chat templates' control tokens in that text (`<|im_start|>`, `[INST]`,
+  `<start_of_turn>`, `<tool_call>` and the like) and anything that looks like a marker get a space inside, so a local
+  model server that reads them in a message can't be made to end the turn and speak as the system. Unicode's
+  invisible tag characters, which can spell out instructions nobody sees on screen, are taken out.
+- **Flagged when it reads like instructions** (`ai.injection_check`; Settings → AI assistant → Flag text that reads
+  like instructions to an AI): text that says "ignore previous instructions", claims to be new instructions or a new
+  role, addresses an AI reading it, asks to hide something from you, to reveal the system prompt, to call a tool or
+  to put data into a link, or carries control tokens or hidden characters, gets a warning on its marker for the
+  model, and the step in the answer says so ("Read 12 line(s) of Mallory's talk (reads like instructions to an AI:
+  ignore previous instructions)"). `patterns` (the default) is free and kept narrow, so it misses rephrased
+  attacks. `classifier` also runs each tool result the patterns let through past a small model trained to spot
+  prompt injection (ProtectAI's deberta-v3-base-prompt-injection-v2, Apache-2.0) on this machine: nothing leaves it
+  and no tokens are paid for, but the model is about 740 MB, fetched when you pick it (Settings → Components shows
+  it), takes a moment per result (seconds on a Raspberry Pi), reads English best, and flags some requests written for
+  people too (an email asking to add a tracking number to a link); until it is here the patterns carry on alone.
+  `model` asks the decision model instead
+  (one routine call per tool result, falling back to the chat model when no decision model is set up). Each check is
+  a row in the activity ledger. `off` turns flagging off. A flag is a warning, not a block: the approvals below are
+  what stop an action.
+- **Asks first once it has read it** (`ai.untrusted_asks`, on by default; Settings → AI assistant → Ask before
+  sending data out after reading third-party text): once an answer has read text from outside Lens (a tool's result
+  other than Lens's own, the page it was asked from, the namespace assistant's memories, a message in a chat room
+  open to anyone, or an earlier answer in the conversation that read any of these), anything that could carry what
+  it read out of Lens waits for your approval, even where it would otherwise run at once: your own `read` web tools,
+  other servers' MCP tools and Python tools with the network, the changes a setup conversation makes itself, and, in
+  [your browser](browser-assistant.md), opening or downloading an address or typing text you didn't write. The
+  approval card says why ("asked first: this answer read text from outside Lens: tool search_transcripts"). Notes and
+  memories are still written at once: they stay in Lens, and are marked as data when read back.
+- **Links a chat app would fetch broken up:** in chat rooms, a web address the answer built itself can't be previewed
+  ([chat rooms](chat-rooms.md)); the web app shows no links or images that load by themselves; MCP results reach
+  other agents with control tokens broken up and a note when flagged ([MCP](mcp.md)).
+- **Logged:** each flagged tool result (`assistant.injection_flagged`, with the tool and the reasons, never the text)
+  goes into the audit log, which admins read (`GET /api/v1/audit`).
+
+The layers stand on their own: the person's reads bound what any answer can see whatever the model does, marking and
+flags work without approvals, approvals don't depend on anything being flagged, and links are broken up whether or
+not the answer asked first. Turning one off leaves the others. Marking and flagging make injection less likely to
+work; they don't make it impossible (a system prompt is not a filter). What the assistant can do is still bounded by
+the person's reads and approvals (N-PROMPT in the repository's `threat-model.md`).
 
 ## A namespace's own assistant
 
@@ -159,8 +216,9 @@ shared with namespaces (admins can share with everyone), and switched on or off 
 - **MCP server** (admins add them): a server that speaks the Model Context Protocol over Streamable HTTP, at the
   address an admin gives (this machine and the local network included, as for the model's address), with the headers
   it needs (a token). Lens lists its tools when it's saved, and the assistant calls them as `<server>__<tool>`: one the
-  server marks read-only answers at once, the others ask for approval. Servers that run as a program (stdio) aren't
-  run.
+  server marks read-only answers at once, the others ask for approval. A server that runs as a program (stdio:
+  `command`, `args` and `env` instead of an address, as in Claude's `.mcp.json`, usually `npx` or `uvx`) runs in the
+  MCP runner, below.
 - **Plugin**: a bundle of tools, skills, hooks and MCP servers, shared and switched off as one.
 
 Make one however suits you:
@@ -206,8 +264,21 @@ version. A skill (a folder with SKILL.md) is a skill, and the assistant reads it
 scripts) when the instructions point at them; nothing in them runs. A command (`commands/*.md`) is a skill the
 assistant follows when someone asks for it, and an agent (`agents/*.md`) is a prompt tool with the agent's instructions
 as its system prompt. Claude Code's hooks run commands on the computer, so they're left out. A plugin's MCP servers on
-the network (`.mcp.json`) come along when an admin installs it; those that run as a program are left out. Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
+the network (`.mcp.json`) come along when an admin installs it, and those that run as a program too when the MCP
+runner is on (ones that run a program shipped inside the plugin are left out). Repositories are read from GitHub or GitLab (or the archive link) through the same guard as web
 tools: public addresses only.
+
+### The MCP runner
+
+MCP servers that run as a program run in a container of their own, the MCP runner
+([`mcp-runner/`](https://github.com/adeelahmad/lense/tree/main/mcp-runner)), never next to Lens. It's off until you
+turn it on: add `COMPOSE_PROFILES=mcp` to Lens's `.env` and run the install command again (or
+`docker compose --profile mcp up -d`). The container is the sandbox: it has none of Lens's data, keys or database, runs
+as an unprivileged user with every capability dropped, a read-only image and memory and process limits, and shares a
+network only with Lens's backend (and the internet, which `npx` and `uvx` need to fetch the servers). Each server gets
+an empty folder as its home and only the environment its extension gives it; Lens talks to the runner over HTTP with
+a token the runner writes to a volume only the two share. A server starts on first use, stays up while it's used,
+and stops after 15 idle minutes. Installs that don't run on Docker don't have the runner yet.
 
 `ai.extensions: false` turns every extension off.
 
@@ -219,7 +290,8 @@ Admins also get the server tools: `server_status` (what's set up and what's miss
 (`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
 connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
 changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
-Turning telemetry on or off always asks first.
+Turning telemetry on or off always asks first, and so does every change once the answer has read text from outside
+Lens ([third-party content](#third-party-content-and-prompt-injection)).
 
 ### Routine choices
 

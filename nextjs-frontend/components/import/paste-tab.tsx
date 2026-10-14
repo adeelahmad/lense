@@ -99,7 +99,8 @@ export function PasteTab({
           Markdown, plain text with “Name:” labels, SRT, VTT or JSON are detected automatically.
         </span>
       </div>
-      <div className="flex min-w-0 flex-col gap-3.5 p-4 md:px-6 md:py-[18px]" aria-live="polite">
+      {/* room at the bottom so Import scrolls clear of the floating Ask button */}
+      <div className="flex min-w-0 flex-col gap-3.5 p-4 pb-20 md:px-6 md:pb-20 md:pt-[18px]" aria-live="polite">
         {!text.trim() ? (
           <p className="text-[13.5px] text-fg-muted">
             Paste a transcript on the left to see how it will be read. Nothing is saved until you import.

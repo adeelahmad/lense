@@ -31,6 +31,7 @@ export function transcriptOrigin(engine: string | null | undefined): string | nu
     const f = engine.slice(7);
     return `from ${IMPORT_FORMATS[f] ?? f.toUpperCase()}`;
   }
+  if (engine === "text:tika") return "read as text by Tika";
   return engine;
 }
 

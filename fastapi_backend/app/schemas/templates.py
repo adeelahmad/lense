@@ -62,6 +62,11 @@ class TemplateCreate(RequestModel):
     description: str | None = None
 
 
+class TemplateUpdate(RequestModel):
+    name: str | None = None
+    description: str | None = None
+
+
 class TemplateVersionCreate(RequestModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 

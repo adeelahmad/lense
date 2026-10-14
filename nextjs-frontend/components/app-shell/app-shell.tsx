@@ -13,8 +13,10 @@ import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NamespaceSwitcher } from "@/components/app-shell/namespace-switcher";
 import { Nav } from "@/components/app-shell/nav";
 import { Shortcuts } from "@/components/app-shell/shortcuts";
+import { BudgetMeter } from "@/components/costs/budget-meter";
 import { WelcomeTour } from "@/components/home/welcome-tour";
 import { PageChat } from "@/components/page-chat/page-chat";
+import { SimilarOnSelect } from "@/components/similar/selection-popover";
 import { Button, IconButton } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -49,7 +51,7 @@ function PartialNamespace({ ns, onAll }: { ns: string; onAll: () => void }) {
   );
 }
 
-/** The signed-in frame: nav rail, top bar (namespace, ⌘K, activity, import, alerts, account), the page and the page
+/** The signed-in frame: nav rail, top bar (namespace, ⌘K, budget, activity, import, alerts, account), the page and the page
  * chat beside it. */
 export function AppShell({ user, children }: { user: SessionUser; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -139,6 +141,12 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
             counts={counts}
             onNavigate={() => setMobileOpen(false)}
             className="relative shadow-3"
+            top={
+              // the top bar has no room for it on a phone
+              <div className="px-0.5 pb-3">
+                <NamespaceSwitcher className="w-full" onPick={() => setMobileOpen(false)} />
+              </div>
+            }
           />
         </div>
       )}
@@ -153,6 +161,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           <div className="flex min-w-0 flex-1 justify-center px-1">
             <CommandPalette />
           </div>
+          <BudgetMeter />
           <ActivityPill />
           <Button
             asChild={canImport}
@@ -171,6 +180,16 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
               "Import"
             )}
           </Button>
+          {canImport && (
+            // a phone's top bar has no room for the labelled button
+            <Link
+              href="/import"
+              aria-label="Import"
+              className="inline-grid size-9 shrink-0 place-items-center rounded-full text-fg-secondary transition-colors duration-fast hover:bg-surface-neutral md:hidden [&_svg]:size-[18px]"
+            >
+              <Upload />
+            </Link>
+          )}
           <IconButton label="Needs attention" onClick={() => (window.location.href = "/#attention")}>
             <Bell />
           </IconButton>
@@ -193,6 +212,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         <PageChat />
       </Suspense>
       <Shortcuts />
+      <SimilarOnSelect />
       <WelcomeTour />
     </div>
   );

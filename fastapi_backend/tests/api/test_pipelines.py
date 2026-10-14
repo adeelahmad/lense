@@ -59,6 +59,14 @@ def test_pipelines_versions_and_runs(client, new_client, db, cfg):
     assert (p["version"], [v["version"] for v in p["history"]], p["history"][0]["notes"]) == (2, [2, 1], "less")
     assert client.get(f"/api/v1/pipelines/{pid}", params={"version": 1}, headers=h).json()["steps"][1]["key"] == "meeting_notes"
     assert client.get("/api/v1/pipelines/999", headers=h).status_code == 404
+    # renamed and described without a new version: admins only, never to nothing
+    assert client.patch(f"/api/v1/pipelines/{pid}", headers=he, json={"name": "Mine"}).status_code == 403
+    assert client.patch(f"/api/v1/pipelines/{pid}", headers=h, json={"name": " "}).status_code == 400
+    assert client.patch("/api/v1/pipelines/999", headers=h, json={"name": "x"}).status_code == 404
+    assert client.patch(f"/api/v1/pipelines/{pid}", headers=h, json={"name": " Notes v2 ", "description": "renamed"}).status_code == 200
+    p = client.get(f"/api/v1/pipelines/{pid}", headers=h).json()
+    assert (p["name"], p["description"], p["version"]) == ("Notes v2", "renamed", 2)
+    assert client.patch(f"/api/v1/pipelines/{pid}", headers=h, json={"name": "Notes"}).status_code == 200
     assert client.post(f"/api/v1/pipelines/{pid}/versions", headers=h, json={"steps": steps}).json()["version"] == 3
 
     # running it on one recording: editors of its namespace only

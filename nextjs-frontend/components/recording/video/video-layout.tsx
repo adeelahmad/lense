@@ -100,6 +100,7 @@ export function VideoLayout({
     },
     { value: "objects", label: "Objects", count: model.objects.length },
     { value: "summary", label: "Summary" },
+    { value: "similar", label: "Similar" },
     { value: "iiif", label: "IIIF" },
   ];
   const more: TabDef[] = [

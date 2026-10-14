@@ -1,15 +1,21 @@
 """Lens as an MCP client: the assistant calls the tools of MCP servers an admin added (extensions.py, kind `mcp`).
 
 A server is reached over Streamable HTTP (the MCP transport for servers on the network), and answers as JSON or as an
-event stream; each use is a short session of its own: `initialize`, then `tools/list` or `tools/call`. Servers that
-run as a program on this computer (stdio) aren't run. Only admins add servers, as they set the model's address, so
-the address is theirs to choose: a server on this machine or the local network works.
+event stream; each use is a short session of its own: `initialize`, then `tools/list` or `tools/call`. Only admins
+add servers, as they set the model's address, so the address is theirs to choose: a server on this machine or the
+local network works.
+
+A server that runs as a program (stdio: a command, usually `npx` or `uvx`) runs in the MCP runner, a container of its
+own with none of Lens's data or keys (mcp-runner/runner.py, the optional `mcp` service), which Lens tells what to run
+and then reaches over HTTP like any other. Without the runner, such servers aren't run.
 """
 
 from __future__ import annotations
 
+import hashlib
 import itertools
 import json
+import os
 import urllib.error
 import urllib.request
 
@@ -41,9 +47,9 @@ def _events(raw):
             data = []
 
 
-def _post(url, headers, body, timeout=TIMEOUT):
-    """One POST to the server: (status, response headers, body text). Tests replace it."""
-    req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST", headers=headers)
+def _post(url, headers, body, timeout=TIMEOUT, method="POST"):
+    """One request to the server (or the runner): (status, response headers, body text). Tests replace it."""
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 (an admin's address, http or https)
             return r.status, dict(r.headers.items()), r.read(MAX_REPLY).decode("utf-8", "replace")
@@ -53,8 +59,44 @@ def _post(url, headers, body, timeout=TIMEOUT):
         raise McpError(f"couldn't reach the MCP server: {getattr(e, 'reason', e)}") from None
 
 
+def runner():
+    """The MCP runner's address and token, when it runs (LENS_MCP_RUNNER_URL, and the token it wrote to
+    LENS_MCP_TOKEN_FILE); None otherwise."""
+    url = os.environ.get("LENS_MCP_RUNNER_URL", "").rstrip("/")
+    try:
+        with open(os.environ.get("LENS_MCP_TOKEN_FILE") or "/mcp-key/token") as f:
+            token = f.read().strip()
+    except OSError:
+        return None
+    return (url, token) if url and token else None
+
+
+NO_RUNNER = (
+    "MCP servers that run as a program need the MCP runner, a sandbox of their own: add COMPOSE_PROFILES=mcp to "
+    "Lens's .env and run the install command again (docs/assistant.md)"
+)
+
+
+def reach(server):
+    """Where to reach a server: its own address, or (one that runs as a program) the runner's, after telling the
+    runner what to run. {url, headers}."""
+    if not server.get("command"):
+        return server
+    r = runner()
+    if not r:
+        raise McpError(NO_RUNNER)
+    conf = {"command": server["command"], "args": server.get("args") or [], "env": server.get("env") or {}}
+    key = "s" + hashlib.sha256(json.dumps(conf, sort_keys=True).encode()).hexdigest()[:24]
+    headers = {"Authorization": f"Bearer {r[1]}", "Content-Type": "application/json"}
+    status, _, text = _post(f"{r[0]}/servers/{key}", headers, conf, method="PUT")
+    if status >= 400:
+        raise McpError(f"the MCP runner said {status}: {text[:300]}")
+    return {"url": f"{r[0]}/servers/{key}/mcp", "headers": {"Authorization": headers["Authorization"]}}
+
+
 class Session:
     def __init__(self, server):
+        server = reach(server)
         if not str(server.get("url") or "").startswith(("http://", "https://")):
             raise McpError("an MCP server's address starts with http:// or https://")
         self.url = server["url"]
@@ -106,7 +148,7 @@ class Session:
 
 def discover(server):
     """A server's tools, as an MCP extension keeps them: {name, description, schema, read_only}."""
-    with activity.call("mcp.list", detail={"url": server.get("url")}):
+    with activity.call("mcp.list", detail={"url": server.get("url") or server.get("command")}):
         tools = Session(server).tools()
     out = []
     for t in tools:
@@ -124,7 +166,7 @@ def discover(server):
 
 def call(run, args):
     """Call one of a server's tools: its text, and anything structured it gave back."""
-    with activity.call("mcp.call", detail={"url": run["url"], "tool": run["tool"]}):
+    with activity.call("mcp.call", detail={"url": run.get("url") or run.get("command"), "tool": run["tool"]}):
         got = Session(run).call(run["tool"], args)
     texts = [c.get("text") for c in got.get("content") or [] if isinstance(c, dict) and c.get("type") == "text"]
     out = {"text": "\n".join(t for t in texts if t)}

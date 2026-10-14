@@ -6,6 +6,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from app.schemas.backups import BackupSchedule, CopyWork, RestoreWork
 from app.schemas.common import RequestModel, ResponseModel
 
 
@@ -61,3 +62,35 @@ class Backup(ResponseModel):
 class Backups(ResponseModel):
     folder: str
     backups: list[Backup]
+    database: Literal["server", "embedded", "memory"] | None = Field(
+        None, description="the database this Lens uses: a restore needs a backup of the same kind (export or folder)"
+    )
+    in_progress: list[str] = Field(default_factory=list, description="backups being written now, by any Lens process")
+    restore: RestoreWork | None = Field(None, description="the restore running on this server, or the last one")
+    schedule: BackupSchedule | None = None
+
+
+class RemoteBackups(ResponseModel):
+    connection: int | None = Field(None, description="backups.connection: where copies go, or none")
+    folder: str | None = None
+    backups: list[Backup] = Field(default_factory=list, description="the copies there, newest first")
+    error: str | None = Field(None, description="why the connection couldn't be listed")
+    last_at: str | None = Field(None, description="when the last backup was copied there (or tried)")
+    last_name: str | None = None
+    last_error: str | None = Field(None, description="why copying the last backup failed")
+    copying: CopyWork
+
+
+class Monitoring(ResponseModel):
+    on: bool = Field(description="the monitoring profile (Prometheus, node-exporter, Grafana) as last asked")
+    state: Literal["queued", "running", "done", "failed"] | None = Field(None, description="how the machine's last change went")
+    error: str | None = None
+    asked_at: str | None = None
+    finished_at: str | None = None
+    grafana_port: int = Field(3001, description="the port Grafana listens on, where the web app does")
+    agent: str | None = Field(None, description="what changes it on this machine (systemd, launchd); none: run `manual` there")
+    manual: str = Field(description="the line that turns it on by hand, on the machine Lens runs on")
+
+
+class MonitoringRequest(RequestModel):
+    on: bool = Field(description="start (true) or stop (false) Prometheus, node-exporter and Grafana")

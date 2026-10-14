@@ -771,6 +771,7 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
     { value: "pages", label: "Text", count: model.segments.length || undefined },
     { value: "summary", label: "Summary" },
     { value: "entities", label: "Entities" },
+    { value: "similar", label: "Similar" },
     { value: "chat", label: "Chat" },
     { value: "notes", label: "Notes", count: notes || undefined },
     { value: "comments", label: "Comments", count: open || undefined },

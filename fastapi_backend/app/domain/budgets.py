@@ -12,6 +12,11 @@ estimates what the run will cost from that resource's past runs and looks at wha
 
 Doing nothing changes nothing: a held run stays held. A run someone let through runs. `warn_at` (0.8) marks a budget
 `near` once that share is spent, for the periodic check (sweep) to warn about.
+
+One budget, `all`, covers everything Lens spends (the setup wizard asks for it): its `warn_at` share is the soft limit,
+which warns, and its cap the hard limit. At the hard limit every run waits as above, and calls to models that cost
+money are refused (activity.Call asks `hard_stop`); models without a price (local ones) keep working, unless the cap
+is in tokens.
 """
 
 from __future__ import annotations
@@ -28,7 +33,9 @@ R = store.R
 PERIODS = ("run", "day", "week", "month")
 ON_OVER = ("ask", "skip", "assistant")
 TABLES = ("routine", "pipeline", "workflow", "space")
-REF = re.compile(r"^(routine|pipeline|workflow|space):(\d+)$")
+REF = re.compile(r"^(?:(routine|pipeline|workflow|space):(\d+)|all)$")
+ALL = "all"  # everything Lens spends (set in setup); the meter measures all of Lens against it
+HARD_SECONDS = 30  # how long hard_stop trusts what it last found
 FIELDS = "resource, usd, tokens, period, on_over, warn_at, note, by, updated_at, alert"
 LOOKBACK_DAYS = 30  # the past runs an estimate is drawn from
 SWEEP_SECONDS = 300  # how often the scheduler looks at every budget
@@ -41,7 +48,7 @@ def _key(resource):
 
 def check_ref(resource):
     if not isinstance(resource, str) or not REF.match(resource):
-        raise ValueError("a budget is for routine:<id>, pipeline:<id>, workflow:<id> or space:<id>")
+        raise ValueError("a budget is for all, routine:<id>, pipeline:<id>, workflow:<id> or space:<id>")
     return resource
 
 
@@ -80,6 +87,7 @@ def put(db, resource, usd=None, tokens=None, period="month", on_over="ask", warn
         }
     )
     db.q("UPSERT $r CONTENT $d", r=_key(resource), d=row)
+    _hard.clear()
     return get(db, resource)
 
 
@@ -90,6 +98,7 @@ def get(db, resource):
 def remove(db, resource):
     check_ref(resource)
     db.q("DELETE $r", r=_key(resource))
+    _hard.clear()
 
 
 def all_budgets(db):
@@ -97,9 +106,31 @@ def all_budgets(db):
 
 
 # ---------- where it stands ----------
+def _spent(db, resource, since):
+    """(USD, tokens, whether the USD is an estimate) since a time: one resource's calls, or every call for `all`."""
+    if resource == ALL:
+        p, q = (
+            {},
+            "SELECT math::sum(cost_usd ?? 0) AS usd, math::sum((tokens_in ?? 0) + (tokens_out ?? 0)) AS tokens, count(unpriced = true) AS unpriced FROM activity WHERE kind != 'run'",
+        )
+        if since:
+            q += " AND at >= $since"
+            p["since"] = since
+        row = db.one(q + " GROUP ALL", **p) or {}
+        return round(float(row.get("usd") or 0), 6), int(row.get("tokens") or 0), bool(row.get("unpriced"))
+    c = activity.costs(db, [resource], since)[resource]
+    return c["cost_usd"], c["tokens"], c["estimate"]
+
+
 def _runs(db, resource, since):
     """How many runs this resource had since a time: a routine's runs, or the jobs of a pipeline, workflow or namespace."""
     m = REF.match(resource)
+    if resource == ALL:
+        routine_runs = len(db.values("SELECT VALUE id FROM routine_run WHERE started_at >= $s", s=since))
+        job_runs = db.values(
+            "SELECT VALUE id FROM activity WHERE kind = 'run' AND at >= $s AND string::starts_with(action, 'job.')", s=since
+        )
+        return routine_runs + len(job_runs)
     if m and m.group(1) == "routine":
         return len(db.values("SELECT VALUE id FROM routine_run WHERE routine = $r AND started_at >= $s", r=int(m.group(2)), s=since))
     return len(
@@ -119,7 +150,7 @@ def estimate(db, resource, now=None):
     runs = _runs(db, resource, since)
     if not runs:
         return {"usd": None, "tokens": None, "runs": 0, "basis": "no runs in the last 30 days to go on"}
-    usd, tokens = activity.spent(db, resource, since)
+    usd, tokens = _spent(db, resource, since)[:2]
     return {
         "usd": round(usd / runs, 6),
         "tokens": int(tokens / runs),
@@ -140,8 +171,8 @@ def status(db, resource, budget=None, now=None):
     if period == "run":
         spent = {"usd": 0.0, "tokens": 0, "estimate": False}
     else:
-        c = activity.costs(db, [resource], since)[resource]
-        spent = {"usd": c["cost_usd"], "tokens": c["tokens"], "estimate": c["estimate"]}
+        usd, tokens, est = _spent(db, resource, since)
+        spent = {"usd": usd, "tokens": tokens, "estimate": est}
     left, shares, after = {}, [], []
     for cap, k in (("usd", "usd"), ("tokens", "tokens")):
         if budget.get(cap) is None:
@@ -171,7 +202,7 @@ def status(db, resource, budget=None, now=None):
 def check(db, cfg, resources, now=None):
     """Whether a run that counts for these resources may go ahead. Returns {go, action, why, resource, status}:
     go True (run), or action "ask" (hold it for a person), "skip". The first budget that stops it decides."""
-    for res in dict.fromkeys(r for r in resources if r and REF.match(r)):
+    for res in dict.fromkeys([ALL, *(r for r in resources if r and REF.match(r))]):
         b = get(db, res)
         if not b:
             continue
@@ -237,6 +268,40 @@ def _weigh(cfg, res, st, why):
     return d["choice"] if decide.sure(cfg, d) else "ask"
 
 
+# ---------- the hard limit, for calls ----------
+_hard: dict = {}
+
+
+def hard_stop(db, cfg, model=None):
+    """Why a call out must not go ahead, or None: the `all` budget is used up and the call would cost money (a model
+    with a price), or its cap is in tokens (any call counts). Looked up at most every HARD_SECONDS."""
+    now = time.monotonic()
+    if _hard.get("db") != id(db) or now - _hard.get("at", 0) > HARD_SECONDS:
+        try:
+            b = get(db, ALL)
+            st = status(db, ALL, b) if b and b.get("period") != "run" else None
+        except Exception as e:  # noqa: BLE001 - a budget that can't be read stops nothing
+            log.info("budgets: couldn't check the overall budget: %s", e)
+            b = st = None
+        _hard.update(
+            db=id(db),
+            at=now,
+            budget=b,
+            over=bool(st and st["state"] == "over"),
+            why=_why(ALL, st, True) if st and st["state"] == "over" else None,
+        )
+    if not _hard.get("over"):
+        return None
+    b = _hard["budget"]
+    if b.get("tokens") is None:  # a cap in money: only calls that cost money stop
+        from . import telemetry
+
+        p = telemetry.prices(cfg or {}).get(model) if model else None
+        if not isinstance(p, dict) or (p.get("unit") or "tokens") == "off":
+            return None
+    return _hard["why"].replace(f"{ALL} has spent", "Lens has spent") + " Raise the limit in Settings › Budgets to go on."
+
+
 # ---------- the periodic check ----------
 def sweep(db, cfg, now=None, every=None):
     """Look at every budget (at most once `every` seconds, when given): one that has crossed warn_at or its cap since it was last looked at gets an alert (on the
@@ -267,3 +332,38 @@ def sweep(db, cfg, now=None, every=None):
         )
         made.append({"resource": res, **alert})
     return made
+
+
+# ---------- the meter (top bar) and the costs page ----------
+VIEW_PERIODS = ("day", "week", "month")
+TOP_TABLES = ("routine", "pipeline", "workflow", "chat", "recording", "extension", "sensor", "note_page")  # what "top" lists
+
+
+def meter(db, resource, budget_ref=None, period=None, detail=False, now=None):
+    """What a namespace (`space:<id>`), or all of Lens (resource None), spent this period, against its budget when it
+    has one: {resource, period, since, spent: {usd, tokens, estimate}, budget: status | None}. The period is the one
+    asked for, else the budget's own (day, week or month), else month. `budget_ref` is the budget to measure against
+    (the namespace's own by default). With `detail`, also by_day, by_model and top (what cost most in it)."""
+    budget_ref = budget_ref if budget_ref is not None else resource
+    b = get(db, budget_ref) if budget_ref else None
+    st = status(db, budget_ref, b, now) if b else None
+    if period not in VIEW_PERIODS:
+        period = b["period"] if b and b.get("period") in VIEW_PERIODS else "month"
+    since = activity._since(period, now)
+    t = activity.totals(db, resource, since)
+    out = {
+        "resource": resource,
+        "period": period,
+        "since": since,
+        "spent": {"usd": t["cost_usd"], "tokens": t["tokens_in"] + t["tokens_out"], "estimate": t["estimate"]},
+        "calls": t["calls"] - (t["by_kind"].get("run") or {}).get("calls", 0),
+        "budget": st,
+    }
+    if detail:
+        out["by_day"] = activity.by_day(db, resource, since)
+        out["by_model"] = activity.by_model(db, resource, since)
+        top = activity.top(db, None, since, 40, within=resource)
+        out["top"] = [r for r in top if r["resource"].split(":")[0] in TOP_TABLES][:12]
+        if resource is None:
+            out["by_namespace"] = activity.top(db, "space", since, 50)
+    return out

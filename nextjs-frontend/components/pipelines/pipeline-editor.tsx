@@ -39,6 +39,7 @@ import {
   sameSteps,
   specProblems,
   stepSummary,
+  suggestedPipelineName,
   toSpec,
   type StepSpec,
 } from "@/components/pipelines/pipeline-model";
@@ -49,6 +50,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { STEP_TONE } from "@/components/ui/loop";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
+import { RenameTitle } from "@/components/ui/rename-title";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -246,6 +248,12 @@ export function PipelineEditor({ id }: { id?: number }) {
   const readOnly = !admin;
   const latest = base ? Math.max(base.current, ...(base.history ?? []).map((h) => h.version)) : 0;
   const dirty = creating ? true : base ? !sameSteps(base.steps, steps) : false;
+  // A new pipeline is named for you unless you type one, so Enter creates it straight away
+  const guess = suggestedPipelineName(
+    steps,
+    (catalog.data?.pipelines ?? []).map((p) => p.name),
+  );
+  const named = name.trim() || guess;
   const problems = specProblems(steps, (tid) => tpl.get(tid)?.kind);
   const firstProblem = Object.entries(problems)[0];
   const used = (catalog.data?.pipelines.find((p) => p.id === id)?.namespaces ?? []).filter((n) =>
@@ -271,7 +279,7 @@ export function PipelineEditor({ id }: { id?: number }) {
               Pipelines.createPipeline({
                 client,
                 body: {
-                  name: name.trim(),
+                  name: named,
                   description: description.trim() || null,
                   steps: body,
                 },
@@ -294,7 +302,7 @@ export function PipelineEditor({ id }: { id?: number }) {
       void qc.invalidateQueries({ queryKey: ["pipeline", r.id] });
       setNotes("");
       if (creating) {
-        toast({ tone: "green", title: "Pipeline created", body: name });
+        toast({ tone: "green", title: "Pipeline created", body: named });
         router.push(`/pipelines/${r.id}`);
         return;
       }
@@ -410,14 +418,29 @@ export function PipelineEditor({ id }: { id?: number }) {
         {creating ? (
           <Input
             aria-label="Pipeline name"
-            placeholder="Name, e.g. Podcast standard"
+            placeholder={guess}
             value={name}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !publishReason && !save.isPending) save.mutate(true);
+            }}
             className="h-9 w-[280px] text-[16px] font-bold"
             autoFocus
           />
         ) : (
-          <h1 className="text-[18px] font-bold text-fg">{base?.name}</h1>
+          <RenameTitle
+            name={base?.name ?? ""}
+            what="pipeline"
+            onRename={
+              readOnly
+                ? undefined
+                : async (n) => {
+                    await data(Pipelines.updatePipeline({ client, path: { pid: id! }, body: { name: n } }));
+                    void qc.invalidateQueries({ queryKey: ["pipelines"] });
+                    await qc.invalidateQueries({ queryKey: ["pipeline", id] });
+                  }
+            }
+          />
         )}
         {!creating && (
           <span
@@ -502,8 +525,8 @@ export function PipelineEditor({ id }: { id?: number }) {
         <Button
           size="sm"
           variant="approve"
-          disabled={Boolean(publishReason) || save.isPending || (creating && !name.trim())}
-          disabledReason={publishReason ?? "Give the pipeline a name"}
+          disabled={Boolean(publishReason) || save.isPending}
+          disabledReason={publishReason}
           onClick={() => save.mutate(true)}
         >
           {creating ? "Create pipeline" : `Publish v${nextV}`}

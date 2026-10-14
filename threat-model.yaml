@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:53f99c7b237bf5bbb762ee103e04a0b178add62a6e8d619edfc18b20705086a1"
+prose_version: "threat-model.md@sha256:15139a8c048dbb4982d18de5199aa0bfb8ba69f00ce75168406b1c91a2f563fd"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -359,6 +359,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — P-RETRIEVAL"
         provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
+  - id: "Lens extension side panel"
+    component: assistant
+    parameters:
+      - name: "answers shown there (model text that can repeat third-party text), the sign-in coming back"
+        attacker_controllable: true
+        x-condition: "indirectly through content"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none; answers render as Markdown cleaned by DOMPurify (no scripts, images or forms; only http and https links), and the sign-in checks its state and PKCE"
+        provenance: {kind: documented, source: 'extensions/browser/src/core/assistant.js answerHtml docstring "cleaned of anything that could run or fetch on its own"'}
   - id: "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes"
     component: assistant
     parameters:
@@ -389,6 +398,26 @@ entry_points:
         obligation_id: enable-and-firewall-sensors
         caller_must_enforce: "admin enables; operator firewalls"
         provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: "NFS share (port 12049 on the host, 2049 in the worker)"
+    component: optional
+    parameters:
+      - name: "NFS and MOUNT RPCs, client address"
+        attacker_controllable: true
+        x-condition: "once enabled, from nfs.allowed_networks"
+        control_kinds: [data, x-network-source]
+        obligation_id: enable-and-limit-nfs
+        caller_must_enforce: "admin enables and picks the account; operator firewalls"
+        provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}
+  - id: "SMB share (port 1445 on the host, 4445 in the worker)"
+    component: optional
+    parameters:
+      - name: "SMB2 requests, NTLM sign-in with a file access key, client address"
+        attacker_controllable: true
+        x-condition: "once enabled, from smb.allowed_networks"
+        control_kinds: [data, x-credential, x-network-source]
+        obligation_id: enable-and-limit-smb
+        caller_must_enforce: "admin enables; operator firewalls"
+        provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
   - id: ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY"
     component: outbound
     parameters:
@@ -409,6 +438,33 @@ entry_points:
         obligation_id: trusted-peer-hosts
         caller_must_enforce: "run peers on trusted hosts"
         provenance: {kind: inferred, question_id: Q9}
+  - id: "host control inbox and the monitoring scrape token"
+    component: authz
+    parameters:
+      - name: "inbox/upgrade request: release ref, or action=services with monitoring=on|off"
+        attacker_controllable: true
+        x-condition: "writable by the containers and local users"
+        control_kinds: [x-env-config]
+        obligation_id: agent-allow-list
+        caller_must_enforce: "the agent installs only a release tag or the install's branch, and only toggles the monitoring profile"
+        provenance: {kind: documented, source: "docs/updates.md"}
+      - name: "/metrics scrape token, .lens-control/prometheus-token"
+        attacker_controllable: true
+        x-condition: "anyone reaching the web app; the file is world-readable on the host"
+        control_kinds: [credential]
+        obligation_id: metrics-token
+        caller_must_enforce: "token compared in constant time; metrics carry no personal content"
+        provenance: {kind: documented, source: "docs/prometheus.md Privacy"}
+  - id: "microsandbox program requests"
+    component: authz
+    parameters:
+      - name: "ask/NAME.want in /data/.lens/programs: a program's name"
+        attacker_controllable: true
+        x-condition: "writable by the Lens user inside the sandbox"
+        control_kinds: [x-env-config]
+        obligation_id: program-allow-list
+        caller_must_enforce: "the start script installs only libreoffice or chromium (fixed Debian package lists), answers in a root-only folder, reads only the name"
+        provenance: {kind: documented, source: "docs/microsandbox.md LibreOffice and Chromium"}
 
 # ---------------------------------------------------------------- §1.7 contract-dimension matrix
 # Every in-scope component × the eight required dimensions appears exactly once.
@@ -514,7 +570,7 @@ contract_dimensions:
   - {component: assistant, dimension: reference-lifecycle, status: unresolved, conditions: "saved answers keep text the person can no longer read", question_id: Q11, provenance: {kind: inferred, question_id: Q11}}
   - {component: assistant, dimension: concurrency-reentrancy, status: not-applicable, conditions: "one loop per conversation; tool calls run in order", provenance: {kind: inferred, question_id: Q34}}
   - {component: assistant, dimension: resource-complexity, status: disclaimed, property_id: N-BUDGET, conditions: "budgets are pre-run estimates, off by default", provenance: {kind: documented, source: 'docs/budgets.md "Budgets are off unless an admin sets one"'}}
-  - {component: assistant, dimension: x-prompt-injection, status: unresolved, conditions: "content steers the model within the person's tools, or into answers that carry text out", question_id: Q26, provenance: {kind: inferred, question_id: Q26}}
+  - {component: assistant, dimension: x-prompt-injection, status: claimed, property_id: P-INJECTION-EGRESS, conditions: "steering the model within the person's tools is disclaimed (N-PROMPT); carrying what it read out through outbound tools, setup changes or chat-room links asks first or is broken up", provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}}
   - {component: assistant, dimension: x-template-reach, status: unresolved, conditions: "any writer can use a template node in a custom node", question_id: Q23, provenance: {kind: inferred, question_id: Q23}}
   # --- Optional
   - {component: optional, dimension: numeric-domain, status: unresolved, conditions: "payload 256 KB, 600 per minute per stream, syslog line 64 KB", question_id: Q29, provenance: {kind: inferred, question_id: Q29}}
@@ -523,6 +579,8 @@ contract_dimensions:
   - {component: optional, dimension: serialization-reconstruction, status: not-applicable, conditions: "readings stored as data; no object reconstruction", provenance: {kind: inferred, question_id: Q34}}
   - {component: optional, dimension: callback-execution, status: claimed, property_id: P-CHILD-SECRETS, conditions: "tunnel token and llama-server key stay off command lines", provenance: {kind: documented, source: 'docs/remote-access.md "in its environment, not on its command line"'}}
   - {component: optional, dimension: reference-lifecycle, status: claimed, property_id: P-SENSORS, conditions: "each service off until an admin turns it on", provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}}
+  - {component: optional, dimension: confidentiality, status: claimed, property_id: P-NFS, conditions: "NFS share off until an admin turns it on; read-only; one account's view; allowed networks only", provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
+  - {component: optional, dimension: confidentiality, status: claimed, property_id: P-SMB, conditions: "SMB share off until an admin turns it on; read-only; each key sees its owner's view; allowed networks only", provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {component: optional, dimension: concurrency-reentrancy, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
   - {component: optional, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "MQTT and syslog connection counts, one thread per connection", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
 
@@ -588,7 +646,7 @@ outputs:
   - component: authz
     channel: "MCP tool results (api/mcp_tools.py)"
     taint: same-as-input
-    x-taint-note: "the person's readable data, as text"
+    x-taint-note: "the person's readable data, as text, with chat-template control tokens broken up and a note when text reads like instructions to an AI"
     taint_provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}
     invariants:
       - {id: inv-mcp-person-reads, statement: "results contain only what the person can read", property_id: P-RETRIEVAL, provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
@@ -1024,6 +1082,22 @@ build_flags:
     affects_properties:
       - {property_id: P-SENSORS, effect: narrows}
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - name: "shares.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "opens the read-only S3 and WebDAV servers for the asset tree on shares.s3_port and shares.webdav_port"
+    affects_properties:
+      - {property_id: P-SHARES, effect: narrows}
+    provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
+  - name: "https.enabled"
+    default: "off"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "Caddy, fetched at run time, terminates TLS on 443/80 in the worker (install.sh LENS_HTTPS=1 publishes them) and proxies to the web app; DNS provider credentials go to data_dir/https/caddy.json (mode 600), not a command line"
+    affects_properties:
+      - {property_id: P-CHILD-SECRETS, effect: preserves}
+    provenance: {kind: documented, source: 'docs/https.md "Off by default"'}
   - name: "tunnel.mode, local_llm.enabled, telemetry"
     default: "off"
     security_relevant: true
@@ -1295,6 +1369,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}
+  - id: P-INJECTION-EGRESS
+    kind: confidentiality
+    components: [assistant]
+    tier: correctness-only
+    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26)."
+    violation_symptoms: [info-leak]
+    x-voided-by: "ai.untrusted_asks: false (domain/ai_tools.py:519); bridge.safe_links: false (domain/bridge.py:298); notes and memories are written at once; hooks run as their owners set them (P-EXT-SCOPE); an address the read text wrote itself stays linkable in a room; the person's browser asks first as P-BROWSER-GUARD says"
+    provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}
   - id: P-EXT-SCOPE
     kind: integrity
     components: [assistant]
@@ -1344,6 +1426,14 @@ properties_claimed:
     violation_symptoms: [info-leak, bad-data-accepted]
     x-voided-by: "the node's address is trusted input (N-ADMIN); a node on plain http off loopback sends the token in clear (domain/anytopdf.py:237-244); what the node reads from the document is the node's"
     provenance: {kind: documented, source: 'docs/configuration.md "the token never goes on to another server"'}
+  - id: P-TIKA-SERVER
+    kind: confidentiality
+    components: [outbound, ingest]
+    tier: security-critical
+    conditions: "a Tika server (documents.tika_url, off by default) gets the document only at the address the admin set: http(s) with no user name or password, no redirect is followed, and the document goes as document.<type>, never by its own name; its answer is read to 64 MB, only the Dublin Core terms Lens keeps are taken from it (bounded in length), and the text kept is capped at 20 million characters; a Tika server that can't be reached fails only a document nothing else can read; the compose service runs read-only, without privileges, reachable only inside Lens's network"
+    violation_symptoms: [info-leak, bad-data-accepted]
+    x-voided-by: "the server's address is trusted input (N-ADMIN); a Tika server off this machine on plain http sees every document in clear, and Tika has no sign-in of its own (domain/tika.py); what Tika reads from the document is Tika's"
+    provenance: {kind: documented, source: 'docs/configuration.md "The document goes only to the address set"'}
   - id: P-TEMPLATE
     kind: integrity
     components: [ingest, assistant]
@@ -1384,6 +1474,30 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "sensors.mqtt_anonymous (domain/sensors.py:984); sensors.syslog_networks, sensors.bind"
     provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
+  - id: P-NFS
+    kind: confidentiality
+    components: [optional]
+    tier: security-critical
+    conditions: "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks"
+    violation_symptoms: [info-leak]
+    x-voided-by: "nfs.allowed_networks set wide, or a spoofed client address on the local network (domain/share_relay.py); Docker publishing that rewrites client addresses"
+    provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}
+  - id: P-SMB
+    kind: confidentiality
+    components: [optional]
+    tier: security-critical
+    conditions: "the SMB share is off until an admin turns it on; read-only; per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only"
+    violation_symptoms: [info-leak]
+    x-voided-by: "smb.allowed_networks set wide; SMB 2.0 has no encryption on the wire (domain/smb_share.py)"
+    provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
+  - id: P-SHARES
+    kind: authentication
+    components: [optional]
+    tier: security-critical
+    conditions: "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes"
+    violation_symptoms: [info-leak, integrity-bypass]
+    x-voided-by: "plain HTTP on the network with LENS_BIND=0.0.0.0 (WebDAV's Basic secret in clear); secrets sealed with the server key, not hashed (domain/s3.py)"
+    provenance: {kind: documented, source: 'docs/file-tree.md "Off until an admin turns it on"'}
   - id: P-CHILD-SECRETS
     kind: confidentiality
     components: [optional]
@@ -1426,6 +1540,22 @@ properties_claimed:
     violation_symptoms: [hang]
     x-voided-by: "none identified (not required for this symptom; no exhaustive search)"
     provenance: {kind: documented, source: 'domain/flow.py docstring "Graphs never loop back"'}
+  - id: P-BROWSER
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "the assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected; only they see and answer that session's actions; ai.browser off turns it off"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the side panel carries out what it's asked (which sites, what it asks first: the extension's); an agent with the person's write token can ask too (api/v1/routes/browser.py)"
+    provenance: {kind: documented, source: 'docs/browser-assistant.md "Only you"'}
+  - id: P-BROWSER-GUARD
+    kind: integrity
+    components: [assistant]
+    tier: security-critical
+    conditions: "the side panel reads and acts only on sites the person allowed, opens addresses only there, asks before a consequential click, submit or Enter (model flag, the control's words, a posting form), and, once the answer read outside text (ai.untrusted_asks), before opening or downloading an address or typing text the person's message doesn't contain; it never types into or reports password, card or file fields, and shows each action"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the consequential check is the model's flag plus a word list (extensions/browser/src/core/act.js): an unlabelled control a misled model doesn't mark runs without asking; removing a site keeps the browser's access for the clipper; Lens sends the ask (confirm) and an extension older than this doesn't honour it"
+    provenance: {kind: documented, source: 'docs/browser-assistant.md "Letting it use your browser"'}
   - id: MX-AUTHZ-LIST-CAPS
     kind: resource-bound
     components: [authz]
@@ -1472,7 +1602,7 @@ properties_disclaimed:
   - {id: N-CHROMIUM, components: [outbound, ingest], tier: security-critical, false_friend: true, conditions: "Chromium's own sandbox in containers or as root; the netguard proxy is what stops a page; conversion and capture", x-false-friend-note: "'headless browser' is not isolation", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
   - {id: N-DECODERS, components: [ingest], tier: security-critical, false_friend: false, conditions: "sandboxing or memory-safety for ffmpeg, poppler, antiword and similar decoders; memory bugs inside them route to §1.9; does not cover Lens's own process control (timeouts, killing children): that is P-CONVERT-TIMEOUT", provenance: {kind: inferred, question_id: Q20}}
   - {id: N-BOMBS, components: [ingest], tier: security-critical, false_friend: false, conditions: "bounds on decompressed size, nested emails or media duration (docx XML, email attachments, long media); does not cover a conversion or capture outliving Lens's own timeout (P-CONVERT-TIMEOUT)", provenance: {kind: inferred, question_id: Q22}}
-  - {id: N-PROMPT, components: [assistant], tier: correctness-only, false_friend: true, conditions: "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; exfiltration through rendered answers is Q26", x-false-friend-note: "a system prompt is not a filter", provenance: {kind: inferred, question_id: Q26}}
+  - {id: N-PROMPT, components: [assistant], tier: correctness-only, false_friend: true, conditions: "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; carrying what it read out through tools or chat-room links is P-INJECTION-EGRESS. Marking third-party text as data, breaking up chat-template control tokens and flagging text that reads like instructions (ai.untrusted_marking, ai.injection_check) make injection less likely; they are not claimed", x-false-friend-note: "a system prompt is not a filter", provenance: {kind: inferred, question_id: Q26}}
   - {id: N-MODEL-OUTPUT, components: [assistant], tier: correctness-only, false_friend: false, conditions: "correct or grounded model output; answers can be wrong; checking sources re-asks the same model", provenance: {kind: documented, source: 'docs/assistant.md "Check sources"'}}
   - {id: N-REMOTE, components: [outbound], tier: security-critical, false_friend: false, conditions: "trust in remote content (storage listings, mail, calendars, IIIF manifests, model replies), treated as data; does not cover Lens's own cache keys or names for remote content (P-REMOTE-NAMES, Q43)", provenance: {kind: inferred, question_id: Q17}}
   - {id: N-ADMIN-IMPORT-BOUNDS, components: [outbound, query], tier: security-critical, false_friend: false, conditions: "resource bounds on admin-started imports and syncs, and SPARQL time; IIIF media up to 4 GB in memory; rclone without byte cap", provenance: {kind: inferred, question_id: Q16}}
@@ -1481,7 +1611,7 @@ properties_disclaimed:
   - {id: N-ENUM, components: [identity], tier: correctness-only, false_friend: false, conditions: "hiding account or object existence outside password sign-in and signed-in 404s: passkey 404, external messages, anonymous 401 vs 404", provenance: {kind: inferred, question_id: Q6}}
   - {id: N-AUDIT, components: [identity, authz], tier: correctness-only, false_friend: false, conditions: "tamper evidence or completeness of the audit and activity logs; sign-in requests are not logged there; operations record only; admins read it", provenance: {kind: documented, source: 'docs/activity.md "aren''t logged here"'}}
   - {id: N-MQTT-SUBSCRIBE, components: [optional], tier: security-critical, false_friend: true, conditions: "topic isolation on the MQTT hub: anything can subscribe to it, with + and #; signed-in or anonymous-when-enabled clients", x-false-friend-note: "a hub login is not per-stream access", provenance: {kind: documented, source: 'docs/sensors.md "anything can subscribe to it"'}}
-  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28)", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
+  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge (Matterbridge, the Telegram bot or the assistant's mailbox) answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); the mailbox answers only mailbox.users whose provider vouched for From", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
   - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public recording's open parts: anyone may use them; open parts only; closed parts and restricted or private recordings are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
   - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding a recording's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
   - {id: N-NSFW, components: [web, authz], tier: correctness-only, false_friend: true, conditions: "access control from NSFW classification; blurring and hiding flagged resources are display preferences of the web app, and the score can be wrong; anyone who may read a resource still opens it, sees its pictures (sensitive=include, signed frame links, public pages, IIIF, embeds) and reads its classification", x-false-friend-note: "'hidden' reads as restricted", provenance: {kind: documented, source: 'docs/nsfw.md "display preferences, not access control"'}}
@@ -1509,6 +1639,7 @@ downstream_responsibilities:
   - {id: dr-revoke-after-password-change, component: identity, statement: "After a password change or suspected theft, revoke API tokens and app grants, or disable the account", enforces: [N-REVOKE-TOKENS], provenance: {kind: inferred, question_id: Q3}}
   - {id: dr-private-networks-on-purpose, component: outbound, statement: "List private networks in documents.web_networks or notifications.networks only on purpose", enforces: [P-SSRF-GUARD, P-ADMIN-GUARD], provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: dr-firewall-sensor-ports, component: optional, statement: "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address", enforces: [P-SENSORS, N-MQTT-SUBSCRIBE, enable-and-firewall-sensors], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
+  - {id: dr-limit-smb-share, component: optional, statement: "When the SMB share is on, list only your own networks, keep its port off the internet, and revoke file access keys you no longer use", enforces: [P-SMB, enable-and-limit-smb], provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {id: dr-bridge-own-account, component: outbound, statement: "Give the chat-room bridge its own low-role account", enforces: [N-BRIDGE], provenance: {kind: documented, source: 'docs/chat-rooms.md "it reads only what that account can read"'}}
   - {id: dr-trusted-worker-hosts, component: authz, statement: "Run workers only on trusted hosts; they hold the DB credential", enforces: [N-APP-LAYER, trusted-peer-hosts], provenance: {kind: inferred, question_id: Q9}}
   - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with transcripts and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
@@ -1518,6 +1649,7 @@ downstream_responsibilities:
   - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat transcript text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
   - {id: dr-iiif-over-https, component: authz, statement: "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS", enforces: [], x-protects: "IIIF cookie", provenance: {kind: documented, source: 'docs/iiif.md "its cookie is `SameSite=None; Secure`"'}}
   - {id: dr-verify-webhook-signature, component: outbound, statement: "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets", enforces: [dmna-chat-webhooks-signed], x-protects: "§1.8 webhook bodies", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
+  - {id: dr-limit-nfs-share, component: optional, statement: "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show", enforces: [P-NFS, enable-and-limit-nfs], provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
   - {id: dr-private-logs-push-tokens, component: optional, statement: "Keep logs that record request paths private when sensor push tokens are in use", enforces: [P-SENSORS], provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
 
 # ---------------------------------------------------------------- §1.14

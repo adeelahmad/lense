@@ -12,7 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "Lens",
     short_name: "Lens",
-    description: "Your life. Your AI.",
+    description: "Intelligence for your agent. Safe, secure and cost-effective.",
     start_url: "/",
     scope: "/",
     display: "standalone",

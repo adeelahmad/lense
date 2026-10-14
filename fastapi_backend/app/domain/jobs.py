@@ -205,7 +205,11 @@ STEPS = {
 
 def for_source(steps, source):
     """A pipeline's steps as they run on a resource of this source: a document or an image is read, not transcribed,
-    and has no voices to tell apart, so a speech or voice model is never fetched for it."""
+    and has no voices to tell apart, so a speech or voice model is never fetched for it. An imported transcript has
+    nothing to transcribe and its speakers came with it, so it skips both steps too (unless they're all that was asked
+    for: those still run, to say why there's nothing to do)."""
+    if source == "transcript":
+        return [s for s in steps if s.get("type") not in ("transcribe", "diarize")] or steps
     if source not in ("document", "image"):
         return steps
     out = []
