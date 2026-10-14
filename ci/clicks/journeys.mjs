@@ -474,16 +474,10 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Sensors");
-      await meter.click(page.getByRole("tab", { name: "Files, email and calendars" }), "Files, email and calendars tab");
-      await meter.click(page.getByRole("main").getByRole("button", { name: "Add connection" }).first(), "Add connection");
-      const d = page.getByRole("dialog");
-      await meter.click(d.getByRole("radio", { name: "This machine" }), "This machine");
-      await meter.click(d.getByRole("button", { name: "Test connection" }), "Test connection");
-      await meter.click(d.getByRole("button", { name: "Done" }), "Done (the test passed)");
-      // The folder browser opens on the allowed folders, which can't be watched themselves: open one first
+      // Straight to this machine's allowed folders, its connection made on the way (nothing to test or name)
+      await meter.click(page.getByRole("main").getByRole("link", { name: "Watch a local folder" }), "Watch a local folder");
       const browse = page.getByRole("dialog", { name: /^Browse/ });
-      await meter.click(browse.getByRole("table").getByRole("button").first(), "the allowed folder");
-      await meter.click(browse.getByRole("button", { name: "Watch this folder" }), "Watch this folder");
+      await meter.click(browse.getByRole("table").getByRole("button", { name: /^Watch / }).first(), "Watch, on the allowed folder");
       await meter.click(page.getByRole("dialog", { name: /^Watch/ }).getByRole("button", { name: "Start watching" }), "Start watching");
       await page.getByRole("dialog").waitFor({ state: "hidden" });
       await page.getByRole("main").getByText(/[1-9]\d* watched folders?/).first().waitFor();

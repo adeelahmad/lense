@@ -14,6 +14,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   share, with **Find more** for the full list. Topics, entities and graph nodes list similar content too, and the
   assistant and the MCP server can ask for it (`find_similar`). It works without search by meaning, by key words,
   topics and entities ([Processing](docs/processing.md#similar-content)).
+- **Watch a folder in four clicks.** **Watch a local folder** on the Sensors page opens this machine's allowed
+  folders, and each has a **Watch** button, so it no longer has to be opened first. Adding **This machine** as a
+  connection skips the test-and-name step unless its test fails ([Sensors](docs/sensors.md#in-the-web-app)).
+
+- **MCP servers that run as a program.** Most MCP servers in marketplaces run as a program (`npx` or `uvx`), not on
+  the network. Admins can now add one as an MCP server extension with its `command`, `args` and `env`, as in Claude's
+  `.mcp.json`, and a plugin's such servers come along when an admin installs it. They run in the MCP runner, an opt-in
+  container with none of Lens's data or keys (`COMPOSE_PROFILES=mcp`), start on first use and stop after 15 idle
+  minutes ([Assistant](docs/assistant.md#the-mcp-runner)).
 
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 
