@@ -9,6 +9,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   share, with **Find more** for the full list. Topics, entities and graph nodes list similar content too, and the
   assistant and the MCP server can ask for it (`find_similar`). It works without search by meaning, by key words,
   topics and entities ([Processing](docs/processing.md#similar-content)).
+- **Watch a folder in four clicks.** **Watch a local folder** on the Sensors page opens this machine's allowed
+  folders, and each has a **Watch** button, so it no longer has to be opened first. Adding **This machine** as a
+  connection skips the test-and-name step unless its test fails ([Sensors](docs/sensors.md#in-the-web-app)).
 
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 

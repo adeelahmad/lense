@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ellipsis, FolderSearch, HardDriveDownload, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Pipelines, Sources } from "@/app/openapi-client";
 import type { Source, Watch } from "@/app/openapi-client/types.gen";
@@ -12,7 +12,7 @@ import { ConnectionDialog } from "@/components/sources/connection-dialog";
 import { DeleteConnectionDialog } from "@/components/sources/delete-connection";
 import { FolderBrowser } from "@/components/sources/folder-browser";
 import { TypeTile } from "@/components/sources/source-icons";
-import { healthOf, sourceSubtitle, type BackendSpec } from "@/components/sources/source-model";
+import { healthOf, sourceSubtitle, suggestName, type BackendSpec } from "@/components/sources/source-model";
 import { WatchCard } from "@/components/sources/watch-card";
 import { WatchEditor } from "@/components/sources/watch-editor";
 import { Banner } from "@/components/ui/banner";
@@ -124,6 +124,35 @@ export function SourcesPage() {
     setEditing({ source: null });
     router.replace(pathname);
   }, [adding, admin, backends.data, router, pathname]);
+
+  // /sources?watch=local ("Watch a local folder" on Sensors) opens this machine's allowed folders straight away, on its
+  // connection, made first when there's none: it has nothing to fill in or name
+  const watchLocal = params.get("watch") === "local";
+  const askedLocal = useRef(false);
+  const browseLocal = useMutation({
+    mutationFn: async () => {
+      const have = ((sources.data ?? []) as Source[]).find((s) => s.type === "local");
+      if (have) return have;
+      const name = suggestName("local", {});
+      const { id } = await data(
+        Sources.createSource({ client, body: { type: "local", name, params: {}, secrets: {} } }),
+      );
+      const made = (((await sources.refetch()).data ?? []) as Source[]).find((s) => s.id === id);
+      return made ?? ({ id, name, type: "local" } as Source);
+    },
+    onSuccess: (s) => {
+      setSelected(s.id);
+      setBrowsing(s);
+    },
+    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t open this machine’s folders", body: e.message }),
+  });
+  useEffect(() => {
+    if (!watchLocal) askedLocal.current = false;
+    if (!watchLocal || !admin || !sources.isSuccess || askedLocal.current) return;
+    askedLocal.current = true;
+    router.replace(pathname);
+    browseLocal.mutate();
+  }, [watchLocal, admin, sources.isSuccess, router, pathname]);
 
   const all = (sources.data ?? []) as Source[];
   const ws = (watches.data ?? []) as Watch[];
