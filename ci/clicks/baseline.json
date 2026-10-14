@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-14T10:01:14.388Z",
+  "surveyed": "2026-10-14T10:44:48.927Z",
   "commit": "",
   "viewport": "1400x900",
   "device": "desktop",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 2712,
+      "ms": 1901,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 565,
+      "ms": 445,
       "ok": true
     },
     {
@@ -131,7 +131,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 756,
+      "ms": 625,
       "ok": true
     },
     {
@@ -161,7 +161,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1329,
+      "ms": 2353,
       "ok": true
     },
     {
@@ -207,7 +207,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4269,
+      "ms": 4168,
       "ok": true
     },
     {
@@ -237,7 +237,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2625,
+      "ms": 2582,
       "ok": true
     },
     {
@@ -275,7 +275,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3199,
+      "ms": 3245,
       "ok": true
     },
     {
@@ -313,7 +313,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2287,
+      "ms": 2318,
       "ok": true
     },
     {
@@ -351,7 +351,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 2967,
+      "ms": 3460,
       "ok": true
     },
     {
@@ -405,7 +405,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3739,
+      "ms": 3299,
       "ok": true
     },
     {
@@ -451,7 +451,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3313,
+      "ms": 3234,
       "ok": true
     },
     {
@@ -489,7 +489,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2586,
+      "ms": 2483,
       "ok": true
     },
     {
@@ -527,7 +527,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2622,
+      "ms": 2552,
       "ok": true
     },
     {
@@ -565,7 +565,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2567,
+      "ms": 2522,
       "ok": true
     },
     {
@@ -603,7 +603,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2846,
+      "ms": 2526,
       "ok": true
     },
     {
@@ -649,7 +649,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3330,
+      "ms": 3312,
       "ok": true
     },
     {
@@ -711,7 +711,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3290,
+      "ms": 3133,
       "ok": true
     },
     {
@@ -757,7 +757,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3132,
+      "ms": 3052,
       "ok": true
     },
     {
@@ -787,7 +787,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2303,
+      "ms": 2298,
       "ok": true
     },
     {
@@ -833,7 +833,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3076,
+      "ms": 2875,
       "ok": true
     },
     {
@@ -854,7 +854,7 @@
           "prompts": 0
         },
         {
-          "page": "/",
+          "page": "/import",
           "kind": "upload",
           "what": "Choose files, then the file",
           "clicks": 2,
@@ -871,7 +871,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 9480,
+      "ms": 8174,
       "ok": true
     },
     {
@@ -917,7 +917,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 8396,
+      "ms": 3777,
       "ok": true
     },
     {
@@ -955,7 +955,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 11551,
+      "ms": 11376,
       "ok": true
     },
     {
@@ -993,7 +993,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4288,
+      "ms": 4208,
       "ok": true
     },
     {
@@ -1047,7 +1047,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 3599,
+      "ms": 3406,
       "ok": true
     },
     {
@@ -1093,7 +1093,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3367,
+      "ms": 3308,
       "ok": true
     },
     {
@@ -1147,7 +1147,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 2948,
+      "ms": 3082,
       "ok": true
     },
     {
@@ -1201,7 +1201,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 2850,
+      "ms": 2868,
       "ok": true
     },
     {
@@ -1255,7 +1255,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 2976,
+      "ms": 2916,
       "ok": true
     },
     {
@@ -1309,7 +1309,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 3903,
+      "ms": 3919,
       "ok": true
     },
     {
@@ -1363,7 +1363,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 2773,
+      "ms": 2712,
       "ok": true
     }
   ],
@@ -1657,6 +1657,12 @@
       "controls": 14
     },
     {
+      "page": "/settings/logs",
+      "label": "Settings › Logs",
+      "reach": 2,
+      "controls": 223
+    },
+    {
       "page": "/settings/fedora",
       "label": "Settings › Fedora repository",
       "reach": 2,
@@ -1754,7 +1760,7 @@
     },
     {
       "page": "/notes/:id",
-      "label": "Pi setup",
+      "label": "Untitled",
       "reach": 1,
       "controls": 9
     }

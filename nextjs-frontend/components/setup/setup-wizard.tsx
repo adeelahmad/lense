@@ -279,7 +279,7 @@ function Actions({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+    <div className="phone-actions flex flex-wrap items-center justify-end gap-2 pt-1 max-sm:-mx-6 max-sm:-mb-6 max-sm:rounded-b-xl max-sm:px-6 max-sm:pt-3">
       <Button variant="ghost" onClick={onSkip} disabled={pending}>
         Skip this step
       </Button>
@@ -529,7 +529,7 @@ function LlmStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean, b
           <AuthAlert tone="error">The model didn&apos;t answer: {tested.error}</AuthAlert>
         ))}
       {(save.error || test.error) && <AuthAlert tone="error">{errorText(save.error || test.error)}</AuthAlert>}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+      <div className="phone-actions flex flex-wrap items-center justify-between gap-2 pt-1 max-sm:-mx-6 max-sm:-mb-6 max-sm:rounded-b-xl max-sm:px-6 max-sm:pt-3">
         <Button variant="secondary" onClick={() => test.mutate()} disabled={test.isPending || !baseUrl || !model}>
           {test.isPending ? "Testing…" : "Test connection"}
         </Button>
@@ -1162,7 +1162,7 @@ function TelemetryStep({
           <AuthAlert tone="error">The collector didn&apos;t take the test span: {tested.error}</AuthAlert>
         ))}
       {(save.error || test.error) && <AuthAlert tone="error">{errorText(save.error || test.error)}</AuthAlert>}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+      <div className="phone-actions flex flex-wrap items-center justify-between gap-2 pt-1 max-sm:-mx-6 max-sm:-mb-6 max-sm:rounded-b-xl max-sm:px-6 max-sm:pt-3">
         {on === "on" ? (
           <Button
             variant="secondary"

@@ -38,8 +38,8 @@ rclone must be on the PATH, as it is in the Lens image (the Clicks workflow copi
   links and fields in the page's main area on a fresh install, not counting navigation.
 
 Journeys run in order on the same Lens, each from Home unless it continues the one before (setup does). A journey
-that can't be done at all (on a phone, say, where the namespace switcher is hidden) fails with the reason; it is in
-the baseline as failed, so it doesn't turn CI red until it can be done, and then it counts as an improvement.
+that can't be done at all (on a phone, say, where a control is hidden) fails with the reason; it is in the baseline
+as failed, so it doesn't turn CI red until it can be done, and then it counts as an improvement.
 
 ## When a change cuts clicks
 

@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Lens on a phone.** Everything works at phone width now: the namespace switcher is at the top of the menu, Import
+  is in the top bar, Settings opens its sections as a list instead of a row to swipe through, the graph's filters close
+  after a pick, Copy no longer covers webhook addresses, sensors and connections read as cards, and Save and the other
+  form buttons stay in sight above the Ask button. A recording's pipeline steps no longer make its page wider than the
+  screen. On a phone the clicks survey goes from 2 features that couldn't be done to none, and from 15 swipes to 2.
+
 - **Similar content.** Every resource has a **Similar** tab, and selecting text anywhere (a transcript, a page, a
   title, a graph label) shows the resources most like it, each citing the passages, words, topics and entities they
   share, with **Find more** for the full list. Topics, entities and graph nodes list similar content too, and the
