@@ -52,8 +52,8 @@ resource's passages: no model call for a resource), key words (the text's words 
 cites up to three moments. `GET /similar`, assistant and MCP `find_similar`. Without embeddings (the default) the
 other three answer, with no model call.
 
-PRs: API, assistant and MCP tool; the Similar tab; the selection popover and the full Similar page; topics, entities and
-graph nodes.
+PRs: #296 the API, assistant and MCP tool; then the web app (the Similar tab, the selection popover and the full
+Similar page at `/similar`, and similar content for topics, entities and graph nodes).
 
 Refine later:
 - key words of a text are single words and two-word phrases; stems beyond plurals (designing/design) don't match;
@@ -62,6 +62,8 @@ Refine later:
   sharper;
 - entities in another namespace with the same name count only through the words, not as the same entity;
 - no "not similar" feedback yet, and nothing is cached between requests beyond the query vectors.
+- selecting text in an editor (notes, the document editor) opens nothing, since selecting there is for editing; a
+  "Similar" item in the editor's own menu would cover it;
 
 ## 2026-10-10 · More voices for spoken answers
 

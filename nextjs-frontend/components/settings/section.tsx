@@ -45,6 +45,8 @@ const ENV: Record<string, string> = {
   "telemetry.enabled": "LENS_TELEMETRY",
   "telemetry.endpoint": "LENS_TELEMETRY_ENDPOINT",
   "telemetry.headers": "LENS_TELEMETRY_HEADERS",
+  "logs.level": "LENS_LOG_LEVEL",
+  "logs.format": "LENS_LOG_FORMAT",
   "telemetry.prometheus": "LENS_PROMETHEUS",
   "telemetry.prometheus_token": "LENS_PROMETHEUS_TOKEN",
   "telemetry.grafana_url": "LENS_GRAFANA_URL",

@@ -107,6 +107,7 @@ nav:
       - Storage: storage.md
       - Database: database.md
       - Telemetry: telemetry.md
+      - Logging: logging.md
       - Prometheus: prometheus.md
   - Build:
       - Architecture: architecture.md
