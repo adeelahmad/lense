@@ -630,7 +630,16 @@ def _speech_setting(key, value):
         if not (isinstance(value, int) and not isinstance(value, bool) and 30 <= value <= 86400):
             raise ValueError("speech.timeout is a whole number of seconds from 30 to 86400")
         return value
+    for end, (lo, hi), what in (("_max_minutes", SPEECH_MINUTES, "minutes"), ("_max_mb", SPEECH_MB, "MB")):
+        if key.endswith(end):
+            if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+                raise ValueError(f"speech.{key} is a whole number of {what} from {lo} to {hi}")
+            return value
     raise ValueError(f"unknown setting speech.{key}")
+
+
+SPEECH_MINUTES = (1, 1440)  # the longest piece of a recording sent to a speech provider at once
+SPEECH_MB = (1, 10_000)  # its largest file
 
 
 PODCAST_RANGES = {"context_chars": (2000, 400_000), "max_minutes": (1, 120), "words_per_minute": (80, 250)}

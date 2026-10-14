@@ -17,6 +17,10 @@ short clip of someone speaking. voices() lists what each one can read in, for Se
 
 A provider's transcript is the same list of segments a local engine returns, plus `provider_speaker`: the speaker
 separation step uses those labels (diarize.engine provider, or auto), and voice IDs still come from local voiceprints.
+
+Each provider takes so much audio in one request ({p}_max_minutes and {p}_max_mb in the speech settings, defaulting to
+its published limits): a longer recording is cut into pieces at pauses, each piece is transcribed on its own, and their
+transcripts are joined back on the recording's timeline.
 """
 
 from __future__ import annotations
@@ -57,7 +61,8 @@ LABELS = {
     "styletts2": "StyleTTS2",
 }
 TTS_PROVIDERS = ("openai", "elevenlabs", "deepgram", "gemini", "say", "styletts2")
-CHUNK_SECONDS = 600  # OpenAI-compatible servers take up to 25 MB a request; ten minutes of Opus is a few MB
+QUIET_SECONDS = 30  # a recording too long for one request is cut at the quietest moment in the half minute before a limit
+QUIET_WINDOW = SR // 10  # ... measured in tenths of a second
 POLL_SECONDS = 3
 MAX_WORDS = 40
 GAP_MS = 1500
@@ -293,55 +298,44 @@ def _label(v):
 
 
 # ---------- providers ----------
-def _openai(cfg, audio, seconds):
+def _openai(cfg, clip, seconds):
     base, m, key = base_url(cfg, "openai"), model(cfg, "openai"), _key(cfg, "openai")
-    diarize = "diarize" in m
+    data, name, ctype = clip
     lang = _language(cfg)
-    out, many = [], len(audio) > CHUNK_SECONDS * SR
-    for k, start in enumerate(range(0, max(len(audio), 1), CHUNK_SECONDS * SR)):
-        data, name, ctype = encode(audio[start : start + CHUNK_SECONDS * SR])
-        if diarize:
-            fields = [("model", m), ("response_format", "diarized_json"), ("chunking_strategy", "auto")]
-        elif m.startswith("gpt-"):
-            fields = [("model", m), ("response_format", "json")]
-        else:
-            fields = [("model", m), ("response_format", "verbose_json"), ("timestamp_granularities[]", "segment"),
-                      ("timestamp_granularities[]", "word")]  # fmt: skip
-        if lang:
-            fields.append(("language", lang))
-        body, ctype_ = multipart(fields, [("file", name, data, ctype)])
-        headers = {"Content-Type": ctype_, **({"Authorization": f"Bearer {key}"} if key else {})}
-        j = _json(base + "/audio/transcriptions", data=body, headers=headers, timeout=section(cfg)["timeout"])
-        off = start * 1000 // SR
-        got = j.get("language") or lang
-        segs = j.get("segments") or []
-        words = j.get("words") or []
-        if not segs:
-            end = min(len(audio), start + CHUNK_SECONDS * SR)
-            segs = [{"start": 0, "end": (end - start) / SR, "text": j.get("text") or ""}]
-        for s in segs:
-            t0, t1 = off + int(float(s.get("start") or 0) * 1000), off + int(float(s.get("end") or 0) * 1000)
-            ws = [
-                [w["word"].strip(), off + int(w["start"] * 1000), off + int(w["end"] * 1000)]
-                for w in words
-                if t0 <= off + w["start"] * 1000 < t1
-            ]
-            spk = _label(s.get("speaker"))
-            text = (s.get("text") or "").strip()
-            if any(ch.isalnum() for ch in text):
-                out.append(
-                    {
-                        "t0": t0,
-                        "t1": max(t1, t0 + 1),
-                        "text": text,
-                        "raw_text": None,
-                        "emotion": None,
-                        "event": None,
-                        "lang": _short(got),
-                        "words": json.dumps(ws) if ws else None,
-                        "provider_speaker": (f"c{k}:{spk}" if many else spk) if spk else None,
-                    }  # fmt: skip
-                )
+    if "diarize" in m:
+        fields = [("model", m), ("response_format", "diarized_json"), ("chunking_strategy", "auto")]
+    elif m.startswith("gpt-"):
+        fields = [("model", m), ("response_format", "json")]
+    else:
+        fields = [("model", m), ("response_format", "verbose_json"), ("timestamp_granularities[]", "segment"),
+                  ("timestamp_granularities[]", "word")]  # fmt: skip
+    if lang:
+        fields.append(("language", lang))
+    body, ctype_ = multipart(fields, [("file", name, data, ctype)])
+    headers = {"Content-Type": ctype_, **({"Authorization": f"Bearer {key}"} if key else {})}
+    j = _json(base + "/audio/transcriptions", data=body, headers=headers, timeout=section(cfg)["timeout"])
+    got = j.get("language") or lang
+    segs = j.get("segments") or [{"start": 0, "end": seconds, "text": j.get("text") or ""}]
+    words = j.get("words") or []
+    out = []
+    for s in segs:
+        t0, t1 = int(float(s.get("start") or 0) * 1000), int(float(s.get("end") or 0) * 1000)
+        ws = [[w["word"].strip(), int(w["start"] * 1000), int(w["end"] * 1000)] for w in words if t0 <= w["start"] * 1000 < t1]
+        text = (s.get("text") or "").strip()
+        if any(ch.isalnum() for ch in text):
+            out.append(
+                {
+                    "t0": t0,
+                    "t1": max(t1, t0 + 1),
+                    "text": text,
+                    "raw_text": None,
+                    "emotion": None,
+                    "event": None,
+                    "lang": _short(got),
+                    "words": json.dumps(ws) if ws else None,
+                    "provider_speaker": _label(s.get("speaker")),
+                }  # fmt: skip
+            )
     return out
 
 
@@ -356,8 +350,8 @@ def _short(lang):
     return names.get(lang) or lang.split("-")[0].split("_")[0][:3]
 
 
-def _elevenlabs(cfg, audio, seconds):
-    data, name, ctype = encode(audio)
+def _elevenlabs(cfg, clip, seconds):
+    data, name, ctype = clip
     fields = [("model_id", model(cfg, "elevenlabs")), ("diarize", "true"), ("tag_audio_events", "true"), ("timestamps_granularity", "word")]
     if _language(cfg):
         fields.append(("language_code", _language(cfg)))
@@ -386,9 +380,9 @@ def _elevenlabs(cfg, audio, seconds):
     return group_words(words, _short(j.get("language_code")))
 
 
-def _assemblyai(cfg, audio, seconds):
+def _assemblyai(cfg, clip, seconds):
     base, key, t = base_url(cfg, "assemblyai"), _key(cfg, "assemblyai"), section(cfg)["timeout"]
-    data, _, ctype = encode(audio)
+    data, _, ctype = clip
     up = _json(base + "/v2/upload", data=data, headers={"Authorization": key, "Content-Type": "application/octet-stream"}, timeout=t)
     ask = {"audio_url": up["upload_url"], "speaker_labels": True, "punctuate": True, "format_text": True}
     m = model(cfg, "assemblyai")
@@ -426,8 +420,8 @@ def _assemblyai(cfg, audio, seconds):
     return add_sentiment(segs, spans)
 
 
-def _deepgram(cfg, audio, seconds):
-    data, _, ctype = encode(audio)
+def _deepgram(cfg, clip, seconds):
+    data, _, ctype = clip
     q = {"model": model(cfg, "deepgram"), "smart_format": "true", "punctuate": "true", "diarize": "true", "utterances": "true"}
     if _language(cfg):
         q["language"] = _language(cfg)
@@ -465,7 +459,65 @@ def _deepgram(cfg, audio, seconds):
     return add_sentiment(segs, spans)
 
 
+# each takes (cfg, an encoded clip as (bytes, file name, media type), its seconds) and returns its segments, timed
+# from the clip's start
 TRANSCRIBE = {"openai": _openai, "elevenlabs": _elevenlabs, "assemblyai": _assemblyai, "deepgram": _deepgram}
+
+
+# ---------- long recordings ----------
+def limits(cfg, p):
+    """The most a provider takes in one request: (samples, bytes) from {p}_max_minutes and {p}_max_mb."""
+    s = section(cfg)
+    return int(s[f"{p}_max_minutes"]) * 60 * SR, int(s[f"{p}_max_mb"]) * 1_000_000
+
+
+def quiet_cut(audio, lo, hi):
+    """The quietest tenth of a second between samples lo and hi (the latest, of equally quiet ones), so a cut falls in
+    a pause rather than in a word; hi when there's too little to look at."""
+    k = (hi - lo) // QUIET_WINDOW
+    if k < 2:
+        return hi
+    energy = np.square(audio[lo : lo + k * QUIET_WINDOW].reshape(k, QUIET_WINDOW)).mean(axis=1)
+    return lo + (k - 1 - int(np.argmin(energy[::-1]))) * QUIET_WINDOW + QUIET_WINDOW // 2
+
+
+def pieces(audio, most):
+    """Where to cut samples into pieces of at most `most` samples each, each cut at a pause: [(start, end)]."""
+    out, start = [], 0
+    while len(audio) - start > most:
+        hi = start + most
+        cut = quiet_cut(audio, max(start + most // 2, hi - QUIET_SECONDS * SR), hi)
+        out.append((start, cut))
+        start = cut
+    out.append((start, len(audio)))
+    return out
+
+
+def clips(audio, start, end, most_bytes):
+    """A piece encoded to send, halved at a pause until each part's file fits the provider's limit: (start, end, file)s."""
+    clip = encode(audio[start:end])
+    if len(clip[0]) <= most_bytes:
+        yield start, end, clip
+        return
+    if end - start < 2 * SR:
+        mb = most_bytes // 1_000_000
+        raise ProviderError(f"two seconds of audio already make a file larger than {mb} MB: raise the limit in Settings → Speech providers")
+    mid = (start + end) // 2
+    mid = quiet_cut(audio, max(start + (end - start) // 4, mid - QUIET_SECONDS * SR), mid)
+    yield from clips(audio, start, mid, most_bytes)
+    yield from clips(audio, mid, end, most_bytes)
+
+
+def _shift(segs, ms, piece):
+    """A piece's segments on the recording's timeline; with more than one piece, its speakers are its own (cN:label),
+    as a provider numbers the speakers of each request afresh."""
+    for s in segs:
+        s["t0"], s["t1"] = s["t0"] + ms, s["t1"] + ms
+        if ms and s.get("words"):
+            s["words"] = json.dumps([[w, a + ms, b + ms] for w, a, b in json.loads(s["words"])])
+        if piece is not None and s.get("provider_speaker"):
+            s["provider_speaker"] = f"c{piece}:{s['provider_speaker']}"
+    return segs
 
 
 class Engine:
@@ -478,9 +530,19 @@ class Engine:
         self.cfg, self.provider, self.name = cfg, provider, provider
 
     def transcribe(self, audio):
-        seconds = round(len(audio) / SR, 2)
-        with _ledger("speech.transcribe", self.cfg, f"{self.provider}:{model(self.cfg, self.provider)}", {"seconds": seconds}):
-            segs = TRANSCRIBE[self.provider](self.cfg, audio, seconds)
+        """The recording's transcript: in one request when it fits the provider's limits, else piece by piece."""
+        most, most_bytes = limits(self.cfg, self.provider)
+        detail = {"seconds": round(len(audio) / SR, 2)}  # the ledger row reads it when the call ends
+        parts = []
+        with _ledger("speech.transcribe", self.cfg, f"{self.provider}:{model(self.cfg, self.provider)}", detail):
+            for a, b in pieces(audio, most):
+                for start, end, clip in clips(audio, a, b, most_bytes):
+                    parts.append((start, TRANSCRIBE[self.provider](self.cfg, clip, round((end - start) / SR, 2))))
+            if len(parts) > 1:
+                detail["pieces"] = len(parts)
+                log.info("speech: %s s of audio went to %s in %d pieces", detail["seconds"], LABELS[self.provider], len(parts))
+        many = len(parts) > 1
+        segs = [s for k, (start, part) in enumerate(parts) for s in _shift(part, start * 1000 // SR, k if many else None)]
         return sorted(segs, key=lambda s: s["t0"])
 
 
