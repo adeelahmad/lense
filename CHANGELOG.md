@@ -13,6 +13,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   folders, and each has a **Watch** button, so it no longer has to be opened first. Adding **This machine** as a
   connection skips the test-and-name step unless its test fails ([Sensors](docs/sensors.md#in-the-web-app)).
 
+- **MCP servers that run as a program.** Most MCP servers in marketplaces run as a program (`npx` or `uvx`), not on
+  the network. Admins can now add one as an MCP server extension with its `command`, `args` and `env`, as in Claude's
+  `.mcp.json`, and a plugin's such servers come along when an admin installs it. They run in the MCP runner, an opt-in
+  container with none of Lens's data or keys (`COMPOSE_PROFILES=mcp`), start on first use and stop after 15 idle
+  minutes ([Assistant](docs/assistant.md#the-mcp-runner)).
+
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 
 - **The installer stops waiting when Lens can't start, and shows why.** A microsandbox install that couldn't start Lens
