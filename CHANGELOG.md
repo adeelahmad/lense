@@ -8,6 +8,20 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   making ("Transcribe to report", "Recording workflow", "Prompt template 2", "Read only token"), as it already did for
   routines, so making one takes no typing; type a name to choose your own. The pencil next to the name renames it
   later, and `PATCH /api/v1/pipelines/{id}`, `/templates/{id}` and `/tokens/{id}` rename them through the API.
+- **Running the install line again keeps `.env` readable only by you.** Each update rewrote `.env` with the shell's
+  default permissions, so after an update its secrets could be read by other users of the machine. It is now written
+  for its owner alone, and an install an earlier update left open is closed again the next time the line runs.
+- **A microsandbox install whose keys don't open its database comes up when the line runs again.** A reinstall made
+  before 0.8.1, after `~/lens` was deleted, wrote new keys but kept the earlier install's `lens-data` volume, and every
+  update after it kept both: its API stopped at every start with `SURREAL_USER/SURREAL_PASS don't match`. The sandbox
+  now checks that the keys in `.env` open the database before it starts the API, and when they don't, the install line
+  moves Lens to a volume of its own (`lens-data-2`, kept in `.env` as `LENS_VOLUME`) and starts it there. The earlier
+  volume is left as it is ([microsandbox](docs/microsandbox.md#how-it-runs)).
+- **Lens on a phone.** Everything works at phone width now: the namespace switcher is at the top of the menu, Import
+  is in the top bar, Settings opens its sections as a list instead of a row to swipe through, the graph's filters close
+  after a pick, Copy no longer covers webhook addresses, sensors and connections read as cards, and Save and the other
+  form buttons stay in sight above the Ask button. A recording's pipeline steps no longer make its page wider than the
+  screen. On a phone the clicks survey goes from 2 features that couldn't be done to none, and from 15 swipes to 2.
 
 - **Similar content.** Every resource has a **Similar** tab, and selecting text anywhere (a transcript, a page, a
   title, a graph label) shows the resources most like it, each citing the passages, words, topics and entities they

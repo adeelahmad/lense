@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-14T10:52:38.255Z",
+  "surveyed": "2026-10-14T10:41:13.906Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 1146,
+      "ms": 2942,
       "ok": true
     },
     {
@@ -95,7 +95,7 @@
       "clicks": 4,
       "keys": 0,
       "prompts": 0,
-      "swipes": 1,
+      "swipes": 0,
       "steps": [
         {
           "page": "/welcome",
@@ -103,8 +103,7 @@
           "what": "Save and continue (Connect a model provider)",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         },
         {
           "page": "/welcome",
@@ -132,7 +131,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 2663,
+      "ms": 1276,
       "ok": true
     },
     {
@@ -169,31 +168,15 @@
       "module": "Import",
       "feature": "Import a pasted transcript",
       "note": "",
-      "clicks": 4,
-      "keys": 7,
+      "clicks": 3,
+      "keys": 1,
       "prompts": 0,
       "swipes": 1,
       "steps": [
         {
           "page": "/",
           "kind": "tap",
-          "what": "Jump to (top bar)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/",
-          "kind": "type",
-          "what": "import",
-          "clicks": 0,
-          "keys": 6,
-          "prompts": 0
-        },
-        {
-          "page": "/",
-          "kind": "tap",
-          "what": "Import recordings or transcripts",
+          "what": "Import (top bar)",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -225,7 +208,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4364,
+      "ms": 4573,
       "ok": true
     },
     {
@@ -263,7 +246,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3228,
+      "ms": 3110,
       "ok": true
     },
     {
@@ -309,7 +292,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3751,
+      "ms": 3759,
       "ok": true
     },
     {
@@ -347,7 +330,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2501,
+      "ms": 2503,
       "ok": true
     },
     {
@@ -401,7 +384,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6388,
+      "ms": 6439,
       "ok": true
     },
     {
@@ -463,7 +446,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3785,
+      "ms": 3701,
       "ok": true
     },
     {
@@ -517,13 +500,13 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3844,
+      "ms": 3746,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a pipeline from the standard steps",
-      "note": "Lens guesses the name from the steps; it can be renamed on the pipeline's page.",
+      "note": "",
       "clicks": 3,
       "keys": 1,
       "prompts": 0,
@@ -563,13 +546,13 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 3153,
+      "ms": 3008,
       "ok": true
     },
     {
       "module": "Routines",
       "feature": "Make a nightly routine (sync sources, the default action)",
-      "note": "Lens guesses the name from when it runs and what it does; it can be renamed later.",
+      "note": "",
       "clicks": 3,
       "keys": 1,
       "prompts": 0,
@@ -609,7 +592,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3121,
+      "ms": 3082,
       "ok": true
     },
     {
@@ -619,7 +602,7 @@
       "clicks": 4,
       "keys": 0,
       "prompts": 0,
-      "swipes": 1,
+      "swipes": 0,
       "steps": [
         {
           "page": "/",
@@ -648,15 +631,14 @@
         {
           "page": "/extensions/new",
           "kind": "tap",
-          "what": "Add to the assistant (covered by something else on the page)",
+          "what": "Add to the assistant",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         }
       ],
       "id": "extension-add",
-      "ms": 8443,
+      "ms": 3141,
       "ok": true
     },
     {
@@ -702,17 +684,17 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3203,
+      "ms": 3062,
       "ok": true
     },
     {
       "module": "Settings",
       "feature": "Change the model's timeout",
       "note": "",
-      "clicks": 5,
+      "clicks": 6,
       "keys": 4,
       "prompts": 0,
-      "swipes": 2,
+      "swipes": 1,
       "steps": [
         {
           "page": "/",
@@ -733,11 +715,18 @@
         {
           "page": "/settings/speakers",
           "kind": "tap",
+          "what": "Settings sections",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/settings/speakers",
+          "kind": "tap",
           "what": "LLM provider",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         },
         {
           "page": "/settings/llm",
@@ -751,14 +740,14 @@
         {
           "page": "/settings/llm",
           "kind": "tap",
-          "what": "Save (covered by something else on the page)",
+          "what": "Save",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
         }
       ],
       "id": "settings-change",
-      "ms": 9675,
+      "ms": 4379,
       "ok": true
     },
     {
@@ -828,15 +817,15 @@
         }
       ],
       "id": "person-add",
-      "ms": 4007,
+      "ms": 3787,
       "ok": true
     },
     {
       "module": "Account",
       "feature": "Make an API token",
-      "note": "Lens guesses the name from the scope; it can be renamed in the list.",
+      "note": "",
       "clicks": 3,
-      "keys": 0,
+      "keys": 6,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -858,6 +847,14 @@
         },
         {
           "page": "/account/tokens",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 6,
+          "prompts": 0
+        },
+        {
+          "page": "/account/tokens",
           "kind": "tap",
           "what": "Create token",
           "clicks": 1,
@@ -866,22 +863,46 @@
         }
       ],
       "id": "api-token",
-      "ms": 3392,
+      "ms": 3378,
       "ok": true
     },
     {
       "module": "Navigation",
       "feature": "Switch to another namespace",
       "note": "",
-      "clicks": 0,
+      "clicks": 3,
       "keys": 0,
       "prompts": 0,
       "swipes": 0,
-      "steps": [],
+      "steps": [
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Open navigation (menu)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "the namespace switcher",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "podcasts",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        }
+      ],
       "id": "namespace-switch",
-      "ms": 7231,
-      "ok": false,
-      "error": "the namespace switcher isn't on the screen on a phone"
+      "ms": 2873,
+      "ok": true
     },
     {
       "module": "Agents",
@@ -926,38 +947,22 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3296,
+      "ms": 3312,
       "ok": true
     },
     {
       "module": "Import",
       "feature": "Upload a transcript file",
       "note": "",
-      "clicks": 5,
-      "keys": 6,
+      "clicks": 4,
+      "keys": 0,
       "prompts": 0,
       "swipes": 0,
       "steps": [
         {
           "page": "/",
           "kind": "tap",
-          "what": "Jump to (top bar)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/",
-          "kind": "type",
-          "what": "import",
-          "clicks": 0,
-          "keys": 6,
-          "prompts": 0
-        },
-        {
-          "page": "/",
-          "kind": "tap",
-          "what": "Import recordings or transcripts",
+          "what": "Import (top bar)",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -980,7 +985,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 4362,
+      "ms": 3544,
       "ok": true
     },
     {
@@ -990,7 +995,7 @@
       "clicks": 5,
       "keys": 0,
       "prompts": 0,
-      "swipes": 1,
+      "swipes": 0,
       "steps": [
         {
           "page": "/",
@@ -1030,12 +1035,11 @@
           "what": "Start watching",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         }
       ],
       "id": "source-folder",
-      "ms": 4693,
+      "ms": 4415,
       "ok": true
     },
     {
@@ -1081,14 +1085,14 @@
         }
       ],
       "id": "entity-find",
-      "ms": 12082,
+      "ms": 11971,
       "ok": true
     },
     {
       "module": "Graph",
       "feature": "Find a speaker in the graph of what was imported",
       "note": "The first namespace keeps its graph to itself, so the graph opens empty until it is picked as the namespace.",
-      "clicks": 4,
+      "clicks": 3,
       "keys": 7,
       "prompts": 0,
       "swipes": 0,
@@ -1132,18 +1136,10 @@
           "clicks": 0,
           "keys": 1,
           "prompts": 0
-        },
-        {
-          "page": "/graph",
-          "kind": "tap",
-          "what": "close the filters (they stay open over the node)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
         }
       ],
       "id": "graph-find",
-      "ms": 5288,
+      "ms": 4944,
       "ok": true
     },
     {
@@ -1153,7 +1149,7 @@
       "clicks": 6,
       "keys": 0,
       "prompts": 0,
-      "swipes": 1,
+      "swipes": 0,
       "steps": [
         {
           "page": "/",
@@ -1198,15 +1194,14 @@
         {
           "page": "/resources/:id",
           "kind": "tap",
-          "what": "Create podcast (covered by something else on the page)",
+          "what": "Create podcast",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         }
       ],
       "id": "podcast-create",
-      "ms": 9451,
+      "ms": 4151,
       "ok": true
     },
     {
@@ -1260,15 +1255,15 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 4106,
+      "ms": 4032,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a workflow",
-      "note": "Lens guesses the name from what it runs on; it can be renamed on the workflow's page.",
+      "note": "",
       "clicks": 5,
-      "keys": 0,
+      "keys": 13,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -1306,6 +1301,14 @@
         },
         {
           "page": "/workflows/new",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 13,
+          "prompts": 0
+        },
+        {
+          "page": "/workflows/new",
           "kind": "tap",
           "what": "Create workflow",
           "clicks": 1,
@@ -1314,17 +1317,17 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 4137,
+      "ms": 3785,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a prompt template",
-      "note": "Lens guesses the name from the kind; it can be renamed on the template's page.",
+      "note": "",
       "clicks": 5,
-      "keys": 0,
+      "keys": 10,
       "prompts": 0,
-      "swipes": 1,
+      "swipes": 0,
       "steps": [
         {
           "page": "/",
@@ -1348,8 +1351,7 @@
           "what": "Templates tab",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         },
         {
           "page": "/templates",
@@ -1357,6 +1359,14 @@
           "what": "New template",
           "clicks": 1,
           "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/templates/new",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 10,
           "prompts": 0
         },
         {
@@ -1369,7 +1379,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3609,
+      "ms": 3621,
       "ok": true
     },
     {
@@ -1431,7 +1441,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3475,
+      "ms": 3489,
       "ok": true
     },
     {
@@ -1493,17 +1503,17 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4490,
+      "ms": 4400,
       "ok": true
     },
     {
       "module": "Setup",
       "feature": "Switch to a cloud model with an API key",
       "note": "What a Raspberry Pi install does after the installer: a cloud provider picked from the presets fills in its address and model, then a pasted key.",
-      "clicks": 5,
+      "clicks": 6,
       "keys": 1,
       "prompts": 0,
-      "swipes": 1,
+      "swipes": 0,
       "steps": [
         {
           "page": "/",
@@ -1524,11 +1534,18 @@
         {
           "page": "/settings/speakers",
           "kind": "tap",
+          "what": "Settings sections",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/settings/speakers",
+          "kind": "tap",
           "what": "LLM provider",
           "clicks": 1,
           "keys": 0,
-          "prompts": 0,
-          "swipes": 1
+          "prompts": 0
         },
         {
           "page": "/settings/llm",
@@ -1549,14 +1566,14 @@
         {
           "page": "/settings/llm",
           "kind": "tap",
-          "what": "Save (covered by something else on the page)",
+          "what": "Save",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
         }
       ],
       "id": "cloud-model",
-      "ms": 8860,
+      "ms": 3876,
       "ok": true
     }
   ],

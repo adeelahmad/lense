@@ -141,6 +141,12 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
             counts={counts}
             onNavigate={() => setMobileOpen(false)}
             className="relative shadow-3"
+            top={
+              // the top bar has no room for it on a phone
+              <div className="px-0.5 pb-3">
+                <NamespaceSwitcher className="w-full" onPick={() => setMobileOpen(false)} />
+              </div>
+            }
           />
         </div>
       )}
@@ -174,6 +180,16 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
               "Import"
             )}
           </Button>
+          {canImport && (
+            // a phone's top bar has no room for the labelled button
+            <Link
+              href="/import"
+              aria-label="Import"
+              className="inline-grid size-9 shrink-0 place-items-center rounded-full text-fg-secondary transition-colors duration-fast hover:bg-surface-neutral md:hidden [&_svg]:size-[18px]"
+            >
+              <Upload />
+            </Link>
+          )}
           <IconButton label="Needs attention" onClick={() => (window.location.href = "/#attention")}>
             <Bell />
           </IconButton>

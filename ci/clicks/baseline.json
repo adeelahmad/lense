@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-14T10:48:21.841Z",
+  "surveyed": "2026-10-14T10:44:48.927Z",
   "commit": "",
   "viewport": "1400x900",
   "device": "desktop",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 2635,
+      "ms": 1901,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 576,
+      "ms": 445,
       "ok": true
     },
     {
@@ -131,7 +131,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 737,
+      "ms": 625,
       "ok": true
     },
     {
@@ -161,7 +161,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2313,
+      "ms": 2353,
       "ok": true
     },
     {
@@ -207,7 +207,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4159,
+      "ms": 4168,
       "ok": true
     },
     {
@@ -237,7 +237,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2659,
+      "ms": 2582,
       "ok": true
     },
     {
@@ -275,7 +275,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3230,
+      "ms": 3245,
       "ok": true
     },
     {
@@ -313,7 +313,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2288,
+      "ms": 2318,
       "ok": true
     },
     {
@@ -351,7 +351,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 2945,
+      "ms": 3460,
       "ok": true
     },
     {
@@ -405,7 +405,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3373,
+      "ms": 3299,
       "ok": true
     },
     {
@@ -451,13 +451,13 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3332,
+      "ms": 3234,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a pipeline from the standard steps",
-      "note": "Lens guesses the name from the steps; it can be renamed on the pipeline's page.",
+      "note": "",
       "clicks": 2,
       "keys": 1,
       "prompts": 0,
@@ -489,13 +489,13 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2547,
+      "ms": 2483,
       "ok": true
     },
     {
       "module": "Routines",
       "feature": "Make a nightly routine (sync sources, the default action)",
-      "note": "Lens guesses the name from when it runs and what it does; it can be renamed later.",
+      "note": "",
       "clicks": 2,
       "keys": 1,
       "prompts": 0,
@@ -527,7 +527,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2586,
+      "ms": 2552,
       "ok": true
     },
     {
@@ -565,7 +565,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2638,
+      "ms": 2522,
       "ok": true
     },
     {
@@ -603,7 +603,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2591,
+      "ms": 2526,
       "ok": true
     },
     {
@@ -649,7 +649,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3298,
+      "ms": 3312,
       "ok": true
     },
     {
@@ -711,15 +711,15 @@
         }
       ],
       "id": "person-add",
-      "ms": 2989,
+      "ms": 3133,
       "ok": true
     },
     {
       "module": "Account",
       "feature": "Make an API token",
-      "note": "Lens guesses the name from the scope; it can be renamed in the list.",
+      "note": "",
       "clicks": 3,
-      "keys": 0,
+      "keys": 6,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -741,6 +741,14 @@
         },
         {
           "page": "/account/tokens",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 6,
+          "prompts": 0
+        },
+        {
+          "page": "/account/tokens",
           "kind": "click",
           "what": "Create token",
           "clicks": 1,
@@ -749,7 +757,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3012,
+      "ms": 3052,
       "ok": true
     },
     {
@@ -779,7 +787,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2284,
+      "ms": 2298,
       "ok": true
     },
     {
@@ -825,7 +833,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 2946,
+      "ms": 2875,
       "ok": true
     },
     {
@@ -846,7 +854,7 @@
           "prompts": 0
         },
         {
-          "page": "/",
+          "page": "/import",
           "kind": "upload",
           "what": "Choose files, then the file",
           "clicks": 2,
@@ -863,7 +871,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 8835,
+      "ms": 8174,
       "ok": true
     },
     {
@@ -909,7 +917,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 4022,
+      "ms": 3777,
       "ok": true
     },
     {
@@ -947,7 +955,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 10725,
+      "ms": 11376,
       "ok": true
     },
     {
@@ -985,7 +993,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4191,
+      "ms": 4208,
       "ok": true
     },
     {
@@ -1039,7 +1047,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 3513,
+      "ms": 3406,
       "ok": true
     },
     {
@@ -1085,15 +1093,15 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3374,
+      "ms": 3308,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a workflow",
-      "note": "Lens guesses the name from what it runs on; it can be renamed on the workflow's page.",
+      "note": "",
       "clicks": 4,
-      "keys": 0,
+      "keys": 13,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -1123,6 +1131,14 @@
         },
         {
           "page": "/workflows/new",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 13,
+          "prompts": 0
+        },
+        {
+          "page": "/workflows/new",
           "kind": "click",
           "what": "Create workflow",
           "clicks": 1,
@@ -1131,15 +1147,15 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 2877,
+      "ms": 3082,
       "ok": true
     },
     {
       "module": "Pipelines",
       "feature": "Make a prompt template",
-      "note": "Lens guesses the name from the kind; it can be renamed on the template's page.",
+      "note": "",
       "clicks": 4,
-      "keys": 0,
+      "keys": 10,
       "prompts": 0,
       "swipes": 0,
       "steps": [
@@ -1169,6 +1185,14 @@
         },
         {
           "page": "/templates/new",
+          "kind": "type",
+          "what": "name",
+          "clicks": 0,
+          "keys": 10,
+          "prompts": 0
+        },
+        {
+          "page": "/templates/new",
           "kind": "click",
           "what": "Create and edit",
           "clicks": 1,
@@ -1177,7 +1201,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 2896,
+      "ms": 2868,
       "ok": true
     },
     {
@@ -1231,7 +1255,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 2913,
+      "ms": 2916,
       "ok": true
     },
     {
@@ -1285,7 +1309,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 3844,
+      "ms": 3919,
       "ok": true
     },
     {
@@ -1339,7 +1363,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 2832,
+      "ms": 2712,
       "ok": true
     }
   ],
