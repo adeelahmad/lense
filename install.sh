@@ -217,7 +217,13 @@ fi
 if [ "$os" = Linux ] && ! { [ -r /dev/kvm ] && [ -w /dev/kvm ]; }; then
   say "Letting $(id -un) use KVM (the kvm group)..."
   $(sudo_ok) usermod -aG kvm "$(id -un)" 2>/dev/null || true
-  # the group counts from the next sign-in; for this run, access for this user alone
+  # the group counts from the next sign-in; for this run, access for this user alone (setfacl is in the acl package,
+  # which a minimal system may not have)
+  if ! have setfacl; then
+    if have apt-get; then $(sudo_ok) apt-get install -y -q acl >/dev/null 2>&1 || true
+    elif have dnf; then $(sudo_ok) dnf install -y -q acl >/dev/null 2>&1 || true
+    fi
+  fi
   have setfacl && $(sudo_ok) setfacl -m "u:$(id -un):rw" /dev/kvm 2>/dev/null || true
   [ -r /dev/kvm ] && [ -w /dev/kvm ] || fail "Can't use /dev/kvm. Sign out and in again (or run: msb doctor), then run this again."
 fi
