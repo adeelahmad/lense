@@ -359,6 +359,10 @@ strings. A fresh archive starts with three: Meeting notes (prompt), Markdown tra
 `POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
 the model.
 
+New pipelines, workflows, templates and routines don't need a name typed: the web app guesses one (from a pipeline's
+steps, what a workflow runs on, a template's kind, a routine's schedule and actions), numbered when it's taken
+("Prompt template 2"). The pencil next to the name on its page renames it later, as does `PATCH` on its address.
+
 ## Workflows and the canvas
 
 A pipeline's steps make assets (a transcript, shots, text on screen, faces); workflows turn them into metadata. A

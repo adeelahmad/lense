@@ -38,6 +38,7 @@ import {
   sameSteps,
   specProblems,
   stepSummary,
+  suggestedPipelineName,
   toSpec,
   type StepSpec,
 } from "@/components/pipelines/pipeline-model";
@@ -48,6 +49,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { STEP_TONE } from "@/components/ui/loop";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
+import { RenameTitle } from "@/components/ui/rename-title";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -218,9 +220,6 @@ export function PipelineEditor({ id }: { id?: number }) {
   const base: Pipeline | undefined = q.data;
   const [steps, setSteps] = useState<StepSpec[]>([]);
   const [name, setName] = useState("");
-  // A new pipeline is named for you unless you type one, so Enter creates it straight away
-  const suggested = `Pipeline ${(catalog.data?.pipelines.length ?? 0) + 1}`;
-  const named = name.trim() || suggested;
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [sel, setSel] = useState(0);
@@ -246,6 +245,12 @@ export function PipelineEditor({ id }: { id?: number }) {
   const readOnly = !admin;
   const latest = base ? Math.max(base.current, ...(base.history ?? []).map((h) => h.version)) : 0;
   const dirty = creating ? true : base ? !sameSteps(base.steps, steps) : false;
+  // A new pipeline is named for you unless you type one, so Enter creates it straight away
+  const guess = suggestedPipelineName(
+    steps,
+    (catalog.data?.pipelines ?? []).map((p) => p.name),
+  );
+  const named = name.trim() || guess;
   const problems = specProblems(steps, (tid) => tpl.get(tid)?.kind);
   const firstProblem = Object.entries(problems)[0];
   const used = (catalog.data?.pipelines.find((p) => p.id === id)?.namespaces ?? []).filter((n) =>
@@ -410,7 +415,7 @@ export function PipelineEditor({ id }: { id?: number }) {
         {creating ? (
           <Input
             aria-label="Pipeline name"
-            placeholder={suggested}
+            placeholder={guess}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
@@ -420,7 +425,19 @@ export function PipelineEditor({ id }: { id?: number }) {
             autoFocus
           />
         ) : (
-          <h1 className="text-[18px] font-bold text-fg">{base?.name}</h1>
+          <RenameTitle
+            name={base?.name ?? ""}
+            what="pipeline"
+            onRename={
+              readOnly
+                ? undefined
+                : async (n) => {
+                    await data(Pipelines.updatePipeline({ client, path: { pid: id! }, body: { name: n } }));
+                    void qc.invalidateQueries({ queryKey: ["pipelines"] });
+                    await qc.invalidateQueries({ queryKey: ["pipeline", id] });
+                  }
+            }
+          />
         )}
         {!creating && (
           <span

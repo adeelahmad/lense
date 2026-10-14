@@ -392,6 +392,16 @@ export type ApiTokenCreated = {
 };
 
 /**
+ * ApiTokenRename
+ */
+export type ApiTokenRename = {
+  /**
+   * Name
+   */
+  name: string;
+};
+
+/**
  * Approval
  */
 export type Approval = {
@@ -11059,6 +11069,20 @@ export type PipelineSummary = {
 };
 
 /**
+ * PipelineUpdate
+ */
+export type PipelineUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
  * PipelineVersionCreate
  */
 export type PipelineVersionCreate = {
@@ -17298,6 +17322,20 @@ export type TemplateSummary = {
 };
 
 /**
+ * TemplateUpdate
+ */
+export type TemplateUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
  * TemplateVersionCreate
  */
 export type TemplateVersionCreate = {
@@ -19784,6 +19822,36 @@ export type RevokeTokenResponses = {
 };
 
 export type RevokeTokenResponse = RevokeTokenResponses[keyof RevokeTokenResponses];
+
+export type RenameTokenData = {
+  body: ApiTokenRename;
+  path: {
+    /**
+     * Token Id
+     */
+    token_id: number;
+  };
+  query?: never;
+  url: "/api/v1/tokens/{token_id}";
+};
+
+export type RenameTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RenameTokenError = RenameTokenErrors[keyof RenameTokenErrors];
+
+export type RenameTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RenameTokenResponse = RenameTokenResponses[keyof RenameTokenResponses];
 
 export type PasskeySetupOptionsData = {
   body: PasskeySetupStart;
@@ -31096,6 +31164,36 @@ export type GetTemplateResponses = {
 
 export type GetTemplateResponse = GetTemplateResponses[keyof GetTemplateResponses];
 
+export type UpdateTemplateData = {
+  body: TemplateUpdate;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/templates/{tid}";
+};
+
+export type UpdateTemplateErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateTemplateError = UpdateTemplateErrors[keyof UpdateTemplateErrors];
+
+export type UpdateTemplateResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateTemplateResponse = UpdateTemplateResponses[keyof UpdateTemplateResponses];
+
 export type CreateTemplateVersionData = {
   body: TemplateVersionCreate;
   path: {
@@ -31240,6 +31338,36 @@ export type GetPipelineResponses = {
 };
 
 export type GetPipelineResponse = GetPipelineResponses[keyof GetPipelineResponses];
+
+export type UpdatePipelineData = {
+  body: PipelineUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/pipelines/{pid}";
+};
+
+export type UpdatePipelineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdatePipelineError = UpdatePipelineErrors[keyof UpdatePipelineErrors];
+
+export type UpdatePipelineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdatePipelineResponse = UpdatePipelineResponses[keyof UpdatePipelineResponses];
 
 export type CreatePipelineVersionData = {
   body: PipelineVersionCreate;

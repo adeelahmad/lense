@@ -17,6 +17,7 @@ from app.schemas.auth import (
     ApiToken,
     ApiTokenCreate,
     ApiTokenCreated,
+    ApiTokenRename,
     AuthStatus,
     ForgotPasswordRequest,
     LoginRequest,
@@ -200,6 +201,17 @@ def create_token(body: ApiTokenCreate, user: Writer, db: Db, cfg: Cfg) -> ApiTok
         tid, raw = auth.create_token(db, user.id, body.name, body.scope, auth.token_days(cfg, body.days))
     auth.audit(db, user.as_audit(), "token.create", f"api_token:{tid}")
     return ApiTokenCreated(id=tid, token=raw)
+
+
+@tokens.patch("/{token_id}")
+def rename_token(token_id: int, body: ApiTokenRename, user: Writer, db: Db) -> Ok:
+    """Rename one of your keys."""
+    with domain_errors():
+        found = auth.rename_token(db, user.id, token_id, body.name)
+    if not found:
+        raise HTTPException(404, "not found")
+    auth.audit(db, user.as_audit(), "token.rename", f"api_token:{token_id}")
+    return Ok()
 
 
 @tokens.delete("/{token_id}")

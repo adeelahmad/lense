@@ -185,7 +185,12 @@ async function main() {
   if (a.state) await context.storageState({ path: a.state });
   const pages = a.only ? [] : await surveyPages(page, a.base, ctx.phone);
   await browser.close();
-  installer?.kill();
+  if (installer) {
+    // and wait for it to go, so a survey straight after this one gets its port
+    const gone = new Promise((r) => (installer.exitCode != null || installer.signalCode != null ? r() : installer.once("exit", r)));
+    installer.kill();
+    await gone;
+  }
   model.close();
 
   const result = {

@@ -121,7 +121,8 @@ For scripts and integrations: `POST /api/v1/tokens` (while signed in) returns `l
 **write** scoped, act with their maker's roles, and expire after `days`: by default `tokens.default_days`, at most
 `tokens.max_days`, and never (`0`) only where `tokens.never_expire` allows ([Configuration](configuration.md#api-keys);
 `GET /api/v1/tokens/limits` says what's allowed). Their maker revokes them, and admins can revoke anyone's
-(`/api/v1/admin/tokens`); both are audited as `token.revoke`.
+(`/api/v1/admin/tokens`); both are audited as `token.revoke`. The web app names a new token after its scope ("Read only
+token") unless you type a name, and the pencil in the list renames it (`PATCH /api/v1/tokens/{token_id}`).
 
 ```bash
 curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/resources

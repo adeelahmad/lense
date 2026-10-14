@@ -116,6 +116,16 @@ export function nsSlug(text: string): string {
     .slice(0, 41);
 }
 
+/** A guessed name nothing else has yet: `base` when it's free, else "base 2", "base 3"… (case aside), so new things
+ * get a name without typing and stay told apart. */
+export function uniqueName(base: string, taken: Iterable<string | null | undefined>): string {
+  const used = new Set([...taken].map((n) => (n ?? "").trim().toLowerCase()));
+  if (!used.has(base.toLowerCase())) return base;
+  let k = 2;
+  while (used.has(`${base} ${k}`.toLowerCase())) k++;
+  return `${base} ${k}`;
+}
+
 /** A display name from an email address: "ana.lopez@x.io" → "Ana Lopez". */
 export function nameFromEmail(email: string): string {
   const local = email.trim().split("@")[0] ?? "";

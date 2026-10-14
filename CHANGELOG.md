@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **New pipelines, workflows, templates and API tokens come with a name.** The web app guesses one from what you're
+  making ("Transcribe to report", "Recording workflow", "Prompt template 2", "Read only token"), as it already did for
+  routines, so making one takes no typing; type a name to choose your own. The pencil next to the name renames it
+  later, and `PATCH /api/v1/pipelines/{id}`, `/templates/{id}` and `/tokens/{id}` rename them through the API.
 - **Long recordings go to a speech provider in pieces that fit it.** A recording longer or larger than a provider takes
   in one request is cut at pauses into pieces within its limits, and their transcripts are joined back into one, where
   only OpenAI-compatible servers had ten-minute parts before. Each provider starts with its published limits (10 hours

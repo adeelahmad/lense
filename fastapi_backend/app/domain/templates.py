@@ -171,6 +171,18 @@ def create(db, name, kind, body, schema=None, system=None, description=None, use
     return tid
 
 
+def rename(db, tid, name=None, description=None):
+    """A template's name and description (its text changes by saving a version)."""
+    if not db.one("SELECT id FROM $r", r=R("template", tid)):
+        raise KeyError(tid)
+    if name is not None:
+        if not name.strip():
+            raise TemplateProblem("give the template a name")
+        db.q("UPDATE $r SET name = $n", r=R("template", tid), n=name.strip()[:80])
+    if description is not None:
+        db.q("UPDATE $r SET description = $d", r=R("template", tid), d=description.strip() or None)
+
+
 def save_version(db, tid, body, schema=None, system=None, notes=None, user=None, publish=True):
     t = db.one("SELECT kind FROM $r", r=R("template", tid))
     if not t:
