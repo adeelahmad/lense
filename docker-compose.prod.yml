@@ -164,6 +164,21 @@ services:
     restart: unless-stopped
     networks: [lens]
 
+  # Apache Tika (docs/configuration.md#apache-tika): reads the text and description of about a thousand kinds of file where Lens can't make
+  # them into PDFs itself, and what every document says about itself. Opt-in, about 250 MB of memory:
+  # `docker compose --profile tika up -d` (or COMPOSE_PROFILES=tika in .env), then Settings → Documents → Tika server:
+  # http://tika:9998. Reachable only inside Lens's network; it has no sign-in of its own.
+  tika:
+    image: apache/tika:${TIKA_VERSION:-4.0.0-1}
+    profiles: [tika]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx${TIKA_HEAP:-512m}
+    restart: unless-stopped
+    networks: [lens]
+
   # The MCP runner (mcp-runner/runner.py, docs/assistant.md): MCP servers that run as a program (stdio, usually npx or
   # uvx), which admins add as extensions. Opt-in: `docker compose --profile mcp up -d`, or COMPOSE_PROFILES=mcp in .env.
   # The sandbox: none of Lens's data or keys, no capabilities, a read-only image, and a network shared only with the

@@ -509,7 +509,10 @@ made, unless someone named or dated it. Its attachments are kept as its files (r
 read become resources of their own beside it, each with `attached_to: {resource, file, title}` (the email, and its
 title when the caller may see it); an attachment file's `resource` is the resource it became, or the one it was already
 in the namespace (`documents.attachment_resources`). Transcribing an email again keeps and makes nothing twice.
-`GET /uploads/limits` says what the server can convert (`convert: {office, pages, msg}`); an upload it can't read is
+`GET /uploads/limits` says what the server can convert (`convert: {office, pages, msg, tika}`); with an
+[Apache Tika](configuration.md#apache-tika) server set, what nothing else can convert is read by Tika as text without
+pages (`engine` `text:tika`), and every document has `described`, what it says about itself as Dublin Core terms
+(`POST /settings/documents/tika/test` checks the server). An upload it can't read is
 refused, saying what it needs, and the files that can be transcripts too (PDFs, Word, text and Markdown) can be imported
 as transcripts instead (`POST /import`). Its pipeline's read step (its transcribe step, for a document or an image:
 no speech model is fetched for one) draws its pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's

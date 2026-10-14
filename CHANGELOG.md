@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Apache Tika.** Lens can use an Apache Tika server (`--profile tika` in the compose files, or one of your own, set
+  in Settings → Documents). Documents nothing here can make into a PDF, such as Word files on a lean server or a
+  Raspberry Pi, are read by Tika as text, and every document's own title, authors, language and dates are read as
+  Dublin Core terms. Off until a Tika server is set ([Configuration](docs/configuration.md#apache-tika)).
 - **New pipelines, workflows, templates and API tokens come with a name.** The web app guesses one from what you're
   making ("Transcribe to report", "Recording workflow", "Prompt template 2", "Read only token"), as it already did for
   routines, so making one takes no typing; type a name to choose your own. The pencil next to the name renames it

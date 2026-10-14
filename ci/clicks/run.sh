@@ -19,7 +19,7 @@ stop() {
     wait "$p" 2>/dev/null || true
     kill "$w" 2>/dev/null || true
   done
-  rm -rf "$tmp"
+  rm -rf "$tmp" 2>/dev/null || { sleep 2; rm -rf "$tmp" || true; }
 }
 trap stop EXIT INT TERM
 

@@ -116,6 +116,9 @@ EDITABLE = {
         "converter",
         "anytopdf_url",
         "anytopdf_token",
+        "tika_url",
+        "tika_text",
+        "tika_metadata",
     ),
 }
 MAIL_SECURITY = ("ssl", "starttls", "none")
@@ -506,7 +509,12 @@ def _check(section, key, value, default):
         return _local_llm_setting(key, value)
     if section == "decisions" and key != "engine":
         return _decision_setting(key, value)
-    if (section, key) in (("documents", "attachment_resources"), ("documents", "video_urls")):
+    if (section, key) in (
+        ("documents", "attachment_resources"),
+        ("documents", "video_urls"),
+        ("documents", "tika_text"),
+        ("documents", "tika_metadata"),
+    ):
         if not isinstance(value, bool):
             raise ValueError(f"documents.{key} is true or false")
         return value
@@ -517,6 +525,13 @@ def _check(section, key, value, default):
             return None
         if not (isinstance(value, str) and VIEWER_URL.match(value.strip())):
             raise ValueError("documents.anytopdf_url is a conversion node's http(s) address, such as https://convert.home:8640")
+        return value.strip().rstrip("/")
+    if (section, key) == ("documents", "tika_url"):
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
+            raise ValueError("documents.tika_url is a Tika server's http(s) address with no password in it, such as http://tika:9998")
         return value.strip().rstrip("/")
     if (section, key) == ("documents", "anytopdf_token"):
         if value in (None, ""):

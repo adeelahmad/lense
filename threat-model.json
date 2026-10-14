@@ -1016,6 +1016,14 @@
       "source": "docs/configuration.md \"the token never goes on to another server\""
     },
     {
+      "property": "P-TIKA-SERVER",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "a Tika server (documents.tika_url, off by default) gets the document only at the address the admin set: http(s) with no user name or password, no redirect is followed, and the document goes as document.<type>, never by its own name; its answer is read to 64 MB, only the Dublin Core terms Lens keeps are taken from it (bounded in length), and the text kept is capped at 20 million characters; a Tika server that can't be reached fails only a document nothing else can read; the compose service runs read-only, without privileges, reachable only inside Lens's network",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"The document goes only to the address set\""
+    },
+    {
       "property": "P-TEMPLATE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",

@@ -237,6 +237,9 @@ each the first time it's needed; without them, PDFs and images are read as befor
 | `documents.converter` | `auto` | who makes the PDFs: `auto` uses [anytopdf](#anytopdf) only for what LibreOffice and Chromium can't do here, `anytopdf` uses it for every document and image (and fetches it), `lens` never uses it |
 | `documents.anytopdf_url` | none | a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work`, such as `https://convert.home:8640`. Set, it converts instead of the program here |
 | `documents.anytopdf_token` | none | the node's bearer token (its `ANYTOPDF_QUEUE_TOKEN`), kept encrypted |
+| `documents.tika_url` | none (off) | an [Apache Tika](#apache-tika) server, such as `http://tika:9998` for the compose files' `tika` service |
+| `documents.tika_text` | true | with a Tika server: documents nothing here can make into a PDF are read by Tika, as text without pages |
+| `documents.tika_metadata` | true | with a Tika server: what every document says about itself (title, authors, language, dates) is read by Tika |
 
 Set at startup only (the config file; the web app can't choose what the server runs):
 
@@ -246,6 +249,37 @@ Set at startup only (the config file; the web app can't choose what the server r
 | `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too); it also captures web pages ([API](api.md#web-pages)) |
 | `documents.anytopdf` | the one Lens downloaded, else `anytopdf` on PATH | the anytopdf program |
 | `documents.web_networks` | `[]` | networks (CIDR, such as `10.20.0.0/16`) that web pages and calendar feeds may be fetched from besides the public internet: for an intranet, or a calendar server at home; loopback and cloud metadata addresses stay out unless listed. `LENS_WEB_NETWORKS` in `.env` (comma-separated) adds to it, for Docker and the packages |
+
+### Apache Tika
+
+[Apache Tika](https://tika.apache.org) (Apache-2.0) reads the text and the description of about a thousand kinds of
+file. Lens can use a Tika server; it's off until `documents.tika_url` is set. The compose files have one ready, as an
+opt-in profile (about 250 MB of memory, so leave it off on a small Raspberry Pi):
+
+```sh
+docker compose -f docker-compose.prod.yml --profile tika up -d
+```
+
+(or add `COMPOSE_PROFILES=tika` to Lens's `.env` and run the install command again). Then, in Settings → Documents,
+set the Tika server to `http://tika:9998` and press Test. A Tika server elsewhere works the same way.
+
+- **Reading what nothing else can** (`documents.tika_text`). When neither LibreOffice, Chromium nor
+  [anytopdf](#anytopdf) can make a document into a PDF here (a Word file on a lean server, say), or one of them fails
+  on it, Tika reads it instead. Uploads and folder scans then take every document type, Office files included. Such
+  a document has its text, which is searched, analyzed and asked about like any other's, but no pages to look at;
+  its `engine` is `text:tika`. An email or an archive read this way gives its text, including its attachments' and
+  files', but they aren't kept as files or resources of their own.
+- **What a document says about itself** (`documents.tika_metadata`). Every document is also described by Tika, as
+  Dublin Core terms (`GET /resources/{id}` → `described`: title, creators, subject, description, publisher,
+  language, created, modified, pages, words, format). Its title and creation date become the resource's while it's
+  still named and dated after its file (an email's own subject and date come first), and its authors and language
+  are its [metadata](rdf.md)'s until someone saves others. If Tika can't describe it, the document is read anyway.
+
+The document goes only to the address set: http(s) with no user name or password in it, no redirect followed, and
+sent as `document.<type>`, never by its own name. Tika has no sign-in of its own, so the compose service is reachable
+only inside Lens's network; put one elsewhere behind TLS on a network you trust, since every document is sent to it.
+Its answers are bounded (64 MB) before Lens reads them. The compose service runs read-only, as a user without
+privileges, with `TIKA_HEAP` (default `512m`) as its Java heap and `TIKA_VERSION` (default `4.0.0-1`) as its image.
 
 ### anytopdf
 

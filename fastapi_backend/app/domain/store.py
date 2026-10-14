@@ -245,6 +245,9 @@ DEFAULTS = {
         "anytopdf": None,  # the anytopdf program; None: the one downloaded on first use, else one on PATH
         "anytopdf_url": None,  # a conversion node: `anytopdf queue serve` on another machine
         "anytopdf_token": None,
+        "tika_url": None,  # tika.py: a Tika server (the compose files' `tika` profile: http://tika:9998); None: off
+        "tika_text": True,  # with a Tika server: it reads, as text, documents Lens can't make into PDFs
+        "tika_metadata": True,  # with a Tika server: it reads what every document says about itself
     },
     "workers": {
         "inline": 1,

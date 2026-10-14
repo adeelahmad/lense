@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:f4eefc3339eca0d9d60de34fe4171b6ab909a6bd3f48494b2e41e54a1a20068b"
+prose_version: "threat-model.md@sha256:866a8ecadd07a9c98b1846abb66ef740fa3ba5809698d42f531a66fc5d720db4"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1426,6 +1426,14 @@ properties_claimed:
     violation_symptoms: [info-leak, bad-data-accepted]
     x-voided-by: "the node's address is trusted input (N-ADMIN); a node on plain http off loopback sends the token in clear (domain/anytopdf.py:237-244); what the node reads from the document is the node's"
     provenance: {kind: documented, source: 'docs/configuration.md "the token never goes on to another server"'}
+  - id: P-TIKA-SERVER
+    kind: confidentiality
+    components: [outbound, ingest]
+    tier: security-critical
+    conditions: "a Tika server (documents.tika_url, off by default) gets the document only at the address the admin set: http(s) with no user name or password, no redirect is followed, and the document goes as document.<type>, never by its own name; its answer is read to 64 MB, only the Dublin Core terms Lens keeps are taken from it (bounded in length), and the text kept is capped at 20 million characters; a Tika server that can't be reached fails only a document nothing else can read; the compose service runs read-only, without privileges, reachable only inside Lens's network"
+    violation_symptoms: [info-leak, bad-data-accepted]
+    x-voided-by: "the server's address is trusted input (N-ADMIN); a Tika server off this machine on plain http sees every document in clear, and Tika has no sign-in of its own (domain/tika.py); what Tika reads from the document is Tika's"
+    provenance: {kind: documented, source: 'docs/configuration.md "The document goes only to the address set"'}
   - id: P-TEMPLATE
     kind: integrity
     components: [ingest, assistant]

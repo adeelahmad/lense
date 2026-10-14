@@ -130,6 +130,22 @@ class Rendition(ResponseModel):
     by: Literal["libreoffice", "chromium", "anytopdf"]
 
 
+class Described(ResponseModel):
+    """What a document says about itself, read by a Tika server (documents.tika_metadata), as Dublin Core terms."""
+
+    title: str | None = Field(None, description="dc:title")
+    creators: list[str] = Field(default_factory=list, description="dc:creator: its authors")
+    subject: str | None = Field(None, description="dc:subject")
+    description: str | None = Field(None, description="dc:description")
+    publisher: str | None = Field(None, description="dc:publisher")
+    language: str | None = Field(None, description="dc:language, a code such as en")
+    created: str | None = Field(None, description="dcterms:created (ISO 8601)")
+    modified: str | None = Field(None, description="dcterms:modified (ISO 8601)")
+    pages: int | None = Field(None, description="how many pages it says it has")
+    words: int | None = Field(None, description="how many words it says it has")
+    format: str | None = Field(None, description="dc:format: its media type, as Tika found it")
+
+
 class WebPage(ResponseModel):
     """A web page captured as a document: where it was, and when."""
 
@@ -205,6 +221,7 @@ class Recording(ResponseModel):
     tags: list[str] = Field(default_factory=list)
     email: EmailInfo | None = Field(None, description="an email: its subject, sender, recipients and date")
     rendition: Rendition | None = Field(None, description="a document that isn't a PDF: how the PDF it's read from was made")
+    described: Described | None = Field(None, description="a document: what it says about itself (title, authors, dates), read by Tika")
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
     web: WebPage | None = Field(None, description="a web page captured as a document")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")

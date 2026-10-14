@@ -39,6 +39,7 @@ from app.domain import (
     store,
     telegram,
     telemetry,
+    tika,
     tunnel,
 )
 from app.schemas.admin import (
@@ -73,6 +74,7 @@ from app.schemas.admin import (
     TelegramStatus,
     TelemetryStatus,
     TelemetryTestResult,
+    TikaTestResult,
     TunnelStatus,
 )
 from app.schemas.auth import AccountToken
@@ -279,6 +281,17 @@ def test_conversion_node(user: AdminWriter, cfg: Cfg) -> ConversionNodeTestResul
     t0 = time.time()
     error = anytopdf.check(cfg)
     return ConversionNodeTestResult(ok=error is None, error=error, ms=None if error else int((time.time() - t0) * 1000))
+
+
+@router.post("/settings/documents/tika/test")
+def test_tika(user: AdminWriter, cfg: Cfg) -> TikaTestResult:
+    """Check that a Tika server answers at documents.tika_url, and say which version it is."""
+    t0 = time.time()
+    try:
+        said = tika.version(cfg)
+    except ValueError as e:
+        return TikaTestResult(ok=False, error=str(e))
+    return TikaTestResult(ok=True, version=said, ms=int((time.time() - t0) * 1000))
 
 
 @router.get("/settings/decisions/status")

@@ -117,16 +117,16 @@ def test_the_proxy_serves_lens_page_and_refuses_everything_else():
 def test_what_the_server_can_convert(cfg, monkeypatch):
     monkeypatch.setattr(convert, "soffice", lambda cfg: None)
     monkeypatch.setattr(convert, "chromium", lambda cfg: None)
-    assert convert.capabilities(cfg) == {"office": False, "pages": False, "msg": False, "web": False}
+    assert convert.capabilities(cfg) == {"office": False, "pages": False, "msg": False, "web": False, "tika": False}
     assert convert.unavailable(cfg, "a.pdf") is None and convert.unavailable(cfg, "a.mp3") is None
     assert (
         convert.unavailable(cfg, "a.docx")
-        == "converting Word documents needs LibreOffice on the server (the lens:full image) or an anytopdf conversion node"
+        == "converting Word documents needs LibreOffice on the server (the lens:full image), an anytopdf conversion node or a Tika server"
     )
     assert "Chromium or LibreOffice" in convert.unavailable(cfg, "a.eml")
     monkeypatch.setattr(convert, "chromium", lambda cfg: "/usr/bin/chromium")
     monkeypatch.setattr(convert, "_has_msg", lambda: False)
-    assert convert.capabilities(cfg) == {"office": False, "pages": True, "msg": False, "web": True}
+    assert convert.capabilities(cfg) == {"office": False, "pages": True, "msg": False, "web": True, "tika": False}
     assert convert.unavailable(cfg, "a.md") is None and "extract-msg" in convert.unavailable(cfg, "a.msg")
     assert convert.bootstrap(cfg)["chromium"] == "/usr/bin/chromium"
 
@@ -137,7 +137,7 @@ def test_libreoffice_and_chromium_are_installed_the_first_time_theyre_needed(cfg
     root, bin_dir = fake_programs.sandbox(tmp_path, monkeypatch)
     monkeypatch.setattr(convert, "_has_msg", lambda: False)
     assert convert.fetchable("libreoffice") and convert.fetchable("chromium") and not convert.fetchable("ffmpeg")
-    assert convert.capabilities(cfg) == {"office": True, "pages": True, "msg": False, "web": True}
+    assert convert.capabilities(cfg) == {"office": True, "pages": True, "msg": False, "web": True, "tika": False}
     assert convert.unavailable(cfg, "a.docx") is None and convert.unavailable(cfg, "a.eml") is None
     rows = {r["id"]: r for r in components.catalog(cfg)}
     assert (rows["libreoffice"]["here"], rows["libreoffice"]["hint"]) == (False, "installed the first time it's needed")
