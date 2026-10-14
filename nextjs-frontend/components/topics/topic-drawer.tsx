@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Topics } from "@/app/openapi-client";
+import { SimilarSection } from "@/components/similar/similar-list";
 import { broaderChoices, splitLabels, type TopicItem } from "@/components/topics/model";
 import { TopicPicker } from "@/components/topics/topic-picker";
 import { Badge } from "@/components/ui/badge";
@@ -308,6 +309,7 @@ export function TopicDrawer({
                 ))}
               </ul>
             </section>
+            <SimilarSection basis={{ topic: d.id }} />
           </>
         )}
       </div>

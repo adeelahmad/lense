@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { Entities, Topics } from "@/app/openapi-client";
 import type { EntityType } from "@/app/openapi-client/types.gen";
 import { recordingHref } from "@/components/search/links";
+import { SimilarSection } from "@/components/similar/similar-list";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { Drawer } from "@/components/ui/dialog";
@@ -316,6 +317,7 @@ export function EntityDrawer({
                 ))}
               </ul>
             </section>
+            <SimilarSection basis={{ entity: id }} />
           </>
         )}
       </div>

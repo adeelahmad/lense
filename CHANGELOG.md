@@ -9,6 +9,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   routines, so making one takes no typing; type a name to choose your own. The pencil next to the name renames it
   later, and `PATCH /api/v1/pipelines/{id}`, `/templates/{id}` and `/tokens/{id}` rename them through the API.
 
+- **Similar content.** Every resource has a **Similar** tab, and selecting text anywhere (a transcript, a page, a
+  title, a graph label) shows the resources most like it, each citing the passages, words, topics and entities they
+  share, with **Find more** for the full list. Topics, entities and graph nodes list similar content too, and the
+  assistant and the MCP server can ask for it (`find_similar`). It works without search by meaning, by key words,
+  topics and entities ([Processing](docs/processing.md#similar-content)).
+
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 
 - **The installer stops waiting when Lens can't start, and shows why.** A microsandbox install that couldn't start Lens
@@ -147,6 +153,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 - bump the python-minor group ([#253](https://github.com/adeelahmad/lense/pull/253))
 - bump the javascript-minor group ([#316](https://github.com/adeelahmad/lense/pull/316))
+
+- **Logs in the web app, and to a syslog server.** The API and every worker now write structured log lines with a
+  level set in **Settings → Logs** (and per logger, like `httpx warning`), to the console as text or JSON and to a file
+  per process under `data_dir/logs`. The same page shows the latest lines from all of them, with search and filters.
+  Turned on there, lines go to a syslog server too (RFC 5424 over UDP, TCP or TLS), from a background queue so a slow
+  server never holds Lens up; off by default. Keys, tokens and passwords are replaced with *** before any line is
+  written or sent ([Logging](docs/logging.md)).
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 

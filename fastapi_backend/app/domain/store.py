@@ -613,6 +613,27 @@ DEFAULTS = {
         # where Grafana shows Lens's charts (docs/prometheus.md), for a link on Admin → System health; none: no link
         "grafana_url": None,
     },
+    # logging (docs/logging.md): level and format for the console (docker logs) and a file per process under
+    # data_dir/logs (what Settings → Logs shows); levels sets single loggers, like {"httpx": "warning"}. syslog sends
+    # every line at syslog_level or above to a syslog server (RFC 5424 over udp, tcp or tls); off by default
+    "logs": {
+        "level": "info",
+        "format": "text",
+        "levels": {},
+        "file": True,
+        "file_mb": 5,
+        "file_keep": 2,
+        "syslog": False,
+        "syslog_host": None,
+        "syslog_port": 514,
+        "syslog_transport": "udp",
+        "syslog_level": "info",
+        "syslog_facility": "local0",
+        "syslog_format": "text",
+        "syslog_framing": "octet",
+        "syslog_verify": True,
+        "syslog_app_name": "lens",
+    },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
     # email: tell admins by email when a new release is seen (once per release; needs Settings › Email). Namespaces'

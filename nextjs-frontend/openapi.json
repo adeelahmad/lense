@@ -3007,6 +3007,201 @@
         }
       }
     },
+    "/api/v1/settings/logs/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Log Status",
+        "description": "The API process's log level, its log file, and how sending to syslog is going (off by default).",
+        "operationId": "log_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/logs/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Logs",
+        "description": "Send one line to the saved syslog server now (on or off), to check the address, port and transport.",
+        "operationId": "test_logs",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/logs": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Read Logs",
+        "description": "The latest log lines from the API and every worker (their files under data_dir/logs), newest first. Lines are\nredacted as they're written: no keys, tokens or passwords.",
+        "operationId": "read_logs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "debug",
+                    "info",
+                    "warning",
+                    "error",
+                    "critical"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "this level and above",
+              "title": "Level"
+            },
+            "description": "this level and above"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "text the message or error contains",
+              "title": "Q"
+            },
+            "description": "text the message or error contains"
+          },
+          {
+            "name": "process",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "api, worker or watcher",
+              "title": "Process"
+            },
+            "description": "api, worker or watcher"
+          },
+          {
+            "name": "logger",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a logger name, or the start of one (lens.email)",
+              "title": "Logger"
+            },
+            "description": "a logger name, or the start of one (lens.email)"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a line's ts: only older lines (the next page)",
+              "title": "Before"
+            },
+            "description": "a line's ts: only older lines (the next page)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogLine"
+                  },
+                  "title": "Response Admin-Read Logs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/audit": {
       "get": {
         "tags": [
@@ -39483,6 +39678,216 @@
           "suggested"
         ],
         "title": "LocalModelServer"
+      },
+      "LogLine": {
+        "properties": {
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "logger": {
+            "type": "string",
+            "title": "Logger"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg"
+          },
+          "process": {
+            "type": "string",
+            "title": "Process"
+          },
+          "pid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pid"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "exc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exc"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ts",
+          "level",
+          "logger",
+          "msg",
+          "process"
+        ],
+        "title": "LogLine",
+        "description": "One log record, redacted as it was written."
+      },
+      "LogStatus": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File",
+            "description": "the API's log file, under data_dir/logs"
+          },
+          "syslog": {
+            "type": "boolean",
+            "title": "Syslog",
+            "description": "whether lines are being sent to a syslog server"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "where, as transport://host:port"
+          },
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          },
+          "dropped": {
+            "type": "integer",
+            "title": "Dropped",
+            "description": "lines dropped because the server couldn't keep up or was unreachable"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued"
+          },
+          "last_sent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sent"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "error_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "level",
+          "syslog",
+          "sent",
+          "dropped",
+          "queued"
+        ],
+        "title": "LogStatus",
+        "description": "What the API process does with its logs now; each worker follows the same settings on its own."
+      },
+      "LogTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "LogTestResult"
       },
       "LoginRequest": {
         "properties": {

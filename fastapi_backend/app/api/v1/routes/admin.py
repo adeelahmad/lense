@@ -6,7 +6,7 @@ import logging
 import pathlib
 import shutil
 import time
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 
@@ -24,6 +24,7 @@ from app.domain import (
     keyring,
     llm,
     local_llm,
+    logs,
     machine,
     mailbox,
     matterbridge,
@@ -57,6 +58,9 @@ from app.schemas.admin import (
     IndexQueued,
     LlmTestResult,
     LocalLlmStatus,
+    LogLine,
+    LogStatus,
+    LogTestResult,
     MailboxStatus,
     MailTestResult,
     NfsStatus,
@@ -361,6 +365,36 @@ def test_telemetry(user: AdminWriter, cfg: Cfg) -> TelemetryTestResult:
     """Send one test span to the saved endpoint now (on or off), to check the address and headers."""
     ok, error, ms = telemetry.test_export(cfg)
     return TelemetryTestResult(ok=ok, error=error, ms=ms)
+
+
+@router.get("/settings/logs/status")
+def log_status(user: AdminReader, cfg: Cfg) -> LogStatus:
+    """The API process's log level, its log file, and how sending to syslog is going (off by default)."""
+    return LogStatus.model_validate(logs.status(cfg))
+
+
+@router.post("/settings/logs/test")
+def test_logs(user: AdminWriter, cfg: Cfg) -> LogTestResult:
+    """Send one line to the saved syslog server now (on or off), to check the address, port and transport."""
+    ok, error, ms = logs.test_send(cfg)
+    return LogTestResult(ok=ok, error=error, ms=ms)
+
+
+@router.get("/admin/logs")
+def read_logs(
+    user: AdminReader,
+    cfg: Cfg,
+    limit: int = Query(200, ge=1, le=2000),
+    level: Literal["debug", "info", "warning", "error", "critical"] | None = Query(None, description="this level and above"),
+    q: str | None = Query(None, max_length=200, description="text the message or error contains"),
+    process: str | None = Query(None, max_length=40, description="api, worker or watcher"),
+    logger: str | None = Query(None, max_length=100, description="a logger name, or the start of one (lens.email)"),
+    before: str | None = Query(None, max_length=40, description="a line's ts: only older lines (the next page)"),
+) -> list[LogLine]:
+    """The latest log lines from the API and every worker (their files under data_dir/logs), newest first. Lines are
+    redacted as they're written: no keys, tokens or passwords."""
+    rows = logs.read(cfg, limit, level, q, process, logger, before)
+    return [LogLine.model_validate(r) for r in rows]
 
 
 @router.get("/audit")

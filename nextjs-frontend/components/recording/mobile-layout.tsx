@@ -55,7 +55,8 @@ export function MobileLayout() {
   const [lastTab, setLastTab] = useState(tab);
   if (tab !== lastTab) {
     setLastTab(tab);
-    if (["chat", "notes", "comments", "highlights", "history", "details", "files"].includes(tab)) setSheet(true);
+    if (["chat", "notes", "comments", "highlights", "history", "details", "files", "similar"].includes(tab))
+      setSheet(true);
   }
 
   return (
