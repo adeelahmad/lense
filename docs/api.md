@@ -594,6 +594,22 @@ page was before each change, and `restore` puts an earlier version back (what it
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.
 
+## the graph as files
+
+```
+GET    /api/v1/tree?path=
+GET    /api/v1/tree/file?path=
+GET    /api/v1/shares/s3
+POST   /api/v1/shares/s3/keys
+DELETE /api/v1/shares/s3/keys/{key_id}
+GET    /api/v1/shares/s3/keys
+```
+
+The archive as folders and files ([The graph as files](file-tree.md)): `tree` lists a folder (an empty path lists your
+namespaces; in each, `Collections`, `Topics` and `Entities`), `tree/file` reads a file with byte ranges. Read-only; everyone sees what they can read in the web app.
+`shares/s3` is the [S3](file-tree.md#s3) and [WebDAV](file-tree.md#webdav) servers' state and your access keys; keys are
+made only while signed in.
+
 ## comments
 
 ```
@@ -690,7 +706,9 @@ POST   /api/v1/import/web/links
 `POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
 `GET /pipelines`; 400 for one that doesn't exist, before anything is saved). Every import takes a `collection` of the
 namespace to put the recordings in (default: its default collection; 404 for one of another namespace): `POST /import`,
-`POST /import/source`, `POST /uploads` and `POST /import/iiif`.
+`POST /import/source`, `POST /uploads` and `POST /import/iiif`. A transcript imported without its audio has nothing to
+transcribe and its speakers came with it, so its pipeline's transcribe and diarize steps are left out and no speech or
+voice model is fetched for it.
 
 `POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, documents_as?}` imports chosen files of
 a storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as
@@ -1179,6 +1197,21 @@ answers, so a filter collection's new recordings count, and a deleted collection
 `GET /chats/{cid}` returns each answer with the `steps` the assistant took (`{tool, args, summary}`), its `notice` and
 `error`, and its latest source `check` (`{claims, supported, verdicts, uncited}`), as they were when it was written
 or checked.
+
+### browser
+
+```
+POST   /api/v1/browser/sessions
+GET    /api/v1/browser/sessions
+DELETE /api/v1/browser/sessions/{sid}
+GET    /api/v1/browser/sessions/{sid}/actions
+POST   /api/v1/browser/actions/{aid}
+POST   /api/v1/browser/sessions/{sid}/run
+```
+
+A browser's Lens side panel connects a session and carries out the actions the assistant asks of it; a question sent
+with `browser` (`POST /chats/{cid}/messages {content, browser}`) can use that browser while it's connected. See
+[The assistant in your browser](browser-assistant.md).
 
 ## collections
 

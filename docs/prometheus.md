@@ -8,6 +8,38 @@ calls, tokens and cost, budgets, workers and the disk.
 endpoint: Lens sends nothing anywhere. For pushing traces and metrics to an OpenTelemetry collector instead, see
 [Telemetry](telemetry.md); the two are independent.
 
+## Prometheus and Grafana, ready made
+
+Lens doesn't build its own charts: with Docker, the `monitoring` profile runs [Prometheus](https://prometheus.io/),
+[node-exporter](https://github.com/prometheus/node_exporter) (the machine's CPU, memory, disk and network) and
+[Grafana](https://grafana.com/oss/grafana/) next to Lens, already connected, with the Lens dashboard as Grafana's home
+page.
+
+**Turn it on in the web app**: **Admin → System health** or **Settings → Telemetry → Prometheus**, switch on
+**Charts and history**. That's all: Lens turns `/metrics` on, makes a scrape token if there is none, and the machine's
+upgrade agent (the one that [installs new releases](updates.md)) adds `monitoring` to `COMPOSE_PROFILES` in `.env` and
+starts the three containers; the page shows how it goes and then links to Grafana. Off stops and removes them (their
+history stays in the `prometheus-data` volume) and turns `/metrics` off again if this switch turned it on. Agents do
+the same with `PUT /api/v1/admin/monitoring` (`{"on": true}`) or the MCP tools `monitoring` and `set_monitoring`.
+
+Grafana listens where the web app does (`LENS_BIND`: this machine only unless Lens was opened to the network) on port
+3001 (`LENS_GRAFANA_PORT`), and System health links to it on the address you opened Lens at, unless
+**Grafana address** says otherwise. Anyone who reaches it can view the dashboards, which hold no personal content;
+only Grafana's admin can change them (admin/admin until changed, or `GRAFANA_ADMIN_PASSWORD`). Prometheus and
+node-exporter are reachable only inside Lens's Docker network. Prometheus reads the scrape token from
+`.lens-control/prometheus-token`, which Lens keeps in step with Settings (or from `LENS_PROMETHEUS_TOKEN` when set), and
+keeps 30 days of history (`LENS_METRICS_DAYS`).
+
+Without an agent (Lens not installed with `install.sh`, or it couldn't set one up) the switch shows the one line to
+run on the machine instead: `docker compose -f docker-compose.prod.yml --profile monitoring up -d`. An install in a
+microsandbox has no Docker to run them in.
+
+**Admin → System health** shows the server now (CPU, memory, load, uptime) and links to Grafana for history.
+
+On a small machine, the three add roughly 150-250 MB of memory; they are off unless the profile is on. Prometheus
+(Apache 2.0), node-exporter (Apache 2.0) and Grafana OSS (AGPL 3.0) run as their own unmodified images, nothing of them
+is built into Lens.
+
 ## Turning it on
 
 - **Settings → Telemetry → Prometheus**: turn on **Prometheus endpoint** and set a **Scrape token** (16 to 200
@@ -48,9 +80,11 @@ Raspberry Pi is happy at that rate.
 
 ## Grafana dashboard
 
-[`grafana/lens-dashboard.json`](grafana/lens-dashboard.json) is a starting dashboard: queue, running and failed jobs,
+[`grafana/lens-dashboard.json`](grafana/lens-dashboard.json) is the dashboard the monitoring profile loads, and a
+starting point for a Grafana of your own: queue, running and failed jobs,
 model cost over the last day, workers, disk; then jobs by status and pipeline, model calls, tokens, cost and failures
-by model, budgets used, resources by status, imports and storage. In Grafana: **Dashboards → New → Import**, upload the
+by model, budgets used, resources by status, imports and storage; and, from node-exporter, the machine's CPU, memory,
+disk, load, network and uptime. In your own Grafana: **Dashboards → New → Import**, upload the
 file and pick your Prometheus data source.
 
 ## What it measures

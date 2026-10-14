@@ -1,16 +1,18 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { KeyRound, Keyboard, LogOut, Signpost, Sparkles, SunMoon, UserRound, Users } from "lucide-react";
+import { KeyRound, Keyboard, LogOut, Plug, Signpost, Sparkles, SunMoon, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
 
 import { Tokens } from "@/app/openapi-client";
+import { connectHint, mcpAddress, useAppSignIn } from "@/components/account/connect-assistant";
 import { useTheme, type ThemeChoice } from "@/components/app-shell/theme";
 import { useSelectMode } from "@/components/similar/prefs";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu";
 import { Avatar, Skeleton } from "@/components/ui/states";
+import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 
@@ -32,13 +34,18 @@ export function rolesSummary(admin: boolean, roles: Record<string, string>, part
   return list.slice(0, 3).join(" · ") + (list.length > 3 ? ` · +${list.length - 3} more` : "");
 }
 
-/** Name, roles, profile and password, API tokens, appearance, shortcuts, the welcome tour, sign out (Access AC4). */
+/**
+ * Name, roles, profile and password, API tokens, the MCP address to connect an assistant, appearance, shortcuts, the
+ * welcome tour, sign out (Access AC4).
+ */
 export function AccountMenu({ name, email }: { name?: string | null; email: string }) {
   const { me, admin } = useArchive();
   const client = useApiClient();
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useTheme();
   const [similar, setSimilar] = useSelectMode();
+  const toast = useToast();
+  const signIn = useAppSignIn(open);
   const tokens = useQuery({
     queryKey: ["tokens"],
     queryFn: () => data(Tokens.listTokens({ client })),
@@ -48,6 +55,16 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
   const roles = (me?.roles ?? {}) as Record<string, string>;
   const owns = !admin && Object.values(roles).includes("owner");
   const display = me?.user.name || name || me?.user.email || email;
+  // In the click itself, not after the menu closes: some browsers only let a click write to the clipboard.
+  const copyMcp = async () => {
+    const mcp = mcpAddress();
+    try {
+      await navigator.clipboard.writeText(mcp);
+      toast({ title: "MCP address copied", body: `${mcp}. ${connectHint(signIn.data)}`, tone: "green" });
+    } catch {
+      toast({ title: "Copy the MCP address", body: `${mcp}. It’s also under API tokens.`, tone: "gate" });
+    }
+  };
 
   return (
     <Menu open={open} onOpenChange={setOpen}>
@@ -72,11 +89,17 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
           </Link>
         </MenuItem>
         <MenuItem asChild className={ITEM}>
-          <Link href="/account/tokens">
+          <Link href={tokens.data?.length === 0 ? "/account/tokens?new=1" : "/account/tokens"}>
             <KeyRound />
             <span className="flex-1">API tokens</span>
             {tokens.data && <span className="tabular text-[12px] font-normal text-fg-muted">{tokens.data.length}</span>}
           </Link>
+        </MenuItem>
+        <MenuItem asChild className={ITEM}>
+          <button type="button" className="w-full" onClick={() => void copyMcp()}>
+            <Plug />
+            <span className="flex-1 text-left">Copy MCP address</span>
+          </button>
         </MenuItem>
         {owns && (
           <MenuItem asChild className={ITEM}>

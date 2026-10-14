@@ -14,8 +14,8 @@ from email.message import EmailMessage
 
 import pytest
 
-from app.domain import convert, netguard
-from tests import fake_chromium
+from app.domain import components, convert, netguard
+from tests import fake_chromium, fake_programs
 
 PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
 
@@ -129,6 +129,66 @@ def test_what_the_server_can_convert(cfg, monkeypatch):
     assert convert.capabilities(cfg) == {"office": False, "pages": True, "msg": False, "web": True}
     assert convert.unavailable(cfg, "a.md") is None and "extract-msg" in convert.unavailable(cfg, "a.msg")
     assert convert.bootstrap(cfg)["chromium"] == "/usr/bin/chromium"
+
+
+def test_libreoffice_and_chromium_are_installed_the_first_time_theyre_needed(cfg, tmp_path, monkeypatch):
+    """In a microsandbox's full edition (microsandbox/run.sh) Lens reads Office files, emails and pages before it has
+    LibreOffice or Chromium: the first conversion that needs one asks the start script for it and waits, once."""
+    root, bin_dir = fake_programs.sandbox(tmp_path, monkeypatch)
+    monkeypatch.setattr(convert, "_has_msg", lambda: False)
+    assert convert.fetchable("libreoffice") and convert.fetchable("chromium") and not convert.fetchable("ffmpeg")
+    assert convert.capabilities(cfg) == {"office": True, "pages": True, "msg": False, "web": True}
+    assert convert.unavailable(cfg, "a.docx") is None and convert.unavailable(cfg, "a.eml") is None
+    rows = {r["id"]: r for r in components.catalog(cfg)}
+    assert (rows["libreoffice"]["here"], rows["libreoffice"]["hint"]) == (False, "installed the first time it's needed")
+    assert (rows["chromium"]["here"], rows["chromium"]["hint"]) == (False, "installed the first time it's needed")
+
+    used = []
+
+    def office_pdf(cfg, src, out):
+        used.append(convert.soffice(cfg))
+        out.write_bytes(b"%PDF-1.4\n")
+        return "libreoffice"
+
+    monkeypatch.setattr(convert, "office_pdf", office_pdf)
+    doc, said = tmp_path / "letter.docx", []
+    doc.write_bytes(b"PK")
+    names = {"libreoffice": "soffice", "chromium": "chromium"}
+    with fake_programs.installer(root, lambda name: fake_programs.program(bin_dir / names[name])) as asked:
+        assert convert.to_pdf(cfg, doc, tmp_path / "letter.pdf", said.append) == {"by": "libreoffice"}
+        assert convert.to_pdf(cfg, doc, tmp_path / "again.pdf", said.append) == {"by": "libreoffice"}  # here now
+        assert convert.fetch_program(cfg, "chromium") == str(bin_dir / "chromium")
+        assert convert.fetch_program(cfg, "chromium") == str(bin_dir / "chromium")
+    assert asked == ["libreoffice", "chromium"] and used == [str(bin_dir / "soffice")] * 2
+    assert said == ["installing LibreOffice, the first time it's needed (a few minutes)"]
+    assert not list((root / "ask").iterdir())
+    assert next(r for r in components.catalog(cfg) if r["id"] == "chromium")["here"]
+
+
+def test_a_program_that_cant_be_installed_says_why_and_is_asked_for_again(cfg, tmp_path, monkeypatch):
+    root, _ = fake_programs.sandbox(tmp_path, monkeypatch)
+
+    def broken(name):
+        raise RuntimeError("E: Unable to fetch some archives")
+
+    with fake_programs.installer(root, broken) as asked:
+        for _ in range(2):
+            with pytest.raises(convert.Unavailable, match=r"^installing Chromium failed \(E: Unable to fetch some archives\)$"):
+                convert.fetch_program(cfg, "chromium")
+    assert asked == ["chromium", "chromium"]
+
+
+def test_outside_a_microsandbox_nothing_is_installed_when_needed(cfg, monkeypatch):
+    monkeypatch.delenv("LENS_PROGRAMS", raising=False)
+    monkeypatch.setattr(convert, "soffice", lambda cfg: None)
+    monkeypatch.setattr(convert, "chromium", lambda cfg: None)
+    assert not convert.fetchable("chromium") and not convert.web_capture(cfg)
+    with pytest.raises(convert.Unavailable, match="^Chromium isn't installed here$"):
+        convert.fetch_program(cfg, "chromium")
+    with pytest.raises(convert.Unavailable, match="needs LibreOffice on the server"):
+        convert.to_pdf(cfg, "a.docx", "a.pdf")
+    hint = next(r["hint"] for r in components.catalog(cfg) if r["id"] == "libreoffice")
+    assert hint == "in the full Lens image (LENS_TARGET=full, the default)"
 
 
 def test_chromium_runs_without_its_sandbox_only_where_it_cant_have_one(tmp_path, monkeypatch):
