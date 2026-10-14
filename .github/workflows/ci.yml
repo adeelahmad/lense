@@ -4,109 +4,119 @@ on:
   push:
     branches: [main]
   pull_request:
+    # closed: a pull request that's merged or closed cancels its runs that are still waiting or going (every job skips)
+    types: [opened, synchronize, reopened, closed]
+  # by hand: every project, not only the affected ones
+  workflow_dispatch:
 
-# Pushes to a pull request cancel its older runs
+# Pushes to a pull request cancel its older runs, and so does closing it
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
+  actions: read # to find main's last green run, the base a push to main is compared with
+
+# Nx (nx.json, and each project's project.json) runs the checks, and only for the projects a change affects: a pull
+# request is compared with the main it merges into, a push to main with main's last green CI run.
+#
+# Every job starts at once and asks Nx itself (.github/actions/affected); one that isn't affected stops after that
+# and passes. No job waits for another, so none queues for a free runner twice. The backend's tests are split across
+# runners by their recorded durations (fastapi_backend/tests/durations.json, pytest-split): add a shard to the matrix
+# to split them further.
+#
+# Each task runs fresh here: Nx's cache is for a contributor's machine, and CI neither reads nor fills one.
+env:
+  NX_SKIP_NX_CACHE: "true"
 
 # Every workflow runs on GitHub's ubuntu-latest. To use a self-hosted runner instead, set the repository variable
 # CI_RUNNER (Settings → Secrets and variables → Actions → Variables) to its labels as JSON: ["self-hosted","Linux","X64"]
 jobs:
   backend:
-    name: FastAPI (embedded SurrealDB)
+    name: FastAPI (embedded SurrealDB) ${{ matrix.shard }}/${{ strategy.job-total }}
+    if: github.event.action != 'closed'
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     defaults:
       run:
         working-directory: ./fastapi_backend
     env:
       ACCESS_SECRET_KEY: ci-access-secret-key-0123456789abcdef
+      SPLITS: ${{ strategy.job-total }}
+      GROUP: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v4
-
-      # the packages are kept between runs: the mirror can be slow (LibreOffice is 170 MB)
-      # GitHub's cache only on GitHub's runners; a self-hosted one keeps ~/apt-archives on its disk
-      - name: Restore system packages
-        if: runner.environment == 'github-hosted'
-        id: apt-cache
-        uses: actions/cache/restore@v6
         with:
-          path: ~/apt-archives
-          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
-          restore-keys: apt-${{ runner.os }}-
-      - name: System packages (ffmpeg, tesseract, poppler, LibreOffice Writer)
-        if: runner.os == 'Linux'
-        timeout-minutes: 25 # a stalled mirror fails the job instead of holding it for hours
-        run: |
-          # a self-hosted runner that has them already needs no sudo
-          have=yes; for t in ffmpeg tesseract pdftoppm soffice; do command -v "$t" >/dev/null || have=""; done
-          if [ -n "$have" ]; then echo "already installed"; exit 0; fi
-          mkdir -p ~/apt-archives/partial
-          APT=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o "Dir::Cache::Archives=$HOME/apt-archives" -o APT::Keep-Downloaded-Packages=true)
-          sudo apt-get "${APT[@]}" update
-          sudo apt-get "${APT[@]}" install -y --no-install-recommends ffmpeg tesseract-ocr poppler-utils libreoffice-writer-nogui
-          sudo chown -R "$(id -u)" ~/apt-archives
-      - name: Keep system packages
-        if: runner.environment == 'github-hosted' && steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
+          fetch-depth: 0 # the history back to the base the change is compared with
+          filter: tree:0
+      - uses: ./.github/actions/affected
+        id: affected
         with:
-          path: ~/apt-archives
-          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
-      - name: System packages on macOS (ffmpeg, tesseract, poppler; LibreOffice tests skip without it)
-        if: runner.os == 'macOS'
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: "1"
-        run: for p in ffmpeg tesseract poppler; do brew list "$p" >/dev/null 2>&1 || brew install "$p"; done
+          project: backend
+      - uses: ./.github/actions/backend-setup
+        id: setup
+        if: steps.affected.outputs.run == 'true'
 
-      - uses: astral-sh/setup-uv@v7
-        with:
-          # a cache that outlives the job on the self-hosted runner (the default is in the job's temp folder)
-          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
-          python-version: "3.12"
-
-      - name: Install
-        run: uv sync --frozen
-
+      # the commands are the targets in fastapi_backend/project.json; the first shard runs the checks that aren't tests
       - name: Lint
-        run: uv run ruff check . && uv run ruff format --check .
-
+        if: steps.affected.outputs.run == 'true' && matrix.shard == 1
+        run: pnpm exec nx run backend:lint
       - name: Type check
-        run: uv run mypy
-
+        if: steps.affected.outputs.run == 'true' && matrix.shard == 1
+        run: pnpm exec nx run backend:typecheck
       - name: OpenAPI schema is up to date
-        run: |
-          OPENAPI_OUTPUT_FILE=/tmp/openapi.json uv run python -m commands.generate_openapi_schema
-          diff -u ../nextjs-frontend/openapi.json /tmp/openapi.json
+        if: steps.affected.outputs.run == 'true' && matrix.shard == 1
+        run: pnpm exec nx run backend:openapi-check
 
       - name: Tests
-        # the suite took 28 min on the self-hosted runner at 544 tests (3 min on a laptop); it keeps growing
-        timeout-minutes: 60
+        # a failed check above doesn't stop them
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        # a few minutes a shard on GitHub's runners; the cap keeps a hung test from holding a runner for long
+        timeout-minutes: 30
         run: |
-          set -o pipefail
-          uv run pytest -n auto -p no:cacheprovider --durations=20 --cov=app --cov-report=xml:coverage.xml --cov-report=term | tee pytest.txt
-          { echo "### Backend coverage"; echo '```'; grep -E '^(Name|TOTAL)' pytest.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-
+          pnpm exec nx run backend:test:ci -- --splits="$SPLITS" --group="$GROUP"
+          mv .coverage ".coverage.$GROUP"
+      # this shard's share of the coverage; a push to main adds them up (Backend coverage, below)
       - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
         with:
-          name: backend-coverage
-          path: fastapi_backend/coverage.xml
+          name: backend-coverage-${{ matrix.shard }}
+          path: fastapi_backend/.coverage.*
+          include-hidden-files: true
+          retention-days: 7
 
   backend-surrealdb-server:
-    name: FastAPI (SurrealDB server)
+    name: FastAPI (SurrealDB server) ${{ matrix.shard }}/${{ strategy.job-total }}
+    if: github.event.action != 'closed'
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     defaults:
       run:
         working-directory: ./fastapi_backend
     env:
       ACCESS_SECRET_KEY: ci-access-secret-key-0123456789abcdef
+      SPLITS: ${{ strategy.job-total }}
+      GROUP: ${{ matrix.shard }}
       # a self-hosted runner's Docker outlives the job: a name of its own and any free port, removed at the end
-      SURREAL_CONTAINER: lens-ci-surreal-${{ github.run_id }}-${{ github.run_attempt }}
+      SURREAL_CONTAINER: lens-ci-surreal-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.shard }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+      - uses: ./.github/actions/affected
+        id: affected
+        with:
+          project: backend
       - name: Start SurrealDB
+        if: steps.affected.outputs.run == 'true'
         run: |
           # surrealkv, not memory: the memory engine loses concurrent writes (SurrealDB 3.2.4)
           # on a tmpfs: the data is thrown away, and syncing every write to the runner's disk made each test's schema take seconds
@@ -114,86 +124,133 @@ jobs:
           port=$(docker port "$SURREAL_CONTAINER" 8000/tcp | head -n1 | sed 's/.*://')
           echo "LENS_TEST_SURREAL_URL=ws://127.0.0.1:$port" >> "$GITHUB_ENV"
           for _ in $(seq 1 30); do curl -sf "http://127.0.0.1:$port/health" && break; sleep 1; done
-      # the packages are kept between runs: the mirror can be slow (LibreOffice is 170 MB)
-      # GitHub's cache only on GitHub's runners; a self-hosted one keeps ~/apt-archives on its disk
-      - name: Restore system packages
-        if: runner.environment == 'github-hosted'
-        id: apt-cache
-        uses: actions/cache/restore@v6
-        with:
-          path: ~/apt-archives
-          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
-          restore-keys: apt-${{ runner.os }}-
-      - name: System packages (ffmpeg, tesseract, poppler, LibreOffice Writer)
-        if: runner.os == 'Linux'
-        timeout-minutes: 25 # a stalled mirror fails the job instead of holding it for hours
-        run: |
-          # a self-hosted runner that has them already needs no sudo
-          have=yes; for t in ffmpeg tesseract pdftoppm soffice; do command -v "$t" >/dev/null || have=""; done
-          if [ -n "$have" ]; then echo "already installed"; exit 0; fi
-          mkdir -p ~/apt-archives/partial
-          APT=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o "Dir::Cache::Archives=$HOME/apt-archives" -o APT::Keep-Downloaded-Packages=true)
-          sudo apt-get "${APT[@]}" update
-          sudo apt-get "${APT[@]}" install -y --no-install-recommends ffmpeg tesseract-ocr poppler-utils libreoffice-writer-nogui
-          sudo chown -R "$(id -u)" ~/apt-archives
-      - name: Keep system packages
-        if: runner.environment == 'github-hosted' && steps.apt-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/apt-archives
-          key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
-      - name: System packages on macOS (ffmpeg, tesseract, poppler; LibreOffice tests skip without it)
-        if: runner.os == 'macOS'
-        env:
-          HOMEBREW_NO_AUTO_UPDATE: "1"
-        run: for p in ffmpeg tesseract poppler; do brew list "$p" >/dev/null 2>&1 || brew install "$p"; done
-      - uses: astral-sh/setup-uv@v7
-        with:
-          # a cache that outlives the job on the self-hosted runner (the default is in the job's temp folder)
-          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
-          python-version: "3.12"
-      - run: uv sync --frozen
+      - uses: ./.github/actions/backend-setup
+        if: steps.affected.outputs.run == 'true'
       - name: Tests against the server
-        # slower than the embedded run: 30 min covered two thirds of it on the self-hosted runner
-        timeout-minutes: 75
-        run: uv run pytest -n 4 --durations=20
+        if: steps.affected.outputs.run == 'true'
+        # a few minutes a shard on GitHub's runners; the cap keeps a hung test from holding a runner for long
+        timeout-minutes: 30
+        run: pnpm exec nx run backend:test:server -- --splits="$SPLITS" --group="$GROUP"
       - name: Remove SurrealDB
         if: always()
         run: docker rm -f "$SURREAL_CONTAINER" || true
 
-  frontend:
-    name: Next.js
+  # the shards' coverage added up, on main (on a pull request it would hold the checks until another runner is free)
+  coverage:
+    name: Backend coverage
+    needs: backend
+    if: ${{ !cancelled() && github.event_name != 'pull_request' && needs.backend.result == 'success' }}
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     defaults:
       run:
-        working-directory: ./nextjs-frontend
+        working-directory: ./fastapi_backend
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v6
+      - uses: actions/download-artifact@v7
         with:
-          # the pnpm version comes from packageManager in the frontend's package.json
-          package_json_file: nextjs-frontend/package.json
-          run_install: false
-      - uses: actions/setup-node@v7
+          pattern: backend-coverage-*
+          path: fastapi_backend
+          merge-multiple: true
+      - uses: astral-sh/setup-uv@v7
         with:
-          node-version: "22"
-          # on the self-hosted runner pnpm's store stays on disk; saving it to GitHub's cache took minutes
-          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
-          cache-dependency-path: nextjs-frontend/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm tsc
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
+          python-version: "3.12"
+      - name: Add up the shards
+        run: |
+          # no shard data: the backend wasn't affected, so there's nothing to add up
+          if ! ls .coverage.* >/dev/null 2>&1; then echo "No coverage: the backend wasn't affected"; exit 0; fi
+          uv run coverage combine
+          uv run coverage xml -o coverage.xml
+          uv run coverage report | tee report.txt
+          { echo "### Backend coverage"; echo '```'; grep -E '^(Name|TOTAL)' report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: fastapi_backend/coverage.xml
+          if-no-files-found: ignore
+
+  frontend:
+    name: Next.js
+    if: github.event.action != 'closed'
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+      - uses: ./.github/actions/affected
+        id: affected
+        with:
+          project: frontend
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            nextjs-frontend/pnpm-lock.yaml
+      - name: Install
+        if: steps.affected.outputs.run == 'true'
+        working-directory: ./nextjs-frontend
+        run: pnpm install --frozen-lockfile
+      # the commands are the targets in nextjs-frontend/project.json
+      - name: Lint
+        if: steps.affected.outputs.run == 'true'
+        run: pnpm exec nx run frontend:lint
+      - name: Type check
+        if: steps.affected.outputs.run == 'true'
+        run: pnpm exec nx run frontend:typecheck
       - name: Tests
+        if: steps.affected.outputs.run == 'true'
         run: |
           set -o pipefail
-          pnpm coverage --coverageReporters=text-summary --coverageReporters=lcov | tee coverage.txt
+          pnpm exec nx run frontend:test:ci | tee coverage.txt
           { echo "### Frontend coverage"; echo '```'; sed -n '/Coverage summary/,/^=*$/p' coverage.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
+        if: steps.affected.outputs.run == 'true'
         with:
           name: frontend-coverage
           path: nextjs-frontend/coverage/lcov.info
       - name: Build
-        run: pnpm build
+        if: steps.affected.outputs.run == 'true'
+        run: pnpm exec nx run frontend:build
         env:
           API_BASE_URL: http://localhost:8000
           AUTH_SECRET: ci-auth-secret
+
+  projects:
+    name: Other projects
+    if: github.event.action != 'closed'
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: tree:0
+      # every other project with lint, typecheck, test or build targets: a new project.json is all it takes to join
+      - uses: ./.github/actions/affected
+        id: affected
+      - name: Affected projects
+        env:
+          PROJECTS: ${{ steps.affected.outputs.projects }}
+        run: |
+          {
+            echo "### Affected projects"
+            if [ -n "${NX_BASE:-}" ]; then echo "Comparing \`${NX_BASE:0:12}\` with \`${NX_HEAD:0:12}\`."; else echo "Run by hand: every project."; fi
+            echo
+            if [ -z "$PROJECTS" ]; then echo "Nx couldn't say, so every job runs."; else
+              echo "$PROJECTS" | jq -r 'if length == 0 then "None: nothing to build or test." else map("- " + .) | join("\n") end'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: astral-sh/setup-uv@v7
+        if: steps.affected.outputs.run == 'true'
+        with:
+          cache-local-path: ${{ runner.environment == 'self-hosted' && format('{0}/uv-cache', runner.tool_cache) || '' }}
+          python-version: "3.12"
+      - name: Lint, type check, test and build them
+        if: steps.affected.outputs.run == 'true'
+        env:
+          OTHERS: ${{ steps.affected.outputs.others }}
+        run: |
+          # all of them when Nx couldn't say which
+          if [ -n "$OTHERS" ]; then
+            pnpm exec nx run-many -t lint typecheck test build --outputStyle=static -p "$(echo "$OTHERS" | jq -r 'join(",")')"
+          else
+            pnpm exec nx run-many -t lint typecheck test build --outputStyle=static --exclude=backend,frontend
+          fi

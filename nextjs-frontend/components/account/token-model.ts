@@ -1,4 +1,4 @@
-import { relative, shortDate } from "@/lib/format";
+import { relative, shortDate, uniqueName } from "@/lib/format";
 
 export type TokenExpiry = {
   label: string;
@@ -37,6 +37,11 @@ export const SCOPE_LABEL: Record<string, string> = {
   read: "Read only",
   write: "Read & write",
 };
+
+/** A name for a token nobody named, from its scope ("Read only token", then "Read only token 2"). */
+export function suggestedTokenName(scope: string, taken: Iterable<string>): string {
+  return uniqueName(`${SCOPE_LABEL[scope] ?? "API"} token`, taken);
+}
 
 /** How long keys may last (GET /tokens/limits; admins set them). */
 export type TokenLimits = { default_days: number; max_days: number; never_expire: boolean };

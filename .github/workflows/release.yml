@@ -8,11 +8,12 @@ name: Release
 # section as its notes (.github/scripts/release.py). Pushing a vX.Y.Z tag yourself publishes that tag the same way,
 # without the commit.
 #
-# Publishing starts the package workflows (cloudron.yml, qnap.yml, synology.yml). A release published with the
-# workflow's own token doesn't trigger `release: published` in other workflows, so this one starts them itself,
-# for the tag (`gh workflow run <file> --ref vX.Y.Z -f tag=vX.Y.Z`). With a RELEASE_TOKEN secret (a fine-grained
-# token with Contents: write on this repository) the release is published with it instead, `release: published`
-# fires as usual, and nothing is started here. RELEASE_TOKEN is also what pushes past branch protection on main.
+# Publishing starts the package workflows (cloudron.yml, qnap.yml, synology.yml, launchers.yml, browser-extension.yml,
+# safari-clipper.yml, browser-extension-firefox.yml, desktop.yml). A release published with the workflow's own token
+# doesn't trigger `release: published` in other workflows, so this one starts them itself, for the tag (`gh workflow run
+# <file> --ref vX.Y.Z -f tag=vX.Y.Z`). With a RELEASE_TOKEN secret (a fine-grained token with Contents: write on this
+# repository) the release is published with it instead, `release: published` fires as usual, and nothing is started
+# here. RELEASE_TOKEN is also what pushes past branch protection on main.
 on:
   workflow_dispatch:
     inputs:
@@ -152,7 +153,7 @@ jobs:
         # RELEASE_TOKEN's release fires `release: published` in them already
         if: env.EXISTING != 'true' && env.HAS_RELEASE_TOKEN != 'true'
         run: |
-          for workflow in cloudron.yml qnap.yml synology.yml launchers.yml browser-extension.yml safari-clipper.yml; do
+          for workflow in cloudron.yml qnap.yml synology.yml launchers.yml browser-extension.yml safari-clipper.yml browser-extension-firefox.yml desktop.yml; do
             if [ ! -f ".github/workflows/$workflow" ]; then
               echo "$workflow isn't in $TAG; skipped"
             elif gh workflow run "$workflow" --ref "$TAG" -f tag="$TAG"; then

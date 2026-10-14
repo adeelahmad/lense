@@ -23,15 +23,23 @@ const VIEW = {
       openai_base_url: "https://api.openai.com/v1",
       openai_model: "whisper-1",
       openai_api_key: { secret: true, set: false },
+      openai_max_minutes: 10,
+      openai_max_mb: 25,
       elevenlabs_base_url: "https://api.elevenlabs.io",
       elevenlabs_model: "scribe_v1",
       elevenlabs_api_key: { secret: true, set: false },
+      elevenlabs_max_minutes: 600,
+      elevenlabs_max_mb: 3000,
       assemblyai_base_url: "https://api.assemblyai.com",
       assemblyai_model: "universal",
       assemblyai_api_key: { secret: true, set: false },
+      assemblyai_max_minutes: 600,
+      assemblyai_max_mb: 2200,
       deepgram_base_url: "https://api.deepgram.com",
       deepgram_model: "nova-3",
       deepgram_api_key: { secret: true, set: true },
+      deepgram_max_minutes: 120,
+      deepgram_max_mb: 2000,
       sentiment: true,
       timeout: 1800,
     },
@@ -74,6 +82,21 @@ describe("speech providers", () => {
     expect((Admin.updateSettings as jest.Mock).mock.calls[0][0]).toMatchObject({
       path: { section: "speech" },
       body: { assemblyai_base_url: "https://api.eu.assemblyai.com" },
+    });
+  });
+
+  it("shows how much each transcribing provider takes at once, and saves a smaller limit", async () => {
+    show();
+    const minutes = screen.getAllByLabelText("Longest piece sent at once");
+    expect(minutes).toHaveLength(4); // Gemini only reads aloud
+    expect(minutes.map((x) => (x as HTMLInputElement).value)).toEqual(["10", "600", "600", "120"]);
+    expect(screen.getAllByLabelText("Largest file sent at once")).toHaveLength(4);
+    fireEvent.change(minutes[0], { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(Admin.updateSettings).toHaveBeenCalledTimes(1));
+    expect((Admin.updateSettings as jest.Mock).mock.calls[0][0]).toMatchObject({
+      path: { section: "speech" },
+      body: { openai_max_minutes: 5 },
     });
   });
 });

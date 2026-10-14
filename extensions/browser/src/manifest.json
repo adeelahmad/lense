@@ -12,13 +12,15 @@
   },
   "background": { "service_worker": "background.js" },
   "options_ui": { "page": "options.html", "open_in_tab": true },
-  "permissions": ["activeTab", "scripting", "contextMenus", "storage"],
+  "side_panel": { "default_path": "sidepanel.html" },
+  "permissions": ["activeTab", "scripting", "contextMenus", "storage", "sidePanel", "identity"],
   "optional_host_permissions": ["https://*/*", "http://*/*"],
   "commands": {
     "_execute_action": { "suggested_key": { "default": "Alt+Shift+L" }, "description": "Open the clipper" },
     "clip-page": { "suggested_key": { "default": "Alt+Shift+P" }, "description": "Clip this page to Lens" },
     "clip-selection": { "suggested_key": { "default": "Alt+Shift+S" }, "description": "Clip the selection to Lens" },
-    "pick": { "suggested_key": { "default": "Alt+Shift+K" }, "description": "Pick part of the page to clip" }
+    "pick": { "suggested_key": { "default": "Alt+Shift+K" }, "description": "Pick part of the page to clip" },
+    "open-assistant": { "description": "Ask Lens (opens the assistant beside the page)" }
   },
   "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" }
 }

@@ -43,7 +43,7 @@ describe("importing a PDF", () => {
     rerender(<ImportAs it={item("notes.docx", "transcript")} onKind={() => {}} limits={noOffice} />);
     expect(screen.queryByRole("radio")).toBeNull();
     expect(container).toHaveTextContent(
-      "Imported as a transcript: this server can’t keep word documents as documents. Reading it needs LibreOffice on the server (the lens:full image).",
+      "Imported as a transcript: this server can’t keep word documents as documents. Reading it needs LibreOffice on the server (the lens:full image) or a Tika server.",
     );
     rerender(<ImportAs it={item("deck.pptx", "document")} onKind={() => {}} />);
     expect(container).toBeEmptyDOMElement(); // a presentation is a document only

@@ -13,9 +13,10 @@ from app.config import settings as env
 from app.domain import (
     activity,
     auth,
-    bridge,
+    channels,
     components,
     content_types,
+    https,
     jobs,
     local_llm,
     notify,
@@ -84,7 +85,7 @@ class Archive:
 
     def start_background(self) -> None:
         """Inline workers, the watched-folder poller, the notifier, the routine scheduler, the sensor hub (idle while
-        sensors are off) and the chat-room bridge (idle while it's off). Production runs these as separate processes (`lens worker`)."""
+        sensors are off) and the chat channels (each idle while it's off). Production runs these as separate processes (`lens worker`)."""
         for i in range(max(0, int(self.current()["workers"]["inline"]))):
             w = jobs.Worker(self.db, self.current, name=f"api-{os.getpid()}-{i}", log=log.info)
             threading.Thread(target=w.loop, args=(self.stop,), daemon=True, name=f"worker-{i}").start()
@@ -92,8 +93,9 @@ class Archive:
         notify.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.warning)
         routines.start(self.db, self.current, self.stop, log=log.info)
         sensors.start(self.db, self.current, self.stop, log=log.info, name=f"api-{os.getpid()}")
-        bridge.start(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
+        channels.start_all(self.db, self.current, self.stop, lambda: self.base, name=f"api-{os.getpid()}", log_fn=log.warning)
         tunnel.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
+        https.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         local_llm.start(self.db, self.current, self.stop, name=f"api-{os.getpid()}", log=log.info)
         updates.start(self.db, self.current, self.stop, log=log.info)
 

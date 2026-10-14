@@ -108,3 +108,28 @@ def route(rules, mail, home, spaces):
                 return None, i
             return (r["space"], i) if r.get("space") in spaces else (home, i)
     return home, None
+
+
+# ---------- rules written as lines (the assistant's mailbox: mailbox.py) ----------
+def parse_line(text):
+    """A rule written as a line, "from: *@acme.com, *@acme.org; subject: invoice = finance" (conditions joined by ;,
+    patterns by a comma, the namespace by name after =) or "list: * = skip": {match, namespace} or {match, skip}.
+    ValueError saying what's wrong."""
+    where, eq, target = (text or "").rpartition("=")
+    target = target.strip().lower()
+    if not eq or not where.strip() or not target:
+        raise ValueError(f"“{text.strip()}” isn't a rule, like from: *@acme.com = acme")
+    match = {}
+    for cond in where.split(";"):
+        field, colon, patterns = cond.partition(":")
+        field = field.strip().lower()
+        if not colon or field not in FIELDS:
+            raise ValueError(f"“{cond.strip()}”: a condition is on {', '.join(FIELDS)}, like from: *@acme.com")
+        match.setdefault(field, []).extend(_patterns(field, [p for p in patterns.split(",")]))
+    return {"match": match, "skip": True} if target == "skip" else {"match": match, "namespace": target}
+
+
+def line(rule):
+    """A rule as parse_line reads it."""
+    conds = "; ".join(f"{f}: {', '.join(ps)}" for f, ps in rule["match"].items())
+    return f"{conds} = {'skip' if rule.get('skip') else rule['namespace']}"

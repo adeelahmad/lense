@@ -12,6 +12,10 @@
   },
   "dependencies": {
     "@mozilla/readability": "0.6.0",
+    "dom-accessibility-api": "0.7.1",
+    "dompurify": "3.4.16",
+    "eventsource-parser": "4.1.1",
+    "marked": "18.0.14",
     "turndown": "7.2.4",
     "turndown-plugin-gfm": "1.0.2"
   },

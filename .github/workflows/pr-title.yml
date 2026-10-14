@@ -6,6 +6,11 @@ on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
 
+# a newer title or push cancels the check of the older one
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 

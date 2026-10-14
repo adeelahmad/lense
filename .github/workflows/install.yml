@@ -5,6 +5,8 @@ name: Install
 # It builds every image from scratch, so it runs only when what it installs changes, weekly, and by hand.
 on:
   pull_request:
+    # closed: a pull request that's merged or closed cancels its runs that are still waiting or going (every job skips)
+    types: [opened, synchronize, reopened, closed]
     paths:
       - install.sh
       - install.ps1
@@ -44,6 +46,7 @@ permissions:
 jobs:
   installer-tests:
     name: Web installer tests (${{ matrix.os }}, Python ${{ matrix.python }})
+    if: github.event.action != 'closed'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
@@ -57,7 +60,7 @@ jobs:
           - { os: macos-latest, python: "3.12" }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
       - run: python -m unittest discover -v installer
@@ -71,6 +74,7 @@ jobs:
 
   web-installer:
     name: Install from the web installer
+    if: github.event.action != 'closed'
     # a runner of its own: the one-line install job builds the same images
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -93,7 +97,8 @@ jobs:
       - name: Answer it and install
         run: |
           jq -n --arg dir "$LENS_DIR" --arg ref "$LENS_REF" '{backend: "docker", target: "lean", dir: $dir, ref: $ref,
-            settings: {llm: {base_url: "http://localhost:11434/v1", model: "llama3", api_key: "sk-ci"}}}' >answers.json
+            settings: {llm: {base_url: "http://localhost:11434/v1", model: "llama3", api_key: "sk-ci"},
+            budget: {hard_usd: 25, period: "month", price_in: 3, price_out: 15}}}' >answers.json
           curl -fsS -b jar -H 'X-Lens-Installer: 1' -H 'Content-Type: application/json' -d @answers.json \
             http://127.0.0.1:3990/api/install
           since=0
@@ -116,7 +121,7 @@ jobs:
           curl -fsS -o /dev/null "$url"
           curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
           cd "$LENS_DIR"
-          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm"
+          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm, budget"
           # saved in Lens: the key doesn't stay in .env
           ! grep -q '^LENS_SETUP_SETTINGS=' .env
 
@@ -137,6 +142,7 @@ jobs:
 
   install:
     name: One-line install
+    if: github.event.action != 'closed'
     runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     timeout-minutes: 60
     env:
@@ -171,6 +177,7 @@ jobs:
           sh < install.sh
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
+          test "$(stat -c %a "$LENS_DIR/.env")" = 600 || { echo "the second run left .env readable to others"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
 
       - name: An upgrade asked for in the web app is installed by the machine's agent
@@ -206,6 +213,7 @@ jobs:
 
   microsandbox:
     name: One-line install in a microsandbox
+    if: github.event.action != 'closed'
     # GitHub's own Linux runners: they have KVM, which microsandbox needs
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -232,6 +240,11 @@ jobs:
           grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' install.log | head -1 > setup-url
           test -s setup-url || { echo "install.sh didn't hand over a setup address"; exit 1; }
 
+      - name: When this machine's DNS has no address for a name, the sandbox looks it up with public resolvers
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          msb exec lens -- sh /lens/microsandbox/test-dns.sh
+
       - name: The setup address answers, and Lens waits for its first admin
         run: |
           url="$(cat setup-url)"
@@ -244,11 +257,104 @@ jobs:
 
       - name: Running it again updates in place and keeps the secrets
         run: |
+          # while it waited, it showed the steps the sandbox logged
+          grep -q '  Building Lens' install.log || { echo "install.sh didn't show the sandbox's progress"; exit 1; }
           before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
-          LENS_BACKEND='' sh < install.sh
+          LENS_BACKEND='' sh < install.sh | tee again.log
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
+          test "$(stat -c %a "$LENS_DIR/.env")" = 600 || { echo "the second run left .env readable to others"; exit 1; }
+          grep -q "Stopping the Lens that's running" again.log || { echo "the second run didn't stop the running sandbox first"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: A lean install stays lean when the line runs again without LENS_TARGET
+        run: |
+          LENS_BACKEND='' LENS_TARGET='' sh < install.sh >/dev/null
+          grep -q '^LENS_TARGET=lean$' "$LENS_DIR/.env" || { echo "the run without LENS_TARGET changed the edition"; exit 1; }
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: The full edition installs Chromium the first time Lens needs it, and again at each start
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          LENS_BACKEND='' LENS_TARGET=full sh < install.sh >/dev/null
+          if msb exec lens -- sh -c 'command -v chromium || command -v soffice'; then echo "it started with them"; exit 1; fi
+          # as Lens asks for it: as the lens user, through convert.fetch_program
+          msb exec lens -- setpriv --reuid lens --regid lens --init-groups -- \
+            env LENS_PROGRAMS=/data/.lens/programs PYTHONPATH=/data/.lens/backend /data/.lens/venv/bin/python \
+            -c 'from app.domain import convert; print(convert.fetch_program({}, "chromium", print))'
+          msb exec lens -- chromium --version
+          LENS_BACKEND='' LENS_TARGET='' sh < install.sh >/dev/null # the full edition is kept, and Chromium with it
+          for _ in $(seq 60); do msb exec lens -- test -f /data/.lens/programs/got/chromium.ok && break; sleep 5; done
+          msb exec lens -- chromium --version
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: A part of Lens that keeps stopping ends the wait at once, with what Lens logged
+        run: |
+          # a key the API won't start with (shorter than 16 characters): it stops at each start
+          cp "$LENS_DIR/.env" env.bak
+          sed -i 's/^ACCESS_SECRET_KEY=.*/ACCESS_SECRET_KEY=short/' "$LENS_DIR/.env"
+          if LENS_BACKEND='' sh < install.sh >loop.log 2>&1; then cat loop.log; echo "it didn't stop waiting"; exit 1; fi
+          cat loop.log
+          grep -q "keeps stopping in its microsandbox" loop.log
+          grep -q 'The last lines Lens logged:' loop.log
+          grep -q 'ACCESS_SECRET_KEY' loop.log # the reason, in Lens's own words
+          cp env.bak "$LENS_DIR/.env"
+          LENS_BACKEND='' sh < install.sh >/dev/null
+          curl -fsS -o /dev/null "$(cat setup-url)"
+
+      - name: A start that takes too long stops waiting and says why
+        run: |
+          if LENS_BACKEND='' LENS_WAIT=8 sh < install.sh >slow.log 2>&1; then cat slow.log; echo "it didn't stop waiting"; exit 1; fi
+          cat slow.log
+          grep -q "Lens didn't answer on port [0-9]* within 8 seconds" slow.log
+          grep -q 'The last lines Lens logged:' slow.log
+
+      - name: Installing again after the install folder is deleted starts Lens on a volume of its own
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          # the folder held the keys that open lens-data's database; an empty volume of the next name is used as it is
+          msb volume create lens-data-2
+          rm -rf "$LENS_DIR"
+          sh < install.sh | tee fresh.log
+          grep -q 'Starting Lens on a microsandbox volume of its own, lens-data-2' fresh.log
+          grep -q '^LENS_VOLUME=lens-data-2$' "$LENS_DIR/.env" || { echo "the new install didn't start on a volume of its own"; exit 1; }
+          msb volume ls -q | grep -qx lens-data || { echo "the earlier install's volume is gone"; exit 1; }
+          url="$(grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' fresh.log | head -1)"
+          test -n "$url" || { echo "install.sh didn't hand over a setup address"; exit 1; }
+          base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
+          # running the line again keeps that volume
+          LENS_BACKEND='' sh < install.sh >/dev/null
+          grep -q '^LENS_VOLUME=lens-data-2$' "$LENS_DIR/.env"
+          curl -fsS -o /dev/null "$url"
+
+      - name: An install whose keys don't open its volume's database moves to a volume of its own when the line runs again
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          # as an install that a reinstall gave new keys before LENS_VOLUME was kept: it runs on lens-data, whose database
+          # the first install's keys made (lens-data-2 holds the one this .env's earlier keys made)
+          sed -i '/^LENS_VOLUME=/d' "$LENS_DIR/.env"
+          for k in ACCESS_SECRET_KEY ARCHIVE_SECRET_KEY AUTH_SECRET SURREAL_PASS; do
+            sed -i "s/^$k=.*/$k=$(openssl rand -hex 32)/" "$LENS_DIR/.env"
+          done
+          before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
+          LENS_BACKEND='' sh < install.sh | tee moved.log
+          grep -q "Another install's database" moved.log || { echo "the sandbox didn't say the keys don't open the database"; exit 1; }
+          grep -q 'Starting Lens on a microsandbox volume of its own, lens-data-3' moved.log
+          grep -q '^LENS_VOLUME=lens-data-3$' "$LENS_DIR/.env" || { echo "the install didn't move to a volume of its own"; exit 1; }
+          grep -q "lens-data-3" "$LENS_DIR/.lens-sandbox" || { echo ".lens-sandbox still starts the earlier volume"; exit 1; }
+          after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
+          test "$before" = "$after" || { echo "moving changed the keys"; exit 1; }
+          for v in lens-data lens-data-2; do msb volume ls -q | grep -qx "$v" || { echo "the volume $v is gone"; exit 1; }; done
+          url="$(grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' moved.log | head -1)"
+          test -n "$url" || { echo "install.sh didn't hand over a setup address"; exit 1; }
+          base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
+          # running the line again stays on it
+          LENS_BACKEND='' sh < install.sh | tee stay.log
+          if grep -q 'volume of its own' stay.log; then echo "it moved again"; exit 1; fi
+          grep -q '^LENS_VOLUME=lens-data-3$' "$LENS_DIR/.env"
+          curl -fsS -o /dev/null "$url"
 
       - name: What the sandbox said
         if: failure()

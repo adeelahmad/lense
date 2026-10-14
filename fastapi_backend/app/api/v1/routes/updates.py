@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import contextlib
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
-from app.domain import auth, backups, updates
+from app.domain import auth, backups, monitoring, updates
 from app.schemas.backups import BackupSchedule, RestoreWork
 from app.schemas.common import Ok
-from app.schemas.updates import Backup, Backups, UpdateStatus, UpgradeRequest
+from app.schemas.updates import Backup, Backups, Monitoring, MonitoringRequest, UpdateStatus, UpgradeRequest
 
 router = APIRouter(tags=["updates"])
 
@@ -44,6 +44,25 @@ def start_upgrade(user: AdminWriter, db: Db, cfg: Cfg, body: UpgradeRequest | No
         raise HTTPException(409, str(e)) from None
     auth.audit(db, user.as_audit(), "lens.upgrade", None, {"ref": (run or {}).get("ref"), "backup": body.backup})
     return UpdateStatus.model_validate(updates.view(db, cfg))
+
+
+@router.get("/admin/monitoring")
+def get_monitoring(user: AdminReader, db: Db) -> Monitoring:
+    """Whether Prometheus, node-exporter and Grafana run next to Lens (the monitoring profile), and how the machine's
+    last change went."""
+    return Monitoring.model_validate(monitoring.view(db))
+
+
+@router.put("/admin/monitoring", status_code=202)
+def set_monitoring(body: MonitoringRequest, user: AdminWriter, request: Request, db: Db, cfg: Cfg) -> Monitoring:
+    """Have this machine start or stop Prometheus, node-exporter and Grafana. On also turns /metrics on with a scrape
+    token when it has none. GET /admin/monitoring follows along."""
+    try:
+        got = monitoring.turn(db, request.app.state.archive.base, cfg, body.on, by=user.email)
+    except monitoring.MonitoringError as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "lens.monitoring", None, {"on": body.on})
+    return Monitoring.model_validate(got)
 
 
 @router.get("/admin/backups")

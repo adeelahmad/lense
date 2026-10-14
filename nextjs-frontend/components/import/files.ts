@@ -146,9 +146,11 @@ export function conversionProblem(name: string, limits: UploadLimits = DEFAULT_L
   const can = limits.convert;
   if (!DOCUMENT_EXT.includes(ext) || ext === ".pdf" || !can) return null;
   if (OFFICE_EXT.includes(ext))
-    return can.office ? null : "Reading it needs LibreOffice on the server (the lens:full image).";
+    return can.office ? null : "Reading it needs LibreOffice on the server (the lens:full image) or a Tika server.";
   if (ext === ".msg") return can.msg ? null : "Reading Outlook emails needs the extract-msg package on the server.";
-  return can.pages ? null : "Reading it needs Chromium or LibreOffice on the server (the lens:full image).";
+  return can.pages
+    ? null
+    : "Reading it needs Chromium or LibreOffice on the server (the lens:full image), or a Tika server.";
 }
 
 /** What a file becomes unless someone chooses otherwise: a document where this server can read it as one, else the

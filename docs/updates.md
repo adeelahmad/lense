@@ -59,6 +59,11 @@ from those seconds can be lost. If going back fails too, the run ends `failed` a
 The agent installs only a release tag (`vX.Y.Z`) or the branch the install already follows, whoever writes the
 request, and the API refuses a release older than the one running (restore a backup instead).
 
+The same agent turns [Charts and history](prometheus.md#prometheus-and-grafana-ready-made) on and off: a request with
+`action=services` and `monitoring=on` or `off` (in the same inbox file, the one every agent watches) adds or removes
+`monitoring` in `COMPOSE_PROFILES` in `.env` and starts or stops Prometheus, node-exporter and Grafana, and nothing
+else; it reports in `services-status` and `services.log`.
+
 With no agent (Lens wasn't installed with install.sh, the machine has neither systemd nor launchd, or install.sh ran
 with `LENS_UPGRADE_AGENT=0`), the API gives the one line to run on the machine instead (`manual`).
 
