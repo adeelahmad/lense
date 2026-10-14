@@ -228,7 +228,7 @@ export function RecordingTable({
                       checked={!hidden.has(c.key)}
                       onSelect={(e) => e.preventDefault()}
                       onCheckedChange={() => toggleColumn(c.key)}
-                      className="flex h-9 cursor-pointer select-none items-center gap-2.5 rounded-sm px-2.5 text-[13.5px] text-fg outline-none data-[highlighted]:bg-surface-neutral"
+                      className="flex h-9 cursor-pointer select-none items-center gap-2.5 rounded-sm px-2.5 text-[13.5px] text-fg outline-hidden data-highlighted:bg-surface-neutral"
                     >
                       <span
                         aria-hidden

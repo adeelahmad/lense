@@ -94,9 +94,9 @@ function StepRow({ step, index }: { step: ToolStep; index: number }) {
           className="m-0 grid grid-cols-[70px_minmax(0,1fr)] gap-x-2.5 gap-y-1.5 border-t border-border px-3 py-2.5 font-mono text-[12px] leading-normal"
         >
           <dt className="text-fg-muted">input</dt>
-          <dd className="m-0 break-words text-fg">{stepCall(step)}</dd>
+          <dd className="m-0 wrap-break-word text-fg">{stepCall(step)}</dd>
           <dt className="text-fg-muted">result</dt>
-          <dd className="m-0 break-words text-fg">{step.summary || "—"}</dd>
+          <dd className="m-0 wrap-break-word text-fg">{step.summary || "—"}</dd>
         </dl>
       )}
     </li>

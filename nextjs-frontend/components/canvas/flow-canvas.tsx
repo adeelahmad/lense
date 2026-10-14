@@ -72,7 +72,7 @@ function CardNode({ data, selected }: NodeProps<Node<Data>>) {
   return (
     <div
       className={cn(
-        "relative w-[208px] rounded-md border bg-background px-3 py-2.5 text-left shadow-sm",
+        "relative w-[208px] rounded-md border bg-background px-3 py-2.5 text-left shadow-xs",
         selected ? "border-blue ring-2 ring-blue/30" : "border-border",
         data.problem && "border-red-border",
       )}
@@ -87,7 +87,7 @@ function CardNode({ data, selected }: NodeProps<Node<Data>>) {
               type="target"
               position={Position.Left}
               style={{ top: `${((k + 1) * 100) / (data.inPorts!.length + 1)}%` }}
-              className="!size-3 !border-2 !border-background !bg-fg-muted"
+              className="size-3! border-2! border-background! bg-fg-muted!"
               aria-label={`Input: ${port}`}
             >
               <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 whitespace-nowrap text-[10px] font-bold text-fg-muted">
@@ -100,7 +100,7 @@ function CardNode({ data, selected }: NodeProps<Node<Data>>) {
             type="target"
             id="in"
             position={Position.Left}
-            className="!size-3 !border-2 !border-background !bg-fg-muted"
+            className="size-3! border-2! border-background! bg-fg-muted!"
             aria-label="Input"
           />
         ))}
@@ -145,14 +145,14 @@ function CardNode({ data, selected }: NodeProps<Node<Data>>) {
             position={Position.Right}
             style={{ top }}
             className={cn(
-              "!size-3 !border-2 !border-background",
+              "size-3! border-2! border-background!",
               port === "no"
-                ? "!bg-red"
+                ? "bg-red!"
                 : port === "yes"
-                  ? "!bg-green"
+                  ? "bg-green!"
                   : port === "default"
-                    ? "!bg-fg-muted"
-                    : "!bg-blue",
+                    ? "bg-fg-muted!"
+                    : "bg-blue!",
             )}
             aria-label={port === "out" ? "Output" : `Output: ${port}`}
           >
@@ -356,7 +356,7 @@ function Inner({
       >
         <Background gap={20} />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable style={{ width: 150, height: 100 }} className="!hidden md:!block" />
+        <MiniMap pannable zoomable style={{ width: 150, height: 100 }} className="hidden! md:block!" />
       </ReactFlow>
     </div>
   );

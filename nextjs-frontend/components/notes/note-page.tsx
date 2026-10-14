@@ -302,7 +302,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
           window.getSelection()?.collapse(line, 0);
         }}
         placeholder="Untitled"
-        className="w-full bg-transparent text-[30px] font-bold leading-tight tracking-[-.015em] text-fg outline-none placeholder:text-fg-muted"
+        className="w-full bg-transparent text-[30px] font-bold leading-tight tracking-[-.015em] text-fg outline-hidden placeholder:text-fg-muted"
       />
       <input
         aria-label="Summary"
@@ -314,7 +314,7 @@ export function NotePage({ id, about }: { id?: number; about?: string }) {
           change({ summary: e.target.value });
         }}
         placeholder={canEdit ? "One line on what this note holds (the assistant reads it first)" : ""}
-        className="w-full bg-transparent text-[15px] text-fg-secondary outline-none placeholder:text-fg-muted"
+        className="w-full bg-transparent text-[15px] text-fg-secondary outline-hidden placeholder:text-fg-muted"
       />
       <div className="flex flex-wrap items-center gap-3 border-b border-border pb-3 text-[13px] text-fg-secondary">
         <label className="flex items-center gap-1.5">

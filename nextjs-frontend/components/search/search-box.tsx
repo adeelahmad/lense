@@ -98,7 +98,7 @@ export const SearchBox = forwardRef<
         placeholder={compact ? "Search what was said" : 'Search what was said — words, "phrases", OR, speaker:…'}
         autoComplete="off"
         spellCheck={false}
-        className="h-full min-w-0 flex-1 bg-transparent font-mono text-[15px] text-fg outline-none placeholder:font-sans placeholder:text-[14px] placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
+        className="h-full min-w-0 flex-1 bg-transparent font-mono text-[15px] text-fg outline-hidden placeholder:font-sans placeholder:text-[14px] placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"
       />
       {!compact && chips.map((c) => <FilterChip key={c.key} chip={c} />)}
       {compact && value && onClear && (

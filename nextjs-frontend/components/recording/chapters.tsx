@@ -38,9 +38,9 @@ export function ChaptersRail({ className }: { className?: string }) {
           </p>
           {pending && (
             <div className="flex flex-col gap-2 px-2 py-1" aria-hidden>
-              <Skeleton className="h-2.5 w-4/5 !animate-none" />
-              <Skeleton className="h-2.5 w-3/5 !animate-none" />
-              <Skeleton className="h-2.5 w-[70%] !animate-none" />
+              <Skeleton className="h-2.5 w-4/5 animate-none!" />
+              <Skeleton className="h-2.5 w-3/5 animate-none!" />
+              <Skeleton className="h-2.5 w-[70%] animate-none!" />
             </div>
           )}
         </>
@@ -59,10 +59,7 @@ export function ChaptersRail({ className }: { className?: string }) {
             >
               <span className="tabular text-[11px] font-semibold leading-[17px] text-fg-muted">{i + 1}</span>
               <span
-                className={cn(
-                  "text-[13px] leading-[1.3] text-fg [text-wrap:pretty]",
-                  i === cur ? "font-bold" : "font-medium",
-                )}
+                className={cn("text-[13px] leading-[1.3] text-fg text-pretty", i === cur ? "font-bold" : "font-medium")}
               >
                 {c.title}
               </span>

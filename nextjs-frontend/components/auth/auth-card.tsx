@@ -38,7 +38,7 @@ export function AuthCard({
     >
       <AuthBrand />
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-[22px] font-bold leading-[1.25] text-fg">{title}</h1>
+        <h1 className="text-[22px] font-bold leading-tight text-fg">{title}</h1>
         {description && <div className="text-[14px] leading-normal text-fg-secondary">{description}</div>}
       </div>
       {children}

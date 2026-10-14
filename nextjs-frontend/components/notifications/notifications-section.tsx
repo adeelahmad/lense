@@ -518,7 +518,7 @@ function DeliveriesDialog({ ns, target, onClose }: { ns: string; target: NotifyT
                   {d.status === "pending" && d.next_at && <span>next {relative(d.next_at)}</span>}
                 </span>
                 {d.text && <span className="text-[13px] leading-[1.45] text-fg">{d.text}</span>}
-                {d.error && <span className="break-words text-[12px] text-red-dark">{d.error}</span>}
+                {d.error && <span className="wrap-break-word text-[12px] text-red-dark">{d.error}</span>}
               </li>
             );
           })}

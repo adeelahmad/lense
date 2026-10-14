@@ -53,7 +53,7 @@ export function VersionPicker({
       <select
         value={asOf ?? ""}
         onChange={(e) => onChange(e.target.value || null)}
-        className="h-8 max-w-[220px] rounded-[7px] border-0 bg-transparent pr-6 text-[12.5px] font-semibold text-fg hover:bg-surface-neutral focus:outline-none focus-visible:ring-2 focus-visible:ring-blue"
+        className="h-8 max-w-[220px] rounded-[7px] border-0 bg-transparent pr-6 text-[12.5px] font-semibold text-fg hover:bg-surface-neutral focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue"
       >
         <option value="">Now</option>
         {asOf && !known.has(asOf) && <option value={asOf}>Version {asOf}</option>}

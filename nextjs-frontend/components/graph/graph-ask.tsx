@@ -107,7 +107,7 @@ export function GraphAsk({
       {(answer || error) && open && (
         <section
           aria-label="Answer"
-          className="pointer-events-auto flex max-h-[42dvh] w-full max-w-[720px] flex-col gap-2 overflow-hidden rounded-[12px] border border-border bg-background p-3 shadow-2"
+          className="pointer-events-auto flex max-h-[42dvh] w-full max-w-[720px] flex-col gap-2 overflow-hidden rounded-md border border-border bg-background p-3 shadow-2"
         >
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1 text-[13px] leading-snug">
@@ -226,7 +226,7 @@ export function GraphAsk({
           e.preventDefault();
           submit();
         }}
-        className="pointer-events-auto flex w-full max-w-[720px] items-center gap-2 rounded-[12px] border border-border bg-background py-1 pl-3 pr-1 shadow-2"
+        className="pointer-events-auto flex w-full max-w-[720px] items-center gap-2 rounded-md border border-border bg-background py-1 pl-3 pr-1 shadow-2"
       >
         <Sparkles className="size-4 shrink-0 text-fg-muted" aria-hidden />
         <input
@@ -234,7 +234,7 @@ export function GraphAsk({
           onChange={(e) => setText(e.target.value)}
           aria-label="Ask the graph in plain words, or write Cypher"
           placeholder="Ask the graph (who talks about Acme?) or write Cypher (MATCH …)"
-          className="h-9 min-w-0 flex-1 bg-transparent text-[13.5px] text-fg outline-none placeholder:text-fg-muted"
+          className="h-9 min-w-0 flex-1 bg-transparent text-[13.5px] text-fg outline-hidden placeholder:text-fg-muted"
         />
         <span className={cn("hidden text-[11px] font-semibold text-fg-muted sm:inline", !text.trim() && "invisible")}>
           {looksLikeCypher(text) ? "Cypher" : "Question"}

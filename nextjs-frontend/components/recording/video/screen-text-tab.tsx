@@ -115,7 +115,7 @@ export function ScreenTextTab({ why }: { why?: string | null }) {
                     <span
                       key={l.id}
                       aria-hidden
-                      className="absolute rounded-[2px] border-2 border-[var(--aladdin-gold)]"
+                      className="absolute rounded-[2px] border-2 border-(--aladdin-gold)"
                       style={{
                         left: `${l.box![0] * 100}%`,
                         top: `${l.box![1] * 100}%`,
@@ -239,7 +239,7 @@ function LineEditor({ recId, line, onDone }: { recId: number; line: ScreenText; 
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => e.key === "Escape" && onDone()}
         aria-label="Corrected text"
-        className="h-7 min-w-0 flex-1 bg-transparent px-1 text-[13.5px] text-fg outline-none"
+        className="h-7 min-w-0 flex-1 bg-transparent px-1 text-[13.5px] text-fg outline-hidden"
       />
       <Button type="submit" size="xs" variant="primary" disabled={save.isPending || !text.trim()}>
         Save

@@ -48,7 +48,7 @@ export function UserBubble({
               } else if (e.key === "Escape") setEditing(null);
             }}
             aria-label="Edit your question"
-            className="w-full resize-none bg-transparent text-[15px] leading-normal text-fg outline-none"
+            className="w-full resize-none bg-transparent text-[15px] leading-normal text-fg outline-hidden"
           />
           <p className="m-0 text-[12.5px] text-fg-muted">Sending it replaces this answer and everything after it.</p>
           <div className="flex justify-end gap-1.5">

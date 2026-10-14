@@ -91,7 +91,7 @@ function Locked({ rec }: { rec: Rec }) {
         </span>
         <span className="text-[12.5px] font-semibold uppercase tracking-[0.04em] text-fg-muted">Content locked</span>
         <h1 className="text-[20px] font-bold leading-tight text-fg">{rec.title || "Untitled"}</h1>
-        <p className="max-w-[44ch] text-[14px] leading-[1.5] text-fg-secondary">
+        <p className="max-w-[44ch] text-[14px] leading-normal text-fg-secondary">
           This recording is restricted: only members of {rec.namespace ?? "its namespace"}, and people it’s shared with,
           can open it.
         </p>
@@ -391,7 +391,7 @@ function Transcript({ rec, t, start }: { rec: Rec; t: NonNullable<Rec["transcrip
               className={cn(
                 "grid grid-cols-[52px_minmax(0,1fr)] gap-x-3 rounded-sm px-2 py-2",
                 i === current && "bg-hl",
-                hit && hits[at] === i && "outline outline-2 outline-blue-border",
+                hit && hits[at] === i && "outline-solid outline-2 outline-blue-border",
               )}
             >
               {rec.media ? (
@@ -490,13 +490,13 @@ function DescriptionCard({ meta }: { meta: Meta }) {
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="break-words font-medium text-fg-accent hover:underline"
+                        className="wrap-break-word font-medium text-fg-accent hover:underline"
                       >
                         {it.text}
                         <ArrowUpRight aria-hidden className="ml-0.5 inline size-3" />
                       </a>
                     ) : (
-                      <span className="break-words">{it.text}</span>
+                      <span className="wrap-break-word">{it.text}</span>
                     )}
                   </span>
                 );

@@ -27,7 +27,7 @@ export function MenuContent({
         sideOffset={6}
         onFocusOutside={onFocusOutside}
         className={cn(
-          "z-[150] min-w-[220px] rounded-md border border-border bg-background p-1.5 shadow-2 animate-fade-in",
+          "z-150 min-w-[220px] rounded-md border border-border bg-background p-1.5 shadow-2 animate-fade-in",
           className,
         )}
       >
@@ -64,7 +64,7 @@ export function MenuItem({
       // the whole page stops responding after that dialog closes.
       onSelect={onSelect && (() => window.setTimeout(onSelect, 0))}
       className={cn(
-        "flex h-9 cursor-pointer select-none items-center gap-2.5 rounded-sm px-2.5 text-[13.5px] outline-none data-[disabled]:cursor-not-allowed data-[highlighted]:bg-surface-neutral data-[disabled]:opacity-50 [&_svg]:size-4 [&_svg]:text-fg-secondary",
+        "flex h-9 cursor-pointer select-none items-center gap-2.5 rounded-sm px-2.5 text-[13.5px] outline-hidden data-disabled:cursor-not-allowed data-highlighted:bg-surface-neutral data-disabled:opacity-50 [&_svg]:size-4 [&_svg]:text-fg-secondary",
         danger ? "text-red-dark" : "text-fg",
         className,
       )}
@@ -108,7 +108,7 @@ export function PopoverContent({
         align={align}
         sideOffset={6}
         className={cn(
-          "z-[150] rounded-md border border-border bg-background shadow-2 animate-fade-in outline-none",
+          "z-150 rounded-md border border-border bg-background shadow-2 animate-fade-in outline-hidden",
           className,
         )}
       >

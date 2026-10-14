@@ -436,7 +436,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                               })
                             }
                             className={cn(
-                              "h-8 w-full appearance-none rounded-sm border border-border pl-2.5 pr-7 text-[13px] font-medium outline-none focus:border-blue",
+                              "h-8 w-full appearance-none rounded-sm border border-border pl-2.5 pr-7 text-[13px] font-medium outline-hidden focus:border-blue",
                               self ? "bg-surface text-fg-muted" : "bg-background text-fg",
                             )}
                           >

@@ -127,7 +127,7 @@ export function AttachAudioDialog({ open, onOpenChange }: { open: boolean; onOpe
             )}
           </div>
         ) : (
-          <p className="text-[13px] leading-[1.5] text-fg-secondary">
+          <p className="text-[13px] leading-normal text-fg-secondary">
             {limits.extensions.map((e) => e.slice(1)).join(", ")}, up to {bytes(limits.max_mb * 1024 * 1024)}. It goes
             up in pieces: if the connection drops, choosing the same file again carries on where it stopped.
           </p>

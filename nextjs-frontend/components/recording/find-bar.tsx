@@ -43,7 +43,7 @@ export function FindBar({ what = "the transcript" }: { what?: string }) {
               find.setQuery("");
             }
           }}
-          className="h-8 w-full rounded-sm border border-border bg-background pl-8 pr-2 text-[13px] text-fg outline-none placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
+          className="h-8 w-full rounded-sm border border-border bg-background pl-8 pr-2 text-[13px] text-fg outline-hidden placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
         />
       </span>
       <span role="status" className="tabular min-w-[64px] whitespace-nowrap text-[12px] text-fg-muted">

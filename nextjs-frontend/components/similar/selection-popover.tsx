@@ -134,7 +134,7 @@ export function SimilarOnSelect() {
     return (
       <div
         ref={box}
-        className="fixed z-[70]"
+        className="fixed z-70"
         style={{ left: narrow ? undefined : picked.x - 44, right: narrow ? 8 : undefined, ...place }}
       >
         <button
@@ -155,7 +155,7 @@ export function SimilarOnSelect() {
       aria-label="Similar content"
       data-no-similar
       className={cn(
-        "fixed z-[70] flex max-h-[min(520px,calc(100vh-96px))] flex-col gap-2 overflow-hidden rounded-md border border-border bg-background p-3.5 shadow-3 animate-fade-in",
+        "fixed z-70 flex max-h-[min(520px,calc(100vh-96px))] flex-col gap-2 overflow-hidden rounded-md border border-border bg-background p-3.5 shadow-3 animate-fade-in",
       )}
       style={{ left, width: narrow ? vw - 16 : WIDTH, ...place }}
     >

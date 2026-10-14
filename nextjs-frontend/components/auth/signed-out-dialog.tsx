@@ -131,7 +131,7 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
   return (
     <D.Root open={state.open}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-[500] bg-[var(--scrim)] backdrop-blur-[2px] animate-fade-in" />
+        <D.Overlay className="fixed inset-0 z-500 bg-(--scrim) backdrop-blur-[2px] animate-fade-in" />
         <D.Content
           onEscapeKeyDown={(e) => e.preventDefault()}
           onPointerDownOutside={(e) => e.preventDefault()}
@@ -140,9 +140,9 @@ export function SignedOutDialog({ email }: { email?: string | null }) {
             e.preventDefault();
             (passkeyRef.current ?? (who ? passwordRef.current : document.getElementById("so-email")))?.focus();
           }}
-          className="fixed left-1/2 top-1/2 z-[501] flex w-[calc(100vw-32px)] max-w-[420px] -translate-x-1/2 -translate-y-1/2 flex-col gap-3.5 rounded-xl bg-background p-[26px] shadow-3 animate-fade-in"
+          className="fixed left-1/2 top-1/2 z-501 flex w-[calc(100vw-32px)] max-w-[420px] -translate-x-1/2 -translate-y-1/2 flex-col gap-3.5 rounded-xl bg-background p-[26px] shadow-3 animate-fade-in"
         >
-          <D.Title className="text-[22px] font-bold leading-[1.25] text-fg">You&apos;ve been signed out</D.Title>
+          <D.Title className="text-[22px] font-bold leading-tight text-fg">You&apos;ve been signed out</D.Title>
           <D.Description className="text-[14px] leading-normal text-fg-secondary">
             Your session ended. Sign in again to{" "}
             {task ? (

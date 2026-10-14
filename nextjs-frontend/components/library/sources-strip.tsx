@@ -75,7 +75,7 @@ export function SourcesStrip({
   const byId = new Map(sources.map((s) => [s.id, s]));
   return (
     <div className="flex items-center gap-2" aria-label="Watched sources and queue" role="group">
-      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [scrollbar-width:none]">
+      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-none">
         {watches.map((w) => {
           const src = byId.get(w.source);
           const st = watchState(w, src);

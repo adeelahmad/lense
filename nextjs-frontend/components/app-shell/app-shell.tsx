@@ -120,7 +120,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     <div className="flex min-h-screen bg-background">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[400] focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:shadow-2"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-400 focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:shadow-2"
       >
         Skip to content
       </a>
@@ -133,8 +133,8 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         />
       </div>
       {mobileOpen && (
-        <div className="fixed inset-0 z-[120] md:hidden">
-          <div className="absolute inset-0 bg-[var(--scrim)]" onClick={() => setMobileOpen(false)} aria-hidden />
+        <div className="fixed inset-0 z-120 md:hidden">
+          <div className="absolute inset-0 bg-(--scrim)" onClick={() => setMobileOpen(false)} aria-hidden />
           <Nav
             admin={admin || user.admin}
             collapsed={false}

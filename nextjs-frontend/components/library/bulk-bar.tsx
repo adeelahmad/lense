@@ -107,7 +107,7 @@ export function BulkBar({
       <div
         role="toolbar"
         aria-label={`${plural(selected, "recording")} selected`}
-        className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-pill bg-fg py-1.5 pl-4 pr-1.5 text-background shadow-3 [scrollbar-width:none]"
+        className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-pill bg-fg py-1.5 pl-4 pr-1.5 text-background shadow-3 scrollbar-none"
       >
         <span className="whitespace-nowrap pr-2.5 text-[13px] font-semibold" aria-live="polite">
           {count(selected)} selected
@@ -258,7 +258,7 @@ export function ReprocessDialog({
                 checked={step === c.value}
                 disabled={off}
                 onChange={() => setStep(c.value)}
-                className="mt-1 accent-[var(--aladdin-blue)]"
+                className="mt-1 accent-(--aladdin-blue)"
               />
               <span className="flex flex-col">
                 <span className="text-[14px] font-semibold text-fg">{c.label}</span>

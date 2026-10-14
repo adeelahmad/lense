@@ -61,18 +61,18 @@ export function Dialog({
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-[100] bg-[var(--scrim)] backdrop-blur-[2px] animate-fade-in" />
+        <D.Overlay className="fixed inset-0 z-100 bg-(--scrim) backdrop-blur-[2px] animate-fade-in" />
         <D.Content
           onOpenAutoFocus={focusFirstField}
           onKeyDown={(e) => enterSubmits(e, actionsRef.current)}
           className={cn(
-            "fixed left-1/2 top-1/2 z-[101] flex max-h-[90vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-xl bg-background p-6 shadow-3 animate-fade-in",
+            "fixed left-1/2 top-1/2 z-101 flex max-h-[90vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 overflow-y-auto rounded-xl bg-background p-6 shadow-3 animate-fade-in",
             wide ? "max-w-[720px]" : "max-w-[480px]",
             className,
           )}
         >
           <div className="flex items-start gap-3">
-            <D.Title className="min-w-0 flex-1 text-[22px] font-bold leading-tight tracking-[-.01em] text-fg [overflow-wrap:anywhere]">
+            <D.Title className="min-w-0 flex-1 text-[22px] font-bold leading-tight tracking-[-.01em] text-fg wrap-anywhere">
               {title}
             </D.Title>
             <D.Close
@@ -127,10 +127,10 @@ export function Drawer({
         <D.Content
           onInteractOutside={(e) => e.preventDefault()}
           style={{ width }}
-          className="fixed bottom-0 right-0 top-16 z-[90] flex max-w-full flex-col border-l border-border bg-background shadow-3 animate-slide-in-right"
+          className="fixed bottom-0 right-0 top-16 z-90 flex max-w-full flex-col border-l border-border bg-background shadow-3 animate-slide-in-right"
         >
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <D.Title className="min-w-0 flex-1 text-[16px] font-bold text-fg [overflow-wrap:anywhere]">{title}</D.Title>
+            <D.Title className="min-w-0 flex-1 text-[16px] font-bold text-fg wrap-anywhere">{title}</D.Title>
             {actions}
             <D.Close
               className="grid size-8 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"

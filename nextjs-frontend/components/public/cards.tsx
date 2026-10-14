@@ -38,7 +38,7 @@ export function RecordingCard({
       aria-label={locked ? `${card.title || "Untitled"} (content locked)` : undefined}
       className="group flex min-w-0 flex-col overflow-hidden rounded-md border border-border bg-background transition-shadow duration-fast hover:shadow-2 focus-visible:shadow-2"
     >
-      <div className="relative aspect-[16/9] bg-surface-neutral">
+      <div className="relative aspect-video bg-surface-neutral">
         {card.poster ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={card.poster} alt="" loading="lazy" className="size-full object-cover" />
@@ -59,7 +59,7 @@ export function RecordingCard({
             </span>
             <span
               aria-hidden
-              className="absolute inset-0 grid place-items-center bg-[var(--scrim)] text-[13.5px] font-bold text-fg-on-color opacity-0 transition-opacity duration-fast group-hover:opacity-100 group-focus-visible:opacity-100"
+              className="absolute inset-0 grid place-items-center bg-(--scrim) text-[13.5px] font-bold text-fg-on-color opacity-0 transition-opacity duration-fast group-hover:opacity-100 group-focus-visible:opacity-100"
             >
               Content locked
             </span>
