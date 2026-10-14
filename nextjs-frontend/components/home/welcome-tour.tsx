@@ -85,7 +85,7 @@ export function WelcomeTour() {
           className="flex gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            close(assistantChatHref({ q: q.trim() || undefined }));
+            close(assistantChatHref({ q: q.trim() || undefined, send: true }));
           }}
         >
           <Input

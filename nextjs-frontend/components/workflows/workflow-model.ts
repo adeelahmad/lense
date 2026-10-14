@@ -29,6 +29,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { uniqueName } from "@/lib/format";
+
 export type WfNode = {
   id: string;
   type: string;
@@ -436,6 +438,11 @@ export function starter(scope: Scope = "recording"): WfGraph {
       { source: "rules", target: "keep" },
     ],
   };
+}
+
+/** A name for a workflow nobody named, from what it runs on ("Asset workflow", then "Asset workflow 2"). */
+export function suggestedWorkflowName(scope: Scope, taken: Iterable<string>): string {
+  return uniqueName(scope === "graph" ? "Graph workflow" : scope === "tool" ? "Tool" : "Asset workflow", taken);
 }
 
 /** A new tool's graph: its text goes to the model, and the reply is what it gives back. */

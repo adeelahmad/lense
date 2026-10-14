@@ -383,6 +383,7 @@ def web_origin(request: Request) -> str:
     FRONTEND_URL. Called directly, the API's own address."""
     from app.config import settings as env
     from app.core.middleware import host_name
+    from app.domain import https
 
     h = request.headers
     host = (h.get("x-forwarded-host") or "").split(",")[0].strip()
@@ -400,6 +401,8 @@ def web_origin(request: Request) -> str:
     shaped = re.fullmatch(r"[A-Za-z0-9.\-]+(:\d+)?|\[[0-9A-Fa-f:.]+\](:\d+)?", host)
     if shaped and host.lower() in _tunnel_hosts(request, cfg):
         return f"https://{host.lower()}"  # Cloudflare serves it over https; cloudflared reaches the web app over http
+    if shaped and host_name(host) in https.hosts(cfg):
+        return f"https://{host.lower()}"  # Caddy serves it over https (Settings › HTTPS), maybe at another port
     if shaped and proto in ("http", "https") and (trusted or host_name(host) in _web_hosts(cfg)):
         return f"{proto}://{host}"
     return env.FRONTEND_URL.rstrip("/")

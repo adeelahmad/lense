@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.7.0"
+    "version": "0.8.1"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -490,6 +490,57 @@
       }
     },
     "/api/v1/tokens/{token_id}": {
+      "patch": {
+        "tags": [
+          "tokens"
+        ],
+        "summary": "Rename Token",
+        "description": "Rename one of your keys.",
+        "operationId": "rename_token",
+        "parameters": [
+          {
+            "name": "token_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Token Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiTokenRename"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "tokens"
@@ -2444,6 +2495,50 @@
         }
       }
     },
+    "/api/v1/settings/nfs/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Nfs Status",
+        "description": "The file tree over NFS: whether it's serving, as whom, to which networks, and the command that mounts it.",
+        "operationId": "nfs_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NfsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/smb/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Smb Status",
+        "description": "The file tree over SMB (Settings \u203a SMB share): whether it's serving, to which networks, and how to connect.",
+        "operationId": "smb_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmbStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/tunnel/status": {
       "get": {
         "tags": [
@@ -2459,6 +2554,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TunnelStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/https/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Status",
+        "description": "How HTTPS (Settings \u203a HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it\nholds and when they run out, and Caddy's last lines.",
+        "operationId": "https_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/https/providers": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Providers",
+        "description": "The DNS providers Settings \u203a HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns\nplugin works too, by name.",
+        "operationId": "https_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HttpsProvider"
+                  },
+                  "type": "array",
+                  "title": "Response Admin-Https Providers"
                 }
               }
             }
@@ -2488,6 +2631,138 @@
         }
       }
     },
+    "/api/v1/settings/telegram": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Telegram Status",
+        "description": "How the assistant's Telegram bot is doing, and the chats it has seen (their ids are what telegram.rooms names).",
+        "operationId": "telegram_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/telegram/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Telegram",
+        "description": "Check that Telegram knows the bot's token, and that the account to answer as exists.",
+        "operationId": "test_telegram",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/slack": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Slack Status",
+        "description": "How the assistant's Slack app is doing, its slash command, and the link that creates the app from its manifest.",
+        "operationId": "slack_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/slack/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Slack",
+        "description": "Check both Slack tokens, and that the account to answer as exists.",
+        "operationId": "test_slack",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/mailbox": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Mailbox Status",
+        "description": "How the assistant's mailbox is doing, and who has written to it (whether each is let in, and their mail vouched\nfor by their provider).",
+        "operationId": "mailbox_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/mailbox/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Mailbox",
+        "description": "Check that Lens can sign in to read the mailbox (IMAP) and to send from it (SMTP), and that the account to\nanswer as exists. Nothing is read or sent.",
+        "operationId": "test_mailbox",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/documents/node/test": {
       "post": {
         "tags": [
@@ -2503,6 +2778,28 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConversionNodeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/documents/tika/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Tika",
+        "description": "Check that a Tika server answers at documents.tika_url, and say which version it is.",
+        "operationId": "test_tika",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TikaTestResult"
                 }
               }
             }
@@ -2725,6 +3022,201 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TelemetryTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/logs/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Log Status",
+        "description": "The API process's log level, its log file, and how sending to syslog is going (off by default).",
+        "operationId": "log_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/logs/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Logs",
+        "description": "Send one line to the saved syslog server now (on or off), to check the address, port and transport.",
+        "operationId": "test_logs",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/logs": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Read Logs",
+        "description": "The latest log lines from the API and every worker (their files under data_dir/logs), newest first. Lines are\nredacted as they're written: no keys, tokens or passwords.",
+        "operationId": "read_logs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "debug",
+                    "info",
+                    "warning",
+                    "error",
+                    "critical"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "this level and above",
+              "title": "Level"
+            },
+            "description": "this level and above"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "text the message or error contains",
+              "title": "Q"
+            },
+            "description": "text the message or error contains"
+          },
+          {
+            "name": "process",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "api, worker or watcher",
+              "title": "Process"
+            },
+            "description": "api, worker or watcher"
+          },
+          {
+            "name": "logger",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a logger name, or the start of one (lens.email)",
+              "title": "Logger"
+            },
+            "description": "a logger name, or the start of one (lens.email)"
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a line's ts: only older lines (the next page)",
+              "title": "Before"
+            },
+            "description": "a line's ts: only older lines (the next page)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogLine"
+                  },
+                  "title": "Response Admin-Read Logs"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -3306,6 +3798,68 @@
         }
       }
     },
+    "/api/v1/admin/monitoring": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Monitoring",
+        "description": "Whether Prometheus, node-exporter and Grafana run next to Lens (the monitoring profile), and how the machine's\nlast change went.",
+        "operationId": "get_monitoring",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Monitoring"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Set Monitoring",
+        "description": "Have this machine start or stop Prometheus, node-exporter and Grafana. On also turns /metrics on with a scrape\ntoken when it has none. GET /admin/monitoring follows along.",
+        "operationId": "set_monitoring",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitoringRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Monitoring"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/backups": {
       "get": {
         "tags": [
@@ -3780,10 +4334,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "requestBody": {
@@ -3832,10 +4386,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "responses": {
@@ -3964,10 +4518,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
+              "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>",
               "title": "Resource"
             },
-            "description": "routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
+            "description": "all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>"
           }
         ],
         "responses": {
@@ -4169,6 +4723,32 @@
         }
       }
     },
+    "/api/v1/setup/llm/providers": {
+      "get": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Llm Providers",
+        "description": "Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a\nmodel, so picking one leaves only the API key to paste.",
+        "operationId": "llm_providers",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CloudModelProvider"
+                  },
+                  "type": "array",
+                  "title": "Response Setup-Llm Providers"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/setup/storage": {
       "put": {
         "tags": [
@@ -4224,6 +4804,48 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SetupTelemetry"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setup/budget": {
+      "put": {
+        "tags": [
+          "setup"
+        ],
+        "summary": "Save Budget",
+        "description": "The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop\n(docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard\nlimit: no budget.",
+        "operationId": "save_budget",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetupBudget"
               }
             }
           },
@@ -9860,6 +10482,99 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tree": {
+      "get": {
+        "tags": [
+          "tree"
+        ],
+        "summary": "List Folder",
+        "description": "A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'\nfiles. A file answers 400 (read it at /tree/file).",
+        "operationId": "list_folder",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026",
+              "default": "",
+              "title": "Path"
+            },
+            "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TreeFolder"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tree/file": {
+      "get": {
+        "tags": [
+          "tree"
+        ],
+        "summary": "Read File",
+        "description": "A file of the tree, with byte ranges.",
+        "operationId": "read_file",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026",
+              "default": "",
+              "title": "Path"
+            },
+            "description": "a folder or file, from the top: namespace/Collections|Topics|Entities/\u2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "206": {
+            "description": "a byte range"
           },
           "422": {
             "description": "Validation Error",
@@ -18420,6 +19135,57 @@
             }
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "templates"
+        ],
+        "summary": "Update Template",
+        "description": "Its name and description (the text changes by saving a version).",
+        "operationId": "update_template",
+        "parameters": [
+          {
+            "name": "tid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/templates/{tid}/versions": {
@@ -18638,6 +19404,57 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Pipeline"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "pipelines"
+        ],
+        "summary": "Update Pipeline",
+        "description": "Its name and description (the steps change by saving a version).",
+        "operationId": "update_pipeline",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -20680,7 +21497,7 @@
           "chats"
         ],
         "summary": "Send Message",
-        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.",
+        "description": "Ask a question, optionally from a page (`context`: the page, its text and any highlighted part, which the model\nreads with the question). Streams events: step, approval, notice, passages, token (answer text), error, stopped (POST\n/chats/{cid}/stop: what came before is saved, marked stopped), done (the saved message id).\n\nWith `edit`, one of your earlier questions is edited: it and everything after it are replaced by this question and\nits new answer (404 if it isn't a question in this conversation). Without `context`, it keeps the page it was asked\nfrom (where, and the highlighted text; not the page's text, which isn't kept).\n\n`/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the\nconversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.\n\nWith `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that\nbrowser while the side panel is connected: open pages, read them, click, type and download files into the\nconversation (docs/browser-assistant.md).",
         "operationId": "send_message",
         "parameters": [
           {
@@ -20908,6 +21725,277 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApprovalOutcome"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions": {
+      "get": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "List Sessions",
+        "description": "Your browsers whose side panel is connected now, the latest first.",
+        "operationId": "list_sessions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BrowserSession"
+                  },
+                  "type": "array",
+                  "title": "Response Browser-List Sessions"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Connect",
+        "description": "Connect a browser's Lens side panel: then open its action stream. Audited as `browser.connect`.",
+        "operationId": "connect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BrowserConnect"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserSession"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}": {
+      "delete": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Disconnect",
+        "description": "The side panel closed: the assistant can't use that browser any more, and actions waiting on it fail.",
+        "operationId": "disconnect",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}/actions": {
+      "get": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Actions",
+        "description": "The actions the assistant (or an agent) asks of this browser, as server-sent `action` events {id, tool, args,\nchat}: carry each one out and answer it with POST /browser/actions/{id}. The session stays connected while this\nstream is open; a comment line every 15 seconds keeps it so through proxies. `once=true` sends the actions waiting\nnow and closes, for a client that asks again and again instead (each time keeps it connected for a while).",
+        "operationId": "actions",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          },
+          {
+            "name": "once",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Once"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`event: action` with {id, tool, args, chat}",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/actions/{aid}": {
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Answer Action",
+        "description": "What the browser did with an action: its result, or why it didn't (the person said no, the site isn't allowed...).\n404 for an action that isn't one of your browser's, or that's been answered or given up on.",
+        "operationId": "answer_action",
+        "parameters": [
+          {
+            "name": "aid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Aid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/browser/sessions/{sid}/run": {
+      "post": {
+        "tags": [
+          "browser"
+        ],
+        "summary": "Run",
+        "description": "Do one thing in your connected browser, as the assistant's browser_ tools do, and wait for it: for agents and\nscripts. The side panel shows it and asks you first, as it does for the assistant. Audited as `browser.run`.",
+        "operationId": "run",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserRun"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserResult"
                 }
               }
             }
@@ -23950,6 +25038,137 @@
         }
       }
     },
+    "/api/v1/shares/s3": {
+      "get": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "S3 Status",
+        "description": "Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your\naccess keys.",
+        "operationId": "s3_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3Status"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/s3/keys": {
+      "get": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "All S3 Keys",
+        "description": "Everyone's access keys, with their owners (admins).",
+        "operationId": "all_s3_keys",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/S3Key"
+                  },
+                  "type": "array",
+                  "title": "Response Shares-All S3 Keys"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Create S3 Key",
+        "description": "An access key that reads the file tree as you, over S3 and WebDAV. Only while signed in to the web app (with your passkey),\nnot with an API token. The secret is in this answer only.",
+        "operationId": "create_s3_key",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/S3KeyCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/S3KeyCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/shares/s3/keys/{key_id}": {
+      "delete": {
+        "tags": [
+          "shares"
+        ],
+        "summary": "Revoke S3 Key",
+        "description": "Revoke one of your keys (admins: anyone's). It stops working at once.",
+        "operationId": "revoke_s3_key",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/import-hooks": {
       "get": {
         "tags": [
@@ -25944,6 +27163,22 @@
         ],
         "title": "ApiTokenCreated"
       },
+      "ApiTokenRename": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ApiTokenRename"
+      },
       "Approval": {
         "properties": {
           "id": {
@@ -27581,6 +28816,171 @@
         ],
         "title": "BrowseEntry"
       },
+      "BrowserAnswer": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "description": "whether the browser did it"
+          },
+          "result": {
+            "title": "Result",
+            "description": "what it found or did (the page, the tabs, the file it attached...)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why not, when it didn't (the person said no, no such ref...)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BrowserAnswer"
+      },
+      "BrowserConnect": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "what to call this browser, e.g. 'Chrome on the laptop'"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "BrowserConnect"
+      },
+      "BrowserResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "result": {
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "BrowserResult"
+      },
+      "BrowserRun": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": [
+              "tabs",
+              "open",
+              "read",
+              "click",
+              "type",
+              "press",
+              "import"
+            ],
+            "title": "Tool",
+            "description": "the action: one of the assistant's browser_ tools, without browser_"
+          },
+          "args": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Args",
+            "description": "its arguments, as the browser_ tool takes them"
+          },
+          "wait": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Wait",
+            "description": "seconds to wait for the browser",
+            "default": 60
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool"
+        ],
+        "title": "BrowserRun"
+      },
+      "BrowserSession": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "seen_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seen At"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live",
+            "description": "its side panel is connected now"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "live"
+        ],
+        "title": "BrowserSession"
+      },
       "Budget": {
         "properties": {
           "resource": {
@@ -28725,6 +30125,43 @@
         ],
         "title": "ClientRegistration",
         "description": "Dynamic client registration (RFC 7591). Metadata Lens has no use for is ignored, as the RFC asks."
+      },
+      "CloudModelProvider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "key_url": {
+            "type": "string",
+            "title": "Key Url"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "base_url",
+          "model",
+          "models",
+          "key_url"
+        ],
+        "title": "CloudModelProvider"
       },
       "Collection": {
         "properties": {
@@ -30547,6 +31984,12 @@
             "title": "Web",
             "description": "web pages captured from their address (Chromium; POST /import/web)",
             "default": false
+          },
+          "tika": {
+            "type": "boolean",
+            "title": "Tika",
+            "description": "a Tika server reads, as text, the documents nothing else here can (documents.tika_url)",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -31144,6 +32587,142 @@
           "ok"
         ],
         "title": "DecisionTestResult"
+      },
+      "Described": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "dc:title"
+          },
+          "creators": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Creators",
+            "description": "dc:creator: its authors"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject",
+            "description": "dc:subject"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "dc:description"
+          },
+          "publisher": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publisher",
+            "description": "dc:publisher"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "dc:language, a code such as en"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created",
+            "description": "dcterms:created (ISO 8601)"
+          },
+          "modified": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified",
+            "description": "dcterms:modified (ISO 8601)"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages",
+            "description": "how many pages it says it has"
+          },
+          "words": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Words",
+            "description": "how many words it says it has"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format",
+            "description": "dc:format: its media type, as Tika found it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Described",
+        "description": "What a document says about itself, read by a Tika server (documents.tika_metadata), as Dublin Core terms."
       },
       "Description": {
         "properties": {
@@ -35097,6 +36676,17 @@
           },
           "counts": {
             "$ref": "#/components/schemas/HealthCounts"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HealthMachine"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "CPU, memory, load and uptime now"
           }
         },
         "additionalProperties": true,
@@ -35194,6 +36784,125 @@
           "total_gb"
         ],
         "title": "HealthDisk"
+      },
+      "HealthMachine": {
+        "properties": {
+          "cpu_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Pct",
+            "description": "busy share of all CPUs, 0-100; null where /proc isn't there"
+          },
+          "cpus": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpus"
+          },
+          "mem_used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mem Used",
+            "description": "bytes"
+          },
+          "mem_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mem Total",
+            "description": "bytes"
+          },
+          "load1": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load1"
+          },
+          "load5": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load5"
+          },
+          "load15": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load15"
+          },
+          "rss": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rss",
+            "description": "the API process's memory, bytes"
+          },
+          "uptime": {
+            "type": "integer",
+            "title": "Uptime",
+            "description": "seconds since the API started"
+          },
+          "host_uptime": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host Uptime",
+            "description": "seconds since the machine started"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "uptime"
+        ],
+        "title": "HealthMachine"
       },
       "HealthSource": {
         "properties": {
@@ -35584,6 +37293,171 @@
           "items"
         ],
         "title": "HookPushed"
+      },
+      "HttpsCertificate": {
+        "properties": {
+          "names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Names",
+            "description": "the domain names it's for"
+          },
+          "expires": {
+            "type": "string",
+            "title": "Expires",
+            "description": "when it runs out (Caddy renews it about a month before)"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer",
+            "description": "the certificate authority that issued it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "names",
+          "expires",
+          "issuer"
+        ],
+        "title": "HttpsCertificate"
+      },
+      "HttpsProvider": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "the caddy-dns plugin's name, like cloudflare"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/HttpsProviderField"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "fields"
+        ],
+        "title": "HttpsProvider"
+      },
+      "HttpsProviderField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "secret": {
+            "type": "boolean",
+            "title": "Secret"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "secret"
+        ],
+        "title": "HttpsProviderField"
+      },
+      "HttpsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "Caddy is running in a server process"
+          },
+          "ports_open": {
+            "type": "boolean",
+            "title": "Ports Open",
+            "description": "a server process has the HTTPS ports (install.sh opened them)"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "the https:// address people open Lens at"
+          },
+          "certificates": {
+            "items": {
+              "$ref": "#/components/schemas/HttpsCertificate"
+            },
+            "type": "array",
+            "title": "Certificates"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "why there's no certificate yet, when there isn't"
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "Caddy's last lines"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "description": "where Caddy sends visitors: the web app, as the server reaches it"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the server process with the HTTPS ports"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "running",
+          "ports_open",
+          "origin"
+        ],
+        "title": "HttpsStatus"
       },
       "HubLogin": {
         "properties": {
@@ -37969,6 +39843,216 @@
         ],
         "title": "LocalModelServer"
       },
+      "LogLine": {
+        "properties": {
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "logger": {
+            "type": "string",
+            "title": "Logger"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg"
+          },
+          "process": {
+            "type": "string",
+            "title": "Process"
+          },
+          "pid": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pid"
+          },
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "exc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exc"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ts",
+          "level",
+          "logger",
+          "msg",
+          "process"
+        ],
+        "title": "LogLine",
+        "description": "One log record, redacted as it was written."
+      },
+      "LogStatus": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File",
+            "description": "the API's log file, under data_dir/logs"
+          },
+          "syslog": {
+            "type": "boolean",
+            "title": "Syslog",
+            "description": "whether lines are being sent to a syslog server"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "where, as transport://host:port"
+          },
+          "sent": {
+            "type": "integer",
+            "title": "Sent"
+          },
+          "dropped": {
+            "type": "integer",
+            "title": "Dropped",
+            "description": "lines dropped because the server couldn't keep up or was unreachable"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued"
+          },
+          "last_sent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sent"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "error_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "level",
+          "syslog",
+          "sent",
+          "dropped",
+          "queued"
+        ],
+        "title": "LogStatus",
+        "description": "What the API process does with its logs now; each worker follows the same settings on its own."
+      },
+      "LogTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "LogTestResult"
+      },
       "LoginRequest": {
         "properties": {
           "email": {
@@ -38119,6 +40203,163 @@
           "ok"
         ],
         "title": "MailTestResult"
+      },
+      "MailboxPerson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "their email address, for mailbox.users"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed",
+            "description": "in mailbox.users: Lens answers their mail"
+          },
+          "vouched": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vouched",
+            "description": "how their last message was known to be theirs (DMARC, DKIM, SPF, or From with mailbox.check off); none: it wasn't"
+          },
+          "waiting": {
+            "type": "integer",
+            "title": "Waiting",
+            "description": "their messages held, answered once they're let in",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "allowed"
+        ],
+        "title": "MailboxPerson"
+      },
+      "MailboxStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at the mailbox failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process reading the mailbox"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last looked"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "the assistant's address"
+          },
+          "imap": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imap",
+            "description": "the server it reads mail from (host:port and security), set or guessed"
+          },
+          "smtp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp",
+            "description": "the server it sends from (host:port and security), set or guessed"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/MailboxPerson"
+            },
+            "type": "array",
+            "title": "People",
+            "description": "who has written to it, latest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "MailboxStatus"
       },
       "ManifestCheck": {
         "properties": {
@@ -38834,6 +41075,19 @@
             ],
             "title": "Edit",
             "description": "edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer"
+          },
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browser",
+            "description": "asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)"
           }
         },
         "additionalProperties": false,
@@ -39024,6 +41278,111 @@
           "estimate"
         ],
         "title": "ModelSpend"
+      },
+      "Monitoring": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "the monitoring profile (Prometheus, node-exporter, Grafana) as last asked"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "done",
+                  "failed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State",
+            "description": "how the machine's last change went"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "asked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asked At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "grafana_port": {
+            "type": "integer",
+            "title": "Grafana Port",
+            "description": "the port Grafana listens on, where the web app does",
+            "default": 3001
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what changes it on this machine (systemd, launchd); none: run `manual` there"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that turns it on by hand, on the machine Lens runs on"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "on",
+          "manual"
+        ],
+        "title": "Monitoring"
+      },
+      "MonitoringRequest": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "start (true) or stop (false) Prometheus, node-exporter and Grafana"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "MonitoringRequest"
       },
       "MonthStats": {
         "properties": {
@@ -39624,6 +41983,104 @@
           "basis"
         ],
         "title": "NextRun"
+      },
+      "NfsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "off",
+              "running",
+              "error"
+            ],
+            "title": "Phase"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port"
+          },
+          "allowed_networks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Networks"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account",
+            "description": "whose view of the file tree the share shows, while running"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "refused": {
+            "type": "integer",
+            "title": "Refused",
+            "description": "connections refused since it started, from outside the allowed networks",
+            "default": 0
+          },
+          "log": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Log",
+            "description": "rclone's last lines"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the worker running it"
+          },
+          "mount": {
+            "type": "string",
+            "title": "Mount",
+            "description": "the command that mounts it on Linux"
+          },
+          "rclone": {
+            "type": "boolean",
+            "title": "Rclone",
+            "description": "whether rclone is installed here"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "phase",
+          "port",
+          "allowed_networks",
+          "mount",
+          "rclone"
+        ],
+        "title": "NfsStatus"
       },
       "NodeParam": {
         "properties": {
@@ -43285,6 +45742,35 @@
         ],
         "title": "PipelineSummary"
       },
+      "PipelineUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PipelineUpdate"
+      },
       "PipelineVersionCreate": {
         "properties": {
           "steps": {
@@ -46052,6 +48538,17 @@
             ],
             "description": "a document that isn't a PDF: how the PDF it's read from was made"
           },
+          "described": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Described"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a document: what it says about itself (title, authors, dates), read by Tika"
+          },
           "attached_to": {
             "anyOf": [
               {
@@ -48335,6 +50832,248 @@
         "type": "object",
         "title": "RoutineUpdate"
       },
+      "S3Key": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the access key id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "its owner (the list of everyone's keys)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "S3Key"
+      },
+      "S3KeyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name",
+            "default": "S3 key"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days",
+            "description": "how long it lasts (the API keys' limits); none: their default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "S3KeyCreate"
+      },
+      "S3KeyCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the access key id"
+          },
+          "secret": {
+            "type": "string",
+            "title": "Secret",
+            "description": "the secret access key, shown this once"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the S3 server's port"
+          },
+          "webdav_port": {
+            "type": "integer",
+            "title": "Webdav Port"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "secret",
+          "port",
+          "webdav_port"
+        ],
+        "title": "S3KeyCreated"
+      },
+      "S3Service": {
+        "properties": {
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "running": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Running"
+          },
+          "port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Port"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "S3Service"
+      },
+      "S3Status": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether an admin turned it on (shares.enabled and its own switch)"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/S3Service"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the process running it says; none while it's off"
+          },
+          "webdav": {
+            "$ref": "#/components/schemas/ShareServer"
+          },
+          "keys": {
+            "items": {
+              "$ref": "#/components/schemas/S3Key"
+            },
+            "type": "array",
+            "title": "Keys",
+            "description": "your access keys"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "port",
+          "webdav",
+          "keys"
+        ],
+        "title": "S3Status",
+        "description": "The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both)."
+      },
       "SavedSearch": {
         "properties": {
           "id": {
@@ -50163,6 +52902,156 @@
         ],
         "title": "SetupAdmin"
       },
+      "SetupBudget": {
+        "properties": {
+          "hard_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Usd"
+          },
+          "soft_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soft Usd"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "title": "Period",
+            "default": "month"
+          },
+          "on_over": {
+            "type": "string",
+            "enum": [
+              "ask",
+              "skip"
+            ],
+            "title": "On Over",
+            "default": "ask"
+          },
+          "price_in": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price In"
+          },
+          "price_out": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Out"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SetupBudget"
+      },
+      "SetupBudgetView": {
+        "properties": {
+          "hard_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Usd"
+          },
+          "soft_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soft Usd"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period",
+            "default": "month"
+          },
+          "on_over": {
+            "type": "string",
+            "title": "On Over",
+            "default": "ask"
+          },
+          "price_in": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price In"
+          },
+          "price_out": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Out"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "SetupBudgetView"
+      },
       "SetupFinish": {
         "properties": {
           "skipped": {
@@ -50575,6 +53464,9 @@
           },
           "oauth": {
             "$ref": "#/components/schemas/SetupOAuthView"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/SetupBudgetView"
           }
         },
         "additionalProperties": true,
@@ -50586,7 +53478,8 @@
           "llm",
           "storage",
           "telemetry",
-          "oauth"
+          "oauth",
+          "budget"
         ],
         "title": "SetupView"
       },
@@ -50754,6 +53647,38 @@
           "embed"
         ],
         "title": "ShareLink"
+      },
+      "ShareServer": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "whether an admin turned it on (shares.enabled and its own switch)"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)"
+          },
+          "service": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/S3Service"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the process running it says; none while it's off"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "port"
+        ],
+        "title": "ShareServer"
       },
       "ShareSite": {
         "properties": {
@@ -51262,6 +54187,197 @@
           "label"
         ],
         "title": "SimilarTopic"
+      },
+      "SlackStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has connected yet); running; error (the connection or the last message failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process connected to Slack"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last heard from Slack"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team",
+            "description": "the Slack workspace it's connected to"
+          },
+          "bot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot",
+            "description": "the app's bot user"
+          },
+          "command": {
+            "type": "string",
+            "title": "Command",
+            "description": "the slash command, such as /lens"
+          },
+          "create_url": {
+            "type": "string",
+            "title": "Create Url",
+            "description": "where the Slack app is created from its manifest, in one click"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state",
+          "command",
+          "create_url"
+        ],
+        "title": "SlackStatus"
+      },
+      "SmbStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "phase": {
+            "type": "string",
+            "enum": [
+              "off",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "Phase"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "the port clients connect to (where Docker publishes it)"
+          },
+          "share": {
+            "type": "string",
+            "title": "Share",
+            "description": "the share's name"
+          },
+          "allowed_networks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Networks"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "process": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Process",
+            "description": "the worker serving it"
+          },
+          "installed": {
+            "type": "boolean",
+            "title": "Installed",
+            "description": "whether the SMB server (impacket) is installed here; it's fetched when the share is turned on"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address",
+            "description": "the address Finder and Linux file managers open (the machine's name filled in by the caller)"
+          },
+          "mount": {
+            "type": "string",
+            "title": "Mount",
+            "description": "the command that mounts it on Linux"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "phase",
+          "port",
+          "share",
+          "allowed_networks",
+          "installed",
+          "address",
+          "mount"
+        ],
+        "title": "SmbStatus"
       },
       "Source": {
         "properties": {
@@ -52840,6 +55956,149 @@
         ],
         "title": "TagsChanged"
       },
+      "TelegramChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the chat's id, for telegram.rooms (like -1001234567890 = pods)"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "TelegramChat"
+      },
+      "TelegramPerson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "their Telegram user id, for telegram.users"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed",
+            "description": "in telegram.users: Lens talks to them"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "allowed"
+        ],
+        "title": "TelegramPerson"
+      },
+      "TelegramStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Telegram failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process reading the bot's messages"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last looked"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "bot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot",
+            "description": "the bot's username, once Lens has asked Telegram"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TelegramChat"
+            },
+            "type": "array",
+            "title": "Chats",
+            "description": "the chats it has seen, latest first"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/TelegramPerson"
+            },
+            "type": "array",
+            "title": "People",
+            "description": "who has written to it, latest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "TelegramStatus"
+      },
       "TelemetryExport": {
         "properties": {
           "at": {
@@ -53376,6 +56635,35 @@
         ],
         "title": "TemplateSummary"
       },
+      "TemplateUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TemplateUpdate"
+      },
       "TemplateVersionCreate": {
         "properties": {
           "body": {
@@ -53514,6 +56802,54 @@
           "ticket"
         ],
         "title": "TicketRequest"
+      },
+      "TikaTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "what the Tika server says it is: Apache Tika 4.0.0"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "TikaTestResult"
       },
       "TokenLimits": {
         "properties": {
@@ -54167,6 +57503,82 @@
         "additionalProperties": false,
         "type": "object",
         "title": "TopicUpdate"
+      },
+      "TreeEntry": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "folder": {
+            "type": "boolean",
+            "title": "Folder"
+          },
+          "modified": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "a file's size in bytes"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "folder"
+        ],
+        "title": "TreeEntry"
+      },
+      "TreeFolder": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "the folder, from the top: '' for the namespaces"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TreeEntry"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "path",
+          "entries"
+        ],
+        "title": "TreeFolder"
       },
       "TunnelStatus": {
         "properties": {

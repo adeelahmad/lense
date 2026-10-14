@@ -49,6 +49,12 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
   StatusChip, RoleChip, SpeakerChip, EmotionChip, JobStepChip, Field/Input/Select/Switch/Checkbox, SecretField,
   Tabs, Dialog, Drawer, Menu, Popover, Toast, Banner, Table with sortable headers and Pagination, Skeleton,
   EmptyState, CodeBlock, DateTime, Avatar, Progress, PageHeader, Panel, StepLoop, VerdictCard, AgentChip.
+* **On a phone** (below 640 px, Tailwind's `sm`), nothing needs a sideways swipe and nothing is out of reach: the
+  namespace switcher sits at the top of the menu, Import is an icon in the top bar, settings sections open as a list
+  from the current section's name, tabs wrap, and wide tables (sensors, connections) become cards. A form's main buttons
+  take `phone-actions` (`app/globals.css`) to stay pinned at the bottom of the screen, clear of the floating Ask button;
+  a Dialog's actions stay in sight on their own. The [clicks
+  survey](https://github.com/adeelahmad/lense/blob/main/ci/clicks/README.md) measures every journey on a phone too.
 * **The role rule:** actions a person can't take stay visible, disabled, with a tooltip saying who can
   (`needRole()`); namespaces they have no role in never appear. `useArchive()` gives `can(role, ns)` and the
   current namespace.

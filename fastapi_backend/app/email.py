@@ -21,12 +21,14 @@ def mail_enabled(cfg: dict[str, Any]) -> bool:
 
 def app_url(cfg: dict[str, Any], db: Any = None) -> str:
     """Where people open the web app, for links in emails: notifications.app_url when set, else the Cloudflare tunnel's
-    fixed hostname (Settings › Remote access), else FRONTEND_URL. With `db`, for a link that's read right away (a chat
-    room's answer), a quick tunnel's address counts too while it's up; emails don't use it, since it changes."""
-    from app.domain import tunnel
+    fixed hostname (Settings › Remote access), else the first HTTPS domain (Settings › HTTPS), else FRONTEND_URL. With
+    `db`, for a link that's read right away (a chat room's answer), a quick tunnel's address counts too while it's up;
+    emails don't use it, since it changes."""
+    from app.domain import https, tunnel
 
     host = tunnel.hostname(cfg) or (tunnel.public_host(db) if db is not None else "")
-    return str((cfg.get("notifications") or {}).get("app_url") or (f"https://{host}" if host else settings.FRONTEND_URL)).rstrip("/")
+    url = f"https://{host}" if host else https.public_url(cfg) or settings.FRONTEND_URL
+    return str((cfg.get("notifications") or {}).get("app_url") or url).rstrip("/")
 
 
 def _mailer(cfg: dict[str, Any]) -> Any:

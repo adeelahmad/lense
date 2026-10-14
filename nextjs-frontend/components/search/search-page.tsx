@@ -82,6 +82,11 @@ export function SearchPage() {
   const index = useRecordingIndex();
 
   useEffect(() => setDraft(q), [q]);
+  // Arriving with nothing searched yet: the box has the focus, so typing searches
+  const arrivedEmpty = useRef(!q);
+  useEffect(() => {
+    if (arrivedEmpty.current) inputRef.current?.focus();
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;

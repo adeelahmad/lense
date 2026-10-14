@@ -53,6 +53,10 @@ describe("routine actions", () => {
     expect(actionText({ type: "workflow", workflow: 4, recordings: "all" }, names)).toBe(
       "Run Meeting notes on all assets",
     );
+    // the seeded "Index for search by meaning" routine: steps of its own, on what isn't indexed yet
+    expect(actionText({ type: "pipeline", steps: ["embed"], recordings: "unindexed" }, names)).toBe(
+      "Run the embed step on assets not yet searchable by meaning",
+    );
     expect(routineText(actions, names)).toBe(
       "Sync every watched folder, then run each namespace’s pipeline on assets not processed yet, " +
         "then organise the graph with Organise the entity graph (propose only)",

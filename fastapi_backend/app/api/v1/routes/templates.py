@@ -7,13 +7,14 @@ from fastapi.responses import PlainTextResponse
 
 from app.api.deps import Acl, AdminWriter, Cfg, CurrentUser, Db, Writer
 from app.domain import auth, llm, templates
-from app.schemas.common import Created
+from app.schemas.common import Created, Ok
 from app.schemas.templates import (
     Template,
     TemplateCreate,
     TemplatePreview,
     TemplatePreviewRequest,
     TemplateSummary,
+    TemplateUpdate,
     TemplateVersionCreate,
     VersionSaved,
 )
@@ -71,6 +72,19 @@ def get_template(tid: int, user: CurrentUser, db: Db, version: int | None = None
         return Template.model_validate({**templates.get(db, tid, version), "history": templates.versions(db, tid)})
     except KeyError:
         raise HTTPException(404, "not found") from None
+
+
+@router.patch("/{tid}")
+def update_template(tid: int, body: TemplateUpdate, user: AdminWriter, db: Db) -> Ok:
+    """Its name and description (the text changes by saving a version)."""
+    try:
+        templates.rename(db, tid, body.name, body.description)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    except templates.TemplateProblem as e:
+        raise HTTPException(400, str(e)) from None
+    auth.audit(db, user.as_audit(), "template.update", f"template:{tid}")
+    return Ok()
 
 
 @router.post("/{tid}/versions")

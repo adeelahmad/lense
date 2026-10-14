@@ -62,6 +62,7 @@ def test_where_lens_cannot_convert_anytopdf_does(lean, here, client, env, db, cf
         "pages": True,
         "msg": False,
         "web": False,
+        "tika": False,
     }
     txt = _upload(client, he, b"Tide notes\n\nHigh water at noon.\n", "notes.txt")
     mail = _upload(client, he, _email("Harbour report", 9), "mail.eml")
@@ -88,7 +89,7 @@ def test_where_lens_cannot_convert_anytopdf_does(lean, here, client, env, db, cf
 
     # Office files still need LibreOffice here
     r = _start(client, he, b"x", "letter.docx")
-    assert r.status_code == 400 and "or an anytopdf conversion node" in r.json()["detail"]
+    assert r.status_code == 400 and "an anytopdf conversion node or a Tika server" in r.json()["detail"]
 
 
 def test_with_lens_chosen_anytopdf_is_never_used(lean, here, client, env, db, cfg):

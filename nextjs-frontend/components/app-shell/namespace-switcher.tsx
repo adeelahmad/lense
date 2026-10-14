@@ -24,9 +24,9 @@ function SomeChip({ className }: { className?: string }) {
   );
 }
 
-/** The top bar's namespace picker: the namespaces the person has a role in, and those they see some collections of.
- * Others don't exist for them. */
-export function NamespaceSwitcher() {
+/** The top bar's namespace picker (in the navigation drawer on a phone): the namespaces the person has a role in, and
+ * those they see some collections of. Others don't exist for them. `onPick` runs after one is picked. */
+export function NamespaceSwitcher({ className, onPick }: { className?: string; onPick?: () => void }) {
   const { namespaces: full, partialNamespaces, namespace, setNamespace, roleIn, isPartial } = useArchive();
   const namespaces = [...full, ...partialNamespaces].sort((a, b) => a.name.localeCompare(b.name));
   const [open, setOpen] = useState(false);
@@ -34,7 +34,10 @@ export function NamespaceSwitcher() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        className="flex h-10 min-w-0 items-center gap-2.5 rounded-sm border border-border bg-background pl-3 pr-2.5 text-left hover:bg-surface"
+        className={cn(
+          "flex h-10 min-w-0 items-center gap-2.5 rounded-sm border border-border bg-background pl-3 pr-2.5 text-left hover:bg-surface",
+          className,
+        )}
         aria-label={`Namespace: ${namespace ?? "all namespaces"}. Change`}
       >
         {namespace ? (
@@ -42,7 +45,7 @@ export function NamespaceSwitcher() {
         ) : (
           <Layers className="size-4 shrink-0 text-fg-secondary" />
         )}
-        <span className="flex min-w-0 flex-col">
+        <span className="flex min-w-0 flex-1 flex-col">
           <span className="text-[9.5px] font-bold uppercase leading-none tracking-[.06em] text-fg-muted">
             Namespace
           </span>
@@ -52,7 +55,7 @@ export function NamespaceSwitcher() {
         {isPartial(namespace) && <SomeChip className="hidden lg:inline-flex" />}
         <ChevronsUpDown className="size-4 shrink-0 text-fg-muted" />
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-1.5">
+      <PopoverContent className="w-[300px] max-w-[calc(100vw-24px)] p-1.5">
         <ul role="listbox" aria-label="Namespaces">
           {[null, ...namespaces.map((n) => n.name)].map((name) => {
             const ns = namespaces.find((n) => n.name === name);
@@ -66,6 +69,7 @@ export function NamespaceSwitcher() {
                   onClick={() => {
                     setNamespace(name);
                     setOpen(false);
+                    onPick?.();
                   }}
                   className={cn(
                     "flex w-full items-center gap-2.5 rounded-sm px-2.5 py-2 text-left hover:bg-surface-neutral",

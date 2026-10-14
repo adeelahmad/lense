@@ -10,7 +10,15 @@ import { count } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /** "Find in graph": type to list matching nodes; Enter picks the best one. */
-export function GraphFinder({ nodes, onPick }: { nodes: GraphNode[]; onPick: (id: string) => void }) {
+export function GraphFinder({
+  nodes,
+  onPick,
+  autoFocus,
+}: {
+  nodes: GraphNode[];
+  onPick: (id: string) => void;
+  autoFocus?: boolean;
+}) {
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const hits = findNodes(nodes, q).slice(0, 8);
@@ -35,6 +43,7 @@ export function GraphFinder({ nodes, onPick }: { nodes: GraphNode[]; onPick: (id
             setQ("");
           } else if (e.key === "Escape") setQ("");
         }}
+        autoFocus={autoFocus}
         placeholder="Find in graph"
         aria-label="Find in graph"
         role="combobox"
@@ -94,6 +103,7 @@ export function GraphFilters({
   maxNodes,
   onPick,
   isolated,
+  focusFind,
 }: {
   nodes: GraphNode[];
   scope: "ns" | "all";
@@ -112,6 +122,8 @@ export function GraphFilters({
   maxNodes: number | null;
   onPick: (id: string) => void;
   isolated: string[];
+  /** The find box takes the focus when it shows. */
+  focusFind?: boolean;
 }) {
   const present = new Set(nodes.map(nodeGroup));
   const toggle = (set: Set<string>, v: string) => {
@@ -122,7 +134,7 @@ export function GraphFilters({
   };
   return (
     <div className="flex flex-col gap-3.5">
-      <GraphFinder nodes={nodes} onPick={onPick} />
+      <GraphFinder nodes={nodes} onPick={onPick} autoFocus={focusFind} />
       <div className="flex flex-col gap-1.5">
         <span className="label-caps">Scope</span>
         <Segmented

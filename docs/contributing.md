@@ -16,11 +16,13 @@ Lens is one repository with several projects, and [Nx](https://nx.dev/) runs the
 
 | Project | Folder | Targets |
 | --- | --- | --- |
-| `backend` | `fastapi_backend/` | `lint`, `format`, `typecheck`, `test` (`:ci` with coverage, `:server` against `LENS_TEST_SURREAL_URL`), `openapi-check`, `openapi` |
+| `backend` | `fastapi_backend/` | `lint`, `format`, `typecheck`, `test` (`:ci` with coverage, `:server` against `LENS_TEST_SURREAL_URL`), `test-durations`, `openapi-check`, `openapi` |
 | `frontend` | `nextjs-frontend/` | `lint`, `typecheck`, `test` (`:ci` with coverage), `build`, `generate-client` |
 | `installer` | `installer/` | `test` |
 | `docs` | `docs/` (with `mkdocs.yml`, `overrides/`, `README.md`, `CHANGELOG.md`) | `build` (strict, as CI), `serve` |
 | `clipper` | `extensions/browser/` | `install` (`npm ci` when the lockfile is newer than `node_modules`), `test`, `build` (every browser target, checked) |
+| `desktop` | `desktop/` | `lint` (`sh -n` and shellcheck on `lens-app.sh`), `test` (`lens-app.sh` checks on Linux; the Mac build stays in the Desktop workflow) |
+| `microsandbox` | `microsandbox/` | `lint` (`sh -n` and shellcheck on its scripts), `test` (`test-dns.sh`, the name-lookup fallback, and `test-programs.sh`, LibreOffice and Chromium on first use, in the base image with Docker; the install itself runs in the Install workflow) |
 
 ```bash
 pnpm exec nx run backend:test                          # one target (make test-backend)
@@ -35,16 +37,27 @@ run these same targets. A target whose inputs (its project's files, plus the few
 changed replays its last result from the local cache in `.nx/`; `--skip-nx-cache` runs it anyway. The cache stays on
 your machine: Nx Cloud is never connected (`neverConnectToCloud`) and Nx's usage analytics are off (`analytics: false`).
 
-CI (`.github/workflows/ci.yml`) runs the same targets, and only for the projects a change affects. Its first job,
-**Affected projects**, compares a pull request with the `main` it merges into (a push to `main` with `main`'s last
-green CI run) and lists the affected projects in its summary. **FastAPI (embedded SurrealDB)** and **FastAPI
-(SurrealDB server)** run when `backend` is affected, **Next.js** when `frontend` is, and **Other projects** runs the
-`lint`, `typecheck`, `test` and `build` targets of every other affected project (the docs site, the installer tests,
-the web clipper). A job that doesn't run is reported as skipped, which counts as passed, so these job names can stay
-required checks. A change to `nx.json`, the root `package.json` or `ci.yml` affects every project. Running the CI
-workflow by hand (Actions > CI > Run workflow) checks every project. `pre-commit`, `PR title`, `Install`,
-`threat model`, the clipper's browser workflows (which also keep the zips with the run) and the packaging workflows run
-as before.
+CI (`.github/workflows/ci.yml`) runs the same targets, and only for the projects a change affects: a pull request is
+compared with the `main` it merges into, a push to `main` with `main`'s last green CI run. Every job starts at once and
+asks Nx for itself (`.github/actions/affected`), so no job waits for another one, and for a free runner a second time,
+before it starts; a job whose project isn't affected stops there and passes. **FastAPI (embedded SurrealDB)** and
+**FastAPI (SurrealDB server)** test `backend`, each split across two runners (`1/2`, `2/2`); the first embedded one
+also lints, type checks and checks the OpenAPI schema. **Next.js** checks `frontend`, and **Other projects** runs the
+`lint`, `typecheck`, `test` and `build` targets of every other affected project (the docs site, the installer tests, the
+web clipper) and lists the affected projects in its summary. A change to `nx.json`, the root `package.json`, `ci.yml` or
+`.github/actions/` affects every project. Running the CI workflow by hand (Actions > CI > Run workflow) checks every
+project.
+
+The backend's tests are split by how long each took ([pytest-split](https://github.com/jerry-git/pytest-split), from
+`fastapi_backend/tests/durations.json`), so the runners finish close together. A test missing from the file counts as
+the average; to record the durations again, run `pnpm exec nx run backend:test-durations` and commit the file. To
+split across more runners, add a shard to the job's `matrix`. Each runner keeps its share of the coverage with the
+run; on `main`, **Backend coverage** adds them up into the `backend-coverage` artifact and the run's summary.
+
+Merging or closing a pull request cancels its CI, `pre-commit` and `Install` runs that are still waiting or going, and
+a newer push or title cancels the older ones, so a runner never works on something that no longer counts.
+`pre-commit`, `PR title`, `Install`, `threat model`, the clipper's browser workflows (which also keep the zips with the
+run) and the packaging workflows otherwise run as before.
 
 To add a project (the desktop app, say), give its folder a `project.json` with a `name` and any of the `lint`,
 `typecheck`, `test` and `build` targets (`nx:run-commands`, with `cwd: "{projectRoot}"`); a target that needs its

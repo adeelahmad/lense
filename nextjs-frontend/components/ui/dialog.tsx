@@ -36,7 +36,8 @@ function enterSubmits(e: KeyboardEvent<HTMLElement>, actions: HTMLElement | null
 }
 
 /** Modal dialog: 24px radius, scrim with a 2px blur, title 700/22. Opens with its first field focused; Enter in a
- * one-line field runs the main action (the last primary or danger button in `actions`). */
+ * one-line field runs the main action (the last primary or danger button in `actions`), and `actions` stay in sight
+ * when the rest scrolls. */
 export function Dialog({
   open,
   onOpenChange,
@@ -71,7 +72,9 @@ export function Dialog({
           )}
         >
           <div className="flex items-start gap-3">
-            <D.Title className="flex-1 text-[22px] font-bold leading-tight tracking-[-.01em] text-fg">{title}</D.Title>
+            <D.Title className="min-w-0 flex-1 text-[22px] font-bold leading-tight tracking-[-.01em] text-fg [overflow-wrap:anywhere]">
+              {title}
+            </D.Title>
             <D.Close
               className="-mr-2 -mt-1 grid size-8 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"
               aria-label="Close"
@@ -86,7 +89,11 @@ export function Dialog({
           )}
           {children}
           {actions && (
-            <div ref={actionsRef} className="flex flex-wrap justify-end gap-2 pt-1">
+            // stays at the bottom of a dialog taller than the screen (a phone), with the rest scrolling above it
+            <div
+              ref={actionsRef}
+              className="sticky -bottom-6 z-10 -mx-6 -mb-6 -mt-2 flex flex-wrap justify-end gap-2 bg-background px-6 pb-6 pt-3"
+            >
               {actions}
             </div>
           )}
@@ -123,7 +130,7 @@ export function Drawer({
           className="fixed bottom-0 right-0 top-16 z-[90] flex max-w-full flex-col border-l border-border bg-background shadow-3 animate-slide-in-right"
         >
           <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <D.Title className="flex-1 text-[16px] font-bold text-fg">{title}</D.Title>
+            <D.Title className="min-w-0 flex-1 text-[16px] font-bold text-fg [overflow-wrap:anywhere]">{title}</D.Title>
             {actions}
             <D.Close
               className="grid size-8 place-items-center rounded-full text-fg-secondary hover:bg-surface-neutral"

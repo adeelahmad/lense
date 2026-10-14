@@ -1,7 +1,7 @@
 "use client";
 
 import { KeyRound, Lock, LockOpen } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import { ChoiceCards, Pills } from "@/components/settings/controls";
 import { fieldId, type FieldSpec } from "@/components/settings/model";
@@ -37,12 +37,15 @@ export function SettingField({
   hint,
   className,
   label,
+  suggestions,
 }: {
   spec: FieldSpec;
   state: FieldState;
   hint?: ReactNode;
   className?: string;
   label?: ReactNode;
+  /** Values a text field offers as you type (a datalist); any other can still be typed. */
+  suggestions?: string[];
 }) {
   const auto = useId();
   const id = `${fieldId(spec).replace(/\./g, "-")}-${auto}`;
@@ -148,8 +151,16 @@ export function SettingField({
           value={String(value ?? "")}
           readOnly={disabled}
           onChange={(e) => onChange(e.target.value)}
+          list={suggestions?.length ? `${id}-options` : undefined}
         />
       )}
+      {suggestions?.length ? (
+        <datalist id={`${id}-options`}>
+          {suggestions.map((o) => (
+            <option key={o} value={o} />
+          ))}
+        </datalist>
+      ) : null}
       <Message id={msg} error={error} hint={text} />
     </div>
   );
@@ -167,6 +178,8 @@ export function SecretSetting({
   value,
   onChange,
   placeholder = "Paste an API key",
+  hint,
+  focus = 0,
 }: {
   label: string;
   isSet: boolean;
@@ -175,11 +188,25 @@ export function SecretSetting({
   value: string | undefined;
   onChange: (v: string | undefined) => void;
   placeholder?: string;
+  hint?: ReactNode;
+  /** Changed to ask for a key now (a cloud provider was picked): the field takes the focus, replacing a saved key. */
+  focus?: number;
 }) {
   const id = useId();
   const [replacing, setReplacing] = useState(false);
   const box = "flex h-10 items-center gap-1.5 rounded-sm border pl-3 pr-1";
   const showSet = isSet && !replacing && value === undefined;
+  const input = useRef<HTMLInputElement>(null);
+  const asked = useRef(focus); // asked again, not on mounting (after a save)
+  useEffect(() => {
+    if (!focus || asked.current === focus) return;
+    if (showSet) {
+      setReplacing(true); // the field to paste into opens, and this runs again
+      return;
+    }
+    asked.current = focus;
+    input.current?.focus();
+  }, [focus, showSet]);
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-[13px] font-bold leading-tight text-fg-strong">
@@ -217,6 +244,7 @@ export function SecretSetting({
             <LockOpen aria-hidden className="size-3.5 shrink-0 text-fg-muted" />
           )}
           <input
+            ref={input}
             id={id}
             type="password"
             autoComplete="off"
@@ -241,6 +269,7 @@ export function SecretSetting({
         </div>
       )}
       <p className="text-[12px] leading-[1.3] text-fg-muted">
+        {hint && <>{hint}. </>}
         {showSet
           ? "The value is never shown again, not even to admins."
           : isSet && value !== ""

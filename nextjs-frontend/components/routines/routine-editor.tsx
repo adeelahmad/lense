@@ -522,7 +522,7 @@ export function RoutineEditor({ routine, onSaved }: { routine?: Routine; onSaved
           {error}
         </Banner>
       )}
-      <div className="flex items-center gap-2">
+      <div className="phone-actions flex items-center gap-2 max-sm:-mx-4 max-sm:px-4">
         <Button
           type="submit"
           variant="primary"

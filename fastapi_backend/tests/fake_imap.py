@@ -1,9 +1,10 @@
 """An IMAP server for tests that speaks just enough IMAP4rev1 over a plain socket for imaplib: LOGIN, LIST, EXAMINE
-and SELECT, UID FETCH (sizes, dates, header fields and whole messages, as literals) and LOGOUT. It keeps every
-command it was sent (`commands`), so a test can check nothing was changed or marked read.
+and SELECT, UID FETCH (sizes, dates, header fields and whole messages, as literals), UID STORE and LOGOUT. It keeps
+every command it was sent (`commands`), so a test can check nothing was changed or marked read.
 
 `mailboxes` is {name: [(uid, raw message, INTERNALDATE)]}; `flags` gives a mailbox's LIST flags (e.g. \\Trash), and
-`validity` its UIDVALIDITY (7 unless set), which a test changes to rebuild a mailbox.
+`validity` its UIDVALIDITY (7 unless set), which a test changes to rebuild a mailbox. `stored` is {(mailbox, uid):
+flags} set by UID STORE; `uidnext` False leaves UIDNEXT out of SELECT's answer, as some servers do.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ class Server(socketserver.ThreadingTCPServer):
     def __init__(self, mailboxes, user="lens", password="mail password 1", flags=None):
         super().__init__(("127.0.0.1", 0), Handler)
         self.mailboxes, self.user, self.password, self.flags = mailboxes, user, password, flags or {}
-        self.commands, self.validity = [], {}
+        self.commands, self.validity, self.stored, self.uidnext = [], {}, {}, True
 
     @property
     def port(self):
@@ -80,7 +81,17 @@ class Handler(socketserver.StreamRequestHandler):
                     continue
                 box = name
                 validity = srv.validity.get(box, 7)
-                self.send(f"* {len(srv.mailboxes[box])} EXISTS\r\n* OK [UIDVALIDITY {validity}] ok\r\n{tag} OK [READ-ONLY] {cmd} done\r\n")
+                nxt = max((m[0] for m in srv.mailboxes[box]), default=0) + 1
+                more = f"* OK [UIDNEXT {nxt}] ok\r\n" if srv.uidnext else ""
+                mode = "READ-ONLY" if cmd == "EXAMINE" else "READ-WRITE"
+                self.send(
+                    f"* {len(srv.mailboxes[box])} EXISTS\r\n* OK [UIDVALIDITY {validity}] ok\r\n{more}{tag} OK [{mode}] {cmd} done\r\n"
+                )
+            elif cmd == "UID" and box is not None and args.upper().startswith("STORE "):
+                _, which, how, flags = args.split(" ", 3)
+                for uid in which.split(","):
+                    srv.stored.setdefault((box, int(uid)), set()).update(flags.strip("()").split())
+                self.send(f"{tag} OK stored\r\n")
             elif cmd == "UID" and box is not None:
                 self.uid(tag, args, srv.mailboxes[box])
             else:
@@ -94,11 +105,16 @@ class Handler(socketserver.StreamRequestHandler):
         which, _, items = args.partition(" ")
         if which.endswith(":*"):  # n:* is every message from n on, and at least the last one (as IMAP has it)
             chosen = [m for m in messages if m[0] >= int(which[:-2])] or messages[-1:]
+        elif which == "*":
+            chosen = messages[-1:]
         else:
             chosen = [m for m in messages if str(m[0]) == which]
         for seq, (uid, raw, arrived) in enumerate(chosen, 1):
             if "BODY.PEEK[]" in items:
                 self.send(f"* {seq} FETCH (UID {uid} BODY[] {{{len(raw)}}}\r\n".encode() + raw + b")\r\n")
+                continue
+            if "HEADER.FIELDS" not in items:
+                self.send(f"* {seq} FETCH (UID {uid})\r\n")
                 continue
             msg = email.message_from_bytes(raw, policy=policy.default)
             fields = re.search(r"HEADER\.FIELDS \(([^)]*)\)", items).group(1)

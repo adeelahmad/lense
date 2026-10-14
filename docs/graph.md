@@ -10,7 +10,9 @@ vocabulary (SKOS), apart from entities, shown on the explorer canvas as their ow
 
 ## The explorer
 
-Graph in the sidebar shows the graph of the scope picked at the top (one namespace, or all shared).
+Graph in the sidebar shows the graph of the scope picked at the top (one namespace, or all shared). With no namespace
+picked it opens on all shared namespaces, or, when none of them has a graph yet, on the namespace that keeps its graph
+to itself and has one. On a computer the Find in graph box has the focus, so typing a name finds it.
 
 - **Move around**: drag the background to pan, the wheel or the + and − buttons to zoom; on touch, drag with one
   finger and pinch with two. Drag a node to put it where you want; it stays there on this device until a layout or

@@ -75,7 +75,13 @@ export function StepLoop({
   const big = compact ? 22 : 34;
   const box = compact ? 24 : 38;
   return (
-    <ol aria-label={label} className={cn("m-0 flex list-none items-start p-0", className)}>
+    // Scrolls inside its own box when the steps don't fit (a phone) rather than widening the page: relative, so the
+    // screen-reader-only state of each step is positioned (and clipped) in here too. The padding keeps the current
+    // step's ring clear of the scroll box's edge.
+    <ol
+      aria-label={label}
+      className={cn("relative -my-1 flex max-w-full list-none items-start overflow-x-auto px-0 py-1", className)}
+    >
       {steps.map((s, i) => {
         const tone = s.tone ?? STEP_TONE[s.key ?? ""] ?? "intent";
         const [fg, pale] = FILL[tone];

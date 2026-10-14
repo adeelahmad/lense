@@ -4,7 +4,7 @@
  */
 import type { Tone } from "@/components/ui/badge";
 
-export type Pick = "new" | "unprocessed" | "all";
+export type Pick = "new" | "unprocessed" | "all" | "unindexed";
 export type SyncAction = { type: "sync"; watches?: number[] | null };
 export type PipelineAction = {
   type: "pipeline";
@@ -75,6 +75,7 @@ export const PICK_LABEL: Record<Pick, string> = {
   new: "new assets (since the last run)",
   unprocessed: "assets not processed yet",
   all: "all assets",
+  unindexed: "assets not yet searchable by meaning",
 };
 
 export function newAction(type: RoutineAction["type"]): RoutineAction {
@@ -107,8 +108,13 @@ export function actionText(a: RoutineAction, names: Names): string {
   }
   const on = PICK_LABEL[a.recordings ?? "new"];
   if (a.type === "pipeline") {
+    const steps = (a.steps ?? []).filter((x): x is string => typeof x === "string");
     const p =
-      a.pipeline != null ? (names.pipeline(a.pipeline) ?? `pipeline #${a.pipeline}`) : "each namespace’s pipeline";
+      a.pipeline != null
+        ? (names.pipeline(a.pipeline) ?? `pipeline #${a.pipeline}`)
+        : steps.length
+          ? `the ${steps.join(", ")} step${steps.length > 1 ? "s" : ""}`
+          : "each namespace’s pipeline";
     return `Run ${p} on ${on}`;
   }
   if (a.workflow == null) return "Run a workflow (choose one)";

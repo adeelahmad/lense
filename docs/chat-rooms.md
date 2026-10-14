@@ -4,6 +4,51 @@ Lens's assistant can answer in Slack, Discord, Telegram, Matrix, Mattermost, IRC
 [Matterbridge](https://github.com/42wim/matterbridge) bridges. Say "Lens, what did we decide about the launch?" (or
 "@Lens …") in a bridged room and it answers there, as it would in Chat.
 
+## Telegram, built in
+
+Telegram needs no Matterbridge and no public address: Lens reads its own bot's messages (long polling) and answers.
+
+1. In Telegram, message **@BotFather**, send `/newbot` and copy the token it gives you.
+2. Open **Settings → Telegram**, paste the token and turn on **Answer in Telegram**.
+3. Message your bot. You show on the settings page under **Wrote to the bot, not let in**: click **Let in**.
+
+Anyone can find a bot, so it answers only the people in **People it talks to** (Telegram user ids or usernames);
+anyone else who writes to it is told once that they need to be let in, and shows on the page. A private chat with
+the bot is always for Lens; in a group it answers what names it ("Lens, …"), mentions the bot (`@your_bot`) or
+replies to it. Voice notes are transcribed by the server's speech-to-text (the answer starts with what it heard), and
+files sent to it (up to Telegram's 20 MB for bots) are held for the assistant, which imports them into a namespace as
+a file dropped into Chat is. The page lists the chats it has seen with their ids, so a group can be given to a
+namespace's assistant with **Chats for a namespace's assistant** (`-1001234567890 = pods`). Approving by replying
+"yes", the account it answers as and routing between namespaces work as below.
+
+Give Lens a bot of its own: a bot that Matterbridge also reads answers neither reliably (**Check the bot** says so).
+
+Telegram is one adapter of the chat-channel layer (`app/domain/channels.py`) that Matterbridge is another of; a new
+chat app adds an adapter (reading, sending, files) and gets everything in a room for free. The assistant's own email
+address is one too ([The assistant by email](assistant-email.md)).
+
+## Slack, built in
+
+Slack needs no Matterbridge and no public address either: Lens connects to a Slack app of your own over Socket Mode
+and answers there.
+
+1. Open **Settings → Slack** and click **Create the Slack app**. Slack opens with the app already described (Lens's
+   manifest: its permissions, the `/lens` command, Socket Mode); pick the workspace and create it.
+2. In the app's page, **Install to Workspace**, then copy the **Bot User OAuth Token** (`xoxb-…`, under OAuth &
+   Permissions). Under **Basic Information → App-Level Tokens**, generate one with `connections:write` and copy it
+   (`xapp-…`).
+3. Paste both tokens in Settings → Slack and turn on **Answer in Slack**. **Check the app** says whether both work.
+
+Message the app directly (always for Lens), invite it to a channel with `/invite @Lens` and say "Lens, …" or
+@mention it, or type `/lens what did we decide about the launch?` anywhere (the answer shows in that channel).
+`/lens clear` and `/lens compact` are the [chat commands](assistant.md). In a thread it answers in the thread. Voice
+clips are transcribed by the server's speech-to-text and files posted with a message are held for the assistant to
+import, as with Telegram. **People it talks to** (Slack usernames or member ids) limits who it answers, and lets them
+approve by replying "yes"; **Channels for a namespace's assistant** gives a channel to a namespace (`slack/general =
+pods`). Slack is an adapter of the same chat-channel layer as Telegram and Matterbridge (`app/domain/slack.py`).
+
+Give Lens an app of its own: an app whose bot token Matterbridge also uses answers twice (**Check the app** says so).
+
 ## Set it up in the web app
 
 Lens can run Matterbridge for you, so adding Slack or WhatsApp takes no config file:
@@ -74,7 +119,17 @@ That's all. Without an account given, it answers as the admin who turned it on.
   several waiting, "yes all" or "yes 12". Only the chat usernames listed may message Lens and approve, so it needs
   that list; **Approving in the room: only in the web app** turns it off. Settings, imports, batch runs, extensions
   and forgetting are always approved in the web app. Each approval is in the audit log with "via chat room" and who
-  said yes.
+  said yes. Without a list, anyone in the room may be someone the account doesn't vouch for, so their messages count
+  as text from outside Lens: web tools and other servers' tools wait for approval in the web app too
+  ([third-party content](assistant.md#third-party-content-and-prompt-injection)).
+- **Links it can't be made to send.** Slack, Telegram, WhatsApp and most chat apps open the links in a message to
+  show a preview, so a web address the model built from what it read (`https://evil.example/c?d=` and the notes, as
+  a poisoned document might ask) would carry that out before anyone clicks. So a web address in an answer stays as it
+  is only when the person, the archive or a tool wrote it, or it is Lens's own; any other is broken up
+  (`hxxps://evil[.]example/c?d=...`) and an image becomes its address, still readable to copy by hand.
+  **Break up links the answer made itself** (`bridge.safe_links`, on) turns it off. The web app needs none of this:
+  its answers show no links or images that load by themselves. Each answer that had links broken up goes into the
+  audit log (`bridge.links_broken`, with how many).
 - **Conversations.** Each person in each room is a conversation of that account's, titled
   "Matterbridge · room · person", listed in Chat with the account's other conversations. Follow-ups keep their context,
   and older messages are folded into a running summary ([Long conversations](assistant.md)). `Lens /clear` starts
@@ -99,7 +154,7 @@ Settings (`matterbridge`): `run`, `slack_token`, `slack_channels`, `discord_toke
 `matrix_rooms`, `whatsapp_number`, `whatsapp_groups` (the tokens and the password are secrets).
 
 Settings (`bridge`): `enabled`, `url`, `token` (a secret), `account`, `name` (default Lens), `answer` (`mention` or
-`all`), `gateway`, `users`, `approve` (`low_risk` or `off`), `rooms`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to
+`all`), `gateway`, `users`, `approve` (`low_risk` or `off`), `safe_links` (default on), `rooms`, `poll_seconds` (default 2). The assistant can change them too ("connect Lens to
 Matterbridge at …").
 
 Refine later: voice notes and files posted in rooms, one Lens account per chat user.

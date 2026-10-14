@@ -1,10 +1,12 @@
 # Deployment
 
 Lens runs as containers: SurrealDB, the API, one or more workers, and the Next.js app. `docker-compose.prod.yml`
-is a production-shaped starting point. Two more services are opt-in profiles: `--profile fedora` adds a Fedora 6
-repository to keep a copy of the archive in ([Fedora](fedora.md)), and `--profile opensearch` adds OpenSearch for word
+is a production-shaped starting point. More services are opt-in profiles: `--profile fedora` adds a Fedora 6
+repository to keep a copy of the archive in ([Fedora](fedora.md)), `--profile opensearch` adds OpenSearch for word
 search on a big archive (then choose it in Settings → Search and reindex; the default is a SQLite index in
-`data_dir/search`).
+`data_dir/search`), and `--profile tika` adds an Apache Tika server that reads documents nothing else here can, and
+what every document says about itself (then set it in Settings → Documents;
+[Configuration](configuration.md#apache-tika)).
 
 ```bash
 export ACCESS_SECRET_KEY=$(openssl rand -hex 32) ARCHIVE_SECRET_KEY=$(openssl rand -hex 32) \

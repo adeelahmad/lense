@@ -3,6 +3,7 @@
  * what each step makes available to later ones, and one-line summaries of settings and conditions.
  */
 import { stepLabel } from "@/components/activity/job-model";
+import { uniqueName } from "@/lib/format";
 
 export type StepSpec = {
   type: string;
@@ -22,6 +23,19 @@ export type StepSpec = {
   force?: boolean;
   workflow?: number;
 };
+
+/** A name for a pipeline nobody named, from its steps ("Transcribe to report", "Analyze and summarize"), told apart
+ * from the pipelines there are. */
+export function suggestedPipelineName(steps: StepSpec[], taken: Iterable<string>): string {
+  const labels = steps.map((s) => stepLabel(s.type, s.name));
+  const [first, last] = [labels[0], labels[labels.length - 1]?.toLowerCase()];
+  const base = !first
+    ? "New pipeline"
+    : labels.length === 1
+      ? first
+      : `${first} ${labels.length === 2 ? "and" : "to"} ${last}`;
+  return uniqueName(base, taken);
+}
 
 export function toSpec(s: unknown): StepSpec {
   if (typeof s === "string") return { type: s };

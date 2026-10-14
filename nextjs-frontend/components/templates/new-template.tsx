@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Templates } from "@/app/openapi-client";
+import { useTemplateList } from "@/components/pipelines/catalog-header";
+import { suggestedTemplateName, type TemplateKind } from "@/components/templates/template-model";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/field";
 import { EmptyState } from "@/components/ui/states";
@@ -14,7 +16,7 @@ import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 
-type Kind = "prompt" | "report" | "export";
+type Kind = TemplateKind;
 
 /** Starting points, so a new template renders straight away. */
 const STARTERS: Record<Kind, { body: string; schema?: Record<string, unknown> }> = {
@@ -51,13 +53,19 @@ export function NewTemplate() {
   const [name, setName] = useState("");
   const [kind, setKind] = useState<Kind>("prompt");
   const [description, setDescription] = useState("");
+  const templates = useTemplateList();
+  const guess = suggestedTemplateName(
+    kind,
+    (templates.data ?? []).map((t) => t.name),
+  );
+  const named = name.trim() || guess;
   const create = useMutation({
     mutationFn: () =>
       data(
         Templates.createTemplate({
           client,
           body: {
-            name: name.trim(),
+            name: named,
             kind,
             description: description.trim() || null,
             body: STARTERS[kind].body,
@@ -67,7 +75,7 @@ export function NewTemplate() {
       ),
     onSuccess: (r) => {
       void qc.invalidateQueries({ queryKey: ["templates"] });
-      toast({ tone: "green", title: "Template created", body: name });
+      toast({ tone: "green", title: "Template created", body: named });
       router.push(`/templates/${r.id}`);
     },
     onError: (e: Error) =>
@@ -107,7 +115,7 @@ export function NewTemplate() {
             value={name}
             maxLength={80}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Podcast summary"
+            placeholder={guess}
           />
         )}
       </Field>
@@ -146,12 +154,7 @@ export function NewTemplate() {
         <Button asChild variant="ghost">
           <Link href="/templates">Cancel</Link>
         </Button>
-        <Button
-          variant="primary"
-          disabled={!name.trim() || create.isPending}
-          disabledReason="Give it a name"
-          onClick={() => create.mutate()}
-        >
+        <Button variant="primary" disabled={create.isPending} onClick={() => create.mutate()}>
           {create.isPending ? "Creating…" : "Create and edit"}
         </Button>
       </div>

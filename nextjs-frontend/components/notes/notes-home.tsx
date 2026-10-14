@@ -36,7 +36,7 @@ export function NotesHome() {
     mutationFn: () => data(Notes.createPage({ client, body: { ns: target!, title: "Untitled" } })),
     onSuccess: (p) => {
       qc.invalidateQueries({ queryKey: ["notes-tree"] });
-      router.push(`/notes/${p.id}`);
+      router.push(`/notes/${p.id}?new=1`);
     },
     onError: (err) =>
       toast({

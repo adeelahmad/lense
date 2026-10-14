@@ -9,7 +9,7 @@ import threading
 class Handler(http.server.BaseHTTPRequestHandler):
     seen = []
     models = ["fake", "fake-large"]  # what GET /models lists
-    tool_script = []  # assistant messages to return, in order, when a request offers tools
+    tool_script = []  # assistant messages to return, in order, when a request offers tools (or functions of the request)
     reject_tools = False  # behave like a server whose model can't call tools
     blind = False  # behave like a server whose model can't see images
     names = None  # namespace names suggested for a question (auto_scope.py)
@@ -44,6 +44,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 self.wfile.write(data)
                 return
             msg = Handler.tool_script.pop(0) if Handler.tool_script else {"content": "Nothing more to add."}
+            msg = msg(body) if callable(msg) else msg
             return self._json(
                 {"choices": [{"message": {"role": "assistant", "content": msg.get("content"), "tool_calls": msg.get("tool_calls")}}]}
             )

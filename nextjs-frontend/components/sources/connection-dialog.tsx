@@ -51,7 +51,9 @@ function StepTrail({ step, editing }: { step: Step; editing: boolean }) {
   );
 }
 
-/** SO2: add a connection (choose type → details → test, named there), or edit one (details → test). */
+/** SO2: add a connection (choose type → details → test, named there), or edit one (details → test). A type with
+ * nothing to fill in (a folder on this machine) is added, tested and named at once: the test step only shows if it
+ * fails. */
 export function ConnectionDialog({
   open,
   onOpenChange,
@@ -117,21 +119,32 @@ export function ConnectionDialog({
   };
 
   const test = useMutation({
-    mutationFn: async (mode: "save" | "retest") => {
+    // `type` and `form` are passed when the type was only just picked (this render's are the previous ones)
+    mutationFn: async ({
+      mode,
+      type: t = type,
+      form: f = form,
+    }: {
+      mode: "save" | "retest";
+      type?: SourceType;
+      form?: ConnForm;
+      finish?: boolean;
+    }) => {
       const t0 = performance.now();
       let id = createdId;
       let health: SourceHealth;
       let sent: Record<string, string | null> = {};
+      let name = "";
       if (mode === "retest" && id != null) health = await data(Sources.testSource({ client, path: { sid: id } }));
       else {
-        const body = buildPayload(spec, form, type);
+        const body = buildPayload(backends[t], f, t);
         sent = body.secrets;
         if (id == null) {
-          const name = form.name.trim() || suggestName(type, form.params);
+          name = f.name.trim() || suggestName(t, f.params);
           const r = await data(
             Sources.createSource({
               client,
-              body: { type, name, ...body },
+              body: { type: t, name, ...body },
             }),
           );
           setCreatedName(name);
@@ -151,9 +164,9 @@ export function ConnectionDialog({
           health = r.health;
         }
       }
-      return { id, health, ms: Math.round(performance.now() - t0), sent };
+      return { id, health, ms: Math.round(performance.now() - t0), sent, name };
     },
-    onSuccess: ({ id, health, ms, sent }) => {
+    onSuccess: ({ id, health, ms, sent, name }, { finish }) => {
       setCreatedId(id);
       setResult({ health, ms });
       // What was just saved counts as set (or cleared) from now on, so going back to the details doesn't ask again.
@@ -165,9 +178,13 @@ export function ConnectionDialog({
         }
         return next;
       });
-      setForm((f) => ({ ...f, secrets: {}, tokenText: "" }));
-      if (!form.name) setForm((f) => ({ ...f, name: suggestName(type, f.params) }));
+      setForm((f) => ({ ...f, secrets: {}, tokenText: "", name: f.name || name }));
       refresh();
+      if (finish && health.ok && id != null) {
+        toast({ tone: "green", title: "Connection added", body: name });
+        onSaved?.(id);
+        onOpenChange(false);
+      }
     },
     onError: (e: Error) => {
       setStep("details");
@@ -202,7 +219,7 @@ export function ConnectionDialog({
     if (Object.keys(e).length) return;
     setResult(null);
     setStep("test");
-    test.mutate("save");
+    test.mutate({ mode: "save" });
   };
 
   const title =
@@ -251,10 +268,16 @@ export function ConnectionDialog({
               aria-checked={on}
               tabIndex={on ? 0 : -1}
               onClick={() => {
+                const blank = emptyForm(backends[t]);
                 setType(t);
-                setForm(emptyForm(backends[t]));
+                setForm(blank);
                 setErrors({});
-                setStep("details");
+                if (Object.keys(backends[t].fields).length || backends[t].secrets.length) setStep("details");
+                else {
+                  setResult(null);
+                  setStep("test");
+                  test.mutate({ mode: "save", type: t, form: blank, finish: true });
+                }
               }}
               className={cn(
                 "flex h-11 items-center gap-2 rounded-[10px] px-3 text-left text-[13px] font-semibold text-fg transition-colors duration-fast",
@@ -396,7 +419,7 @@ export function ConnectionDialog({
           Edit details
         </Button>
         {!result?.health.ok && (
-          <Button size="sm" variant="secondary" onClick={() => test.mutate("retest")}>
+          <Button size="sm" variant="secondary" onClick={() => test.mutate({ mode: "retest" })}>
             Test again
           </Button>
         )}
@@ -439,7 +462,7 @@ export function ConnectionDialog({
             >
               Keep anyway
             </Button>
-            <Button size="sm" variant="primary" onClick={() => test.mutate("retest")}>
+            <Button size="sm" variant="primary" onClick={() => test.mutate({ mode: "retest" })}>
               Test again
             </Button>
           </>

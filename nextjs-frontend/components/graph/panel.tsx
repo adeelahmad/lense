@@ -20,6 +20,8 @@ import { useRecordingIndex } from "@/components/search/data";
 import { hasMedia, recordingHref } from "@/components/search/links";
 import { InlinePlayerBar, useInlinePlayer, type InlinePlayer } from "@/components/search/player";
 import { talkTime } from "@/components/speakers/format";
+import { SimilarSection } from "@/components/similar/similar-list";
+import type { SimilarBasis } from "@/components/similar/model";
 import { useSpeakerRecordings } from "@/components/speakers/parts";
 import { Banner } from "@/components/ui/banner";
 import { Button, IconButton } from "@/components/ui/button";
@@ -153,6 +155,17 @@ function SpeakerRecordings({ n, player }: { n: GraphNode; player: InlinePlayer }
   );
 }
 
+/** What a node's similar content is like: a recording, a topic or an entity itself; an entity merged across namespaces
+ * by its name. Speakers, collections and namespaces have none. */
+export function nodeBasis(n: Pick<GraphNode, "kind" | "refs" | "label">): SimilarBasis | null {
+  const id = n.refs[0];
+  if (id == null) return null;
+  if (n.kind === "recording") return { recording: id };
+  if (n.kind === "topic") return n.refs.length === 1 ? { topic: id } : { text: n.label };
+  if (n.kind === "entity") return n.refs.length === 1 ? { entity: id } : { text: n.label };
+  return null;
+}
+
 /** The node panel: what it is, where it's mentioned (playable), what it's connected to, and what you can do with it. */
 export function NodePanel({
   node,
@@ -212,6 +225,7 @@ function StructurePanel({
       <p className="m-0 text-[12.5px] text-fg-secondary">
         Right-click it (or long-press, or press M) for its parents, children and paths.
       </p>
+      <SimilarSection basis={nodeBasis(node)} />
       {links.length > 0 && (
         <>
           <h3 className="pt-1 text-[12px] font-bold text-fg-secondary">Connected here</h3>
@@ -316,6 +330,7 @@ function ThingPanel({
       <h3 className="pt-1 text-[12px] font-bold text-fg-secondary">{isSpeaker ? "Assets" : "Mentions"}</h3>
       {isSpeaker ? <SpeakerRecordings n={node} player={player} /> : <EntityMentions n={node} player={player} />}
       <InlinePlayerBar player={player} />
+      <SimilarSection basis={nodeBasis(node)} />
       {links.length > 0 && (
         <>
           <h3 className="pt-1 text-[12px] font-bold text-fg-secondary">Connected</h3>

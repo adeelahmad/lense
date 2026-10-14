@@ -6,7 +6,9 @@ nothing to install by hand.
 Each worker looks after its own machine. It compares what the settings ask for with what's installed, and fetches
 what's missing in the background, one thing at a time. Engines and models for job steps are fetched **on first use**:
 the first time an asset is waiting for the step that needs them. Until then they show as *On first use*, and an
-archive that only uses cloud models never downloads them, which keeps a small machine (a Raspberry Pi) small.
+archive that only uses cloud models never downloads them, which keeps a small machine (a Raspberry Pi) small. Documents,
+images and transcripts imported without their audio (pasted ones too) skip the transcribe and diarize steps, so they
+never fetch a speech or voice model.
 
 | Component | Fetched when | What |
 |---|---|---|
@@ -17,6 +19,7 @@ archive that only uses cloud models never downloads them, which keeps a small ma
 | Face models | `video.face_engine` is `opencv` (the default) | OpenCV, YuNet and SFace |
 | Face models | `video.face_engine` is `anytopdf` | SFace, for anytopdf to describe faces with (anytopdf too) |
 | Object model | `video.object_engine` is `yolox` (the default) or `anytopdf` | YOLOX-s, and ONNX Runtime for `yolox` |
+| Prompt-injection classifier | `ai.injection_check` is `classifier` | ProtectAI's deberta-v3-base-prompt-injection-v2 (Apache-2.0, about 740 MB), the tokenizers library and ONNX Runtime ([third-party content](assistant.md#third-party-content-and-prompt-injection)) |
 | yt-dlp | `documents.video_urls` is on | the yt-dlp program, release 2026.08.19 (Unlicense), to download videos and podcasts imported by address |
 | Chat model, embedding model | the LLM provider or embeddings server is Ollama | pulled on that server (`/api/pull`) |
 | Outlook .msg emails | listed in `components.also` | extract-msg (GPL-3.0, so only when asked for) |
@@ -30,7 +33,9 @@ archive that only uses cloud models never downloads them, which keeps a small ma
   later, when the settings change, or on **Check again now**.
 
 Programs are only checked: a running container can't install them. ffmpeg and Tesseract are in every image. Chromium and
-LibreOffice (web pages, text, emails, Office files) are in the full image, which the compose files build by default.
+LibreOffice (web pages, text, emails, Office files) are in the full image, which the compose files build by default. In
+a [microsandbox](microsandbox.md#libreoffice-and-chromium)'s full edition they're installed the first time a document or
+a web page needs one, and the Components list says so.
 
 ## Settings
 

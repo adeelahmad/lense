@@ -7,11 +7,12 @@ import type { ReactNode } from "react";
 
 import { Admin, Jobs } from "@/app/openapi-client";
 import { AdminFrame } from "@/components/admin/admin-frame";
+import { grafanaAddress, MonitoringSwitch, useMonitoring } from "@/components/admin/monitoring-switch";
 import { isUnreachable, ServerUnreachable } from "@/components/errors/error-states";
 import { Button } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
-import { count, relative } from "@/lib/format";
+import { bytes, count, relative } from "@/lib/format";
 import { jobSteps } from "@/lib/hooks/jobs";
 import { cn } from "@/lib/utils";
 
@@ -103,6 +104,7 @@ export function HealthPage() {
     queryFn: () => data(Admin.getHealth({ client })),
     refetchInterval: REFRESH_MS,
   });
+  const monitoring = useMonitoring();
   const settings = useQuery({
     queryKey: ["settings"],
     queryFn: async () =>
@@ -326,6 +328,85 @@ export function HealthPage() {
           </span>
         </section>
       </div>
+      <ServerNow
+        machine={h.machine}
+        grafana={grafanaAddress(
+          settings.data?.telemetry?.values?.grafana_url as string | undefined,
+          monitoring.data,
+          typeof window === "undefined" ? "" : window.location.hostname,
+        )}
+      />
     </AdminFrame>
+  );
+}
+
+/** Seconds as "3 d 4 h", "5 h 12 min" or "7 min". */
+export function duration(s: number | null | undefined): string {
+  if (s === null || s === undefined) return "–";
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d) return `${d} d ${h} h`;
+  if (h) return `${h} h ${m} min`;
+  return `${m} min`;
+}
+
+type Machine = {
+  cpu_pct?: number | null;
+  cpus?: number | null;
+  mem_used?: number | null;
+  mem_total?: number | null;
+  load1?: number | null;
+  load5?: number | null;
+  load15?: number | null;
+  rss?: number | null;
+  uptime: number;
+  host_uptime?: number | null;
+};
+
+/** The server now (CPU, memory, load, uptime), and where its history is: Grafana, from the monitoring profile. */
+function ServerNow({ machine: m, grafana }: { machine?: Machine | null; grafana?: string | null }) {
+  if (!m) return null;
+  const memPct = m.mem_used != null && m.mem_total ? Math.round((m.mem_used / m.mem_total) * 100) : null;
+  const tiles: [string, string, string][] = [
+    ["CPU", m.cpu_pct != null ? `${Math.round(m.cpu_pct)}%` : "–", `${m.cpus ?? "?"} CPUs`],
+    [
+      "Memory",
+      memPct != null ? `${memPct}%` : "–",
+      m.mem_total ? `${bytes(m.mem_used)} of ${bytes(m.mem_total)} · Lens API ${bytes(m.rss)}` : "Not reported here",
+    ],
+    ["Load", m.load1 != null ? String(m.load1) : "–", `5 min ${m.load5 ?? "–"} · 15 min ${m.load15 ?? "–"}`],
+    [
+      "Uptime",
+      duration(m.uptime),
+      m.host_uptime != null ? `machine up ${duration(m.host_uptime)}` : "since Lens started",
+    ],
+  ];
+  return (
+    <section aria-label="Server" className="flex flex-col gap-2.5">
+      <div className="flex flex-wrap items-baseline gap-3">
+        <b className="text-[13px] font-bold">Server now</b>
+        {grafana ? (
+          <a
+            href={grafana}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[12.5px] font-semibold text-fg-accent hover:underline"
+          >
+            Charts and history in Grafana
+          </a>
+        ) : null}
+      </div>
+      {!grafana && <MonitoringSwitch />}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {tiles.map(([name, value, detail]) => (
+          <div key={name} className="flex flex-col gap-1 rounded-md border border-border px-3.5 py-3">
+            <span className="text-[12px] font-semibold text-fg-secondary">{name}</span>
+            <span className="tabular text-[20px] font-bold leading-none">{value}</span>
+            <span className="tabular text-[12px] text-fg-muted">{detail}</span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

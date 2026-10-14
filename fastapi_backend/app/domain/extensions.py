@@ -264,22 +264,36 @@ def _check_hook(spec, me, db=None):
 
 
 def _check_mcp(spec, me, db=None):
-    """An MCP server: its address, the headers it needs (a token), and its tools as it listed them (mcp_client.py)."""
-    if set(spec) - {"url", "headers", "tools"}:
-        raise ValueError("an MCP server is {url, headers, tools}")
+    """An MCP server: its address and the headers it needs (a token), or the program it runs as (command, args, env:
+    run in the MCP runner's sandbox), and its tools as it listed them (mcp_client.py)."""
+    if set(spec) - {"url", "headers", "command", "args", "env", "tools"}:
+        raise ValueError("an MCP server is {url, headers, tools}, or {command, args, env, tools} for one that runs as a program")
     if not me["admin"]:
         raise ValueError("only admins add MCP servers")
-    url = _text(spec.get("url"), "the MCP server's address", 2000, required=True)
-    if not re.match(r"^https?://[^/?#\s]+", url):
-        raise ValueError("an MCP server's address starts with http:// or https:// (servers that run as a program aren't run)")
-    headers = spec.get("headers") or {}
-    if not isinstance(headers, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in headers.items()):
-        raise ValueError("headers are names and text values")
+
+    def words(v, what):
+        if not isinstance(v, dict) or not all(isinstance(k, str) and isinstance(x, str) for k, x in v.items()):
+            raise ValueError(f"{what} are names and text values")
+        return v
+
+    if spec.get("command") is not None:
+        if spec.get("url") or spec.get("headers"):
+            raise ValueError("an MCP server has an address or a command, not both")
+        server = {"command": _text(spec.get("command"), "the MCP server's command", 200, required=True)}
+        args = spec.get("args") or []
+        if not isinstance(args, list) or len(args) > 50 or not all(isinstance(a, str) and len(a) <= 2000 for a in args):
+            raise ValueError("an MCP server's args are a list of words")
+        server.update({"args": args or None, "env": words(spec.get("env") or {}, "env values") or None})
+    else:
+        url = _text(spec.get("url"), "the MCP server's address (or its command)", 2000, required=True)
+        if not re.match(r"^https?://[^/?#\s]+", url):
+            raise ValueError("an MCP server's address starts with http:// or https://")
+        server = {"url": url, "headers": words(spec.get("headers") or {}, "headers") or None}
     tools = spec.get("tools")
     if tools is None:  # asked of the server: what it offers now
         from . import mcp_client
 
-        tools = mcp_client.discover({"url": url, "headers": headers})
+        tools = mcp_client.discover(store.clean(server))
     if tools is not None:
         if not isinstance(tools, list) or len(tools) > 100:
             raise ValueError("an MCP server's tools are a list of at most 100")
@@ -297,7 +311,7 @@ def _check_mcp(spec, me, db=None):
             )
             for t in tools
         ]
-    return store.clean({"url": url, "headers": headers or None, "tools": tools})
+    return store.clean({**server, "tools": tools})
 
 
 def mcp_tools(item):
@@ -306,7 +320,8 @@ def mcp_tools(item):
     s, out = item["spec"], []
     for t in s.get("tools") or []:
         name = re.sub(r"[^A-Za-z0-9_-]", "_", f"{item['name']}__{t['name']}")[:64]
-        run = store.clean({"type": "mcp", "url": s["url"], "headers": s.get("headers"), "tool": t["name"]})
+        where = {k: s.get(k) for k in ("url", "headers", "command", "args", "env")}
+        run = store.clean({"type": "mcp", **where, "tool": t["name"]})
         spec = {
             "params": [],
             "schema": t.get("schema") or {"type": "object"},
@@ -811,6 +826,13 @@ def tool_args(spec, args):
             raise ValueError(f"{name} is one of {', '.join(p['options'])}")
         out[name] = v
     return out
+
+
+def sends_out(spec):
+    """Whether a tool sends what it's given to another host: a web tool, another MCP server's tool, Python with the
+    network. A prompt tool talks to Lens's own model, and a canvas tool's calls are each another tool's."""
+    run = spec["run"]
+    return run["type"] not in ("prompt", "graph", "python") or (run["type"] == "python" and bool(run.get("network")))
 
 
 def run_tool(db, cfg, spec, args, model=None, toolbox=None):

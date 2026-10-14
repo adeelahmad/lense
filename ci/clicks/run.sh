@@ -11,7 +11,15 @@ tmp=$(mktemp -d)
 pids=""
 stop() {
   for p in $pids; do kill "$p" 2>/dev/null || true; done
-  rm -rf "$tmp"
+  # Wait for them to exit (30 seconds, then forced), so a run straight after this one (the phone survey after the
+  # computer's in CI) gets the ports, rather than this run's API answering it with its accounts already made
+  for p in $pids; do
+    (sleep 30 && kill -9 "$p") >/dev/null 2>&1 &
+    w=$!
+    wait "$p" 2>/dev/null || true
+    kill "$w" 2>/dev/null || true
+  done
+  rm -rf "$tmp" 2>/dev/null || { sleep 2; rm -rf "$tmp" || true; }
 }
 trap stop EXIT INT TERM
 
@@ -40,6 +48,6 @@ for url in http://127.0.0.1:8000/api/v1/auth/status http://127.0.0.1:3000/login;
 done
 
 status=0
-LENS_SURVEY_DIR="$tmp/install" node "$here/survey.mjs" "$@" || status=$?
+LENS_SURVEY_DIR="$tmp/install" LENS_SURVEY_BACKEND_LOG="$tmp/backend.log" node "$here/survey.mjs" "$@" || status=$?
 if [ $status -ne 0 ]; then tail -40 "$tmp/backend.log" >&2; fi
 exit $status

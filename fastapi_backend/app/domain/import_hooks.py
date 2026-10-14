@@ -218,7 +218,7 @@ def accept_url(db, cfg, hook, url, title=None):
     """A web address, kept as a document: captured (a PDF as it is, a page printed by Chromium) when its pipeline
     runs. Only public addresses on the web's ports."""
     url = webcapture.check_url(cfg, url)
-    if not convert.chromium(cfg) and not urllib.parse.urlsplit(url).path.lower().endswith(".pdf"):
+    if not convert.web_capture(cfg) and not urllib.parse.urlsplit(url).path.lower().endswith(".pdf"):
         raise ValueError("capturing web pages needs Chromium on the server (the lens:full image); a link to a PDF works without it")
     by = actor(hook)
     rid = webcapture.create(db, hook["space"], url, title, _collection(db, hook), by=by["email"])

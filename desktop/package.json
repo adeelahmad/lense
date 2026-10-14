@@ -1,0 +1,11 @@
+{
+  "name": "lens-desktop",
+  "private": true,
+  "description": "Lens for macOS: a menu-bar app that installs, starts and opens Lens",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.8.0"
+  }
+}

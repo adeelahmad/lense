@@ -79,7 +79,9 @@ class Out:
 
 # ---------- what's measured ----------
 def _jobs(db, out, now):
-    for status, n in sorted(jobs.counts(db).items()):
+    got = jobs.counts(db)
+    for status in [*jobs.ACTIVE, *jobs.FINAL, *sorted(set(got) - {*jobs.ACTIVE, *jobs.FINAL})]:  # 0 rather than missing
+        n = got.get(status, 0)
         out.add("lens_jobs", n, {"status": status}, "Jobs by status (queued is the queue's depth).")
     for r in db.rows("SELECT pipeline, status, count() AS n FROM job WHERE pipeline != NONE GROUP BY pipeline, status"):
         out.add("lens_pipeline_jobs", r["n"], {"pipeline": r.get("pipeline"), "status": r.get("status")}, "Jobs by pipeline and status.")

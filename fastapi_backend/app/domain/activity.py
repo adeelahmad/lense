@@ -183,6 +183,10 @@ def record(kind, action, refs=(), cfg=None, db=None, **fields):
         return None
 
 
+class OverBudget(RuntimeError):
+    """A call refused because the overall budget's hard limit is reached (budgets.hard_stop)."""
+
+
 class Call:
     """A call out, timed: `with activity.call("embeddings", model=m) as c: ...; c.usage(tin, tout)`. An exception that
     leaves the block marks the row failed with its type."""
@@ -193,6 +197,16 @@ class Call:
         self.unpriced = False  # it costs something, but the figure is missing (see model_cost)
         self.t0 = time.monotonic()
         self.done = False
+        if model:  # a call to a model: the overall budget's hard limit (budgets.py) stops one that would cost money
+            sc = _scope.get() or {}
+            db = sc.get("db") or _default["db"]
+            if db is not None:
+                from . import budgets
+
+                why = budgets.hard_stop(db, cfg if cfg is not None else sc.get("cfg"), model)
+                if why:
+                    self.done = True  # nothing was called: no ledger row
+                    raise OverBudget(why)
 
     def usage(self, tokens_in=None, tokens_out=None, cost_usd=None):
         if isinstance(tokens_in, int):

@@ -31,9 +31,10 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_ADMIN_PASSWORD` | | give that admin a password instead (passwords stay on) |
 | `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
 | `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
-| `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here |
+| `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here; a `budget` section (`hard_usd`, `soft_usd`, `period`, `on_over`, `price_in`, `price_out`) sets [the overall budget](budgets.md#one-budget-for-everything) |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
 | `LENS_TELEMETRY` / `LENS_TELEMETRY_ENDPOINT` / `LENS_TELEMETRY_HEADERS` | off | opt-in OpenTelemetry traces and metrics, sent only to this OTLP/HTTP endpoint ([Telemetry](telemetry.md)); `LENS_TELEMETRY=off` keeps it off whatever Settings say |
+| `LENS_LOG_LEVEL` / `LENS_LOG_FORMAT` | info / text | the log level and console format for the API and every worker ([Logging](logging.md)); win over Settings → Logs |
 | `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
 | `CORS_ORIGINS` | `["http://localhost:3000"]` | origins allowed to call the API from a browser |
 | `OPENAPI_URL` | `/openapi.json` | `""` disables `/docs` and the schema |
@@ -50,7 +51,7 @@ A fresh install (no accounts when the API first starts) walks its first admin th
 2. **Namespace**: the first one, with its knowledge graph shared or isolated. Already done when archive.yaml or
    `LENS_NAMESPACE` names namespaces, or an install script made one.
 3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,
-   with a test.
+   with a test. Servers running nearby and [cloud providers](#cloud-model-providers) are a click.
 4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), where Lens keeps its own files (this
    machine or a storage connection, [Storage](storage.md)), the largest upload, and optionally a folder inside
    `sources.local_roots` to watch.
@@ -62,7 +63,8 @@ A fresh install (no accounts when the API first starts) walks its first admin th
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
 `POST /api/v1/setup/namespace`, `PUT /api/v1/setup/llm`, `GET /api/v1/setup/llm/detect` (model servers running on
-this machine or the Docker host, with their models), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
+this machine or the Docker host, with their models), `GET /api/v1/setup/llm/providers` (the
+[cloud providers](#cloud-model-providers)), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
 `PUT /api/v1/setup/telemetry` and `POST /api/v1/setup/finish`
 (admins); `GET /api/v1/auth/status` says whether it is still pending (`wizard_pending`).
 
@@ -76,6 +78,8 @@ this machine or the Docker host, with their models), `PUT /api/v1/setup/storage`
 | `AUTH_TRUST_HOST` | `true` behind a proxy or in Docker |
 | `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host`, `-Proto` and `-For`: they're passed on to the API, which names that address in OAuth discovery and reads the visitor's address for IP groups and throttles. Off, the web app reports the `Host` the browser sent and the address it was reached from |
 | `LENS_WEB_PROXY_HOSTS` | hosts whose `X-Forwarded-For` the web app passes on with `TRUST_PROXY_HEADERS` off (`backend,worker` in the Docker Compose files, for the Cloudflare tunnel) |
+| `LENS_HTTPS`, `LENS_HTTPS_PORT`, `LENS_HTTP_PORT`, `LENS_HTTPS_BIND` | install.sh: `LENS_HTTPS=1` publishes the HTTPS and HTTP ports (443 and 80 by default) for [HTTPS](https.md) |
+| `LENS_HTTPS_LISTEN` | `1` in the process that has the HTTPS ports and runs Caddy (the worker in `docker-compose.https.yml`); `LENS_CADDY`: a caddy to use instead of fetching one |
 
 ## archive.yaml
 
@@ -94,7 +98,7 @@ Admins can change, in Settings: transcription, speaker separation, speech provid
 provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
 video, OCR, faces and objects, workers, sign-in, components, access and embedding (embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
-telemetry, the Fedora repository, sensors, uploads, storage, documents, API keys, and IIIF and metadata. The API
+telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
 
 ## Word search
@@ -142,6 +146,28 @@ embeddings:
 Changing the model drops the stored vectors (another model's can't be compared) until assets are indexed again. When the server fails to index (it's down, or
 doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
 waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
+
+## Cloud model providers
+
+The setup wizard's model provider step and Settings → LLM provider offer the model servers running nearby (Ollama, LM
+Studio, llama.cpp, vLLM, LocalAI) and these cloud providers, each through its OpenAI-compatible API. Picking one fills
+in the address and a model, and a cloud provider's API key field takes the focus, with a link to where the provider
+hands out keys: paste the key and save. The model stays editable, with the provider's other models suggested.
+
+| Provider | Address | Model filled in |
+|---|---|---|
+| OpenAI | `https://api.openai.com/v1` | `gpt-5-mini` |
+| Anthropic | `https://api.anthropic.com/v1` | `claude-opus-5-5` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-flash-latest` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `openrouter/auto` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-small-latest` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
+
+The list is `GET /api/v1/setup/llm/providers` (admins), and the assistant's `find_model_servers` tool returns it with
+the servers it finds, so an agent setting Lens up uses the same addresses. Any other OpenAI-compatible service works
+by typing its address. Picking a provider changes nothing until you save; from then on, what Lens asks its model
+(summaries, chat, descriptions, with the text they need) goes to that provider.
 
 ## Chat models
 
@@ -195,7 +221,8 @@ Other documents are made into PDFs first ([API](api.md#documents-and-images)): W
 OpenDocument and RTF by LibreOffice; text, Markdown, saved web pages (HTML) and emails by Chromium printing a page Lens
 makes of them, or by LibreOffice where there's no Chromium. Outlook `.msg` emails also need the `msg` extra
 (`pip install -e ".[msg]"`; extract-msg is GPL-3.0). The `lens:full` Docker image has LibreOffice and Chromium
-([Deployment](deployment.md)); without them, PDFs and images are read as before, and files that can be read as plain
+([Deployment](deployment.md)), and a [microsandbox](microsandbox.md#libreoffice-and-chromium)'s full edition installs
+each the first time it's needed; without them, PDFs and images are read as before, and files that can be read as plain
 text (Word, text, Markdown) are imported as text. Settings → Documents:
 
 | Setting | Default | |
@@ -210,6 +237,9 @@ text (Word, text, Markdown) are imported as text. Settings → Documents:
 | `documents.converter` | `auto` | who makes the PDFs: `auto` uses [anytopdf](#anytopdf) only for what LibreOffice and Chromium can't do here, `anytopdf` uses it for every document and image (and fetches it), `lens` never uses it |
 | `documents.anytopdf_url` | none | a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work`, such as `https://convert.home:8640`. Set, it converts instead of the program here |
 | `documents.anytopdf_token` | none | the node's bearer token (its `ANYTOPDF_QUEUE_TOKEN`), kept encrypted |
+| `documents.tika_url` | none (off) | an [Apache Tika](#apache-tika) server, such as `http://tika:9998` for the compose files' `tika` service |
+| `documents.tika_text` | true | with a Tika server: documents nothing here can make into a PDF are read by Tika, as text without pages |
+| `documents.tika_metadata` | true | with a Tika server: what every document says about itself (title, authors, language, dates) is read by Tika |
 
 Set at startup only (the config file; the web app can't choose what the server runs):
 
@@ -219,6 +249,37 @@ Set at startup only (the config file; the web app can't choose what the server r
 | `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too); it also captures web pages ([API](api.md#web-pages)) |
 | `documents.anytopdf` | the one Lens downloaded, else `anytopdf` on PATH | the anytopdf program |
 | `documents.web_networks` | `[]` | networks (CIDR, such as `10.20.0.0/16`) that web pages and calendar feeds may be fetched from besides the public internet: for an intranet, or a calendar server at home; loopback and cloud metadata addresses stay out unless listed. `LENS_WEB_NETWORKS` in `.env` (comma-separated) adds to it, for Docker and the packages |
+
+### Apache Tika
+
+[Apache Tika](https://tika.apache.org) (Apache-2.0) reads the text and the description of about a thousand kinds of
+file. Lens can use a Tika server; it's off until `documents.tika_url` is set. The compose files have one ready, as an
+opt-in profile (about 250 MB of memory, so leave it off on a small Raspberry Pi):
+
+```sh
+docker compose -f docker-compose.prod.yml --profile tika up -d
+```
+
+(or add `COMPOSE_PROFILES=tika` to Lens's `.env` and run the install command again). Then, in Settings → Documents,
+set the Tika server to `http://tika:9998` and press Test. A Tika server elsewhere works the same way.
+
+- **Reading what nothing else can** (`documents.tika_text`). When neither LibreOffice, Chromium nor
+  [anytopdf](#anytopdf) can make a document into a PDF here (a Word file on a lean server, say), or one of them fails
+  on it, Tika reads it instead. Uploads and folder scans then take every document type, Office files included. Such
+  a document has its text, which is searched, analyzed and asked about like any other's, but no pages to look at;
+  its `engine` is `text:tika`. An email or an archive read this way gives its text, including its attachments' and
+  files', but they aren't kept as files or resources of their own.
+- **What a document says about itself** (`documents.tika_metadata`). Every document is also described by Tika, as
+  Dublin Core terms (`GET /resources/{id}` → `described`: title, creators, subject, description, publisher,
+  language, created, modified, pages, words, format). Its title and creation date become the resource's while it's
+  still named and dated after its file (an email's own subject and date come first), and its authors and language
+  are its [metadata](rdf.md)'s until someone saves others. If Tika can't describe it, the document is read anyway.
+
+The document goes only to the address set: http(s) with no user name or password in it, no redirect followed, and
+sent as `document.<type>`, never by its own name. Tika has no sign-in of its own, so the compose service is reachable
+only inside Lens's network; put one elsewhere behind TLS on a network you trust, since every document is sent to it.
+Its answers are bounded (64 MB) before Lens reads them. The compose service runs read-only, as a user without
+privileges, with `TIKA_HEAP` (default `512m`) as its Java heap and `TIKA_VERSION` (default `4.0.0-1`) as its image.
 
 ### anytopdf
 

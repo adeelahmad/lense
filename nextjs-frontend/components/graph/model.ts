@@ -228,6 +228,17 @@ export function summarize(nodes: GraphNode[], edges: GraphEdge[], scopeLabel: st
   return `${head} Most connected: ${top.map((n) => `${n.label} (${degree.get(n.id)} ${degree.get(n.id) === 1 ? "link" : "links"})`).join(", ")}.`;
 }
 
+/** Where the graph opens when no namespace is picked: all shared namespaces (null), unless none of them has anything in
+ * its graph yet and a namespace that keeps its graph to itself does; then that one, the fullest if there are several. */
+export function openingNamespace(
+  namespaces: { name: string; graph?: string | null; analyzed?: number; speakers?: number }[],
+): string | null {
+  const size = (n: { analyzed?: number; speakers?: number }) => (n.analyzed ?? 0) + (n.speakers ?? 0);
+  if (namespaces.some((n) => n.graph !== "isolated" && size(n) > 0)) return null;
+  const fullest = namespaces.filter((n) => size(n) > 0).sort((a, b) => size(b) - size(a))[0];
+  return fullest?.name ?? null;
+}
+
 /** Find a node from a `?focus=` value: "s4" (speaker), "e12" (an entity id, also inside merged global nodes). */
 export function findFocus(nodes: GraphNode[], focus: string | null | undefined): GraphNode | undefined {
   if (!focus) return undefined;

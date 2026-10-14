@@ -19,6 +19,7 @@ import { useTemplateUsage } from "@/components/templates/use-template-usage";
 import { VersionsPanel } from "@/components/templates/versions-panel";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
+import { RenameTitle } from "@/components/ui/rename-title";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { Tabs } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
@@ -252,8 +253,21 @@ export function TemplateEditor({ id }: { id: number }) {
             </Link>{" "}
             › {t.name}
           </nav>
-          <div className="flex items-baseline gap-3">
-            <h1 className="truncate text-[17px] font-bold text-fg">{t.name}</h1>
+          <div className="flex items-center gap-3">
+            <RenameTitle
+              name={t.name}
+              what="template"
+              className="text-[17px]"
+              onRename={
+                readOnly
+                  ? undefined
+                  : async (n) => {
+                      await data(Templates.updateTemplate({ client, path: { tid: id }, body: { name: n } }));
+                      void qc.invalidateQueries({ queryKey: ["templates"] });
+                      await qc.invalidateQueries({ queryKey: ["template", id] });
+                    }
+              }
+            />
             <code className="font-mono text-[12px] text-fg-muted">
               {t.kind} · v{dirty ? latest + 1 : t.version}{" "}
               {dirty ? "draft" : t.version === t.current ? "published" : ""}

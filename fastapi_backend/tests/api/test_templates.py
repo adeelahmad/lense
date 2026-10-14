@@ -138,6 +138,13 @@ def test_templates_previews_and_versions(client, new_client, db, cfg, h):
     assert c.post("/api/v1/templates/preview", headers=he, json={"recording": rid, "body": "x"}).status_code == 404
     assert c.post("/api/v1/templates", headers=he, json={"name": "x", "kind": "export", "body": "x"}).status_code == 403  # admins only
     assert c.get("/api/v1/templates", headers=he).status_code == 200
+    # renamed and described without a new version: admins only, never to nothing
+    assert c.patch(f"/api/v1/templates/{new}", headers=he, json={"name": "Mine"}).status_code == 403
+    assert c.patch(f"/api/v1/templates/{new}", headers=h, json={"name": " "}).status_code == 400
+    assert c.patch("/api/v1/templates/999", headers=h, json={"name": "x"}).status_code == 404
+    assert c.patch(f"/api/v1/templates/{new}", headers=h, json={"name": "Just titles", "description": ""}).status_code == 200
+    t = c.get(f"/api/v1/templates/{new}", headers=h).json()
+    assert (t["name"], t["description"], t["version"]) == ("Just titles", None, 1)
 
     tid = tl["Markdown transcript"]
     assert (
