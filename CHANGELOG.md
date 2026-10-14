@@ -149,6 +149,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - bump the python-minor group ([#253](https://github.com/adeelahmad/lense/pull/253))
 - bump the javascript-minor group ([#316](https://github.com/adeelahmad/lense/pull/316))
 
+- **Logs in the web app, and to a syslog server.** The API and every worker now write structured log lines with a
+  level set in **Settings → Logs** (and per logger, like `httpx warning`), to the console as text or JSON and to a file
+  per process under `data_dir/logs`. The same page shows the latest lines from all of them, with search and filters.
+  Turned on there, lines go to a syslog server too (RFC 5424 over UDP, TCP or TLS), from a background queue so a slow
+  server never holds Lens up; off by default. Keys, tokens and passwords are replaced with *** before any line is
+  written or sent ([Logging](docs/logging.md)).
+
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 
 - **Prometheus metrics.** Lens can serve `/metrics` for Prometheus and Grafana: jobs by status and pipeline, imports,

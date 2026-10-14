@@ -266,6 +266,7 @@ def platform_main(argv, config):
         https,
         jobs,
         local_llm,
+        logs,
         nfs_share,
         notify,
         passkeys,
@@ -372,24 +373,26 @@ def platform_main(argv, config):
                     print(f"password changed for {a.email}")
         elif a.cmd == "worker":
             telemetry.set_role("worker")
-            wk = jobs.Worker(db, C, a.name, a.steps.split(",") if a.steps else None, log=print)
+            logs.setup("worker")  # every line as a record: the console, the log file and syslog (docs/logging.md)
+            say = logs.printer("lens.worker")
+            wk = jobs.Worker(db, C, a.name, a.steps.split(",") if a.steps else None, log=say)
             if a.once:
                 print(f"ran {wk.drain()} job(s)")
             else:
                 print(f"worker {wk.name} runs {', '.join(sorted(wk.can))}; Ctrl-C to stop")
                 stop = threading.Event()
-                notify.start(db, C, stop, name=wk.name, log=print)  # sends notifications too (docs/notifications.md)
+                notify.start(db, C, stop, name=wk.name, log=say)  # sends notifications too (docs/notifications.md)
                 if not (a.steps or a.no_schedule):  # and scans watched folders and runs routines, as `lens watch` does
-                    routines.start(db, C, stop, log=print)
-                    sensors.start(db, C, stop, log=print, name=wk.name)  # and the sensor hub, while sensors are on
-                    smb_share.start(db, C, stop, name=wk.name, log=print)  # and the SMB share of the file tree, while it's on
-                    shares.start(db, C, stop, log=print, name=wk.name)  # and the file shares (S3, WebDAV), while they're on
-                    channels.start_all(db, C, stop, lambda: cfg, name=wk.name, log_fn=print)  # and the chat channels, while they're on
-                    tunnel.start(db, C, stop, name=wk.name, log=print)  # and the Cloudflare tunnel, while it's on
-                    https.start(db, C, stop, name=wk.name, log=print)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
-                    local_llm.start(db, C, stop, name=wk.name, log=print)  # and the local chat model, while it's on
-                    nfs_share.start(db, C, stop, name=wk.name, log=print)  # and the file tree over NFS, while it's on
-                    updates.start(db, C, stop, log=print)  # and the daily check for a new release (docs/updates.md)
+                    routines.start(db, C, stop, log=say)
+                    sensors.start(db, C, stop, log=say, name=wk.name)  # and the sensor hub, while sensors are on
+                    smb_share.start(db, C, stop, name=wk.name, log=say)  # and the SMB share of the file tree, while it's on
+                    shares.start(db, C, stop, log=say, name=wk.name)  # and the file shares (S3, WebDAV), while they're on
+                    channels.start_all(db, C, stop, lambda: cfg, name=wk.name, log_fn=say)  # and the chat channels, while they're on
+                    tunnel.start(db, C, stop, name=wk.name, log=say)  # and the Cloudflare tunnel, while it's on
+                    https.start(db, C, stop, name=wk.name, log=say)  # and HTTPS, where the ports are (LENS_HTTPS_LISTEN)
+                    local_llm.start(db, C, stop, name=wk.name, log=say)  # and the local chat model, while it's on
+                    nfs_share.start(db, C, stop, name=wk.name, log=say)  # and the file tree over NFS, while it's on
+                    updates.start(db, C, stop, log=say)  # and the daily check for a new release (docs/updates.md)
                 _stop_on_term()
                 try:
                     wk.loop(stop)
@@ -401,13 +404,15 @@ def platform_main(argv, config):
             print(f"ran {routines.run_due(db, C(), print)} routine(s)")
         else:
             telemetry.set_role("watcher")
+            logs.setup("watcher")
+            say = logs.printer("lens.watch")
             print("watching storage sources and running routines; Ctrl-C to stop")
             _stop_on_term()
-            sensors.start(db, C, threading.Event(), log=print, name=f"watch-{os.getpid()}")
+            sensors.start(db, C, threading.Event(), log=say, name=f"watch-{os.getpid()}")
             try:
                 while True:
-                    sources.poll_due(db, C(), print)
-                    routines.run_due(db, C(), print)
+                    sources.poll_due(db, C(), say)
+                    routines.run_due(db, C(), say)
                     time.sleep(max(5, min(C()["sources"]["check_seconds"], routines.CHECK_SECONDS)))
             except KeyboardInterrupt:
                 pass
