@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, EyeOff, Inbox, Plus, RadioTower, Settings } from "lucide-react";
+import { Check, EyeOff, FolderSearch, Inbox, Plus, RadioTower, Settings } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -286,8 +286,14 @@ export function SensorsPage() {
             )
           )}
           <section className="flex flex-col gap-2">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <h2 className="flex-1 text-[16px] font-bold text-fg">Files, email and calendars</h2>
+              {/* straight to this machine's allowed folders, its connection made on the way if there's none */}
+              <Button asChild size="sm" variant="secondary">
+                <Link href="/sources?watch=local">
+                  <FolderSearch /> Watch a local folder
+                </Link>
+              </Button>
               <Button asChild size="sm" variant="secondary">
                 <Link href="/sources">Manage</Link>
               </Button>

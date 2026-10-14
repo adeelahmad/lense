@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-14T10:02:07.028Z",
+  "surveyed": "2026-10-14T10:41:13.906Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 2963,
+      "ms": 2942,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 620,
+      "ms": 656,
       "ok": true
     },
     {
@@ -131,7 +131,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 1394,
+      "ms": 1276,
       "ok": true
     },
     {
@@ -161,7 +161,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1180,
+      "ms": 1208,
       "ok": true
     },
     {
@@ -208,7 +208,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4518,
+      "ms": 4573,
       "ok": true
     },
     {
@@ -246,7 +246,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3125,
+      "ms": 3110,
       "ok": true
     },
     {
@@ -292,7 +292,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3935,
+      "ms": 3759,
       "ok": true
     },
     {
@@ -330,7 +330,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2460,
+      "ms": 2503,
       "ok": true
     },
     {
@@ -384,7 +384,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6336,
+      "ms": 6439,
       "ok": true
     },
     {
@@ -446,7 +446,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3613,
+      "ms": 3701,
       "ok": true
     },
     {
@@ -500,7 +500,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3727,
+      "ms": 3746,
       "ok": true
     },
     {
@@ -546,7 +546,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2970,
+      "ms": 3008,
       "ok": true
     },
     {
@@ -592,7 +592,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3042,
+      "ms": 3082,
       "ok": true
     },
     {
@@ -638,7 +638,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 3261,
+      "ms": 3141,
       "ok": true
     },
     {
@@ -684,7 +684,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3137,
+      "ms": 3062,
       "ok": true
     },
     {
@@ -747,7 +747,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 4414,
+      "ms": 4379,
       "ok": true
     },
     {
@@ -817,7 +817,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3740,
+      "ms": 3787,
       "ok": true
     },
     {
@@ -863,7 +863,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3397,
+      "ms": 3378,
       "ok": true
     },
     {
@@ -901,7 +901,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2846,
+      "ms": 2873,
       "ok": true
     },
     {
@@ -947,7 +947,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3170,
+      "ms": 3312,
       "ok": true
     },
     {
@@ -985,14 +985,14 @@
         }
       ],
       "id": "import-file",
-      "ms": 3397,
+      "ms": 3544,
       "ok": true
     },
     {
       "module": "Sensors",
       "feature": "Watch a folder on this machine for new files",
       "note": "Needs rclone, as the Lens image has (CI copies the image's version); the folders offered are the allowed ones set at startup.",
-      "clicks": 10,
+      "clicks": 5,
       "keys": 0,
       "prompts": 0,
       "swipes": 0,
@@ -1016,7 +1016,7 @@
         {
           "page": "/sensors",
           "kind": "tap",
-          "what": "Files, email and calendars tab",
+          "what": "Watch a local folder",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -1024,47 +1024,7 @@
         {
           "page": "/sources",
           "kind": "tap",
-          "what": "Add connection",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "tap",
-          "what": "This machine",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "tap",
-          "what": "Test connection",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "tap",
-          "what": "Done (the test passed)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "tap",
-          "what": "the allowed folder",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "tap",
-          "what": "Watch this folder",
+          "what": "Watch, on the allowed folder",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -1079,7 +1039,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 9832,
+      "ms": 4415,
       "ok": true
     },
     {
@@ -1125,7 +1085,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 11946,
+      "ms": 11971,
       "ok": true
     },
     {
@@ -1179,7 +1139,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4826,
+      "ms": 4944,
       "ok": true
     },
     {
@@ -1241,7 +1201,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 4153,
+      "ms": 4151,
       "ok": true
     },
     {
@@ -1295,7 +1255,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3947,
+      "ms": 4032,
       "ok": true
     },
     {
@@ -1357,7 +1317,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3832,
+      "ms": 3785,
       "ok": true
     },
     {
@@ -1419,7 +1379,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3873,
+      "ms": 3621,
       "ok": true
     },
     {
@@ -1481,7 +1441,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3772,
+      "ms": 3489,
       "ok": true
     },
     {
@@ -1543,7 +1503,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4438,
+      "ms": 4400,
       "ok": true
     },
     {
@@ -1613,7 +1573,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 3795,
+      "ms": 3876,
       "ok": true
     }
   ],
@@ -1742,7 +1702,7 @@
       "page": "/sensors",
       "label": "Sensors",
       "reach": 2,
-      "controls": 8
+      "controls": 9
     },
     {
       "page": "/sources",
@@ -1905,6 +1865,12 @@
       "label": "Settings › Telemetry",
       "reach": 3,
       "controls": 14
+    },
+    {
+      "page": "/settings/logs",
+      "label": "Settings › Logs",
+      "reach": 3,
+      "controls": 223
     },
     {
       "page": "/settings/fedora",
