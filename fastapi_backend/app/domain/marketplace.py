@@ -404,7 +404,7 @@ def _norm(p):
 
 def _mcp(found, meta, admin, report):
     """A plugin's MCP servers (.mcp.json, or mcpServers in its manifest) as MCP server items, their tools listed now.
-    Servers on the network only (HTTP); only admins add them."""
+    On the network (HTTP), or run as a program in the MCP runner when it runs; only admins add them."""
     conf = meta.get("mcpServers")
     if isinstance(conf, str):
         conf = found.get(_norm(conf))
