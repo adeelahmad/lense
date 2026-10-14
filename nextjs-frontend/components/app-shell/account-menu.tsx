@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { KeyRound, Keyboard, LogOut, Plug, Signpost, SunMoon, UserRound, Users } from "lucide-react";
+import { KeyRound, Keyboard, LogOut, Plug, Signpost, Sparkles, SunMoon, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useState } from "react";
@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Tokens } from "@/app/openapi-client";
 import { connectHint, mcpAddress, useAppSignIn } from "@/components/account/connect-assistant";
 import { useTheme, type ThemeChoice } from "@/components/app-shell/theme";
+import { useSelectMode } from "@/components/similar/prefs";
 import { Menu, MenuContent, MenuItem, MenuTrigger } from "@/components/ui/menu";
 import { Avatar, Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
@@ -42,6 +43,7 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
   const client = useApiClient();
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useTheme();
+  const [similar, setSimilar] = useSelectMode();
   const toast = useToast();
   const signIn = useAppSignIn(open);
   const tokens = useQuery({
@@ -109,6 +111,13 @@ export function AccountMenu({ name, email }: { name?: string | null; email: stri
         )}
         <MenuItem className={ITEM} icon={<SunMoon />} onSelect={() => setTheme(NEXT[theme])}>
           Appearance: {theme[0].toUpperCase() + theme.slice(1)}
+        </MenuItem>
+        <MenuItem
+          className={ITEM}
+          icon={<Sparkles />}
+          onSelect={() => setSimilar(similar === "show" ? "button" : "show")}
+        >
+          Similar on select: {similar === "show" ? "Show" : "Button"}
         </MenuItem>
         <MenuItem
           className={ITEM}

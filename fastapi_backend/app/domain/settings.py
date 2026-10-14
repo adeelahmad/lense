@@ -19,7 +19,7 @@ import secrets
 import threading
 import urllib.parse
 
-from . import convert, ipgroups, mail_routes, objects, store, telemetry
+from . import convert, ipgroups, logs, mail_routes, objects, store, telemetry
 
 R = store.R
 EDITABLE = {
@@ -50,6 +50,7 @@ EDITABLE = {
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
+    "logs": None,
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
     "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
@@ -172,6 +173,13 @@ ENUMS = {
     ("https", "challenge"): {"http", "tls-alpn", "dns"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
+    ("logs", "level"): set(logs.LEVELS),
+    ("logs", "syslog_level"): set(logs.LEVELS),
+    ("logs", "format"): {"text", "json"},
+    ("logs", "syslog_format"): {"text", "json"},
+    ("logs", "syslog_transport"): set(logs.TRANSPORTS),
+    ("logs", "syslog_facility"): set(logs.FACILITIES),
+    ("logs", "syslog_framing"): {"octet", "newline"},
 }
 # Settings the environment (.env) sets, which win over archive.yaml and the app and show as locked there: the
 # break-glass allowed hosts, the model provider so an install can be configured without the setup wizard, and
@@ -195,6 +203,8 @@ ENV_OVERRIDES = {
     ("telemetry", "enabled"): "LENS_TELEMETRY",
     ("telemetry", "endpoint"): "LENS_TELEMETRY_ENDPOINT",
     ("telemetry", "headers"): "LENS_TELEMETRY_HEADERS",
+    ("logs", "level"): "LENS_LOG_LEVEL",
+    ("logs", "format"): "LENS_LOG_FORMAT",
     ("telemetry", "prometheus"): "LENS_PROMETHEUS",
     ("telemetry", "prometheus_token"): "LENS_PROMETHEUS_TOKEN",
     ("telemetry", "grafana_url"): "LENS_GRAFANA_URL",
@@ -334,6 +344,7 @@ class Settings:
             if self._cfg is None or v != self._ver:
                 self._cfg, self._ver = effective(self.db, self.base), v
                 telemetry.apply(self._cfg)  # turned on, changed or off in the app: this process follows
+                logs.apply(self._cfg)  # and its logging (level, file, syslog)
             return self._cfg
 
 
@@ -439,6 +450,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "logs":
+        return _logs_setting(key, value)
     if section == "updates":
         return _updates_setting(key, value)
     if section == "activity":
@@ -1043,6 +1056,54 @@ def _sensor_setting(key, value):
     return value
 
 
+LOG_RANGES = {"file_mb": (1, 100), "file_keep": (1, 10), "syslog_port": (1, 65535)}
+APP_NAME_RX = re.compile(r"^[!-~]{1,48}$")
+HOST_RX = re.compile(r"^[A-Za-z0-9.:_-]{1,253}$")
+
+
+def _logs_setting(key, value):
+    if ("logs", key) in ENUMS:  # checked against ENUMS already
+        return value
+    if key in ("file", "syslog", "syslog_verify"):
+        if not isinstance(value, bool):
+            raise ValueError(f"logs.{key} is true or false")
+        return value
+    if key == "levels":
+        if value is None:
+            return {}
+        if not isinstance(value, dict) or len(value) > 100:
+            raise ValueError('logs.levels gives loggers their own level, like {"httpx": "warning"}')
+        out = {}
+        for name, lvl in value.items():
+            if not logs.LOGGER_RX.match(str(name)) or str(lvl).lower() not in logs.LEVELS:
+                raise ValueError(f"logs.levels: {name} needs a logger name and one of: {', '.join(logs.LEVELS)}")
+            out[str(name)] = str(lvl).lower()
+        return out
+    if key == "syslog_host":
+        if value in (None, ""):
+            return None
+        v = str(value).strip().strip("[]")
+        if not HOST_RX.match(v):
+            raise ValueError("logs.syslog_host is the syslog server's host name or IP address, without a port")
+        try:
+            link_local = ipaddress.ip_address(v).is_link_local
+        except ValueError:
+            if ":" in v:  # only an IPv6 address has colons; the port is logs.syslog_port
+                raise ValueError("logs.syslog_host is the syslog server's host name or IP address, without a port") from None
+            link_local = False
+        if link_local:
+            raise ValueError("logs.syslog_host can't be a link-local address (169.254.0.0/16, fe80::/10)")
+        return v
+    if key == "syslog_app_name":
+        if not (isinstance(value, str) and APP_NAME_RX.match(value.strip())):
+            raise ValueError("logs.syslog_app_name is up to 48 printable characters, without spaces")
+        return value.strip()
+    lo, hi = LOG_RANGES[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"logs.{key} is a whole number from {lo} to {hi}")
+    return value
+
+
 def _nfs_setting(key, value):
     if key == "enabled":
         if not isinstance(value, bool):
@@ -1267,6 +1328,8 @@ def save(db, base, section, changes, user=None):
             # the saved headers (an auth token) were for the old collector: they don't go to a new host
             if before:
                 sealed.pop("headers", None)
+    if section == "logs" and data.get("syslog") and not data.get("syslog_host", (base.get("logs") or {}).get("syslog_host")):
+        raise ValueError("set the syslog server's address (logs.syslog_host) to send logs to it")
     if section == "speakers":
         m = data.get("match_threshold", defaults["match_threshold"])
         r = data.get("review_threshold", defaults["review_threshold"])

@@ -21,6 +21,7 @@ export type PanelTab =
   | "iiif"
   | "details"
   | "files"
+  | "similar"
   | "shots"
   | "text"
   | "people"

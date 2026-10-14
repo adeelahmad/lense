@@ -16,6 +16,7 @@ import { Shortcuts } from "@/components/app-shell/shortcuts";
 import { BudgetMeter } from "@/components/costs/budget-meter";
 import { WelcomeTour } from "@/components/home/welcome-tour";
 import { PageChat } from "@/components/page-chat/page-chat";
+import { SimilarOnSelect } from "@/components/similar/selection-popover";
 import { Button, IconButton } from "@/components/ui/button";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -195,6 +196,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         <PageChat />
       </Suspense>
       <Shortcuts />
+      <SimilarOnSelect />
       <WelcomeTour />
     </div>
   );

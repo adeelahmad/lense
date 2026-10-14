@@ -7625,6 +7625,129 @@ export type LocalModelServer = {
 };
 
 /**
+ * LogLine
+ *
+ * One log record, redacted as it was written.
+ */
+export type LogLine = {
+  /**
+   * Ts
+   */
+  ts: string;
+  /**
+   * Level
+   */
+  level: string;
+  /**
+   * Logger
+   */
+  logger: string;
+  /**
+   * Msg
+   */
+  msg: string;
+  /**
+   * Process
+   */
+  process: string;
+  /**
+   * Pid
+   */
+  pid?: number | null;
+  /**
+   * Host
+   */
+  host?: string | null;
+  /**
+   * Exc
+   */
+  exc?: string | null;
+  /**
+   * Fields
+   */
+  fields?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * LogStatus
+ *
+ * What the API process does with its logs now; each worker follows the same settings on its own.
+ */
+export type LogStatus = {
+  /**
+   * Level
+   */
+  level: string;
+  /**
+   * File
+   *
+   * the API's log file, under data_dir/logs
+   */
+  file?: string | null;
+  /**
+   * Syslog
+   *
+   * whether lines are being sent to a syslog server
+   */
+  syslog: boolean;
+  /**
+   * Target
+   *
+   * where, as transport://host:port
+   */
+  target?: string | null;
+  /**
+   * Sent
+   */
+  sent: number;
+  /**
+   * Dropped
+   *
+   * lines dropped because the server couldn't keep up or was unreachable
+   */
+  dropped: number;
+  /**
+   * Queued
+   */
+  queued: number;
+  /**
+   * Last Sent
+   */
+  last_sent?: number | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  /**
+   * Error At
+   */
+  error_at?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * LogTestResult
+ */
+export type LogTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -21248,6 +21371,100 @@ export type TestTelemetryResponses = {
 };
 
 export type TestTelemetryResponse = TestTelemetryResponses[keyof TestTelemetryResponses];
+
+export type LogStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/logs/status";
+};
+
+export type LogStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: LogStatus;
+};
+
+export type LogStatusResponse = LogStatusResponses[keyof LogStatusResponses];
+
+export type TestLogsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/logs/test";
+};
+
+export type TestLogsResponses = {
+  /**
+   * Successful Response
+   */
+  200: LogTestResult;
+};
+
+export type TestLogsResponse = TestLogsResponses[keyof TestLogsResponses];
+
+export type ReadLogsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Level
+     *
+     * this level and above
+     */
+    level?: "debug" | "info" | "warning" | "error" | "critical" | null;
+    /**
+     * Q
+     *
+     * text the message or error contains
+     */
+    q?: string | null;
+    /**
+     * Process
+     *
+     * api, worker or watcher
+     */
+    process?: string | null;
+    /**
+     * Logger
+     *
+     * a logger name, or the start of one (lens.email)
+     */
+    logger?: string | null;
+    /**
+     * Before
+     *
+     * a line's ts: only older lines (the next page)
+     */
+    before?: string | null;
+  };
+  url: "/api/v1/admin/logs";
+};
+
+export type ReadLogsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadLogsError = ReadLogsErrors[keyof ReadLogsErrors];
+
+export type ReadLogsResponses = {
+  /**
+   * Response Admin-Read Logs
+   *
+   * Successful Response
+   */
+  200: Array<LogLine>;
+};
+
+export type ReadLogsResponse = ReadLogsResponses[keyof ReadLogsResponses];
 
 export type ListAuditData = {
   body?: never;
