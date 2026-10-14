@@ -2,6 +2,17 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-14 · MCP servers that run as a program
+
+Admins add a stdio MCP server (`command`, `args`, `env`, as in Claude's `.mcp.json`) as an `mcp` extension, and a
+plugin's stdio servers come along when an admin installs it. They run in the MCP runner (`mcp-runner/`, the opt-in
+`mcp` Compose profile), a container with none of Lens's data or keys, reached over HTTP with a token on a volume only
+it and the backend share. Recorded in the threat model.
+
+Refine later: turn the runner on from Settings through the machine agent, as monitoring does, instead of
+`COMPOSE_PROFILES=mcp` in `.env`; the runner on installs that don't use Docker (microsandbox, Cloudron, NAS packages);
+plugin servers that run a program from the plugin's own folder; an egress allow-list for the runner's network.
+
 ## 2026-10-10 · Pasted transcripts fetch no speech model
 
 Found by the clicks survey: on a fresh install, importing a pasted transcript queued the standard pipeline from
@@ -52,8 +63,8 @@ resource's passages: no model call for a resource), key words (the text's words 
 cites up to three moments. `GET /similar`, assistant and MCP `find_similar`. Without embeddings (the default) the
 other three answer, with no model call.
 
-PRs: API, assistant and MCP tool; the Similar tab; the selection popover and the full Similar page; topics, entities and
-graph nodes.
+PRs: #296 the API, assistant and MCP tool; then the web app (the Similar tab, the selection popover and the full
+Similar page at `/similar`, and similar content for topics, entities and graph nodes).
 
 Refine later:
 - key words of a text are single words and two-word phrases; stems beyond plurals (designing/design) don't match;
@@ -62,6 +73,8 @@ Refine later:
   sharper;
 - entities in another namespace with the same name count only through the words, not as the same entity;
 - no "not similar" feedback yet, and nothing is cached between requests beyond the query vectors.
+- selecting text in an editor (notes, the document editor) opens nothing, since selecting there is for editing; a
+  "Similar" item in the editor's own menu would cover it;
 
 ## 2026-10-10 · More voices for spoken answers
 

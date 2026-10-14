@@ -218,8 +218,8 @@ saying why.
 
 ### Similar content
 
-The API (`GET /similar`), the assistant and the MCP server (`find_similar`) list the resources most like a text (a
-sentence, a passage, a title), a resource, a topic or an entity.
+The web app, the API (`GET /similar`), the assistant and the MCP server (`find_similar`) list the resources most like
+a text (a sentence, a passage, a title), a resource, a topic or an entity.
 
 Four lists are fused by reciprocal rank, so a resource alike in several ways comes first:
 
@@ -234,6 +234,17 @@ Each result cites why: its closest passages and the lines with the shared words 
 the words, and the topics and entities in common. Without an embeddings server (the default) the last three still
 answer, and no language model is called; with one, a selected text costs one embedding request, logged in the
 activity ledger.
+
+In the web app:
+
+* every resource has a **Similar** tab, after Entities, listing what is most like it;
+* selecting text anywhere (a transcript, a page, a title, a summary, a graph label) opens a popover with the five
+  resources most like the selection, each citing why, and **Find more** opens the full list at `/similar`, with
+  paging and a search for the key words. The account menu's **Similar on select** switches between showing the
+  popover at once and showing a small **Similar** button to click first. Text typed in a field or an editor (notes)
+  opens nothing;
+* a topic's and an entity's drawer, and a resource, topic or entity selected on the graph canvas, list similar
+  content too.
 
 ## Background work
 

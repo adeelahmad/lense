@@ -10,6 +10,7 @@ import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
 import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
+import { LogViewer } from "@/components/settings/log-viewer";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
 import { RIGHTS } from "@/components/iiif/rights";
@@ -401,6 +402,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <StorageBody ctx={ctx} />;
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
+    case "logs":
+      return <LogsBody ctx={ctx} />;
     case "fedora":
       return <FedoraBody ctx={ctx} />;
     case "sensors":
@@ -733,6 +736,91 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
         onChange={(x) => promToken.onChange(x)}
       />
       <F ctx={ctx} id="telemetry.grafana_url" />
+    </>
+  );
+}
+
+function LogsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const l = ctx.view.logs;
+  const saved = l?.values ?? {};
+  const status = useQuery({
+    queryKey: ["log-status", l?.updated_at ?? null],
+    queryFn: () => data(Admin.logStatus({ client })),
+    refetchInterval: 15_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testLogs({ client })) });
+  const s = status.data;
+  const host = (saved.syslog_host as string | null | undefined) ?? null;
+  const on = Boolean(saved.syslog);
+  const failing = Boolean(s?.last_error && (!s.last_sent || (s.error_at ?? 0) > s.last_sent));
+  return (
+    <>
+      {on && s?.syslog ? (
+        <Banner tone={failing ? "error" : "success"} title={`Sending to syslog at ${s.target}`}>
+          {failing
+            ? `Can’t reach it: ${s.last_error}. Lines wait and are tried again${s.dropped ? `; ${s.dropped} dropped so far` : ""}.`
+            : `${s.sent} line${s.sent === 1 ? "" : "s"} sent from the server${s.dropped ? `, ${s.dropped} dropped` : ""}. Each worker sends its own.`}
+        </Banner>
+      ) : (
+        <Banner title="Logs stay on this machine.">
+          Lines go to the console and to a file per process. Turn on syslog below to send them to a log server too.
+        </Banner>
+      )}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="logs.level" />
+        <F ctx={ctx} id="logs.format" />
+      </div>
+      <F ctx={ctx} id="logs.levels" />
+      <F ctx={ctx} id="logs.file" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="logs.file_mb" />
+        <F ctx={ctx} id="logs.file_keep" />
+      </div>
+      <F ctx={ctx} id="logs.syslog" />
+      <div className="grid gap-3 sm:grid-cols-[1fr_120px_120px]">
+        <F ctx={ctx} id="logs.syslog_host" />
+        <F ctx={ctx} id="logs.syslog_port" />
+        <F ctx={ctx} id="logs.syslog_transport" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <F ctx={ctx} id="logs.syslog_level" />
+        <F ctx={ctx} id="logs.syslog_facility" />
+        <F ctx={ctx} id="logs.syslog_format" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <F ctx={ctx} id="logs.syslog_framing" />
+        <F ctx={ctx} id="logs.syslog_app_name" />
+        <F ctx={ctx} id="logs.syslog_verify" />
+      </div>
+      <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+        RFC 5424 syslog, as rsyslog, syslog-ng, Graylog, Loki’s syslog receiver and most log tools take it. Keys, tokens
+        and passwords are replaced with *** in every line before it is written or sent.
+      </p>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending || !host}>
+          {test.isPending ? "Sending…" : "Send a test line"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Uses the saved settings, not your unsaved changes"
+            : "Sends one line, even while sending is off"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="The test line was sent.">
+            {saved.syslog_transport === "udp"
+              ? "UDP doesn’t confirm delivery: look for it on the server."
+              : `The server took it in ${test.data.ms} ms.`}
+          </Banner>
+        ) : (
+          <Banner tone="error" title="The test failed.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+      <LogViewer />
     </>
   );
 }

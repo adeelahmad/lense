@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:7b595f31eb5e4b1b5bdfca4df3166f3e3fae275d38a4044bebe1a4376068e1d3"
+prose_version: "threat-model.md@sha256:866a8ecadd07a9c98b1846abb66ef740fa3ba5809698d42f531a66fc5d720db4"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -570,7 +570,7 @@ contract_dimensions:
   - {component: assistant, dimension: reference-lifecycle, status: unresolved, conditions: "saved answers keep text the person can no longer read", question_id: Q11, provenance: {kind: inferred, question_id: Q11}}
   - {component: assistant, dimension: concurrency-reentrancy, status: not-applicable, conditions: "one loop per conversation; tool calls run in order", provenance: {kind: inferred, question_id: Q34}}
   - {component: assistant, dimension: resource-complexity, status: disclaimed, property_id: N-BUDGET, conditions: "budgets are pre-run estimates, off by default", provenance: {kind: documented, source: 'docs/budgets.md "Budgets are off unless an admin sets one"'}}
-  - {component: assistant, dimension: x-prompt-injection, status: unresolved, conditions: "content steers the model within the person's tools, or into answers that carry text out", question_id: Q26, provenance: {kind: inferred, question_id: Q26}}
+  - {component: assistant, dimension: x-prompt-injection, status: claimed, property_id: P-INJECTION-EGRESS, conditions: "steering the model within the person's tools is disclaimed (N-PROMPT); carrying what it read out through outbound tools, setup changes or chat-room links asks first or is broken up", provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}}
   - {component: assistant, dimension: x-template-reach, status: unresolved, conditions: "any writer can use a template node in a custom node", question_id: Q23, provenance: {kind: inferred, question_id: Q23}}
   # --- Optional
   - {component: optional, dimension: numeric-domain, status: unresolved, conditions: "payload 256 KB, 600 per minute per stream, syslog line 64 KB", question_id: Q29, provenance: {kind: inferred, question_id: Q29}}
@@ -646,7 +646,7 @@ outputs:
   - component: authz
     channel: "MCP tool results (api/mcp_tools.py)"
     taint: same-as-input
-    x-taint-note: "the person's readable data, as text"
+    x-taint-note: "the person's readable data, as text, with chat-template control tokens broken up and a note when text reads like instructions to an AI"
     taint_provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}
     invariants:
       - {id: inv-mcp-person-reads, statement: "results contain only what the person can read", property_id: P-RETRIEVAL, provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
@@ -1369,6 +1369,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "Approvals"'}
+  - id: P-INJECTION-EGRESS
+    kind: confidentiality
+    components: [assistant]
+    tier: correctness-only
+    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26)."
+    violation_symptoms: [info-leak]
+    x-voided-by: "ai.untrusted_asks: false (domain/ai_tools.py:519); bridge.safe_links: false (domain/bridge.py:298); notes and memories are written at once; hooks run as their owners set them (P-EXT-SCOPE); an address the read text wrote itself stays linkable in a room; the person's browser asks first as P-BROWSER-GUARD says"
+    provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}
   - id: P-EXT-SCOPE
     kind: integrity
     components: [assistant]
@@ -1594,7 +1602,7 @@ properties_disclaimed:
   - {id: N-CHROMIUM, components: [outbound, ingest], tier: security-critical, false_friend: true, conditions: "Chromium's own sandbox in containers or as root; the netguard proxy is what stops a page; conversion and capture", x-false-friend-note: "'headless browser' is not isolation", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
   - {id: N-DECODERS, components: [ingest], tier: security-critical, false_friend: false, conditions: "sandboxing or memory-safety for ffmpeg, poppler, antiword and similar decoders; memory bugs inside them route to §1.9; does not cover Lens's own process control (timeouts, killing children): that is P-CONVERT-TIMEOUT", provenance: {kind: inferred, question_id: Q20}}
   - {id: N-BOMBS, components: [ingest], tier: security-critical, false_friend: false, conditions: "bounds on decompressed size, nested emails or media duration (docx XML, email attachments, long media); does not cover a conversion or capture outliving Lens's own timeout (P-CONVERT-TIMEOUT)", provenance: {kind: inferred, question_id: Q22}}
-  - {id: N-PROMPT, components: [assistant], tier: correctness-only, false_friend: true, conditions: "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; exfiltration through rendered answers is Q26", x-false-friend-note: "a system prompt is not a filter", provenance: {kind: inferred, question_id: Q26}}
+  - {id: N-PROMPT, components: [assistant], tier: correctness-only, false_friend: true, conditions: "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; carrying what it read out through tools or chat-room links is P-INJECTION-EGRESS. Marking third-party text as data, breaking up chat-template control tokens and flagging text that reads like instructions (ai.untrusted_marking, ai.injection_check) make injection less likely; they are not claimed", x-false-friend-note: "a system prompt is not a filter", provenance: {kind: inferred, question_id: Q26}}
   - {id: N-MODEL-OUTPUT, components: [assistant], tier: correctness-only, false_friend: false, conditions: "correct or grounded model output; answers can be wrong; checking sources re-asks the same model", provenance: {kind: documented, source: 'docs/assistant.md "Check sources"'}}
   - {id: N-REMOTE, components: [outbound], tier: security-critical, false_friend: false, conditions: "trust in remote content (storage listings, mail, calendars, IIIF manifests, model replies), treated as data; does not cover Lens's own cache keys or names for remote content (P-REMOTE-NAMES, Q43)", provenance: {kind: inferred, question_id: Q17}}
   - {id: N-ADMIN-IMPORT-BOUNDS, components: [outbound, query], tier: security-critical, false_friend: false, conditions: "resource bounds on admin-started imports and syncs, and SPARQL time; IIIF media up to 4 GB in memory; rclone without byte cap", provenance: {kind: inferred, question_id: Q16}}

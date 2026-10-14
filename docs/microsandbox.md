@@ -53,6 +53,12 @@ after `~/lens` was deleted, leaves it as it is and starts on a volume of its own
 `.env` keeps that name (`LENS_VOLUME`), so running the line again uses the same one. Put the earlier `.env` back in the
 folder to use the earlier data again, or remove it with `msb volume rm lens-data`.
 
+An install made before that check (0.8.0 or earlier) may already run on such a volume: its API stops at every start
+with `SURREAL_USER/SURREAL_PASS don't match the user this database was created with`. Each start, the sandbox checks
+that the keys in `.env` open the database. When they don't, it stops and says `Another install's database`, and the
+install line moves Lens to a volume of its own the same way, keeping `.env`'s keys. So to recover, run the install line
+again. The earlier volume is left as it is, for the `.env` that made it.
+
 The sandbox can reach the internet, your network (mail servers, model servers) and this machine. On this machine,
 Ollama or LM Studio are at `host.docker.internal`, the same address as with Docker. Only the web app's port and the
 sensor ports are published, on the same addresses Docker would use (`LENS_BIND`, `LENS_SENSOR_BIND`).

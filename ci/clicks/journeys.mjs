@@ -30,13 +30,9 @@ async function jumpTo({ page, meter, phone }) {
   else await meter.press("Control+k", "Ctrl+K");
 }
 
-/** Import: the top bar's button. A phone's top bar has none, so there it's the Jump to palette's Import action. */
-async function openImport(ctx) {
-  const { page, meter, phone } = ctx;
-  if (!phone) return meter.click(page.getByRole("banner").getByRole("link", { name: "Import" }), "Import (top bar)");
-  await jumpTo(ctx);
-  await meter.type(page.getByRole("combobox", { name: /Search recordings and pages/ }), "import", "import");
-  await meter.click(page.getByRole("option", { name: /^Import/ }).first(), "Import recordings or transcripts");
+/** Import: the top bar's button (an icon on a phone). */
+async function openImport({ page, meter }) {
+  await meter.click(page.getByRole("banner").getByRole("link", { name: "Import" }), "Import (top bar)");
   await page.waitForURL(/\/import/);
 }
 
@@ -51,6 +47,21 @@ async function madeInBackground({ page, base }, where, locator, from, what) {
   await page.goto(base + from, { waitUntil: "domcontentloaded" });
   await page.getByRole("banner").waitFor();
   await page.waitForTimeout(2000);
+}
+
+/** Opens the namespace switcher: in the top bar, or at the top of the navigation drawer on a phone. */
+async function openSwitcher(ctx) {
+  const { page, meter, phone } = ctx;
+  if (phone) await meter.click(page.getByRole("button", { name: "Open navigation" }), "Open navigation (menu)");
+  const switcher = page.getByRole("button", { name: /^Namespace: / }).first();
+  await needs(ctx, switcher, "the namespace switcher");
+  await meter.click(switcher, "the namespace switcher");
+}
+
+/** Opens a settings section from the sections list, which a phone opens from the current section's name. */
+async function section({ page, meter, phone }, label) {
+  if (phone) await meter.click(page.getByRole("button", { name: /^Settings section/ }), "Settings sections");
+  await meter.click(page.getByRole("link", { name: label }), label);
 }
 
 /** Fails the journey with the reason when a control isn't on the screen at all (on a phone some are hidden). */
@@ -346,7 +357,7 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Settings");
-      await meter.click(page.getByRole("link", { name: "LLM provider" }), "LLM provider");
+      await section(ctx, "LLM provider");
       await meter.replace(page.getByRole("textbox", { name: "Timeout (seconds)" }), "120", "timeout");
       await save(ctx);
       await page.getByText(/Saved|Last saved/).first().waitFor();
@@ -397,10 +408,10 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
-      await needs(ctx, page.getByRole("button", { name: /^Namespace: / }).first(), "the namespace switcher");
-      await meter.click(page.getByRole("button", { name: /^Namespace: / }), "the namespace switcher");
+      await openSwitcher(ctx);
       await meter.click(page.getByRole("option", { name: /^podcasts/ }), "podcasts");
-      await page.getByRole("button", { name: /^Namespace: podcasts/ }).waitFor();
+      // on a phone the drawer closes after the pick, switcher and all
+      await page.waitForFunction(() => localStorage.getItem("lens.namespace") === "podcasts");
     },
   },
   // --- Modules the first survey left out: one everyday task each ---------------------------------------------------
@@ -472,16 +483,10 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Sensors");
-      await meter.click(page.getByRole("tab", { name: "Files, email and calendars" }), "Files, email and calendars tab");
-      await meter.click(page.getByRole("main").getByRole("button", { name: "Add connection" }).first(), "Add connection");
-      const d = page.getByRole("dialog");
-      await meter.click(d.getByRole("radio", { name: "This machine" }), "This machine");
-      await meter.click(d.getByRole("button", { name: "Test connection" }), "Test connection");
-      await meter.click(d.getByRole("button", { name: "Done" }), "Done (the test passed)");
-      // The folder browser opens on the allowed folders, which can't be watched themselves: open one first
+      // Straight to this machine's allowed folders, its connection made on the way (nothing to test or name)
+      await meter.click(page.getByRole("main").getByRole("link", { name: "Watch a local folder" }), "Watch a local folder");
       const browse = page.getByRole("dialog", { name: /^Browse/ });
-      await meter.click(browse.getByRole("table").getByRole("button").first(), "the allowed folder");
-      await meter.click(browse.getByRole("button", { name: "Watch this folder" }), "Watch this folder");
+      await meter.click(browse.getByRole("table").getByRole("button", { name: /^Watch / }).first(), "Watch, on the allowed folder");
       await meter.click(page.getByRole("dialog", { name: /^Watch/ }).getByRole("button", { name: "Start watching" }), "Start watching");
       await page.getByRole("dialog").waitFor({ state: "hidden" });
       await page.getByRole("main").getByText(/[1-9]\d* watched folders?/).first().waitFor();
@@ -520,8 +525,7 @@ export const JOURNEYS = [
       await page.getByRole("region", { name: "Graph" }).waitFor();
       await page.waitForTimeout(1000);
       if (await page.getByRole("heading", { name: /^No graph/ }).isVisible().catch(() => false)) {
-        await needs(ctx, page.getByRole("button", { name: /^Namespace: / }).first(), "the namespace switcher");
-        await meter.click(page.getByRole("button", { name: /^Namespace: / }).first(), "the namespace switcher");
+        await openSwitcher(ctx);
         await meter.click(page.getByRole("listbox", { name: "Namespaces" }).getByRole("option", { name: /^interviews/ }), "interviews");
       }
       // On a phone the filters, the find box among them, sit behind a button
@@ -651,7 +655,7 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Settings");
-      await meter.click(page.getByRole("link", { name: "LLM provider" }), "LLM provider");
+      await section(ctx, "LLM provider");
       const cloud = page.getByRole("group", { name: "Cloud providers" }).getByRole("button", { name: "OpenAI" });
       await meter.click(cloud, "OpenAI (fills in the address and the model)");
       // The key field takes the focus: a person sees the cursor land there before pasting

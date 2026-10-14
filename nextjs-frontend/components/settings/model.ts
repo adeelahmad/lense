@@ -85,6 +85,7 @@ export type SectionId =
   | "slack"
   | "mailbox"
   | "telemetry"
+  | "logs"
   | "fedora"
   | "sensors"
   | "nfs"
@@ -274,6 +275,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telemetry"],
     description:
       "Off unless you turn it on. Traces and metrics from the server and its workers, sent only to an OpenTelemetry collector you run or choose; nothing goes anywhere else.",
+  },
+  {
+    id: "logs",
+    label: "Logs",
+    backend: ["logs"],
+    description:
+      "What the server and its workers log, the latest lines from all of them, and sending them to a syslog server (off unless you turn it on). Keys, tokens and passwords are taken out of every line.",
   },
   {
     id: "fedora",
@@ -2486,6 +2494,134 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "gpt-4o-mini 0.15 0.60",
     hint: "One model per line: its name, then the input and output price in dollars per million tokens. The AI assistant’s prices count for the configured model",
   },
+  // Logs
+  {
+    section: "logs",
+    key: "level",
+    label: "Level",
+    kind: "select",
+    options: [
+      { value: "debug", label: "Debug" },
+      { value: "info", label: "Info" },
+      { value: "warning", label: "Warning" },
+      { value: "error", label: "Error" },
+      { value: "critical", label: "Critical" },
+    ],
+    hint: "What is kept on the console (docker logs) and in the log files",
+  },
+  {
+    section: "logs",
+    key: "format",
+    label: "Console format",
+    kind: "select",
+    options: [
+      { value: "text", label: "Text" },
+      { value: "json", label: "JSON, one object per line" },
+    ],
+  },
+  {
+    section: "logs",
+    key: "levels",
+    label: "Logger levels",
+    kind: "lines",
+    mono: true,
+    placeholder: "httpx warning",
+    hint: "One logger per line with its own level, like httpx warning or lens.bridge debug",
+  },
+  {
+    section: "logs",
+    key: "file",
+    label: "Keep log files",
+    kind: "switch",
+    hint: "A file per process under data_dir/logs; the lines below come from these",
+  },
+  { section: "logs", key: "file_mb", label: "File size", kind: "int", min: 1, max: 100, unit: "MB" },
+  { section: "logs", key: "file_keep", label: "Files kept", kind: "int", min: 1, max: 10 },
+  {
+    section: "logs",
+    key: "syslog",
+    label: "Send to syslog",
+    kind: "switch",
+    hint: "Off by default; while off, nothing leaves this machine",
+  },
+  {
+    section: "logs",
+    key: "syslog_host",
+    label: "Host",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "logs.home.lan",
+    hint: "The syslog server’s host name or IP address",
+  },
+  { section: "logs", key: "syslog_port", label: "Port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "logs",
+    key: "syslog_transport",
+    label: "Transport",
+    kind: "select",
+    options: [
+      { value: "udp", label: "UDP" },
+      { value: "tcp", label: "TCP" },
+      { value: "tls", label: "TLS" },
+    ],
+  },
+  {
+    section: "logs",
+    key: "syslog_level",
+    label: "Syslog level",
+    kind: "select",
+    options: [
+      { value: "debug", label: "Debug" },
+      { value: "info", label: "Info" },
+      { value: "warning", label: "Warning" },
+      { value: "error", label: "Error" },
+      { value: "critical", label: "Critical" },
+    ],
+    hint: "Only lines at this level or above are sent",
+  },
+  {
+    section: "logs",
+    key: "syslog_facility",
+    label: "Facility",
+    kind: "select",
+    options: [
+      "user",
+      "daemon",
+      "auth",
+      "syslog",
+      "local0",
+      "local1",
+      "local2",
+      "local3",
+      "local4",
+      "local5",
+      "local6",
+      "local7",
+    ].map((v) => ({ value: v, label: v })),
+  },
+  {
+    section: "logs",
+    key: "syslog_format",
+    label: "Message format",
+    kind: "select",
+    options: [
+      { value: "text", label: "Text" },
+      { value: "json", label: "JSON record" },
+    ],
+  },
+  {
+    section: "logs",
+    key: "syslog_framing",
+    label: "TCP framing",
+    kind: "select",
+    options: [
+      { value: "octet", label: "Octet counting (RFC 6587)" },
+      { value: "newline", label: "One line per newline" },
+    ],
+  },
+  { section: "logs", key: "syslog_verify", label: "Verify the certificate", kind: "switch", hint: "For TLS" },
+  { section: "logs", key: "syslog_app_name", label: "App name", kind: "text", mono: true },
   {
     section: "tokens",
     key: "oauth_enabled",
@@ -2796,6 +2932,7 @@ export function toUi(f: FieldSpec, v: unknown): unknown {
       return Array.isArray(v) ? v.map(String) : [];
     case "lines":
       if (f.section === "telemetry" && f.key === "prices") return pricesToLines(v);
+      if (f.section === "logs" && f.key === "levels") return levelsToLines(v);
       return Array.isArray(v) ? v.join("\n") : "";
     case "days":
       return typeof v === "number" ? String(Math.round((v / 24) * 100) / 100) : "";
@@ -2835,6 +2972,34 @@ export function linesToPrices(text: string): Parsed {
   return { value: out };
 }
 
+export const LOG_LEVELS = ["debug", "info", "warning", "error", "critical"];
+
+/** logs.levels as lines: "logger level". */
+export function levelsToLines(v: unknown): string {
+  if (!v || typeof v !== "object") return "";
+  return Object.entries(v as Record<string, string>)
+    .map(([name, level]) => `${name} ${level}`)
+    .join("\n");
+}
+
+/** Lines of "logger level" back to logs.levels. */
+export function linesToLevels(text: string): Parsed {
+  const out: Record<string, string> = {};
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    const [name, level, ...rest] = lines[i].split(/\s+/);
+    if (rest.length || !/^[A-Za-z0-9_.-]{1,100}$/.test(name) || !LOG_LEVELS.includes((level ?? "").toLowerCase()))
+      return {
+        error: `Line ${i + 1}: write the logger, then its level (${LOG_LEVELS.join(", ")}), like httpx warning`,
+      };
+    out[name] = level.toLowerCase();
+  }
+  return { value: out };
+}
+
 /** Parses a control's value back to what the backend stores, checking it like the backend does. */
 export function parse(f: FieldSpec, ui: unknown): Parsed {
   switch (f.kind) {
@@ -2846,6 +3011,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
       return { value: ui as string[] };
     case "lines":
       if (f.section === "telemetry" && f.key === "prices") return linesToPrices(String(ui ?? ""));
+      if (f.section === "logs" && f.key === "levels") return linesToLevels(String(ui ?? ""));
       return {
         value: String(ui ?? "")
           .split("\n")
@@ -2989,6 +3155,14 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["telemetry.endpoint"] = "Use the collector’s base address, without /v1/traces or /v1/metrics";
   else if (values["telemetry.enabled"] === true && "telemetry.endpoint" in values && !otlp)
     e["telemetry.endpoint"] = "Set the collector’s address to send telemetry to";
+  const slHost = values["logs.syslog_host"] as string | null | undefined;
+  if (
+    slHost &&
+    (!/^[A-Za-z0-9.:_[\]-]{1,253}$/.test(slHost) || (/:/.test(slHost) && !/^\[?[0-9a-f:.]+\]?$/i.test(slHost)))
+  )
+    e["logs.syslog_host"] = "Enter a host name or IP address, without a port";
+  else if (values["logs.syslog"] === true && "logs.syslog_host" in values && !slHost)
+    e["logs.syslog_host"] = "Set the syslog server’s address to send logs to";
   const rights = values["iiif.rights"] as string | null | undefined;
   if (rights && !RIGHTS_RX.test(rights))
     e["iiif.rights"] = "Pick a Creative Commons licence or a RightsStatements.org statement";
@@ -3028,6 +3202,10 @@ export function show(f: FieldSpec, v: unknown): string {
   if (f.section === "telemetry" && f.key === "prices") {
     const n = Object.keys((v as Prices) ?? {}).length;
     return n ? `${n} model${n === 1 ? "" : "s"}` : "none";
+  }
+  if (f.section === "logs" && f.key === "levels") {
+    const n = Object.keys((v as Record<string, string>) ?? {}).length;
+    return n ? `${n} logger${n === 1 ? "" : "s"}` : "none";
   }
   if (Array.isArray(v)) {
     if (f.kind === "checks" && f.section === "ai") return `${v.length} off`;
@@ -3090,6 +3268,12 @@ export function why(c: Change): string | null {
       : "Scrapers must send the new token; stored encrypted.";
   if (id === "telemetry.headers")
     return c.after === "" ? "The headers are removed." : "Sent with every export; stored encrypted.";
+  if (id === "logs.syslog")
+    return c.after
+      ? "The server and its workers start sending their log lines to the syslog server within a few seconds."
+      : "Nothing more is sent; what was sent stays on the syslog server.";
+  if (id === "logs.level" || id === "logs.levels")
+    return "The server and its workers follow within a few seconds, without a restart.";
   if (id === "llm.api_key")
     return c.after === ""
       ? "The key is removed; LLM steps and chat stop until a new one is set."

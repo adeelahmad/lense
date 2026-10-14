@@ -45,6 +45,8 @@ const ENV: Record<string, string> = {
   "telemetry.enabled": "LENS_TELEMETRY",
   "telemetry.endpoint": "LENS_TELEMETRY_ENDPOINT",
   "telemetry.headers": "LENS_TELEMETRY_HEADERS",
+  "logs.level": "LENS_LOG_LEVEL",
+  "logs.format": "LENS_LOG_FORMAT",
   "telemetry.prometheus": "LENS_PROMETHEUS",
   "telemetry.prometheus_token": "LENS_PROMETHEUS_TOKEN",
   "telemetry.grafana_url": "LENS_GRAFANA_URL",
@@ -276,7 +278,8 @@ export function SettingsSection({
       </div>
 
       {id !== "startup" && (dirty || errorCount > 0) && (
-        <div className="sticky bottom-0 z-10 mt-auto flex flex-wrap items-center gap-2.5 border-t border-border bg-background px-4 py-3 sm:px-8">
+        // sm:pr: Save stays clear of the floating Ask button on a wider screen too (phone-actions does it on a phone)
+        <div className="phone-actions sticky bottom-0 z-10 mt-auto flex flex-wrap items-center gap-2.5 border-t border-border bg-background px-4 py-3 sm:px-8 sm:pr-[120px]">
           <span aria-hidden className={cn("size-2 rounded-full", errorCount ? "bg-red" : "bg-blue")} />
           <span className="min-w-0 flex-1 text-[13.5px] font-medium" aria-live="polite">
             {changes.length + nsChanges.length} change

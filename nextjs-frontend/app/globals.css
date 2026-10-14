@@ -38,6 +38,25 @@
   }
 }
 
+@layer components {
+  /* A form's main buttons on a phone: the row sticks to the bottom of the screen rather than waiting below the fold,
+     and leaves room on the right for the floating Ask button. The call site stretches it to its card's edges. */
+  @media (max-width: 639px) {
+    .phone-actions {
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      background: var(--background);
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
+    body:has([data-ask-button]) .phone-actions {
+      padding-right: 80px;
+    }
+  }
+}
+
 @layer utilities {
   .tabular {
     font-variant-numeric: tabular-nums;

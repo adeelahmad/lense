@@ -13,7 +13,8 @@ export type TabItem = {
   disabled?: boolean;
 };
 
-/** Underlined tabs (Aladdin): blue 3px underline and bold label on the active one; optional counts. */
+/** Underlined tabs (Aladdin): blue 3px underline and bold label on the active one; optional counts. On a phone they
+ * wrap onto a second row rather than scroll sideways, so every tab is in sight. */
 export function Tabs({
   items,
   value,
@@ -33,13 +34,13 @@ export function Tabs({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={cn("flex gap-1 overflow-x-auto border-b border-border", className)}
+      className={cn("flex flex-wrap gap-x-1 border-b border-border sm:flex-nowrap sm:overflow-x-auto", className)}
     >
       {items.map((it) => {
         const on = it.value === value;
         const cls = cn(
           "-mb-px inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-t-[3px] border-b-[3px] transition-colors duration-fast",
-          size === "sm" ? "px-3 py-2 text-[13px]" : "px-3.5 py-2.5 text-[14px]",
+          size === "sm" ? "px-3 py-2 text-[13px]" : "px-3 py-2.5 text-[14px] sm:px-3.5",
           on ? "border-blue font-bold text-blue" : "border-transparent font-medium text-fg-secondary hover:text-fg",
           it.disabled && "cursor-not-allowed opacity-50",
         );

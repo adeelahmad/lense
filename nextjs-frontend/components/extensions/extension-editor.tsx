@@ -193,6 +193,7 @@ export function ExtensionEditor({ id }: { id?: number }) {
           actions={
             id == null ? (
               <Segmented
+                className="flex-wrap rounded-[18px]"
                 label="Start from"
                 value={kind}
                 onChange={(k: string) => {
@@ -227,7 +228,7 @@ export function ExtensionEditor({ id }: { id?: number }) {
               </p>
             )}
             {editable && (
-              <div className="flex flex-wrap items-end gap-2">
+              <div className="phone-actions flex flex-wrap items-end gap-2 max-sm:-mx-4 max-sm:-mb-4 max-sm:rounded-b-md max-sm:px-4">
                 {id != null && (
                   <Field label="What changed" optional className="min-w-[220px] flex-1">
                     {({ id: fid }) => <Input id={fid} value={notes} onChange={(ev) => setNotes(ev.target.value)} />}

@@ -353,6 +353,41 @@ class TelemetryTestResult(ResponseModel):
     ms: int | None = None
 
 
+class LogStatus(ResponseModel):
+    """What the API process does with its logs now; each worker follows the same settings on its own."""
+
+    level: str
+    file: str | None = Field(None, description="the API's log file, under data_dir/logs")
+    syslog: bool = Field(description="whether lines are being sent to a syslog server")
+    target: str | None = Field(None, description="where, as transport://host:port")
+    sent: int
+    dropped: int = Field(description="lines dropped because the server couldn't keep up or was unreachable")
+    queued: int
+    last_sent: float | None = None
+    last_error: str | None = None
+    error_at: float | None = None
+
+
+class LogTestResult(ResponseModel):
+    ok: bool
+    error: str | None = None
+    ms: int | None = None
+
+
+class LogLine(ResponseModel):
+    """One log record, redacted as it was written."""
+
+    ts: str
+    level: str
+    logger: str
+    msg: str
+    process: str
+    pid: int | None = None
+    host: str | None = None
+    exc: str | None = None
+    fields: dict[str, Any] | None = None
+
+
 class FileStoreTry(RequestModel):
     """Where to try keeping files, before saving it (Settings → Storage); nothing given tries what is saved."""
 

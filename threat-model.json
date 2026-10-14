@@ -960,6 +960,14 @@
       "source": "docs/assistant.md \"Approvals\""
     },
     {
+      "property": "P-INJECTION-EGRESS",
+      "violation_symptom": "info-leak",
+      "severity_tier": "correctness",
+      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26).",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"it read out of Lens waits for your approval\""
+    },
+    {
       "property": "P-EXT-SCOPE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
@@ -1344,7 +1352,7 @@
     },
     {
       "property": "N-PROMPT",
-      "reason": "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; exfiltration through rendered answers is Q26",
+      "reason": "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; carrying what it read out through tools or chat-room links is P-INJECTION-EGRESS. Marking third-party text as data, breaking up chat-template control tokens and flagging text that reads like instructions (ai.untrusted_marking, ai.injection_check) make injection less likely; they are not claimed",
       "false_friend": true,
       "provenance": "inferred",
       "source": "open question Q26"
