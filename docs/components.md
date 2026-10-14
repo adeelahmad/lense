@@ -33,7 +33,9 @@ never fetch a speech or voice model.
   later, when the settings change, or on **Check again now**.
 
 Programs are only checked: a running container can't install them. ffmpeg and Tesseract are in every image. Chromium and
-LibreOffice (web pages, text, emails, Office files) are in the full image, which the compose files build by default.
+LibreOffice (web pages, text, emails, Office files) are in the full image, which the compose files build by default. In
+a [microsandbox](microsandbox.md#libreoffice-and-chromium)'s full edition they're installed the first time a document or
+a web page needs one, and the Components list says so.
 
 ## Settings
 

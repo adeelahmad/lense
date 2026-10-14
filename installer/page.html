@@ -503,6 +503,9 @@ function viewInstall() {
       : "You can leave this page open and come back. Closing it doesn't stop the install."),
     el("ul", { class: "progress" }, steps.map((t, i) => el("li", { class: i === steps.length - 1 && !done ? (failed ? "fail" : "now") : "" }, t))));
   if (failed) box.append(el("div", { class: "msg err" }, P.error || "install.sh stopped"));
+  // what Lens itself logged last, when install.sh stopped waiting for it: usually the reason in Lens's own words
+  if (failed && P.tail && P.tail.length) box.append(el("p", { class: "muted" }, "What Lens logged last:"),
+    el("pre", { class: "log" }, P.tail.join("\n")));
   const pre = el("pre", { class: "log" }, S.log.join("\n") || "…");
   box.append(el("details", { open: failed }, el("summary", {}, "Details"), pre));
   if (done) box.append(el("div", { class: "nav" }, el("button", { class: "primary big", onclick: async () => {
@@ -530,7 +533,7 @@ function render() {
   }
   const f = S.facts, ex = f.existing || {};
   Object.assign(S.a, { dir: f.dir, port: f.port, public: f.public, ref: f.ref,
-    backend: ex.LENS_BACKEND || "docker",
+    backend: ex.LENS_BACKEND || f.backend_default || "docker",
     // a small computer (a Raspberry Pi) gets the lean edition unless it already runs the full one
     target: ex.LENS_TARGET || (f.memory_mb && f.memory_mb < 4096 ? "lean" : "full") });
   $("#where").textContent = f.os_name;

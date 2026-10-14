@@ -16,6 +16,7 @@ import threading
 import time
 import unittest
 from http.server import ThreadingHTTPServer
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -34,6 +35,13 @@ printf '\033[1m%s\033[0m\n' "Getting Lens into $LENS_DIR..."
 } >"$LENS_DIR/.env"
 chmod 600 "$LENS_DIR/.env"
 [ "${FAIL:-0}" = 1 ] && { echo "Docker isn't running. Start it, then run this again." >&2; exit 1; }
+if [ "${FAIL:-0}" = 2 ]; then
+  echo "The last lines Lens logged:"
+  echo "[lens] api stopped; starting it again in 5 seconds"
+  echo "cannot open SurrealDB: authentication failed"
+  echo "Lens's API keeps stopping in its microsandbox. See everything: msb logs -f lens" >&2
+  exit 1
+fi
 printf '\033[1m%s\033[0m\n' "Lens is running: http://localhost:$LENS_PORT/setup?code=abc123"
 """
 
@@ -134,6 +142,18 @@ class Pure(unittest.TestCase):
             self.assertEqual(items, [{"what": "Docker Engine with Compose (from get.docker.com)", "admin": True}])
         self.assertEqual(li.plan("docker", {**docker, "installed": True, "running": True, "compose": True}, "root"), [])
 
+    def test_log_tail_is_what_lens_logged_without_the_reason(self):
+        lines = ["Waiting for the web app...", li.TAIL_HEAD, "[lens] Building Lens...", "error: boom", "", "Lens couldn't start."]
+        self.assertEqual(li.log_tail(lines, "Lens couldn't start."), ["[lens] Building Lens...", "error: boom"])
+        self.assertEqual(li.log_tail(["Docker isn't running."], "Docker isn't running."), [])
+
+    def test_lens_app_offers_microsandbox_first_where_it_runs(self):
+        inst = li.Installer("/tmp/lens-x", "adeelahmad/lense", "main", token="t")
+        for wanted, can, expect in (("microsandbox", True, "microsandbox"), ("microsandbox", False, "docker"), ("", True, "docker")):
+            with mock.patch.dict(os.environ, {"LENS_BACKEND_DEFAULT": wanted}), mock.patch.object(li, "msb_ok", return_value=can):
+                inst._facts = None
+                self.assertEqual(inst.facts()["backend_default"], expect)
+
 
 class Server(unittest.TestCase):
     def setUp(self):
@@ -205,6 +225,19 @@ class Server(unittest.TestCase):
             del os.environ["FAIL"]
         self.assertEqual(progress["state"], "failed")
         self.assertIn("Docker isn't running", progress["error"])
+
+    def test_a_failed_start_shows_what_lens_logged(self):
+        os.environ["FAIL"] = "2"
+        try:
+            self.assertEqual(self.call("POST", "/api/install", {"dir": self.dir})[0], 202)
+            progress = self.wait()
+        finally:
+            del os.environ["FAIL"]
+        self.assertEqual(progress["state"], "failed")
+        self.assertIn("API keeps stopping", progress["error"])
+        self.assertEqual(
+            progress["tail"], ["[lens] api stopped; starting it again in 5 seconds", "cannot open SurrealDB: authentication failed"]
+        )
 
     def test_bad_answers_are_refused(self):
         status, _, data = self.call("POST", "/api/install", {"backend": "podman"})

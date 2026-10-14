@@ -1,0 +1,177 @@
+name: Desktop
+
+# Lens.app for macOS (desktop/README.md): a Tauri menu-bar app that carries microsandbox, built as a .dmg on a Mac
+# runner and attached to each release, through the release event or, for a release the Release workflow publishes
+# with GITHUB_TOKEN (which fires no release event), through workflow_dispatch with `tag`. On a pull request that
+# changes it, it's built and kept with the run.
+#
+# Signed and notarized when the repository has the secrets for it (APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
+# APPLE_SIGNING_IDENTITY, and APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID to notarize); else unsigned.
+#
+# Updates itself when the repository has an update key: the secret TAURI_SIGNING_PRIVATE_KEY (and
+# TAURI_SIGNING_PRIVATE_KEY_PASSWORD if it has one) and the variable LENS_UPDATER_PUBKEY, its public half, which is
+# built into the app. Each release then also carries Lens-macOS-arm64.app.tar.gz, its signature, and latest.json, which
+# the app checks (desktop/README.md#updates). Without them the app is built without updates.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach Lens.app to (the Release workflow passes it); blank: build this ref"
+        default: ""
+  pull_request:
+    paths:
+      - desktop/**
+      - installer/**
+      - .github/workflows/desktop.yml
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check the desktop app's helper
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check lens-app.sh
+        run: |
+          sh -n desktop/resources/lens-app.sh
+          test -x desktop/resources/lens-app.sh
+          shellcheck -s sh desktop/resources/lens-app.sh desktop/resources/check-lens-app.sh
+      - name: Run its checks (as `nx test desktop` does)
+        run: sh desktop/resources/check-lens-app.sh
+
+  macos:
+    name: Build Lens.app
+    runs-on: macos-latest # Apple silicon
+    permissions:
+      contents: write # to attach it to the release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - name: Get microsandbox (the latest release, checked against its checksums)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: desktop/resources
+        run: |
+          gh release download --repo superradcompany/microsandbox \
+            --pattern microsandbox-darwin-aarch64.tar.gz --pattern checksums.sha256 --clobber
+          grep -F microsandbox-darwin-aarch64.tar.gz checksums.sha256 | shasum -a 256 -c -
+          rm checksums.sha256
+          gh release view --repo superradcompany/microsandbox --json tagName -q .tagName
+      - name: The bundled msb runs
+        run: |
+          s="$(mktemp -d)"
+          HOME="$s" LENS_MSB_BUNDLE="$PWD/desktop/resources/microsandbox-darwin-aarch64.tar.gz" \
+            sh desktop/resources/lens-app.sh setup-msb
+          "$s/.microsandbox/bin/msb" --version
+      - name: Lint
+        working-directory: desktop/src-tauri
+        run: |
+          cargo fmt --check
+          cargo clippy --locked -- -D warnings
+      - name: Signing, when the secrets are there
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          LENS_UPDATER_PUBKEY: ${{ vars.LENS_UPDATER_PUBKEY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Tauri signs when these are set, so only the ones that have a value are passed on
+          for k in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID \
+            TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD LENS_UPDATER_PUBKEY; do
+            eval "v=\${$k:-}"
+            if [ -n "$v" ]; then
+              {
+                echo "$k<<LENS_EOF"
+                echo "$v"
+                echo "LENS_EOF"
+              } >>"$GITHUB_ENV"
+            fi
+          done
+          if [ -n "$APPLE_SIGNING_IDENTITY" ]; then echo "Signed as the repository's identity"; else echo "Unsigned: no signing secrets"; fi
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && [ -n "$LENS_UPDATER_PUBKEY" ]; then
+            echo "LENS_UPDATES=1" >>"$GITHUB_ENV"
+            echo "Updates itself: the update key is there"
+          else
+            echo "Doesn't update itself: no TAURI_SIGNING_PRIVATE_KEY secret and LENS_UPDATER_PUBKEY variable"
+          fi
+      - name: Build
+        working-directory: desktop
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          npm ci --include=dev
+          # a release build takes the release's version
+          config='{"bundle":{"resources":{"../resources/microsandbox-darwin-aarch64.tar.gz":"microsandbox-darwin-aarch64.tar.gz"}}}'
+          if [ -n "$TAG" ]; then
+            config="$(echo "$config" | python3 -c 'import json,sys; c=json.load(sys.stdin); c["version"]=sys.argv[1].lstrip("v"); print(json.dumps(c))' "$TAG")"
+          fi
+          if [ "${LENS_UPDATES:-0}" = 1 ]; then # the signed .app.tar.gz the updater downloads, checked against the key
+            config="$(echo "$config" | python3 -c 'import json,os,sys; c=json.load(sys.stdin); c["bundle"]["createUpdaterArtifacts"]=True; c["plugins"]={"updater":{"pubkey":os.environ["LENS_UPDATER_PUBKEY"].strip()}}; print(json.dumps(c))')"
+          fi
+          npx tauri build --config "$config" --bundles app,dmg
+          mkdir -p ../dist/desktop
+          cp src-tauri/target/release/bundle/dmg/*.dmg ../dist/desktop/Lens-macOS-arm64.dmg
+          if [ "${LENS_UPDATES:-0}" = 1 ]; then
+            cp src-tauri/target/release/bundle/macos/Lens.app.tar.gz ../dist/desktop/Lens-macOS-arm64.app.tar.gz
+            cp src-tauri/target/release/bundle/macos/Lens.app.tar.gz.sig ../dist/desktop/Lens-macOS-arm64.app.tar.gz.sig
+            # what the app checks: releases/latest/download/latest.json
+            python3 - "${TAG:-}" "${{ github.repository }}" <<'PY'
+          import datetime, json, sys
+          tag, repo = sys.argv[1], sys.argv[2]
+          conf = json.load(open("src-tauri/tauri.conf.json"))
+          version = tag.lstrip("v") if tag else conf["version"]
+          ref = tag or "unreleased"
+          sig = open("../dist/desktop/Lens-macOS-arm64.app.tar.gz.sig").read().strip()
+          manifest = {
+              "version": version,
+              "notes": f"https://github.com/{repo}/releases/tag/{ref}",
+              "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "platforms": {
+                  "darwin-aarch64": {
+                      "signature": sig,
+                      "url": f"https://github.com/{repo}/releases/download/{ref}/Lens-macOS-arm64.app.tar.gz",
+                  }
+              },
+          }
+          json.dump(manifest, open("../dist/desktop/latest.json", "w"), indent=2)
+          PY
+            cat ../dist/desktop/latest.json
+          fi
+          ls -l ../dist/desktop
+      - name: The app carries its helper and microsandbox
+        run: |
+          r="desktop/src-tauri/target/release/bundle/macos/Lens.app/Contents/Resources"
+          test -f "$r/lens-app.sh"
+          test -f "$r/microsandbox-darwin-aarch64.tar.gz"
+          codesign -dv "desktop/src-tauri/target/release/bundle/macos/Lens.app" 2>&1 | head -5 || true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lens-macos
+          path: dist/desktop/*
+      - name: Attach to the release
+        if: github.event_name == 'release' || inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: gh release upload "$TAG" dist/desktop/* --clobber --repo "${{ github.repository }}"

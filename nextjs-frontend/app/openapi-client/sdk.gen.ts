@@ -942,6 +942,8 @@ import type {
   LostPasskeyData,
   LostPasskeyErrors,
   LostPasskeyResponses,
+  MailboxStatusData,
+  MailboxStatusResponses,
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
@@ -1293,6 +1295,8 @@ import type {
   SkipTopicCandidateData,
   SkipTopicCandidateErrors,
   SkipTopicCandidateResponses,
+  SlackStatusData,
+  SlackStatusResponses,
   SmbStatusData,
   SmbStatusResponses,
   SpeakTextData,
@@ -1327,6 +1331,8 @@ import type {
   TagRecordingsResponses,
   TakeBackupData,
   TakeBackupResponses,
+  TelegramStatusData,
+  TelegramStatusResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestBridgeData,
@@ -1345,17 +1351,23 @@ import type {
   TestFileStoreResponses,
   TestLlmData,
   TestLlmResponses,
+  TestMailboxData,
+  TestMailboxResponses,
   TestMailData,
   TestMailResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
+  TestSlackData,
+  TestSlackResponses,
   TestSourceData,
   TestSourceErrors,
   TestSourceResponses,
   TestSpeechData,
   TestSpeechErrors,
   TestSpeechResponses,
+  TestTelegramData,
+  TestTelegramResponses,
   TestTelemetryData,
   TestTelemetryResponses,
   TokenData,
@@ -2655,6 +2667,92 @@ export class Admin {
   ): RequestResult<TestBridgeResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestBridgeResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Telegram Status
+   *
+   * How the assistant's Telegram bot is doing, and the chats it has seen (their ids are what telegram.rooms names).
+   */
+  public static telegramStatus<ThrowOnError extends boolean = false>(
+    options?: Options<TelegramStatusData, ThrowOnError>,
+  ): RequestResult<TelegramStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<TelegramStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telegram",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Telegram
+   *
+   * Check that Telegram knows the bot's token, and that the account to answer as exists.
+   */
+  public static testTelegram<ThrowOnError extends boolean = false>(
+    options?: Options<TestTelegramData, ThrowOnError>,
+  ): RequestResult<TestTelegramResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestTelegramResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telegram/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Slack Status
+   *
+   * How the assistant's Slack app is doing, its slash command, and the link that creates the app from its manifest.
+   */
+  public static slackStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SlackStatusData, ThrowOnError>,
+  ): RequestResult<SlackStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SlackStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/slack",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Slack
+   *
+   * Check both Slack tokens, and that the account to answer as exists.
+   */
+  public static testSlack<ThrowOnError extends boolean = false>(
+    options?: Options<TestSlackData, ThrowOnError>,
+  ): RequestResult<TestSlackResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestSlackResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/slack/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Mailbox Status
+   *
+   * How the assistant's mailbox is doing, and who has written to it (whether each is let in, and their mail vouched
+   * for by their provider).
+   */
+  public static mailboxStatus<ThrowOnError extends boolean = false>(
+    options?: Options<MailboxStatusData, ThrowOnError>,
+  ): RequestResult<MailboxStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MailboxStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mailbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Mailbox
+   *
+   * Check that Lens can sign in to read the mailbox (IMAP) and to send from it (SMTP), and that the account to
+   * answer as exists. Nothing is read or sent.
+   */
+  public static testMailbox<ThrowOnError extends boolean = false>(
+    options?: Options<TestMailboxData, ThrowOnError>,
+  ): RequestResult<TestMailboxResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestMailboxResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mailbox/test",
       ...options,
     });
   }

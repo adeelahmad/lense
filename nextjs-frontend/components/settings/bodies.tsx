@@ -316,6 +316,12 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <MailBody ctx={ctx} />;
     case "bridge":
       return <BridgeBody ctx={ctx} />;
+    case "telegram":
+      return <TelegramBody ctx={ctx} />;
+    case "slack":
+      return <SlackBody ctx={ctx} />;
+    case "mailbox":
+      return <MailboxBody ctx={ctx} />;
     case "remote-access":
       return <TunnelBody ctx={ctx} />;
     case "components":
@@ -1398,6 +1404,369 @@ function BridgeBody({ ctx }: { ctx: BodyCtx }) {
         (test.data.ok ? (
           <Banner tone="success" title="Matterbridge answers.">
             The address, token and account check out.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function TelegramBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const t = ctx.view.telegram;
+  const token = ctx.state("telegram.token");
+  const status = useQuery({
+    queryKey: ["telegram-status", t?.updated_at ?? null],
+    queryFn: () => data(Admin.telegramStatus({ client })),
+    refetchInterval: 5_000, // people who write to the bot show up to let in
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testTelegram({ client })) });
+  const saved = ((t?.values?.users ?? []) as string[]).filter(Boolean);
+  const letIn = useMutation({
+    mutationFn: (id: string) =>
+      data(Admin.updateSettings({ client, path: { section: "telegram" }, body: { users: [...saved, id] } })),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["settings"] });
+      await qc.invalidateQueries({ queryKey: ["telegram-status"] });
+    },
+  });
+  const s = status.data;
+  const waiting = (s?.people ?? []).filter((p) => !p.allowed);
+  return (
+    <>
+      {s?.state === "running" ? (
+        <Banner tone="success" title={s.bot ? `Listening as @${s.bot}.` : "Listening."}>
+          {s.answered ? `Answered ${s.answered} message${s.answered === 1 ? "" : "s"} so far. ` : ""}
+          {saved.length
+            ? "Each person’s conversation is in Chat for the account it answers as."
+            : "Nobody is let in yet: message the bot from Telegram, then let yourself in below."}
+        </Banner>
+      ) : s?.state === "error" ? (
+        <Banner tone="error" title="The last look at Telegram failed.">
+          {s.error}
+        </Banner>
+      ) : s?.state === "incomplete" ? (
+        <Banner tone="error" title="On, but not ready.">
+          It needs {s.error}.
+        </Banner>
+      ) : s?.state === "starting" ? (
+        <Banner title="Starting.">A server process picks it up within a few seconds.</Banner>
+      ) : (
+        <Banner title="Off.">
+          Create a bot with @BotFather in Telegram (/newbot), paste its token below and turn this on.
+        </Banner>
+      )}
+      {waiting.length > 0 && (
+        <div className="grid gap-1.5">
+          <span className="text-[12.5px] font-semibold text-fg-secondary">Wrote to the bot, not let in</span>
+          <ul className="grid gap-1">
+            {waiting.map((p) => (
+              <li key={p.id} className="flex items-center gap-2.5 text-[13px]">
+                <span>{p.name}</span>
+                <span className="font-mono text-[12px] text-fg-muted">{p.id}</span>
+                <Button size="sm" onClick={() => letIn.mutate(p.id)} disabled={letIn.isPending}>
+                  Let in
+                </Button>
+              </li>
+            ))}
+          </ul>
+          {letIn.isError && <Banner tone="error">{letIn.error.message}</Banner>}
+        </div>
+      )}
+      <F ctx={ctx} id="telegram.enabled" />
+      <SecretSetting
+        key={t?.updated_at ?? "none"}
+        label="Bot token"
+        isSet={Boolean(((t?.values?.token ?? {}) as { set?: boolean }).set)}
+        updatedBy={t?.updated_by}
+        updatedAt={t?.updated_at}
+        value={token.value as string | undefined}
+        onChange={(x) => token.onChange(x)}
+      />
+      <F ctx={ctx} id="telegram.users" />
+      <F ctx={ctx} id="telegram.account" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="telegram.name" />
+        <F ctx={ctx} id="telegram.answer" />
+      </div>
+      <F ctx={ctx} id="telegram.approve" />
+      {(s?.chats ?? []).length > 0 && (
+        <div className="grid gap-1">
+          <span className="text-[12.5px] font-semibold text-fg-secondary">Chats it has seen</span>
+          <ul className="grid gap-0.5 text-[13px]">
+            {(s?.chats ?? []).map((c) => (
+              <li key={c.id}>
+                {c.title} <span className="font-mono text-[12px] text-fg-muted">{c.id}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <F ctx={ctx} id="telegram.rooms" />
+      <F ctx={ctx} id="telegram.api_url" />
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check the bot"}
+        </Button>
+        {ctx.dirty && (
+          <span className="text-[12px] text-fg-muted">Uses the saved settings, not your unsaved changes</span>
+        )}
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Telegram knows the bot.">
+            The token and the account it answers as check out.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+function SlackToken({ ctx, id, label }: { ctx: BodyCtx; id: "bot_token" | "app_token"; label: string }) {
+  const sl = ctx.view.slack;
+  const st = ctx.state(`slack.${id}`);
+  return (
+    <SecretSetting
+      key={sl?.updated_at ?? "none"}
+      label={label}
+      isSet={Boolean(((sl?.values?.[id] ?? {}) as { set?: boolean }).set)}
+      updatedBy={sl?.updated_by}
+      updatedAt={sl?.updated_at}
+      value={st.value as string | undefined}
+      onChange={(x) => st.onChange(x)}
+    />
+  );
+}
+
+function SlackBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const sl = ctx.view.slack;
+  const status = useQuery({
+    queryKey: ["slack-status", sl?.updated_at ?? null],
+    queryFn: () => data(Admin.slackStatus({ client })),
+    refetchInterval: 10_000,
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testSlack({ client })) });
+  const s = status.data;
+  return (
+    <>
+      {s?.state === "running" ? (
+        <Banner tone="success" title={s.team ? `Connected to ${s.team}.` : "Connected."}>
+          {s.answered ? `Answered ${s.answered} message${s.answered === 1 ? "" : "s"} so far. ` : ""}
+          Message {s.bot ? `@${s.bot}` : "the app"}, invite it to a channel with /invite, or type {s.command}. Each
+          person’s conversation is in Chat for the account it answers as.
+        </Banner>
+      ) : s?.state === "error" ? (
+        <Banner tone="error" title="Slack isn’t answering.">
+          {s.error}
+        </Banner>
+      ) : s?.state === "incomplete" ? (
+        <Banner tone="error" title="On, but not ready.">
+          It needs {s.error}.
+        </Banner>
+      ) : s?.state === "starting" ? (
+        <Banner title="Starting.">A server process connects to Slack within a few seconds.</Banner>
+      ) : (
+        <Banner title="Off.">
+          <a className="underline" href={s?.create_url} target="_blank" rel="noreferrer">
+            Create the Slack app
+          </a>{" "}
+          (one click: it’s made from Lens’s manifest), install it to your workspace, then paste its two tokens below and
+          turn this on.
+        </Banner>
+      )}
+      <F ctx={ctx} id="slack.enabled" />
+      <SlackToken ctx={ctx} id="bot_token" label="Bot token (xoxb-…, from OAuth & Permissions)" />
+      <SlackToken
+        ctx={ctx}
+        id="app_token"
+        label="App-level token (xapp-…, from Basic Information, with connections:write)"
+      />
+      {s?.create_url && s.state !== "off" && (
+        <p className="text-[12.5px] text-fg-muted">
+          <a className="underline" href={s.create_url} target="_blank" rel="noreferrer">
+            Create the Slack app again
+          </a>{" "}
+          from Lens’s manifest, for another workspace or to get new permissions.
+        </p>
+      )}
+      <F ctx={ctx} id="slack.account" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="slack.name" />
+        <F ctx={ctx} id="slack.answer" />
+      </div>
+      <F ctx={ctx} id="slack.users" />
+      <F ctx={ctx} id="slack.approve" />
+      <F ctx={ctx} id="slack.rooms" />
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check the app"}
+        </Button>
+        {ctx.dirty && (
+          <span className="text-[12px] text-fg-muted">Uses the saved settings, not your unsaved changes</span>
+        )}
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Slack knows the app.">
+            Both tokens and the account it answers as check out.
+          </Banner>
+        ) : (
+          <Banner tone="error" title="Not yet.">
+            {test.data.error}
+          </Banner>
+        ))}
+      {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+/** Settings › Assistant email: the assistant's own mailbox, who has written to it, and the servers it uses. */
+function MailboxBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const qc = useQueryClient();
+  const m = ctx.view.mailbox;
+  const password = ctx.state("mailbox.password");
+  const status = useQuery({
+    queryKey: ["mailbox-status", m?.updated_at ?? null],
+    queryFn: () => data(Admin.mailboxStatus({ client })),
+    refetchInterval: 10_000, // people who write to it show up to let in
+  });
+  const test = useMutation({ mutationFn: () => data(Admin.testMailbox({ client })) });
+  const saved = ((m?.values?.users ?? []) as string[]).filter(Boolean);
+  const letIn = useMutation({
+    mutationFn: (id: string) =>
+      data(Admin.updateSettings({ client, path: { section: "mailbox" }, body: { users: [...saved, id] } })),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["settings"] });
+      await qc.invalidateQueries({ queryKey: ["mailbox-status"] });
+    },
+  });
+  const s = status.data;
+  const waiting = (s?.people ?? []).filter((p) => !p.allowed);
+  return (
+    <>
+      {s?.state === "running" ? (
+        <Banner tone="success" title={s.address ? `Reading mail to ${s.address}.` : "Reading mail."}>
+          {s.answered ? `Answered ${s.answered} email${s.answered === 1 ? "" : "s"} so far. ` : ""}
+          {saved.length
+            ? "Each email thread is a conversation in Chat for the account it answers as."
+            : "Nobody is let in yet: email it, then let yourself in below."}
+        </Banner>
+      ) : s?.state === "error" ? (
+        <Banner tone="error" title="The last look at the mailbox failed.">
+          {s.error}
+        </Banner>
+      ) : s?.state === "incomplete" ? (
+        <Banner tone="error" title="On, but not ready.">
+          It needs {s.error}.
+        </Banner>
+      ) : s?.state === "starting" ? (
+        <Banner title="Starting.">A server process picks it up within a few seconds.</Banner>
+      ) : (
+        <Banner title="Off.">
+          Give the assistant an address of its own at any provider, enter it and its password (an app password, for
+          most), and turn this on. Mail that arrives after that is answered.
+        </Banner>
+      )}
+      {waiting.length > 0 && (
+        <div className="grid gap-1.5">
+          <span className="text-[12.5px] font-semibold text-fg-secondary">Wrote to it, not let in</span>
+          <ul className="grid gap-1">
+            {waiting.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-2.5 text-[13px]">
+                <span>{p.name}</span>
+                <span className="font-mono text-[12px] text-fg-muted">{p.id}</span>
+                {p.vouched ? (
+                  <>
+                    {p.waiting ? (
+                      <span className="text-[12px] text-fg-muted">
+                        {p.waiting} email{p.waiting === 1 ? "" : "s"} waiting
+                      </span>
+                    ) : null}
+                    <Button size="sm" onClick={() => letIn.mutate(p.id)} disabled={letIn.isPending}>
+                      Let in
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-[12px] text-fg-muted">
+                    Their provider didn’t vouch for it, so it may not be from them.
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          {letIn.isError && <Banner tone="error">{letIn.error.message}</Banner>}
+        </div>
+      )}
+      <F ctx={ctx} id="mailbox.enabled" />
+      <F ctx={ctx} id="mailbox.address" />
+      <SecretSetting
+        key={m?.updated_at ?? "none"}
+        label="Password"
+        placeholder="The mailbox’s password (an app password, for most providers)"
+        isSet={Boolean(((m?.values?.password ?? {}) as { set?: boolean }).set)}
+        updatedBy={m?.updated_by}
+        updatedAt={m?.updated_at}
+        value={password.value as string | undefined}
+        onChange={(x) => password.onChange(x)}
+      />
+      <F ctx={ctx} id="mailbox.users" />
+      <F ctx={ctx} id="mailbox.account" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="mailbox.imports" />
+        <F ctx={ctx} id="mailbox.approve" />
+      </div>
+      <F ctx={ctx} id="mailbox.routes" />
+      <details className="text-[13px]">
+        <summary className="cursor-pointer font-semibold text-fg-secondary">
+          Mail servers{s?.imap ? ` (now ${s.imap} and ${s.smtp})` : ""}
+        </summary>
+        <div className="mt-3 grid gap-4">
+          <F ctx={ctx} id="mailbox.username" />
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+            <F ctx={ctx} id="mailbox.imap_host" />
+            <F ctx={ctx} id="mailbox.imap_port" />
+          </div>
+          <F ctx={ctx} id="mailbox.imap_security" />
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_120px]">
+            <F ctx={ctx} id="mailbox.smtp_host" />
+            <F ctx={ctx} id="mailbox.smtp_port" />
+          </div>
+          <F ctx={ctx} id="mailbox.smtp_security" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="mailbox.folder" />
+            <F ctx={ctx} id="mailbox.poll_seconds" />
+          </div>
+          <F ctx={ctx} id="mailbox.check" />
+          <F ctx={ctx} id="mailbox.auth_server" />
+          <F ctx={ctx} id="mailbox.name" />
+        </div>
+      </details>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? "Checking…" : "Check the mailbox"}
+        </Button>
+        <span className="text-[12px] text-fg-muted">
+          {ctx.dirty
+            ? "Uses the saved settings, not your unsaved changes"
+            : "Signs in to read and to send; nothing is read or sent"}
+        </span>
+      </div>
+      {test.data &&
+        (test.data.ok ? (
+          <Banner tone="success" title="Lens can read and send mail there.">
+            The mailbox and the account it answers as check out.
           </Banner>
         ) : (
           <Banner tone="error" title="Not yet.">

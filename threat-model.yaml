@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:8d4a5ab9a4896813cc017759aa4cda96b27d35736a081aaac394d7d4bfa48b84"
+prose_version: "threat-model.md@sha256:275791b79d131205c80bd3e1ea47b5c20ebbe620940f45a9cb3e2c4a1aba90db"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -455,6 +455,16 @@ entry_points:
         obligation_id: metrics-token
         caller_must_enforce: "token compared in constant time; metrics carry no personal content"
         provenance: {kind: documented, source: "docs/prometheus.md Privacy"}
+  - id: "microsandbox program requests"
+    component: authz
+    parameters:
+      - name: "ask/NAME.want in /data/.lens/programs: a program's name"
+        attacker_controllable: true
+        x-condition: "writable by the Lens user inside the sandbox"
+        control_kinds: [x-env-config]
+        obligation_id: program-allow-list
+        caller_must_enforce: "the start script installs only libreoffice or chromium (fixed Debian package lists), answers in a root-only folder, reads only the name"
+        provenance: {kind: documented, source: "docs/microsandbox.md LibreOffice and Chromium"}
 
 # ---------------------------------------------------------------- §1.7 contract-dimension matrix
 # Every in-scope component × the eight required dimensions appears exactly once.
@@ -1585,7 +1595,7 @@ properties_disclaimed:
   - {id: N-ENUM, components: [identity], tier: correctness-only, false_friend: false, conditions: "hiding account or object existence outside password sign-in and signed-in 404s: passkey 404, external messages, anonymous 401 vs 404", provenance: {kind: inferred, question_id: Q6}}
   - {id: N-AUDIT, components: [identity, authz], tier: correctness-only, false_friend: false, conditions: "tamper evidence or completeness of the audit and activity logs; sign-in requests are not logged there; operations record only; admins read it", provenance: {kind: documented, source: 'docs/activity.md "aren''t logged here"'}}
   - {id: N-MQTT-SUBSCRIBE, components: [optional], tier: security-critical, false_friend: true, conditions: "topic isolation on the MQTT hub: anything can subscribe to it, with + and #; signed-in or anonymous-when-enabled clients", x-false-friend-note: "a hub login is not per-stream access", provenance: {kind: documented, source: 'docs/sensors.md "anything can subscribe to it"'}}
-  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28)", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
+  - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge (Matterbridge, the Telegram bot or the assistant's mailbox) answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); the mailbox answers only mailbox.users whose provider vouched for From", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
   - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public recording's open parts: anyone may use them; open parts only; closed parts and restricted or private recordings are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
   - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding a recording's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
   - {id: N-RDF-XML, components: [query], tier: security-critical, false_friend: false, conditions: "XML parsing in RDF import; RDF/XML is refused, so XXE and billion-laughs do not apply there; RDF import only, not docx", provenance: {kind: documented, source: 'rdf_import.py docstring "RDF/XML isn''t read"'}}

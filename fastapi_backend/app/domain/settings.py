@@ -19,7 +19,7 @@ import secrets
 import threading
 import urllib.parse
 
-from . import convert, ipgroups, objects, store, telemetry
+from . import convert, ipgroups, mail_routes, objects, store, telemetry
 
 R = store.R
 EDITABLE = {
@@ -44,6 +44,9 @@ EDITABLE = {
     "local_llm": ("enabled", "model", "use_as_provider", "context", "threads", "gpu_layers", "port", "host"),
     "mail": None,
     "bridge": None,
+    "telegram": None,
+    "slack": None,
+    "mailbox": None,
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
@@ -114,6 +117,7 @@ EDITABLE = {
         "anytopdf_token",
     ),
 }
+MAIL_SECURITY = ("ssl", "starttls", "none")
 SECRETS = {
     "search": ("opensearch_password",),
     "llm": ("api_key",),
@@ -123,6 +127,9 @@ SECRETS = {
     "speech": ("openai_api_key", "elevenlabs_api_key", "assemblyai_api_key", "deepgram_api_key", "gemini_api_key"),
     "mail": ("password",),
     "bridge": ("token",),
+    "telegram": ("token",),
+    "slack": ("bot_token", "app_token"),
+    "mailbox": ("password",),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers", "prometheus_token"),
     "fedora": ("password",),
@@ -150,7 +157,16 @@ ENUMS = {
     ("mail", "security"): {"starttls", "ssl", "none"},
     ("bridge", "answer"): {"mention", "all"},
     ("bridge", "approve"): {"off", "low_risk"},
+    ("telegram", "answer"): {"mention", "all"},
+    ("telegram", "approve"): {"off", "low_risk"},
+    ("mailbox", "imap_security"): set(MAIL_SECURITY),
+    ("mailbox", "smtp_security"): set(MAIL_SECURITY),
+    ("mailbox", "approve"): {"off", "low_risk"},
+    ("mailbox", "check"): {"authenticated", "off"},
+    ("mailbox", "imports"): {"auto", "ask"},
     ("ai", "injection_check"): {"patterns", "classifier", "model", "off"},
+    ("slack", "answer"): {"mention", "all"},
+    ("slack", "approve"): {"off", "low_risk"},
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},
@@ -445,6 +461,12 @@ def _check(section, key, value, default):
         return _mail_setting(key, value)
     if section == "bridge" and key not in ("answer", "enabled", "approve"):
         return _bridge_setting(key, value)
+    if section == "telegram" and key not in ("answer", "enabled", "approve"):
+        return _telegram_setting(key, value)
+    if section == "slack" and key not in ("answer", "enabled", "approve"):
+        return _slack_setting(key, value)
+    if section == "mailbox" and key not in ("enabled", "approve", "imap_security", "smtp_security", "check", "imports"):
+        return _mailbox_setting(key, value)
     if section == "matterbridge" and key != "run":
         return _matterbridge_setting(key, value)
     if (section, key) == ("voice", "tts_base_url"):
@@ -648,17 +670,21 @@ def _mail_setting(key, value):
     return value
 
 
-def _bridge_setting(key, value):
+TELEGRAM_TOKEN_RX = re.compile(r"^[0-9]{3,20}:[A-Za-z0-9_-]{30,64}$")
+
+
+def _bridge_setting(key, value, section="bridge"):
+    """bridge's settings, and the room settings every chat channel shares (channels.py: `section`)."""
     if key == "poll_seconds":
         if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 300):
-            raise ValueError("bridge.poll_seconds is a whole number of seconds from 1 to 300")
+            raise ValueError(f"{section}.poll_seconds is a whole number of seconds from 1 to 300")
         return value
     if key == "users":
         if not (isinstance(value, list) and all(isinstance(v, str) and len(v) <= 200 for v in value) and len(value) <= 500):
-            raise ValueError("bridge.users is a list of chat usernames")
-        return list(dict.fromkeys(v.strip() for v in value if v.strip()))
+            raise ValueError(f"{section}.users is a list of chat usernames")
+        return list(dict.fromkeys(v.strip().lstrip("@") if section != "bridge" else v.strip() for v in value if v.strip()))
     if key == "rooms":
-        bad = "bridge.rooms is a list of rooms and namespaces, like team = pods or team/general = pods"
+        bad = f"{section}.rooms is a list of rooms and namespaces, like team = pods or team/general = pods"
         if not (isinstance(value, list) and len(value) <= 200 and all(isinstance(v, str) and len(v) <= 300 for v in value)):
             raise ValueError(bad)
         out = []
@@ -672,11 +698,11 @@ def _bridge_setting(key, value):
             out.append(f"{where} = {ns}")
         return list(dict.fromkeys(out))
     if key not in ("url", "token", "gateway", "account", "name"):
-        raise ValueError(f"unknown setting bridge.{key}")
+        raise ValueError(f"unknown setting {section}.{key}")
     if value in (None, ""):
         return "Lens" if key == "name" else None
     if not (isinstance(value, str) and len(value.strip()) <= 500):
-        raise ValueError(f"bridge.{key} is text")
+        raise ValueError(f"{section}.{key} is text")
     value = value.strip() if key != "token" else value
     if key == "url":
         u = urllib.parse.urlsplit(value)
@@ -685,10 +711,101 @@ def _bridge_setting(key, value):
         return value.rstrip("/")
     if key == "account":
         if not EMAIL_RX.match(value):
-            raise ValueError("bridge.account is the email of the Lens account it answers as")
+            raise ValueError(f"{section}.account is the email of the Lens account it answers as")
         return value.lower()
     if key == "name" and not re.match(r"^[\w .-]{1,40}$", value):
-        raise ValueError("bridge.name is a short name, such as Lens")
+        raise ValueError(f"{section}.name is a short name, such as Lens")
+    return value
+
+
+def _telegram_setting(key, value):
+    if key == "token":
+        value = (value or "").strip()
+        if value and not TELEGRAM_TOKEN_RX.match(value):
+            raise ValueError("telegram.token is the bot's token from @BotFather, like 123456789:AAE…")
+        return value or None
+    if key == "api_url":
+        if value in (None, ""):
+            return None
+        u = urllib.parse.urlsplit(value.strip()) if isinstance(value, str) else None
+        if not u or u.scheme not in ("http", "https") or not u.hostname:
+            raise ValueError("telegram.api_url is the http(s) address of a Bot API server, such as https://api.telegram.org")
+        return value.strip().rstrip("/")
+    if key in ("url", "gateway", "poll_seconds"):  # Matterbridge's own; Telegram waits on getUpdates instead
+        raise ValueError(f"unknown setting telegram.{key}")
+    return _bridge_setting(key, value, "telegram")
+
+
+def _slack_setting(key, value):
+    prefix = {"bot_token": "xoxb-", "app_token": "xapp-"}.get(key)
+    if prefix:
+        value = (value or "").strip() if isinstance(value, str) or value is None else value
+        if value and not (isinstance(value, str) and value.startswith(prefix) and len(value) <= 500 and " " not in value):
+            raise ValueError(f"slack.{key} is the Slack app's token starting {prefix}")
+        return value or None
+    if key in ("url", "token", "gateway", "poll_seconds"):  # Matterbridge's own; Slack keeps a socket open instead
+        raise ValueError(f"unknown setting slack.{key}")
+    return _bridge_setting(key, value, "slack")
+
+
+HOST_RX = re.compile(r"^[A-Za-z0-9.\-\[\]:]{1,253}$")
+
+
+def _mailbox_setting(key, value):
+    """The assistant's mailbox (mailbox.py), and the room settings every chat channel shares."""
+    if key in ("imap_port", "smtp_port"):
+        if value in (None, ""):
+            return None
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 65535):
+            raise ValueError(f"mailbox.{key} is a port number, such as 993 for IMAP or 587 for SMTP")
+        return value
+    if key == "poll_seconds":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 10 <= value <= 3600):
+            raise ValueError("mailbox.poll_seconds is a whole number of seconds from 10 to 3600")
+        return value
+    if key == "users":
+        if not (isinstance(value, list) and len(value) <= 500 and all(isinstance(v, str) and len(v) <= 300 for v in value)):
+            raise ValueError("mailbox.users is a list of email addresses")
+        out = [v.strip().strip("<>").lower() for v in value if v.strip()]
+        bad = next((v for v in out if not EMAIL_RX.match(v)), None)
+        if bad:
+            raise ValueError(f"mailbox.users is a list of email addresses: {bad} isn't one")
+        return list(dict.fromkeys(out))
+    if key == "routes":
+        if not (
+            isinstance(value, list) and len(value) <= mail_routes.MAX_RULES and all(isinstance(v, str) and len(v) <= 2000 for v in value)
+        ):
+            raise ValueError(f"mailbox.routes is a list of up to {mail_routes.MAX_RULES} rules, like from: *@acme.com = acme")
+        out = []
+        for v in value:
+            if not v.strip():
+                continue
+            rule = mail_routes.parse_line(v)
+            if not rule.get("skip") and not store.NS_RX.match(rule["namespace"]):
+                raise ValueError(f"mailbox.routes: {rule['namespace']} isn't a namespace's name")
+            out.append(mail_routes.line(rule))
+        return list(dict.fromkeys(out))
+    if key in ("account", "name"):
+        return _bridge_setting(key, value, "mailbox")
+    if key not in ("address", "username", "imap_host", "smtp_host", "folder", "auth_server"):
+        raise ValueError(f"unknown setting mailbox.{key}")
+    if value in (None, ""):
+        return "INBOX" if key == "folder" else None
+    if not (isinstance(value, str) and len(value.strip()) <= 300):
+        raise ValueError(f"mailbox.{key} is text")
+    value = value.strip()
+    if key == "address":
+        if not EMAIL_RX.match(value):
+            raise ValueError("mailbox.address is the assistant's email address, such as lens@example.org")
+        return value.lower()
+    if key in ("imap_host", "smtp_host") and not HOST_RX.match(value):
+        raise ValueError(f"mailbox.{key} is the mail server's host name, such as {key[:4]}.example.org")
+    if key == "auth_server":
+        if not re.match(r"^[A-Za-z0-9.\-]{1,253}$", value):
+            raise ValueError("mailbox.auth_server is the name your mail server signs Authentication-Results with, such as mx.google.com")
+        return value.lower()
+    if key == "folder" and ("\n" in value or "\r" in value):
+        raise ValueError("mailbox.folder is a folder's name, such as INBOX")
     return value
 
 
@@ -1127,7 +1244,11 @@ def save(db, base, section, changes, user=None):
                     telemetry.parse_headers(v)  # ValueError when malformed
                 if section == "matterbridge" and (len(v) > 500 or "\n" in v.strip()):
                     raise ValueError(f"matterbridge.{k} is one line of text")
-                if (section, k) in (("documents", "anytopdf_token"), ("telemetry", "prometheus_token")):
+                if (section, k) in (
+                    ("documents", "anytopdf_token"),
+                    ("telemetry", "prometheus_token"),
+                    ("telegram", "token"),
+                ) or section == "slack":
                     v = _check(section, k, v, None)
                 if (section, k) == ("https", "dns_credentials"):
                     from . import https
