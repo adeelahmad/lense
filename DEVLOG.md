@@ -2,6 +2,17 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-14 · MCP servers that run as a program
+
+Admins add a stdio MCP server (`command`, `args`, `env`, as in Claude's `.mcp.json`) as an `mcp` extension, and a
+plugin's stdio servers come along when an admin installs it. They run in the MCP runner (`mcp-runner/`, the opt-in
+`mcp` Compose profile), a container with none of Lens's data or keys, reached over HTTP with a token on a volume only
+it and the backend share. Recorded in the threat model.
+
+Refine later: turn the runner on from Settings through the machine agent, as monitoring does, instead of
+`COMPOSE_PROFILES=mcp` in `.env`; the runner on installs that don't use Docker (microsandbox, Cloudron, NAS packages);
+plugin servers that run a program from the plugin's own folder; an egress allow-list for the runner's network.
+
 ## 2026-10-10 · Pasted transcripts fetch no speech model
 
 Found by the clicks survey: on a fresh install, importing a pasted transcript queued the standard pipeline from
