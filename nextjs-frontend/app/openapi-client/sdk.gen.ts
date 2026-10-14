@@ -939,6 +939,8 @@ import type {
   LogoutData,
   LogoutErrors,
   LogoutResponses,
+  LogStatusData,
+  LogStatusResponses,
   LostPasskeyData,
   LostPasskeyErrors,
   LostPasskeyResponses,
@@ -1069,6 +1071,9 @@ import type {
   ReadFileData,
   ReadFileErrors,
   ReadFileResponses,
+  ReadLogsData,
+  ReadLogsErrors,
+  ReadLogsResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -1351,6 +1356,8 @@ import type {
   TestFileStoreResponses,
   TestLlmData,
   TestLlmResponses,
+  TestLogsData,
+  TestLogsResponses,
   TestMailboxData,
   TestMailboxResponses,
   TestMailData,
@@ -2881,6 +2888,49 @@ export class Admin {
   ): RequestResult<TestTelemetryResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestTelemetryResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/telemetry/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Log Status
+   *
+   * The API process's log level, its log file, and how sending to syslog is going (off by default).
+   */
+  public static logStatus<ThrowOnError extends boolean = false>(
+    options?: Options<LogStatusData, ThrowOnError>,
+  ): RequestResult<LogStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<LogStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/logs/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Logs
+   *
+   * Send one line to the saved syslog server now (on or off), to check the address, port and transport.
+   */
+  public static testLogs<ThrowOnError extends boolean = false>(
+    options?: Options<TestLogsData, ThrowOnError>,
+  ): RequestResult<TestLogsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestLogsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/logs/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Read Logs
+   *
+   * The latest log lines from the API and every worker (their files under data_dir/logs), newest first. Lines are
+   * redacted as they're written: no keys, tokens or passwords.
+   */
+  public static readLogs<ThrowOnError extends boolean = false>(
+    options?: Options<ReadLogsData, ThrowOnError>,
+  ): RequestResult<ReadLogsResponses, ReadLogsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ReadLogsResponses, ReadLogsErrors, ThrowOnError>({
+      url: "/api/v1/admin/logs",
       ...options,
     });
   }

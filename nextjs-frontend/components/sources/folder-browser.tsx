@@ -37,7 +37,8 @@ function crumbs(path: string, local: boolean): { label: string; path: string }[]
   return out;
 }
 
-/** SO3: browse a connection's folders, then watch one. */
+/** SO3: browse a connection's folders, then watch one. On this machine, an allowed folder can be watched from the
+ * list, without opening it first. */
 export function FolderBrowser({
   source,
   open,
@@ -139,12 +140,20 @@ export function FolderBrowser({
                 <th scope="col" className="py-2 text-[12px] font-bold text-fg-secondary">
                   Name
                 </th>
-                <th scope="col" className="w-[90px] py-2 text-right text-[12px] font-bold text-fg-secondary">
-                  Size
-                </th>
-                <th scope="col" className="w-[120px] py-2 pr-4 text-right text-[12px] font-bold text-fg-secondary">
-                  Modified
-                </th>
+                {atRoots ? (
+                  <th scope="col" colSpan={2} className="w-[210px] py-2 pr-4">
+                    <span className="sr-only">Watch</span>
+                  </th>
+                ) : (
+                  <>
+                    <th scope="col" className="w-[90px] py-2 text-right text-[12px] font-bold text-fg-secondary">
+                      Size
+                    </th>
+                    <th scope="col" className="w-[120px] py-2 pr-4 text-right text-[12px] font-bold text-fg-secondary">
+                      Modified
+                    </th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -172,8 +181,25 @@ export function FolderBrowser({
                         <span title={e.name}>{e.name}</span>
                       )}
                     </td>
-                    <td className="tabular text-right">{e.dir ? "—" : bytes(e.size)}</td>
-                    <td className="tabular pr-4 text-right">{e.modified ? shortDate(e.modified) : "—"}</td>
+                    {atRoots ? (
+                      <td colSpan={2} className="pr-4 text-right">
+                        <Button
+                          size="xs"
+                          variant="secondary"
+                          aria-label={`Watch ${e.name}`}
+                          disabled={!canWatch}
+                          disabledReason="Only admins can watch folders"
+                          onClick={() => onWatch(e.path)}
+                        >
+                          Watch
+                        </Button>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="tabular text-right">{e.dir ? "—" : bytes(e.size)}</td>
+                        <td className="tabular pr-4 text-right">{e.modified ? shortDate(e.modified) : "—"}</td>
+                      </>
+                    )}
                   </tr>
                 );
               })}
@@ -194,7 +220,7 @@ export function FolderBrowser({
           {q.isSuccess && !atRoots
             ? `${pickupText({ files: files.length - n("other"), ...here })} in this folder`
             : atRoots
-              ? "Pick an allowed folder"
+              ? "Watch an allowed folder, or open it to pick a folder inside"
               : ""}
         </span>
         <Button

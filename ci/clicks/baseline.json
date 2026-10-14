@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-11T01:50:54.212Z",
+  "surveyed": "2026-10-14T10:01:14.388Z",
   "commit": "",
   "viewport": "1400x900",
   "device": "desktop",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 2561,
+      "ms": 2712,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 422,
+      "ms": 565,
       "ok": true
     },
     {
@@ -131,7 +131,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 572,
+      "ms": 756,
       "ok": true
     },
     {
@@ -161,7 +161,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 2196,
+      "ms": 1329,
       "ok": true
     },
     {
@@ -207,7 +207,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4093,
+      "ms": 4269,
       "ok": true
     },
     {
@@ -237,7 +237,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 2522,
+      "ms": 2625,
       "ok": true
     },
     {
@@ -275,7 +275,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3096,
+      "ms": 3199,
       "ok": true
     },
     {
@@ -313,7 +313,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2245,
+      "ms": 2287,
       "ok": true
     },
     {
@@ -351,7 +351,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 3280,
+      "ms": 2967,
       "ok": true
     },
     {
@@ -405,7 +405,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3052,
+      "ms": 3739,
       "ok": true
     },
     {
@@ -451,7 +451,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3206,
+      "ms": 3313,
       "ok": true
     },
     {
@@ -489,7 +489,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2517,
+      "ms": 2586,
       "ok": true
     },
     {
@@ -527,7 +527,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2516,
+      "ms": 2622,
       "ok": true
     },
     {
@@ -565,7 +565,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 2513,
+      "ms": 2567,
       "ok": true
     },
     {
@@ -603,7 +603,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 2568,
+      "ms": 2846,
       "ok": true
     },
     {
@@ -649,7 +649,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 3218,
+      "ms": 3330,
       "ok": true
     },
     {
@@ -711,7 +711,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 2983,
+      "ms": 3290,
       "ok": true
     },
     {
@@ -757,7 +757,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3061,
+      "ms": 3132,
       "ok": true
     },
     {
@@ -787,7 +787,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2242,
+      "ms": 2303,
       "ok": true
     },
     {
@@ -833,7 +833,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 2753,
+      "ms": 3076,
       "ok": true
     },
     {
@@ -871,14 +871,14 @@
         }
       ],
       "id": "import-file",
-      "ms": 8592,
+      "ms": 9480,
       "ok": true
     },
     {
       "module": "Sensors",
       "feature": "Watch a folder on this machine for new files",
       "note": "Needs rclone, as the Lens image has (CI copies the image's version); the folders offered are the allowed ones set at startup.",
-      "clicks": 9,
+      "clicks": 4,
       "keys": 0,
       "prompts": 0,
       "swipes": 0,
@@ -894,7 +894,7 @@
         {
           "page": "/sensors",
           "kind": "click",
-          "what": "Files, email and calendars tab",
+          "what": "Watch a local folder",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -902,47 +902,7 @@
         {
           "page": "/sources",
           "kind": "click",
-          "what": "Add connection",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "click",
-          "what": "This machine",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "click",
-          "what": "Test connection",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "click",
-          "what": "Done (the test passed)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "click",
-          "what": "the allowed folder",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/sources",
-          "kind": "click",
-          "what": "Watch this folder",
+          "what": "Watch, on the allowed folder",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -957,7 +917,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 10678,
+      "ms": 8396,
       "ok": true
     },
     {
@@ -995,7 +955,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 11282,
+      "ms": 11551,
       "ok": true
     },
     {
@@ -1033,7 +993,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4153,
+      "ms": 4288,
       "ok": true
     },
     {
@@ -1087,7 +1047,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 3347,
+      "ms": 3599,
       "ok": true
     },
     {
@@ -1133,7 +1093,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3299,
+      "ms": 3367,
       "ok": true
     },
     {
@@ -1187,7 +1147,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 2944,
+      "ms": 2948,
       "ok": true
     },
     {
@@ -1241,7 +1201,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 2846,
+      "ms": 2850,
       "ok": true
     },
     {
@@ -1295,7 +1255,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 2835,
+      "ms": 2976,
       "ok": true
     },
     {
@@ -1349,7 +1309,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 3808,
+      "ms": 3903,
       "ok": true
     },
     {
@@ -1403,7 +1363,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 2711,
+      "ms": 2773,
       "ok": true
     }
   ],
@@ -1532,7 +1492,7 @@
       "page": "/sensors",
       "label": "Sensors",
       "reach": 1,
-      "controls": 8
+      "controls": 9
     },
     {
       "page": "/sources",
@@ -1667,6 +1627,24 @@
       "controls": 14
     },
     {
+      "page": "/settings/telegram",
+      "label": "Settings › Telegram",
+      "reach": 2,
+      "controls": 2
+    },
+    {
+      "page": "/settings/slack",
+      "label": "Settings › Slack",
+      "reach": 2,
+      "controls": 2
+    },
+    {
+      "page": "/settings/mailbox",
+      "label": "Settings › Assistant email",
+      "reach": 2,
+      "controls": 2
+    },
+    {
       "page": "/settings/notifications",
       "label": "Settings › Notifications",
       "reach": 2,
@@ -1776,7 +1754,7 @@
     },
     {
       "page": "/notes/:id",
-      "label": "Untitled",
+      "label": "Pi setup",
       "reach": 1,
       "controls": 9
     }
