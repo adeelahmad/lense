@@ -103,8 +103,8 @@ importers:
         specifier: ^18.0.6
         version: 18.0.6
       lucide-react:
-        specifier: ^0.452.0
-        version: 0.452.0(react@19.3.0)
+        specifier: ^1.55.0
+        version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
       next:
         specifier: 16.4.0
         version: 16.4.0(@babel/core@7.29.7)(@types/node@20.17.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -3546,10 +3546,14 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@0.452.0:
-    resolution: {integrity: sha512-kNefjOUOGm+Mu3KDiryONyPba9r+nhcrz5oJs3N6JDzGboQNEXw5GB3yB8rnV9/FA4bPyggNU6CRSihZm9MvSw==}
+  lucide-react@1.55.0:
+    resolution: {integrity: sha512-bSozQHiI3/8q7JvgoqVRGOYUi7fYT3siAZwmZsljjsOH2Husp/2ODdFf/leD+ZC/2yKfn7r8oh6yeoR3ITR5vA==}
     peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
+      '@types/react': '*'
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -4103,8 +4107,8 @@ packages:
   react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
 
-  react-is@19.3.0:
-    resolution: {integrity: sha512-UpMYezM4v5/18F28aC66AEsjXIgE02kyEMH6yLdgLXu/UTfa1Ntwck/nNLrbqJsEXW7gPb0coNO9FQse9WTovA==}
+  react-is@19.3.1:
+    resolution: {integrity: sha512-RRieF6IyxQBkcK6pP8xOHprLTPW6QjRkbGdImtqNme+/hYVwCZkLQLdlZGOhUqXwkS9IEynaGvPJtv6XB/cz0Q==}
 
   react-remove-scroll-bar@2.3.8:
     resolution: {integrity: sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q==}
@@ -8990,9 +8994,11 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.452.0(react@19.3.0):
+  lucide-react@1.55.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       react: 19.3.0
+    optionalDependencies:
+      '@types/react': 19.3.0
 
   lz-string@1.5.0: {}
 
@@ -9638,7 +9644,7 @@ snapshots:
   pretty-format@30.5.1:
     dependencies:
       '@jest/react-is-18': react-is@18.3.1
-      '@jest/react-is-19': react-is@19.3.0
+      '@jest/react-is-19': react-is@19.3.1
       '@jest/schemas': 30.5.0
       ansi-styles: 5.2.0
 
@@ -9678,7 +9684,7 @@ snapshots:
 
   react-is@18.3.1: {}
 
-  react-is@19.3.0: {}
+  react-is@19.3.1: {}
 
   react-remove-scroll-bar@2.3.8(@types/react@19.3.0)(react@19.3.0):
     dependencies:
