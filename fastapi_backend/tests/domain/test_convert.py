@@ -137,7 +137,7 @@ def test_libreoffice_and_chromium_are_installed_the_first_time_theyre_needed(cfg
     root, bin_dir = fake_programs.sandbox(tmp_path, monkeypatch)
     monkeypatch.setattr(convert, "_has_msg", lambda: False)
     assert convert.fetchable("libreoffice") and convert.fetchable("chromium") and not convert.fetchable("ffmpeg")
-    assert convert.capabilities(cfg) == {"office": True, "pages": True, "msg": False, "web": True}
+    assert convert.capabilities(cfg) == {"office": True, "pages": True, "msg": False, "web": True, "tika": False}
     assert convert.unavailable(cfg, "a.docx") is None and convert.unavailable(cfg, "a.eml") is None
     rows = {r["id"]: r for r in components.catalog(cfg)}
     assert (rows["libreoffice"]["here"], rows["libreoffice"]["hint"]) == (False, "installed the first time it's needed")
