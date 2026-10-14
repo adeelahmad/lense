@@ -1,4 +1,6 @@
-// The options page: where clips go, the template, Markdown style and clipping choices. Changes save as they're made.
+// The options page: where clips go, the template, Markdown style and clipping choices, and what the assistant may do
+// in this browser. Changes save as they're made.
+import * as browserCtl from "../core/browser.js";
 import * as settingsStore from "../core/settings.js";
 import { check } from "../core/lens.js";
 import { FILTERS, VARIABLES } from "../core/template.js";
@@ -170,8 +172,39 @@ $("vars").replaceChildren(
 );
 $("filters").textContent = `Filters: ${Object.keys(FILTERS).join(", ")}.`;
 
+// ---------- the assistant ----------
+async function renderSites() {
+  const all = await browserCtl.sites();
+  $("agentSites").replaceChildren(
+    ...all.map((origin) => {
+      const row = document.createElement("p");
+      row.className = "row";
+      const name = document.createElement("span");
+      name.className = "grow";
+      name.textContent = new URL(origin).host;
+      const remove = document.createElement("button");
+      remove.textContent = "Remove";
+      remove.addEventListener("click", async () => {
+        await browserCtl.forgetSite(origin);
+        saved("Removed: the assistant asks again before using it");
+        renderSites();
+      });
+      row.append(name, remove);
+      return row;
+    }),
+  );
+  if (!all.length) $("agentSites").replaceChildren(Object.assign(document.createElement("p"), { className: "hint", textContent: "None yet." }));
+}
+
+$("agentEnabled").addEventListener("change", async () => {
+  await browserCtl.setEnabled($("agentEnabled").checked);
+  saved();
+});
+
 (async () => {
   settings = await settingsStore.load();
   fill();
   renderDestinations();
+  $("agentEnabled").checked = await browserCtl.enabled();
+  renderSites();
 })();

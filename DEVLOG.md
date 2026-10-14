@@ -2,6 +2,16 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-10 · Pasted transcripts fetch no speech model
+
+Found by the clicks survey: on a fresh install, importing a pasted transcript queued the standard pipeline from
+transcribe, so the worker fetched PyTorch and SenseVoice (about 1 GB) before analysing it, only for transcribe to skip.
+`jobs.for_source` now leaves transcribe and diarize out for a `transcript` source, as it does for documents and images.
+
+Refine later: transcript jobs queued before the upgrade still wait for that fetch once (a migration step would back up
+the whole database for a queue that drains on its own); a run of only transcribe or diarize on a transcript still
+queues them, to say why they skip, and may fetch the model; a batch of only diarize over documents fails its enqueue.
+
 ## 2026-10-10 · The assistant in your browser
 
 Goal (Adeel): chat with the assistant from the browser extension, and let it do things by using the browser, like the
@@ -18,13 +28,17 @@ action log. Page text reaches the model as tool results (third-party text, untru
 PRs:
 
 - [x] Server: sessions, actions, the browser tools, `ai.browser` and `ai.browser_steps`, the API for agents
-- [ ] Extension: side panel chat, OAuth sign-in
-- [ ] Extension: browser control (read with refs, click, type, keys, download into the conversation), site
-      permissions, asking first, the action log
+- [x] Extension: side panel chat, OAuth sign-in (the Edge smoke test signs in through a stand-in consent page)
+- [x] Extension: browser control (read with refs, click, type, keys, download into the conversation), site
+      permissions, asking first, the action log (the Edge smoke test drives each against a stand-in Lens)
+- [x] After reading outside text (#309's `wary()`): addresses to open or download and text to type that the person
+      didn't write go with `confirm`, and the side panel asks first, on allowed sites too
 
 Refine later: the browser from WhatsApp/Slack while the side panel is open (a setting, off); keep-alives in the chat
 stream while an action waits; browser tools over MCP; real input events (Chrome's debugger) for sites that ignore
-synthetic ones.
+synthetic ones; asking about the page or selection from the right-click menu; the model and namespaces picker in the
+side panel; webmail attachments behind a download button, and files redirected to another site; frames; Safari's
+default tab; Lens checking that the extension asked (an extension older than `confirm` doesn't).
 
 ## 2026-10-10 · Similar content
 

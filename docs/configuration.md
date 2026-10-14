@@ -31,7 +31,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_ADMIN_PASSWORD` | | give that admin a password instead (passwords stay on) |
 | `LENS_NAMESPACE` | | create the first namespace at startup, while there is none |
 | `LENS_LLM_BASE_URL` / `LENS_LLM_MODEL` / `LENS_LLM_API_KEY` / `LENS_LLM_VISION_MODEL` | | the model provider; wins over Settings, which show these locked |
-| `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here |
+| `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here; a `budget` section (`hard_usd`, `soft_usd`, `period`, `on_over`, `price_in`, `price_out`) sets [the overall budget](budgets.md#one-budget-for-everything) |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
 | `LENS_TELEMETRY` / `LENS_TELEMETRY_ENDPOINT` / `LENS_TELEMETRY_HEADERS` | off | opt-in OpenTelemetry traces and metrics, sent only to this OTLP/HTTP endpoint ([Telemetry](telemetry.md)); `LENS_TELEMETRY=off` keeps it off whatever Settings say |
 | `LENS_LOG_LEVEL` / `LENS_LOG_FORMAT` | info / text | the log level and console format for the API and every worker ([Logging](logging.md)); win over Settings → Logs |
@@ -51,7 +51,7 @@ A fresh install (no accounts when the API first starts) walks its first admin th
 2. **Namespace**: the first one, with its knowledge graph shared or isolated. Already done when archive.yaml or
    `LENS_NAMESPACE` names namespaces, or an install script made one.
 3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,
-   with a test.
+   with a test. Servers running nearby and [cloud providers](#cloud-model-providers) are a click.
 4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), where Lens keeps its own files (this
    machine or a storage connection, [Storage](storage.md)), the largest upload, and optionally a folder inside
    `sources.local_roots` to watch.
@@ -63,7 +63,8 @@ A fresh install (no accounts when the API first starts) walks its first admin th
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
 `POST /api/v1/setup/namespace`, `PUT /api/v1/setup/llm`, `GET /api/v1/setup/llm/detect` (model servers running on
-this machine or the Docker host, with their models), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
+this machine or the Docker host, with their models), `GET /api/v1/setup/llm/providers` (the
+[cloud providers](#cloud-model-providers)), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
 `PUT /api/v1/setup/telemetry` and `POST /api/v1/setup/finish`
 (admins); `GET /api/v1/auth/status` says whether it is still pending (`wizard_pending`).
 
@@ -97,7 +98,7 @@ Admins can change, in Settings: transcription, speaker separation, speech provid
 provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
 video, OCR, faces and objects, workers, sign-in, components, access and embedding (embed frame ancestors, transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
-telemetry, the Fedora repository, sensors, uploads, storage, documents, API keys, and IIIF and metadata. The API
+telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
 
 ## Word search
@@ -145,6 +146,28 @@ embeddings:
 Changing the model drops the stored vectors (another model's can't be compared) until recordings are indexed again. When the server fails to index (it's down, or
 doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
 waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
+
+## Cloud model providers
+
+The setup wizard's model provider step and Settings → LLM provider offer the model servers running nearby (Ollama, LM
+Studio, llama.cpp, vLLM, LocalAI) and these cloud providers, each through its OpenAI-compatible API. Picking one fills
+in the address and a model, and a cloud provider's API key field takes the focus, with a link to where the provider
+hands out keys: paste the key and save. The model stays editable, with the provider's other models suggested.
+
+| Provider | Address | Model filled in |
+|---|---|---|
+| OpenAI | `https://api.openai.com/v1` | `gpt-5-mini` |
+| Anthropic | `https://api.anthropic.com/v1` | `claude-opus-5-5` |
+| Google Gemini | `https://generativelanguage.googleapis.com/v1beta/openai` | `gemini-flash-latest` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `openrouter/auto` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-small-latest` |
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
+
+The list is `GET /api/v1/setup/llm/providers` (admins), and the assistant's `find_model_servers` tool returns it with
+the servers it finds, so an agent setting Lens up uses the same addresses. Any other OpenAI-compatible service works
+by typing its address. Picking a provider changes nothing until you save; from then on, what Lens asks its model
+(summaries, chat, descriptions, with the text they need) goes to that provider.
 
 ## Chat models
 
@@ -198,7 +221,8 @@ Other documents are made into PDFs first ([API](api.md#documents-and-images)): W
 OpenDocument and RTF by LibreOffice; text, Markdown, saved web pages (HTML) and emails by Chromium printing a page Lens
 makes of them, or by LibreOffice where there's no Chromium. Outlook `.msg` emails also need the `msg` extra
 (`pip install -e ".[msg]"`; extract-msg is GPL-3.0). The `lens:full` Docker image has LibreOffice and Chromium
-([Deployment](deployment.md)); without them, PDFs and images are read as before, and files that can be transcripts
+([Deployment](deployment.md)), and a [microsandbox](microsandbox.md#libreoffice-and-chromium)'s full edition installs
+each the first time it's needed; without them, PDFs and images are read as before, and files that can be transcripts
 (Word, text, Markdown) are imported as transcripts. Settings → Documents:
 
 | Setting | Default | |

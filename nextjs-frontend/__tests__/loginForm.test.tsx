@@ -117,6 +117,7 @@ describe("LoginForm", () => {
     fillAndSubmit();
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Too many attempts");
-    expect(screen.getByRole("button", { name: /try again in a few minutes/i })).toBeDisabled();
+    // the cool-down starts in an effect after the alert renders, so wait for it rather than racing it
+    expect(await screen.findByRole("button", { name: /try again in a few minutes/i })).toBeDisabled();
   });
 });

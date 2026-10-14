@@ -13,7 +13,7 @@ import time
 import pytest
 
 from app.domain import convert, jobs, netguard, store, webcapture
-from tests import fake_llm
+from tests import fake_chromium, fake_llm, fake_programs
 from tests.helpers import chromium_binary, drain, login, make_user, text_pdf
 
 R = store.R
@@ -241,3 +241,21 @@ def test_without_chromium(app, client, env, cfg, monkeypatch):
     r = client.post("/api/v1/import/web", json={"url": "https://8.8.8.8/", "namespace": "pods"}, headers=env["he"])
     assert (r.status_code, r.json()["detail"]) == (400, "capturing web pages needs Chromium on the server (the lens:full image)")
     assert client.get("/api/v1/uploads/limits", headers=env["he"]).json()["convert"]["web"] is False
+
+
+def test_chromium_is_installed_the_first_time_a_page_is_captured(app, client, env, cfg, site, tmp_path, monkeypatch):
+    """In a microsandbox's full edition (microsandbox/run.sh) pages can be imported before Chromium is there: the first
+    capture that prints one asks for it and waits; a link to a PDF needs none."""
+    root, bin_dir = fake_programs.sandbox(tmp_path, monkeypatch)
+    assert client.get("/api/v1/uploads/limits", headers=env["he"]).json()["convert"]["web"] is True
+    r = client.post("/api/v1/import/web", json={"url": "https://8.8.8.8/", "namespace": "pods"}, headers=env["he"])
+    assert r.status_code == 200
+
+    cfg["documents"]["web_networks"] = ["127.0.0.0/8"]
+    said = []
+    with fake_programs.installer(root, lambda name: fake_chromium.make(bin_dir / name, "able")) as asked:
+        assert webcapture.capture(cfg, site + "/report.pdf", tmp_path / "report.pdf", said.append)["how"] == "pdf"
+        assert asked == []
+        assert webcapture.capture(cfg, site + "/", tmp_path / "page.pdf", said.append)["how"] == "printed"
+        assert webcapture.capture(cfg, site + "/", tmp_path / "again.pdf", said.append)["how"] == "printed"
+    assert asked == ["chromium"] and said == ["installing Chromium, the first time it's needed (a few minutes)"]

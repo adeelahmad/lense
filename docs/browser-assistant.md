@@ -1,7 +1,9 @@
 # The assistant in your browser
 
-**Status: in progress.** Built: the server side, below: sessions, the assistant's browser tools and the API. In
-progress: the Lens extension's side panel, where you chat with the assistant and it uses your browser.
+**Status: built** in the Lens extension for Chrome and Edge: the side panel, where you sign in and chat with the
+assistant, and the assistant using that browser on the sites you allow. Firefox (in its sidebar) and Safari (in a tab)
+run the same code, but only Chromium is covered by the end-to-end test so far. Webmail attachments behind a download
+button rather than a link are not handled yet (Refine later).
 
 Ask the assistant from your browser, and let it do things there for you: "check my email and import the important
 attachments", "find last month's invoice on the supplier's site and put it in Accounts", "save this page". It opens
@@ -11,6 +13,57 @@ goes. Anything that sends, deletes, buys or posts waits for your yes.
 Lens looks in what it already has first. Mail from an account connected as a source (IMAP), files you imported and
 pages you captured need no browsing; the browser is for what Lens can't reach itself, such as webmail without IMAP,
 or a site with no API.
+
+## The side panel
+
+Open it from the extension's popup (**Ask Lens**), by right-clicking any page (**Ask Lens…**), or with a shortcut you
+give it in your browser's extension shortcuts (browsers suggest at most four per extension, and the clipper has them).
+
+**Signing in** takes one click. The address is filled in from the clipper's Lens; press **Sign in**, let the extension
+reach that address when the browser asks, and allow the "Lens browser extension" on Lens's own sign-in page, where you
+are signed in with your passkey. Nothing to copy or paste: the extension signs in like any app (OAuth, see
+[Authentication](authentication.md#oauth)), so it needs **Let apps and AI assistants sign in** on, in Settings → API
+keys (on by default). Its tokens stay on this device and renew themselves; **Sign out** hands them back to Lens, and
+you can also take its access away under API tokens → Apps with access.
+
+**Asking** works as in Lens's chat, and it's the same conversation: **Open in Lens** picks it up there, and **New**
+starts another. Answers cite their sources (a citation opens the moment it came from), the steps the assistant took
+are listed above the answer, and anything it proposes (an import, say) waits in the panel for **Approve** or
+**Decline**. <kbd>Enter</kbd> sends, <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line and <kbd>Esc</kbd> stops the
+answer.
+
+Firefox shows the panel in its sidebar (also under **View → Sidebar → Ask Lens**) and signs in the same way. Safari
+has no side panel and doesn't let extensions show a sign-in page, so there **Ask Lens** opens in a tab, and you sign in
+with a write API token you make in Lens (your account's API tokens).
+
+## Letting it use your browser
+
+While the side panel is open, **Let Lens use this browser** (under the question box, on unless you turn it off) lets
+the assistant work in that window when you ask it to:
+
+- **A site is used only once you allow it.** The first time the assistant wants to read or act on a site, or open an
+  address there, the panel asks **Let Lens read and act on mail.example.com?** Allow, and the browser may ask too, for
+  the extension's access to that site. Allowed sites are listed in the extension's options, under The assistant, where
+  you remove them again.
+- **Anything consequential waits for your yes.** A click or a submit that sends, deletes, buys, books, posts, shares
+  or changes an account shows what it is about to do (**Click “Send” on mail.example.com?**) with **Yes, do it** and
+  **No**. It asks when the assistant marks the action consequential, or when the button's words say so (send, delete,
+  pay, order, post, submit, confirm, unsubscribe...), or when the form posts somewhere. No answer within 80 seconds
+  counts as No.
+- **Never passwords or card numbers.** It doesn't type into password fields, card number or security code fields,
+  or file pickers, and doesn't see what's in them: you type those.
+- **You see each action as it happens**, in the answer it's for: opening, reading, clicking, typing, downloading,
+  with ✓ when done and ✗ when not (and why). An app using your browser through the API shows the same way.
+- **Pages are third-party text.** What a page or an email says reaches the assistant marked as material to read, never
+  as instructions. Opening an address on a site you haven't allowed asks first. Once an answer has read a page or
+  other text from outside Lens, so does opening or downloading an address, or typing text, that you didn't write
+  yourself, on sites you allowed too: the panel shows the address or the text and why. So what it read can't be
+  carried off in a link or a form without your yes. **Ask before sending data out after reading third-party text**
+  (`ai.untrusted_asks`, Settings → AI assistant) turns this off, with the rest of [asking first](assistant.md).
+
+Files the assistant downloads (an attachment, a PDF behind a sign-in, or the page itself as Markdown) are attached to
+the conversation like a file you dropped in, and it puts them in a namespace with `import_files`, which waits for
+your **Approve**.
 
 ## How it works
 
@@ -55,10 +108,19 @@ Everything the side panel does goes through the API, with an API token or an app
 | `POST /api/v1/browser/sessions/{id}/run` | do one thing in your connected browser and wait for it: `{tool, args}`, the browser tools without `browser_` |
 | `DELETE /api/v1/browser/sessions/{id}` | the side panel closed |
 
-A question sent with `browser` (the session's id) on `POST /api/v1/chats/{id}/messages` can use that browser.
+A question sent with `browser` (the session's id) on `POST /api/v1/chats/{id}/messages` can use that browser. An
+action whose `args` has `confirm` (why, in words) is one to carry out only after the person says yes.
 
 ## Refine later
 
+- Webmail attachments behind a download button (no link to read), and files a site hands over from another site
+  after a redirect, which need that site allowed too.
+- Pages inside frames (other than the page's own shadow trees), and real input events through the browser's
+  debugger for pages that ignore synthetic ones.
+- Safari, where the panel is a tab of its own: the assistant picks the page's tab from `browser_tabs` today; it
+  should default to the tab you were on before.
+- Ask about the page you're on, or the text you selected, straight from the right-click menu.
+- Pick the model, or the namespaces to look in, in the side panel (the web app's chat has both).
 - The assistant's browser for conversations elsewhere (WhatsApp, Slack, Telegram) while the side panel is open, as
   a setting that's off by default.
 - Keep-alive events in the chat stream while an action waits for you, for proxies that cut quiet streams short.

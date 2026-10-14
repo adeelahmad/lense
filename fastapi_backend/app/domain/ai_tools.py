@@ -11,6 +11,7 @@ import json
 import logging
 
 from . import (
+    auth,
     batches,
     cypher,
     entities,
@@ -348,18 +349,34 @@ def read_before(history, summary=None):
 
 class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
-    makes their changes at once instead of asking for approval. `browser`: the person's connected side panel
-    (browser.py), whose browser the assistant can then use."""
+    makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
+    channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
+    then use."""
 
     def __init__(
-        self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said="", outside=(), browser=None
+        self,
+        db,
+        cfg,
+        user,
+        readable,
+        editable,
+        scope,
+        chat_id,
+        base=None,
+        admin=False,
+        act=False,
+        said="",
+        outside=(),
+        browser=None,
+        act_on=(),
     ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
         # ask first, even where they'd act at once (wary)
         self.outside = list(dict.fromkeys(outside))
-        self.base, self.admin, self.act = base or cfg, admin, act
+        self.links = set()  # web addresses the tools gave back, as written (untrusted.defang)
+        self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
         names = store.space_names(db)
@@ -501,9 +518,21 @@ class Toolbox(ops_tools.OpsTools):
         tool, another server's tool) or change the server asks first (ai.untrusted_asks, on by default)."""
         return bool(self.outside) and self.cfg["ai"].get("untrusted_asks", True)
 
+    def read_from(self):
+        """What made this answer wary, in words: where it read text from outside Lens."""
+        return f"this answer read text from outside Lens: {', '.join(self.outside[:4])}"
+
     def why(self):
         """Why something that would have run at once waits for a yes, said with it."""
-        return f" (asked first: this answer read text from outside Lens: {', '.join(self.outside[:4])})"
+        return f" (asked first: {self.read_from()})"
+
+    def said_it(self, text):
+        """Whether the person wrote `text` themselves in what they asked (never a chat room's message open to anyone),
+        so it carries nothing the answer read elsewhere."""
+        if "chat room" in self.outside:
+            return False
+        words = " ".join(str(text or "").split()).casefold()
+        return bool(words) and words in " ".join(str(self.said or "").split()).casefold()
 
     def call(self, name, args, model=False):
         """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
@@ -524,6 +553,7 @@ class Toolbox(ops_tools.OpsTools):
                 extra += self._hook(h, {"said": self.said, "tool": name})
         asked = len(self.approvals)
         result, summary = self._run(name, fn, args)
+        self.links |= untrusted.links(result)
         if self.untrusted(name) and len(self.approvals) == asked:  # it read something, rather than asking for a yes
             self.read_outside(f"tool {name}")
         if hooks:
@@ -531,7 +561,11 @@ class Toolbox(ops_tools.OpsTools):
                 extra += self._hook(h, {"said": self.said, "tool": name, "result": result[:4000]})
         if model:
             if self.untrusted(name):
-                result = untrusted.wrap(result, f"tool {name}", self.cfg)
+                why = untrusted.flags(result, self.cfg, model=True)
+                if why:  # the person sees it on the step, the model on the marker, admins in the audit log
+                    summary = f"{summary} (reads like instructions to an AI: {'; '.join(why)})"
+                    auth.audit(self.db, self.user, "assistant.injection_flagged", f"chat:{self.chat}", {"tool": name, "why": why})
+                result = untrusted.wrap(result, f"tool {name}", self.cfg, why=why)
             return result + (f"\n\n{extra.strip()}" if extra else ""), summary
         if extra:  # what hooks add, next to what the tool gave back
             try:
@@ -587,6 +621,12 @@ class Toolbox(ops_tools.OpsTools):
     # ---- the person's browser, through its Lens side panel (browser.py): the extension does each action ----
     def _browse(self, tool, **args):
         args = store.clean(args)
+        # an address to open or download, or text to type, can carry what the answer read out of Lens: once it has read
+        # text from outside Lens, which may have put it there, the browser asks the person first (`confirm`, why), on
+        # sites they allowed too, unless they wrote it themselves
+        risky = args.get("text") if tool == "type" else args.get("url") if tool in ("open", "import") else None
+        if risky and self.wary() and not self.said_it(risky):
+            args["confirm"] = self.read_from()
         try:
             out = browsermod.run(self.db, self.browser, self.user["id"], tool, args, chat=self.chat)
         except browsermod.BrowserError as e:
