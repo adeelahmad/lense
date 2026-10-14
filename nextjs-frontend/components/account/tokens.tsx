@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Tokens } from "@/app/openapi-client";
 import type { ApiToken } from "@/app/openapi-client/types.gen";
+import { S3Keys } from "@/components/account/s3-keys";
 import { daysError, expiresOn, SCOPE_LABEL, suggestedTokenName, tokenExpiry } from "@/components/account/token-model";
 import { isUnreachable } from "@/components/errors/error-states";
 import { ChoiceCards } from "@/components/settings/controls";
@@ -162,6 +163,7 @@ export function TokensPage() {
           </div>
         )}
       </section>
+      <S3Keys />
       <NewTokenDialog
         open={creating}
         taken={list.map((t) => t.name)}

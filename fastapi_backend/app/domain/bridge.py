@@ -20,26 +20,26 @@ The assistant's reversible changes (entity merges and edits, new namespaces: ROO
 "yes" (or "no") in the room, when bridge.approve is "low_risk" and the sender is one of bridge.users; everything else
 waits for approval in the web app, linked from the answer.
 
-Refine later: voice notes, files posted in the room, one Lens account per chat user.
+What happens in a room is the same in every chat channel (channels.py): Matterbridge is one adapter, Telegram's own
+bot (telegram.py) another. handle() takes a message from any of them, with their voice notes (transcribed) and files
+(held for the assistant to import), and answers through the adapter it came from.
+
+Refine later: one Lens account per chat user.
 """
 
 from __future__ import annotations
 
-import datetime as dt
 import hashlib
 import json
 import logging
-import os
 import re
-import threading
 import urllib.error
 import urllib.request
 
-from . import ai_tools, auth, auto_scope, chat, graph_history, llm, matterbridge, ns_assistant, store, untrusted
+from . import ai_tools, auth, auto_scope, channels, chat, graph_history, llm, matterbridge, ns_assistant, store, untrusted
 from .store import R
 
 log = logging.getLogger(__name__)
-LEASE_SECONDS = 30
 TIMEOUT = 15
 MAX_CHARS = 4000
 
@@ -158,6 +158,8 @@ def addressed(cfg, m, aliases=()):
     if allowed and who.strip("<> ").lower() not in allowed and (m.get("userid") or "").lower() not in allowed:
         return None
     rx = re.compile(rf"^\s*@?{re.escape(name)}\b[\s,:;!?-]*", re.I)
+    if m.get("direct"):  # a private chat, or a reply or mention the channel resolved: for Lens whatever it says
+        return rx.sub("", text, count=1).strip() or None
     if rx.match(text):
         return rx.sub("", text, count=1).strip() or None
     if b.get("answer") == "all":
@@ -174,11 +176,12 @@ def _account(db, cfg):
     return {"id": u["id"], "email": u["email"], "admin": bool(u.get("admin"))}
 
 
-def conversation(db, account, m, namespace=None):
+def conversation(db, account, m, namespace=None, label="Matterbridge"):
     """The conversation for this person in this room, started on their first message; scoped to `namespace` (the
     room's namespace assistant), which follows bridge.rooms when it changes. In a room no namespace is given to, the
-    scope is routing's (route)."""
-    key = hashlib.sha1(json.dumps([m.get("gateway"), m.get("channel"), m.get("account"), m.get("username")]).encode()).hexdigest()
+    scope is routing's (route). `label` names the channel in its title."""
+    who = m["thread"] if m.get("thread") else [m.get("gateway"), m.get("channel"), m.get("account"), m.get("username")]
+    key = hashlib.sha1(json.dumps(who).encode()).hexdigest()
     scope = {"namespaces": [namespace]} if namespace else {}
     cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE bridge = $k AND account = $a LIMIT 1", k=key, a=account["id"])
     if cid:
@@ -188,7 +191,7 @@ def conversation(db, account, m, namespace=None):
             db.q("UPDATE $r SET scope = {}, room = NONE, pinned = NONE WHERE room = 'given'", r=R("chat", cid))
         return cid
     where = " · ".join(x for x in [m.get("channel"), (m.get("username") or "").strip("<> ")] if x)
-    cid = chat.create(db, account["id"], title=f"Matterbridge · {where}" if where else "Matterbridge", scope=scope, kind="bridge")
+    cid = chat.create(db, account["id"], title=f"{label} · {where}" if where else label, scope=scope, kind="bridge")
     db.q("UPDATE $r SET bridge = $k, room = $g", r=R("chat", cid), k=key, g="given" if namespace else None)
     return cid
 
@@ -272,11 +275,20 @@ def route(db, cfg, account, cid, q, ns=None):
 
 
 # ---------- answering ----------
-def answer(db, cfg, base, account, cid, q):
-    """Answer a question in a conversation as the account would be answered in the web app (without streaming).
-    Returns (text, approvals): the text as the room gets it, its links safe to preview (`safe_links`)."""
-    text, approvals, keep = _answer(db, cfg, base, account, cid, q)
-    return safe_links(cfg, db, text, keep), approvals
+def answer(db, cfg, base, account, cid, q, files=(), act_on=(), outside=None):
+    """Answer a question in a conversation as the account would be answered in the web app (without streaming), with
+    the files sent with it (held uploads: channels.hold); `act_on` are the changes made at once (Channel.acts), and
+    `outside` where the question's text came from outside Lens (Channel.outside, a Matterbridge room's by default), so
+    that changes ask first. Returns (text, approvals): the text as the room gets it, its links safe to preview
+    (`safe_links`)."""
+    if outside is None:
+        outside = MATTERBRIDGE.outside(cfg, {})
+    text, approvals, keep = _answer(db, cfg, base, account, cid, q, files, act_on, outside)
+    safe = safe_links(cfg, db, text, keep)
+    if safe != text:  # what an injection may have tried, for admins to see
+        broken = len(untrusted.links(text) - untrusted.links(safe))
+        auth.audit(db, {"id": account["id"], "email": account["email"]}, "bridge.links_broken", f"chat:{cid}", {"links": broken})
+    return safe, approvals
 
 
 def safe_links(cfg, db, text, keep=()):
@@ -290,7 +302,7 @@ def safe_links(cfg, db, text, keep=()):
     return untrusted.defang(text, keep, [app_url(cfg, db)])
 
 
-def _answer(db, cfg, base, account, cid, q):
+def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
     roles = auth.roles(db, account)
     readable = set(roles)
     editable = {s for s in roles if auth.allows(roles, s, "editor")}
@@ -301,15 +313,14 @@ def _answer(db, cfg, base, account, cid, q):
     past = chat.history(db, cid)
     summary = chat.memory(db, cfg, cid)
     scope = (db.one("SELECT scope FROM $r", r=R("chat", cid)) or {}).get("scope") or None
-    chat.add(db, cid, "user", q)
+    chat.add(db, cid, "user", q, attachments=list(files) or None)
+    asked = q + chat.attached_note(list(files))
     passages = chat.retrieve(db, q, readable, scope, cfg=cfg)
     # the web addresses written by someone other than the model: the person, now and before, and the archive
     keep = untrusted.links("\n".join([q] + [m["content"] or "" for m in past if m["role"] == "user"] + [p["text"] for p in passages]))
     steps, approvals, notice = [], [], None
     wrote = cfg["llm"].get("model") if llm.configured(cfg) else None
     if llm.configured(cfg) and cfg["ai"].get("tools"):
-        # anyone in a room with no list of who may talk to Lens is someone the account doesn't vouch for
-        anyone = not [u for u in cfg["bridge"].get("users") or [] if u.strip()]
         box = ai_tools.Toolbox(
             db,
             cfg,
@@ -321,11 +332,12 @@ def _answer(db, cfg, base, account, cid, q):
             base,
             account["admin"],
             said=q,
-            outside=(["chat room"] if anyone else []) + ai_tools.read_before(past, summary),
+            outside=list(outside) + ai_tools.read_before(past, summary),
+            act_on=act_on,
         )
         try:
             text = None
-            for kind, data in chat.tool_answer(cfg, box, q, past, cfg["ai"].get("max_steps") or 6, summary=summary):
+            for kind, data in chat.tool_answer(cfg, box, asked, past, cfg["ai"].get("max_steps") or 6, summary=summary):
                 if kind == "step":
                     steps.append(data)
                 elif kind == "direct" and passages and not box.cited(data):  # unless it cites what it remembers
@@ -343,7 +355,7 @@ def _answer(db, cfg, base, account, cid, q):
             return "I couldn't answer that: " + str(e), box.approvals, keep | box.links
     error = None
     try:
-        text = llm.chat(cfg, chat.messages_for(q, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
+        text = llm.chat(cfg, chat.messages_for(asked, passages, past, summary, cfg)) if llm.configured(cfg) else chat.fallback(passages)
     except llm.LLMError as e:
         text, error = "I couldn't answer that: " + str(e), str(e)
     chat.add(db, cid, "assistant", text or "(no answer)", chat.cited(text, passages), steps=steps, notice=notice, error=error, model=wrote)
@@ -437,9 +449,62 @@ def reply_text(cfg, text, approvals, cid, db=None):
     return out
 
 
-def handle(db, cfg, base, m):
-    """One message from a room: answered when it's for Lens. True when it was."""
-    ns = room_namespace(cfg, m)
+def sources(db, cfg, cid):
+    """The excerpts the conversation's last answer cites, a line each with its link into the web app, for a channel
+    that shows them under the answer (Channel.sources); "" when it cites none."""
+    from app.email import app_url
+
+    row = db.one("SELECT id, passages FROM chat_message WHERE chat = $c AND role = 'assistant' ORDER BY id DESC LIMIT 1", c=cid) or {}
+    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and p.get("recording_id")]
+    if not used:
+        return ""
+    base, lines = app_url(cfg, db), []
+    for p in used:
+        at = f"?page={p['page'] + 1}" if p.get("page") is not None else f"?t={int((p.get('t0') or 0) // 1000)}"
+        where = ", ".join(str(x) for x in (p.get("title") or "Untitled", p.get("time")) if x)
+        lines.append(f"[{p['n']}] {where}: {base}/resources/{p['recording_id']}{at}")
+    return "Sources:\n" + "\n".join(lines)
+
+
+def _media(db, cfg, ch, m):
+    """A message's voice note as its text (when it has none and is for Lens), and a note when there's nothing to say
+    but files: the message as handle() reads it, and what to say instead of answering (or None)."""
+    direct = m.get("direct") or cfg["bridge"].get("answer") == "all"
+    if not direct or (m.get("text") or "").strip():
+        return m, None
+    if m.get("voice"):
+        try:
+            return {**m, "text": channels.heard(cfg, ch, m["voice"]), "heard": True}, None
+        except channels.ChannelError as e:
+            return m, str(e)
+    if m.get("files"):
+        return {**m, "text": "I attached " + ("this file." if len(m["files"]) == 1 else "these files.")}, None
+    return m, None
+
+
+def _hold(db, cfg, ch, account, m):
+    """The files sent with a message, held for the assistant to import, and a line for each that couldn't be."""
+    files, failed = [], []
+    for f in m.get("files") or []:
+        try:
+            files.append(channels.hold(db, cfg, ch, account, f))
+        except (ValueError, OSError, channels.ChannelError) as e:
+            failed.append(f"Couldn't take {f.get('filename') or 'that file'}: {e}")
+    return files, failed
+
+
+def handle(db, cfg, base, m, ch=None):
+    """One message from a room of channel `ch` (Matterbridge when None): answered when it's for Lens. True when it
+    was."""
+    ch = ch or MATTERBRIDGE
+    cfg = channels.view(cfg, ch)
+    m, cant = _media(db, cfg, ch, m)
+    if cant:
+        if addressed(cfg, {**m, "text": "?"}):  # only said to who could have been answered
+            ch.send(cfg, m, cant)
+            return True
+        return False
+    ns = m.get("namespace") or room_namespace(cfg, m)
     sid = {v: k for k, v in store.space_names(db).items()}.get(ns) if ns else None
     home = ns_assistant.profile(db, sid) if sid is not None else None
     by_name = named(db, cfg, m) if sid is None else None
@@ -447,146 +512,93 @@ def handle(db, cfg, base, m):
     if not q:
         return False
     account = _account(db, cfg)
-    cid = conversation(db, account, m, ns if sid is not None else None)
+    cid = conversation(db, account, m, ns if sid is not None else None, ch.label)
     note = None
     cmd = chat.command(q)
     if cmd:  # /clear or /compact, for this room's conversation
         try:
             said = chat.run_command(db, cfg, cid, *cmd)[0]
         except Exception:  # noqa: BLE001 - still say something in the room
-            log.exception("bridge: /%s failed", cmd[0])
+            log.exception("%s: /%s failed", ch.key, cmd[0])
             said = f"Couldn't {cmd[0]} this conversation. Try again."
-        post(cfg, m.get("gateway"), said, m.get("channel"))
+        ch.send(cfg, m, said)
         return True
+    files, failed = _hold(db, cfg, ch, account, m)
     try:
         decided = decide_in_room(db, cfg, base, account, cid, m, q)
         if decided:
             chat.add(db, cid, "user", q)
             chat.add(db, cid, "assistant", decided)
-            post(cfg, m.get("gateway"), decided, m.get("channel"))
+            ch.send(cfg, m, decided)
             return True
         if sid is None:
             said, note = route(db, cfg, account, cid, q, by_name[1] if by_name else None)
             if said:
                 chat.add(db, cid, "user", q)
                 chat.add(db, cid, "assistant", said)
-                post(cfg, m.get("gateway"), said, m.get("channel"))
+                ch.send(cfg, m, said)
                 return True
-        text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS])
+        text, approvals = answer(db, cfg, base, account, cid, q[:MAX_CHARS], files, ch.acts(cfg), ch.outside(cfg, m))
     except Exception:  # noqa: BLE001 - still say something in the room
-        log.exception("bridge: answering failed")
+        log.exception("%s: answering failed", ch.key)
         text, approvals, note = "Something went wrong while answering. Try again.", [], None
     out = reply_text(cfg, text, approvals, cid, db)
-    post(cfg, m.get("gateway"), out + (f"\n\n{note}" if note else ""), m.get("channel"))
+    if m.get("heard"):  # what the voice note was heard as, so a mishearing shows
+        out = f"(Heard: “{q}”)\n\n{out}"
+    out = "\n".join([*failed, out]) if failed else out
+    cites = sources(db, cfg, cid) if ch.sources else ""
+    ch.send(cfg, m, out + (f"\n\n{cites}" if cites else "") + (f"\n\n{note}" if note else ""))
     try:  # a room conversation goes on for good: older messages are folded into its summary
         chat.compact(db, cfg, cid)
     except Exception:  # noqa: BLE001 - tried again after the next answer
-        log.warning("bridge: couldn't update the summary of chat %s", cid, exc_info=True)
+        log.warning("%s: couldn't update the summary of chat %s", ch.key, cid, exc_info=True)
     return True
 
 
-# ---------- the thread ----------
-def _later(seconds):
-    return (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=seconds)).isoformat(timespec="seconds")
+# ---------- Matterbridge as a channel ----------
+class Matterbridge(channels.Channel):
+    key, label, lease = "bridge", "Matterbridge", "lease"
 
+    def ready(self, cfg):
+        return ready(cfg)
 
-def lease(db, me):
-    """True while this process is the one reading Matterbridge (only one may: it forgets messages once read)."""
-    r = R("bridge_state", "lease")
-    try:
-        db.q("CREATE $r CONTENT $d", r=r, d={"holder": me, "until": _later(LEASE_SECONDS)})
-        return True
-    except Exception as e:  # noqa: BLE001 - it's there already: take it if it's ours or has run out
-        if "already exists" not in str(e):
-            raise
-    return bool(
-        db.rows(
-            "UPDATE $r SET holder = $me, until = $u WHERE holder = $me OR until < $now RETURN id",
-            r=r,
-            me=me,
-            u=_later(LEASE_SECONDS),
-            now=store.now(),
-        )
-    )
+    def check(self, db, cfg):
+        return check(db, cfg)
 
-
-def release(db, me):
-    db.q("DELETE $r WHERE holder = $me", r=R("bridge_state", "lease"), me=me)
-
-
-def status(db, cfg):
-    """How the bridge is doing: off, incomplete (what's missing), running (in which process, when it last looked, how
-    many messages it answered), or error (what went wrong last)."""
-    why = ready(cfg)
-    if why == "off":
-        return {"state": "off"}
-    if why:
-        return {"state": "incomplete", "error": why}
-    s = db.one("SELECT holder, until, at, error, answered FROM $r", r=R("bridge_state", "lease")) or {}
-    if not s or (s.get("until") or "") < store.now():
-        return {"state": "starting", "error": s.get("error")}
-    return {"state": "error" if s.get("error") else "running", **{k: s.get(k) for k in ("holder", "at", "error", "answered")}}
-
-
-def _note(db, me, **kw):
-    db.q("UPDATE $r MERGE $d WHERE holder = $me", r=R("bridge_state", "lease"), d=kw, me=me)
-
-
-_HELD: set = set()  # the names this process holds the lease under
-
-
-def tick(db, cfg, base, me):
-    """One look at Matterbridge: how many messages were answered."""
-    if ready(cfg):
-        if me in _HELD:
-            release(db, me)
-            _HELD.discard(me)
-        return 0
-    if not lease(db, me):
-        _HELD.discard(me)
-        return 0
-    _HELD.add(me)
-    try:
+    def fetch(self, db, cfg):
         if matterbridge.running(cfg):  # the config follows the settings; the service restarts Matterbridge on a change
             problem = matterbridge.write(cfg)
             if problem:
                 raise BridgeError(problem)
-        said = fetch(cfg)
-    except Exception as e:
-        _note(db, me, error=str(e), at=store.now())
-        raise
-    n, failed = 0, None
-    for m in said:  # Matterbridge has forgotten them: each gets its turn even when one before it failed
-        try:
-            n += handle(db, cfg, base, m)
-        except Exception as e:  # noqa: BLE001 - reported in the status, and the rest are still answered
-            log.warning("bridge: a message couldn't be answered: %s", e)
-            failed = str(e)
-    if n:
-        db.q("UPDATE $r SET answered = (answered ?? 0) + $n WHERE holder = $me", r=R("bridge_state", "lease"), n=n, me=me)
-    _note(db, me, error=failed, at=store.now())
-    return n
+        return fetch(cfg)
+
+    def send(self, cfg, m, text):
+        post(cfg, m.get("gateway"), text, m.get("channel"))
+
+
+MATTERBRIDGE = Matterbridge()
+
+
+# ---------- the thread (channels.py) ----------
+def lease(db, me):
+    """True while this process is the one reading Matterbridge (only one may: it forgets messages once read)."""
+    return channels.lease(db, me, MATTERBRIDGE)
+
+
+def release(db, me):
+    channels.release(db, me, MATTERBRIDGE)
+
+
+def status(db, cfg):
+    """How the bridge is doing (channels.status)."""
+    return channels.status(db, cfg, MATTERBRIDGE)
+
+
+def tick(db, cfg, base, me):
+    """One look at Matterbridge: how many messages were answered."""
+    return channels.tick(db, cfg, base, me, MATTERBRIDGE)
 
 
 def start(db, cfg_fn, stop, base_fn=None, name=None, log_fn=None):
     """The bridge thread, until `stop` is set. It does nothing while the bridge is off."""
-    me = name or f"pid-{os.getpid()}"
-
-    def loop():
-        while not stop.is_set():
-            cfg = cfg_fn()
-            try:
-                tick(db, cfg, base_fn() if base_fn else cfg, me)
-            except Exception as e:  # noqa: BLE001 - keep listening
-                if log_fn:
-                    log_fn(f"bridge: {type(e).__name__}: {e}")
-            stop.wait(max(1, int((cfg.get("bridge") or {}).get("poll_seconds") or 2)))
-        if me in _HELD:
-            try:
-                release(db, me)
-            except Exception:  # noqa: BLE001 - the lease runs out on its own
-                pass
-
-    th = threading.Thread(target=loop, daemon=True, name="bridge")
-    th.start()
-    return th
+    return channels.start(db, cfg_fn, stop, MATTERBRIDGE, base_fn, name, log_fn)

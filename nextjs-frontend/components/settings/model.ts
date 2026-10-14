@@ -81,9 +81,15 @@ export type SectionId =
   | "notifications"
   | "mail"
   | "bridge"
+  | "telegram"
+  | "slack"
+  | "mailbox"
   | "telemetry"
   | "fedora"
   | "sensors"
+  | "nfs"
+  | "smb"
+  | "shares"
   | "uploads"
   | "storage"
   | "backups"
@@ -235,6 +241,27 @@ export const SECTIONS: SectionSpec[] = [
       "The assistant in Slack, Discord, Telegram, Matrix and other chat rooms, through Matterbridge: it answers what’s said to it there.",
   },
   {
+    id: "telegram",
+    label: "Telegram",
+    backend: ["telegram"],
+    description:
+      "The assistant in Telegram through a bot of your own: paste its token from @BotFather. No Matterbridge and no public address needed.",
+  },
+  {
+    id: "slack",
+    label: "Slack",
+    backend: ["slack"],
+    description:
+      "The assistant in Slack through an app of your own, created in one click: direct messages, channels and /lens. No Matterbridge and no public address needed.",
+  },
+  {
+    id: "mailbox",
+    label: "Assistant email",
+    backend: ["mailbox"],
+    description:
+      "An email address for the assistant: people you let in email or forward things to it, and it answers by email and imports what’s attached.",
+  },
+  {
     id: "notifications",
     label: "Notifications",
     backend: ["notifications"],
@@ -261,6 +288,27 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["sensors"],
     description:
       "Off unless you turn it on. An MQTT hub and a syslog listener in Lens’s workers, so routers, DNS servers and devices can send to it; and how long what they send is kept.",
+  },
+  {
+    id: "nfs",
+    label: "NFS share",
+    backend: ["nfs"],
+    description:
+      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
+  },
+  {
+    id: "smb",
+    label: "SMB share",
+    backend: ["smb"],
+    description:
+      "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
+  },
+  {
+    id: "shares",
+    label: "File shares",
+    backend: ["shares"],
+    description:
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
   },
   {
     id: "uploads",
@@ -779,10 +827,11 @@ export const FIELDS: FieldSpec[] = [
     kind: "select",
     options: [
       { value: "patterns", label: "Patterns (free)" },
+      { value: "classifier", label: "Patterns, then a local classifier (downloads 740 MB)" },
       { value: "model", label: "Patterns, then the decision model" },
       { value: "off", label: "Off" },
     ],
-    hint: "Flagged tool results carry a warning to the model and on the step you see. The decision model also checks what the patterns let through, one call per tool result.",
+    hint: "Flagged tool results carry a warning to the model and on the step you see. The local classifier (a model trained to spot prompt injection, run on this machine) or the decision model also checks each tool result the patterns let through.",
   },
   {
     section: "ai",
@@ -1015,6 +1064,273 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 300,
+    unit: "s",
+  },
+  // Telegram (telegram.py)
+  { section: "telegram", key: "enabled", label: "Answer in Telegram", kind: "switch" },
+  {
+    section: "telegram",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  { section: "telegram", key: "name", label: "Its name in groups", kind: "text" },
+  {
+    section: "telegram",
+    key: "answer",
+    label: "In groups, answers",
+    kind: "select",
+    options: [
+      { value: "mention", label: "Messages that name it, mention the bot or reply to it" },
+      { value: "all", label: "Every message (turn off the bot’s privacy mode in @BotFather)" },
+    ],
+  },
+  {
+    section: "telegram",
+    key: "users",
+    label: "People it talks to",
+    kind: "lines",
+    mono: true,
+    hint: "Telegram user ids or usernames, one per line. Anyone can find a bot, so it answers nobody else; people who write to it show above, to let in with one click.",
+  },
+  {
+    section: "telegram",
+    key: "approve",
+    label: "Approving in the chat",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these in Telegram. Settings, imports, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "telegram",
+    key: "rooms",
+    label: "Chats for a namespace’s assistant",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like -1001234567890 = pods (the chats it has seen are listed above with their ids): conversations there talk to that namespace’s own assistant. Elsewhere Lens picks the namespace for each question.",
+  },
+  {
+    section: "telegram",
+    key: "api_url",
+    label: "Bot API server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "https://api.telegram.org",
+    hint: "Leave empty unless you run your own telegram-bot-api server.",
+  },
+  // Slack (slack.py)
+  { section: "slack", key: "enabled", label: "Answer in Slack", kind: "switch" },
+  {
+    section: "slack",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  { section: "slack", key: "name", label: "Its name in channels", kind: "text" },
+  {
+    section: "slack",
+    key: "answer",
+    label: "In channels, answers",
+    kind: "select",
+    options: [
+      { value: "mention", label: "Messages that name it or @mention the app" },
+      { value: "all", label: "Every message in the channels it’s in" },
+    ],
+  },
+  {
+    section: "slack",
+    key: "users",
+    label: "People it talks to",
+    kind: "lines",
+    mono: true,
+    hint: "Slack usernames or member ids, one per line; empty answers everyone in the workspace.",
+  },
+  {
+    section: "slack",
+    key: "approve",
+    label: "Approving in Slack",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these in Slack (only when the list isn’t empty). Settings, imports, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "slack",
+    key: "rooms",
+    label: "Channels for a namespace’s assistant",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like slack/general = pods: conversations there talk to that namespace’s own assistant. Elsewhere Lens picks the namespace for each question.",
+  },
+  // The assistant's mailbox (mailbox.py)
+  { section: "mailbox", key: "enabled", label: "Answer email", kind: "switch" },
+  {
+    section: "mailbox",
+    key: "address",
+    label: "Its email address",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "lens@example.org",
+    hint: "A mailbox of its own, at any provider. It reads new mail there and answers from it.",
+  },
+  {
+    section: "mailbox",
+    key: "users",
+    label: "People it answers",
+    kind: "lines",
+    mono: true,
+    hint: "Email addresses, one per line. Anyone can send email, so it answers nobody else; people who write to it show above, to let in with one click.",
+  },
+  {
+    section: "mailbox",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  {
+    section: "mailbox",
+    key: "imports",
+    label: "What’s attached",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Imported at once, into a namespace that exists" },
+      { value: "ask", label: "Imported once approved" },
+    ],
+    hint: "A forwarded email is imported whole, with its attachments.",
+  },
+  {
+    section: "mailbox",
+    key: "approve",
+    label: "Approving by email",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these. Settings, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "mailbox",
+    key: "routes",
+    label: "Where mail goes",
+    kind: "lines",
+    mono: true,
+    hint: "One rule per line, the first that matches wins: from: *@acme.com = acme, subject: invoice; from: billing@x.com = finance, subject: newsletter = skip. Conditions are on from, to, subject, list and mailbox. Mail to lens+pods@… goes to pods. Anything else: Lens picks the namespace for each question.",
+  },
+  {
+    section: "mailbox",
+    key: "username",
+    label: "Sign-in name",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "the address, when left empty",
+  },
+  {
+    section: "mailbox",
+    key: "imap_host",
+    label: "IMAP server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "guessed from the address",
+  },
+  {
+    section: "mailbox",
+    key: "imap_port",
+    label: "Port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    nullable: true,
+    placeholder: "993",
+  },
+  {
+    section: "mailbox",
+    key: "imap_security",
+    label: "Connection",
+    kind: "select",
+    options: [
+      { value: "ssl", label: "SSL/TLS (usually port 993)" },
+      { value: "starttls", label: "STARTTLS (usually port 143)" },
+      { value: "none", label: "Unencrypted (usually port 143)" },
+    ],
+  },
+  {
+    section: "mailbox",
+    key: "smtp_host",
+    label: "SMTP server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "guessed from the address",
+  },
+  {
+    section: "mailbox",
+    key: "smtp_port",
+    label: "Port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    nullable: true,
+    placeholder: "587",
+  },
+  {
+    section: "mailbox",
+    key: "smtp_security",
+    label: "Connection",
+    kind: "select",
+    options: [
+      { value: "starttls", label: "STARTTLS (usually port 587)" },
+      { value: "ssl", label: "SSL/TLS (usually port 465)" },
+      { value: "none", label: "Unencrypted (usually port 25)" },
+    ],
+  },
+  { section: "mailbox", key: "folder", label: "Folder it reads", kind: "text", mono: true },
+  {
+    section: "mailbox",
+    key: "check",
+    label: "Whose mail counts",
+    kind: "select",
+    options: [
+      { value: "authenticated", label: "Only mail the sender’s provider signed (DMARC, DKIM or SPF passed)" },
+      { value: "off", label: "Trust the From address (only for a server of your own that refuses forged mail)" },
+    ],
+  },
+  {
+    section: "mailbox",
+    key: "auth_server",
+    label: "Trust checks by",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "the server that received it",
+    hint: "The name your mail server signs its Authentication-Results with (like mx.google.com), when it doesn’t remove forged ones.",
+  },
+  { section: "mailbox", key: "name", label: "Its name", kind: "text" },
+  {
+    section: "mailbox",
+    key: "poll_seconds",
+    label: "Looks for new mail every",
+    kind: "int",
+    min: 10,
+    max: 3600,
     unit: "s",
   },
   // Matterbridge run by Lens (Chat rooms)
@@ -1751,6 +2067,32 @@ export const FIELDS: FieldSpec[] = [
     max: 1440,
     unit: "minutes",
   },
+  // NFS share (opt-in)
+  {
+    section: "nfs",
+    key: "enabled",
+    label: "Share the file tree over NFS",
+    kind: "switch",
+    hint: "Read-only. Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "account",
+    label: "Show it as",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "The share shows what this person sees in the web app, and nothing else",
+  },
+  {
+    section: "nfs",
+    key: "allowed_networks",
+    label: "Networks it’s shared with",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. NFS has no login, so machines anywhere else are turned away",
+  },
+  { section: "nfs", key: "port", label: "Port inside Lens", kind: "int", min: 1, max: 65535 },
   // Backups (docs/database.md#backups)
   {
     section: "backups",
@@ -1797,6 +2139,46 @@ export const FIELDS: FieldSpec[] = [
     max: 365,
     hint: "The oldest go when a new one is taken. Backups you take yourself stay until you delete them",
   },
+  // SMB share (opt-in)
+  {
+    section: "smb",
+    key: "enabled",
+    label: "Share the file tree over SMB",
+    kind: "switch",
+    hint: "Read-only. Off: nothing listens",
+  },
+  {
+    section: "smb",
+    key: "allowed_networks",
+    label: "Networks it’s shared with",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. Machines anywhere else are turned away before they sign in",
+  },
+  // File shares (opt-in)
+  {
+    section: "shares",
+    key: "enabled",
+    label: "Share the file tree",
+    kind: "switch",
+    hint: "Off: nothing listens. The API and the MCP tools read the tree either way",
+  },
+  {
+    section: "shares",
+    key: "s3",
+    label: "S3",
+    kind: "switch",
+    hint: "Read-only; each person signs in with their own access key",
+  },
+  { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "shares",
+    key: "webdav",
+    label: "WebDAV",
+    kind: "switch",
+    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+  },
+  { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -2093,7 +2475,7 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     mono: true,
     placeholder: "http://localhost:3001",
-    hint: "Where Grafana shows Lens's charts; System health links to it. The monitoring profile runs one at :3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. Empty: the one Charts and history runs, on this host at :3001",
   },
   {
     section: "telemetry",
@@ -2466,6 +2848,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     }
     case "select":
       if (f.key === "frame_width") return { value: Number(ui) };
+      if (f.section === "nfs" && f.key === "account") return { value: ui === "" || ui == null ? null : Number(ui) };
       if ((f.section === "files" || f.section === "backups") && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };
       return { value: ui === "" && f.nullable ? null : ui };
@@ -2559,6 +2942,14 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const nets = values["notifications.networks"] as string[] | undefined;
   const badNet = nets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNet) e["notifications.networks"] = `“${badNet}” isn’t a network like 192.168.1.0/24`;
+  const nNets = values["nfs.allowed_networks"] as string[] | undefined;
+  const badNNet = nNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badNNet) e["nfs.allowed_networks"] = `“${badNNet}” isn’t a network like 192.168.1.0/24`;
+  else if (nNets && nNets.length === 0) e["nfs.allowed_networks"] = "List at least one network";
+  const mNets = values["smb.allowed_networks"] as string[] | undefined;
+  const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;
+  else if (mNets && mNets.length === 0) e["smb.allowed_networks"] = "List at least one network";
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;
