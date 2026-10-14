@@ -288,14 +288,14 @@ jobs:
 
       - name: A part of Lens that keeps stopping ends the wait at once, with what Lens logged
         run: |
-          # keys that don't open the database: the API stops at each start, as after a reinstall with new keys
+          # a key the API won't start with (shorter than 16 characters): it stops at each start
           cp "$LENS_DIR/.env" env.bak
-          sed -i 's/^SURREAL_PASS=.*/SURREAL_PASS=not-the-one/' "$LENS_DIR/.env"
+          sed -i 's/^ACCESS_SECRET_KEY=.*/ACCESS_SECRET_KEY=short/' "$LENS_DIR/.env"
           if LENS_BACKEND='' sh < install.sh >loop.log 2>&1; then cat loop.log; echo "it didn't stop waiting"; exit 1; fi
           cat loop.log
           grep -q "keeps stopping in its microsandbox" loop.log
           grep -q 'The last lines Lens logged:' loop.log
-          grep -q 'cannot open SurrealDB' loop.log # the reason, in Lens's own words
+          grep -q 'ACCESS_SECRET_KEY' loop.log # the reason, in Lens's own words
           cp env.bak "$LENS_DIR/.env"
           LENS_BACKEND='' sh < install.sh >/dev/null
           curl -fsS -o /dev/null "$(cat setup-url)"
@@ -324,6 +324,34 @@ jobs:
           # running the line again keeps that volume
           LENS_BACKEND='' sh < install.sh >/dev/null
           grep -q '^LENS_VOLUME=lens-data-2$' "$LENS_DIR/.env"
+          curl -fsS -o /dev/null "$url"
+
+      - name: An install whose keys don't open its volume's database moves to a volume of its own when the line runs again
+        run: |
+          export PATH="$HOME/.local/bin:$HOME/.microsandbox/bin:$PATH"
+          # as an install that a reinstall gave new keys before LENS_VOLUME was kept: it runs on lens-data, whose database
+          # the first install's keys made (lens-data-2 holds the one this .env's earlier keys made)
+          sed -i '/^LENS_VOLUME=/d' "$LENS_DIR/.env"
+          for k in ACCESS_SECRET_KEY ARCHIVE_SECRET_KEY AUTH_SECRET SURREAL_PASS; do
+            sed -i "s/^$k=.*/$k=$(openssl rand -hex 32)/" "$LENS_DIR/.env"
+          done
+          before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
+          LENS_BACKEND='' sh < install.sh | tee moved.log
+          grep -q "Another install's database" moved.log || { echo "the sandbox didn't say the keys don't open the database"; exit 1; }
+          grep -q 'Starting Lens on a microsandbox volume of its own, lens-data-3' moved.log
+          grep -q '^LENS_VOLUME=lens-data-3$' "$LENS_DIR/.env" || { echo "the install didn't move to a volume of its own"; exit 1; }
+          grep -q "lens-data-3" "$LENS_DIR/.lens-sandbox" || { echo ".lens-sandbox still starts the earlier volume"; exit 1; }
+          after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
+          test "$before" = "$after" || { echo "moving changed the keys"; exit 1; }
+          for v in lens-data lens-data-2; do msb volume ls -q | grep -qx "$v" || { echo "the volume $v is gone"; exit 1; }; done
+          url="$(grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' moved.log | head -1)"
+          test -n "$url" || { echo "install.sh didn't hand over a setup address"; exit 1; }
+          base="http://127.0.0.1:${url##*:}"; base="${base%%/setup*}"
+          curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
+          # running the line again stays on it
+          LENS_BACKEND='' sh < install.sh | tee stay.log
+          if grep -q 'volume of its own' stay.log; then echo "it moved again"; exit 1; fi
+          grep -q '^LENS_VOLUME=lens-data-3$' "$LENS_DIR/.env"
           curl -fsS -o /dev/null "$url"
 
       - name: What the sandbox said

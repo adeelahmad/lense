@@ -198,6 +198,12 @@ keep() {
 }
 
 surreal_ready() { surreal is-ready --endpoint http://127.0.0.1:8001 >/dev/null 2>&1; }
+# surreal_signin: how SurrealDB answers .env's SURREAL_USER and SURREAL_PASS (200: they open it, 401: they don't)
+surreal_signin() {
+  python3 -c 'import json, os; print(json.dumps({"user": os.environ["SURREAL_USER"], "pass": os.environ["SURREAL_PASS"]}))' |
+    curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST -H 'Accept: application/json' --data-binary @- \
+      http://127.0.0.1:8001/signin || true
+}
 
 # --- Programs: LibreOffice and Chromium, installed the first time Lens needs one (the full edition; a lean install
 # never fetches them) --------------------------------------------------------------------------------------------
@@ -219,6 +225,23 @@ keep surrealdb "$DATA" surreal start --log info --bind 127.0.0.1:8001 --user "$S
   "surrealkv:$DATA/surreal/lens.db"
 db=$!
 until surreal_ready; do sleep 1; done
+# The database keeps the user it was first started with, so the keys in .env must be the ones that made it. Those of
+# another install (a reinstall after the install folder was deleted wrote new ones, and kept this volume) never open
+# it: rather than starting the API again and again, say so and stop. install.sh then starts Lens on a volume of its own.
+signin=""
+for _ in 1 2 3 4 5; do
+  signin="$(surreal_signin)"
+  case "$signin" in 200 | 401) break ;; esac
+  sleep 1
+done
+if [ "$signin" = 401 ]; then
+  log "Another install's database: the keys in .env don't open the one in this volume"
+  trap - EXIT
+  # shellcheck disable=SC2086
+  for pid in $pids; do kill "$pid" 2>/dev/null || true; done
+  wait # the database closes cleanly
+  exit 3
+fi
 keep api "$OPT/backend" fastapi run app/main.py --host 127.0.0.1 --port 8000 --proxy-headers
 keep worker "$OPT/backend" lens worker
 keep web "$OPT/web" env HOSTNAME=0.0.0.0 PORT=3000 node lens-server.js
