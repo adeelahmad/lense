@@ -392,6 +392,16 @@ export type ApiTokenCreated = {
 };
 
 /**
+ * ApiTokenRename
+ */
+export type ApiTokenRename = {
+  /**
+   * Name
+   */
+  name: string;
+};
+
+/**
  * Approval
  */
 export type Approval = {
@@ -705,6 +715,64 @@ export type Backup = {
 };
 
 /**
+ * BackupLink
+ */
+export type BackupLink = {
+  /**
+   * Url
+   *
+   * opens the download, without signing in, until it expires
+   */
+  url: string;
+  /**
+   * Expires In
+   *
+   * seconds
+   */
+  expires_in: number;
+  [key: string]: unknown;
+};
+
+/**
+ * BackupSchedule
+ */
+export type BackupSchedule = {
+  /**
+   * Schedule
+   *
+   * backups.schedule: a cron expression, or none
+   */
+  schedule?: string | null;
+  /**
+   * Timezone
+   */
+  timezone?: string;
+  /**
+   * Keep
+   *
+   * how many scheduled backups are kept
+   */
+  keep?: number;
+  /**
+   * Next At
+   */
+  next_at?: string | null;
+  /**
+   * Last At
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * Backups
  */
 export type Backups = {
@@ -716,6 +784,23 @@ export type Backups = {
    * Backups
    */
   backups: Array<Backup>;
+  /**
+   * Database
+   *
+   * the database this Lens uses: a restore needs a backup of the same kind (export or folder)
+   */
+  database?: "server" | "embedded" | "memory" | null;
+  /**
+   * In Progress
+   *
+   * backups being written now, by any Lens process
+   */
+  in_progress?: Array<string>;
+  /**
+   * the restore running on this server, or the last one
+   */
+  restore?: RestoreWork | null;
+  schedule?: BackupSchedule | null;
   [key: string]: unknown;
 };
 
@@ -1251,6 +1336,116 @@ export type BrowseEntry = {
 };
 
 /**
+ * BrowserAnswer
+ */
+export type BrowserAnswer = {
+  /**
+   * Ok
+   *
+   * whether the browser did it
+   */
+  ok: boolean;
+  /**
+   * Result
+   *
+   * what it found or did (the page, the tabs, the file it attached...)
+   */
+  result?: unknown;
+  /**
+   * Error
+   *
+   * why not, when it didn't (the person said no, no such ref...)
+   */
+  error?: string | null;
+};
+
+/**
+ * BrowserConnect
+ */
+export type BrowserConnect = {
+  /**
+   * Label
+   *
+   * what to call this browser, e.g. 'Chrome on the laptop'
+   */
+  label?: string | null;
+};
+
+/**
+ * BrowserResult
+ */
+export type BrowserResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Result
+   */
+  result?: unknown;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BrowserRun
+ */
+export type BrowserRun = {
+  /**
+   * Tool
+   *
+   * the action: one of the assistant's browser_ tools, without browser_
+   */
+  tool: "tabs" | "open" | "read" | "click" | "type" | "press" | "import";
+  /**
+   * Args
+   *
+   * its arguments, as the browser_ tool takes them
+   */
+  args?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Wait
+   *
+   * seconds to wait for the browser
+   */
+  wait?: number;
+};
+
+/**
+ * BrowserSession
+ */
+export type BrowserSession = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Seen At
+   */
+  seen_at?: string | null;
+  /**
+   * Live
+   *
+   * its side panel is connected now
+   */
+  live: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * Budget
  */
 export type Budget = {
@@ -1298,6 +1493,56 @@ export type Budget = {
   alert?: {
     [key: string]: unknown;
   } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * BudgetMeter
+ */
+export type BudgetMeter = {
+  /**
+   * Resource
+   *
+   * space:<id>, or none for all of Lens
+   */
+  resource?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Period
+   */
+  period: "day" | "week" | "month";
+  /**
+   * Since
+   */
+  since?: string | null;
+  spent: Spent;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * where the budget it is measured against stands; none without one
+   */
+  budget?: BudgetStatus | null;
+  /**
+   * By Day
+   */
+  by_day?: Array<DaySpend> | null;
+  /**
+   * By Model
+   */
+  by_model?: Array<ModelSpend> | null;
+  /**
+   * Top
+   */
+  top?: Array<TopSpend> | null;
+  /**
+   * By Namespace
+   */
+  by_namespace?: Array<TopSpend> | null;
   [key: string]: unknown;
 };
 
@@ -1795,6 +2040,33 @@ export type ClientRegistration = {
    * Scope
    */
   scope?: string | null;
+};
+
+/**
+ * CloudModelProvider
+ */
+export type CloudModelProvider = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Base Url
+   */
+  base_url: string;
+  /**
+   * Model
+   */
+  model: string;
+  /**
+   * Models
+   */
+  models: Array<string>;
+  /**
+   * Key Url
+   */
+  key_url: string;
+  [key: string]: unknown;
 };
 
 /**
@@ -2830,6 +3102,37 @@ export type Converters = {
    * web pages captured from their address (Chromium; POST /import/web)
    */
   web?: boolean;
+  /**
+   * Tika
+   *
+   * a Tika server reads, as text, the documents nothing else here can (documents.tika_url)
+   */
+  tika?: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * CopyWork
+ */
+export type CopyWork = {
+  /**
+   * Running
+   *
+   * copying a backup to (send) or from (fetch) the connection
+   */
+  running?: "send" | "fetch" | null;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
   [key: string]: unknown;
 };
 
@@ -3031,6 +3334,31 @@ export type CustomNodeVersionCreate = {
 };
 
 /**
+ * DaySpend
+ */
+export type DaySpend = {
+  /**
+   * Day
+   *
+   * YYYY-MM-DD (UTC)
+   */
+  day: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  [key: string]: unknown;
+};
+
+/**
  * DecisionStatus
  *
  * Who takes routine decisions now, and whether a local Laya model could.
@@ -3092,6 +3420,81 @@ export type DecisionTestResult = {
    * Ms
    */
   ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * Described
+ *
+ * What a document says about itself, read by a Tika server (documents.tika_metadata), as Dublin Core terms.
+ */
+export type Described = {
+  /**
+   * Title
+   *
+   * dc:title
+   */
+  title?: string | null;
+  /**
+   * Creators
+   *
+   * dc:creator: its authors
+   */
+  creators?: Array<string>;
+  /**
+   * Subject
+   *
+   * dc:subject
+   */
+  subject?: string | null;
+  /**
+   * Description
+   *
+   * dc:description
+   */
+  description?: string | null;
+  /**
+   * Publisher
+   *
+   * dc:publisher
+   */
+  publisher?: string | null;
+  /**
+   * Language
+   *
+   * dc:language, a code such as en
+   */
+  language?: string | null;
+  /**
+   * Created
+   *
+   * dcterms:created (ISO 8601)
+   */
+  created?: string | null;
+  /**
+   * Modified
+   *
+   * dcterms:modified (ISO 8601)
+   */
+  modified?: string | null;
+  /**
+   * Pages
+   *
+   * how many pages it says it has
+   */
+  pages?: number | null;
+  /**
+   * Words
+   *
+   * how many words it says it has
+   */
+  words?: number | null;
+  /**
+   * Format
+   *
+   * dc:format: its media type, as Tika found it
+   */
+  format?: string | null;
   [key: string]: unknown;
 };
 
@@ -5045,6 +5448,12 @@ export type FileStoreTestResult = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the connection is rate limiting: reads work, new files are kept here
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -5431,6 +5840,10 @@ export type Health = {
   sources: Array<HealthSource>;
   disk: HealthDisk;
   counts: HealthCounts;
+  /**
+   * CPU, memory, load and uptime now
+   */
+  machine?: HealthMachine | null;
   [key: string]: unknown;
 };
 
@@ -5494,6 +5907,65 @@ export type HealthDisk = {
    * Total Gb
    */
   total_gb: number;
+  [key: string]: unknown;
+};
+
+/**
+ * HealthMachine
+ */
+export type HealthMachine = {
+  /**
+   * Cpu Pct
+   *
+   * busy share of all CPUs, 0-100; null where /proc isn't there
+   */
+  cpu_pct?: number | null;
+  /**
+   * Cpus
+   */
+  cpus?: number | null;
+  /**
+   * Mem Used
+   *
+   * bytes
+   */
+  mem_used?: number | null;
+  /**
+   * Mem Total
+   *
+   * bytes
+   */
+  mem_total?: number | null;
+  /**
+   * Load1
+   */
+  load1?: number | null;
+  /**
+   * Load5
+   */
+  load5?: number | null;
+  /**
+   * Load15
+   */
+  load15?: number | null;
+  /**
+   * Rss
+   *
+   * the API process's memory, bytes
+   */
+  rss?: number | null;
+  /**
+   * Uptime
+   *
+   * seconds since the API started
+   */
+  uptime: number;
+  /**
+   * Host Uptime
+   *
+   * seconds since the machine started
+   */
+  host_uptime?: number | null;
   [key: string]: unknown;
 };
 
@@ -5729,6 +6201,128 @@ export type HookPushed = {
    * Items
    */
   items: Array<HookItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsCertificate
+ */
+export type HttpsCertificate = {
+  /**
+   * Names
+   *
+   * the domain names it's for
+   */
+  names: Array<string>;
+  /**
+   * Expires
+   *
+   * when it runs out (Caddy renews it about a month before)
+   */
+  expires: string;
+  /**
+   * Issuer
+   *
+   * the certificate authority that issued it
+   */
+  issuer: string;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsProvider
+ */
+export type HttpsProvider = {
+  /**
+   * Name
+   *
+   * the caddy-dns plugin's name, like cloudflare
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Fields
+   */
+  fields: Array<HttpsProviderField>;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsProviderField
+ */
+export type HttpsProviderField = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Secret
+   */
+  secret: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * HttpsStatus
+ */
+export type HttpsStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Running
+   *
+   * Caddy is running in a server process
+   */
+  running: boolean;
+  /**
+   * Ports Open
+   *
+   * a server process has the HTTPS ports (install.sh opened them)
+   */
+  ports_open: boolean;
+  /**
+   * Url
+   *
+   * the https:// address people open Lens at
+   */
+  url?: string | null;
+  /**
+   * Certificates
+   */
+  certificates?: Array<HttpsCertificate>;
+  /**
+   * Error
+   *
+   * why there's no certificate yet, when there isn't
+   */
+  error?: string | null;
+  /**
+   * Log
+   *
+   * Caddy's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Origin
+   *
+   * where Caddy sends visitors: the web app, as the server reaches it
+   */
+  origin: string;
+  /**
+   * Process
+   *
+   * the server process with the HTTPS ports
+   */
+  process?: string | null;
   [key: string]: unknown;
 };
 
@@ -7122,6 +7716,129 @@ export type LocalModelServer = {
 };
 
 /**
+ * LogLine
+ *
+ * One log record, redacted as it was written.
+ */
+export type LogLine = {
+  /**
+   * Ts
+   */
+  ts: string;
+  /**
+   * Level
+   */
+  level: string;
+  /**
+   * Logger
+   */
+  logger: string;
+  /**
+   * Msg
+   */
+  msg: string;
+  /**
+   * Process
+   */
+  process: string;
+  /**
+   * Pid
+   */
+  pid?: number | null;
+  /**
+   * Host
+   */
+  host?: string | null;
+  /**
+   * Exc
+   */
+  exc?: string | null;
+  /**
+   * Fields
+   */
+  fields?: {
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+};
+
+/**
+ * LogStatus
+ *
+ * What the API process does with its logs now; each worker follows the same settings on its own.
+ */
+export type LogStatus = {
+  /**
+   * Level
+   */
+  level: string;
+  /**
+   * File
+   *
+   * the API's log file, under data_dir/logs
+   */
+  file?: string | null;
+  /**
+   * Syslog
+   *
+   * whether lines are being sent to a syslog server
+   */
+  syslog: boolean;
+  /**
+   * Target
+   *
+   * where, as transport://host:port
+   */
+  target?: string | null;
+  /**
+   * Sent
+   */
+  sent: number;
+  /**
+   * Dropped
+   *
+   * lines dropped because the server couldn't keep up or was unreachable
+   */
+  dropped: number;
+  /**
+   * Queued
+   */
+  queued: number;
+  /**
+   * Last Sent
+   */
+  last_sent?: number | null;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  /**
+   * Error At
+   */
+  error_at?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * LogTestResult
+ */
+export type LogTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * LoginRequest
  */
 export type LoginRequest = {
@@ -7215,6 +7932,100 @@ export type MailTestResult = {
    * Error
    */
   error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * MailboxPerson
+ */
+export type MailboxPerson = {
+  /**
+   * Id
+   *
+   * their email address, for mailbox.users
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Allowed
+   *
+   * in mailbox.users: Lens answers their mail
+   */
+  allowed: boolean;
+  /**
+   * Vouched
+   *
+   * how their last message was known to be theirs (DMARC, DKIM, SPF, or From with mailbox.check off); none: it wasn't
+   */
+  vouched?: string | null;
+  /**
+   * Waiting
+   *
+   * their messages held, answered once they're let in
+   */
+  waiting?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * MailboxStatus
+ */
+export type MailboxStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at the mailbox failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process reading the mailbox
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last looked
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Address
+   *
+   * the assistant's address
+   */
+  address?: string | null;
+  /**
+   * Imap
+   *
+   * the server it reads mail from (host:port and security), set or guessed
+   */
+  imap?: string | null;
+  /**
+   * Smtp
+   *
+   * the server it sends from (host:port and security), set or guessed
+   */
+  smtp?: string | null;
+  /**
+   * People
+   *
+   * who has written to it, latest first
+   */
+  people?: Array<MailboxPerson>;
   [key: string]: unknown;
 };
 
@@ -7636,6 +8447,12 @@ export type MessageCreate = {
    * edit one of your earlier questions (its message id): it and everything after it are replaced by this question and a new answer
    */
   edit?: number | null;
+  /**
+   * Browser
+   *
+   * asked from a browser's Lens side panel: its session (POST /browser/sessions). While it's connected, the assistant can use that browser (docs/browser-assistant.md)
+   */
+  browser?: string | null;
 };
 
 /**
@@ -7726,6 +8543,96 @@ export type MetadataEdit = {
     [key: string]: unknown;
   };
   [key: string]: unknown;
+};
+
+/**
+ * ModelSpend
+ */
+export type ModelSpend = {
+  /**
+   * Model
+   *
+   * none: calls with no model (webhooks, web tools)
+   */
+  model?: string | null;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Estimate
+   */
+  estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * Monitoring
+ */
+export type Monitoring = {
+  /**
+   * On
+   *
+   * the monitoring profile (Prometheus, node-exporter, Grafana) as last asked
+   */
+  on: boolean;
+  /**
+   * State
+   *
+   * how the machine's last change went
+   */
+  state?: "queued" | "running" | "done" | "failed" | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Asked At
+   */
+  asked_at?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Grafana Port
+   *
+   * the port Grafana listens on, where the web app does
+   */
+  grafana_port?: number;
+  /**
+   * Agent
+   *
+   * what changes it on this machine (systemd, launchd); none: run `manual` there
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that turns it on by hand, on the machine Lens runs on
+   */
+  manual: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MonitoringRequest
+ */
+export type MonitoringRequest = {
+  /**
+   * On
+   *
+   * start (true) or stop (false) Prometheus, node-exporter and Grafana
+   */
+  on: boolean;
 };
 
 /**
@@ -8095,6 +9002,69 @@ export type NextRun = {
    * Basis
    */
   basis: string;
+  [key: string]: unknown;
+};
+
+/**
+ * NfsStatus
+ */
+export type NfsStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Phase
+   */
+  phase: "off" | "running" | "error";
+  /**
+   * Port
+   */
+  port: number;
+  /**
+   * Allowed Networks
+   */
+  allowed_networks: Array<string>;
+  /**
+   * Account
+   *
+   * whose view of the file tree the share shows, while running
+   */
+  account?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Refused
+   *
+   * connections refused since it started, from outside the allowed networks
+   */
+  refused?: number;
+  /**
+   * Log
+   *
+   * rclone's last lines
+   */
+  log?: Array<string>;
+  /**
+   * Process
+   *
+   * the worker running it
+   */
+  process?: string | null;
+  /**
+   * Mount
+   *
+   * the command that mounts it on Linux
+   */
+  mount: string;
+  /**
+   * Rclone
+   *
+   * whether rclone is installed here
+   */
+  rclone: boolean;
   [key: string]: unknown;
 };
 
@@ -10180,6 +11150,20 @@ export type PipelineSummary = {
 };
 
 /**
+ * PipelineUpdate
+ */
+export type PipelineUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
  * PipelineVersionCreate
  */
 export type PipelineVersionCreate = {
@@ -11756,6 +12740,10 @@ export type Recording = {
    */
   rendition?: Rendition | null;
   /**
+   * a document: what it says about itself (title, authors, dates), read by Tika
+   */
+  described?: Described | null;
+  /**
    * an email's attachment made a resource of its own: that email
    */
   attached_to?: AttachedTo | null;
@@ -12310,6 +13298,52 @@ export type Release = {
 };
 
 /**
+ * RemoteBackups
+ */
+export type RemoteBackups = {
+  /**
+   * Connection
+   *
+   * backups.connection: where copies go, or none
+   */
+  connection?: number | null;
+  /**
+   * Folder
+   */
+  folder?: string | null;
+  /**
+   * Backups
+   *
+   * the copies there, newest first
+   */
+  backups?: Array<Backup>;
+  /**
+   * Error
+   *
+   * why the connection couldn't be listed
+   */
+  error?: string | null;
+  /**
+   * Last At
+   *
+   * when the last backup was copied there (or tried)
+   */
+  last_at?: string | null;
+  /**
+   * Last Name
+   */
+  last_name?: string | null;
+  /**
+   * Last Error
+   *
+   * why copying the last backup failed
+   */
+  last_error?: string | null;
+  copying: CopyWork;
+  [key: string]: unknown;
+};
+
+/**
  * Removed
  */
 export type Removed = {
@@ -12545,6 +13579,53 @@ export type ResourceSpend = {
    * true: cost_usd is a floor (unpriced calls); show it as an estimate
    */
   estimate: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * RestoreStart
+ */
+export type RestoreStart = {
+  /**
+   * Confirm
+   *
+   * the backup's name again, to show this is meant: restoring replaces everything
+   */
+  confirm: string;
+};
+
+/**
+ * RestoreWork
+ */
+export type RestoreWork = {
+  /**
+   * Running
+   *
+   * a restore is running on this server now
+   */
+  running?: boolean;
+  /**
+   * Name
+   *
+   * the backup being (or last) restored
+   */
+  name?: string | null;
+  /**
+   * Error
+   *
+   * why the last restore here failed (what was there was put back)
+   */
+  error?: string | null;
+  /**
+   * Finished At
+   */
+  finished_at?: string | null;
+  /**
+   * Before
+   *
+   * the before-restore backup of what the database held
+   */
+  before?: string | null;
   [key: string]: unknown;
 };
 
@@ -12978,6 +14059,149 @@ export type RoutineUpdate = {
    * Enabled
    */
   enabled?: boolean | null;
+};
+
+/**
+ * S3Key
+ */
+export type S3Key = {
+  /**
+   * Id
+   *
+   * the access key id
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Created At
+   */
+  created_at?: string | null;
+  /**
+   * Expires At
+   */
+  expires_at?: string | null;
+  /**
+   * Last Used At
+   */
+  last_used_at?: string | null;
+  /**
+   * Email
+   *
+   * its owner (the list of everyone's keys)
+   */
+  email?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * S3KeyCreate
+ */
+export type S3KeyCreate = {
+  /**
+   * Name
+   */
+  name?: string;
+  /**
+   * Days
+   *
+   * how long it lasts (the API keys' limits); none: their default
+   */
+  days?: number | null;
+};
+
+/**
+ * S3KeyCreated
+ */
+export type S3KeyCreated = {
+  /**
+   * Id
+   *
+   * the access key id
+   */
+  id: string;
+  /**
+   * Secret
+   *
+   * the secret access key, shown this once
+   */
+  secret: string;
+  /**
+   * Port
+   *
+   * the S3 server's port
+   */
+  port: number;
+  /**
+   * Webdav Port
+   */
+  webdav_port: number;
+  [key: string]: unknown;
+};
+
+/**
+ * S3Service
+ */
+export type S3Service = {
+  /**
+   * Process
+   */
+  process?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Running
+   */
+  running?: boolean | null;
+  /**
+   * Port
+   */
+  port?: number | null;
+  /**
+   * Since
+   */
+  since?: string | null;
+  /**
+   * Error
+   */
+  error?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * S3Status
+ *
+ * The S3 server (these fields), the WebDAV server, and your access keys (they sign in to both).
+ */
+export type S3Status = {
+  /**
+   * Enabled
+   *
+   * whether an admin turned it on (shares.enabled and its own switch)
+   */
+  enabled: boolean;
+  /**
+   * Port
+   *
+   * the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)
+   */
+  port: number;
+  /**
+   * what the process running it says; none while it's off
+   */
+  service?: S3Service | null;
+  webdav: ShareServer;
+  /**
+   * Keys
+   *
+   * your access keys
+   */
+  keys: Array<S3Key>;
+  [key: string]: unknown;
 };
 
 /**
@@ -13999,6 +15223,71 @@ export type SetupAdmin = {
 };
 
 /**
+ * SetupBudget
+ */
+export type SetupBudget = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: "day" | "week" | "month";
+  /**
+   * On Over
+   */
+  on_over?: "ask" | "skip";
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+};
+
+/**
+ * SetupBudgetView
+ */
+export type SetupBudgetView = {
+  /**
+   * Hard Usd
+   */
+  hard_usd?: number | null;
+  /**
+   * Soft Usd
+   */
+  soft_usd?: number | null;
+  /**
+   * Period
+   */
+  period?: string;
+  /**
+   * On Over
+   */
+  on_over?: string;
+  /**
+   * Price In
+   */
+  price_in?: number | null;
+  /**
+   * Price Out
+   */
+  price_out?: number | null;
+  /**
+   * Model
+   */
+  model?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * SetupFinish
  */
 export type SetupFinish = {
@@ -14246,6 +15535,7 @@ export type SetupView = {
   storage: SetupStorageView;
   telemetry: SetupTelemetryView;
   oauth: SetupOAuthView;
+  budget: SetupBudgetView;
   [key: string]: unknown;
 };
 
@@ -14352,6 +15642,29 @@ export type ShareLink = {
    * "/s/<code>": a short address for the same player; it expires and is revoked with the link
    */
   short?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * ShareServer
+ */
+export type ShareServer = {
+  /**
+   * Enabled
+   *
+   * whether an admin turned it on (shares.enabled and its own switch)
+   */
+  enabled: boolean;
+  /**
+   * Port
+   *
+   * the port it listens on in the worker (Docker publishes LENS_S3_PORT, LENS_WEBDAV_PORT)
+   */
+  port: number;
+  /**
+   * what the process running it says; none while it's off
+   */
+  service?: S3Service | null;
   [key: string]: unknown;
 };
 
@@ -14482,6 +15795,333 @@ export type SigninLinkToken = {
 };
 
 /**
+ * SimilarCite
+ *
+ * A moment that shows why a resource is alike: one of its passages closest in meaning, or a line with shared words.
+ */
+export type SimilarCite = {
+  /**
+   * Match
+   *
+   * found by meaning (a close passage) or by the shared words
+   */
+  match: "meaning" | "words";
+  /**
+   * Source
+   *
+   * "said" (the transcript), "page" (text on a page of a document or an image) or "described" (what a shot or a page shows)
+   */
+  source: "said" | "page" | "described";
+  /**
+   * Snippet
+   *
+   * HTML: escaped text with <mark> around the key words
+   */
+  snippet: string;
+  /**
+   * Idx
+   *
+   * the line it starts at (from 0)
+   */
+  idx?: number | null;
+  /**
+   * T0
+   *
+   * ms; None on a page
+   */
+  t0?: number | null;
+  /**
+   * Page
+   *
+   * on a document or an image: which page (from 0)
+   */
+  page?: number | null;
+  /**
+   * Similarity
+   *
+   * found by meaning: how alike it is (cosine, up to 1)
+   */
+  similarity?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarEntity
+ */
+export type SimilarEntity = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Name
+   */
+  name: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarItem
+ */
+export type SimilarItem = {
+  /**
+   * Recording Id
+   */
+  recording_id: number;
+  /**
+   * Title
+   */
+  title?: string | null;
+  /**
+   * Recorded At
+   */
+  recorded_at?: string | null;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Media Kind
+   *
+   * audio, video, transcript, document or image
+   */
+  media_kind: string;
+  /**
+   * Score
+   *
+   * reciprocal-rank fusion of the lists it's in; only for ordering
+   */
+  score: number;
+  /**
+   * Match
+   *
+   * why it's alike: close in meaning, shares key words, about the same topics, mentions the same entities
+   */
+  match: Array<"meaning" | "words" | "topics" | "entities">;
+  /**
+   * Similarity
+   *
+   * by meaning: how alike its closest passage is (cosine, up to 1)
+   */
+  similarity?: number | null;
+  /**
+   * Cites
+   *
+   * up to 3 moments that show it, to open
+   */
+  cites?: Array<SimilarCite>;
+  /**
+   * Words
+   *
+   * the key words it says
+   */
+  words?: Array<string>;
+  /**
+   * Topics
+   *
+   * topics both are about
+   */
+  topics?: Array<SimilarTopic>;
+  /**
+   * Entities
+   *
+   * entities both mention
+   */
+  entities?: Array<SimilarEntity>;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarResults
+ */
+export type SimilarResults = {
+  /**
+   * Basis
+   *
+   * what the results are like
+   */
+  basis: "text" | "recording" | "topic" | "entity";
+  /**
+   * Label
+   *
+   * the text's start, or the resource's title, the topic's label, the entity's name
+   */
+  label?: string | null;
+  /**
+   * Text
+   *
+   * the text compared by meaning (a topic's labels and definition, an entity's name and description)
+   */
+  text?: string | null;
+  /**
+   * Terms
+   *
+   * the key words looked for
+   */
+  terms?: Array<string>;
+  /**
+   * Mode
+   *
+   * "meaning": an embedding model compared it too; "words": only by key words, topics and entities
+   */
+  mode: "meaning" | "words";
+  /**
+   * Meaning
+   *
+   * why it wasn't compared by meaning, when search by meaning is set up
+   */
+  meaning?: string | null;
+  /**
+   * Semantic
+   *
+   * search by meaning is set up and indexed
+   */
+  semantic?: boolean;
+  /**
+   * Total
+   */
+  total: number;
+  /**
+   * Items
+   */
+  items: Array<SimilarItem>;
+  [key: string]: unknown;
+};
+
+/**
+ * SimilarTopic
+ */
+export type SimilarTopic = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Label
+   */
+  label: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SlackStatus
+ */
+export type SlackStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has connected yet); running; error (the connection or the last message failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process connected to Slack
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last heard from Slack
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Team
+   *
+   * the Slack workspace it's connected to
+   */
+  team?: string | null;
+  /**
+   * Bot
+   *
+   * the app's bot user
+   */
+  bot?: string | null;
+  /**
+   * Command
+   *
+   * the slash command, such as /lens
+   */
+  command: string;
+  /**
+   * Create Url
+   *
+   * where the Slack app is created from its manifest, in one click
+   */
+  create_url: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SmbStatus
+ */
+export type SmbStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Phase
+   */
+  phase: "off" | "starting" | "running" | "error";
+  /**
+   * Port
+   *
+   * the port clients connect to (where Docker publishes it)
+   */
+  port: number;
+  /**
+   * Share
+   *
+   * the share's name
+   */
+  share: string;
+  /**
+   * Allowed Networks
+   */
+  allowed_networks: Array<string>;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Process
+   *
+   * the worker serving it
+   */
+  process?: string | null;
+  /**
+   * Installed
+   *
+   * whether the SMB server (impacket) is installed here; it's fetched when the share is turned on
+   */
+  installed: boolean;
+  /**
+   * Address
+   *
+   * the address Finder and Linux file managers open (the machine's name filled in by the caller)
+   */
+  address: string;
+  /**
+   * Mount
+   *
+   * the command that mounts it on Linux
+   */
+  mount: string;
+  [key: string]: unknown;
+};
+
+/**
  * Source
  */
 export type Source = {
@@ -14589,6 +16229,12 @@ export type SourceHealth = {
    * Error
    */
   error?: string | null;
+  /**
+   * Limited
+   *
+   * the service is rate limiting the account; it still works
+   */
+  limited?: string | null;
   [key: string]: unknown;
 };
 
@@ -15400,6 +17046,99 @@ export type TagsChanged = {
 };
 
 /**
+ * TelegramChat
+ */
+export type TelegramChat = {
+  /**
+   * Id
+   *
+   * the chat's id, for telegram.rooms (like -1001234567890 = pods)
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TelegramPerson
+ */
+export type TelegramPerson = {
+  /**
+   * Id
+   *
+   * their Telegram user id, for telegram.users
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Allowed
+   *
+   * in telegram.users: Lens talks to them
+   */
+  allowed: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * TelegramStatus
+ */
+export type TelegramStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Telegram failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process reading the bot's messages
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last looked
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Bot
+   *
+   * the bot's username, once Lens has asked Telegram
+   */
+  bot?: string | null;
+  /**
+   * Chats
+   *
+   * the chats it has seen, latest first
+   */
+  chats?: Array<TelegramChat>;
+  /**
+   * People
+   *
+   * who has written to it, latest first
+   */
+  people?: Array<TelegramPerson>;
+  [key: string]: unknown;
+};
+
+/**
  * TelemetryExport
  */
 export type TelemetryExport = {
@@ -15674,6 +17413,20 @@ export type TemplateSummary = {
 };
 
 /**
+ * TemplateUpdate
+ */
+export type TemplateUpdate = {
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+};
+
+/**
  * TemplateVersionCreate
  */
 export type TemplateVersionCreate = {
@@ -15760,6 +17513,31 @@ export type TicketRequest = {
 };
 
 /**
+ * TikaTestResult
+ */
+export type TikaTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Version
+   *
+   * what the Tika server says it is: Apache Tika 4.0.0
+   */
+  version?: string | null;
+  /**
+   * Ms
+   */
+  ms?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * TokenLimits
  *
  * How long API keys may last, set by admins (the tokens settings).
@@ -15826,6 +17604,35 @@ export type ToolStep = {
    * Summary
    */
   summary?: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TopSpend
+ */
+export type TopSpend = {
+  /**
+   * Resource
+   */
+  resource: string;
+  /**
+   * Cost Usd
+   */
+  cost_usd: number;
+  /**
+   * Tokens
+   */
+  tokens: number;
+  /**
+   * Calls
+   */
+  calls: number;
+  /**
+   * Name
+   *
+   * what the resource is called, when it has a name
+   */
+  name?: string | null;
   [key: string]: unknown;
 };
 
@@ -16113,6 +17920,52 @@ export type TopicUpdate = {
    * Related
    */
   related?: Array<number> | null;
+};
+
+/**
+ * TreeEntry
+ */
+export type TreeEntry = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Folder
+   */
+  folder: boolean;
+  /**
+   * Modified
+   */
+  modified?: string | null;
+  /**
+   * Size
+   *
+   * a file's size in bytes
+   */
+  size?: number | null;
+  /**
+   * Content Type
+   */
+  content_type?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * TreeFolder
+ */
+export type TreeFolder = {
+  /**
+   * Path
+   *
+   * the folder, from the top: '' for the namespaces
+   */
+  path: string;
+  /**
+   * Entries
+   */
+  entries: Array<TreeEntry>;
+  [key: string]: unknown;
 };
 
 /**
@@ -18086,6 +19939,36 @@ export type RevokeTokenResponses = {
 
 export type RevokeTokenResponse = RevokeTokenResponses[keyof RevokeTokenResponses];
 
+export type RenameTokenData = {
+  body: ApiTokenRename;
+  path: {
+    /**
+     * Token Id
+     */
+    token_id: number;
+  };
+  query?: never;
+  url: "/api/v1/tokens/{token_id}";
+};
+
+export type RenameTokenErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RenameTokenError = RenameTokenErrors[keyof RenameTokenErrors];
+
+export type RenameTokenResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RenameTokenResponse = RenameTokenResponses[keyof RenameTokenResponses];
+
 export type PasskeySetupOptionsData = {
   body: PasskeySetupStart;
   path?: never;
@@ -19347,6 +21230,38 @@ export type RemoveLocalModelResponses = {
 
 export type RemoveLocalModelResponse = RemoveLocalModelResponses[keyof RemoveLocalModelResponses];
 
+export type NfsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/nfs/status";
+};
+
+export type NfsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: NfsStatus;
+};
+
+export type NfsStatusResponse = NfsStatusResponses[keyof NfsStatusResponses];
+
+export type SmbStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/smb/status";
+};
+
+export type SmbStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: SmbStatus;
+};
+
+export type SmbStatusResponse = SmbStatusResponses[keyof SmbStatusResponses];
+
 export type TunnelStatusData = {
   body?: never;
   path?: never;
@@ -19362,6 +21277,40 @@ export type TunnelStatusResponses = {
 };
 
 export type TunnelStatusResponse = TunnelStatusResponses[keyof TunnelStatusResponses];
+
+export type HttpsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/status";
+};
+
+export type HttpsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: HttpsStatus;
+};
+
+export type HttpsStatusResponse = HttpsStatusResponses[keyof HttpsStatusResponses];
+
+export type HttpsProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/providers";
+};
+
+export type HttpsProvidersResponses = {
+  /**
+   * Response Admin-Https Providers
+   *
+   * Successful Response
+   */
+  200: Array<HttpsProvider>;
+};
+
+export type HttpsProvidersResponse = HttpsProvidersResponses[keyof HttpsProvidersResponses];
 
 export type TestBridgeData = {
   body?: never;
@@ -19379,6 +21328,102 @@ export type TestBridgeResponses = {
 
 export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
 
+export type TelegramStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/telegram";
+};
+
+export type TelegramStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: TelegramStatus;
+};
+
+export type TelegramStatusResponse = TelegramStatusResponses[keyof TelegramStatusResponses];
+
+export type TestTelegramData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/telegram/test";
+};
+
+export type TestTelegramResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestTelegramResponse = TestTelegramResponses[keyof TestTelegramResponses];
+
+export type SlackStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/slack";
+};
+
+export type SlackStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: SlackStatus;
+};
+
+export type SlackStatusResponse = SlackStatusResponses[keyof SlackStatusResponses];
+
+export type TestSlackData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/slack/test";
+};
+
+export type TestSlackResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestSlackResponse = TestSlackResponses[keyof TestSlackResponses];
+
+export type MailboxStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/mailbox";
+};
+
+export type MailboxStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: MailboxStatus;
+};
+
+export type MailboxStatusResponse = MailboxStatusResponses[keyof MailboxStatusResponses];
+
+export type TestMailboxData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/mailbox/test";
+};
+
+export type TestMailboxResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestMailboxResponse = TestMailboxResponses[keyof TestMailboxResponses];
+
 export type TestConversionNodeData = {
   body?: never;
   path?: never;
@@ -19394,6 +21439,22 @@ export type TestConversionNodeResponses = {
 };
 
 export type TestConversionNodeResponse = TestConversionNodeResponses[keyof TestConversionNodeResponses];
+
+export type TestTikaData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/documents/tika/test";
+};
+
+export type TestTikaResponses = {
+  /**
+   * Successful Response
+   */
+  200: TikaTestResult;
+};
+
+export type TestTikaResponse = TestTikaResponses[keyof TestTikaResponses];
 
 export type DecisionStatusData = {
   body?: never;
@@ -19551,6 +21612,100 @@ export type TestTelemetryResponses = {
 
 export type TestTelemetryResponse = TestTelemetryResponses[keyof TestTelemetryResponses];
 
+export type LogStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/logs/status";
+};
+
+export type LogStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: LogStatus;
+};
+
+export type LogStatusResponse = LogStatusResponses[keyof LogStatusResponses];
+
+export type TestLogsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/logs/test";
+};
+
+export type TestLogsResponses = {
+  /**
+   * Successful Response
+   */
+  200: LogTestResult;
+};
+
+export type TestLogsResponse = TestLogsResponses[keyof TestLogsResponses];
+
+export type ReadLogsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Level
+     *
+     * this level and above
+     */
+    level?: "debug" | "info" | "warning" | "error" | "critical" | null;
+    /**
+     * Q
+     *
+     * text the message or error contains
+     */
+    q?: string | null;
+    /**
+     * Process
+     *
+     * api, worker or watcher
+     */
+    process?: string | null;
+    /**
+     * Logger
+     *
+     * a logger name, or the start of one (lens.email)
+     */
+    logger?: string | null;
+    /**
+     * Before
+     *
+     * a line's ts: only older lines (the next page)
+     */
+    before?: string | null;
+  };
+  url: "/api/v1/admin/logs";
+};
+
+export type ReadLogsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadLogsError = ReadLogsErrors[keyof ReadLogsErrors];
+
+export type ReadLogsResponses = {
+  /**
+   * Response Admin-Read Logs
+   *
+   * Successful Response
+   */
+  200: Array<LogLine>;
+};
+
+export type ReadLogsResponse = ReadLogsResponses[keyof ReadLogsResponses];
+
 export type ListAuditData = {
   body?: never;
   path?: never;
@@ -19663,6 +21818,211 @@ export type ReindexSearchResponses = {
 
 export type ReindexSearchResponse = ReindexSearchResponses[keyof ReindexSearchResponses];
 
+export type RemoteBackupsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/backups/remote";
+};
+
+export type RemoteBackupsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RemoteBackups;
+};
+
+export type RemoteBackupsResponse = RemoteBackupsResponses[keyof RemoteBackupsResponses];
+
+export type SendBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/send";
+};
+
+export type SendBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SendBackupError = SendBackupErrors[keyof SendBackupErrors];
+
+export type SendBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type SendBackupResponse = SendBackupResponses[keyof SendBackupResponses];
+
+export type FetchBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/fetch";
+};
+
+export type FetchBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FetchBackupError = FetchBackupErrors[keyof FetchBackupErrors];
+
+export type FetchBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type FetchBackupResponse = FetchBackupResponses[keyof FetchBackupResponses];
+
+export type DeleteRemoteBackupData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/remote";
+};
+
+export type DeleteRemoteBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRemoteBackupError = DeleteRemoteBackupErrors[keyof DeleteRemoteBackupErrors];
+
+export type DeleteRemoteBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRemoteBackupResponse = DeleteRemoteBackupResponses[keyof DeleteRemoteBackupResponses];
+
+export type RestoreBackupData = {
+  body: RestoreStart;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/restore";
+};
+
+export type RestoreBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreBackupError = RestoreBackupErrors[keyof RestoreBackupErrors];
+
+export type RestoreBackupResponses = {
+  /**
+   * Successful Response
+   */
+  202: Ok;
+};
+
+export type RestoreBackupResponse = RestoreBackupResponses[keyof RestoreBackupResponses];
+
+export type BackupLinkData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/admin/backups/{name}/link";
+};
+
+export type BackupLinkErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupLinkError = BackupLinkErrors[keyof BackupLinkErrors];
+
+export type BackupLinkResponses = {
+  /**
+   * Successful Response
+   */
+  200: BackupLink;
+};
+
+export type BackupLinkResponse = BackupLinkResponses[keyof BackupLinkResponses];
+
+export type BackupFileData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Exp
+     */
+    exp?: string | null;
+    /**
+     * Sig
+     */
+    sig?: string | null;
+  };
+  url: "/api/v1/admin/backups/{name}/file";
+};
+
+export type BackupFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BackupFileError = BackupFileErrors[keyof BackupFileErrors];
+
+export type BackupFileResponses = {
+  /**
+   * the backup (an embedded one as a .tar.gz)
+   */
+  200: Blob | File;
+};
+
+export type BackupFileResponse = BackupFileResponses[keyof BackupFileResponses];
+
 export type GetUpdatesData = {
   body?: never;
   path?: never;
@@ -19722,6 +22082,47 @@ export type StartUpgradeResponses = {
 };
 
 export type StartUpgradeResponse = StartUpgradeResponses[keyof StartUpgradeResponses];
+
+export type GetMonitoringData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/monitoring";
+};
+
+export type GetMonitoringResponses = {
+  /**
+   * Successful Response
+   */
+  200: Monitoring;
+};
+
+export type GetMonitoringResponse = GetMonitoringResponses[keyof GetMonitoringResponses];
+
+export type SetMonitoringData = {
+  body: MonitoringRequest;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/monitoring";
+};
+
+export type SetMonitoringErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetMonitoringError = SetMonitoringErrors[keyof SetMonitoringErrors];
+
+export type SetMonitoringResponses = {
+  /**
+   * Successful Response
+   */
+  202: Monitoring;
+};
+
+export type SetMonitoringResponse = SetMonitoringResponses[keyof SetMonitoringResponses];
 
 export type ListBackupsData = {
   body?: never;
@@ -19982,7 +22383,7 @@ export type RemoveBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -20032,7 +22433,7 @@ export type SetBudgetData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -20057,6 +22458,50 @@ export type SetBudgetResponses = {
 
 export type SetBudgetResponse = SetBudgetResponses[keyof SetBudgetResponses];
 
+export type BudgetMeterData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * a namespace; none for all of Lens (admins)
+     */
+    ns?: string | null;
+    /**
+     * Period
+     *
+     * none: the budget's own period, else month
+     */
+    period?: "day" | "week" | "month" | null;
+    /**
+     * Detail
+     *
+     * also by day, by model and what cost most
+     */
+    detail?: boolean;
+  };
+  url: "/api/v1/budgets/meter";
+};
+
+export type BudgetMeterErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type BudgetMeterError = BudgetMeterErrors[keyof BudgetMeterErrors];
+
+export type BudgetMeterResponses = {
+  /**
+   * Successful Response
+   */
+  200: BudgetMeter;
+};
+
+export type BudgetMeterResponse = BudgetMeterResponses[keyof BudgetMeterResponses];
+
 export type BudgetStatusData = {
   body?: never;
   path?: never;
@@ -20064,7 +22509,7 @@ export type BudgetStatusData = {
     /**
      * Resource
      *
-     * routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
+     * all (everything Lens spends), routine:<id>, pipeline:<id>, workflow:<id> or space:<id>
      */
     resource: string;
   };
@@ -20205,6 +22650,24 @@ export type DetectLlmResponses = {
 
 export type DetectLlmResponse = DetectLlmResponses[keyof DetectLlmResponses];
 
+export type LlmProvidersData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/llm/providers";
+};
+
+export type LlmProvidersResponses = {
+  /**
+   * Response Setup-Llm Providers
+   *
+   * Successful Response
+   */
+  200: Array<CloudModelProvider>;
+};
+
+export type LlmProvidersResponse = LlmProvidersResponses[keyof LlmProvidersResponses];
+
 export type SaveStorageData = {
   body: SetupStorage;
   path?: never;
@@ -20254,6 +22717,31 @@ export type SaveTelemetryResponses = {
 };
 
 export type SaveTelemetryResponse = SaveTelemetryResponses[keyof SaveTelemetryResponses];
+
+export type SaveBudgetData = {
+  body: SetupBudget;
+  path?: never;
+  query?: never;
+  url: "/api/v1/setup/budget";
+};
+
+export type SaveBudgetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SaveBudgetError = SaveBudgetErrors[keyof SaveBudgetErrors];
+
+export type SaveBudgetResponses = {
+  /**
+   * Successful Response
+   */
+  200: SetupSaved;
+};
+
+export type SaveBudgetResponse = SaveBudgetResponses[keyof SaveBudgetResponses];
 
 export type SaveOauthData = {
   body: SetupOAuth;
@@ -23635,6 +26123,74 @@ export type ListFileLinesResponses = {
 
 export type ListFileLinesResponse = ListFileLinesResponses[keyof ListFileLinesResponses];
 
+export type ListFolderData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Path
+     *
+     * a folder or file, from the top: namespace/Collections|Topics|Entities/…
+     */
+    path?: string;
+  };
+  url: "/api/v1/tree";
+};
+
+export type ListFolderErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListFolderError = ListFolderErrors[keyof ListFolderErrors];
+
+export type ListFolderResponses = {
+  /**
+   * Successful Response
+   */
+  200: TreeFolder;
+};
+
+export type ListFolderResponse = ListFolderResponses[keyof ListFolderResponses];
+
+export type ReadFileData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Path
+     *
+     * a folder or file, from the top: namespace/Collections|Topics|Entities/…
+     */
+    path?: string;
+  };
+  url: "/api/v1/tree/file";
+};
+
+export type ReadFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ReadFileError = ReadFileErrors[keyof ReadFileErrors];
+
+export type ReadFileResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File;
+  /**
+   * a byte range
+   */
+  206: unknown;
+};
+
+export type ReadFileResponse = ReadFileResponses[keyof ReadFileResponses];
+
 export type ListFieldsData = {
   body?: never;
   path: {
@@ -24414,6 +26970,70 @@ export type SearchPhotosResponses = {
 };
 
 export type SearchPhotosResponse = SearchPhotosResponses[keyof SearchPhotosResponses];
+
+export type FindSimilarData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Text
+     *
+     * what was selected: a sentence, a passage, a title
+     */
+    text?: string | null;
+    /**
+     * Recording
+     *
+     * a resource: the others most like it
+     */
+    recording?: number | null;
+    /**
+     * Topic
+     *
+     * a topic: the resources most like its labels and definition, and about it
+     */
+    topic?: number | null;
+    /**
+     * Entity
+     *
+     * an entity: the resources most like its name and description, and mentioning it
+     */
+    entity?: number | null;
+    /**
+     * Exclude
+     *
+     * leave out this resource too (the one the text was selected in)
+     */
+    exclude?: number | null;
+    /**
+     * Limit
+     */
+    limit?: number;
+    /**
+     * Offset
+     */
+    offset?: number;
+  };
+  url: "/api/v1/similar";
+};
+
+export type FindSimilarErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindSimilarError = FindSimilarErrors[keyof FindSimilarErrors];
+
+export type FindSimilarResponses = {
+  /**
+   * Successful Response
+   */
+  200: SimilarResults;
+};
+
+export type FindSimilarResponse = FindSimilarResponses[keyof FindSimilarResponses];
 
 export type SuggestTermsData = {
   body?: never;
@@ -28716,6 +31336,36 @@ export type GetTemplateResponses = {
 
 export type GetTemplateResponse = GetTemplateResponses[keyof GetTemplateResponses];
 
+export type UpdateTemplateData = {
+  body: TemplateUpdate;
+  path: {
+    /**
+     * Tid
+     */
+    tid: number;
+  };
+  query?: never;
+  url: "/api/v1/templates/{tid}";
+};
+
+export type UpdateTemplateErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateTemplateError = UpdateTemplateErrors[keyof UpdateTemplateErrors];
+
+export type UpdateTemplateResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdateTemplateResponse = UpdateTemplateResponses[keyof UpdateTemplateResponses];
+
 export type CreateTemplateVersionData = {
   body: TemplateVersionCreate;
   path: {
@@ -28860,6 +31510,36 @@ export type GetPipelineResponses = {
 };
 
 export type GetPipelineResponse = GetPipelineResponses[keyof GetPipelineResponses];
+
+export type UpdatePipelineData = {
+  body: PipelineUpdate;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/pipelines/{pid}";
+};
+
+export type UpdatePipelineErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdatePipelineError = UpdatePipelineErrors[keyof UpdatePipelineErrors];
+
+export type UpdatePipelineResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UpdatePipelineResponse = UpdatePipelineResponses[keyof UpdatePipelineResponses];
 
 export type CreatePipelineVersionData = {
   body: PipelineVersionCreate;
@@ -30274,6 +32954,175 @@ export type DecideApprovalResponses = {
 };
 
 export type DecideApprovalResponse = DecideApprovalResponses[keyof DecideApprovalResponses];
+
+export type ListSessionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/browser/sessions";
+};
+
+export type ListSessionsResponses = {
+  /**
+   * Response Browser-List Sessions
+   *
+   * Successful Response
+   */
+  200: Array<BrowserSession>;
+};
+
+export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type ConnectData = {
+  /**
+   * Body
+   */
+  body?: BrowserConnect | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/browser/sessions";
+};
+
+export type ConnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ConnectError = ConnectErrors[keyof ConnectErrors];
+
+export type ConnectResponses = {
+  /**
+   * Successful Response
+   */
+  201: BrowserSession;
+};
+
+export type ConnectResponse = ConnectResponses[keyof ConnectResponses];
+
+export type DisconnectData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/sessions/{sid}";
+};
+
+export type DisconnectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DisconnectError = DisconnectErrors[keyof DisconnectErrors];
+
+export type DisconnectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DisconnectResponse = DisconnectResponses[keyof DisconnectResponses];
+
+export type ActionsData = {
+  body?: never;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: {
+    /**
+     * Once
+     */
+    once?: boolean;
+  };
+  url: "/api/v1/browser/sessions/{sid}/actions";
+};
+
+export type ActionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ActionsError = ActionsErrors[keyof ActionsErrors];
+
+export type ActionsResponses = {
+  /**
+   * `event: action` with {id, tool, args, chat}
+   */
+  200: unknown;
+};
+
+export type AnswerActionData = {
+  body: BrowserAnswer;
+  path: {
+    /**
+     * Aid
+     */
+    aid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/actions/{aid}";
+};
+
+export type AnswerActionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type AnswerActionError = AnswerActionErrors[keyof AnswerActionErrors];
+
+export type AnswerActionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type AnswerActionResponse = AnswerActionResponses[keyof AnswerActionResponses];
+
+export type RunData = {
+  body: BrowserRun;
+  path: {
+    /**
+     * Sid
+     */
+    sid: string;
+  };
+  query?: never;
+  url: "/api/v1/browser/sessions/{sid}/run";
+};
+
+export type RunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RunError = RunErrors[keyof RunErrors];
+
+export type RunResponses = {
+  /**
+   * Successful Response
+   */
+  200: BrowserResult;
+};
+
+export type RunResponse = RunResponses[keyof RunResponses];
 
 export type ListCollectionsData = {
   body?: never;
@@ -32176,6 +35025,95 @@ export type PushStreamResponses = {
 };
 
 export type PushStreamResponse = PushStreamResponses[keyof PushStreamResponses];
+
+export type S3StatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3";
+};
+
+export type S3StatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: S3Status;
+};
+
+export type S3StatusResponse = S3StatusResponses[keyof S3StatusResponses];
+
+export type AllS3KeysData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3/keys";
+};
+
+export type AllS3KeysResponses = {
+  /**
+   * Response Shares-All S3 Keys
+   *
+   * Successful Response
+   */
+  200: Array<S3Key>;
+};
+
+export type AllS3KeysResponse = AllS3KeysResponses[keyof AllS3KeysResponses];
+
+export type CreateS3KeyData = {
+  body: S3KeyCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/shares/s3/keys";
+};
+
+export type CreateS3KeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateS3KeyError = CreateS3KeyErrors[keyof CreateS3KeyErrors];
+
+export type CreateS3KeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: S3KeyCreated;
+};
+
+export type CreateS3KeyResponse = CreateS3KeyResponses[keyof CreateS3KeyResponses];
+
+export type RevokeS3KeyData = {
+  body?: never;
+  path: {
+    /**
+     * Key Id
+     */
+    key_id: string;
+  };
+  query?: never;
+  url: "/api/v1/shares/s3/keys/{key_id}";
+};
+
+export type RevokeS3KeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RevokeS3KeyError = RevokeS3KeyErrors[keyof RevokeS3KeyErrors];
+
+export type RevokeS3KeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RevokeS3KeyResponse = RevokeS3KeyResponses[keyof RevokeS3KeyResponses];
 
 export type ListImportHooksData = {
   body?: never;

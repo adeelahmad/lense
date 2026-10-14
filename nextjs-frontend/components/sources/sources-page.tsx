@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ellipsis, FolderSearch, HardDriveDownload, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Pipelines, Sources } from "@/app/openapi-client";
 import type { Source, Watch } from "@/app/openapi-client/types.gen";
@@ -12,7 +12,7 @@ import { ConnectionDialog } from "@/components/sources/connection-dialog";
 import { DeleteConnectionDialog } from "@/components/sources/delete-connection";
 import { FolderBrowser } from "@/components/sources/folder-browser";
 import { TypeTile } from "@/components/sources/source-icons";
-import { healthOf, sourceSubtitle, type BackendSpec } from "@/components/sources/source-model";
+import { healthOf, sourceSubtitle, suggestName, type BackendSpec } from "@/components/sources/source-model";
 import { WatchCard } from "@/components/sources/watch-card";
 import { WatchEditor } from "@/components/sources/watch-editor";
 import { Banner } from "@/components/ui/banner";
@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 const GLYPH = {
   ok: ["✓", "text-green-dark"],
+  limited: ["◆", "text-gold-dark"],
   bad: ["✕", "text-red-dark"],
   unknown: ["–", "text-fg-muted"],
 } as const;
@@ -124,11 +125,87 @@ export function SourcesPage() {
     router.replace(pathname);
   }, [adding, admin, backends.data, router, pathname]);
 
+  // /sources?watch=local ("Watch a local folder" on Sensors) opens this machine's allowed folders straight away, on its
+  // connection, made first when there's none: it has nothing to fill in or name
+  const watchLocal = params.get("watch") === "local";
+  const askedLocal = useRef(false);
+  const browseLocal = useMutation({
+    mutationFn: async () => {
+      const have = ((sources.data ?? []) as Source[]).find((s) => s.type === "local");
+      if (have) return have;
+      const name = suggestName("local", {});
+      const { id } = await data(
+        Sources.createSource({ client, body: { type: "local", name, params: {}, secrets: {} } }),
+      );
+      const made = (((await sources.refetch()).data ?? []) as Source[]).find((s) => s.id === id);
+      return made ?? ({ id, name, type: "local" } as Source);
+    },
+    onSuccess: (s) => {
+      setSelected(s.id);
+      setBrowsing(s);
+    },
+    onError: (e: Error) => toast({ tone: "red", title: "Couldn’t open this machine’s folders", body: e.message }),
+  });
+  useEffect(() => {
+    if (!watchLocal) askedLocal.current = false;
+    if (!watchLocal || !admin || !sources.isSuccess || askedLocal.current) return;
+    askedLocal.current = true;
+    router.replace(pathname);
+    browseLocal.mutate();
+  }, [watchLocal, admin, sources.isSuccess, router, pathname]);
+
   const all = (sources.data ?? []) as Source[];
   const ws = (watches.data ?? []) as Watch[];
   const bySource = (id: number) => ws.filter((w) => w.source === id);
   const current = all.find((s) => s.id === selected) ?? all.find((s) => bySource(s.id).length) ?? all[0];
   const specs = (backends.data ?? {}) as Record<string, BackendSpec>;
+
+  // Test (or Paste new token) and the More menu, in a table row on a wide screen and on a card on a phone
+  const actions = (s: Source) => {
+    const bad = s.health && !s.health.ok;
+    const oauth = Boolean(s.oauth);
+    return (
+      <div className="flex shrink-0 items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+        {bad && oauth && /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? "") ? (
+          <Button size="sm" variant="secondary" onClick={() => setEditing({ source: s, replaceToken: true })}>
+            Paste new token
+          </Button>
+        ) : bad || !s.health ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => test.mutate(s)}
+            disabled={test.isPending && test.variables?.id === s.id}
+          >
+            {test.isPending && test.variables?.id === s.id ? "Testing…" : bad ? "Test again" : "Test"}
+          </Button>
+        ) : null}
+        <Menu>
+          <MenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={`More for ${s.name}`}
+              className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg"
+            >
+              <Ellipsis aria-hidden className="size-[18px]" />
+            </button>
+          </MenuTrigger>
+          <MenuContent align="end">
+            <MenuItem onSelect={() => setBrowsing(s)}>Browse folders</MenuItem>
+            <MenuItem onSelect={() => test.mutate(s)}>Test now</MenuItem>
+            <MenuItem onSelect={() => setEditing({ source: s })}>Edit connection</MenuItem>
+            {oauth && (
+              <MenuItem onSelect={() => setEditing({ source: s, replaceToken: true })}>Paste new token</MenuItem>
+            )}
+            <MenuSeparator />
+            <MenuItem danger onSelect={() => setDeleting(s)}>
+              Delete…
+            </MenuItem>
+          </MenuContent>
+        </Menu>
+      </div>
+    );
+  };
 
   const dialogs = (
     <>
@@ -285,106 +362,88 @@ export function SourcesPage() {
         </EmptyState>
       ) : (
         <>
-          <Table aria-label="Connections" className="table-fixed border-t border-border">
-            <colgroup>
-              <col style={{ width: 70 }} />
-              <col style={{ width: "30%" }} />
-              <col />
-              <col style={{ width: 210 }} />
-              <col style={{ width: 200 }} />
-            </colgroup>
-            <THead>
-              <tr>
-                <Th className="first:pl-6">
-                  <span className="sr-only">Type</span>
-                </Th>
-                <Th>Connection</Th>
-                <Th>Health</Th>
-                <Th>Watched folders</Th>
-                <Th className="last:pr-6">
-                  <span className="sr-only">Actions</span>
-                </Th>
-              </tr>
-            </THead>
-            <tbody>
-              {all.map((s) => {
-                const on = current?.id === s.id;
-                const bad = s.health && !s.health.ok;
-                const oauth = Boolean(s.oauth);
-                return (
-                  <Tr key={s.id} selected={on} className="h-14 cursor-pointer" onClick={() => setSelected(s.id)}>
-                    <Td className="first:pl-6">
-                      <TypeTile type={s.type} />
-                    </Td>
-                    <Td>
-                      <button
-                        type="button"
-                        onClick={() => setSelected(s.id)}
-                        aria-pressed={on}
-                        className="flex min-w-0 max-w-full flex-col gap-1 text-left"
-                      >
-                        <span className="truncate text-[13.5px] font-semibold leading-tight text-fg">{s.name}</span>
-                        <span className="truncate text-[12px] text-fg-muted">{sourceSubtitle(s)}</span>
-                      </button>
-                    </Td>
-                    <Td>
+          {/* on a phone each connection is a card: five columns would squeeze its health a letter per line */}
+          <ul
+            aria-label="Connections"
+            className="flex flex-col divide-y divide-border border-t border-border md:hidden"
+          >
+            {all.map((s) => {
+              const on = current?.id === s.id;
+              return (
+                <li key={s.id} className={cn("flex items-start gap-3 px-4 py-3", on && "bg-surface")}>
+                  <button
+                    type="button"
+                    onClick={() => setSelected(s.id)}
+                    aria-pressed={on}
+                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                  >
+                    <TypeTile type={s.type} />
+                    <span className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="truncate text-[13.5px] font-semibold leading-tight text-fg">{s.name}</span>
+                      <span className="truncate text-[12px] text-fg-muted">{sourceSubtitle(s)}</span>
                       <HealthText source={s} />
-                    </Td>
-                    <Td className="text-[13px] font-medium text-fg-strong">{watchedText(bySource(s.id))}</Td>
-                    <Td className="last:pr-6">
-                      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                        {bad &&
-                        oauth &&
-                        /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? "") ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setEditing({ source: s, replaceToken: true })}
-                          >
-                            Paste new token
-                          </Button>
-                        ) : bad || !s.health ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => test.mutate(s)}
-                            disabled={test.isPending && test.variables?.id === s.id}
-                          >
-                            {test.isPending && test.variables?.id === s.id ? "Testing…" : bad ? "Test again" : "Test"}
-                          </Button>
-                        ) : null}
-                        <Menu>
-                          <MenuTrigger asChild>
-                            <button
-                              type="button"
-                              aria-label={`More for ${s.name}`}
-                              className="grid size-8 place-items-center rounded-full text-fg-muted hover:bg-surface-neutral hover:text-fg"
-                            >
-                              <Ellipsis aria-hidden className="size-[18px]" />
-                            </button>
-                          </MenuTrigger>
-                          <MenuContent align="end">
-                            <MenuItem onSelect={() => setBrowsing(s)}>Browse folders</MenuItem>
-                            <MenuItem onSelect={() => test.mutate(s)}>Test now</MenuItem>
-                            <MenuItem onSelect={() => setEditing({ source: s })}>Edit connection</MenuItem>
-                            {oauth && (
-                              <MenuItem onSelect={() => setEditing({ source: s, replaceToken: true })}>
-                                Paste new token
-                              </MenuItem>
-                            )}
-                            <MenuSeparator />
-                            <MenuItem danger onSelect={() => setDeleting(s)}>
-                              Delete…
-                            </MenuItem>
-                          </MenuContent>
-                        </Menu>
-                      </div>
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </tbody>
-          </Table>
+                      <span className="text-[12.5px] text-fg-secondary">
+                        Watched folders: {watchedText(bySource(s.id))}
+                      </span>
+                    </span>
+                  </button>
+                  {actions(s)}
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden md:block">
+            <Table aria-label="Connections" className="table-fixed border-t border-border">
+              <colgroup>
+                <col style={{ width: 70 }} />
+                <col style={{ width: "30%" }} />
+                <col />
+                <col style={{ width: 210 }} />
+                <col style={{ width: 200 }} />
+              </colgroup>
+              <THead>
+                <tr>
+                  <Th className="first:pl-6">
+                    <span className="sr-only">Type</span>
+                  </Th>
+                  <Th>Connection</Th>
+                  <Th>Health</Th>
+                  <Th>Watched folders</Th>
+                  <Th className="last:pr-6">
+                    <span className="sr-only">Actions</span>
+                  </Th>
+                </tr>
+              </THead>
+              <tbody>
+                {all.map((s) => {
+                  const on = current?.id === s.id;
+                  return (
+                    <Tr key={s.id} selected={on} className="h-14 cursor-pointer" onClick={() => setSelected(s.id)}>
+                      <Td className="first:pl-6">
+                        <TypeTile type={s.type} />
+                      </Td>
+                      <Td>
+                        <button
+                          type="button"
+                          onClick={() => setSelected(s.id)}
+                          aria-pressed={on}
+                          className="flex min-w-0 max-w-full flex-col gap-1 text-left"
+                        >
+                          <span className="truncate text-[13.5px] font-semibold leading-tight text-fg">{s.name}</span>
+                          <span className="truncate text-[12px] text-fg-muted">{sourceSubtitle(s)}</span>
+                        </button>
+                      </Td>
+                      <Td>
+                        <HealthText source={s} />
+                      </Td>
+                      <Td className="text-[13px] font-medium text-fg-strong">{watchedText(bySource(s.id))}</Td>
+                      <Td className="last:pr-6">{actions(s)}</Td>
+                    </Tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </div>
 
           {current && (
             <section

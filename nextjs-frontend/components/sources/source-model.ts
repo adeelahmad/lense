@@ -154,11 +154,13 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
   }
 }
 
-export type Health = { tone: "ok" | "bad" | "unknown"; text: string };
+export type Health = { tone: "ok" | "limited" | "bad" | "unknown"; text: string };
 
 /** "OK · checked 14:02" or the backend's own error text, word for word. */
 export function healthOf(h: Source["health"], now = new Date()): Health {
   if (!h) return { tone: "unknown", text: "Not tested yet" };
+  if (h.ok && h.limited)
+    return { tone: "limited", text: `Works, slowly · ${h.limited.trim()} · checked ${checkedAt(h.checked_at, now)}` };
   if (h.ok) return { tone: "ok", text: `OK · checked ${checkedAt(h.checked_at, now)}` };
   return {
     tone: "bad",

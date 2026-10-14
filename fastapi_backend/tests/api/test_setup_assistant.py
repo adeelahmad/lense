@@ -75,6 +75,8 @@ def test_a_setup_conversation_sets_the_server_up(app, db, cfg, folder, new_clien
     ]
     status = json.loads(llm.seen[-1]["messages"][3]["content"])  # what server_status told the model
     assert status["namespaces"] == ["calls", "pods"] and "missing" in status
+    found = json.loads(llm.seen[-1]["messages"][4]["content"])  # and find_model_servers: nearby and cloud providers
+    assert found["servers"][0]["kind"] == "Ollama" and found["cloud"][0]["base_url"] == "https://api.openai.com/v1"
     asked = llm.seen[-6]["messages"]
     assert "setting up this Lens server" in asked[0]["content"]
     assert f"attachment id {up['id']}" in asked[-1]["content"]  # the model hears about the file
@@ -161,7 +163,8 @@ def test_the_assistant_manages_people_with_approval(app, db, cfg, folder, new_cl
     ]
     cid = c.post("/api/v1/chats", headers=h, json={"kind": "setup"}).json()["id"]  # even in setup, people wait for approval
     ev = sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "invite sam@x.io to pods as an editor"}).text)
-    listed = json.loads(llm.seen[-2]["messages"][-1]["content"])["people"]
+    said = llm.seen[-2]["messages"][-1]["content"]  # wrapped as text from a tool
+    listed = json.loads(said[said.index("{") : said.rindex("}") + 1])["people"]
     assert any(p["admin"] for p in listed) and all("roles" in p and "signed_in_yet" in p for p in listed)
     appr = ev["approval"][0]
     assert appr["summary"] == "Invite sam@x.io as editor of pods" and not auth.find_account(db, "sam@x.io")

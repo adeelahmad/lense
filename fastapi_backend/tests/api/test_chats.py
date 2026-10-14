@@ -11,7 +11,7 @@ from app.domain import ai_tools, auth, chat, store, topics
 from app.domain import llm as llm_mod
 from tests import fake_llm
 from tests.api._assist import Assist, sse, start_llm
-from tests.helpers import drain, login, make_user, seed
+from tests.helpers import drain, login, make_user, marked, seed, unmark
 
 
 @pytest.fixture
@@ -450,7 +450,7 @@ def test_editing_a_question(plain, client, new_client, db, cfg, folder, llm):
     asked = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-2]
     llm.seen.clear()
     sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When exactly?", "edit": asked["id"]}).text)
-    assert '"""\nDyno shipment\n"""' in llm.seen[-1]["messages"][-1]["content"]
+    assert marked("Dyno shipment", "highlighted text") in unmark(llm.seen[-1]["messages"][-1]["content"])
     edited = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-2]
     assert (edited["content"], edited["context"]) == ("When exactly?", asked["context"])
 
@@ -467,7 +467,9 @@ def test_asking_from_a_page(plain, client, db, cfg, folder, llm):
     ev = sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "When does it leave?", "context": page}).text)
     assert "done" in ev
     asked = llm.seen[-1]["messages"][-1]["content"]
-    assert "Lens page Library (/library?ns=calls)" in asked and '"""\nDyno shipment\n"""' in asked
+    # the page, its title and what was highlighted reach the model marked as data, not as the person's words
+    assert "Lens page /library?ns=calls, titled " + marked("Library", "page title") in unmark(asked)
+    assert marked("Dyno shipment", "highlighted text") in unmark(asked)
     assert "Shipment report" in asked and "(cut short)" in asked and len(asked) < 14000 and asked.endswith("Question: When does it leave?")
     msgs = client.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"]
     assert msgs[0]["content"] == "When does it leave?"
@@ -498,7 +500,7 @@ def test_asking_from_a_page(plain, client, db, cfg, folder, llm):
     llm.seen.clear()
     sse(client.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": "Say more"}).text)
     turns = [m["content"] for m in llm.seen[-1]["messages"]]
-    assert '(About the highlighted text: "Alice") Who?' in turns
+    assert "(About the highlighted text: " + marked("Alice", "highlighted text") + ") Who?" in [unmark(t) for t in turns]
 
 
 def test_page_context_reaches_the_tools_too(app, db, cfg, folder, new_client, llm):
@@ -518,7 +520,8 @@ def test_page_context_reaches_the_tools_too(app, db, cfg, folder, new_client, ll
     )
     assert ev["token"][0]["text"] == "It's the capsid one."
     asked = llm.seen[0]["messages"][-1]["content"]
-    assert "Lens page Ep 1 (/resources/1)" in asked and "Capsid talk" in asked and asked.endswith("Question: Which?")
+    assert "Lens page /resources/1, titled " + marked("Ep 1", "page title") in unmark(asked)
+    assert marked("Capsid talk", "page") in unmark(asked) and asked.endswith("Question: Which?")
 
 
 def test_a_model_that_skips_the_tools_still_answers_from_the_archive(app, db, cfg, folder, new_client, llm):

@@ -1,0 +1,61 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "frontend",
+  "projectType": "application",
+  "sourceRoot": "nextjs-frontend",
+  "tags": ["lang:typescript"],
+  "namedInputs": {
+    "production": [
+      "default",
+      "!{projectRoot}/__tests__/**/*",
+      "!{projectRoot}/jest.config.ts",
+      "!{projectRoot}/jest.setup.ts",
+      "!{projectRoot}/eslint.config.mjs"
+    ]
+  },
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "pnpm run lint"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "pnpm run tsc"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/coverage"],
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "pnpm run test"
+      },
+      "configurations": {
+        "ci": {
+          "command": "pnpm run coverage --coverageReporters=text-summary --coverageReporters=lcov"
+        }
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "inputs": ["production", { "env": "API_BASE_URL" }],
+      "outputs": ["{projectRoot}/.next", "!{projectRoot}/.next/cache"],
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "pnpm run build"
+      }
+    },
+    "generate-client": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}",
+        "command": "pnpm run generate-client"
+      }
+    }
+  }
+}

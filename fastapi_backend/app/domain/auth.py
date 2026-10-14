@@ -419,6 +419,13 @@ def list_tokens(db, uid):
     )
 
 
+def rename_token(db, uid, tid, name):
+    """Rename one of this person's keys; whether there was one."""
+    if not name.strip():
+        raise ValueError("give the token a name")
+    return bool(db.rows("UPDATE api_token SET name = $n WHERE account = $a AND id = $r", n=name.strip()[:80], a=uid, r=R("api_token", tid)))
+
+
 def revoke_token(db, uid, tid):
     """Revoke one of this person's keys; whether there was one."""
     return bool(db.rows("DELETE api_token WHERE account = $a AND id = $r RETURN BEFORE", a=uid, r=R("api_token", tid)))

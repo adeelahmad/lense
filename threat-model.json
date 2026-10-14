@@ -49,7 +49,9 @@
         "routes not read one by one (about 370)",
         "media, report, embed, IIIF content",
         "/iiif/auth/token, /probe, /logout",
-        "workers and DB peers"
+        "workers and DB peers",
+        "host control inbox and the monitoring scrape token",
+        "microsandbox program requests"
       ],
       "touches": [
         "filesystem"
@@ -110,7 +112,8 @@
       "entry_points": [
         "chat, /graph/ask, MCP tools",
         "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
-        "Python code tools, shipped and admin-created templates, workflows, pipelines, routines"
+        "Python code tools, shipped and admin-created templates, workflows, pipelines, routines",
+        "Lens extension side panel"
       ],
       "touches": [
         "network",
@@ -123,7 +126,8 @@
     {
       "name": "optional",
       "entry_points": [
-        "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}"
+        "MQTT 1883, syslog 5514, POST /sensors/push/{token}/{stream}",
+        "SMB share (port 1445 on the host, 4445 in the worker)"
       ],
       "touches": [
         "network",
@@ -425,6 +429,15 @@
       "source": "docs/assistant.md \"limited to what the person can read\""
     },
     {
+      "entry_point": "Lens extension side panel",
+      "parameter": "answers shown there (model text that can repeat third-party text), the sign-in coming back",
+      "attacker_controllable": "yes",
+      "component": "assistant",
+      "caller_must_enforce": "none; answers render as Markdown cleaned by DOMPurify (no scripts, images or forms; only http and https links), and the sign-in checks its state and PKCE",
+      "provenance": "documented",
+      "source": "extensions/browser/src/core/assistant.js answerHtml docstring \"cleaned of anything that could run or fetch on its own\""
+    },
+    {
       "entry_point": "extensions (prompt, graph and http tools, hooks), custom nodes including template nodes",
       "parameter": "tool spec, graph JSON, template text",
       "attacker_controllable": "yes",
@@ -452,6 +465,24 @@
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },
     {
+      "entry_point": "NFS share (port 12049 on the host, 2049 in the worker)",
+      "parameter": "NFS and MOUNT RPCs, client address",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables and picks the account; operator firewalls",
+      "provenance": "documented",
+      "source": "docs/file-shares.md \"NFS has no login\""
+    },
+    {
+      "entry_point": "SMB share (port 1445 on the host, 4445 in the worker)",
+      "parameter": "SMB2 requests, NTLM sign-in with a file access key, client address",
+      "attacker_controllable": "yes",
+      "component": "optional",
+      "caller_must_enforce": "admin enables; operator firewalls",
+      "provenance": "documented",
+      "source": "docs/smb.md \"What keeps it safe\""
+    },
+    {
       "entry_point": ".env, archive.yaml, LENS_*, ARCHIVE_SECRET_KEY, RCLONE_BINARY",
       "parameter": "process configuration",
       "attacker_controllable": "no",
@@ -468,6 +499,24 @@
       "caller_must_enforce": "run peers on trusted hosts",
       "provenance": "inferred",
       "source": "open question Q9"
+    },
+    {
+      "entry_point": "host control inbox and the monitoring scrape token",
+      "parameter": "inbox/upgrade request (release ref, or action=services with monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "the agent installs only a release tag or the install's branch and only toggles the monitoring profile; the token is compared in constant time and grants metrics only",
+      "provenance": "documented",
+      "source": "docs/updates.md, docs/prometheus.md"
+    },
+    {
+      "entry_point": "microsandbox program requests",
+      "parameter": "ask/NAME.want in /data/.lens/programs: a program's name",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "the start script installs only libreoffice or chromium, each a fixed list of signed Debian packages, answers in a folder only root writes, and reads nothing but the name",
+      "provenance": "documented",
+      "source": "docs/microsandbox.md"
     }
   ],
   "environment": {
@@ -919,6 +968,14 @@
       "source": "docs/assistant.md \"Approvals\""
     },
     {
+      "property": "P-INJECTION-EGRESS",
+      "violation_symptom": "info-leak",
+      "severity_tier": "correctness",
+      "conditions": "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26).",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"it read out of Lens waits for your approval\""
+    },
+    {
       "property": "P-EXT-SCOPE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
@@ -967,6 +1024,14 @@
       "source": "docs/configuration.md \"the token never goes on to another server\""
     },
     {
+      "property": "P-TIKA-SERVER",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "a Tika server (documents.tika_url, off by default) gets the document only at the address the admin set: http(s) with no user name or password, no redirect is followed, and the document goes as document.<type>, never by its own name; its answer is read to 64 MB, only the Dublin Core terms Lens keeps are taken from it (bounded in length), and the text kept is capped at 20 million characters; a Tika server that can't be reached fails only a document nothing else can read; the compose service runs read-only, without privileges, reachable only inside Lens's network",
+      "provenance": "documented",
+      "source": "docs/configuration.md \"The document goes only to the address set\""
+    },
+    {
       "property": "P-TEMPLATE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
@@ -1007,6 +1072,30 @@
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },
     {
+      "property": "P-NFS",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "the NFS share is off until an admin turns it on, is read-only, shows only what one chosen account sees, and lets in only allowed_networks",
+      "provenance": "documented",
+      "source": "docs/file-shares.md \"NFS has no login\""
+    },
+    {
+      "property": "P-SMB",
+      "violation_symptom": "info-leak",
+      "severity_tier": "security",
+      "conditions": "the SMB share is off until an admin turns it on; read-only; per-person file access keys and views; no guests or SMB1; a random NTLM challenge per connection; allowed networks only",
+      "provenance": "documented",
+      "source": "docs/smb.md \"What keeps it safe\""
+    },
+    {
+      "property": "P-SHARES",
+      "violation_symptom": "info-leak, integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "the file shares (S3, WebDAV) are off until an admin enables them; every request carries a person's own access key (SigV4 or Basic), reads as them and never writes",
+      "provenance": "documented",
+      "source": "docs/file-tree.md \"Off until an admin turns it on\""
+    },
+    {
       "property": "P-CHILD-SECRETS",
       "violation_symptom": "info-leak",
       "severity_tier": "correctness",
@@ -1045,6 +1134,22 @@
       "conditions": "flow and tool graphs never loop back and run within a step budget",
       "provenance": "documented",
       "source": "domain/flow.py docstring \"Graphs never loop back\""
+    },
+    {
+      "property": "P-BROWSER",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "the assistant uses a person's browser only from that person's own conversations and API calls, while their own Lens side panel is connected; only they see and answer that session's actions; ai.browser off turns it off",
+      "provenance": "documented",
+      "source": "docs/browser-assistant.md \"Only you\""
+    },
+    {
+      "property": "P-BROWSER-GUARD",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "the side panel reads and acts only on sites the person allowed, opens addresses only there, asks before a consequential click, submit or Enter (model flag, the control's words, a posting form), and, once the answer read outside text (ai.untrusted_asks), before opening or downloading an address or typing text the person's message doesn't contain; it never types into or reports password, card or file fields, and shows each action",
+      "provenance": "documented",
+      "source": "docs/browser-assistant.md \"Letting it use your browser\""
     },
     {
       "property": "MX-AUTHZ-LIST-CAPS",
@@ -1255,7 +1360,7 @@
     },
     {
       "property": "N-PROMPT",
-      "reason": "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; exfiltration through rendered answers is Q26",
+      "reason": "resistance to prompt injection from transcripts, documents, OCR, web pages or tool replies; impact on words and notes only; crossing the person's reads, approvals or role is P-RETRIEVAL or P-APPROVAL; carrying what it read out through tools or chat-room links is P-INJECTION-EGRESS. Marking third-party text as data, breaking up chat-template control tokens and flagging text that reads like instructions (ai.untrusted_marking, ai.injection_check) make injection less likely; they are not claimed",
       "false_friend": true,
       "provenance": "inferred",
       "source": "open question Q26"
@@ -1380,6 +1485,7 @@
     "After a password change or suspected theft, revoke API tokens and app grants, or disable the account",
     "List private networks in documents.web_networks or notifications.networks only on purpose",
     "When sensors are on, firewall ports 1883 and 5514 or bind them to a private address",
+    "When the SMB share is on, list only your own networks, keep its port off the internet, and revoke file access keys you no longer use",
     "Give the chat-room bridge its own low-role account",
     "Run workers only on trusted hosts; they hold the DB credential",
     "Pick model and speech servers you trust with transcripts and audio",
@@ -1389,7 +1495,8 @@
     "Treat transcript text and MCP results as untrusted prompt input in your agents",
     "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS",
     "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets",
-    "Keep logs that record request paths private when sensor push tokens are in use"
+    "Keep logs that record request paths private when sensor push tokens are in use",
+    "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show"
   ],
   "known_misuse": [
     {

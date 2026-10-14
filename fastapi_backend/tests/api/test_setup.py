@@ -61,7 +61,7 @@ def fresh(folder):
 def test_fresh_database_without_namespaces_starts(folder):
     db = store.connect(bare_cfg(folder))
     try:
-        assert migrations.pending(db) == [] and [m["state"] for m in migrations.status(db)] == ["done", "done", "done"]
+        assert migrations.pending(db) == [] and [m["state"] for m in migrations.status(db)] == ["done"] * len(migrations.steps())
         assert store.space_names(db) == {}
     finally:
         db.close()
@@ -202,6 +202,7 @@ def test_installer_settings_are_saved_once_and_stay_editable(fresh, monkeypatch,
     seed = {
         "llm": {"base_url": "http://ollama:11434/v1", "model": "llama3", "api_key": "sk-seed"},
         "decisions": {"api_key": "ts-seed"},
+        "budget": {"hard_usd": 25, "period": "month", "price_in": 3, "price_out": 15},  # the overall budget
         "nope": {"x": 1},  # not a section: logged and left out, the rest still applies
     }
     monkeypatch.setenv("LENS_SETUP_SETTINGS", base64.urlsafe_b64encode(json.dumps(seed).encode()).decode().rstrip("="))
@@ -216,6 +217,15 @@ def test_installer_settings_are_saved_once_and_stay_editable(fresh, monkeypatch,
     h = login(client, "ops@x.io", "ops password 123")
     view = client.get("/api/v1/setup", headers=h).json()
     assert view["llm"]["locked"] == [] and view["llm"]["values"]["api_key"] == {"secret": True, "set": True}
+    assert view["budget"] == {
+        "hard_usd": 25.0,
+        "soft_usd": 20.0,
+        "period": "month",
+        "on_over": "ask",
+        "price_in": 3.0,
+        "price_out": 15.0,
+        "model": "llama3",
+    }
     assert "sk-seed" not in client.get("/api/v1/settings", headers=h).text
 
     # changed in the app, then the next start: the installer's value doesn't come back
@@ -274,6 +284,23 @@ def test_finds_model_servers_running_nearby(fresh, monkeypatch):
         assert client.get("/api/v1/setup/llm/detect", headers=login(client, "ed@x.io", "editor password 1")).status_code == 403
     finally:
         srv.shutdown()
+
+
+def test_offers_cloud_model_providers(fresh):
+    """Picking a cloud provider fills in its address and a model; only the API key is left to paste."""
+    app, client = fresh()
+    make_user(app.state.db, "ada@x.io", "admin password 1", admin=True)
+    make_user(app.state.db, "ed@x.io", "editor password 1")
+    app_settings.save(app.state.db, app.state.archive.base, "auth", {"passwords": True})  # made after startup
+    got = client.get("/api/v1/setup/llm/providers", headers=login(client, "ada@x.io", "admin password 1")).json()
+    names = [p["name"] for p in got]
+    assert names[:2] == ["OpenAI", "Anthropic"] and len(names) == len(set(names))
+    openai = got[0]
+    assert openai["base_url"] == "https://api.openai.com/v1" and openai["model"] == openai["models"][0]
+    for p in got:
+        assert p["base_url"].startswith("https://") and not p["base_url"].endswith("/")
+        assert p["model"] in p["models"] and p["key_url"].startswith("https://")
+    assert client.get("/api/v1/setup/llm/providers", headers=login(client, "ed@x.io", "editor password 1")).status_code == 403
 
 
 def test_log_prints_a_setup_link(fresh, caplog, monkeypatch):

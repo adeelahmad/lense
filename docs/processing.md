@@ -216,6 +216,36 @@ Settings → Search shows how far it has got and can queue more now; `lens embed
 embeddings server can't be reached, the step is skipped (the routine tries again later) and searches go by the words,
 saying why.
 
+### Similar content
+
+The web app, the API (`GET /similar`), the assistant and the MCP server (`find_similar`) list the resources most like
+a text (a sentence, a passage, a title), a resource, a topic or an entity.
+
+Four lists are fused by reciprocal rank, so a resource alike in several ways comes first:
+
+* **meaning**, when search by meaning is set up: the passages closest to the text (a topic's labels and definition,
+  an entity's name and description), or for a resource to the centre of its own passages, so no model call is needed;
+* **key words**: the text's words that the archive says in fewest recordings (from the analysis step's term counts),
+  or a resource's keywords, any of them, through the word index: resources saying more of them first;
+* **topics**: resources about the same topics, a topic fewer resources are about counting for more;
+* **entities**: resources mentioning the same people, organisations, places and terms, the rarer counting for more.
+
+Each result cites why: its closest passages and the lines with the shared words (each opens at that moment or page),
+the words, and the topics and entities in common. Without an embeddings server (the default) the last three still
+answer, and no language model is called; with one, a selected text costs one embedding request, logged in the
+activity ledger.
+
+In the web app:
+
+* every resource has a **Similar** tab, after Entities, listing what is most like it;
+* selecting text anywhere (a transcript, a page, a title, a summary, a graph label) opens a popover with the five
+  resources most like the selection, each citing why, and **Find more** opens the full list at `/similar`, with
+  paging and a search for the key words. The account menu's **Similar on select** switches between showing the
+  popover at once and showing a small **Similar** button to click first. Text typed in a field or an editor (notes)
+  opens nothing;
+* a topic's and an entity's drawer, and a resource, topic or entity selected on the graph canvas, list similar
+  content too.
+
 ## Background work
 
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs
@@ -265,6 +295,9 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.
+- A rate-limited connection (Google Drive throttling an account) still works: its check shows it working, slowly;
+  rclone backs off and retries (Drive gets 10 low-level retries); and a file a scan couldn't fetch waits for the next
+  scan, as do the rest of that scan's files, rather than failing for good.
 - Folders on this machine can only be watched inside `sources.local_roots`, and the rclone binary can only be set in
   archive.yaml: the web app can neither open up the server's disk nor choose what runs.
 
@@ -325,6 +358,10 @@ summary's `key_points` and `action_items` print as their text and have `text`, `
 strings. A fresh archive starts with three: Meeting notes (prompt), Markdown transcript (export) and One-page brief (report).
 `POST /api/v1/templates/preview` renders any template, saved or not, against a recording, and with `run: true` also asks
 the model.
+
+New pipelines, workflows, templates and routines don't need a name typed: the web app guesses one (from a pipeline's
+steps, what a workflow runs on, a template's kind, a routine's schedule and actions), numbered when it's taken
+("Prompt template 2"). The pencil next to the name on its page renames it later, as does `PATCH` on its address.
 
 ## Workflows and the canvas
 

@@ -19,7 +19,21 @@ SURREAL_VERSION=v3.2.4
 RCLONE_VERSION=v1.75.1
 NODE_MAJOR=22
 
-log() { printf '[lens] %s\n' "$*"; }
+# Each step is logged as "[lens] ...", which install.sh shows while it waits. A step that fails says so, and stops
+# what was started: install.sh stops waiting and shows why.
+step=""
+log() {
+  step="$*"
+  printf '[lens] %s\n' "$*"
+}
+failed() {
+  code=$?
+  [ "$code" = 0 ] && return
+  printf '[lens] Failed (exit %s): %s\n' "$code" "${step%...}"
+  # shellcheck disable=SC2086
+  for pid in ${pids:-}; do kill "$pid" 2>/dev/null || true; done
+}
+trap failed EXIT
 
 # The settings install.sh wrote (secrets, port, target), the same .env Compose reads
 set -a
@@ -37,21 +51,27 @@ esac
 mkdir -p "$OPT/bin" "$DATA/surreal" /tmp/lens
 export PATH="$OPT/bin:$OPT/node/bin:$OPT/venv/bin:$PATH"
 
+# Name lookups: wait for them before downloading, with public resolvers when this machine's don't answer here
+# shellcheck source=SCRIPTDIR/dns.sh
+. "$CODE/microsandbox/dns.sh"
+dns_ready
+
 # --- System packages: in the sandbox's own disk, installed on each start (install.sh replaces the sandbox), from
-# the packages kept in the volume, so only the first start downloads them ------------------------------------------
-packages="ffmpeg tesseract-ocr antiword poppler-utils ca-certificates curl xz-utils unzip"
-[ "$TARGET" = full ] && packages="$packages libreoffice-writer-nogui libreoffice-calc-nogui libreoffice-impress-nogui
-  chromium fonts-dejavu-core fonts-liberation2 fonts-noto-core fonts-noto-cjk"
-stamp="/var/lib/lens-packages.$TARGET"
-if [ ! -f "$stamp" ]; then
-  log "Installing system packages ($TARGET)..."
+# the packages kept in the volume, so only the first start downloads them. LibreOffice and Chromium aren't among them:
+# the full edition installs each the first time Lens needs it (Programs, below) ------------------------------------
+# apt_install PACKAGE...: from the packages kept in the volume, downloading only what isn't there yet
+apt_install() {
   export DEBIAN_FRONTEND=noninteractive
   rm -f /etc/apt/apt.conf.d/docker-clean # the image's setting that deletes downloaded packages
   mkdir -p "$OPT/apt/partial"
-  apt-get update -q
-  # shellcheck disable=SC2086
-  apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" $packages
-  rm -rf /var/lib/apt/lists/*
+  retry apt-get update -q --error-on=any &&
+    retry apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" "$@" &&
+    rm -rf /var/lib/apt/lists/*
+}
+stamp=/var/lib/lens-packages
+if [ ! -f "$stamp" ]; then
+  log "Installing system packages..."
+  apt_install ffmpeg tesseract-ocr antiword poppler-utils ca-certificates curl xz-utils unzip
   id lens >/dev/null 2>&1 || useradd --create-home --uid 1000 lens
   touch "$stamp"
 fi
@@ -80,8 +100,8 @@ if [ ! -x "$OPT/bin/uv" ]; then
   cp /tmp/lens/uv/bin/uv "$OPT/bin/uv" && rm -rf /tmp/lens/uv
 fi
 
-# --- Build: the backend and the web app, again only when the code changed ----------------------------------------
-build_id="$(cat "$CODE/.lens-build" 2>/dev/null || echo unknown)-$TARGET"
+# --- Build: the backend and the web app, again only when the code changed (the edition doesn't change them) -------
+build_id="$(cat "$CODE/.lens-build" 2>/dev/null || echo unknown)"
 if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   log "Building Lens (the first build takes a few minutes)..."
   # copies, so the build writes nothing into the code on the host; the backend is installed where it runs (the
@@ -90,17 +110,19 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   (cd "$CODE/fastapi_backend" && tar -c --exclude .venv --exclude __pycache__ .) | tar -x -C "$OPT/backend"
   (cd "$CODE/nextjs-frontend" && tar -c --exclude node_modules --exclude .next .) | tar -x -C "$OPT/web-src"
 
+  log "Installing the backend's Python packages..."
   # shellcheck disable=SC2046
   (cd "$OPT/backend" &&
-    UV_PROJECT_ENVIRONMENT="$OPT/venv" UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
-      UV_HTTP_TIMEOUT=300 UV_HTTP_RETRIES=5 UV_CACHE_DIR="$OPT/uv-cache" \
-      uv sync --frozen --no-dev --python "$(command -v python3)" \
+    export UV_PROJECT_ENVIRONMENT="$OPT/venv" UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
+      UV_HTTP_TIMEOUT=300 UV_HTTP_RETRIES=5 UV_CACHE_DIR="$OPT/uv-cache" &&
+    retry uv sync --frozen --no-dev --python "$(command -v python3)" \
       $(for e in ${EXTRAS:-}; do printf -- '--extra %s ' "$e"; done))
 
-  (cd "$OPT/web-src" &&
-    export COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" &&
-    corepack pnpm install --frozen-lockfile &&
-    AUTH_SECRET=build-only NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone corepack pnpm build)
+  web() { (cd "$OPT/web-src" && exec env COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME="$OPT/corepack" "$@"); }
+  log "Installing the web app's packages..."
+  retry web corepack pnpm install --frozen-lockfile
+  log "Building the web app..."
+  web AUTH_SECRET=build-only NEXT_TELEMETRY_DISABLED=1 NEXT_OUTPUT=standalone corepack pnpm build
   rm -rf "$OPT/web" && mkdir -p "$OPT/web/.next"
   cp -a "$OPT/web-src/.next/standalone/." "$OPT/web/"
   cp -a "$OPT/web-src/.next/static" "$OPT/web/.next/static"
@@ -113,6 +135,9 @@ fi
 chown lens:lens "$DATA"
 chown -R lens:lens "$DATA/surreal"
 
+# public resolvers stood in for the downloads: this machine's again if they answer now, so names on its network resolve
+dns_restore
+
 # --- Run ---------------------------------------------------------------------------------------------------------
 # The same settings docker-compose.prod.yml gives the containers, with every service on this sandbox's localhost
 export SURREAL_URL=ws://127.0.0.1:8001 SURREAL_USER="${SURREAL_USER:-root}"
@@ -123,6 +148,8 @@ export ARCHIVE_ALLOWED_HOSTS="${ARCHIVE_ALLOWED_HOSTS:-localhost,127.0.0.1}"
 export LENS_TUNNEL_ORIGIN=http://127.0.0.1:3000
 export LENS_TRUSTED_PROXY_HOSTS=localhost
 export LENS_WEB_PROXY_HOSTS=localhost
+# HTTPS (docs/https.md): install.sh published 443 and 80 to the sandbox's 8443 and 8080, where Caddy listens
+[ "${LENS_HTTPS:-0}" = 1 ] && export LENS_HTTPS_LISTEN=1 LENS_HTTPS_PORT="${LENS_HTTPS_PORT:-443}"
 export API_BASE_URL=http://127.0.0.1:8000
 export AUTH_TRUST_HOST=true NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 export HOME=/home/lens XDG_CACHE_HOME="$DATA/.cache"
@@ -171,11 +198,50 @@ keep() {
 }
 
 surreal_ready() { surreal is-ready --endpoint http://127.0.0.1:8001 >/dev/null 2>&1; }
+# surreal_signin: how SurrealDB answers .env's SURREAL_USER and SURREAL_PASS (200: they open it, 401: they don't)
+surreal_signin() {
+  python3 -c 'import json, os; print(json.dumps({"user": os.environ["SURREAL_USER"], "pass": os.environ["SURREAL_PASS"]}))' |
+    curl -s -o /dev/null -w '%{http_code}' --max-time 10 -X POST -H 'Accept: application/json' --data-binary @- \
+      http://127.0.0.1:8001/signin || true
+}
 
+# --- Programs: LibreOffice and Chromium, installed the first time Lens needs one (the full edition; a lean install
+# never fetches them) --------------------------------------------------------------------------------------------
+PROGRAMS="$OPT/programs"
+# shellcheck source=SCRIPTDIR/programs.sh
+. "$CODE/microsandbox/programs.sh"
+if [ "$TARGET" = full ]; then
+  programs_prepare
+  (
+    set +e # a failed install is answered, and the loop goes on
+    programs_loop
+  ) &
+  pids="$pids $!"
+  export LENS_PROGRAMS="$PROGRAMS"
+fi
+
+log "Starting the database..."
 keep surrealdb "$DATA" surreal start --log info --bind 127.0.0.1:8001 --user "$SURREAL_USER" --pass "$SURREAL_PASS" \
   "surrealkv:$DATA/surreal/lens.db"
 db=$!
 until surreal_ready; do sleep 1; done
+# The database keeps the user it was first started with, so the keys in .env must be the ones that made it. Those of
+# another install (a reinstall after the install folder was deleted wrote new ones, and kept this volume) never open
+# it: rather than starting the API again and again, say so and stop. install.sh then starts Lens on a volume of its own.
+signin=""
+for _ in 1 2 3 4 5; do
+  signin="$(surreal_signin)"
+  case "$signin" in 200 | 401) break ;; esac
+  sleep 1
+done
+if [ "$signin" = 401 ]; then
+  log "Another install's database: the keys in .env don't open the one in this volume"
+  trap - EXIT
+  # shellcheck disable=SC2086
+  for pid in $pids; do kill "$pid" 2>/dev/null || true; done
+  wait # the database closes cleanly
+  exit 3
+fi
 keep api "$OPT/backend" fastapi run app/main.py --host 127.0.0.1 --port 8000 --proxy-headers
 keep worker "$OPT/backend" lens worker
 keep web "$OPT/web" env HOSTNAME=0.0.0.0 PORT=3000 node lens-server.js

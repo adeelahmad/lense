@@ -20,7 +20,14 @@ import type { Enrichment } from "@/app/openapi-client";
 import { uploadKindName } from "@/components/import/files";
 import { ContentTypePicker } from "@/components/recording/content-type";
 import { useRec } from "@/components/recording/context";
-import { emailRows, renditionNote, webRows, type EmailInfo } from "@/components/recording/document/model";
+import {
+  describedRows,
+  emailRows,
+  renditionNote,
+  webRows,
+  type DescribedInfo,
+  type EmailInfo,
+} from "@/components/recording/document/model";
 import { sourceLabel, transcriptOrigin } from "@/components/recording/labels";
 import { Button } from "@/components/ui/button";
 import { absolute, bytes, count, plural, tc } from "@/lib/format";
@@ -150,6 +157,13 @@ export function DetailsTab() {
       <Group icon={video ? FileVideo : model.audio ? FileAudio : FileText} title="File" rows={file} />
       {(video || rec.channels) && <Group icon={Film} title={video ? "Video and audio" : "Audio"} rows={media} />}
       {rec.email && <Group icon={Mail} title="Email" rows={emailRows(rec.email as EmailInfo, absolute)} />}
+      {rec.described && describedRows(rec.described as DescribedInfo, absolute).length > 0 && (
+        <Group
+          icon={FileText}
+          title="What it says about itself"
+          rows={describedRows(rec.described as DescribedInfo, absolute)}
+        />
+      )}
       {rec.web && (
         <Group
           icon={Globe}

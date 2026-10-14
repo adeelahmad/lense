@@ -19,7 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
-from app.domain import ai_tools, auth, auto_scope, chat, llm, store, uploads
+from app.domain import ai_tools, auth, auto_scope, browser, chat, llm, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
     AnswerCheck,
@@ -183,7 +183,11 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
     from (where, and the highlighted text; not the page's text, which isn't kept).
 
     `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
-    conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer."""
+    conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
+
+    With `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that
+    browser while the side panel is connected: open pages, read them, click, type and download files into the
+    conversation (docs/browser-assistant.md)."""
     c = await run_in_threadpool(_own_chat, db, cid, user)
     q = body.content.strip()[:4000]
     files = await run_in_threadpool(_attachments, db, body.attachments, user)
@@ -219,7 +223,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         if page is None and old.get("context"):
             page = kept = old["context"]
     # what the model reads: the question with the page it was asked from, and the files it can import
-    asked = chat.with_context(q, page) + chat.attached_note(files)
+    asked = chat.with_context(q, page, cfg) + chat.attached_note(files)
     readable = set(acl.roles)
     summary: dict[str, Any] | None = None  # what compaction keeps of the earlier messages (chat.compact)
 
@@ -284,10 +288,14 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 user.admin,
                 act=setup,
                 said=q,
+                # what it read before any tool ran: the page it was asked from, and earlier answers' excerpts and tools
+                outside=(["page"] if page else []) + ai_tools.read_before(past, summary),
+                browser=body.browser,
             )
             try:
                 answer = ""
-                steps_max = max(cfg["ai"].get("max_steps") or 6, 12 if setup else 0)
+                # setting the server up, or working in the person's browser, takes more steps than looking things up
+                steps_max = max(cfg["ai"].get("max_steps") or 6, 12 if setup else 0, browser.steps(cfg) if box.browser else 0)
                 for kind, data in chat.tool_answer(cfg, box, asked, past, steps_max, model, setup=setup, summary=summary):
                     if kind == "step":
                         steps.append(data)
@@ -323,7 +331,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
         text, error = "", None
         try:
             if llm.configured(cfg):
-                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past, summary), model=model):
+                for piece in llm.stream_chat(cfg, chat.messages_for(asked, passages, past, summary, cfg), model=model):
                     text += piece
                     yield _ev("token", {"text": piece})
                     if on.stop_requested():

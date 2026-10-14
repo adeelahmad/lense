@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import http.server
 import io
+import itertools
 import json
 import shutil
 import subprocess
@@ -76,6 +77,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
             )
         if self.path.startswith("/gm/v1beta/models"):
             return self._send({"models": [{"name": "models/gemini-2.5-flash-preview-tts"}, {"name": "models/gemini-2.5-pro"}]})
+        if self.path == "/st/v1/audio/voices":
+            return self._send({"voices": ["default", "grandpa"]})
         if self.path == "/oai/v1/audio/voices":
             return self._send({"voices": ["af_heart", "am_adam"]})
         if self.path.endswith("/models") or self.path.endswith("/v1/models"):
@@ -138,6 +141,8 @@ class Fake(http.server.BaseHTTPRequestHandler):
                     }
                 }
             )
+        if p == "/st/v1/audio/speech":
+            return self._send(speech.wav(b"\x00\x00" * 24, 24000), "audio/wav")
         if p.startswith("/gm/v1beta/models/"):
             pcm = base64.b64encode(b"\x00\x01" * 2400).decode()
             return self._send(
@@ -294,6 +299,85 @@ def test_speaker_separation_uses_the_providers_speakers(db, cfg, folder, fake):
     assert [(r["local_speaker"], r["provider_speaker"]) for r in rows] == [("S0", "S0"), ("S1", "S1")]
 
 
+def talk(seconds, pauses):
+    """Noise like speech with a second of silence starting at each of `pauses` (seconds)."""
+    audio = clip(seconds)
+    for at in pauses:
+        audio[int(at * speech.SR) : int((at + 1) * speech.SR)] = 0
+    return audio
+
+
+def test_each_provider_has_limits_and_they_can_be_changed(db, cfg):
+    eff = settings.effective(db, cfg)
+    assert {p: speech.limits(eff, p) for p in speech.PROVIDERS} == {
+        "openai": (10 * 60 * speech.SR, 25_000_000),
+        "elevenlabs": (600 * 60 * speech.SR, 3_000_000_000),
+        "assemblyai": (600 * 60 * speech.SR, 2_200_000_000),
+        "deepgram": (120 * 60 * speech.SR, 2_000_000_000),
+    }
+    settings.save(db, cfg, "speech", {"openai_max_minutes": 20, "openai_max_mb": 100}, "t")
+    assert speech.limits(settings.effective(db, cfg), "openai") == (20 * 60 * speech.SR, 100_000_000)
+    for bad in ({"openai_max_minutes": 0}, {"deepgram_max_mb": 10_001}, {"elevenlabs_max_minutes": "60"}, {"gemini_max_mb": 5}):
+        with pytest.raises(ValueError):
+            settings.save(db, cfg, "speech", bad, "t")
+
+
+def test_a_cut_falls_in_a_pause():
+    sr = speech.SR
+    audio = talk(150, (48, 103))
+    cuts = speech.pieces(audio, 60 * sr)
+    assert len(cuts) == 3 and cuts[0][0] == 0 and cuts[-1][1] == len(audio)
+    assert all(a == b for (_, a), (b, _) in itertools.pairwise(cuts))  # nothing lost or sent twice
+    assert all(e - s <= 60 * sr for s, e in cuts)
+    assert 48 * sr < cuts[0][1] < 49 * sr and 103 * sr < cuts[1][1] < 104 * sr
+    assert speech.pieces(audio, 150 * sr) == [(0, len(audio))]
+    flat = np.zeros(90 * sr, dtype=np.float32)  # no pause stands out: cut as late as it may
+    assert speech.pieces(flat, 60 * sr)[0][1] > 59 * sr
+
+
+def test_a_long_recording_goes_in_pieces_and_comes_back_whole(db, cfg, fake, monkeypatch):
+    rows = []
+    monkeypatch.setattr(speech, "_ledger", lambda *a: _Ledger(rows, *a))
+    settings.save(db, cfg, "speech", {"deepgram_max_minutes": 1}, "t")
+    eff = provided(db, cfg, fake)
+    segs = speech.Engine(eff, "deepgram").transcribe(talk(150, (48, 103)))
+    sent = [b for m, p, h, b in Fake.seen if p.startswith("/dg/v1/listen")]
+    assert len(sent) == 3
+    starts = sorted({s["t0"] for s in segs if s["text"] == "Great work."})
+    assert len(starts) == 3 and starts[0] == 0 and 48_000 < starts[1] < 49_000 and 103_000 < starts[2] < 104_000
+    assert [s["provider_speaker"] for s in segs][:2] == ["c0:S0", "c0:S1"]
+    assert {s["provider_speaker"] for s in segs} == {f"c{k}:S{n}" for k in range(3) for n in range(2)}
+    second = next(s for s in segs if s["provider_speaker"] == "c1:S1")
+    assert json.loads(second["words"]) == [["Thanks.", starts[1] + 1000, starts[1] + 1500]]
+    assert [s["t0"] for s in segs] == sorted(s["t0"] for s in segs)
+    assert rows == [("speech.transcribe", "deepgram:nova-3", {"seconds": 150.0, "pieces": 3})]
+
+
+def test_a_piece_too_large_to_send_is_halved(db, cfg, fake, monkeypatch):
+    monkeypatch.setattr(speech, "encode", lambda a: (b"\0" * (len(a) // speech.SR * 10_000), "audio.ogg", "audio/ogg"))
+    settings.save(db, cfg, "speech", {"openai_max_mb": 1}, "t")  # 10 KB a second: 100 seconds a request
+    eff = provided(db, cfg, fake)
+    segs = speech.Engine(eff, "openai").transcribe(talk(250, (40, 110, 165)))  # in half (at 110 s), then each half again
+    sent = [b for m, p, h, b in Fake.seen if p == "/oai/v1/audio/transcriptions"]
+    assert len(sent) == 4 and all(len(b) < 1_000_000 for b in sent)
+    assert [s["text"] for s in segs] == ["Book a call for Friday."] * 4
+    assert [s["t0"] // 1000 for s in segs] == [0, 40, 110, 165]
+    monkeypatch.setattr(speech, "encode", lambda a: (b"\0" * 2_000_000, "audio.ogg", "audio/ogg"))
+    with pytest.raises(speech.ProviderError, match="raise the limit in Settings"):
+        speech.Engine(eff, "openai").transcribe(talk(10, ()))
+
+
+class _Ledger:
+    def __init__(self, rows, action, cfg, model_, detail):
+        self.rows, self.row = rows, (action, model_, detail)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self.rows.append(self.row)
+
+
 def test_answers_are_read_by_elevenlabs_or_deepgram(db, cfg, fake):
     eff = provided(db, cfg, fake)
     settings.save(db, cfg, "voice", {"tts_provider": "elevenlabs", "tts_voice": "v42"}, "t")
@@ -347,6 +431,39 @@ def test_each_provider_lists_its_voices(db, cfg, fake):
     assert found == [] and err.startswith("can't reach 127.0.0.1:9")
     with pytest.raises(ValueError):
         speech.voices(eff, "nope")
+
+
+def test_styletts2_reads_aloud_from_its_own_service(db, cfg, fake):
+    settings.save(db, cfg, "voice", {"tts_provider": "styletts2"}, "t")
+    eff = settings.effective(db, cfg)
+    assert eff["voice"]["styletts2_url"] == "http://styletts2:8880" and voice.can_speak(eff)  # the compose service
+    settings.save(db, cfg, "voice", {"styletts2_url": fake + "/st/"}, "t")
+    eff = settings.effective(db, cfg)
+    data, ctype = voice.speak(eff, "Hello", voice="grandpa")
+    assert ctype == "audio/wav" and data[:4] == b"RIFF"
+    method, path, headers, body = Fake.seen[-1]
+    assert path == "/st/v1/audio/speech" and json.loads(body) == {
+        "model": "styletts2",
+        "input": "Hello",
+        "voice": "grandpa",
+        "response_format": "wav",
+    }
+    voice.speak(eff, "Hi")
+    assert json.loads(Fake.seen[-1][3])["voice"] == "default"
+    assert speech.voices(eff) == (
+        [
+            {"id": "default", "name": "default", "detail": "its own reader"},
+            {"id": "grandpa", "name": "grandpa", "detail": "from your clip"},
+        ],
+        None,
+    )
+    settings.save(db, cfg, "voice", {"styletts2_url": "http://127.0.0.1:9"}, "t")
+    eff = settings.effective(db, cfg)
+    found, err = speech.voices(eff)
+    assert found == [] and err.startswith("StyleTTS2 isn't running") and "--profile styletts2" in err
+    assert voice.speak(eff, "Hello") is None  # not running: the browser reads it
+    with pytest.raises(ValueError):
+        settings.save(db, cfg, "voice", {"styletts2_url": "styletts2:8880"}, "t")
 
 
 SAY_VOICES = """Albert              en_US    # Hello! My name is Albert.

@@ -1,0 +1,65 @@
+name: MCP runner
+
+# The MCP runner (the optional mcp service, mcp-runner/): it builds, starts as docker-compose runs it (read-only, no
+# capabilities), writes its token to the volume it shares with Lens, and runs real stdio MCP servers from npm and PyPI.
+on:
+  pull_request:
+    paths:
+      - mcp-runner/**
+      - .github/workflows/mcp-runner.yml
+  push:
+    branches: [main]
+    paths:
+      - mcp-runner/**
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  mcp-runner:
+    name: Build and run servers
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -t lens-mcp:ci mcp-runner
+
+      - name: Start it as Lens's compose file does
+        run: |
+          docker network create mcp
+          docker run -d --name mcp --network mcp --read-only --tmpfs /tmp --cap-drop ALL \
+            --security-opt no-new-privileges:true -v mcp-data:/data -v mcp-key:/key lens-mcp:ci
+          sleep 3
+          docker logs mcp
+
+      - name: Runs an npm server and a PyPI server
+        run: |
+          token="$(docker run --rm -v mcp-key:/key alpine:3.20 cat /key/token)"
+          call() {
+            docker run --rm --network mcp curlimages/curl:8.10.1 -fsS --max-time 240 -X "$1" \
+              -H "Authorization: Bearer $token" -H "Content-Type: application/json" "http://mcp:8090$2" -d "$3"
+          }
+          call PUT /servers/memory '{"command": "npx", "args": ["-y", "@modelcontextprotocol/server-memory@2026.8.31"]}'
+          call POST /servers/memory/mcp '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}' | tee out.json
+          grep -q create_entities out.json
+          call PUT /servers/time '{"command": "uvx", "args": ["mcp-server-time==2026.8.18"]}'
+          call POST /servers/time/mcp '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "get_current_time", "arguments": {"timezone": "UTC"}}}' | tee out.json
+          grep -q UTC out.json
+          # and refuses anyone without the token
+          code="$(docker run --rm --network mcp curlimages/curl:8.10.1 -s -o /dev/null -w '%{http_code}' -X PUT http://mcp:8090/servers/x -d '{}')"
+          test "$code" = 401
+
+      - name: What it said
+        if: failure()
+        run: docker logs mcp
+
+      - name: Stop
+        if: always()
+        run: docker rm -f mcp || true

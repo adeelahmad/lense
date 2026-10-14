@@ -52,6 +52,14 @@ export type FieldSpec = {
   unit?: string;
 };
 
+/** backups.schedule: cron expressions offered in one click (any other can be typed). */
+export const BACKUP_SCHEDULES: Opt[] = [
+  { value: "0 3 * * *", label: "Every night at 3:00" },
+  { value: "0 */6 * * *", label: "Every 6 hours" },
+  { value: "0 * * * *", label: "Every hour" },
+  { value: "0 3 * * 0", label: "Every Sunday at 3:00" },
+];
+
 export type SectionId =
   | "transcription"
   | "speaker-separation"
@@ -73,11 +81,19 @@ export type SectionId =
   | "notifications"
   | "mail"
   | "bridge"
+  | "telegram"
+  | "slack"
+  | "mailbox"
   | "telemetry"
+  | "logs"
   | "fedora"
   | "sensors"
+  | "nfs"
+  | "smb"
+  | "shares"
   | "uploads"
   | "storage"
+  | "backups"
   | "documents"
   | "tokens"
   | "iiif"
@@ -226,6 +242,27 @@ export const SECTIONS: SectionSpec[] = [
       "The assistant in Slack, Discord, Telegram, Matrix and other chat rooms, through Matterbridge: it answers what’s said to it there.",
   },
   {
+    id: "telegram",
+    label: "Telegram",
+    backend: ["telegram"],
+    description:
+      "The assistant in Telegram through a bot of your own: paste its token from @BotFather. No Matterbridge and no public address needed.",
+  },
+  {
+    id: "slack",
+    label: "Slack",
+    backend: ["slack"],
+    description:
+      "The assistant in Slack through an app of your own, created in one click: direct messages, channels and /lens. No Matterbridge and no public address needed.",
+  },
+  {
+    id: "mailbox",
+    label: "Assistant email",
+    backend: ["mailbox"],
+    description:
+      "An email address for the assistant: people you let in email or forward things to it, and it answers by email and imports what’s attached.",
+  },
+  {
     id: "notifications",
     label: "Notifications",
     backend: ["notifications"],
@@ -238,6 +275,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telemetry"],
     description:
       "Off unless you turn it on. Traces and metrics from the server and its workers, sent only to an OpenTelemetry collector you run or choose; nothing goes anywhere else.",
+  },
+  {
+    id: "logs",
+    label: "Logs",
+    backend: ["logs"],
+    description:
+      "What the server and its workers log, the latest lines from all of them, and sending them to a syslog server (off unless you turn it on). Keys, tokens and passwords are taken out of every line.",
   },
   {
     id: "fedora",
@@ -254,11 +298,39 @@ export const SECTIONS: SectionSpec[] = [
       "Off unless you turn it on. An MQTT hub and a syslog listener in Lens’s workers, so routers, DNS servers and devices can send to it; and how long what they send is kept.",
   },
   {
+    id: "nfs",
+    label: "NFS share",
+    backend: ["nfs"],
+    description:
+      "Off unless you turn it on. The archive as folders and files over NFS, read-only: namespaces, collections, topics and entities as folders, assets as files, for machines on the networks you allow.",
+  },
+  {
+    id: "smb",
+    label: "SMB share",
+    backend: ["smb"],
+    description:
+      "Off unless you turn it on. The graph as folders and files over SMB, read-only, for Finder, Explorer and Linux: each person signs in with a file access key and sees what they see in the web app.",
+  },
+  {
+    id: "shares",
+    label: "File shares",
+    backend: ["shares"],
+    description:
+      "Off unless you turn it on. The archive’s assets as folders and files (namespaces and collections, a metadata file beside each asset), served read-only over S3 and WebDAV by Lens’s workers; people make their own access keys.",
+  },
+  {
     id: "uploads",
     label: "Uploads",
     backend: ["uploads"],
     description:
       "Audio and video people upload in the web app: which types, how large, and how long an unfinished upload waits.",
+  },
+  {
+    id: "backups",
+    label: "Backups",
+    backend: ["backups"],
+    description:
+      "Back the database up now or on a schedule, download a backup to keep somewhere else, and restore one. Backups are kept in the server’s data folder, under backups.",
   },
   {
     id: "storage",
@@ -433,8 +505,12 @@ export const SPEECH_PROVIDERS = [
     urlHint: "https://generativelanguage.googleapis.com",
     modelHint: "gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts",
     modelLabel: "Text-to-speech model",
+    readsOnly: true,
   },
 ] as const;
+
+/** Speech providers that transcribe: each takes so much audio in one request (its limits in Settings). */
+export const TRANSCRIBING_PROVIDERS = SPEECH_PROVIDERS.filter((p) => !("readsOnly" in p));
 
 export const FIELDS: FieldSpec[] = [
   // Transcription
@@ -744,6 +820,33 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "ai",
+    key: "untrusted_marking",
+    label: "Treat what the assistant reads as data, not instructions",
+    kind: "switch",
+    hint: "Recordings, documents, web pages, chat rooms and what tools send back reach the model marked as material to read and cite, so instructions written in them aren't followed.",
+  },
+  {
+    section: "ai",
+    key: "untrusted_asks",
+    label: "Ask before sending data out after reading third-party text",
+    kind: "switch",
+    hint: "Once an answer has read a recording, a document, a web page or a chat room, web tools, other servers' tools and changes the setup chat would make at once wait for your approval.",
+  },
+  {
+    section: "ai",
+    key: "injection_check",
+    label: "Flag text that reads like instructions to an AI",
+    kind: "select",
+    options: [
+      { value: "patterns", label: "Patterns (free)" },
+      { value: "classifier", label: "Patterns, then a local classifier (downloads 740 MB)" },
+      { value: "model", label: "Patterns, then the decision model" },
+      { value: "off", label: "Off" },
+    ],
+    hint: "Flagged tool results carry a warning to the model and on the step you see. The local classifier (a model trained to spot prompt injection, run on this machine) or the decision model also checks each tool result the patterns let through.",
+  },
+  {
+    section: "ai",
     key: "refine_notes",
     label: "Keep note titles and summaries up to date",
     kind: "switch",
@@ -756,6 +859,21 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 50,
+  },
+  {
+    section: "ai",
+    key: "browser",
+    label: "Let the assistant use a connected browser",
+    kind: "switch",
+    hint: "From the Lens extension's side panel, the assistant can open, read and click in that browser, only on sites the person allows, asking before anything that sends, deletes or buys.",
+  },
+  {
+    section: "ai",
+    key: "browser_steps",
+    label: "Tool steps when using the browser",
+    kind: "int",
+    min: 1,
+    max: 100,
   },
   {
     section: "ai",
@@ -938,6 +1056,13 @@ export const FIELDS: FieldSpec[] = [
   },
   {
     section: "bridge",
+    key: "safe_links",
+    label: "Break up links the answer made itself",
+    kind: "switch",
+    hint: "Chat apps open links to preview them, so a web address the model built from what it read would send that out before anyone clicks. Addresses you, the archive or a tool wrote, and Lens’s own, stay as they are.",
+  },
+  {
+    section: "bridge",
     key: "rooms",
     label: "Rooms for a namespace’s assistant",
     kind: "lines",
@@ -951,6 +1076,273 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 300,
+    unit: "s",
+  },
+  // Telegram (telegram.py)
+  { section: "telegram", key: "enabled", label: "Answer in Telegram", kind: "switch" },
+  {
+    section: "telegram",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  { section: "telegram", key: "name", label: "Its name in groups", kind: "text" },
+  {
+    section: "telegram",
+    key: "answer",
+    label: "In groups, answers",
+    kind: "select",
+    options: [
+      { value: "mention", label: "Messages that name it, mention the bot or reply to it" },
+      { value: "all", label: "Every message (turn off the bot’s privacy mode in @BotFather)" },
+    ],
+  },
+  {
+    section: "telegram",
+    key: "users",
+    label: "People it talks to",
+    kind: "lines",
+    mono: true,
+    hint: "Telegram user ids or usernames, one per line. Anyone can find a bot, so it answers nobody else; people who write to it show above, to let in with one click.",
+  },
+  {
+    section: "telegram",
+    key: "approve",
+    label: "Approving in the chat",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these in Telegram. Settings, imports, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "telegram",
+    key: "rooms",
+    label: "Chats for a namespace’s assistant",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like -1001234567890 = pods (the chats it has seen are listed above with their ids): conversations there talk to that namespace’s own assistant. Elsewhere Lens picks the namespace for each question.",
+  },
+  {
+    section: "telegram",
+    key: "api_url",
+    label: "Bot API server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "https://api.telegram.org",
+    hint: "Leave empty unless you run your own telegram-bot-api server.",
+  },
+  // Slack (slack.py)
+  { section: "slack", key: "enabled", label: "Answer in Slack", kind: "switch" },
+  {
+    section: "slack",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  { section: "slack", key: "name", label: "Its name in channels", kind: "text" },
+  {
+    section: "slack",
+    key: "answer",
+    label: "In channels, answers",
+    kind: "select",
+    options: [
+      { value: "mention", label: "Messages that name it or @mention the app" },
+      { value: "all", label: "Every message in the channels it’s in" },
+    ],
+  },
+  {
+    section: "slack",
+    key: "users",
+    label: "People it talks to",
+    kind: "lines",
+    mono: true,
+    hint: "Slack usernames or member ids, one per line; empty answers everyone in the workspace.",
+  },
+  {
+    section: "slack",
+    key: "approve",
+    label: "Approving in Slack",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these in Slack (only when the list isn’t empty). Settings, imports, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "slack",
+    key: "rooms",
+    label: "Channels for a namespace’s assistant",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like slack/general = pods: conversations there talk to that namespace’s own assistant. Elsewhere Lens picks the namespace for each question.",
+  },
+  // The assistant's mailbox (mailbox.py)
+  { section: "mailbox", key: "enabled", label: "Answer email", kind: "switch" },
+  {
+    section: "mailbox",
+    key: "address",
+    label: "Its email address",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "lens@example.org",
+    hint: "A mailbox of its own, at any provider. It reads new mail there and answers from it.",
+  },
+  {
+    section: "mailbox",
+    key: "users",
+    label: "People it answers",
+    kind: "lines",
+    mono: true,
+    hint: "Email addresses, one per line. Anyone can send email, so it answers nobody else; people who write to it show above, to let in with one click.",
+  },
+  {
+    section: "mailbox",
+    key: "account",
+    label: "Answers as",
+    kind: "text",
+    nullable: true,
+    placeholder: "you, when left empty",
+    hint: "The Lens account it answers as: it reads what that account can read, and changes wait for approval.",
+  },
+  {
+    section: "mailbox",
+    key: "imports",
+    label: "What’s attached",
+    kind: "select",
+    options: [
+      { value: "auto", label: "Imported at once, into a namespace that exists" },
+      { value: "ask", label: "Imported once approved" },
+    ],
+    hint: "A forwarded email is imported whole, with its attachments.",
+  },
+  {
+    section: "mailbox",
+    key: "approve",
+    label: "Approving by email",
+    kind: "select",
+    options: [
+      { value: "low_risk", label: "Entity merges and edits, new namespaces" },
+      { value: "off", label: "Only in the web app" },
+    ],
+    hint: "The people above can reply “yes” or “no” to these. Settings, runs and extensions are always approved in the web app.",
+  },
+  {
+    section: "mailbox",
+    key: "routes",
+    label: "Where mail goes",
+    kind: "lines",
+    mono: true,
+    hint: "One rule per line, the first that matches wins: from: *@acme.com = acme, subject: invoice; from: billing@x.com = finance, subject: newsletter = skip. Conditions are on from, to, subject, list and mailbox. Mail to lens+pods@… goes to pods. Anything else: Lens picks the namespace for each question.",
+  },
+  {
+    section: "mailbox",
+    key: "username",
+    label: "Sign-in name",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "the address, when left empty",
+  },
+  {
+    section: "mailbox",
+    key: "imap_host",
+    label: "IMAP server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "guessed from the address",
+  },
+  {
+    section: "mailbox",
+    key: "imap_port",
+    label: "Port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    nullable: true,
+    placeholder: "993",
+  },
+  {
+    section: "mailbox",
+    key: "imap_security",
+    label: "Connection",
+    kind: "select",
+    options: [
+      { value: "ssl", label: "SSL/TLS (usually port 993)" },
+      { value: "starttls", label: "STARTTLS (usually port 143)" },
+      { value: "none", label: "Unencrypted (usually port 143)" },
+    ],
+  },
+  {
+    section: "mailbox",
+    key: "smtp_host",
+    label: "SMTP server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "guessed from the address",
+  },
+  {
+    section: "mailbox",
+    key: "smtp_port",
+    label: "Port",
+    kind: "int",
+    min: 1,
+    max: 65535,
+    nullable: true,
+    placeholder: "587",
+  },
+  {
+    section: "mailbox",
+    key: "smtp_security",
+    label: "Connection",
+    kind: "select",
+    options: [
+      { value: "starttls", label: "STARTTLS (usually port 587)" },
+      { value: "ssl", label: "SSL/TLS (usually port 465)" },
+      { value: "none", label: "Unencrypted (usually port 25)" },
+    ],
+  },
+  { section: "mailbox", key: "folder", label: "Folder it reads", kind: "text", mono: true },
+  {
+    section: "mailbox",
+    key: "check",
+    label: "Whose mail counts",
+    kind: "select",
+    options: [
+      { value: "authenticated", label: "Only mail the sender’s provider signed (DMARC, DKIM or SPF passed)" },
+      { value: "off", label: "Trust the From address (only for a server of your own that refuses forged mail)" },
+    ],
+  },
+  {
+    section: "mailbox",
+    key: "auth_server",
+    label: "Trust checks by",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "the server that received it",
+    hint: "The name your mail server signs its Authentication-Results with (like mx.google.com), when it doesn’t remove forged ones.",
+  },
+  { section: "mailbox", key: "name", label: "Its name", kind: "text" },
+  {
+    section: "mailbox",
+    key: "poll_seconds",
+    label: "Looks for new mail every",
+    kind: "int",
+    min: 10,
+    max: 3600,
     unit: "s",
   },
   // Matterbridge run by Lens (Chat rooms)
@@ -1064,6 +1456,7 @@ export const FIELDS: FieldSpec[] = [
       { value: "deepgram", label: "Deepgram Aura (provider)" },
       { value: "gemini", label: "Google Gemini (provider)" },
       { value: "say", label: "macOS say (Lens running on a Mac)" },
+      { value: "styletts2", label: "StyleTTS2 (on this machine)" },
     ],
   },
   {
@@ -1095,6 +1488,14 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "the LLM provider’s",
   },
   { section: "voice", key: "tts_api_key", label: "Speech server API key", kind: "secret" },
+  {
+    section: "voice",
+    key: "styletts2_url",
+    label: "StyleTTS2 service",
+    kind: "text",
+    mono: true,
+    hint: "http://styletts2:8880 in Docker Compose",
+  },
   // Local model
   { section: "local_llm", key: "enabled", label: "Run a model here", kind: "switch" },
   {
@@ -1163,6 +1564,27 @@ export const FIELDS: FieldSpec[] = [
       hint: p.modelHint,
     },
     { section: "speech", key: `${p.id}_api_key`, label: `${p.label} API key`, kind: "secret" },
+  ]),
+  ...TRANSCRIBING_PROVIDERS.flatMap((p): FieldSpec[] => [
+    {
+      section: "speech",
+      key: `${p.id}_max_minutes`,
+      label: "Longest piece sent at once",
+      kind: "int",
+      min: 1,
+      max: 1440,
+      unit: "minutes",
+      hint: "A longer recording is cut at pauses and the transcripts joined",
+    },
+    {
+      section: "speech",
+      key: `${p.id}_max_mb`,
+      label: "Largest file sent at once",
+      kind: "int",
+      min: 1,
+      max: 10000,
+      unit: "MB",
+    },
   ]),
   {
     section: "speech",
@@ -1678,6 +2100,118 @@ export const FIELDS: FieldSpec[] = [
     max: 1440,
     unit: "minutes",
   },
+  // NFS share (opt-in)
+  {
+    section: "nfs",
+    key: "enabled",
+    label: "Share the file tree over NFS",
+    kind: "switch",
+    hint: "Read-only. Off: nothing listens",
+  },
+  {
+    section: "nfs",
+    key: "account",
+    label: "Show it as",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "The share shows what this person sees in the web app, and nothing else",
+  },
+  {
+    section: "nfs",
+    key: "allowed_networks",
+    label: "Networks it’s shared with",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. NFS has no login, so machines anywhere else are turned away",
+  },
+  { section: "nfs", key: "port", label: "Port inside Lens", kind: "int", min: 1, max: 65535 },
+  // Backups (docs/database.md#backups)
+  {
+    section: "backups",
+    key: "schedule",
+    label: "Back up on a schedule",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "Off",
+    hint: "Minute, hour, day of month, month, day of week: 30 2 * * 1-5 is 2:30 on weekdays. Empty: off",
+  },
+  {
+    section: "backups",
+    key: "timezone",
+    label: "Time zone",
+    kind: "text",
+    placeholder: "UTC",
+    hint: "For the schedule, like Europe/London",
+  },
+  {
+    section: "backups",
+    key: "connection",
+    label: "Also copy each backup to",
+    kind: "select",
+    nullable: true,
+    options: [],
+    hint: "Encrypted with this server’s secret key before it leaves the machine",
+  },
+  {
+    section: "backups",
+    key: "folder",
+    label: "Folder there",
+    kind: "text",
+    mono: true,
+    placeholder: "lens-backups",
+    hint: "For S3, the bucket and a path (my-bucket/lens-backups); for a folder on this machine, its full path",
+  },
+  {
+    section: "backups",
+    key: "keep",
+    label: "Scheduled backups kept",
+    kind: "int",
+    min: 1,
+    max: 365,
+    hint: "The oldest go when a new one is taken. Backups you take yourself stay until you delete them",
+  },
+  // SMB share (opt-in)
+  {
+    section: "smb",
+    key: "enabled",
+    label: "Share the file tree over SMB",
+    kind: "switch",
+    hint: "Read-only. Off: nothing listens",
+  },
+  {
+    section: "smb",
+    key: "allowed_networks",
+    label: "Networks it’s shared with",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24. Machines anywhere else are turned away before they sign in",
+  },
+  // File shares (opt-in)
+  {
+    section: "shares",
+    key: "enabled",
+    label: "Share the file tree",
+    kind: "switch",
+    hint: "Off: nothing listens. The API and the MCP tools read the tree either way",
+  },
+  {
+    section: "shares",
+    key: "s3",
+    label: "S3",
+    kind: "switch",
+    hint: "Read-only; each person signs in with their own access key",
+  },
+  { section: "shares", key: "s3_port", label: "S3 port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "shares",
+    key: "webdav",
+    label: "WebDAV",
+    kind: "switch",
+    hint: "Read-only; mount it as a drive in Finder, Windows Explorer or a file manager",
+  },
+  { section: "shares", key: "webdav_port", label: "WebDAV port", kind: "int", min: 1, max: 65535 },
   // Sensors (opt-in)
   {
     section: "sensors",
@@ -1968,6 +2502,16 @@ export const FIELDS: FieldSpec[] = [
   { section: "telemetry", key: "prometheus_token", label: "Scrape token", kind: "secret" },
   {
     section: "telemetry",
+    key: "grafana_url",
+    label: "Grafana address",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "http://localhost:3001",
+    hint: "Where Grafana shows Lens's charts; System health links to it. Empty: the one Charts and history runs, on this host at :3001",
+  },
+  {
+    section: "telemetry",
     key: "prices",
     label: "Model prices for cost estimates",
     kind: "lines",
@@ -1975,6 +2519,134 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "gpt-4o-mini 0.15 0.60",
     hint: "One model per line: its name, then the input and output price in dollars per million tokens. The AI assistant’s prices count for the configured model",
   },
+  // Logs
+  {
+    section: "logs",
+    key: "level",
+    label: "Level",
+    kind: "select",
+    options: [
+      { value: "debug", label: "Debug" },
+      { value: "info", label: "Info" },
+      { value: "warning", label: "Warning" },
+      { value: "error", label: "Error" },
+      { value: "critical", label: "Critical" },
+    ],
+    hint: "What is kept on the console (docker logs) and in the log files",
+  },
+  {
+    section: "logs",
+    key: "format",
+    label: "Console format",
+    kind: "select",
+    options: [
+      { value: "text", label: "Text" },
+      { value: "json", label: "JSON, one object per line" },
+    ],
+  },
+  {
+    section: "logs",
+    key: "levels",
+    label: "Logger levels",
+    kind: "lines",
+    mono: true,
+    placeholder: "httpx warning",
+    hint: "One logger per line with its own level, like httpx warning or lens.bridge debug",
+  },
+  {
+    section: "logs",
+    key: "file",
+    label: "Keep log files",
+    kind: "switch",
+    hint: "A file per process under data_dir/logs; the lines below come from these",
+  },
+  { section: "logs", key: "file_mb", label: "File size", kind: "int", min: 1, max: 100, unit: "MB" },
+  { section: "logs", key: "file_keep", label: "Files kept", kind: "int", min: 1, max: 10 },
+  {
+    section: "logs",
+    key: "syslog",
+    label: "Send to syslog",
+    kind: "switch",
+    hint: "Off by default; while off, nothing leaves this machine",
+  },
+  {
+    section: "logs",
+    key: "syslog_host",
+    label: "Host",
+    kind: "text",
+    nullable: true,
+    mono: true,
+    placeholder: "logs.home.lan",
+    hint: "The syslog server’s host name or IP address",
+  },
+  { section: "logs", key: "syslog_port", label: "Port", kind: "int", min: 1, max: 65535 },
+  {
+    section: "logs",
+    key: "syslog_transport",
+    label: "Transport",
+    kind: "select",
+    options: [
+      { value: "udp", label: "UDP" },
+      { value: "tcp", label: "TCP" },
+      { value: "tls", label: "TLS" },
+    ],
+  },
+  {
+    section: "logs",
+    key: "syslog_level",
+    label: "Syslog level",
+    kind: "select",
+    options: [
+      { value: "debug", label: "Debug" },
+      { value: "info", label: "Info" },
+      { value: "warning", label: "Warning" },
+      { value: "error", label: "Error" },
+      { value: "critical", label: "Critical" },
+    ],
+    hint: "Only lines at this level or above are sent",
+  },
+  {
+    section: "logs",
+    key: "syslog_facility",
+    label: "Facility",
+    kind: "select",
+    options: [
+      "user",
+      "daemon",
+      "auth",
+      "syslog",
+      "local0",
+      "local1",
+      "local2",
+      "local3",
+      "local4",
+      "local5",
+      "local6",
+      "local7",
+    ].map((v) => ({ value: v, label: v })),
+  },
+  {
+    section: "logs",
+    key: "syslog_format",
+    label: "Message format",
+    kind: "select",
+    options: [
+      { value: "text", label: "Text" },
+      { value: "json", label: "JSON record" },
+    ],
+  },
+  {
+    section: "logs",
+    key: "syslog_framing",
+    label: "TCP framing",
+    kind: "select",
+    options: [
+      { value: "octet", label: "Octet counting (RFC 6587)" },
+      { value: "newline", label: "One line per newline" },
+    ],
+  },
+  { section: "logs", key: "syslog_verify", label: "Verify the certificate", kind: "switch", hint: "For TLS" },
+  { section: "logs", key: "syslog_app_name", label: "App name", kind: "text", mono: true },
   {
     section: "tokens",
     key: "oauth_enabled",
@@ -2154,6 +2826,30 @@ export const FIELDS: FieldSpec[] = [
     hint: "Another machine running anytopdf queue serve: it converts instead, Office files too",
   },
   { section: "documents", key: "anytopdf_token", label: "Conversion node token", kind: "secret" },
+  {
+    section: "documents",
+    key: "tika_url",
+    label: "Tika server",
+    kind: "text",
+    mono: true,
+    nullable: true,
+    placeholder: "http://tika:9998",
+    hint: "Apache Tika, such as the compose files’ tika profile: off while empty. Every document is sent to it",
+  },
+  {
+    section: "documents",
+    key: "tika_text",
+    label: "Read with Tika what nothing else here can",
+    kind: "switch",
+    hint: "Office files on a lean server, say: their text, without pages to look at",
+  },
+  {
+    section: "documents",
+    key: "tika_metadata",
+    label: "Read what each document says about itself with Tika",
+    kind: "switch",
+    hint: "Its title, authors, language and dates, as Dublin Core",
+  },
   // IIIF & metadata
   {
     section: "iiif",
@@ -2261,6 +2957,7 @@ export function toUi(f: FieldSpec, v: unknown): unknown {
       return Array.isArray(v) ? v.map(String) : [];
     case "lines":
       if (f.section === "telemetry" && f.key === "prices") return pricesToLines(v);
+      if (f.section === "logs" && f.key === "levels") return levelsToLines(v);
       return Array.isArray(v) ? v.join("\n") : "";
     case "days":
       return typeof v === "number" ? String(Math.round((v / 24) * 100) / 100) : "";
@@ -2300,6 +2997,34 @@ export function linesToPrices(text: string): Parsed {
   return { value: out };
 }
 
+export const LOG_LEVELS = ["debug", "info", "warning", "error", "critical"];
+
+/** logs.levels as lines: "logger level". */
+export function levelsToLines(v: unknown): string {
+  if (!v || typeof v !== "object") return "";
+  return Object.entries(v as Record<string, string>)
+    .map(([name, level]) => `${name} ${level}`)
+    .join("\n");
+}
+
+/** Lines of "logger level" back to logs.levels. */
+export function linesToLevels(text: string): Parsed {
+  const out: Record<string, string> = {};
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    const [name, level, ...rest] = lines[i].split(/\s+/);
+    if (rest.length || !/^[A-Za-z0-9_.-]{1,100}$/.test(name) || !LOG_LEVELS.includes((level ?? "").toLowerCase()))
+      return {
+        error: `Line ${i + 1}: write the logger, then its level (${LOG_LEVELS.join(", ")}), like httpx warning`,
+      };
+    out[name] = level.toLowerCase();
+  }
+  return { value: out };
+}
+
 /** Parses a control's value back to what the backend stores, checking it like the backend does. */
 export function parse(f: FieldSpec, ui: unknown): Parsed {
   switch (f.kind) {
@@ -2311,6 +3036,7 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
       return { value: ui as string[] };
     case "lines":
       if (f.section === "telemetry" && f.key === "prices") return linesToPrices(String(ui ?? ""));
+      if (f.section === "logs" && f.key === "levels") return linesToLevels(String(ui ?? ""));
       return {
         value: String(ui ?? "")
           .split("\n")
@@ -2337,7 +3063,8 @@ export function parse(f: FieldSpec, ui: unknown): Parsed {
     }
     case "select":
       if (f.key === "frame_width") return { value: Number(ui) };
-      if (f.section === "files" && f.key === "connection")
+      if (f.section === "nfs" && f.key === "account") return { value: ui === "" || ui == null ? null : Number(ui) };
+      if ((f.section === "files" || f.section === "backups") && f.key === "connection")
         return { value: ui === "" || ui == null ? null : Number(ui) };
       return { value: ui === "" && f.nullable ? null : ui };
     default: {
@@ -2430,6 +3157,14 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const nets = values["notifications.networks"] as string[] | undefined;
   const badNet = nets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badNet) e["notifications.networks"] = `“${badNet}” isn’t a network like 192.168.1.0/24`;
+  const nNets = values["nfs.allowed_networks"] as string[] | undefined;
+  const badNNet = nNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badNNet) e["nfs.allowed_networks"] = `“${badNNet}” isn’t a network like 192.168.1.0/24`;
+  else if (nNets && nNets.length === 0) e["nfs.allowed_networks"] = "List at least one network";
+  const mNets = values["smb.allowed_networks"] as string[] | undefined;
+  const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;
+  else if (mNets && mNets.length === 0) e["smb.allowed_networks"] = "List at least one network";
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;
@@ -2445,6 +3180,14 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["telemetry.endpoint"] = "Use the collector’s base address, without /v1/traces or /v1/metrics";
   else if (values["telemetry.enabled"] === true && "telemetry.endpoint" in values && !otlp)
     e["telemetry.endpoint"] = "Set the collector’s address to send telemetry to";
+  const slHost = values["logs.syslog_host"] as string | null | undefined;
+  if (
+    slHost &&
+    (!/^[A-Za-z0-9.:_[\]-]{1,253}$/.test(slHost) || (/:/.test(slHost) && !/^\[?[0-9a-f:.]+\]?$/i.test(slHost)))
+  )
+    e["logs.syslog_host"] = "Enter a host name or IP address, without a port";
+  else if (values["logs.syslog"] === true && "logs.syslog_host" in values && !slHost)
+    e["logs.syslog_host"] = "Set the syslog server’s address to send logs to";
   const rights = values["iiif.rights"] as string | null | undefined;
   if (rights && !RIGHTS_RX.test(rights))
     e["iiif.rights"] = "Pick a Creative Commons licence or a RightsStatements.org statement";
@@ -2484,6 +3227,10 @@ export function show(f: FieldSpec, v: unknown): string {
   if (f.section === "telemetry" && f.key === "prices") {
     const n = Object.keys((v as Prices) ?? {}).length;
     return n ? `${n} model${n === 1 ? "" : "s"}` : "none";
+  }
+  if (f.section === "logs" && f.key === "levels") {
+    const n = Object.keys((v as Record<string, string>) ?? {}).length;
+    return n ? `${n} logger${n === 1 ? "" : "s"}` : "none";
   }
   if (Array.isArray(v)) {
     if (f.kind === "checks" && f.section === "ai") return `${v.length} off`;
@@ -2546,6 +3293,12 @@ export function why(c: Change): string | null {
       : "Scrapers must send the new token; stored encrypted.";
   if (id === "telemetry.headers")
     return c.after === "" ? "The headers are removed." : "Sent with every export; stored encrypted.";
+  if (id === "logs.syslog")
+    return c.after
+      ? "The server and its workers start sending their log lines to the syslog server within a few seconds."
+      : "Nothing more is sent; what was sent stays on the syslog server.";
+  if (id === "logs.level" || id === "logs.levels")
+    return "The server and its workers follow within a few seconds, without a restart.";
   if (id === "llm.api_key")
     return c.after === ""
       ? "The key is removed; LLM steps and chat stop until a new one is set."

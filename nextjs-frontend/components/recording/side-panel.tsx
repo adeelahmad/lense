@@ -15,6 +15,7 @@ import { HighlightsTab } from "@/components/recording/highlights-tab";
 import { useComments, useNotes } from "@/components/recording/hooks";
 import { IiifTab, MetadataTab } from "@/components/recording/iiif-tab";
 import { NotesTab } from "@/components/recording/notes-tab";
+import { SimilarTab } from "@/components/recording/similar-tab";
 import { SpeakersTab } from "@/components/recording/speakers-tab";
 import { SummaryTab } from "@/components/recording/summary-tab";
 import { fitTabs } from "@/components/recording/tab-fit";
@@ -33,6 +34,7 @@ export const AUDIO_TABS: TabDef[] = [
   { value: "summary", label: "Summary" },
   { value: "speakers", label: "Speakers" },
   { value: "entities", label: "Entities" },
+  { value: "similar", label: "Similar" },
   { value: "chat", label: "Chat" },
   { value: "notes", label: "Notes" },
   { value: "comments", label: "Comments" },
@@ -264,6 +266,8 @@ export function PanelBody({ tab }: { tab: PanelTab }) {
       return <DetailsTab />;
     case "files":
       return <FilesTab />;
+    case "similar":
+      return <SimilarTab />;
     default:
       return null;
   }
@@ -297,7 +301,7 @@ export function PanelScroll({
   );
 }
 
-/** Desktop side panel (488px): Summary · Speakers · Entities · Chat · Notes · Comments · History, and More (…). */
+/** Desktop side panel (488px): Summary · Speakers · Entities · Similar · Chat · Notes · Comments · History, and More (…). */
 export function SidePanel() {
   const { tab, setTab } = useRec();
   const tabs = useAudioTabs();

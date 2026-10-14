@@ -1,0 +1,27 @@
+{
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "name": "desktop",
+  "projectType": "application",
+  "tags": ["lang:rust", "lang:shell"],
+  "targets": {
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}/resources",
+        "commands": [
+          "sh -n lens-app.sh && sh -n check-lens-app.sh",
+          "test -x lens-app.sh",
+          "uvx --from shellcheck-py shellcheck -s sh lens-app.sh check-lens-app.sh"
+        ],
+        "parallel": false
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{projectRoot}/resources",
+        "command": "sh check-lens-app.sh"
+      }
+    }
+  }
+}
