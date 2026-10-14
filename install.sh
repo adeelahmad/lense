@@ -352,9 +352,9 @@ HTTPS_PORT="${HTTPS_PORT:-443}"
 HTTP_PORT="${HTTP_PORT:-80}"
 
 # --- Secrets, once: changing them later would sign everyone out and make stored credentials unreadable ------------
-setenv() { # key value: replace the line, or add it
+setenv() { # key value: replace the line, or add it (only this user can read the copy that replaces it)
   if grep -q "^$1=" .env; then
-    sed "s|^$1=.*|$1=$2|" .env >.env.tmp && mv .env.tmp .env
+    (umask 077 && sed "s|^$1=.*|$1=$2|" .env >.env.tmp) && mv .env.tmp .env
   else
     printf '%s=%s\n' "$1" "$2" >>.env
   fi
@@ -369,6 +369,7 @@ if [ ! -f .env ]; then
   setenv AUTH_SECRET "$(secret)"
   setenv SURREAL_PASS "$(secret)"
 fi
+chmod 600 .env # the secrets are this user's alone, also where an earlier update left them readable to others
 grep -q '^LENS_SETUP_CODE=' .env || setenv LENS_SETUP_CODE "$(code)" # only used until the first admin exists
 setenv LENS_BACKEND "$BACKEND"
 setenv LENS_TARGET "$TARGET"
