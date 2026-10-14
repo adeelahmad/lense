@@ -33,8 +33,9 @@ Docker Hub, which need no sign-in; Docker Hub itself last). Inside it,
 [`microsandbox/run.sh`](https://github.com/adeelahmad/lense/blob/main/microsandbox/run.sh) does what the Docker images
 do:
 
-1. Installs the system packages, the same ones as the backend image (`LENS_TARGET=lean` leaves out LibreOffice and
-   Chromium).
+1. Waits until the names it downloads from resolve (see [Name lookups](#name-lookups)), then installs the system
+   packages, the same ones as the backend image except LibreOffice and Chromium, which the full edition installs the
+   first time Lens needs one (see [LibreOffice and Chromium](#libreoffice-and-chromium)).
 2. Fetches SurrealDB 3.2.4, rclone, Node 22 and uv.
 3. Builds the backend and the web app from the code, read-only at `/lens`. It builds again only when the code
    changes.
@@ -46,12 +47,50 @@ the sandbox. A sandbox that is started again boots without running Lens, so Lens
 which takes several minutes (longer on a Raspberry Pi). Later starts install the packages from the volume and reuse the
 build, so they take a minute or two.
 
+The database opens only with the keys in the `.env` of the install that made it, and the volume outlives the install
+folder. So a first install (one with no `.env` yet) that finds `lens-data` holding an earlier install's database, say
+after `~/lens` was deleted, leaves it as it is and starts on a volume of its own: `lens-data-2`, or the next free name.
+`.env` keeps that name (`LENS_VOLUME`), so running the line again uses the same one. Put the earlier `.env` back in the
+folder to use the earlier data again, or remove it with `msb volume rm lens-data`.
+
 The sandbox can reach the internet, your network (mail servers, model servers) and this machine. On this machine,
 Ollama or LM Studio are at `host.docker.internal`, the same address as with Docker. Only the web app's port and the
 sensor ports are published, on the same addresses Docker would use (`LENS_BIND`, `LENS_SENSOR_BIND`).
 
 On Linux with systemd, the installer adds a `lens-microsandbox` service that runs `.lens-sandbox` when the machine
 starts. On a Mac, it adds a LaunchAgent that runs it at sign-in.
+
+### Name lookups
+
+microsandbox answers the sandbox's name lookups itself, from this machine's resolvers. When those don't answer inside
+the sandbox (the first build once stopped with uv's `dns error ... No address associated with hostname`), the steps
+that download would fail, so the sandbox:
+
+- waits for `deb.debian.org`, `files.pythonhosted.org` and `registry.npmjs.org` to resolve before it downloads;
+- after about 15 seconds without an answer, looks names up with public resolvers instead (Cloudflare's 1.1.1.1 and
+  Quad9's 9.9.9.9), and says so in its log;
+- runs each download step (the system packages, the backend's and the web app's packages) up to three times, with
+  fewer downloads at once after a failure;
+- when Lens starts, goes back to this machine's resolvers if they answer by then, so names on your own network
+  resolve. Otherwise it keeps the public ones until the sandbox is replaced, and logs that.
+
+If nothing answers within a minute or two, it stops with the name that didn't resolve and why. To use other public
+resolvers, or none, set `LENS_DNS_FALLBACK` on the install line (`... | LENS_DNS_FALLBACK=8.8.8.8,8.8.4.4 sh`, or
+`LENS_DNS_FALLBACK= sh` for none); it is kept in `.env` for later runs.
+
+### LibreOffice and Chromium
+
+LibreOffice (Word, PowerPoint and spreadsheet files) and Chromium (web pages, and text, Markdown and emails printed to
+PDF) are the heavy part of the full edition, so a sandbox starts without them. The first document or web page that
+needs one waits while the sandbox installs it (a few minutes the first time; its job's log says
+`installing LibreOffice, the first time it's needed`), then Lens reads it as usual. From then on each start installs it
+again in the background, from the packages kept in `lens-data`. Uploads and imports are accepted before it's there,
+and Settings → Components says it's installed the first time it's needed. PDFs, images and links to PDFs need neither.
+
+Lens runs as an ordinary user in the sandbox, so it asks for a program by name and the start script, which runs as
+root, installs it: only these two, each a fixed list of Debian packages
+([`microsandbox/programs.sh`](https://github.com/adeelahmad/lense/blob/main/microsandbox/programs.sh)). An install
+from before keeps the ones it already had. A lean install (`LENS_TARGET=lean`) never installs them.
 
 ## Day to day
 
@@ -61,7 +100,12 @@ msb stop lens         # stop it; ~/lens/.lens-sandbox starts it again
 msb exec lens -- sh   # a shell inside it
 ```
 
-To update, run the install line again.
+To update, run the install line again. It stops the running sandbox first (giving the database up to a minute to
+close cleanly) and waits for its port to be free, then starts Lens in a new one. While it waits for the web app, it
+shows the steps the sandbox logs (installing packages, building, starting the database). If the sandbox stops, a step
+fails, a part of Lens keeps stopping (run.sh starts it again three times), or the web app doesn't answer within 30
+minutes (`LENS_WAIT`, in seconds), it stops waiting and shows the last lines the sandbox logged and why, for example a
+port that another program holds. The web installer shows those lines under the reason.
 
 ## Not yet
 

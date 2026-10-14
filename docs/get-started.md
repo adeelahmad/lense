@@ -13,8 +13,9 @@ gets Lens into `~/lens`, writes the secrets once, builds and starts the stack, a
 code already filled in. On a server without a desktop, Lens is reachable from the network and the link uses the
 server's address. Run the same line again to update: the secrets, the database and the archive are kept. Settings go
 before `sh`: `LENS_DIR`, `LENS_PORT`, `LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET`
-(`lean` for the smaller image) and `LENS_REF` (a branch or tag) change the defaults; the top of `install.sh` lists
-them.
+(`lean` for the smaller image, kept when the line runs again) and `LENS_REF` (a branch or tag) change the defaults;
+the top of `install.sh` lists them. If Lens doesn't answer in time (`LENS_WAIT`, in seconds: 10 minutes with Docker,
+30 in a microsandbox), the installer stops waiting and shows the last lines Lens logged and why.
 
 Where it can (Linux with KVM, or a Mac with Apple silicon), a first install asks whether to run Lens in Docker (the
 default) or in a [microsandbox](microsandbox.md) microVM, which needs no Docker; `LENS_BACKEND=microsandbox` chooses
@@ -43,8 +44,9 @@ above opens an installer in your browser instead of asking anything in the termi
 4. **Review**, then **Install**: **More options** under the review holds what's optional, each with its default: the
    first namespace, search by meaning (an embeddings server), the typesafe.ai decision model's key, cloud
    transcription and its key, email (SMTP), remote access through a Cloudflare tunnel, anytopdf, and telemetry.
-   **Install** runs `install.sh` with those answers and shows its progress (and the full output under **Details**). If
-   something fails, it says what, and **Try again** runs it again (what's done stays done).
+   **Install** runs `install.sh` with those answers and shows its progress, in a microsandbox step by step as the
+   sandbox installs and builds (and the full output under **Details**). If something fails, it says what, with the
+   last lines Lens logged when Lens itself didn't start, and **Try again** runs it again (what's done stays done).
 5. **Open Lens** goes to the setup page with the setup code filled in, where you create the admin account with a
    passkey.
 
@@ -71,6 +73,19 @@ Each release carries launchers that do the same without a terminal; download the
 They open the web installer in the browser; if something stops them before it opens (no internet, no Python), they
 say so in a window. On a Mac without Apple's Command Line Tools (which bring Python), it asks macOS to install them
 first, then you open it again.
+
+### The Mac app
+
+On a Mac with Apple silicon, **Lens.app** (`Lens-macOS-arm64.dmg` in each release) installs Lens, starts it and keeps
+it in the menu bar. It carries [microsandbox](microsandbox.md), so Lens runs without Docker. The first time it opens,
+it shows the web installer in its window (microsandbox is already chosen); after that it starts Lens if it isn't
+running and opens it in the browser, where passkeys work. Its menu-bar item opens, starts, stops and updates Lens,
+and shows the logs. It isn't signed or notarized yet: drag it to Applications, right-click it and choose **Open**, then
+**Open** again. See [desktop/README.md](https://github.com/adeelahmad/lense/blob/main/desktop/README.md).
+
+Once the repository has an update key, it updates itself from each release.
+
+**Status: built, early.** Not yet: starting with the Mac, signing, an Intel build.
 
 ### Windows
 

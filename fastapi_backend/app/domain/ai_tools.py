@@ -349,11 +349,26 @@ def read_before(history, summary=None):
 
 class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
-    makes their changes at once instead of asking for approval. `browser`: the person's connected side panel
-    (browser.py), whose browser the assistant can then use."""
+    makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
+    channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
+    then use."""
 
     def __init__(
-        self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said="", outside=(), browser=None
+        self,
+        db,
+        cfg,
+        user,
+        readable,
+        editable,
+        scope,
+        chat_id,
+        base=None,
+        admin=False,
+        act=False,
+        said="",
+        outside=(),
+        browser=None,
+        act_on=(),
     ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
@@ -361,7 +376,7 @@ class Toolbox(ops_tools.OpsTools):
         # ask first, even where they'd act at once (wary)
         self.outside = list(dict.fromkeys(outside))
         self.links = set()  # web addresses the tools gave back, as written (untrusted.defang)
-        self.base, self.admin, self.act = base or cfg, admin, act
+        self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
         names = store.space_names(db)

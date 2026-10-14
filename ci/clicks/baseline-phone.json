@@ -1,5 +1,5 @@
 {
-  "surveyed": "2026-10-11T02:26:04.077Z",
+  "surveyed": "2026-10-11T01:55:01.175Z",
   "commit": "",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 1649,
+      "ms": 2184,
       "ok": true
     },
     {
@@ -85,7 +85,7 @@
         }
       ],
       "id": "first-admin",
-      "ms": 493,
+      "ms": 518,
       "ok": true
     },
     {
@@ -132,7 +132,7 @@
         }
       ],
       "id": "setup-wizard",
-      "ms": 1157,
+      "ms": 1195,
       "ok": true
     },
     {
@@ -162,7 +162,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1122,
+      "ms": 1114,
       "ok": true
     },
     {
@@ -225,7 +225,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4754,
+      "ms": 4748,
       "ok": true
     },
     {
@@ -263,7 +263,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3052,
+      "ms": 3045,
       "ok": true
     },
     {
@@ -309,7 +309,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3697,
+      "ms": 3671,
       "ok": true
     },
     {
@@ -347,7 +347,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2429,
+      "ms": 2422,
       "ok": true
     },
     {
@@ -401,7 +401,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6167,
+      "ms": 6251,
       "ok": true
     },
     {
@@ -463,7 +463,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3465,
+      "ms": 3556,
       "ok": true
     },
     {
@@ -517,7 +517,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3670,
+      "ms": 3699,
       "ok": true
     },
     {
@@ -563,7 +563,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 2971,
+      "ms": 2993,
       "ok": true
     },
     {
@@ -609,7 +609,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 2968,
+      "ms": 2982,
       "ok": true
     },
     {
@@ -656,7 +656,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 8364,
+      "ms": 8345,
       "ok": true
     },
     {
@@ -702,7 +702,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3107,
+      "ms": 3098,
       "ok": true
     },
     {
@@ -758,7 +758,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 9295,
+      "ms": 9321,
       "ok": true
     },
     {
@@ -828,7 +828,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3705,
+      "ms": 3764,
       "ok": true
     },
     {
@@ -874,7 +874,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3375,
+      "ms": 3435,
       "ok": true
     },
     {
@@ -887,25 +887,41 @@
       "swipes": 0,
       "steps": [],
       "id": "namespace-switch",
-      "ms": 7203,
+      "ms": 7184,
       "ok": false,
       "error": "the namespace switcher isn't on the screen on a phone"
     },
     {
       "module": "Agents",
       "feature": "Connect an AI assistant (Claude, ChatGPT, Cursor) over MCP",
-      "note": "In the assistant: add a connector and give it Lens's MCP address; the assistant opens Lens's consent page, where the person allows it. After setup Lens shows the MCP address nowhere, so it is typed (counted as typed).",
-      "clicks": 3,
-      "keys": 25,
+      "note": "Copy MCP address in the account menu; in the assistant: add a connector and paste the address; the assistant opens Lens's consent page, where the person allows it.",
+      "clicks": 5,
+      "keys": 1,
       "prompts": 0,
       "swipes": 0,
       "steps": [
         {
           "page": "/",
+          "kind": "tap",
+          "what": "Account menu",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
+          "kind": "tap",
+          "what": "Copy MCP address",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/",
           "kind": "outside",
-          "what": "in the assistant: add a connector, type Lens's MCP address, add it",
+          "what": "in the assistant: add a connector, paste Lens's MCP address, add it",
           "clicks": 2,
-          "keys": 25,
+          "keys": 1,
           "prompts": 0
         },
         {
@@ -918,7 +934,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 2652,
+      "ms": 3259,
       "ok": true
     },
     {
@@ -972,14 +988,14 @@
         }
       ],
       "id": "import-file",
-      "ms": 4088,
+      "ms": 4123,
       "ok": true
     },
     {
       "module": "Sensors",
       "feature": "Watch a folder on this machine for new files",
       "note": "Needs rclone, as the Lens image has (CI copies the image's version); the folders offered are the allowed ones set at startup.",
-      "clicks": 5,
+      "clicks": 10,
       "keys": 0,
       "prompts": 0,
       "swipes": 1,
@@ -1003,7 +1019,7 @@
         {
           "page": "/sensors",
           "kind": "tap",
-          "what": "Watch a local folder",
+          "what": "Files, email and calendars tab",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -1011,7 +1027,47 @@
         {
           "page": "/sources",
           "kind": "tap",
-          "what": "Watch, on the allowed folder",
+          "what": "Add connection",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "This machine",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "Test connection",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "Done (the test passed)",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "the allowed folder",
+          "clicks": 1,
+          "keys": 0,
+          "prompts": 0
+        },
+        {
+          "page": "/sources",
+          "kind": "tap",
+          "what": "Watch this folder",
           "clicks": 1,
           "keys": 0,
           "prompts": 0
@@ -1027,7 +1083,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 4339,
+      "ms": 5586,
       "ok": true
     },
     {
@@ -1073,7 +1129,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 11870,
+      "ms": 11897,
       "ok": true
     },
     {
@@ -1135,7 +1191,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4995,
+      "ms": 5005,
       "ok": true
     },
     {
@@ -1198,7 +1254,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 9229,
+      "ms": 9255,
       "ok": true
     },
     {
@@ -1252,7 +1308,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 3902,
+      "ms": 4039,
       "ok": true
     },
     {
@@ -1314,7 +1370,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3607,
+      "ms": 3669,
       "ok": true
     },
     {
@@ -1377,7 +1433,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3584,
+      "ms": 3614,
       "ok": true
     },
     {
@@ -1439,7 +1495,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3374,
+      "ms": 3416,
       "ok": true
     },
     {
@@ -1501,7 +1557,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4276,
+      "ms": 4235,
       "ok": true
     },
     {
@@ -1564,7 +1620,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 8743,
+      "ms": 9453,
       "ok": true
     }
   ],
@@ -1693,7 +1749,7 @@
       "page": "/sensors",
       "label": "Sensors",
       "reach": 2,
-      "controls": 9
+      "controls": 8
     },
     {
       "page": "/sources",

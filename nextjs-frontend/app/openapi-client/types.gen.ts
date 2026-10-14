@@ -7722,6 +7722,100 @@ export type MailTestResult = {
 };
 
 /**
+ * MailboxPerson
+ */
+export type MailboxPerson = {
+  /**
+   * Id
+   *
+   * their email address, for mailbox.users
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Allowed
+   *
+   * in mailbox.users: Lens answers their mail
+   */
+  allowed: boolean;
+  /**
+   * Vouched
+   *
+   * how their last message was known to be theirs (DMARC, DKIM, SPF, or From with mailbox.check off); none: it wasn't
+   */
+  vouched?: string | null;
+  /**
+   * Waiting
+   *
+   * their messages held, answered once they're let in
+   */
+  waiting?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * MailboxStatus
+ */
+export type MailboxStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at the mailbox failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process reading the mailbox
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last looked
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Address
+   *
+   * the assistant's address
+   */
+  address?: string | null;
+  /**
+   * Imap
+   *
+   * the server it reads mail from (host:port and security), set or guessed
+   */
+  imap?: string | null;
+  /**
+   * Smtp
+   *
+   * the server it sends from (host:port and security), set or guessed
+   */
+  smtp?: string | null;
+  /**
+   * People
+   *
+   * who has written to it, latest first
+   */
+  people?: Array<MailboxPerson>;
+  [key: string]: unknown;
+};
+
+/**
  * ManifestCheck
  */
 export type ManifestCheck = {
@@ -15672,6 +15766,65 @@ export type SimilarTopic = {
 };
 
 /**
+ * SlackStatus
+ */
+export type SlackStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has connected yet); running; error (the connection or the last message failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process connected to Slack
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last heard from Slack
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Team
+   *
+   * the Slack workspace it's connected to
+   */
+  team?: string | null;
+  /**
+   * Bot
+   *
+   * the app's bot user
+   */
+  bot?: string | null;
+  /**
+   * Command
+   *
+   * the slash command, such as /lens
+   */
+  command: string;
+  /**
+   * Create Url
+   *
+   * where the Slack app is created from its manifest, in one click
+   */
+  create_url: string;
+  [key: string]: unknown;
+};
+
+/**
  * SmbStatus
  */
 export type SmbStatus = {
@@ -16651,6 +16804,99 @@ export type TagsChanged = {
    * how many recordings' tags changed
    */
   changed: number;
+  [key: string]: unknown;
+};
+
+/**
+ * TelegramChat
+ */
+export type TelegramChat = {
+  /**
+   * Id
+   *
+   * the chat's id, for telegram.rooms (like -1001234567890 = pods)
+   */
+  id: string;
+  /**
+   * Title
+   */
+  title: string;
+  [key: string]: unknown;
+};
+
+/**
+ * TelegramPerson
+ */
+export type TelegramPerson = {
+  /**
+   * Id
+   *
+   * their Telegram user id, for telegram.users
+   */
+  id: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Allowed
+   *
+   * in telegram.users: Lens talks to them
+   */
+  allowed: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * TelegramStatus
+ */
+export type TelegramStatus = {
+  /**
+   * State
+   *
+   * off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Telegram failed, `error` says why)
+   */
+  state: "off" | "incomplete" | "starting" | "running" | "error";
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Holder
+   *
+   * the server process reading the bot's messages
+   */
+  holder?: string | null;
+  /**
+   * At
+   *
+   * when it last looked
+   */
+  at?: string | null;
+  /**
+   * Answered
+   *
+   * messages it answered
+   */
+  answered?: number | null;
+  /**
+   * Bot
+   *
+   * the bot's username, once Lens has asked Telegram
+   */
+  bot?: string | null;
+  /**
+   * Chats
+   *
+   * the chats it has seen, latest first
+   */
+  chats?: Array<TelegramChat>;
+  /**
+   * People
+   *
+   * who has written to it, latest first
+   */
+  people?: Array<TelegramPerson>;
   [key: string]: unknown;
 };
 
@@ -20734,6 +20980,102 @@ export type TestBridgeResponses = {
 };
 
 export type TestBridgeResponse = TestBridgeResponses[keyof TestBridgeResponses];
+
+export type TelegramStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/telegram";
+};
+
+export type TelegramStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: TelegramStatus;
+};
+
+export type TelegramStatusResponse = TelegramStatusResponses[keyof TelegramStatusResponses];
+
+export type TestTelegramData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/telegram/test";
+};
+
+export type TestTelegramResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestTelegramResponse = TestTelegramResponses[keyof TestTelegramResponses];
+
+export type SlackStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/slack";
+};
+
+export type SlackStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: SlackStatus;
+};
+
+export type SlackStatusResponse = SlackStatusResponses[keyof SlackStatusResponses];
+
+export type TestSlackData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/slack/test";
+};
+
+export type TestSlackResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestSlackResponse = TestSlackResponses[keyof TestSlackResponses];
+
+export type MailboxStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/mailbox";
+};
+
+export type MailboxStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: MailboxStatus;
+};
+
+export type MailboxStatusResponse = MailboxStatusResponses[keyof MailboxStatusResponses];
+
+export type TestMailboxData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/mailbox/test";
+};
+
+export type TestMailboxResponses = {
+  /**
+   * Successful Response
+   */
+  200: BridgeTestResult;
+};
+
+export type TestMailboxResponse = TestMailboxResponses[keyof TestMailboxResponses];
 
 export type TestConversionNodeData = {
   body?: never;

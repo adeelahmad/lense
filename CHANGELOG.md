@@ -8,6 +8,49 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   folders, and each has a **Watch** button, so it no longer has to be opened first. Adding **This machine** as a
   connection skips the test-and-name step unless its test fails ([Sensors](docs/sensors.md#in-the-web-app)).
 
+## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
+
+- **The installer stops waiting when Lens can't start, and shows why.** A microsandbox install that couldn't start Lens
+  waited 30 minutes at "Waiting for the web app..." and then named only a command to run. It now lists the sandbox's own
+  steps as they happen, and stops as soon as a step fails, the sandbox stops or a part of Lens keeps stopping, with the
+  last lines Lens logged; the web installer shows them under the reason. Running the line again stops the running
+  sandbox first and waits for its port ([microsandbox](docs/microsandbox.md#day-to-day)).
+
+- **A microsandbox install after the install folder was deleted comes up.** The data volume (`lens-data`) outlives
+  `~/lens`, but its database opens only with the keys in that folder's `.env`. A first install made new keys, mounted
+  the earlier volume anyway, and waited 30 minutes for a web app whose API couldn't open the database. It now leaves
+  that volume as it is and starts on one of its own (`lens-data-2`, kept in `.env` as `LENS_VOLUME`); put the earlier
+  `.env` back to use the earlier data, or remove it with `msb volume rm lens-data`
+  ([microsandbox](docs/microsandbox.md#how-it-runs)).
+
+## 0.8.0 <small>October 11, 2026</small> {id="0.8.0"}
+
+- **A microsandbox's full edition installs LibreOffice and Chromium the first time they're needed.** They were
+  installed at every start, so a first start downloaded them before it built Lens, whether or not anything used them.
+  A sandbox now starts without them; the first Office file, email or web page that needs one waits while it's
+  installed, and later starts install it again in the background from the packages kept in the volume. An install that
+  already had them keeps them ([microsandbox](docs/microsandbox.md#libreoffice-and-chromium)).
+- **A microsandbox install gets past name lookups that fail.** The first build in a microsandbox could stop at the
+  backend's packages with `dns error ... No address associated with hostname` when this machine's resolvers didn't
+  answer inside the sandbox. The sandbox now waits for the names it downloads from, looks them up with public
+  resolvers (1.1.1.1 and 9.9.9.9; `LENS_DNS_FALLBACK` changes or turns that off) when this machine's don't answer
+  there, and runs each download step up to three times ([microsandbox](docs/microsandbox.md#name-lookups)).
+- **Running the install line again keeps the lean edition.** An install made lean (`LENS_TARGET=lean`, or the web
+  installer's pick on a computer with less than 4 GB of memory) became full again when the line ran without
+  `LENS_TARGET`, so the next start installed LibreOffice and Chromium. It now keeps the edition the install has, as it
+  does the port and the network setting ([Get started](docs/get-started.md)).
+
+- **A Mac app.** Lens.app (`Lens-macOS-arm64.dmg`, Apple silicon) installs Lens in the web installer shown in its
+  window, with microsandbox inside it so no Docker is needed, then lives in the menu bar: open, start, stop and update
+  Lens, and show its logs. Lens itself opens in the browser, where passkeys work
+  ([Get started](docs/get-started.md#the-mac-app)). It updates itself from each release, checking the update's
+  signature, once the repository has an update key ([desktop/README.md](desktop/README.md#updates)).
+
+- **Slack, built in.** Settings › Slack creates a Slack app from Lens's manifest in one click; paste its two tokens
+  and the assistant answers direct messages, what's said to it in channels and `/lens …`, over Socket Mode: no
+  Matterbridge, no public address. Voice clips are heard, files are held for the assistant to import, and everything
+  Matterbridge rooms do works there ([Chat rooms](docs/chat-rooms.md#slack-built-in)).
+
 - **The file tree over NFS.** Settings → NFS share serves the archive's folders and files (namespaces, collections,
   topics and entities as folders, assets as files) read-only over NFS, to the networks you allow, showing what one
   chosen account sees. Off until turned on; published on port 12049 of the host ([File shares](docs/file-shares.md)).
@@ -59,6 +102,50 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   conversation, only on sites you allow, asking before anything that sends, deletes, buys or posts, never typing
   passwords or card numbers, and showing each action as it happens. Once it has read a page, opening an address or
   typing text you didn't write asks you first too ([The assistant in your browser](docs/browser-assistant.md)).
+
+- **Telegram, built in.** Paste a bot token from @BotFather in Settings › Telegram and the assistant answers there:
+  no Matterbridge, no public address. It talks only to people you let in (one click on the settings page), hears
+  voice notes, takes files for the assistant to import, and does everything it does in Matterbridge rooms
+  ([Chat rooms](docs/chat-rooms.md#telegram-built-in)). Chat apps now share one channel layer, so the next one is an
+  adapter.
+
+- **The assistant by email.** Give it an address of its own in Settings › Assistant email (the address and an app
+  password; the servers are guessed) and the people you let in can email or forward things to it: it answers by
+  email in the same thread, lists the excerpts it cites with links, and imports what's attached, a forwarded email
+  whole. It answers only mail their provider vouched for (DMARC, DKIM or SPF), never automatic mail, and holds a
+  stranger's mail until you let them in. `lens+pods@…` or a routing rule sends mail to a namespace's assistant
+  ([The assistant by email](docs/assistant-email.md)).
+
+### Features
+
+- **assistant:** mark third-party text as data in the model's prompts ([#302](https://github.com/adeelahmad/lense/pull/302))
+- **backups:** restore, download, any schedule and copies to an rclone connection from the web app ([#263](https://github.com/adeelahmad/lense/pull/263))
+- **assistant:** let the assistant use a browser connected through the Lens side panel ([#311](https://github.com/adeelahmad/lense/pull/311))
+- **clipper:** build the web clipper for Firefox ([#282](https://github.com/adeelahmad/lense/pull/282))
+- **assistant:** ask before sending data out once an answer read third-party text ([#309](https://github.com/adeelahmad/lense/pull/309))
+- **monitoring:** Prometheus, node-exporter and Grafana as an opt-in compose profile ([#297](https://github.com/adeelahmad/lense/pull/297))
+- **install:** install with the defaults in one click; the API token form opens itself ([#331](https://github.com/adeelahmad/lense/pull/331))
+- **assistant:** flag third-party text that reads like instructions to an AI ([#329](https://github.com/adeelahmad/lense/pull/329))
+- **ui:** new pipelines and routines are named for you and Enter creates them; Enter in a note's title goes to its first line ([#336](https://github.com/adeelahmad/lense/pull/336))
+- **bridge:** break up links a chat-room answer built from what it read ([#338](https://github.com/adeelahmad/lense/pull/338))
+- **mcp:** hand agents what the archive says as data ([#343](https://github.com/adeelahmad/lense/pull/343))
+- **audit:** log what Lens caught of prompt injection ([#344](https://github.com/adeelahmad/lense/pull/344))
+- **assistant:** an optional local classifier for prompt injection ([#347](https://github.com/adeelahmad/lense/pull/347))
+- turn Prometheus and Grafana on from the web app ([#337](https://github.com/adeelahmad/lense/pull/337))
+- **ui:** copy the MCP address from the account menu after setup ([#340](https://github.com/adeelahmad/lense/pull/340))
+
+### Fixes
+
+- **release:** keep the API schema's version in step with each release ([#310](https://github.com/adeelahmad/lense/pull/310))
+- **ui:** fewer clicks in setup, Chat, Search and Notes ([#315](https://github.com/adeelahmad/lense/pull/315))
+- **jobs:** skip transcribe and diarize for imported transcripts ([#345](https://github.com/adeelahmad/lense/pull/345))
+- **ui:** open the graph on the namespace that has one ([#339](https://github.com/adeelahmad/lense/pull/339))
+- **desktop:** check the update's signature against the repository's key at build time ([#354](https://github.com/adeelahmad/lense/pull/354))
+
+### Dependencies
+
+- bump the python-minor group ([#253](https://github.com/adeelahmad/lense/pull/253))
+- bump the javascript-minor group ([#316](https://github.com/adeelahmad/lense/pull/316))
 
 ## 0.7.0 <small>October 10, 2026</small> {id="0.7.0"}
 

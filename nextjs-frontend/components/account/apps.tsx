@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { Oauth } from "@/app/openapi-client";
 import type { OAuthGrant } from "@/app/openapi-client/types.gen";
+import { ConnectAssistant } from "@/components/account/connect-assistant";
 import { tokenExpiry } from "@/components/account/token-model";
 import { ACCESS_LABEL, appHost } from "@/components/oauth/model";
 import { Banner } from "@/components/ui/banner";
@@ -17,7 +18,10 @@ import { useToast } from "@/components/ui/toast";
 import { data, useApiClient } from "@/lib/api/browser";
 import { relative, shortDate } from "@/lib/format";
 
-/** The apps this person gave access to through OAuth (docs/authentication.md#oauth), each with Revoke. */
+/**
+ * The apps this person gave access to through OAuth (docs/authentication.md#oauth), each with Revoke, and above them
+ * the MCP address to connect another.
+ */
 export function ConnectedApps() {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -53,6 +57,7 @@ export function ConnectedApps() {
             until you revoke them.
           </p>
         </div>
+        <ConnectAssistant />
         {grants.isPending ? (
           <SkeletonRows rows={2} />
         ) : grants.isError ? (

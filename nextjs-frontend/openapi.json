@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.7.0"
+    "version": "0.8.1"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -2566,6 +2566,138 @@
         "summary": "Test Bridge",
         "description": "Check that Matterbridge answers at its address with its token, and that the account to answer as exists.",
         "operationId": "test_bridge",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/telegram": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Telegram Status",
+        "description": "How the assistant's Telegram bot is doing, and the chats it has seen (their ids are what telegram.rooms names).",
+        "operationId": "telegram_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/telegram/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Telegram",
+        "description": "Check that Telegram knows the bot's token, and that the account to answer as exists.",
+        "operationId": "test_telegram",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/slack": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Slack Status",
+        "description": "How the assistant's Slack app is doing, its slash command, and the link that creates the app from its manifest.",
+        "operationId": "slack_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/slack/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Slack",
+        "description": "Check both Slack tokens, and that the account to answer as exists.",
+        "operationId": "test_slack",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BridgeTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/mailbox": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Mailbox Status",
+        "description": "How the assistant's mailbox is doing, and who has written to it (whether each is let in, and their mail vouched\nfor by their provider).",
+        "operationId": "mailbox_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/mailbox/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Mailbox",
+        "description": "Check that Lens can sign in to read the mailbox (IMAP) and to send from it (SMTP), and that the account to\nanswer as exists. Nothing is read or sent.",
+        "operationId": "test_mailbox",
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -39334,6 +39466,163 @@
         ],
         "title": "MailTestResult"
       },
+      "MailboxPerson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "their email address, for mailbox.users"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed",
+            "description": "in mailbox.users: Lens answers their mail"
+          },
+          "vouched": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vouched",
+            "description": "how their last message was known to be theirs (DMARC, DKIM, SPF, or From with mailbox.check off); none: it wasn't"
+          },
+          "waiting": {
+            "type": "integer",
+            "title": "Waiting",
+            "description": "their messages held, answered once they're let in",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "allowed"
+        ],
+        "title": "MailboxPerson"
+      },
+      "MailboxStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at the mailbox failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process reading the mailbox"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last looked"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "the assistant's address"
+          },
+          "imap": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imap",
+            "description": "the server it reads mail from (host:port and security), set or guessed"
+          },
+          "smtp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Smtp",
+            "description": "the server it sends from (host:port and security), set or guessed"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/MailboxPerson"
+            },
+            "type": "array",
+            "title": "People",
+            "description": "who has written to it, latest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "MailboxStatus"
+      },
       "ManifestCheck": {
         "properties": {
           "text": {
@@ -53121,6 +53410,111 @@
         ],
         "title": "SimilarTopic"
       },
+      "SlackStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has connected yet); running; error (the connection or the last message failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process connected to Slack"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last heard from Slack"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "team": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team",
+            "description": "the Slack workspace it's connected to"
+          },
+          "bot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot",
+            "description": "the app's bot user"
+          },
+          "command": {
+            "type": "string",
+            "title": "Command",
+            "description": "the slash command, such as /lens"
+          },
+          "create_url": {
+            "type": "string",
+            "title": "Create Url",
+            "description": "where the Slack app is created from its manifest, in one click"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state",
+          "command",
+          "create_url"
+        ],
+        "title": "SlackStatus"
+      },
       "SmbStatus": {
         "properties": {
           "enabled": {
@@ -54783,6 +55177,149 @@
           "changed"
         ],
         "title": "TagsChanged"
+      },
+      "TelegramChat": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "the chat's id, for telegram.rooms (like -1001234567890 = pods)"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "TelegramChat"
+      },
+      "TelegramPerson": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "their Telegram user id, for telegram.users"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed",
+            "description": "in telegram.users: Lens talks to them"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "allowed"
+        ],
+        "title": "TelegramPerson"
+      },
+      "TelegramStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "off",
+              "incomplete",
+              "starting",
+              "running",
+              "error"
+            ],
+            "title": "State",
+            "description": "off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); running; error (the last look at Telegram failed, `error` says why)"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder",
+            "description": "the server process reading the bot's messages"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it last looked"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered",
+            "description": "messages it answered"
+          },
+          "bot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bot",
+            "description": "the bot's username, once Lens has asked Telegram"
+          },
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TelegramChat"
+            },
+            "type": "array",
+            "title": "Chats",
+            "description": "the chats it has seen, latest first"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/TelegramPerson"
+            },
+            "type": "array",
+            "title": "People",
+            "description": "who has written to it, latest first"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "title": "TelegramStatus"
       },
       "TelemetryExport": {
         "properties": {
