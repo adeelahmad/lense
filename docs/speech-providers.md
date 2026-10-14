@@ -40,6 +40,35 @@ Then pick where each task goes:
 - **AI assistant → Voice**: *Engine that hears it* (default: the transcription engine) and *Spoken answers by* (an
   OpenAI-compatible speech server, ElevenLabs, Deepgram Aura, Google Gemini or macOS `say`) and *Voice*.
 
+## Long recordings
+
+Each provider takes so much audio in one request. A recording longer or larger than that is cut into pieces, each
+piece is transcribed on its own, and the transcripts are joined back into one, timed from the start of the recording.
+Nothing needs setting up: every provider starts with a limit from its published one.
+
+| Provider | Longest piece | Largest file | Where the default comes from |
+| --- | --- | --- | --- |
+| OpenAI-compatible | 10 minutes | 25 MB | [OpenAI](https://platform.openai.com/docs/guides/speech-to-text): 25 MB a file; GPT-4o transcription takes up to 25 minutes, and shorter pieces suit servers with smaller limits |
+| ElevenLabs | 600 minutes | 3000 MB | [ElevenLabs](https://elevenlabs.io/docs/capabilities/speech-to-text): up to 10 hours and 3 GB |
+| AssemblyAI | 600 minutes | 2200 MB | [AssemblyAI](https://www.assemblyai.com/docs/faq/are-there-any-limits-on-file-size-or-file-duration-for-files-submitted-to-the-api): up to 10 hours; 2.2 GB through its upload endpoint |
+| Deepgram | 120 minutes | 2000 MB | [Deepgram](https://developers.deepgram.com/docs/pre-recorded-audio): 2 GB; it stops a request after 10 minutes of work, so two hours at a time |
+
+Change them in **Settings → Speech providers** (*Longest piece sent at once*, *Largest file sent at once*), or as
+`speech.{provider}_max_minutes` and `speech.{provider}_max_mb` through the settings API or the assistant's
+`change_settings` tool: lower them for a proxy or a compatible server that takes less (Groq's free tier, a small
+self-hosted server), raise them for one that takes more.
+
+How a recording is cut:
+
+- A piece ends at the quietest tenth of a second in the half minute before the limit, so a cut falls in a pause rather
+  in the middle of a word. Pieces meet exactly: nothing is sent twice or left out.
+- Each piece is encoded to send; one whose file is still larger than the limit is halved, again at a pause, until each
+  part fits.
+- The provider numbers speakers afresh in every request, so a speaker label belongs to its piece (`c0:S1`, `c1:S1`).
+  Voice IDs still come from local voiceprints and match voices already known; a new voice heard in two pieces shows as
+  two speakers until you merge them.
+- The activity ledger keeps one row for the recording, with its length in seconds and the number of pieces.
+
 ## Voices
 
 `GET /voice/voices?provider=…` lists the voices a provider reads in, as `{id, name, detail}`: ElevenLabs lists the
@@ -89,7 +118,7 @@ permission to use the voice.
 ## What is sent
 
 Only the audio of the recording (or the clip said into the mic), encoded as Ogg Opus at 32 kbit/s (FLAC when ffmpeg
-has no Opus). Recordings longer than ten minutes go to OpenAI-compatible servers in ten-minute parts, since they take
-at most 25 MB a request; speaker labels then belong to each part. Text to speech sends the answer's text.
+has no Opus), in pieces when it is longer or larger than the provider takes at once ([above](#long-recordings)). Text
+to speech sends the answer's text.
 
 Code: `fastapi_backend/app/domain/speech.py`.
