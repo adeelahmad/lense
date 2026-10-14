@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Running the install line again keeps `.env` readable only by you.** Each update rewrote `.env` with the shell's
+  default permissions, so after an update its secrets could be read by other users of the machine. It is now written
+  for its owner alone, and an install an earlier update left open is closed again the next time the line runs.
 - **A microsandbox install whose keys don't open its database comes up when the line runs again.** A reinstall made
   before 0.8.1, after `~/lens` was deleted, wrote new keys but kept the earlier install's `lens-data` volume, and every
   update after it kept both: its API stopped at every start with `SURREAL_USER/SURREAL_PASS don't match`. The sandbox

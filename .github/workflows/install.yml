@@ -177,6 +177,7 @@ jobs:
           sh < install.sh
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
+          test "$(stat -c %a "$LENS_DIR/.env")" = 600 || { echo "the second run left .env readable to others"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
 
       - name: An upgrade asked for in the web app is installed by the machine's agent
@@ -262,6 +263,7 @@ jobs:
           LENS_BACKEND='' sh < install.sh | tee again.log
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
+          test "$(stat -c %a "$LENS_DIR/.env")" = 600 || { echo "the second run left .env readable to others"; exit 1; }
           grep -q "Stopping the Lens that's running" again.log || { echo "the second run didn't stop the running sandbox first"; exit 1; }
           curl -fsS -o /dev/null "$(cat setup-url)"
 
