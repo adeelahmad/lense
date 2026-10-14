@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Similar content.** Every resource has a **Similar** tab, and selecting text anywhere (a transcript, a page, a
+  title, a graph label) shows the resources most like it, each citing the passages, words, topics and entities they
+  share, with **Find more** for the full list. Topics, entities and graph nodes list similar content too, and the
+  assistant and the MCP server can ask for it (`find_similar`). It works without search by meaning, by key words,
+  topics and entities ([Processing](docs/processing.md#similar-content)).
+
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 
 - **The installer stops waiting when Lens can't start, and shows why.** A microsandbox install that couldn't start Lens
