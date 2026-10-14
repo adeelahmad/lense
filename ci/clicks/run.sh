@@ -11,8 +11,14 @@ tmp=$(mktemp -d)
 pids=""
 stop() {
   for p in $pids; do kill "$p" 2>/dev/null || true; done
-  # wait for them to exit: a server still writing its data folder makes rm fail with "Directory not empty"
-  for p in $pids; do wait "$p" 2>/dev/null || true; done
+  # Wait for them to exit (30 seconds, then forced), so a run straight after this one (the phone survey after the
+  # computer's in CI) gets the ports, rather than this run's API answering it with its accounts already made
+  for p in $pids; do
+    (sleep 30 && kill -9 "$p") >/dev/null 2>&1 &
+    w=$!
+    wait "$p" 2>/dev/null || true
+    kill "$w" 2>/dev/null || true
+  done
   rm -rf "$tmp" 2>/dev/null || { sleep 2; rm -rf "$tmp" || true; }
 }
 trap stop EXIT INT TERM

@@ -342,19 +342,29 @@ DEFAULTS = {
     },
     # speech providers (domain/speech.py): transcription, speakers and text to speech by a service instead of this
     # server, picked in transcribe.engine, diarize.engine and voice. A base URL can be a proxy or a compatible server.
+    # {p}_max_minutes and {p}_max_mb are the most audio a provider takes in one request: a longer recording is cut into
+    # pieces at pauses and their transcripts joined (docs/speech-providers.md, Long recordings, says where each comes from)
     "speech": {
         "openai_base_url": "https://api.openai.com/v1",
         "openai_model": "whisper-1",
         "openai_api_key": None,
+        "openai_max_minutes": 10,  # 25 MB a file; GPT-4o transcription takes up to 25 minutes
+        "openai_max_mb": 25,
         "elevenlabs_base_url": "https://api.elevenlabs.io",
         "elevenlabs_model": "scribe_v1",
         "elevenlabs_api_key": None,
+        "elevenlabs_max_minutes": 600,  # up to 10 hours and 3 GB
+        "elevenlabs_max_mb": 3000,
         "assemblyai_base_url": "https://api.assemblyai.com",
         "assemblyai_model": "universal",
         "assemblyai_api_key": None,
+        "assemblyai_max_minutes": 600,  # up to 10 hours; 2.2 GB through its upload endpoint
+        "assemblyai_max_mb": 2200,
         "deepgram_base_url": "https://api.deepgram.com",
         "deepgram_model": "nova-3",
         "deepgram_api_key": None,
+        "deepgram_max_minutes": 120,  # 2 GB; it stops a request after 10 minutes of work, so two hours at a time
+        "deepgram_max_mb": 2000,
         "gemini_base_url": "https://generativelanguage.googleapis.com",
         "gemini_model": "gemini-2.5-flash-preview-tts",
         "gemini_api_key": None,

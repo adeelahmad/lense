@@ -2,8 +2,16 @@
  * Templates (Jinja, rendered by the backend against one recording): the variables a template can use, a check for
  * unknown variables with a "did you mean", autocomplete, the output schema, and the versions diff.
  */
+import { uniqueName } from "@/lib/format";
 
 export type Variable = { key: string; type: string };
+
+export type TemplateKind = "prompt" | "report" | "export";
+
+/** A name for a template nobody named, from its kind ("Prompt template", then "Prompt template 2"). */
+export function suggestedTemplateName(kind: TemplateKind, taken: Iterable<string>): string {
+  return uniqueName({ prompt: "Prompt template", report: "Report page", export: "Export file" }[kind], taken);
+}
 
 /** What templates.context() gives a template, as the editor lists it. */
 export const VARIABLES: Variable[] = [

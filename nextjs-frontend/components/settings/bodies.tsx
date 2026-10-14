@@ -2626,6 +2626,12 @@ function SpeechProvidersBody({ ctx }: { ctx: BodyCtx }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id={`speech.${p.id}_base_url`} />
             <F ctx={ctx} id={`speech.${p.id}_model`} />
+            {!("readsOnly" in p) && (
+              <>
+                <F ctx={ctx} id={`speech.${p.id}_max_minutes`} />
+                <F ctx={ctx} id={`speech.${p.id}_max_mb`} />
+              </>
+            )}
           </div>
           <SecretSetting
             key={view?.updated_at ?? "none"}

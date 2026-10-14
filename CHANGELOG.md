@@ -8,6 +8,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   in Settings → Documents). Documents nothing here can make into a PDF, such as Word files on a lean server or a
   Raspberry Pi, are read by Tika as text, and every document's own title, authors, language and dates are read as
   Dublin Core terms. Off until a Tika server is set ([Configuration](docs/configuration.md#apache-tika)).
+- **New pipelines, workflows, templates and API tokens come with a name.** The web app guesses one from what you're
+  making ("Transcribe to report", "Recording workflow", "Prompt template 2", "Read only token"), as it already did for
+  routines, so making one takes no typing; type a name to choose your own. The pencil next to the name renames it
+  later, and `PATCH /api/v1/pipelines/{id}`, `/templates/{id}` and `/tokens/{id}` rename them through the API.
+- **Long recordings go to a speech provider in pieces that fit it.** A recording longer or larger than a provider takes
+  in one request is cut at pauses into pieces within its limits, and their transcripts are joined back into one, where
+  only OpenAI-compatible servers had ten-minute parts before. Each provider starts with its published limits (10 hours
+  for ElevenLabs and AssemblyAI, 2 GB for Deepgram, 25 MB for OpenAI), editable in Settings → Speech providers
+  ([docs](docs/speech-providers.md#long-recordings)).
 - **Running the install line again keeps `.env` readable only by you.** Each update rewrote `.env` with the shell's
   default permissions, so after an update its secrets could be read by other users of the machine. It is now written
   for its owner alone, and an install an earlier update left open is closed again the next time the line runs.

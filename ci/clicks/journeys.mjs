@@ -297,6 +297,7 @@ export const JOURNEYS = [
     id: "pipeline-create",
     module: "Pipelines",
     feature: "Make a pipeline from the standard steps",
+    note: "Lens guesses the name from the steps; it can be renamed on the pipeline's page.",
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
@@ -312,6 +313,7 @@ export const JOURNEYS = [
     id: "routine-create",
     module: "Routines",
     feature: "Make a nightly routine (sync sources, the default action)",
+    note: "Lens guesses the name from when it runs and what it does; it can be renamed later.",
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
@@ -385,6 +387,7 @@ export const JOURNEYS = [
     id: "api-token",
     module: "Account",
     feature: "Make an API token",
+    note: "Lens guesses the name from the scope; it can be renamed in the list.",
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
@@ -396,7 +399,6 @@ export const JOURNEYS = [
       // the form is open already when there are no tokens yet
       if (!(await d.isVisible()))
         await meter.click(page.getByRole("main").getByRole("button", { name: "New token" }).first(), "New token");
-      await meter.type(d.getByRole("textbox", { name: "Name" }), "script", "name");
       await meter.click(d.getByRole("button", { name: "Create token" }), "Create token");
       await page.getByText(/copy/i).first().waitFor();
     },
@@ -585,12 +587,12 @@ export const JOURNEYS = [
     module: "Pipelines",
     feature: "Make a workflow",
     from: "/",
+    note: "Lens guesses the name from what it runs on; it can be renamed on the workflow's page.",
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Pipelines");
       await meter.click(page.getByRole("tab", { name: /^Workflows/ }), "Workflows tab");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New workflow" }), "New workflow");
-      await meter.type(page.getByRole("textbox", { name: "Workflow name" }), "Meeting notes", "name");
       await meter.click(page.getByRole("button", { name: "Create workflow" }), "Create workflow");
       await page.waitForURL(/\/workflows\/\d+/);
     },
@@ -601,12 +603,12 @@ export const JOURNEYS = [
     module: "Pipelines",
     feature: "Make a prompt template",
     from: "/",
+    note: "Lens guesses the name from the kind; it can be renamed on the template's page.",
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Pipelines");
       await meter.click(page.getByRole("tab", { name: /^Templates/ }), "Templates tab");
       await meter.click(page.getByRole("main").getByRole("link", { name: "New template" }), "New template");
-      await meter.type(page.getByRole("textbox", { name: "Name" }), "Pi summary", "name");
       await meter.click(page.getByRole("button", { name: "Create and edit" }), "Create and edit");
       await page.waitForURL(/\/templates\/\d+/);
     },

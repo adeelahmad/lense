@@ -505,8 +505,12 @@ export const SPEECH_PROVIDERS = [
     urlHint: "https://generativelanguage.googleapis.com",
     modelHint: "gemini-2.5-flash-preview-tts, gemini-2.5-pro-preview-tts",
     modelLabel: "Text-to-speech model",
+    readsOnly: true,
   },
 ] as const;
+
+/** Speech providers that transcribe: each takes so much audio in one request (its limits in Settings). */
+export const TRANSCRIBING_PROVIDERS = SPEECH_PROVIDERS.filter((p) => !("readsOnly" in p));
 
 export const FIELDS: FieldSpec[] = [
   // Transcription
@@ -1560,6 +1564,27 @@ export const FIELDS: FieldSpec[] = [
       hint: p.modelHint,
     },
     { section: "speech", key: `${p.id}_api_key`, label: `${p.label} API key`, kind: "secret" },
+  ]),
+  ...TRANSCRIBING_PROVIDERS.flatMap((p): FieldSpec[] => [
+    {
+      section: "speech",
+      key: `${p.id}_max_minutes`,
+      label: "Longest piece sent at once",
+      kind: "int",
+      min: 1,
+      max: 1440,
+      unit: "minutes",
+      hint: "A longer recording is cut at pauses and the transcripts joined",
+    },
+    {
+      section: "speech",
+      key: `${p.id}_max_mb`,
+      label: "Largest file sent at once",
+      kind: "int",
+      min: 1,
+      max: 10000,
+      unit: "MB",
+    },
   ]),
   {
     section: "speech",
