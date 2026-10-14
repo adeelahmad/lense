@@ -286,11 +286,14 @@ class Broker:
                     topic, payload, qos, retain, pid = parse_publish(flags, body)
                     if not topic or "+" in topic or "#" in topic:
                         raise ProtocolError("a topic name can't have wildcards")
+                    # kept and passed on before the sender hears it arrived, so a client subscribing after the
+                    # acknowledgement gets it as the retained message
+                    self.publish(topic, payload, retain)
                     if qos == 1:
                         session.send(packet(PUBACK, 0, struct.pack("!H", pid)))
                     elif qos == 2:
                         session.send(packet(PUBREC, 0, struct.pack("!H", pid)))
-                    self._take(topic, payload, retain, session.login, address)
+                    self._hear(topic, payload, session.login, address)
                 elif kind == PUBREL:
                     session.send(packet(PUBCOMP, 0, body[:2]))
                 elif kind == SUBSCRIBE:
@@ -329,6 +332,9 @@ class Broker:
 
     def _take(self, topic, payload, retain, login, address):
         self.publish(topic, payload, retain)
+        self._hear(topic, payload, login, address)
+
+    def _hear(self, topic, payload, login, address):
         if not topic.startswith("$"):
             try:
                 self.on_message(topic, payload, login, address)

@@ -13,6 +13,7 @@ import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NamespaceSwitcher } from "@/components/app-shell/namespace-switcher";
 import { Nav } from "@/components/app-shell/nav";
 import { Shortcuts } from "@/components/app-shell/shortcuts";
+import { BudgetMeter } from "@/components/costs/budget-meter";
 import { WelcomeTour } from "@/components/home/welcome-tour";
 import { PageChat } from "@/components/page-chat/page-chat";
 import { Button, IconButton } from "@/components/ui/button";
@@ -49,7 +50,7 @@ function PartialNamespace({ ns, onAll }: { ns: string; onAll: () => void }) {
   );
 }
 
-/** The signed-in frame: nav rail, top bar (namespace, ⌘K, activity, import, alerts, account), the page and the page
+/** The signed-in frame: nav rail, top bar (namespace, ⌘K, budget, activity, import, alerts, account), the page and the page
  * chat beside it. */
 export function AppShell({ user, children }: { user: SessionUser; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -153,6 +154,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           <div className="flex min-w-0 flex-1 justify-center px-1">
             <CommandPalette />
           </div>
+          <BudgetMeter />
           <ActivityPill />
           <Button
             asChild={canImport}

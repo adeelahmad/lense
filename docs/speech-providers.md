@@ -17,6 +17,7 @@ summaries, chapters and entities as optional imports, per-minute prices in the a
 | Deepgram | Nova | yes | detected | from sentiment (English) | no | Aura |
 | Google Gemini | no | no | no | no | no | `gemini-2.5-flash-preview-tts`, 30 prebuilt voices |
 | macOS `say` | no | no | no | no | no | the Mac's own voices; no key, nothing leaves the Mac |
+| StyleTTS2 | no | no | no | no | no | on this machine, in a voice like a clip you give it ([below](#styletts2)) |
 
 Sentiment becomes emotion as positive → Happy, negative → Sad, neutral → Neutral (turn it off with
 `speech.sentiment`). SenseVoice's own emotion tags stay richer; a provider only reports sentiment.
@@ -63,7 +64,27 @@ every Mac.
 | `speech.timeout` | 1800 seconds |
 | `voice.stt` | `same` |
 | `voice.tts_provider` | `openai` |
-| `voice.tts_voice` | the provider's default (alloy, a premade ElevenLabs voice, aura-2-thalia-en, Kore, the Mac's) |
+| `voice.tts_voice` | the provider's default (alloy, a premade ElevenLabs voice, aura-2-thalia-en, Kore, the Mac's, `default`) |
+| `voice.styletts2_url` | `http://styletts2:8880` |
+
+## StyleTTS2
+
+[StyleTTS2](https://github.com/yl4579/StyleTTS2) reads aloud on your own machine: nothing leaves it, and nothing is
+billed. It is heavy (PyTorch, a 2 GB image and a 1 GB model fetched from Hugging Face on first use; a sentence takes
+a few seconds on a recent CPU), so it is off by default and runs as its own service, `styletts2/`:
+
+```sh
+docker compose --profile styletts2 up -d
+```
+
+Then pick **StyleTTS2** in Settings → AI assistant → Voice. `voice.styletts2_url` is where Lens reaches it
+(`http://styletts2:8880`, the Compose service). It speaks the OpenAI audio API (`POST /v1/audio/speech`,
+`GET /v1/audio/voices`).
+
+Its voices are clips: put a few seconds of someone speaking (`.wav`, `.mp3` or `.flac`, named after the voice, e.g.
+`grandpa.wav`) in the `styletts2-voices` volume and it reads in a voice like theirs. `default` is a public-domain
+LibriVox reader. The model's authors ask that listeners are told the speech is synthesized, unless you have
+permission to use the voice.
 
 ## What is sent
 

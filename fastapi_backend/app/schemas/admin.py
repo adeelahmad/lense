@@ -46,6 +46,34 @@ class BridgeStatus(ResponseModel):
     matterbridge: MatterbridgeStatus | None = Field(None, description="the Matterbridge Lens runs, when it runs one")
 
 
+class SmbStatus(ResponseModel):
+    enabled: bool
+    phase: Literal["off", "starting", "running", "error"]
+    port: int = Field(description="the port clients connect to (where Docker publishes it)")
+    share: str = Field(description="the share's name")
+    allowed_networks: list[str]
+    error: str | None = None
+    process: str | None = Field(None, description="the worker serving it")
+    installed: bool = Field(description="whether the SMB server (impacket) is installed here; it's fetched when the share is turned on")
+    address: str = Field(description="the address Finder and Linux file managers open (the machine's name filled in by the caller)")
+    mount: str = Field(description="the command that mounts it on Linux")
+
+
+class SlackStatus(ResponseModel):
+    state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
+        description="off; incomplete (`error` says what's missing); starting (no server process has connected yet); "
+        "running; error (the connection or the last message failed, `error` says why)"
+    )
+    error: str | None = None
+    holder: str | None = Field(None, description="the server process connected to Slack")
+    at: str | None = Field(None, description="when it last heard from Slack")
+    answered: int | None = Field(None, description="messages it answered")
+    team: str | None = Field(None, description="the Slack workspace it's connected to")
+    bot: str | None = Field(None, description="the app's bot user")
+    command: str = Field(description="the slash command, such as /lens")
+    create_url: str = Field(description="where the Slack app is created from its manifest, in one click")
+
+
 class TunnelStatus(ResponseModel):
     mode: Literal["off", "quick", "token", "managed"]
     running: bool = Field(description="cloudflared is running in a server process")
@@ -55,6 +83,36 @@ class TunnelStatus(ResponseModel):
     log: list[str] = Field(default_factory=list, description="cloudflared's last lines")
     origin: str = Field(description="where cloudflared sends visitors: the web app, as the server reaches it")
     process: str | None = Field(None, description="the server process running cloudflared")
+
+
+class HttpsCertificate(ResponseModel):
+    names: list[str] = Field(description="the domain names it's for")
+    expires: str = Field(description="when it runs out (Caddy renews it about a month before)")
+    issuer: str = Field(description="the certificate authority that issued it")
+
+
+class HttpsStatus(ResponseModel):
+    enabled: bool
+    running: bool = Field(description="Caddy is running in a server process")
+    ports_open: bool = Field(description="a server process has the HTTPS ports (install.sh opened them)")
+    url: str | None = Field(None, description="the https:// address people open Lens at")
+    certificates: list[HttpsCertificate] = Field(default_factory=list)
+    error: str | None = Field(None, description="why there's no certificate yet, when there isn't")
+    log: list[str] = Field(default_factory=list, description="Caddy's last lines")
+    origin: str = Field(description="where Caddy sends visitors: the web app, as the server reaches it")
+    process: str | None = Field(None, description="the server process with the HTTPS ports")
+
+
+class HttpsProviderField(ResponseModel):
+    name: str
+    label: str
+    secret: bool
+
+
+class HttpsProvider(ResponseModel):
+    name: str = Field(description="the caddy-dns plugin's name, like cloudflare")
+    label: str
+    fields: list[HttpsProviderField]
 
 
 class LocalModel(ResponseModel):
@@ -97,8 +155,73 @@ class LocalLlmStatus(ResponseModel):
     machine: dict[str, Any]
 
 
+class NfsStatus(ResponseModel):
+    enabled: bool
+    phase: Literal["off", "running", "error"]
+    port: int
+    allowed_networks: list[str]
+    account: str | None = Field(None, description="whose view of the file tree the share shows, while running")
+    error: str | None = None
+    refused: int = Field(0, description="connections refused since it started, from outside the allowed networks")
+    log: list[str] = Field(default_factory=list, description="rclone's last lines")
+    process: str | None = Field(None, description="the worker running it")
+    mount: str = Field(description="the command that mounts it on Linux")
+    rclone: bool = Field(description="whether rclone is installed here")
+
+
 class Removed(ResponseModel):
     removed: bool
+
+
+class TelegramChat(ResponseModel):
+    id: str = Field(description="the chat's id, for telegram.rooms (like -1001234567890 = pods)")
+    title: str
+
+
+class TelegramPerson(ResponseModel):
+    id: str = Field(description="their Telegram user id, for telegram.users")
+    name: str
+    allowed: bool = Field(description="in telegram.users: Lens talks to them")
+
+
+class TelegramStatus(ResponseModel):
+    state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
+        description="off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); "
+        "running; error (the last look at Telegram failed, `error` says why)"
+    )
+    error: str | None = None
+    holder: str | None = Field(None, description="the server process reading the bot's messages")
+    at: str | None = Field(None, description="when it last looked")
+    answered: int | None = Field(None, description="messages it answered")
+    bot: str | None = Field(None, description="the bot's username, once Lens has asked Telegram")
+    chats: list[TelegramChat] = Field(default_factory=list, description="the chats it has seen, latest first")
+    people: list[TelegramPerson] = Field(default_factory=list, description="who has written to it, latest first")
+
+
+class MailboxPerson(ResponseModel):
+    id: str = Field(description="their email address, for mailbox.users")
+    name: str
+    allowed: bool = Field(description="in mailbox.users: Lens answers their mail")
+    vouched: str | None = Field(
+        None,
+        description="how their last message was known to be theirs (DMARC, DKIM, SPF, or From with mailbox.check off); none: it wasn't",
+    )
+    waiting: int = Field(0, description="their messages held, answered once they're let in")
+
+
+class MailboxStatus(ResponseModel):
+    state: Literal["off", "incomplete", "starting", "running", "error"] = Field(
+        description="off; incomplete (`error` says what's missing); starting (no server process has picked it up yet); "
+        "running; error (the last look at the mailbox failed, `error` says why)"
+    )
+    error: str | None = None
+    holder: str | None = Field(None, description="the server process reading the mailbox")
+    at: str | None = Field(None, description="when it last looked")
+    answered: int | None = Field(None, description="messages it answered")
+    address: str | None = Field(None, description="the assistant's address")
+    imap: str | None = Field(None, description="the server it reads mail from (host:port and security), set or guessed")
+    smtp: str | None = Field(None, description="the server it sends from (host:port and security), set or guessed")
+    people: list[MailboxPerson] = Field(default_factory=list, description="who has written to it, latest first")
 
 
 class BridgeTestResult(ResponseModel):
@@ -237,6 +360,7 @@ class FileStoreTestResult(ResponseModel):
     store: Literal["local", "connection"] | None = None
     seconds: float | None = None
     error: str | None = None
+    limited: str | None = Field(default=None, description="the connection is rate limiting: reads work, new files are kept here")
 
 
 class AuditEntry(ResponseModel):
@@ -275,6 +399,19 @@ class HealthCounts(ResponseModel):
     accounts: int
 
 
+class HealthMachine(ResponseModel):
+    cpu_pct: float | None = Field(default=None, description="busy share of all CPUs, 0-100; null where /proc isn't there")
+    cpus: int | None = None
+    mem_used: int | None = Field(default=None, description="bytes")
+    mem_total: int | None = Field(default=None, description="bytes")
+    load1: float | None = None
+    load5: float | None = None
+    load15: float | None = None
+    rss: int | None = Field(default=None, description="the API process's memory, bytes")
+    uptime: int = Field(description="seconds since the API started")
+    host_uptime: int | None = Field(default=None, description="seconds since the machine started")
+
+
 class Health(ResponseModel):
     database: HealthDatabase
     queue: dict[str, int] = Field(description="jobs by status")
@@ -282,3 +419,4 @@ class Health(ResponseModel):
     sources: list[HealthSource]
     disk: HealthDisk
     counts: HealthCounts
+    machine: HealthMachine | None = Field(default=None, description="CPU, memory, load and uptime now")

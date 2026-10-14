@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The status page needs no commands: the app drives it",
+  "windows": ["main"],
+  "permissions": []
+}

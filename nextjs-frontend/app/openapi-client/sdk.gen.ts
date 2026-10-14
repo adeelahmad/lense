@@ -14,6 +14,9 @@ import type {
   AcceptGraphChangeData,
   AcceptGraphChangeErrors,
   AcceptGraphChangeResponses,
+  ActionsData,
+  ActionsErrors,
+  ActionsResponses,
   AddAssistantMemoryData,
   AddAssistantMemoryErrors,
   AddAssistantMemoryResponses,
@@ -37,6 +40,11 @@ import type {
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
+  AllS3KeysData,
+  AllS3KeysResponses,
+  AnswerActionData,
+  AnswerActionErrors,
+  AnswerActionResponses,
   AnswerData,
   AnswerErrors,
   AnswerResponses,
@@ -52,11 +60,20 @@ import type {
   AskGraphData,
   AskGraphErrors,
   AskGraphResponses,
+  BackupFileData,
+  BackupFileErrors,
+  BackupFileResponses,
+  BackupLinkData,
+  BackupLinkErrors,
+  BackupLinkResponses,
   BridgeStatusData,
   BridgeStatusResponses,
   BrowseSourceData,
   BrowseSourceErrors,
   BrowseSourceResponses,
+  BudgetMeterData,
+  BudgetMeterErrors,
+  BudgetMeterResponses,
   BudgetStatusData,
   BudgetStatusErrors,
   BudgetStatusResponses,
@@ -99,6 +116,9 @@ import type {
   CombineBatchData,
   CombineBatchErrors,
   CombineBatchResponses,
+  ConnectData,
+  ConnectErrors,
+  ConnectResponses,
   ConsentData,
   ConsentErrors,
   ConsentResponses,
@@ -183,6 +203,9 @@ import type {
   CreateRoutineData,
   CreateRoutineErrors,
   CreateRoutineResponses,
+  CreateS3KeyData,
+  CreateS3KeyErrors,
+  CreateS3KeyResponses,
   CreateSearchData,
   CreateSearchErrors,
   CreateSearchResponses,
@@ -314,6 +337,9 @@ import type {
   DeleteRecordingData,
   DeleteRecordingErrors,
   DeleteRecordingResponses,
+  DeleteRemoteBackupData,
+  DeleteRemoteBackupErrors,
+  DeleteRemoteBackupResponses,
   DeleteRoutineData,
   DeleteRoutineErrors,
   DeleteRoutineResponses,
@@ -340,9 +366,12 @@ import type {
   DiffTemplateVersionsData,
   DiffTemplateVersionsErrors,
   DiffTemplateVersionsResponses,
+  DisconnectData,
+  DisconnectErrors,
   DisconnectIdentityData,
   DisconnectIdentityErrors,
   DisconnectIdentityResponses,
+  DisconnectResponses,
   DismissFaceSuggestionData,
   DismissFaceSuggestionErrors,
   DismissFaceSuggestionResponses,
@@ -387,9 +416,15 @@ import type {
   ExternalStartData,
   ExternalStartErrors,
   ExternalStartResponses,
+  FetchBackupData,
+  FetchBackupErrors,
+  FetchBackupResponses,
   FindGraphPathData,
   FindGraphPathErrors,
   FindGraphPathResponses,
+  FindSimilarData,
+  FindSimilarErrors,
+  FindSimilarResponses,
   FinishData,
   FinishErrors,
   FinishResponses,
@@ -479,6 +514,8 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMonitoringData,
+  GetMonitoringResponses,
   GetNamespaceAssistantData,
   GetNamespaceAssistantErrors,
   GetNamespaceAssistantResponses,
@@ -629,6 +666,10 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  HttpsProvidersData,
+  HttpsProvidersResponses,
+  HttpsStatusData,
+  HttpsStatusResponses,
   ImportArchiveData,
   ImportArchiveErrors,
   ImportArchiveResponses,
@@ -742,6 +783,9 @@ import type {
   ListFilesData,
   ListFilesErrors,
   ListFilesResponses,
+  ListFolderData,
+  ListFolderErrors,
+  ListFolderResponses,
   ListGrantsData,
   ListGrantsResponses,
   ListGraphChangesData,
@@ -844,6 +888,8 @@ import type {
   ListSegmentEditsResponses,
   ListSensorsData,
   ListSensorsResponses,
+  ListSessionsData,
+  ListSessionsResponses,
   ListSharesData,
   ListSharesErrors,
   ListSharesResponses,
@@ -880,6 +926,8 @@ import type {
   ListWorkersResponses,
   ListWorkflowsData,
   ListWorkflowsResponses,
+  LlmProvidersData,
+  LlmProvidersResponses,
   LocalLlmStatusData,
   LocalLlmStatusResponses,
   LockVaultData,
@@ -894,6 +942,8 @@ import type {
   LostPasskeyData,
   LostPasskeyErrors,
   LostPasskeyResponses,
+  MailboxStatusData,
+  MailboxStatusResponses,
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
@@ -932,6 +982,8 @@ import type {
   NewTokenData,
   NewTokenErrors,
   NewTokenResponses,
+  NfsStatusData,
+  NfsStatusResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -1014,6 +1066,9 @@ import type {
   QueueStepData,
   QueueStepErrors,
   QueueStepResponses,
+  ReadFileData,
+  ReadFileErrors,
+  ReadFileResponses,
   RecordingTopicsData,
   RecordingTopicsErrors,
   RecordingTopicsResponses,
@@ -1037,6 +1092,8 @@ import type {
   ReleaseJobData,
   ReleaseJobErrors,
   ReleaseJobResponses,
+  RemoteBackupsData,
+  RemoteBackupsResponses,
   RemoveBudgetData,
   RemoveBudgetErrors,
   RemoveBudgetResponses,
@@ -1085,6 +1142,9 @@ import type {
   ResourceTotalsData,
   ResourceTotalsErrors,
   ResourceTotalsResponses,
+  RestoreBackupData,
+  RestoreBackupErrors,
+  RestoreBackupResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -1111,6 +1171,9 @@ import type {
   RevokeGrantErrors,
   RevokeGrantResponses,
   RevokeResponses,
+  RevokeS3KeyData,
+  RevokeS3KeyErrors,
+  RevokeS3KeyResponses,
   RevokeShareData,
   RevokeShareErrors,
   RevokeShareResponses,
@@ -1123,15 +1186,23 @@ import type {
   RotateNotifySecretData,
   RotateNotifySecretErrors,
   RotateNotifySecretResponses,
+  RunData,
+  RunErrors,
   RunPipelineData,
   RunPipelineErrors,
   RunPipelineResponses,
+  RunResponses,
   RunRoutineData,
   RunRoutineErrors,
   RunRoutineResponses,
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
+  S3StatusData,
+  S3StatusResponses,
+  SaveBudgetData,
+  SaveBudgetErrors,
+  SaveBudgetResponses,
   SaveCollectionFieldsData,
   SaveCollectionFieldsErrors,
   SaveCollectionFieldsResponses,
@@ -1176,6 +1247,9 @@ import type {
   SearchTranscriptsResponses,
   SemanticStatusData,
   SemanticStatusResponses,
+  SendBackupData,
+  SendBackupErrors,
+  SendBackupResponses,
   SendChunkData,
   SendChunkErrors,
   SendChunkResponses,
@@ -1191,6 +1265,9 @@ import type {
   SetMemberData,
   SetMemberErrors,
   SetMemberResponses,
+  SetMonitoringData,
+  SetMonitoringErrors,
+  SetMonitoringResponses,
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
@@ -1218,6 +1295,10 @@ import type {
   SkipTopicCandidateData,
   SkipTopicCandidateErrors,
   SkipTopicCandidateResponses,
+  SlackStatusData,
+  SlackStatusResponses,
+  SmbStatusData,
+  SmbStatusResponses,
   SpeakTextData,
   SpeakTextErrors,
   SpeakTextResponses,
@@ -1250,6 +1331,8 @@ import type {
   TagRecordingsResponses,
   TakeBackupData,
   TakeBackupResponses,
+  TelegramStatusData,
+  TelegramStatusResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestBridgeData,
@@ -1268,17 +1351,23 @@ import type {
   TestFileStoreResponses,
   TestLlmData,
   TestLlmResponses,
+  TestMailboxData,
+  TestMailboxResponses,
   TestMailData,
   TestMailResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
+  TestSlackData,
+  TestSlackResponses,
   TestSourceData,
   TestSourceErrors,
   TestSourceResponses,
   TestSpeechData,
   TestSpeechErrors,
   TestSpeechResponses,
+  TestTelegramData,
+  TestTelegramResponses,
   TestTelemetryData,
   TestTelemetryResponses,
   TokenData,
@@ -2496,6 +2585,34 @@ export class Admin {
   }
 
   /**
+   * Nfs Status
+   *
+   * The file tree over NFS: whether it's serving, as whom, to which networks, and the command that mounts it.
+   */
+  public static nfsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<NfsStatusData, ThrowOnError>,
+  ): RequestResult<NfsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NfsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/nfs/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Smb Status
+   *
+   * The file tree over SMB (Settings › SMB share): whether it's serving, to which networks, and how to connect.
+   */
+  public static smbStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SmbStatusData, ThrowOnError>,
+  ): RequestResult<SmbStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SmbStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/smb/status",
+      ...options,
+    });
+  }
+
+  /**
    * Tunnel Status
    *
    * How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
@@ -2511,6 +2628,36 @@ export class Admin {
   }
 
   /**
+   * Https Status
+   *
+   * How HTTPS (Settings › HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it
+   * holds and when they run out, and Caddy's last lines.
+   */
+  public static httpsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsStatusData, ThrowOnError>,
+  ): RequestResult<HttpsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Https Providers
+   *
+   * The DNS providers Settings › HTTPS lists for the DNS challenge, with the fields each needs. Any other caddy-dns
+   * plugin works too, by name.
+   */
+  public static httpsProviders<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsProvidersData, ThrowOnError>,
+  ): RequestResult<HttpsProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<HttpsProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/https/providers",
+      ...options,
+    });
+  }
+
+  /**
    * Test Bridge
    *
    * Check that Matterbridge answers at its address with its token, and that the account to answer as exists.
@@ -2520,6 +2667,92 @@ export class Admin {
   ): RequestResult<TestBridgeResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestBridgeResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Telegram Status
+   *
+   * How the assistant's Telegram bot is doing, and the chats it has seen (their ids are what telegram.rooms names).
+   */
+  public static telegramStatus<ThrowOnError extends boolean = false>(
+    options?: Options<TelegramStatusData, ThrowOnError>,
+  ): RequestResult<TelegramStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<TelegramStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telegram",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Telegram
+   *
+   * Check that Telegram knows the bot's token, and that the account to answer as exists.
+   */
+  public static testTelegram<ThrowOnError extends boolean = false>(
+    options?: Options<TestTelegramData, ThrowOnError>,
+  ): RequestResult<TestTelegramResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestTelegramResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telegram/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Slack Status
+   *
+   * How the assistant's Slack app is doing, its slash command, and the link that creates the app from its manifest.
+   */
+  public static slackStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SlackStatusData, ThrowOnError>,
+  ): RequestResult<SlackStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SlackStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/slack",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Slack
+   *
+   * Check both Slack tokens, and that the account to answer as exists.
+   */
+  public static testSlack<ThrowOnError extends boolean = false>(
+    options?: Options<TestSlackData, ThrowOnError>,
+  ): RequestResult<TestSlackResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestSlackResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/slack/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Mailbox Status
+   *
+   * How the assistant's mailbox is doing, and who has written to it (whether each is let in, and their mail vouched
+   * for by their provider).
+   */
+  public static mailboxStatus<ThrowOnError extends boolean = false>(
+    options?: Options<MailboxStatusData, ThrowOnError>,
+  ): RequestResult<MailboxStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MailboxStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mailbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Mailbox
+   *
+   * Check that Lens can sign in to read the mailbox (IMAP) and to send from it (SMTP), and that the account to
+   * answer as exists. Nothing is read or sent.
+   */
+  public static testMailbox<ThrowOnError extends boolean = false>(
+    options?: Options<TestMailboxData, ThrowOnError>,
+  ): RequestResult<TestMailboxResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestMailboxResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mailbox/test",
       ...options,
     });
   }
@@ -2754,6 +2987,109 @@ export class Admin {
 
 export class Updates {
   /**
+   * Remote Backups
+   *
+   * The copies on backups.connection, how copying the last backup there went, and a copy running now.
+   */
+  public static remoteBackups<ThrowOnError extends boolean = false>(
+    options?: Options<RemoteBackupsData, ThrowOnError>,
+  ): RequestResult<RemoteBackupsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<RemoteBackupsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/backups/remote",
+      ...options,
+    });
+  }
+
+  /**
+   * Send Backup
+   *
+   * Copy this backup to backups.connection now, in the background.
+   */
+  public static sendBackup<ThrowOnError extends boolean = false>(
+    options: Options<SendBackupData, ThrowOnError>,
+  ): RequestResult<SendBackupResponses, SendBackupErrors, ThrowOnError> {
+    return (options.client ?? client).post<SendBackupResponses, SendBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/send",
+      ...options,
+    });
+  }
+
+  /**
+   * Fetch Backup
+   *
+   * Bring the copy of this backup back from backups.connection, in the background, to restore or download it.
+   */
+  public static fetchBackup<ThrowOnError extends boolean = false>(
+    options: Options<FetchBackupData, ThrowOnError>,
+  ): RequestResult<FetchBackupResponses, FetchBackupErrors, ThrowOnError> {
+    return (options.client ?? client).post<FetchBackupResponses, FetchBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/fetch",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Remote Backup
+   *
+   * Delete the copy of this backup on backups.connection.
+   */
+  public static deleteRemoteBackup<ThrowOnError extends boolean = false>(
+    options: Options<DeleteRemoteBackupData, ThrowOnError>,
+  ): RequestResult<DeleteRemoteBackupResponses, DeleteRemoteBackupErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteRemoteBackupResponses, DeleteRemoteBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/remote",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Backup
+   *
+   * Replace the whole database with this backup, in the background (GET /admin/backups follows it). What it held
+   * is backed up first (before-restore), and put back if the restore fails. Sign-ins made since the backup end.
+   */
+  public static restoreBackup<ThrowOnError extends boolean = false>(
+    options: Options<RestoreBackupData, ThrowOnError>,
+  ): RequestResult<RestoreBackupResponses, RestoreBackupErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreBackupResponses, RestoreBackupErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/restore",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Backup Link
+   *
+   * A link that downloads the backup for the next couple of minutes, for the browser to open.
+   */
+  public static backupLink<ThrowOnError extends boolean = false>(
+    options: Options<BackupLinkData, ThrowOnError>,
+  ): RequestResult<BackupLinkResponses, BackupLinkErrors, ThrowOnError> {
+    return (options.client ?? client).post<BackupLinkResponses, BackupLinkErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/link",
+      ...options,
+    });
+  }
+
+  /**
+   * Backup File
+   *
+   * The backup itself, through a link from POST /admin/backups/{name}/link.
+   */
+  public static backupFile<ThrowOnError extends boolean = false>(
+    options: Options<BackupFileData, ThrowOnError>,
+  ): RequestResult<BackupFileResponses, BackupFileErrors, ThrowOnError> {
+    return (options.client ?? client).get<BackupFileResponses, BackupFileErrors, ThrowOnError>({
+      url: "/api/v1/admin/backups/{name}/file",
+      ...options,
+    });
+  }
+
+  /**
    * Get Updates
    *
    * The version running, the latest release, and how the last upgrade went.
@@ -2801,9 +3137,44 @@ export class Updates {
   }
 
   /**
+   * Get Monitoring
+   *
+   * Whether Prometheus, node-exporter and Grafana run next to Lens (the monitoring profile), and how the machine's
+   * last change went.
+   */
+  public static getMonitoring<ThrowOnError extends boolean = false>(
+    options?: Options<GetMonitoringData, ThrowOnError>,
+  ): RequestResult<GetMonitoringResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetMonitoringResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/monitoring",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Monitoring
+   *
+   * Have this machine start or stop Prometheus, node-exporter and Grafana. On also turns /metrics on with a scrape
+   * token when it has none. GET /admin/monitoring follows along.
+   */
+  public static setMonitoring<ThrowOnError extends boolean = false>(
+    options: Options<SetMonitoringData, ThrowOnError>,
+  ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
+      url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * List Backups
    *
-   * The database backups in <data_dir>/backups, newest first.
+   * The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or
+   * the last one); and the backup schedule.
    */
   public static listBackups<ThrowOnError extends boolean = false>(
     options?: Options<ListBackupsData, ThrowOnError>,
@@ -2817,7 +3188,8 @@ export class Updates {
   /**
    * Take Backup
    *
-   * Back the database up now (it can take a while on a big archive).
+   * Back the database up now (it can take a while on a big archive). With backups.connection set, it is then
+   * copied there in the background (GET /admin/backups/remote follows it).
    */
   public static takeBackup<ThrowOnError extends boolean = false>(
     options?: Options<TakeBackupData, ThrowOnError>,
@@ -2962,6 +3334,22 @@ export class Budgets {
   }
 
   /**
+   * Budget Meter
+   *
+   * What a namespace (or all of Lens) spent this day, week or month, against its budget when it has one: the top
+   * bar's meter, and with `detail` the costs page. Anyone who can read a namespace sees its meter; admins see all of
+   * Lens's.
+   */
+  public static budgetMeter<ThrowOnError extends boolean = false>(
+    options?: Options<BudgetMeterData, ThrowOnError>,
+  ): RequestResult<BudgetMeterResponses, BudgetMeterErrors, ThrowOnError> {
+    return (options?.client ?? client).get<BudgetMeterResponses, BudgetMeterErrors, ThrowOnError>({
+      url: "/api/v1/budgets/meter",
+      ...options,
+    });
+  }
+
+  /**
    * Budget Status
    *
    * Where a resource's budget stands, and what its next run will likely cost (also without a budget).
@@ -3071,6 +3459,21 @@ export class Setup {
   }
 
   /**
+   * Llm Providers
+   *
+   * Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a
+   * model, so picking one leaves only the API key to paste.
+   */
+  public static llmProviders<ThrowOnError extends boolean = false>(
+    options?: Options<LlmProvidersData, ThrowOnError>,
+  ): RequestResult<LlmProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<LlmProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup/llm/providers",
+      ...options,
+    });
+  }
+
+  /**
    * Save Storage
    *
    * The upload limit, and optionally a folder on this machine (inside sources.local_roots) to watch.
@@ -3098,6 +3501,26 @@ export class Setup {
   ): RequestResult<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError> {
     return (options.client ?? client).put<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError>({
       url: "/api/v1/setup/telemetry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Budget
+   *
+   * The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop
+   * (docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard
+   * limit: no budget.
+   */
+  public static saveBudget<ThrowOnError extends boolean = false>(
+    options: Options<SaveBudgetData, ThrowOnError>,
+  ): RequestResult<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/setup/budget",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4707,6 +5130,37 @@ export class Files {
   }
 }
 
+export class Tree {
+  /**
+   * List Folder
+   *
+   * A folder's files and folders: '' lists your namespaces, then their collections, each holding its assets'
+   * files. A file answers 400 (read it at /tree/file).
+   */
+  public static listFolder<ThrowOnError extends boolean = false>(
+    options?: Options<ListFolderData, ThrowOnError>,
+  ): RequestResult<ListFolderResponses, ListFolderErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListFolderResponses, ListFolderErrors, ThrowOnError>({
+      url: "/api/v1/tree",
+      ...options,
+    });
+  }
+
+  /**
+   * Read File
+   *
+   * A file of the tree, with byte ranges.
+   */
+  public static readFile<ThrowOnError extends boolean = false>(
+    options?: Options<ReadFileData, ThrowOnError>,
+  ): RequestResult<ReadFileResponses, ReadFileErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ReadFileResponses, ReadFileErrors, ThrowOnError>({
+      url: "/api/v1/tree/file",
+      ...options,
+    });
+  }
+}
+
 export class Fields {
   /**
    * List Fields
@@ -5153,6 +5607,23 @@ export class Search {
   ): RequestResult<SearchPhotosResponses, SearchPhotosErrors, ThrowOnError> {
     return (options.client ?? client).get<SearchPhotosResponses, SearchPhotosErrors, ThrowOnError>({
       url: "/api/v1/search/photos",
+      ...options,
+    });
+  }
+
+  /**
+   * Find Similar
+   *
+   * The resources most like a text, a resource, a topic or an entity (give one), best first, in the namespaces you
+   * can read and the collections you were given a role on, each with why: its closest passages by meaning (when
+   * search by meaning is set up), the lines with the key words it shares, and the topics and entities in common.
+   * Each cited moment can be opened. A resource is never listed as like itself.
+   */
+  public static findSimilar<ThrowOnError extends boolean = false>(
+    options?: Options<FindSimilarData, ThrowOnError>,
+  ): RequestResult<FindSimilarResponses, FindSimilarErrors, ThrowOnError> {
+    return (options?.client ?? client).get<FindSimilarResponses, FindSimilarErrors, ThrowOnError>({
+      url: "/api/v1/similar",
       ...options,
     });
   }
@@ -8063,6 +8534,10 @@ export class Chats {
    *
    * `/clear` makes the model start afresh (the messages stay to read) and `/compact [what to keep]` folds the
    * conversation so far into its summary now; each streams cleared or compacted, then its reply as an answer.
+   *
+   * With `browser` (the session of a browser's Lens side panel, POST /browser/sessions), the assistant can use that
+   * browser while the side panel is connected: open pages, read them, click, type and download files into the
+   * conversation (docs/browser-assistant.md).
    */
   public static sendMessage<ThrowOnError extends boolean = false>(
     options: Options<SendMessageData, ThrowOnError, unknown>,
@@ -8130,6 +8605,109 @@ export class Chats {
   ): RequestResult<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideApprovalResponses, DecideApprovalErrors, ThrowOnError>({
       url: "/api/v1/approvals/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+}
+
+export class Browser {
+  /**
+   * List Sessions
+   *
+   * Your browsers whose side panel is connected now, the latest first.
+   */
+  public static listSessions<ThrowOnError extends boolean = false>(
+    options?: Options<ListSessionsData, ThrowOnError>,
+  ): RequestResult<ListSessionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListSessionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/browser/sessions",
+      ...options,
+    });
+  }
+
+  /**
+   * Connect
+   *
+   * Connect a browser's Lens side panel: then open its action stream. Audited as `browser.connect`.
+   */
+  public static connect<ThrowOnError extends boolean = false>(
+    options?: Options<ConnectData, ThrowOnError>,
+  ): RequestResult<ConnectResponses, ConnectErrors, ThrowOnError> {
+    return (options?.client ?? client).post<ConnectResponses, ConnectErrors, ThrowOnError>({
+      url: "/api/v1/browser/sessions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
+    });
+  }
+
+  /**
+   * Disconnect
+   *
+   * The side panel closed: the assistant can't use that browser any more, and actions waiting on it fail.
+   */
+  public static disconnect<ThrowOnError extends boolean = false>(
+    options: Options<DisconnectData, ThrowOnError>,
+  ): RequestResult<DisconnectResponses, DisconnectErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DisconnectResponses, DisconnectErrors, ThrowOnError>({
+      url: "/api/v1/browser/sessions/{sid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Actions
+   *
+   * The actions the assistant (or an agent) asks of this browser, as server-sent `action` events {id, tool, args,
+   * chat}: carry each one out and answer it with POST /browser/actions/{id}. The session stays connected while this
+   * stream is open; a comment line every 15 seconds keeps it so through proxies. `once=true` sends the actions waiting
+   * now and closes, for a client that asks again and again instead (each time keeps it connected for a while).
+   */
+  public static actions<ThrowOnError extends boolean = false>(
+    options: Options<ActionsData, ThrowOnError, unknown>,
+  ): Promise<ServerSentEventsResult<ActionsResponses>> {
+    return (options.client ?? client).sse.get<ActionsResponses, ActionsErrors, ThrowOnError>({
+      url: "/api/v1/browser/sessions/{sid}/actions",
+      ...options,
+    });
+  }
+
+  /**
+   * Answer Action
+   *
+   * What the browser did with an action: its result, or why it didn't (the person said no, the site isn't allowed...).
+   * 404 for an action that isn't one of your browser's, or that's been answered or given up on.
+   */
+  public static answerAction<ThrowOnError extends boolean = false>(
+    options: Options<AnswerActionData, ThrowOnError>,
+  ): RequestResult<AnswerActionResponses, AnswerActionErrors, ThrowOnError> {
+    return (options.client ?? client).post<AnswerActionResponses, AnswerActionErrors, ThrowOnError>({
+      url: "/api/v1/browser/actions/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run
+   *
+   * Do one thing in your connected browser, as the assistant's browser_ tools do, and wait for it: for agents and
+   * scripts. The side panel shows it and asks you first, as it does for the assistant. Audited as `browser.run`.
+   */
+  public static run<ThrowOnError extends boolean = false>(
+    options: Options<RunData, ThrowOnError>,
+  ): RequestResult<RunResponses, RunErrors, ThrowOnError> {
+    return (options.client ?? client).post<RunResponses, RunErrors, ThrowOnError>({
+      url: "/api/v1/browser/sessions/{sid}/run",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -9108,6 +9686,70 @@ export class Sensors {
   ): RequestResult<PushStreamResponses, PushStreamErrors, ThrowOnError> {
     return (options.client ?? client).post<PushStreamResponses, PushStreamErrors, ThrowOnError>({
       url: "/api/v1/sensors/push/{token}/{stream}",
+      ...options,
+    });
+  }
+}
+
+export class Shares {
+  /**
+   * S3 Status
+   *
+   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your
+   * access keys.
+   */
+  public static s3Status<ThrowOnError extends boolean = false>(
+    options?: Options<S3StatusData, ThrowOnError>,
+  ): RequestResult<S3StatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<S3StatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/shares/s3",
+      ...options,
+    });
+  }
+
+  /**
+   * All S3 Keys
+   *
+   * Everyone's access keys, with their owners (admins).
+   */
+  public static allS3Keys<ThrowOnError extends boolean = false>(
+    options?: Options<AllS3KeysData, ThrowOnError>,
+  ): RequestResult<AllS3KeysResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<AllS3KeysResponses, unknown, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys",
+      ...options,
+    });
+  }
+
+  /**
+   * Create S3 Key
+   *
+   * An access key that reads the file tree as you, over S3 and WebDAV. Only while signed in to the web app (with your passkey),
+   * not with an API token. The secret is in this answer only.
+   */
+  public static createS3Key<ThrowOnError extends boolean = false>(
+    options: Options<CreateS3KeyData, ThrowOnError>,
+  ): RequestResult<CreateS3KeyResponses, CreateS3KeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateS3KeyResponses, CreateS3KeyErrors, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Revoke S3 Key
+   *
+   * Revoke one of your keys (admins: anyone's). It stops working at once.
+   */
+  public static revokeS3Key<ThrowOnError extends boolean = false>(
+    options: Options<RevokeS3KeyData, ThrowOnError>,
+  ): RequestResult<RevokeS3KeyResponses, RevokeS3KeyErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RevokeS3KeyResponses, RevokeS3KeyErrors, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys/{key_id}",
       ...options,
     });
   }

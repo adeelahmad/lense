@@ -112,13 +112,19 @@ def _ok(typ, data, what):
 @contextlib.contextmanager
 def _imap(cfg, src):
     p = _params(src)
-    host, security = p.get("host"), p.get("security") or "ssl"
+    with connect(p.get("host"), p.get("port"), p.get("security") or "ssl", p.get("user") or "", _secret(cfg, src, "pass")) as conn:
+        yield conn
+
+
+@contextlib.contextmanager
+def connect(host, port, security, user, password):
+    """A signed-in IMAP connection (an IMAP source's, or the assistant's own mailbox: mailbox.py)."""
     if not host:
         raise RuntimeError("the mail server's host name isn't set")
     if security not in SECURITY:
         raise RuntimeError(f"security is one of: {', '.join(SECURITY)}")
     try:
-        port = int(p.get("port") or (993 if security == "ssl" else 143))
+        port = int(port or (993 if security == "ssl" else 143))
     except ValueError:
         raise RuntimeError("the port is a number, such as 993") from None
     try:
@@ -132,7 +138,7 @@ def _imap(cfg, src):
         raise RuntimeError(f"couldn't reach {host}:{port}: {e}") from None
     try:
         try:
-            conn.login(p.get("user") or "", _secret(cfg, src, "pass"))
+            conn.login(user, password)
         except imaplib.IMAP4.error as e:
             raise RuntimeError(f"the mail server refused to sign in: {e}") from None
         yield conn
@@ -164,9 +170,9 @@ def _mailboxes(conn):
     return out
 
 
-def _select(conn, mailbox):
-    """Open a mailbox read-only: (how many messages, its UIDVALIDITY)."""
-    typ, data = conn.select(_quote(mailbox), readonly=True)
+def _select(conn, mailbox, readonly=True):
+    """Open a mailbox (read-only unless asked): (how many messages, its UIDVALIDITY)."""
+    typ, data = conn.select(_quote(mailbox), readonly=readonly)
     if typ != "OK":
         raise ValueError(f"there's no mailbox {mailbox}")
     _, validity = conn.response("UIDVALIDITY")
@@ -186,11 +192,11 @@ def _internal(meta):
         return None
 
 
-def _messages(conn, mailbox, base, after=None):
+def _messages(conn, mailbox, base, after=None, readonly=True):
     """The messages of a mailbox as files: uid, size, when it arrived, its subject and Message-ID (headers only;
     nothing is read). With `after` ({validity, uid}, a watch's cursor), only those after that UID, unless the mailbox
     has been rebuilt since (its UIDVALIDITY changed)."""
-    count, validity = _select(conn, mailbox)
+    count, validity = _select(conn, mailbox, readonly)
     if not count:
         return []
     last = int(after["uid"]) if after and int(after.get("validity") or -1) == validity else 0
@@ -322,12 +328,17 @@ def _imap_fetch(cfg, src, path):
         _, now = _select(conn, mailbox)
         if now != validity:
             raise FileNotFoundError(f"{mailbox} has been rebuilt on the server: message {uid} there is another one now")
-        typ, data = conn.uid("FETCH", uid, "(BODY.PEEK[])")
-        data = _ok(typ, data, f"reading message {uid}")
-        raw = next((d[1] for d in data if isinstance(d, tuple) and d[1]), None)
+        raw = read(conn, uid)
     if raw is None:
         raise FileNotFoundError(f"message {uid} isn't in {mailbox} any more")
     return raw
+
+
+def read(conn, uid):
+    """A message of the open mailbox as the server keeps it (it stays unread), or None when it's gone."""
+    typ, data = conn.uid("FETCH", str(uid), "(BODY.PEEK[])")
+    data = _ok(typ, data, f"reading message {uid}")
+    return next((d[1] for d in data if isinstance(d, tuple) and d[1]), None)
 
 
 def advance(cursor, files, held=()):

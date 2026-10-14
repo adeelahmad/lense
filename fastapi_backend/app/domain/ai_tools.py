@@ -6,10 +6,12 @@ run work or change data don't act: they create an approval the person accepts or
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 
 from . import (
+    auth,
     batches,
     cypher,
     entities,
@@ -25,10 +27,14 @@ from . import (
     recsets,
     render,
     search as searchmod,
+    browser as browsermod,
+    similar,
     speakers as spk,
     store,
     templates,
     topics,
+    untrusted,
+    uploads,
 )
 
 R = store.R
@@ -41,6 +47,15 @@ TOOLS = [
         "Search what was said (and text shown on screen in videos) across the recordings in scope.",
         {"query": _S, "namespace": _S, "limit": _I},
         ["query"],
+        False,
+    ),
+    (
+        "find_similar",
+        "Find the recordings, documents and images in scope most like a text, a recording, a topic or an entity (give "
+        "one): close in meaning (when search by meaning is set up), sharing key words, about the same topics, mentioning "
+        "the same entities; each with the moments that show it.",
+        {"text": _S, "recording_id": _I, "topic_id": _I, "entity_id": _I, "limit": _I},
+        [],
         False,
     ),
     (
@@ -306,16 +321,62 @@ MEMORY_TOOLS = [
 
 def builtin_names():
     """The assistant's own tool names, which extensions can't take."""
-    return {t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS} | {"use_skill"}
+    every = TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS + browsermod.TOOLS
+    return {t[0] for t in every} | {"use_skill"}
+
+
+# tools whose results the model may take as Lens's own word: the server's state and settings, the skills the person
+# chose, what the graph holds, and what the built-in tools that change things report (ids, what waits for approval).
+# What every other tool gives back is third-party text, marked as data (untrusted.py).
+OWN_RESULTS = {"server_status", "find_model_servers", "read_settings", "file_storage", "graph_schema", "use_skill"} | {
+    t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS if t[4]
+}
+
+
+def read_before(history, summary=None):
+    """Whether earlier answers in a conversation read text from outside Lens (excerpts, or tools other than Lens's own),
+    as a Toolbox's `outside`: the model reads those answers again, word for word or in the summary. After /clear it
+    reads only what came since."""
+    since = (summary or {}).get("upto") or 0 if summary is not None and not summary.get("text") else 0
+    for m in history:
+        if m["id"] <= since or m["role"] != "assistant":
+            continue
+        tools = {s.get("tool") for s in m.get("steps") or [] if s} - OWN_RESULTS - {None, "choose_namespace"}
+        if m.get("passages") or tools:
+            return ["earlier answers"]
+    return []
 
 
 class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
-    makes their changes at once instead of asking for approval."""
+    makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
+    channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
+    then use."""
 
-    def __init__(self, db, cfg, user, readable, editable, scope, chat_id, base=None, admin=False, act=False, said=""):
+    def __init__(
+        self,
+        db,
+        cfg,
+        user,
+        readable,
+        editable,
+        scope,
+        chat_id,
+        base=None,
+        admin=False,
+        act=False,
+        said="",
+        outside=(),
+        browser=None,
+        act_on=(),
+    ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
-        self.base, self.admin, self.act = base or cfg, admin, act
+        # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
+        # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
+        # ask first, even where they'd act at once (wary)
+        self.outside = list(dict.fromkeys(outside))
+        self.links = set()  # web addresses the tools gave back, as written (untrusted.defang)
+        self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
         names = store.space_names(db)
@@ -331,11 +392,14 @@ class Toolbox(ops_tools.OpsTools):
         # the namespace's own assistant, when the conversation is about that namespace alone and its assistant is on
         home = ns_assistant.for_scope(db, self.scope)
         self.home = home if home and home[0] in self.readable else None
+        # the browser the person is talking from, while its side panel is connected (and an admin hasn't turned it off)
+        on = browser and browsermod.enabled(cfg) and browsermod.live(db, browser, user["id"])
+        self.browser = str(browser) if on else None
 
     def system_note(self):
         """What the model is told besides its usual instructions: the skills it can follow, and context that hooks add
         for this question."""
-        out = self._home_note()
+        out = self._home_note() + (browsermod.NOTE if self.browser else "")
         if not self.ext:
             return out
         out += self.ext.system_note()
@@ -350,6 +414,8 @@ class Toolbox(ops_tools.OpsTools):
             return ""
         sid, name, p = self.home
         rows = ns_assistant.labelled(self.db, ns_assistant.memories(self.db, sid, ns_assistant.PROMPT_MAX))
+        if rows:
+            self.read_outside("memory")
         spaces = {
             r["id"]: r["space"]
             for r in self.db.rows(
@@ -369,7 +435,7 @@ class Toolbox(ops_tools.OpsTools):
             else:
                 told = "told in a conversation" if m.get("author") == "assistant" else "written by a person"
                 lines.append(f"- {m['text']} (memory {m['id']}, {told}, {day})")
-        return ns_assistant.prompt(name, p, lines)
+        return ns_assistant.prompt(name, p, lines, self.cfg)
 
     def after_answer(self, text):
         """Run the hooks for an answer that was written."""
@@ -401,6 +467,8 @@ class Toolbox(ops_tools.OpsTools):
             tools += [t for t in AUTHOR_TOOLS if can_act or self.admin or not t[4]]
         if self.home:
             tools += [t for t in MEMORY_TOOLS if self.home[0] in self.editable or not t[4]]
+        if self.browser:
+            tools += browsermod.TOOLS
         if self.ext:
             tools += self.ext.tool_specs(can_act or self.admin)
         return [
@@ -436,7 +504,39 @@ class Toolbox(ops_tools.OpsTools):
             raise ValueError(f"recording {rid} isn't available in this conversation")
         return row
 
-    def call(self, name, args):
+    def untrusted(self, name):
+        """Whether what a tool gives back is text from outside Lens (recordings, documents, web pages, other servers),
+        for the model to read as data."""
+        return name not in OWN_RESULTS
+
+    def read_outside(self, source):
+        if source not in self.outside:
+            self.outside.append(source)
+
+    def wary(self):
+        """Whether this answer has read text from outside Lens, so that what could carry its instructions out (a web
+        tool, another server's tool) or change the server asks first (ai.untrusted_asks, on by default)."""
+        return bool(self.outside) and self.cfg["ai"].get("untrusted_asks", True)
+
+    def read_from(self):
+        """What made this answer wary, in words: where it read text from outside Lens."""
+        return f"this answer read text from outside Lens: {', '.join(self.outside[:4])}"
+
+    def why(self):
+        """Why something that would have run at once waits for a yes, said with it."""
+        return f" (asked first: {self.read_from()})"
+
+    def said_it(self, text):
+        """Whether the person wrote `text` themselves in what they asked (never a chat room's message open to anyone),
+        so it carries nothing the answer read elsewhere."""
+        if "chat room" in self.outside:
+            return False
+        words = " ".join(str(text or "").split()).casefold()
+        return bool(words) and words in " ".join(str(self.said or "").split()).casefold()
+
+    def call(self, name, args, model=False):
+        """A tool's result (JSON) and the step's summary. `model`: the result as the model reads it, third-party text
+        marked as data (untrusted), with what hooks add after it, unmarked."""
         offered = {s["function"]["name"] for s in self.specs()}
         try:
             if name not in offered:
@@ -451,10 +551,22 @@ class Toolbox(ops_tools.OpsTools):
                     why = extensions.fill(h["spec"]["action"]["reason"], {"said": self.said, "tool": name})
                     return json.dumps({"error": f"blocked: {why}"}), f"{name}: blocked ({why})"
                 extra += self._hook(h, {"said": self.said, "tool": name})
+        asked = len(self.approvals)
         result, summary = self._run(name, fn, args)
+        self.links |= untrusted.links(result)
+        if self.untrusted(name) and len(self.approvals) == asked:  # it read something, rather than asking for a yes
+            self.read_outside(f"tool {name}")
         if hooks:
             for h in self.ext.matching("after_tool", name, result):
                 extra += self._hook(h, {"said": self.said, "tool": name, "result": result[:4000]})
+        if model:
+            if self.untrusted(name):
+                why = untrusted.flags(result, self.cfg, model=True)
+                if why:  # the person sees it on the step, the model on the marker, admins in the audit log
+                    summary = f"{summary} (reads like instructions to an AI: {'; '.join(why)})"
+                    auth.audit(self.db, self.user, "assistant.injection_flagged", f"chat:{self.chat}", {"tool": name, "why": why})
+                result = untrusted.wrap(result, f"tool {name}", self.cfg, why=why)
+            return result + (f"\n\n{extra.strip()}" if extra else ""), summary
         if extra:  # what hooks add, next to what the tool gave back
             try:
                 got = json.loads(result)
@@ -474,9 +586,16 @@ class Toolbox(ops_tools.OpsTools):
         def run(**args):
             args = extensions.tool_args(t["spec"], args)
             what = f"{t['name']}(" + ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)[:60]}" for k, v in args.items()) + ")"
-            if t["spec"]["effect"] == "change" and not self.act:
+            change = t["spec"]["effect"] == "change"
+            # a tool that reaches another host carries what the model put in its arguments there: after reading text
+            # from outside Lens, which may have put it there, it asks first
+            asks = change and not self.act
+            wary = not asks and (change or extensions.sends_out(t["spec"])) and self.wary()
+            if asks or wary:  # the reason said only where it asks because of what it read
                 return self._approval(
-                    "extension", {"tool": t["name"], "extension": t["ext"], "version": t["version"], "args": args}, f"Run {what}"
+                    "extension",
+                    {"tool": t["name"], "extension": t["ext"], "version": t["version"], "args": args},
+                    f"Run {what}" + (self.why() if wary else ""),
                 )
             out = extensions.run_tool(self.db, self.cfg, t["spec"], args, toolbox=self)
             return out, f"Ran {what}"
@@ -498,6 +617,54 @@ class Toolbox(ops_tools.OpsTools):
         if files:
             out["files"] = list(files)
         return out, f"Read the skill {name}"
+
+    # ---- the person's browser, through its Lens side panel (browser.py): the extension does each action ----
+    def _browse(self, tool, **args):
+        args = store.clean(args)
+        # an address to open or download, or text to type, can carry what the answer read out of Lens: once it has read
+        # text from outside Lens, which may have put it there, the browser asks the person first (`confirm`, why), on
+        # sites they allowed too, unless they wrote it themselves
+        risky = args.get("text") if tool == "type" else args.get("url") if tool in ("open", "import") else None
+        if risky and self.wary() and not self.said_it(risky):
+            args["confirm"] = self.read_from()
+        try:
+            out = browsermod.run(self.db, self.browser, self.user["id"], tool, args, chat=self.chat)
+        except browsermod.BrowserError as e:
+            raise ValueError(str(e)) from None
+        return out, browsermod.summary(tool, args, out)
+
+    def t_browser_tabs(self):
+        return self._browse("tabs")
+
+    def t_browser_open(self, url, tab_id=None, new_tab=None):
+        return self._browse("open", url=str(url), tab_id=tab_id, new_tab=new_tab)
+
+    def t_browser_read(self, tab_id=None, find=None, max_chars=None):
+        return self._browse("read", tab_id=tab_id, find=find, max_chars=max_chars)
+
+    def t_browser_click(self, ref, tab_id=None, consequential=None):
+        return self._browse("click", ref=str(ref), tab_id=tab_id, consequential=consequential)
+
+    def t_browser_type(self, ref, text, submit=None, tab_id=None, consequential=None):
+        return self._browse("type", ref=str(ref), text=str(text), submit=submit, tab_id=tab_id, consequential=consequential)
+
+    def t_browser_press(self, key, tab_id=None):
+        return self._browse("press", key=str(key), tab_id=tab_id)
+
+    def t_browser_import(self, ref=None, url=None, tab_id=None, page=None):
+        if not (ref or url or page):
+            raise ValueError("give a link's ref, a file's url, or page: true")
+        out, said = self._browse("import", ref=ref, url=url, tab_id=tab_id, page=page)
+        # the browser attached it as one of the person's held uploads: check it's theirs and waiting to be placed
+        uid = str((out or {}).get("upload_id") or "")
+        try:
+            up = uploads.get(self.db, uid)
+        except KeyError:
+            raise ValueError("the browser didn't attach the file") from None
+        if up.get("account") != self.user["id"] or up.get("state") != "held":
+            raise ValueError("the browser didn't attach the file")
+        attached = {"upload_id": uid, "filename": up["filename"], "size": up["size"], "next": "import_files puts it in a namespace"}
+        return attached, f"Attached {up['filename']} from the browser"
 
     # ---- extensions, from chat ----
     def _ext_named(self, name):
@@ -608,6 +775,49 @@ class Toolbox(ops_tools.OpsTools):
                 }
             )
         return {"total": res["total"], "results": out}, f'Searched for "{query}": {res["total"]} match(es)'
+
+    def t_find_similar(self, text=None, recording_id=None, topic_id=None, entity_id=None, limit=5):
+        if recording_id is not None:
+            self._ok(recording_id)
+        try:
+            res = similar.similar(
+                self.db,
+                self.cfg,
+                text=text,
+                recording=recording_id,
+                topic=topic_id,
+                entity=entity_id,
+                spaces=self.readable,
+                within=self.allowed,
+                limit=min(int(limit or 5), 20),
+            )
+        except KeyError:
+            raise ValueError("that topic or entity isn't available in this conversation") from None
+        out = []
+        for x in res["items"]:
+            moments = []
+            for c in x["cites"]:
+                said = html.unescape(c["snippet"].replace("<mark>", "").replace("</mark>", ""))
+                n = self.ref(x["recording_id"], c["t0"] or 0, said, title=x["title"], source=c["source"], page=c["page"])
+                moments.append(
+                    {"ref": n, **({"page": c["page"] + 1} if c["page"] is not None else {"time": store.tc(c["t0"] or 0)}), "text": said}
+                )
+            out.append(
+                store.clean(
+                    {
+                        "recording_id": x["recording_id"],
+                        "title": x["title"],
+                        "namespace": x["namespace"],
+                        "alike_by": x["match"],
+                        "moments": moments,
+                        "words": x["words"] or None,
+                        "topics": [t["label"] for t in x["topics"]] or None,
+                        "entities": [e["name"] for e in x["entities"]] or None,
+                    }
+                )
+            )
+        like = res["label"] or ""
+        return {"like": like, "by": res["mode"], "total": res["total"], "results": out}, f'Found {res["total"]} like "{like[:60]}"'
 
     def t_list_recordings(self, namespace=None, limit=20, speaker_id=None, entity_id=None, media=None, **dates):
         f = recsets.clean_filter(

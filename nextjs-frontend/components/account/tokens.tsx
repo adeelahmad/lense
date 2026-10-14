@@ -2,10 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Copy, KeyRound, Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Tokens } from "@/app/openapi-client";
 import type { ApiToken } from "@/app/openapi-client/types.gen";
+import { S3Keys } from "@/components/account/s3-keys";
 import { daysError, expiresOn, SCOPE_LABEL, tokenExpiry } from "@/components/account/token-model";
 import { isUnreachable } from "@/components/errors/error-states";
 import { ChoiceCards } from "@/components/settings/controls";
@@ -36,7 +38,8 @@ export function TokensPage() {
     queryKey: ["tokens"],
     queryFn: () => data(Tokens.listTokens({ client })),
   });
-  const [creating, setCreating] = useState(false);
+  // ?new=1 (the account menu, when there are no tokens yet): the new token's form is open on arrival
+  const [creating, setCreating] = useState(useSearchParams().get("new") === "1");
   const [created, setCreated] = useState<Created | null>(null);
   const [revoking, setRevoking] = useState<ApiToken | null>(null);
 
@@ -140,6 +143,7 @@ export function TokensPage() {
           </div>
         )}
       </section>
+      <S3Keys />
       <NewTokenDialog
         open={creating}
         onClose={() => setCreating(false)}

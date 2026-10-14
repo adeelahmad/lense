@@ -101,7 +101,6 @@ export function SetupForm({ initialCode = "" }: { initialCode?: string }) {
           name="name"
           label="Name"
           autoComplete="name"
-          autoFocus={Boolean(initialCode)}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -110,6 +109,8 @@ export function SetupForm({ initialCode = "" }: { initialCode?: string }) {
           label="Email"
           type="email"
           autoComplete="email"
+          // the setup link filled the code in: email is the one field left that's needed (name is optional)
+          autoFocus={Boolean(initialCode)}
           required
           value={email}
           onChange={(e) => {

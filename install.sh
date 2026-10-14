@@ -13,13 +13,22 @@
 #   LENS_PORT      the web app's port (default: 3000, or the next free one)
 #   LENS_PUBLIC    1: reachable from other machines on the network, 0: this machine only (default: 1 on a server
 #                  without a desktop, else 0)
-#   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: full)
+#   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: as the last run
+#                  left it, else full)
 #   LENS_BACKEND   docker or microsandbox (one microVM, no Docker: docs/microsandbox.md). Asked on a first install
 #                  when microsandbox can run here (Linux with KVM, or a Mac with Apple silicon); default: docker
+#   LENS_DNS_FALLBACK  in a microsandbox: the public resolvers it looks names up with when this machine's don't
+#                  answer there, comma-separated (default: 1.1.1.1,9.9.9.9; empty: none; docs/microsandbox.md).
+#                  Kept for later runs
 #   GITHUB_TOKEN   a GitHub token to use when downloading (not needed; avoids GitHub's rate limits)
 #   LENS_NO_OPEN   1: don't open a browser
 #   LENS_YES       1: install what Lens needs without asking (it only asks at a terminal)
+#   LENS_HTTPS     1: publish the HTTPS and HTTP ports (443, 80; LENS_HTTPS_PORT / LENS_HTTP_PORT for others) so Lens
+#                  can serve https:// with certificates it gets itself, set up in Settings › HTTPS (docs/https.md);
+#                  0: don't (default: as the last run left it, else 0)
 #   LENS_UPGRADE_AGENT  0: don't set up the agent that lets the web app install new releases (docs/updates.md)
+#   LENS_WAIT      how long to wait for the web app to answer, in seconds (default: 1800 in a microsandbox, whose
+#                  first start builds everything, else 600)
 #   LENS_WIZARD    1: answer everything in the web installer, in the browser (the default for a first install at a
 #                  terminal, where Python 3 is there); 0: here in the terminal
 set -eu
@@ -30,7 +39,7 @@ main() {
 REPO="${LENS_REPO:-adeelahmad/lense}"
 DIR="${LENS_DIR:-$HOME/lens}"
 REF="${LENS_REF:-main}"
-TARGET="${LENS_TARGET:-full}"
+TARGET="${LENS_TARGET:-}"
 
 say() { printf '\033[1m%s\033[0m\n' "$*"; }
 fail() {
@@ -61,6 +70,15 @@ msb_ok() {
   esac
 }
 tty_ok() { [ "${LENS_YES:-0}" != 1 ] && (: </dev/tty) 2>/dev/null; }
+# has_db VOLUME: whether a microsandbox volume may hold a Lens database. Only one it can see has none counts as without:
+# empty, or with run.sh's tools (.lens) and no database (surreal/lens.db) next to them. One it can't look into (not
+# where microsandbox keeps them by default) counts as with.
+has_db() {
+  vol="$HOME/.microsandbox/volumes/$1"
+  [ -d "$vol" ] || return 0
+  [ -n "$(ls -A "$vol" 2>/dev/null)" ] || return 1
+  ! { [ -d "$vol/.lens" ] && [ ! -e "$vol/surreal/lens.db" ]; }
+}
 
 # --- The web installer: a first install at a terminal continues in the browser ----------------------------------------
 # It asks everything there (what to install, how Lens runs, the AI model and its key, the extras), then runs this
@@ -134,6 +152,7 @@ case "$BACKEND" in
   microsandbox) msb_ok || fail "microsandbox needs KVM on 64-bit Linux or a Mac with Apple silicon. Use LENS_BACKEND=docker." ;;
   *) fail "LENS_BACKEND is docker or microsandbox, not $BACKEND." ;;
 esac
+case "${LENS_WAIT:-0}" in *[!0-9]*) fail "LENS_WAIT is a number of seconds, not ${LENS_WAIT:-}." ;; esac
 
 # --- What's missing: listed, and installed once you say yes ---------------------------------------------------------
 # Asked only at a terminal; piped in by a script or CI (no terminal, or LENS_YES=1) it goes ahead, as before.
@@ -177,7 +196,17 @@ if [ "$BACKEND" = microsandbox ]; then
 if ! have msb; then
   say "Installing microsandbox (install.microsandbox.dev)..."
   have curl || fail "curl is needed to install microsandbox."
-  curl -fsSL https://install.microsandbox.dev | sh
+  msb_installer="$(curl -fsSL https://install.microsandbox.dev)" || fail "Couldn't download the microsandbox installer."
+  # Its installer asks GitHub's API for the latest release, which refuses busy shared addresses (CI, offices); the
+  # release page's redirect names it without that limit, so hand the installer the version when we can find it.
+  msb_repo="$(printf '%s\n' "$msb_installer" | sed -n 's/^GITHUB_REPO="\(.*\)"$/\1/p' | head -1)"
+  msb_tag=""
+  [ -n "$msb_repo" ] && msb_tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$msb_repo/releases/latest" 2>/dev/null | sed -n 's#.*/releases/tag/##p')"
+  if [ -n "$msb_tag" ]; then
+    printf '%s\n' "$msb_installer" | sed "s|^    get_latest_version\$|    VERSION=$msb_tag|" | sh
+  else
+    printf '%s\n' "$msb_installer" | sh
+  fi
   have msb || fail "microsandbox didn't install. See https://docs.microsandbox.dev, then run this again."
 fi
 if [ "$os" = Linux ] && [ ! -e /dev/kvm ]; then
@@ -274,6 +303,11 @@ else
 fi
 cd "$DIR"
 
+# --- The edition: the one asked for, else the one this install already has (a lean install stays lean), else full ---
+[ -n "$TARGET" ] || TARGET="$( [ -f .env ] && grep '^LENS_TARGET=' .env | cut -d= -f2- || true)"
+TARGET="${TARGET:-full}"
+case "$TARGET" in full | lean) ;; *) fail "LENS_TARGET is full or lean, not $TARGET." ;; esac
+
 # --- The port: the one asked for, else the one this install already uses, else the first free one from 3000 -------
 free() { # nothing listening: curl can't connect (exit 7)
   curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$1/" 2>/dev/null
@@ -307,6 +341,16 @@ if [ "$LENS_PUBLIC" = 1 ]; then
   [ -n "$ip" ] && host="$ip"
 fi
 
+# --- HTTPS (docs/https.md): the ports Caddy answers on, run by Lens while Settings › HTTPS has it on ---------------
+if [ -z "${LENS_HTTPS:-}" ] && [ -f .env ]; then # as the last run left it
+  LENS_HTTPS="$(grep '^LENS_HTTPS=' .env | cut -d= -f2- || true)"
+fi
+[ "${LENS_HTTPS:-0}" = 1 ] || LENS_HTTPS=0
+HTTPS_PORT="${LENS_HTTPS_PORT:-$( [ -f .env ] && grep '^LENS_HTTPS_PORT=' .env | cut -d= -f2- || true)}"
+HTTP_PORT="${LENS_HTTP_PORT:-$( [ -f .env ] && grep '^LENS_HTTP_PORT=' .env | cut -d= -f2- || true)}"
+HTTPS_PORT="${HTTPS_PORT:-443}"
+HTTP_PORT="${HTTP_PORT:-80}"
+
 # --- Secrets, once: changing them later would sign everyone out and make stored credentials unreadable ------------
 setenv() { # key value: replace the line, or add it
   if grep -q "^$1=" .env; then
@@ -315,7 +359,9 @@ setenv() { # key value: replace the line, or add it
     printf '%s=%s\n' "$1" "$2" >>.env
   fi
 }
+fresh=0 # a first install: its keys are new
 if [ ! -f .env ]; then
+  fresh=1
   umask 077
   printf '# Written by install.sh. Keep it with the volumes.\n' >.env
   setenv ACCESS_SECRET_KEY "$(secret)"
@@ -330,7 +376,16 @@ setenv LENS_BIND "$bind"
 setenv LENS_PORT "$PORT"
 setenv FRONTEND_URL "http://$host:$PORT"
 setenv LENS_REPO "$REPO"
+setenv LENS_HTTPS "$LENS_HTTPS"
+if [ "$LENS_HTTPS" = 1 ]; then
+  setenv LENS_HTTPS_PORT "$HTTPS_PORT"
+  setenv LENS_HTTP_PORT "$HTTP_PORT"
+fi
 setenv LENS_DIR "$DIR"
+# the SMB share's port on this machine (docs/smb.md), when the install line names one: kept for later runs
+case "${LENS_SMB_PORT:-}" in '' | *[!0-9]*) ;; *) setenv LENS_SMB_PORT "$LENS_SMB_PORT" ;; esac
+# the microsandbox's public resolvers (microsandbox/dns.sh), when the install line names them, empty included: kept
+[ -z "${LENS_DNS_FALLBACK+set}" ] || setenv LENS_DNS_FALLBACK "$(printf '%s' "$LENS_DNS_FALLBACK" | tr -s ' ' ',')"
 # from the web installer (docs/configuration.md): the first namespace, and settings Lens saves once at its first start
 for k in LENS_NAMESPACE LENS_SETUP_SETTINGS; do
   eval "v=\${$k:-}"
@@ -369,12 +424,38 @@ if [ "$BACKEND" = microsandbox ]; then
   done
   [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-bookworm): $out"
   # The internet, this network (mail servers, model servers) and this machine (Ollama, LM Studio); only the web app
-  # and the sensor ports are published, as with Docker.
+  # the sensor ports and the file shares' ports (S3, WebDAV) are published, as with Docker.
   set -- run -d -q --name lens --replace -c "$cpus" -m "${mem}M" --root-disk 16G --net public,private,host \
     -p "$bind:$PORT:3000" \
     -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
     -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
-    -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named lens-data:/data \
+    -p "${LENS_SHARE_BIND:-$bind}:${LENS_S3_PORT:-9555}:9555" -p "${LENS_SHARE_BIND:-$bind}:${LENS_WEBDAV_PORT:-9556}:9556"
+  if [ "$LENS_HTTPS" = 1 ]; then # Caddy listens on 8443 and 8080 inside (docs/https.md)
+    set -- "$@" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTPS_PORT:8443" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTP_PORT:8080"
+  fi
+  # The volume its data is kept in (the database, the archive, the builds). A database opens only with the keys of
+  # the install that made it, which are in that install's .env. So a first install that finds the volume of an earlier
+  # one whose folder is gone (deleted, or installed elsewhere) starts on a volume of its own, and leaves that one as it
+  # is: its data is still there for that install's .env. A volume without a database yet is used as it is.
+  VOLUME="$(grep '^LENS_VOLUME=' .env | cut -d= -f2- || true)"
+  if [ -z "$VOLUME" ]; then
+    VOLUME=lens-data
+    if [ "$fresh" = 1 ]; then
+      volumes="$(msb volume ls -q </dev/null 2>/dev/null || true)"
+      n=1
+      while printf '%s\n' "$volumes" | grep -qx "$VOLUME" && has_db "$VOLUME"; do
+        n=$((n + 1))
+        VOLUME="lens-data-$n"
+      done
+      if [ "$VOLUME" != lens-data ]; then
+        say "Starting Lens on a microsandbox volume of its own, $VOLUME..."
+        echo "  The volume lens-data holds an earlier install's data, which opens only with that install's .env. It's left"
+        echo "  as it is: msb volume rm lens-data removes it."
+      fi
+    fi
+    setenv LENS_VOLUME "$VOLUME"
+  fi
+  set -- "$@" -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named "$VOLUME:/data" \
     --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
   say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
   # The command that starts it, kept for a restart of the machine: a sandbox started again (msb start) boots without
@@ -387,10 +468,27 @@ if [ "$BACKEND" = microsandbox ]; then
     echo
   } >.lens-sandbox
   chmod +x .lens-sandbox
+  # Run again: the running sandbox stops first, so its database closes cleanly (a replace kills it after 10 seconds)
+  # and its port is free for the new one
+  if msb ls --running -q </dev/null 2>/dev/null | grep -qx lens; then
+    say "Stopping the Lens that's running..."
+    msb stop -q -t 60 lens </dev/null >/dev/null 2>&1 || msb stop -q -f lens </dev/null >/dev/null 2>&1 || true
+  fi
+  i=0
+  until free "$PORT"; do
+    i=$((i + 1))
+    if [ $i -gt 15 ]; then
+      who="$(lsof -nP -iTCP:"$PORT" -sTCP:LISTEN 2>/dev/null | awk 'NR == 2 {print $1 " (process " $2 ")"}' || true)"
+      fail "Port $PORT is in use${who:+ by $who}, so Lens can't start on it. Stop that, or run this again with LENS_PORT set to a free port."
+    fi
+    sleep 2
+  done
+  since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" # what the new sandbox logs, for the progress below
   ./.lens-sandbox >/dev/null
   LOGS="msb logs -f lens"
+  TAIL="msb logs lens --tail 40"
   STOP="msb stop lens"
-  WAIT=900 # 30 minutes: the first start installs the system packages and builds everything
+  WAIT=1800 # 30 minutes: the first start installs the system packages and builds everything
   # back after a restart of the machine, as Docker's restart policy does
   if [ "$os" = Linux ] && have systemctl && [ -d /run/systemd/system ]; then
     unit=/etc/systemd/system/lens-microsandbox.service
@@ -412,11 +510,15 @@ if [ "$BACKEND" = microsandbox ]; then
 PLIST
   fi
 else
+  files="-f docker-compose.prod.yml"
+  [ "$LENS_HTTPS" = 1 ] && files="$files -f docker-compose.https.yml" # the HTTPS ports (docs/https.md)
   say "Building and starting Lens (the first build takes a few minutes)..."
-  $COMPOSE -f docker-compose.prod.yml up -d --build
-  LOGS="$COMPOSE -f docker-compose.prod.yml logs"
-  STOP="$COMPOSE -f docker-compose.prod.yml down"
-  WAIT=300
+  # shellcheck disable=SC2086
+  $COMPOSE $files up -d --build
+  LOGS="$COMPOSE $files logs"
+  TAIL="$COMPOSE $files logs --tail 40"
+  STOP="$COMPOSE $files down"
+  WAIT=600
 fi
 
 # --- The upgrade agent: runs packaging/host/lens-upgrade.sh when the web app asks for a new release ---------------
@@ -465,12 +567,72 @@ PLIST
 fi
 
 say "Waiting for the web app..."
-i=0
-# the page and the API behind it: the setup page needs both, and the API starts a few seconds after the page
-until curl -fsS -o /dev/null "http://127.0.0.1:$PORT/login" 2>/dev/null &&
-  curl -fsS -o /dev/null "http://127.0.0.1:$PORT/api/v1/auth/status" 2>/dev/null; do
-  i=$((i + 1))
-  [ $i -gt $WAIT ] && fail "Lens didn't answer within $((WAIT * 2 / 60)) minutes. See what happened: cd $DIR && $LOGS"
+# the page and the API behind it: the setup page needs both, and the API starts a few seconds after the page. Each
+# try gives up after a few seconds: a port that takes the connection but never answers mustn't hold this forever.
+up() {
+  curl -fsS -o /dev/null --max-time 5 "http://127.0.0.1:$PORT/login" 2>/dev/null &&
+    curl -fsS -o /dev/null --max-time 5 "http://127.0.0.1:$PORT/api/v1/auth/status" 2>/dev/null
+}
+# why it stopped waiting, after the last lines Lens logged
+stuck() {
+  echo "The last lines Lens logged:"
+  $TAIL 2>&1 </dev/null | tail -n 40 || true
+  fail "$1 See everything: cd $DIR && $LOGS"
+}
+# the steps the sandbox reports (run.sh's "[lens] ..." lines), each shown once; it stops waiting when one failed or
+# the sandbox stopped
+seen=0 down=0 step=""
+sandbox_progress() {
+  lines="$(msb logs lens --since "$since" --grep '\[lens\]' </dev/null 2>/dev/null | grep '^\[lens\] ' || true)"
+  n="$(printf '%s\n' "$lines" | grep -c . || true)"
+  if [ "$n" -gt "$seen" ]; then
+    # as steps of their own (the web installer lists them)
+    printf '%s\n' "$lines" | sed -n "$((seen + 1)),\$p" | sed 's/^\[lens\] //' | while IFS= read -r line; do say "  $line"; done
+    seen=$n
+    shown=$now
+    step="$(printf '%s\n' "$lines" | tail -n 1 | sed 's/^\[lens\] //; s/[.][.][.]$//')"
+  fi
+  failed="$(printf '%s\n' "$lines" | sed -n 's/^\[lens\] \(Failed.*\)/\1/p' | tail -n 1)"
+  [ -z "$failed" ] || stuck "Lens couldn't start in its microsandbox. $failed."
+  # a part that stops again and again (run.sh starts it again each time) won't start by waiting longer
+  looping="$(printf '%s\n' "$lines" | sed -n 's/^\[lens\] \([a-z]*\) stopped; starting it again.*/\1/p' | sort | uniq -c |
+    awk '$1 >= 3 {print $2; exit}')"
+  case "$looping" in
+    '') ;;
+    surrealdb) stuck "Lens's database keeps stopping in its microsandbox." ;;
+    api) stuck "Lens's API keeps stopping in its microsandbox." ;;
+    web) stuck "Lens's web app keeps stopping in its microsandbox." ;;
+    worker) stuck "Lens's job worker keeps stopping in its microsandbox." ;;
+    *) stuck "Lens's $looping keeps stopping in its microsandbox." ;;
+  esac
+  if running="$(msb ls --running -q </dev/null 2>/dev/null)"; then # twice in a row, as it may be booting
+    if printf '%s\n' "$running" | grep -qx lens; then down=0; else down=$((down + 1)); fi
+  fi
+  [ $down -lt 2 ] || stuck "Lens's microsandbox stopped${step:+ at: $step}."
+}
+WAIT="${LENS_WAIT:-$WAIT}"
+start=$(date +%s)
+shown=$start checked=0
+until up; do
+  now=$(date +%s)
+  if [ "$BACKEND" = microsandbox ] && [ $((now - checked)) -ge 10 ]; then
+    checked=$now
+    sandbox_progress
+  fi
+  if [ $((now - start)) -ge "$WAIT" ]; then
+    if [ "$WAIT" -lt 120 ]; then within="$WAIT seconds"; else within="$((WAIT / 60)) minutes"; fi
+    why="Lens didn't answer on port $PORT within $within${step:+ (its last step: $step)}."
+    # up in the sandbox, but not on this machine's port: the port is the problem, not Lens
+    if [ "$BACKEND" = microsandbox ] &&
+      msb exec lens -- curl -fsS -o /dev/null --max-time 5 http://127.0.0.1:3000/login </dev/null >/dev/null 2>&1; then
+      why="Lens is running in its microsandbox, but port $PORT on this machine doesn't reach it. Is another program using the port?"
+    fi
+    stuck "$why"
+  fi
+  if [ $((now - shown)) -ge 60 ]; then # never silent for long
+    echo "  still starting ($(((now - start) / 60)) min so far)..."
+    shown=$now
+  fi
   sleep 2
 done
 

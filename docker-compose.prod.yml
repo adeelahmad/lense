@@ -28,6 +28,11 @@ x-backend: &backend
     LENS_TUNNEL_ORIGIN: http://frontend:3000
     # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
     LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
+    LENS_NFS_PORT: ${LENS_NFS_PORT:-12049}  # where the NFS share is published, for the mount command Settings shows
+    # the SMB share of the file tree (docs/smb.md): listens on 4445 in the container; LENS_SMB_PORT is where it's
+    # published, for the address Settings shows
+    LENS_SMB_LISTEN: 0.0.0.0
+    LENS_SMB_PORT: ${LENS_SMB_PORT:-1445}
     # Fedora (docs/fedora.md): empty keeps it off; with the fedora profile, http://fedora:8080/fcrepo/rest
     LENS_FEDORA_URL: ${LENS_FEDORA_URL:-}
     LENS_FEDORA_USER: ${LENS_FEDORA_USER:-}
@@ -58,6 +63,11 @@ x-backend: &backend
     LENS_TELEMETRY: ${LENS_TELEMETRY:-}
     LENS_TELEMETRY_ENDPOINT: ${LENS_TELEMETRY_ENDPOINT:-}
     LENS_TELEMETRY_HEADERS: ${LENS_TELEMETRY_HEADERS:-}
+    # Prometheus (docs/prometheus.md): /metrics, off unless LENS_PROMETHEUS=on with a LENS_PROMETHEUS_TOKEN; the
+    # monitoring profile below scrapes it and charts it in Grafana at LENS_GRAFANA_URL
+    LENS_PROMETHEUS: ${LENS_PROMETHEUS:-}
+    LENS_PROMETHEUS_TOKEN: ${LENS_PROMETHEUS_TOKEN:-}
+    LENS_GRAFANA_URL: ${LENS_GRAFANA_URL:-}
     # the volume shared with the matterbridge service (its config, written from Settings → Chat rooms)
     LENS_MATTERBRIDGE_DIR: /matterbridge
     # the MCP runner (the optional `mcp` service, docs/assistant.md): MCP servers that run as a program, sandboxed there
@@ -107,6 +117,17 @@ services:
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_MQTT_PORT:-1883}:1883"
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/udp"
       - "${LENS_SENSOR_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SYSLOG_PORT:-5514}:5514/tcp"
+      # the file tree over NFS (docs/file-tree.md), served only once it's turned on in Settings → NFS share, and then
+      # only to the networks allowed there. 12049 on this machine so a host NFS server on 2049 is never in the way.
+      - "${LENS_SHARE_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_NFS_PORT:-12049}:2049"
+      # the file tree over SMB (docs/smb.md), served only once it's turned on in Settings → SMB share, and then only
+      # to the networks allowed there. 1445 on this machine so an SMB server the host runs on 445 is never in the way
+      # (Windows only connects to 445: install with LENS_SMB_PORT=445 for it; install.sh keeps it).
+      - "${LENS_SHARE_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_SMB_PORT:-1445}:4445"
+      # the graph as files over S3 and WebDAV (docs/file-tree.md): read-only, listened on only once File shares are turned
+      # on in the app; published where the web app is. Something else using 9555 or 9556? Set LENS_S3_PORT / LENS_WEBDAV_PORT.
+      - "${LENS_SHARE_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_S3_PORT:-9555}:9555"
+      - "${LENS_SHARE_BIND:-${LENS_BIND:-127.0.0.1}}:${LENS_WEBDAV_PORT:-9556}:9556"
     healthcheck:
       disable: true
 
@@ -163,6 +184,20 @@ services:
     restart: unless-stopped
     networks: [mcp]
 
+  # StyleTTS2 (docs/speech-providers.md#styletts2): spoken answers and podcasts read on this machine, in a voice like a
+  # short clip you put in its voices volume. Heavy (PyTorch and a 1 GB model, fetched on first use), so opt-in:
+  # `docker compose --profile styletts2 up -d`, then Settings → AI assistant → Voice → StyleTTS2.
+  styletts2:
+    security_opt: ["no-new-privileges:true"]
+    image: lens-styletts2:${LENS_VERSION:-prod}
+    build: ./styletts2
+    profiles: [styletts2]
+    volumes:
+      - styletts2-data:/data
+      - styletts2-voices:/voices
+    restart: unless-stopped
+    networks: [lens]
+
   # Fedora 6 (docs/fedora.md), the repository Lens can keep a copy of the archive in. Opt-in, and not needed on small
   # machines: `docker compose --profile fedora up`, with LENS_FEDORA_URL=http://fedora:8080/fcrepo/rest (and
   # LENS_FEDORA_USER / LENS_FEDORA_PASSWORD) in .env, or set it in Settings → Fedora.
@@ -193,14 +228,78 @@ services:
       - opensearch-data:/usr/share/opensearch/data
     networks: [lens]
 
+  # Prometheus, node-exporter and Grafana (docs/prometheus.md): charts of Lens and this machine over time, ready made.
+  # Opt-in: Admin → System health or Settings → Telemetry turns it on (the upgrade agent adds `monitoring` to
+  # COMPOSE_PROFILES and starts these). Prometheus scrapes with the token Lens writes to .lens-control/prometheus-token,
+  # or LENS_PROMETHEUS_TOKEN when set. Grafana listens where the web app does (LENS_BIND), on LENS_GRAFANA_PORT (3001);
+  # anyone who reaches it may view, and only the admin may change things.
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-v3.5.0}
+    profiles: [monitoring]
+    security_opt: ["no-new-privileges:true"]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        { if [ -n "$$LENS_PROMETHEUS_TOKEN" ]; then printf %s "$$LENS_PROMETHEUS_TOKEN" > /prometheus/lens-token;
+        else ln -sf /control/prometheus-token /prometheus/lens-token; fi; } &&
+        exec /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus
+        --storage.tsdb.retention.time=$${LENS_METRICS_DAYS:-30}d
+    environment:
+      LENS_PROMETHEUS_TOKEN: ${LENS_PROMETHEUS_TOKEN:-}
+      LENS_METRICS_DAYS: ${LENS_METRICS_DAYS:-30}
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./.lens-control:/control:ro  # prometheus-token, written by Lens when monitoring is turned on
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+    networks: [lens]
+
+  node-exporter:
+    image: prom/node-exporter:${NODE_EXPORTER_VERSION:-v1.9.1}
+    profiles: [monitoring]
+    security_opt: ["no-new-privileges:true"]
+    command: ["--path.rootfs=/host"]
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    restart: unless-stopped
+    networks: [lens]
+
+  grafana:
+    image: grafana/grafana-oss:${GRAFANA_VERSION:-12.0.2}
+    profiles: [monitoring]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}  # Grafana asks to change admin on first sign-in
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/lens-dashboard.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    ports:
+      - "${LENS_BIND:-127.0.0.1}:${LENS_GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docs/grafana:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus]
+    restart: unless-stopped
+    networks: [lens]
+
 volumes:
   surreal-data:
   matterbridge-data:
   mcp-data:
   mcp-key:
+  styletts2-data:
+  styletts2-voices:
   archive-data:
   fedora-data:
   opensearch-data:
+  prometheus-data:
+  grafana-data:
 
 networks:
   lens:
