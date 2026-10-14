@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import type { ReactNode } from "react";
 
@@ -80,7 +80,17 @@ test("the Sensors page shows the hub, new sensors with their suggestion, streams
   expect(await screen.findByText("1 new sensor to look at")).toBeInTheDocument();
   expect(screen.getByText("The hub is off.")).toBeInTheDocument();
   expect(screen.getByText(/keep everything for two weeks/)).toBeInTheDocument();
-  expect(screen.getByText("Changes for a week, hourly summaries for 2 years")).toBeInTheDocument();
+  // a table, and on a phone one card per sensor
+  expect(
+    within(screen.getByRole("table", { name: "Stream sensors" })).getByText(
+      "Changes for a week, hourly summaries for 2 years",
+    ),
+  ).toBeInTheDocument();
+  expect(
+    within(screen.getByRole("list", { name: "Stream sensors" })).getByText(
+      "Changes for a week, hourly summaries for 2 years",
+    ),
+  ).toBeInTheDocument();
   expect(screen.getByText("NAS")).toBeInTheDocument();
   // one click to this machine's allowed folders
   expect(screen.getByRole("link", { name: "Watch a local folder" })).toHaveAttribute("href", "/sources?watch=local");

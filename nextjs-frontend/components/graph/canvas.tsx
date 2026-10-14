@@ -484,7 +484,7 @@ export function GraphCanvas({
       <div aria-live="polite" className="sr-only">
         {focused ? curText : ""}
       </div>
-      <div className="absolute bottom-3 right-3 flex flex-col overflow-hidden rounded-[10px] border border-border bg-background">
+      <div className="absolute bottom-3 right-3 flex flex-col overflow-hidden rounded-[10px] border border-border bg-background max-sm:bottom-20">
         <button
           type="button"
           aria-label="Zoom in"

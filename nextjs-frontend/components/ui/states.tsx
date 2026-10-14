@@ -114,11 +114,12 @@ export function CodeBlock({
       </span>
     );
   return (
-    <div className={cn("relative rounded-md bg-term-bg", className)}>
-      <pre className="overflow-x-auto p-4 pr-20 font-mono text-[12.5px] leading-relaxed text-term-fg">
+    // Copy sits beside the text, never over it; on a phone long lines (addresses) wrap rather than scroll
+    <div className={cn("flex items-start rounded-md bg-term-bg", className)}>
+      <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words py-4 pl-4 pr-1 font-mono text-[12.5px] leading-relaxed text-term-fg sm:overflow-x-auto sm:whitespace-pre sm:break-normal">
         <code>{text}</code>
       </pre>
-      <div className="absolute right-2 top-2">{btn}</div>
+      <div className="shrink-0 p-2">{btn}</div>
     </div>
   );
 }

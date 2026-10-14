@@ -46,6 +46,9 @@ x-backend: &backend
     OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
     # the volume shared with the matterbridge service (its config, written from Settings → Chat rooms)
     LENS_MATTERBRIDGE_DIR: /matterbridge
+    # the MCP runner (the optional `mcp` service, docs/assistant.md): MCP servers that run as a program, sandboxed there
+    LENS_MCP_RUNNER_URL: http://mcp:8090
+    LENS_MCP_TOKEN_FILE: /mcp-key/token
   volumes:
     - ./fastapi_backend:/app
     # the image's own packages, not the source tree's: anonymous, so `make dev` (up --build --renew-anon-volumes)
@@ -55,10 +58,11 @@ x-backend: &backend
     - ./local-shared-data:/app/shared-data
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
     - matterbridge-data:/matterbridge
+    - mcp-key:/mcp-key:ro
   depends_on:
     surrealdb:
       condition: service_healthy
-  networks: [lens]
+  networks: [lens, mcp]
 
 services:
   surrealdb:
@@ -141,6 +145,25 @@ services:
       - matterbridge-data:/matterbridge
     networks: [lens]
 
+  # The MCP runner (mcp-runner/runner.py, docs/assistant.md): MCP servers that run as a program (stdio, usually npx or
+  # uvx), which admins add as extensions. Opt-in: `docker compose --profile mcp up -d`, or COMPOSE_PROFILES=mcp in .env.
+  # The sandbox: none of Lens's data or keys, no capabilities, a read-only image, and a network shared only with the
+  # backend (and the internet).
+  mcp:
+    image: lens-mcp:dev
+    build: ./mcp-runner
+    profiles: [mcp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 2g
+    pids_limit: 512
+    volumes:
+      - mcp-data:/data
+      - mcp-key:/key
+    networks: [mcp]
+
   # StyleTTS2 (docs/speech-providers.md#styletts2): spoken answers and podcasts read on this machine, in a voice like a
   # short clip you put in its voices volume. Heavy (PyTorch and a 1 GB model, fetched on first use), so opt-in:
   # `docker compose --profile styletts2 up -d`, then Settings → AI assistant → Voice → StyleTTS2.
@@ -172,6 +195,8 @@ services:
 volumes:
   surreal-data:
   matterbridge-data:
+  mcp-data:
+  mcp-key:
   styletts2-data:
   styletts2-voices:
   archive-data:
@@ -179,4 +204,6 @@ volumes:
 
 networks:
   lens:
+    driver: bridge
+  mcp:
     driver: bridge

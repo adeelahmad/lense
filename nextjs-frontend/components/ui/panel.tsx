@@ -34,12 +34,13 @@ export function Panel({
   return (
     <Tag className={cn("rounded-md border", tone ? PANEL[tone] : "border-border bg-background", className)}>
       {(title || actions) && (
-        <header className="flex items-start gap-3 px-4 pb-1 pt-3.5">
-          <div className="min-w-0 flex-1">
+        // the actions go under the title when both don't fit (a phone), rather than squeezing it a word per line
+        <header className="flex flex-wrap items-start gap-3 px-4 pb-1 pt-3.5">
+          <div className="min-w-0 grow basis-40">
             {title && <h2 className="text-[15px] font-bold leading-snug text-fg">{title}</h2>}
             {subtitle && <p className="mt-0.5 text-[13px] text-fg-secondary">{subtitle}</p>}
           </div>
-          {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+          {actions && <div className="flex min-w-0 max-w-full shrink-0 items-center gap-2">{actions}</div>}
         </header>
       )}
       <div className={cn("p-4", (title || actions) && "pt-2", bodyClassName)}>{children}</div>

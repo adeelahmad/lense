@@ -10,6 +10,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   now checks that the keys in `.env` open the database before it starts the API, and when they don't, the install line
   moves Lens to a volume of its own (`lens-data-2`, kept in `.env` as `LENS_VOLUME`) and starts it there. The earlier
   volume is left as it is ([microsandbox](docs/microsandbox.md#how-it-runs)).
+- **Lens on a phone.** Everything works at phone width now: the namespace switcher is at the top of the menu, Import
+  is in the top bar, Settings opens its sections as a list instead of a row to swipe through, the graph's filters close
+  after a pick, Copy no longer covers webhook addresses, sensors and connections read as cards, and Save and the other
+  form buttons stay in sight above the Ask button. A recording's pipeline steps no longer make its page wider than the
+  screen. On a phone the clicks survey goes from 2 features that couldn't be done to none, and from 15 swipes to 2.
+
 - **Similar content.** Every resource has a **Similar** tab, and selecting text anywhere (a transcript, a page, a
   title, a graph label) shows the resources most like it, each citing the passages, words, topics and entities they
   share, with **Find more** for the full list. Topics, entities and graph nodes list similar content too, and the
@@ -18,6 +24,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Watch a folder in four clicks.** **Watch a local folder** on the Sensors page opens this machine's allowed
   folders, and each has a **Watch** button, so it no longer has to be opened first. Adding **This machine** as a
   connection skips the test-and-name step unless its test fails ([Sensors](docs/sensors.md#in-the-web-app)).
+
+- **MCP servers that run as a program.** Most MCP servers in marketplaces run as a program (`npx` or `uvx`), not on
+  the network. Admins can now add one as an MCP server extension with its `command`, `args` and `env`, as in Claude's
+  `.mcp.json`, and a plugin's such servers come along when an admin installs it. They run in the MCP runner, an opt-in
+  container with none of Lens's data or keys (`COMPOSE_PROFILES=mcp`), start on first use and stop after 15 idle
+  minutes ([Assistant](docs/assistant.md#the-mcp-runner)).
 
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 

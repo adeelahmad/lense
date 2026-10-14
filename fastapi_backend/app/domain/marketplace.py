@@ -15,8 +15,8 @@ Lens reads Anthropic's open formats as they are, so a marketplace made for Claud
 What becomes what: a skill is a skill, with its text files (references, examples, scripts to read; nothing runs); a
 command is a skill the assistant follows when someone asks for it; an agent is a prompt tool with the agent's
 instructions as its system prompt. Claude Code's hooks run shell commands on the computer, so they're left out; MCP
-servers on the network come along when an admin installs it (servers that run as a program don't); `preview` lists
-what's left out and why. A plugin becomes one Lens plugin, owned by the person
+servers come along when an admin installs it (those that run as a program run in the MCP runner's sandbox, when it
+runs: mcp_client.py); `preview` lists what's left out and why. A plugin becomes one Lens plugin, owned by the person
 who installed it and private until they share it, and installing it again brings the new version.
 
 Only admins add marketplaces: that's the approval. People who can write extensions install from the ones added, and
@@ -404,7 +404,7 @@ def _norm(p):
 
 def _mcp(found, meta, admin, report):
     """A plugin's MCP servers (.mcp.json, or mcpServers in its manifest) as MCP server items, their tools listed now.
-    Servers on the network only (HTTP); only admins add them."""
+    On the network (HTTP), or run as a program in the MCP runner when it runs; only admins add them."""
     conf = meta.get("mcpServers")
     if isinstance(conf, str):
         conf = found.get(_norm(conf))
@@ -431,15 +431,26 @@ def _mcp(found, meta, admin, report):
         c = c if isinstance(c, dict) else {}
         kind = c.get("type") or ("stdio" if c.get("command") else "http")
         if kind == "stdio" or c.get("command"):
-            report.append(
-                {"kind": "mcp", "name": name, "why": "it runs a program on the computer; Lens reaches MCP servers on the network"}
-            )
-            continue
-        if kind not in ("http", "streamable-http") or not isinstance(c.get("url"), str):
+            args = [str(x) for x in c.get("args") or [] if isinstance(x, (str, int, float))]
+            env = {k: str(v) for k, v in (c.get("env") or {}).items() if isinstance(k, str) and isinstance(v, (str, int, float))}
+            if not isinstance(c.get("command"), str):
+                report.append({"kind": "mcp", "name": name, "why": "it says it runs a program but not which"})
+                continue
+            if any("CLAUDE_PLUGIN_ROOT" in x for x in [c["command"], *args, *env.values()]):
+                report.append(
+                    {"kind": "mcp", "name": name, "why": "it runs a program from the plugin's own folder, which Lens doesn't run"}
+                )
+                continue
+            if not mcp_client.runner():
+                report.append({"kind": "mcp", "name": name, "why": mcp_client.NO_RUNNER})
+                continue
+            server = store.clean({"command": c["command"], "args": args or None, "env": env or None})
+        elif kind not in ("http", "streamable-http") or not isinstance(c.get("url"), str):
             report.append({"kind": "mcp", "name": name, "why": f"Lens speaks MCP over HTTP; this one uses {kind}"})
             continue
-        headers = {k: v for k, v in (c.get("headers") or {}).items() if isinstance(k, str) and isinstance(v, str)}
-        server = {"url": c["url"], "headers": headers or None}
+        else:
+            headers = {k: v for k, v in (c.get("headers") or {}).items() if isinstance(k, str) and isinstance(v, str)}
+            server = {"url": c["url"], "headers": headers or None}
         try:
             tools = mcp_client.discover(server)
         except ValueError as e:
