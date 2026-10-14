@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A microsandbox install whose keys don't open its database comes up when the line runs again.** A reinstall made
+  before 0.8.1, after `~/lens` was deleted, wrote new keys but kept the earlier install's `lens-data` volume, and every
+  update after it kept both: its API stopped at every start with `SURREAL_USER/SURREAL_PASS don't match`. The sandbox
+  now checks that the keys in `.env` open the database before it starts the API, and when they don't, the install line
+  moves Lens to a volume of its own (`lens-data-2`, kept in `.env` as `LENS_VOLUME`) and starts it there. The earlier
+  volume is left as it is ([microsandbox](docs/microsandbox.md#how-it-runs)).
+
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 
 - **The installer stops waiting when Lens can't start, and shows why.** A microsandbox install that couldn't start Lens

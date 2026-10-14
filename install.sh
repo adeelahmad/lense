@@ -423,30 +423,26 @@ if [ "$BACKEND" = microsandbox ]; then
     fi
   done
   [ -n "$image" ] || fail "Couldn't download the base image (python:3.12-slim-bookworm): $out"
-  # The internet, this network (mail servers, model servers) and this machine (Ollama, LM Studio); only the web app
-  # the sensor ports and the file shares' ports (S3, WebDAV) are published, as with Docker.
-  set -- run -d -q --name lens --replace -c "$cpus" -m "${mem}M" --root-disk 16G --net public,private,host \
-    -p "$bind:$PORT:3000" \
-    -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
-    -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
-    -p "${LENS_SHARE_BIND:-$bind}:${LENS_S3_PORT:-9555}:9555" -p "${LENS_SHARE_BIND:-$bind}:${LENS_WEBDAV_PORT:-9556}:9556"
-  if [ "$LENS_HTTPS" = 1 ]; then # Caddy listens on 8443 and 8080 inside (docs/https.md)
-    set -- "$@" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTPS_PORT:8443" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTP_PORT:8080"
-  fi
   # The volume its data is kept in (the database, the archive, the builds). A database opens only with the keys of
   # the install that made it, which are in that install's .env. So a first install that finds the volume of an earlier
   # one whose folder is gone (deleted, or installed elsewhere) starts on a volume of its own, and leaves that one as it
-  # is: its data is still there for that install's .env. A volume without a database yet is used as it is.
+  # is: its data is still there for that install's .env. A volume without a database yet is used as it is. An install
+  # that already runs on such a volume moves to one of its own the same way, once run.sh finds that the keys in .env
+  # don't open its database (other_volume, below).
+  # own_volume [NAME]: the first of lens-data, lens-data-2, ... that holds no database (and isn't NAME)
+  own_volume() {
+    volumes="$(msb volume ls -q </dev/null 2>/dev/null || true)"
+    VOLUME=lens-data n=1
+    while [ "$VOLUME" = "${1:-}" ] || { printf '%s\n' "$volumes" | grep -qx "$VOLUME" && has_db "$VOLUME"; }; do
+      n=$((n + 1))
+      VOLUME="lens-data-$n"
+    done
+  }
   VOLUME="$(grep '^LENS_VOLUME=' .env | cut -d= -f2- || true)"
   if [ -z "$VOLUME" ]; then
     VOLUME=lens-data
     if [ "$fresh" = 1 ]; then
-      volumes="$(msb volume ls -q </dev/null 2>/dev/null || true)"
-      n=1
-      while printf '%s\n' "$volumes" | grep -qx "$VOLUME" && has_db "$VOLUME"; do
-        n=$((n + 1))
-        VOLUME="lens-data-$n"
-      done
+      own_volume
       if [ "$VOLUME" != lens-data ]; then
         say "Starting Lens on a microsandbox volume of its own, $VOLUME..."
         echo "  The volume lens-data holds an earlier install's data, which opens only with that install's .env. It's left"
@@ -455,19 +451,32 @@ if [ "$BACKEND" = microsandbox ]; then
     fi
     setenv LENS_VOLUME "$VOLUME"
   fi
-  set -- "$@" -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named "$VOLUME:/data" \
-    --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
-  say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
   # The command that starts it, kept for a restart of the machine: a sandbox started again (msb start) boots without
   # running Lens, so it is always replaced; its packages come from the cache in the volume, its build stays there.
-  {
-    echo "#!/bin/sh"
-    echo "# Starts Lens in its microsandbox (written by install.sh)"
-    printf 'exec %s' "'$(command -v msb)'"
-    for a in "$@"; do printf " '%s'" "$a"; done
-    echo
-  } >.lens-sandbox
-  chmod +x .lens-sandbox
+  write_sandbox() {
+    # The internet, this network (mail servers, model servers) and this machine (Ollama, LM Studio); only the web app
+    # the sensor ports and the file shares' ports (S3, WebDAV) are published, as with Docker.
+    set -- run -d -q --name lens --replace -c "$cpus" -m "${mem}M" --root-disk 16G --net public,private,host \
+      -p "$bind:$PORT:3000" \
+      -p "$sensors:${LENS_MQTT_PORT:-1883}:1883" \
+      -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/udp" -p "$sensors:${LENS_SYSLOG_PORT:-5514}:5514/tcp" \
+      -p "${LENS_SHARE_BIND:-$bind}:${LENS_S3_PORT:-9555}:9555" -p "${LENS_SHARE_BIND:-$bind}:${LENS_WEBDAV_PORT:-9556}:9556"
+    if [ "$LENS_HTTPS" = 1 ]; then # Caddy listens on 8443 and 8080 inside (docs/https.md)
+      set -- "$@" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTPS_PORT:8443" -p "${LENS_HTTPS_BIND:-0.0.0.0}:$HTTP_PORT:8080"
+    fi
+    set -- "$@" -v "$PWD:/lens:ro" -v "$PWD/.lens-control:/control" --mount-named "$VOLUME:/data" \
+      --entrypoint /bin/sh "$image" -- /lens/microsandbox/run.sh
+    {
+      echo "#!/bin/sh"
+      echo "# Starts Lens in its microsandbox (written by install.sh)"
+      printf 'exec %s' "'$(command -v msb)'"
+      for a in "$@"; do printf " '%s'" "$a"; done
+      echo
+    } >.lens-sandbox
+    chmod +x .lens-sandbox
+  }
+  say "Starting Lens in a microsandbox (the first start installs and builds it, which takes a while)..."
+  write_sandbox
   # Run again: the running sandbox stops first, so its database closes cleanly (a replace kills it after 10 seconds)
   # and its port is free for the new one
   if msb ls --running -q </dev/null 2>/dev/null | grep -qx lens; then
@@ -579,6 +588,25 @@ stuck() {
   $TAIL 2>&1 </dev/null | tail -n 40 || true
   fail "$1 See everything: cd $DIR && $LOGS"
 }
+# The keys in .env don't open the database in the volume Lens ran on, as run.sh found: this .env was written again
+# (a reinstall after the install folder was deleted made new keys) and kept the earlier install's volume. That
+# database opens only with the earlier .env, so the volume is left as it is, and Lens starts again on one of its own.
+moved=""
+other_volume() {
+  moved="$VOLUME"
+  own_volume "$moved"
+  setenv LENS_VOLUME "$VOLUME"
+  say "Starting Lens on a microsandbox volume of its own, $VOLUME..."
+  echo "  The database in $moved was made with another install's keys, not the ones in $DIR/.env, so Lens can't open"
+  echo "  it. It's left as it is: put that install's .env back (with LENS_VOLUME=$moved) to use it again, or remove it"
+  echo "  with: msb volume rm $moved"
+  write_sandbox
+  msb stop -q -t 30 lens </dev/null >/dev/null 2>&1 || true
+  since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" seen=0 down=0 step=""
+  ./.lens-sandbox >/dev/null
+  start=$(date +%s) # a first start on this volume: it installs and builds everything again
+  shown=$start
+}
 # the steps the sandbox reports (run.sh's "[lens] ..." lines), each shown once; it stops waiting when one failed or
 # the sandbox stopped
 seen=0 down=0 step=""
@@ -591,6 +619,10 @@ sandbox_progress() {
     seen=$n
     shown=$now
     step="$(printf '%s\n' "$lines" | tail -n 1 | sed 's/^\[lens\] //; s/[.][.][.]$//')"
+  fi
+  if [ -z "$moved" ] && printf '%s\n' "$lines" | grep -q "^\[lens\] Another install's database"; then
+    other_volume
+    return 0
   fi
   failed="$(printf '%s\n' "$lines" | sed -n 's/^\[lens\] \(Failed.*\)/\1/p' | tail -n 1)"
   [ -z "$failed" ] || stuck "Lens couldn't start in its microsandbox. $failed."
