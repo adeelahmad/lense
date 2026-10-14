@@ -2,6 +2,20 @@
 
 Plans and progress for work in flight. Newest first.
 
+## 2026-10-14 · Long recordings in pieces a speech provider takes
+
+Adeel: large audio files are segmented automatically to each transcription provider's limits. `speech.Engine` cuts a
+recording longer than `speech.{provider}_max_minutes` at the quietest tenth of a second in the half minute before the
+limit, halves a piece whose encoded file is over `speech.{provider}_max_mb` (again at a pause), sends each piece and
+joins the segments on the recording's timeline. Defaults follow each provider's published limits
+(docs/speech-providers.md, Long recordings); they are in Settings → Speech providers. This replaces the ten-minute
+parts only OpenAI-compatible servers had.
+
+Refine later: link a new voice heard in two pieces into one speaker by voiceprint (today it shows as two until merged);
+decode and send a very long recording a piece at a time instead of holding all its samples in memory; send pieces in
+parallel for providers that allow it; overlap pieces a little and drop the words heard twice, for a cut with no pause
+near it.
+
 ## 2026-10-14 · MCP servers that run as a program
 
 Admins add a stdio MCP server (`command`, `args`, `env`, as in Claude's `.mcp.json`) as an `mcp` extension, and a
