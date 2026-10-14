@@ -793,7 +793,8 @@ export function ChatApp() {
               hasFiles={files.ready}
               uploading={files.sending}
               busy={Boolean(live)}
-              autoFocus={composing}
+              // a new conversation (nothing open, or one asked for): typing goes straight into it
+              autoFocus={composing || !showThread}
               placeholder={
                 voice.listening
                   ? "Listening…"

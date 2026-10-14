@@ -4,7 +4,8 @@ dropped into the conversation.
 Admins get the server tools; anyone gets `import_files` for their own attachments and `import_urls` for web pages,
 into namespaces they edit. A change
 waits for the person's approval, unless the conversation lets the assistant act (a setup conversation does: the admin
-asked it to set things up): then it's made at once, audited, and said in the answer. Telemetry, which sends data
+asked it to set things up): then it's made at once, audited, and said in the answer, as long as the answer hasn't read
+text from outside Lens (Toolbox.wary), which could be what asked for it. Telemetry, which sends data
 elsewhere, always waits for approval.
 """
 
@@ -37,11 +38,14 @@ SECTIONS = (
     "components",
     "mail",
     "bridge",
+    "mailbox",
     "matterbridge",
     "telemetry",
     "sensors",
+    "shares",
 )
-ALWAYS_ASK = {"telemetry", "sensors", "files"}  # sensors open ports on the network; files moves where new files go
+# sensors and shares open ports on the network; files moves where new files go
+ALWAYS_ASK = {"telemetry", "sensors", "shares", "files"}
 
 ADMIN_TOOLS = [
     (
@@ -54,7 +58,9 @@ ADMIN_TOOLS = [
     ),
     (
         "find_model_servers",
-        "Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with their models.",
+        "Model servers running on this machine or the Docker host (Ollama, LM Studio, llama.cpp, vLLM, LocalAI), with their "
+        "models, and the cloud providers Lens knows (OpenAI, Anthropic, Gemini, ...) with their address and a model: "
+        "a cloud one also needs the admin's API key.",
         {},
         [],
         False,
@@ -226,20 +232,34 @@ def describe_namespace(db, sid, name):
 
 
 class OpsTools:
-    """Mixed into the chat Toolbox: needs db, cfg, base, user, editable, admin, act and _approval."""
+    """Mixed into the chat Toolbox: needs db, cfg, base, user, editable, admin, act (and act_on), wary, why and
+    _approval."""
 
     def _change(self, tool, args, summary):
-        if self.act and not (tool == "change_settings" and args.get("section") in ALWAYS_ASK):
+        if (self.act or self._acts_on(tool, args)) and not (tool == "change_settings" and args.get("section") in ALWAYS_ASK):
+            if self.wary():  # it read text from outside Lens, which may be what asked for this
+                return self._approval(tool, args, summary + self.why())
             out = apply(self.db, self.cfg, self.base, tool, args, self.user, self.editable, self.admin)
             return {"status": "done", **out}, f"{summary}: done"
         return self._approval(tool, args, summary)
+
+    def _acts_on(self, tool, args):
+        """Whether a change is one the conversation makes at once (act_on); importing only into a namespace there is."""
+        if tool not in getattr(self, "act_on", ()):
+            return False
+        if tool == "import_files":
+            try:
+                store.ns_id(self.db, args["namespace"], create=False)
+            except KeyError:
+                return False  # a new namespace waits for approval, as create_namespace does
+        return True
 
     def t_server_status(self):
         return status(self.db, self.cfg, self.base), "Checked what's set up"
 
     def t_find_model_servers(self):
         found = setup.detect_llm()
-        return {"servers": found}, f"Looked for model servers nearby: {len(found)} found"
+        return {"servers": found, "cloud": list(setup.CLOUD_PROVIDERS)}, f"Looked for model servers nearby: {len(found)} found"
 
     def t_read_settings(self, section):
         if section not in SECTIONS:
@@ -337,7 +357,7 @@ class OpsTools:
         given = [bool(urls), bool((text or "").strip()), bool(upload_id)]
         if sum(given) != 1:
             raise ValueError("give the addresses as urls, as text, or as an attached file's upload_id: one of them")
-        if not convert.chromium(self.cfg):
+        if not convert.web_capture(self.cfg):
             raise ValueError("capturing web pages needs Chromium on the server (the lens:full image)")
         if upload_id:
             try:

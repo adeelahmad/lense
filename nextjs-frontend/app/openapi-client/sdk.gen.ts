@@ -40,6 +40,8 @@ import type {
   AddVaultPasskeyData,
   AddVaultPasskeyErrors,
   AddVaultPasskeyResponses,
+  AllS3KeysData,
+  AllS3KeysResponses,
   AnswerActionData,
   AnswerActionErrors,
   AnswerActionResponses,
@@ -201,6 +203,9 @@ import type {
   CreateRoutineData,
   CreateRoutineErrors,
   CreateRoutineResponses,
+  CreateS3KeyData,
+  CreateS3KeyErrors,
+  CreateS3KeyResponses,
   CreateSearchData,
   CreateSearchErrors,
   CreateSearchResponses,
@@ -509,6 +514,8 @@ import type {
   GetMediaData,
   GetMediaErrors,
   GetMediaResponses,
+  GetMonitoringData,
+  GetMonitoringResponses,
   GetNamespaceAssistantData,
   GetNamespaceAssistantErrors,
   GetNamespaceAssistantResponses,
@@ -919,6 +926,8 @@ import type {
   ListWorkersResponses,
   ListWorkflowsData,
   ListWorkflowsResponses,
+  LlmProvidersData,
+  LlmProvidersResponses,
   LocalLlmStatusData,
   LocalLlmStatusResponses,
   LockVaultData,
@@ -933,6 +942,8 @@ import type {
   LostPasskeyData,
   LostPasskeyErrors,
   LostPasskeyResponses,
+  MailboxStatusData,
+  MailboxStatusResponses,
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
@@ -971,6 +982,8 @@ import type {
   NewTokenData,
   NewTokenErrors,
   NewTokenResponses,
+  NfsStatusData,
+  NfsStatusResponses,
   NotSameSpeakerData,
   NotSameSpeakerErrors,
   NotSameSpeakerResponses,
@@ -1158,6 +1171,9 @@ import type {
   RevokeGrantErrors,
   RevokeGrantResponses,
   RevokeResponses,
+  RevokeS3KeyData,
+  RevokeS3KeyErrors,
+  RevokeS3KeyResponses,
   RevokeShareData,
   RevokeShareErrors,
   RevokeShareResponses,
@@ -1182,6 +1198,11 @@ import type {
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
+  S3StatusData,
+  S3StatusResponses,
+  SaveBudgetData,
+  SaveBudgetErrors,
+  SaveBudgetResponses,
   SaveCollectionFieldsData,
   SaveCollectionFieldsErrors,
   SaveCollectionFieldsResponses,
@@ -1244,6 +1265,9 @@ import type {
   SetMemberData,
   SetMemberErrors,
   SetMemberResponses,
+  SetMonitoringData,
+  SetMonitoringErrors,
+  SetMonitoringResponses,
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
@@ -1271,6 +1295,10 @@ import type {
   SkipTopicCandidateData,
   SkipTopicCandidateErrors,
   SkipTopicCandidateResponses,
+  SlackStatusData,
+  SlackStatusResponses,
+  SmbStatusData,
+  SmbStatusResponses,
   SpeakTextData,
   SpeakTextErrors,
   SpeakTextResponses,
@@ -1303,6 +1331,8 @@ import type {
   TagRecordingsResponses,
   TakeBackupData,
   TakeBackupResponses,
+  TelegramStatusData,
+  TelegramStatusResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
   TestBridgeData,
@@ -1321,17 +1351,23 @@ import type {
   TestFileStoreResponses,
   TestLlmData,
   TestLlmResponses,
+  TestMailboxData,
+  TestMailboxResponses,
   TestMailData,
   TestMailResponses,
   TestNotifyTargetData,
   TestNotifyTargetErrors,
   TestNotifyTargetResponses,
+  TestSlackData,
+  TestSlackResponses,
   TestSourceData,
   TestSourceErrors,
   TestSourceResponses,
   TestSpeechData,
   TestSpeechErrors,
   TestSpeechResponses,
+  TestTelegramData,
+  TestTelegramResponses,
   TestTelemetryData,
   TestTelemetryResponses,
   TestTikaData,
@@ -2551,6 +2587,34 @@ export class Admin {
   }
 
   /**
+   * Nfs Status
+   *
+   * The file tree over NFS: whether it's serving, as whom, to which networks, and the command that mounts it.
+   */
+  public static nfsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<NfsStatusData, ThrowOnError>,
+  ): RequestResult<NfsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<NfsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/nfs/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Smb Status
+   *
+   * The file tree over SMB (Settings › SMB share): whether it's serving, to which networks, and how to connect.
+   */
+  public static smbStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SmbStatusData, ThrowOnError>,
+  ): RequestResult<SmbStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SmbStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/smb/status",
+      ...options,
+    });
+  }
+
+  /**
    * Tunnel Status
    *
    * How the Cloudflare tunnel (Settings › Remote access) is doing: its address, whether it's connected, and
@@ -2605,6 +2669,92 @@ export class Admin {
   ): RequestResult<TestBridgeResponses, unknown, ThrowOnError> {
     return (options?.client ?? client).post<TestBridgeResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/bridge/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Telegram Status
+   *
+   * How the assistant's Telegram bot is doing, and the chats it has seen (their ids are what telegram.rooms names).
+   */
+  public static telegramStatus<ThrowOnError extends boolean = false>(
+    options?: Options<TelegramStatusData, ThrowOnError>,
+  ): RequestResult<TelegramStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<TelegramStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telegram",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Telegram
+   *
+   * Check that Telegram knows the bot's token, and that the account to answer as exists.
+   */
+  public static testTelegram<ThrowOnError extends boolean = false>(
+    options?: Options<TestTelegramData, ThrowOnError>,
+  ): RequestResult<TestTelegramResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestTelegramResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/telegram/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Slack Status
+   *
+   * How the assistant's Slack app is doing, its slash command, and the link that creates the app from its manifest.
+   */
+  public static slackStatus<ThrowOnError extends boolean = false>(
+    options?: Options<SlackStatusData, ThrowOnError>,
+  ): RequestResult<SlackStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<SlackStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/slack",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Slack
+   *
+   * Check both Slack tokens, and that the account to answer as exists.
+   */
+  public static testSlack<ThrowOnError extends boolean = false>(
+    options?: Options<TestSlackData, ThrowOnError>,
+  ): RequestResult<TestSlackResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestSlackResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/slack/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Mailbox Status
+   *
+   * How the assistant's mailbox is doing, and who has written to it (whether each is let in, and their mail vouched
+   * for by their provider).
+   */
+  public static mailboxStatus<ThrowOnError extends boolean = false>(
+    options?: Options<MailboxStatusData, ThrowOnError>,
+  ): RequestResult<MailboxStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<MailboxStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mailbox",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Mailbox
+   *
+   * Check that Lens can sign in to read the mailbox (IMAP) and to send from it (SMTP), and that the account to
+   * answer as exists. Nothing is read or sent.
+   */
+  public static testMailbox<ThrowOnError extends boolean = false>(
+    options?: Options<TestMailboxData, ThrowOnError>,
+  ): RequestResult<TestMailboxResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestMailboxResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/mailbox/test",
       ...options,
     });
   }
@@ -3003,6 +3153,40 @@ export class Updates {
   }
 
   /**
+   * Get Monitoring
+   *
+   * Whether Prometheus, node-exporter and Grafana run next to Lens (the monitoring profile), and how the machine's
+   * last change went.
+   */
+  public static getMonitoring<ThrowOnError extends boolean = false>(
+    options?: Options<GetMonitoringData, ThrowOnError>,
+  ): RequestResult<GetMonitoringResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetMonitoringResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/monitoring",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Monitoring
+   *
+   * Have this machine start or stop Prometheus, node-exporter and Grafana. On also turns /metrics on with a scrape
+   * token when it has none. GET /admin/monitoring follows along.
+   */
+  public static setMonitoring<ThrowOnError extends boolean = false>(
+    options: Options<SetMonitoringData, ThrowOnError>,
+  ): RequestResult<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetMonitoringResponses, SetMonitoringErrors, ThrowOnError>({
+      url: "/api/v1/admin/monitoring",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * List Backups
    *
    * The database backups in <data_dir>/backups, newest first; those being written; the restore running here (or
@@ -3291,6 +3475,21 @@ export class Setup {
   }
 
   /**
+   * Llm Providers
+   *
+   * Cloud providers with an OpenAI-compatible API (OpenAI, Anthropic, Gemini, ...), each with its address and a
+   * model, so picking one leaves only the API key to paste.
+   */
+  public static llmProviders<ThrowOnError extends boolean = false>(
+    options?: Options<LlmProvidersData, ThrowOnError>,
+  ): RequestResult<LlmProvidersResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<LlmProvidersResponses, unknown, ThrowOnError>({
+      url: "/api/v1/setup/llm/providers",
+      ...options,
+    });
+  }
+
+  /**
    * Save Storage
    *
    * The upload limit, and optionally a folder on this machine (inside sources.local_roots) to watch.
@@ -3318,6 +3517,26 @@ export class Setup {
   ): RequestResult<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError> {
     return (options.client ?? client).put<SaveTelemetryResponses, SaveTelemetryErrors, ThrowOnError>({
       url: "/api/v1/setup/telemetry",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Save Budget
+   *
+   * The overall AI budget: a soft limit that warns and a hard limit where runs wait and paid model calls stop
+   * (docs/budgets.md#one-budget-for-everything), with the chat model's price so its spending is counted. No hard
+   * limit: no budget.
+   */
+  public static saveBudget<ThrowOnError extends boolean = false>(
+    options: Options<SaveBudgetData, ThrowOnError>,
+  ): RequestResult<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError> {
+    return (options.client ?? client).put<SaveBudgetResponses, SaveBudgetErrors, ThrowOnError>({
+      url: "/api/v1/setup/budget",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -9483,6 +9702,70 @@ export class Sensors {
   ): RequestResult<PushStreamResponses, PushStreamErrors, ThrowOnError> {
     return (options.client ?? client).post<PushStreamResponses, PushStreamErrors, ThrowOnError>({
       url: "/api/v1/sensors/push/{token}/{stream}",
+      ...options,
+    });
+  }
+}
+
+export class Shares {
+  /**
+   * S3 Status
+   *
+   * Whether the S3 server is on and on which port, what the worker running it says, the same for WebDAV, and your
+   * access keys.
+   */
+  public static s3Status<ThrowOnError extends boolean = false>(
+    options?: Options<S3StatusData, ThrowOnError>,
+  ): RequestResult<S3StatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<S3StatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/shares/s3",
+      ...options,
+    });
+  }
+
+  /**
+   * All S3 Keys
+   *
+   * Everyone's access keys, with their owners (admins).
+   */
+  public static allS3Keys<ThrowOnError extends boolean = false>(
+    options?: Options<AllS3KeysData, ThrowOnError>,
+  ): RequestResult<AllS3KeysResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<AllS3KeysResponses, unknown, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys",
+      ...options,
+    });
+  }
+
+  /**
+   * Create S3 Key
+   *
+   * An access key that reads the file tree as you, over S3 and WebDAV. Only while signed in to the web app (with your passkey),
+   * not with an API token. The secret is in this answer only.
+   */
+  public static createS3Key<ThrowOnError extends boolean = false>(
+    options: Options<CreateS3KeyData, ThrowOnError>,
+  ): RequestResult<CreateS3KeyResponses, CreateS3KeyErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateS3KeyResponses, CreateS3KeyErrors, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Revoke S3 Key
+   *
+   * Revoke one of your keys (admins: anyone's). It stops working at once.
+   */
+  public static revokeS3Key<ThrowOnError extends boolean = false>(
+    options: Options<RevokeS3KeyData, ThrowOnError>,
+  ): RequestResult<RevokeS3KeyResponses, RevokeS3KeyErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RevokeS3KeyResponses, RevokeS3KeyErrors, ThrowOnError>({
+      url: "/api/v1/shares/s3/keys/{key_id}",
       ...options,
     });
   }

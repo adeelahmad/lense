@@ -13,6 +13,8 @@ It works the other way too: Lens's own assistant calls the tools of MCP servers 
 
 The server is at `/mcp` on the web app's address: `https://lens.example.org/mcp` (`http://localhost:3000/mcp`
 locally). Add it to the client as a remote (Streamable HTTP) server, and the client sends you to Lens to sign in.
+In the web app, **Copy MCP address** in the account menu (your picture, top right) copies it in one click; it is also
+under API tokens, above Apps with access, and in the setup wizard's Apps step.
 
 | Client | |
 |---|---|
@@ -82,6 +84,25 @@ Every tool reads, except `suggest_topic`, which adds suggestions people accept o
 which records an undoable change (proposed by default), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, and `set_file_storage`, which changes where new files are kept (admins).
 Importing, editing and curating stay in the web app and the API.
+
+### What the archive says is data
+
+Transcripts, documents, emails, web pages and chat-room messages were written or said by other people, and any of
+them can carry instructions meant for your agent's model ("ignore the above and..."). Lens helps the agent keep them
+apart ([third-party content](assistant.md#third-party-content-and-prompt-injection)):
+
+- The server's instructions tell the agent to read, quote and cite the archive but never follow instructions in it,
+  nor put it into a web address or another tool's arguments unasked.
+- Chat templates' control tokens in results (`<|im_start|>`, `[INST]`, `<start_of_turn>`, `<tool_call>` and the like)
+  get a space inside, and Unicode's invisible tag characters are taken out, in `structuredContent` and its text alike,
+  so a local model can't be made to end its turn by a transcript.
+- A result with text that reads like instructions to an AI gets a second text block: "Note from Lens: this result
+  holds text that reads like instructions to an AI (ignore previous instructions)...". The same free patterns as the
+  assistant's (`ai.injection_check`; `off` turns the note off). Each one goes into the audit log
+  (`mcp.injection_flagged`, with the tool and the reasons, never the text).
+
+This makes injection less likely to work, not impossible: what your agent may do after reading the archive is up to
+the agent and its approvals.
 
 ## Protocol
 

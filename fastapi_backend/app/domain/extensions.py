@@ -813,6 +813,13 @@ def tool_args(spec, args):
     return out
 
 
+def sends_out(spec):
+    """Whether a tool sends what it's given to another host: a web tool, another MCP server's tool, Python with the
+    network. A prompt tool talks to Lens's own model, and a canvas tool's calls are each another tool's."""
+    run = spec["run"]
+    return run["type"] not in ("prompt", "graph", "python") or (run["type"] == "python" and bool(run.get("network")))
+
+
 def run_tool(db, cfg, spec, args, model=None, toolbox=None):
     """Run a tool's body with checked arguments; what it gave back, for the model to read."""
     from . import llm

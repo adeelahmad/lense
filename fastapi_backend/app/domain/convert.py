@@ -132,6 +132,53 @@ def chromium(cfg):
     return own or next((p for p in (shutil.which(n) for n in CHROMIUM) if p), None)
 
 
+# ---------- installed the first time they're needed ----------
+PROGRAMS = {"libreoffice": "LibreOffice", "chromium": "Chromium"}
+FETCH_SECONDS = 1800  # how long a job waits for one being installed
+
+
+def fetchable(name):
+    """Whether this server installs `name` (libreoffice, chromium) the first time it's needed: Lens in a
+    microsandbox's full edition, whose start script, as root, installs what Lens asks for in LENS_PROGRAMS
+    (microsandbox/run.sh). Lens asks by writing ask/NAME.want; the answer is got/NAME.ok, or got/NAME.failed."""
+    root = os.environ.get("LENS_PROGRAMS")
+    return name in PROGRAMS and bool(root) and os.path.isdir(os.path.join(root, "ask"))
+
+
+def fetch_program(cfg, name, say=None):
+    """`name` (libreoffice, chromium) installed now if it's installed the first time it's needed and isn't yet: asks
+    the start script for it and waits until it's there. Returns the program's path; Unavailable when it can't be."""
+    label, find = PROGRAMS[name], soffice if name == "libreoffice" else chromium
+    if not fetchable(name):
+        raise Unavailable(f"{label} isn't installed here")
+    root = pathlib.Path(os.environ["LENS_PROGRAMS"])
+    want, ok, failed = root / "ask" / f"{name}.want", root / "got" / f"{name}.ok", root / "got" / f"{name}.failed"
+    if not ok.is_file():
+        try:
+            want.touch()
+        except OSError as e:
+            raise Unavailable(f"{label} can't be asked for here ({e.strerror or e})") from None
+        if say:
+            say(f"installing {label}, the first time it's needed (a few minutes)")
+        deadline = time.monotonic() + FETCH_SECONDS
+        while not ok.is_file():
+            if failed.is_file() and not want.exists():  # answered, and not asked again since
+                why = failed.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+                raise Unavailable(f"installing {label} failed ({why[-1][:200] if why else 'no reason given'})")
+            if time.monotonic() > deadline:
+                raise Unavailable(f"installing {label} took longer than {FETCH_SECONDS // 60} minutes")
+            time.sleep(1)
+    exe = find(cfg)
+    if not exe:
+        raise Unavailable(f"{label} was installed but isn't on the PATH")
+    return exe
+
+
+def web_capture(cfg):
+    """Whether this server can capture web pages from their address: it has Chromium, or installs it when needed."""
+    return bool(chromium(cfg)) or fetchable("chromium")
+
+
 def _has_msg():
     try:
         import extract_msg  # noqa: F401
@@ -143,7 +190,8 @@ def _has_msg():
 def _can(cfg):
     """What this server can make into PDFs itself, or with anytopdf: {office, pages, msg}."""
     by = None if anytopdf.mode(cfg) == "lens" else anytopdf.available(cfg)
-    office, pages = bool(soffice(cfg) or by == "node"), bool(chromium(cfg) or soffice(cfg) or by)
+    lo, web = bool(soffice(cfg)) or fetchable("libreoffice"), web_capture(cfg)
+    office, pages = lo or by == "node", bool(web or lo or by)
     return {"office": office, "pages": pages, "msg": pages and _has_msg()}
 
 
@@ -152,7 +200,7 @@ def capabilities(cfg):
     (Chromium or LibreOffice), Outlook .msg emails (those, and the extract-msg package), and web pages captured from
     their address (Chromium). anytopdf does the same where Lens can't (anytopdf.py): emails, text and pages here, and
     Office files too on a conversion node. A Tika server reads all of those as text where nothing here can (tika.py)."""
-    got = {**_can(cfg), "web": bool(chromium(cfg)), "tika": tika.reads_text(cfg)}
+    got = {**_can(cfg), "web": web_capture(cfg), "tika": tika.reads_text(cfg)}
     if got["tika"]:
         got.update(office=True, pages=True, msg=True)
     return got
@@ -651,10 +699,11 @@ def read_eml(path):
 
     with open(path, "rb") as f:
         msg = email.message_from_binary_file(f, policy=policy.default)
-    return _message(msg)
+    return parse_email(msg)
 
 
-def _message(msg):
+def parse_email(msg):
+    """A parsed email (email.message.EmailMessage) in read_eml's shape."""
     out = {
         "subject": str(msg.get("subject") or "").strip(),
         "from": _people(msg.get("from")),
@@ -767,7 +816,9 @@ def by_anytopdf(cfg, src):
     if how == "anytopdf":
         return ext_of(src) not in OFFICE or bool(soffice(cfg)) or anytopdf.available(cfg) == "node"
     ext = ext_of(src)
-    return not soffice(cfg) if ext in OFFICE else not (chromium(cfg) or soffice(cfg))
+    if ext in OFFICE:  # anytopdf here can't read Office files: LibreOffice installed when needed does
+        return not soffice(cfg) and (anytopdf.available(cfg) == "node" or not fetchable("libreoffice"))
+    return not (chromium(cfg) or soffice(cfg))
 
 
 def page_pdf(cfg, page, out, via_anytopdf):
@@ -781,13 +832,26 @@ def page_pdf(cfg, page, out, via_anytopdf):
         return anytopdf.to_pdf(cfg, p, out, render=True)
 
 
-def to_pdf(cfg, src, out):
+def _fetch_for(cfg, ext, say):
+    """The program that will make this kind of file's PDF, installed now if it's installed when needed and isn't yet:
+    LibreOffice for Office files, Chromium for the rest (unless LibreOffice is here to print them)."""
+    if ext in OFFICE:
+        if not soffice(cfg) and fetchable("libreoffice"):
+            fetch_program(cfg, "libreoffice", say)
+    elif not (chromium(cfg) or soffice(cfg)) and fetchable("chromium"):
+        fetch_program(cfg, "chromium", say)
+
+
+def to_pdf(cfg, src, out, say=None):
     """Make `out`, the PDF of the document at `src`. Returns what was learnt on the way: {by, title?, email?,
-    attachments?}. Unavailable when the server can't; ValueError when the file can't be read."""
+    attachments?}. Unavailable when the server can't; ValueError when the file can't be read. A program installed
+    the first time it's needed (fetchable) is installed first, which `say` tells."""
     why = unconvertible(cfg, src)
     if why:
         raise Unavailable(why)
     ext, path, via = ext_of(src), pathlib.Path(src), by_anytopdf(cfg, src)
+    if not via:
+        _fetch_for(cfg, ext, say)
     if ext in OFFICE:
         return {"by": anytopdf.to_pdf(cfg, path, out) if via else office_pdf(cfg, path, out)}
     if ext in (".eml", ".msg"):

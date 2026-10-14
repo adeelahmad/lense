@@ -489,7 +489,7 @@ def transcribe(db, cfg, rid, say):
     if source == "document" and convert.needs(path):
         pdf = convert.rendition_path(cfg, rid)
         try:
-            learnt = convert.to_pdf(cfg, path, pdf)
+            learnt = convert.to_pdf(cfg, path, pdf, say)
             say(f"made into a PDF by {BY[learnt['by']]}")
         except (convert.Unavailable, ValueError) as e:
             if not tika.reads_text(cfg):  # nothing else can read it

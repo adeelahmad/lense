@@ -65,6 +65,8 @@ SETTINGS = {
     "tunnel": {"mode", "token", "hostname", "api_token"},
     "documents": {"anytopdf_url", "anytopdf_token"},
     "telemetry": {"enabled", "endpoint"},
+    # not a settings section: Lens's overall budget (Settings › Budgets), with the chat model's price
+    "budget": {"hard_usd", "soft_usd", "period", "on_over", "price_in", "price_out"},
 }
 # Things the installer can do for an existing install besides installing again, by id: {"label", "detail", "run":
 # fn(installer) -> None}. Empty for now: the upgrade and backup work adds its actions here, and the page shows a
@@ -379,6 +381,21 @@ def step_of(line):
     return ANSI.sub("", line).strip() if line.startswith("\x1b[1m") else None
 
 
+# install.sh prints this, then the last lines Lens logged, when it stops waiting for Lens; then why (the last line)
+TAIL_HEAD = "The last lines Lens logged:"
+
+
+def log_tail(lines, error=None):
+    """The last lines Lens logged, as install.sh showed them when it stopped waiting, without its reason after them."""
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip() == TAIL_HEAD:
+            tail = lines[i + 1 :]
+            while tail and (not tail[-1].strip() or tail[-1] == error):
+                tail.pop()
+            return tail
+    return []
+
+
 class Installer:
     def __init__(self, folder, repo, ref, script=None, token=None):
         self.dir, self.repo, self.ref, self.script = folder, repo, ref, script
@@ -386,6 +403,7 @@ class Installer:
         self.lock = threading.Lock()
         self.lines, self.steps = [], []
         self.state, self.url, self.error, self.code = "idle", None, None, None
+        self.tail = []
         self.password = None
         self.proc = None
         self.tmp = tempfile.mkdtemp(prefix="lens-installer-")
@@ -419,6 +437,8 @@ class Installer:
             "docker": docker,
             "msb_ok": msb_ok(),
             "msb_installed": have("msb") or os.path.exists(os.path.expanduser("~/.microsandbox/bin/msb")),
+            # what to offer first: Lens.app, which carries microsandbox, asks for microsandbox (desktop/README.md)
+            "backend_default": "microsandbox" if os.environ.get("LENS_BACKEND_DEFAULT") == "microsandbox" and msb_ok() else "docker",
             "sudo": sudo,
             "plan": {"docker": plan("docker", docker, sudo), "microsandbox": plan("microsandbox", docker, sudo)},
             "dir": self.dir,
@@ -486,6 +506,7 @@ class Installer:
         self.dir = env_vars["LENS_DIR"]
         with self.lock:
             self.lines, self.steps, self.state, self.url, self.error, self.code = [], [], "running", None, None, None
+            self.tail = []
         threading.Thread(target=self._run, args=(env_vars,), daemon=True, name="install").start()
 
     def _run(self, env_vars):
@@ -529,6 +550,8 @@ class Installer:
             self._finish("done")
         else:
             last = next((ln for ln in reversed(self.lines) if ln.strip()), "")
+            with self.lock:
+                self.tail = log_tail(self.lines, last)
             self._finish("failed", last or f"install.sh stopped (exit {code})")
 
     def _finish(self, state, error=None):
@@ -547,6 +570,7 @@ class Installer:
                 "next": offset + len(self.lines),
                 "url": self.url,
                 "error": self.error,
+                "tail": list(self.tail),
             }
 
 
@@ -717,7 +741,7 @@ def main(argv=None):
     print(f"\033[1mLens's installer is open in your browser.\033[0m If it isn't, open:\n\n  {link}\n", flush=True)
     if public:
         print("  (from another computer on this network too; the link carries a one-time key)\n", flush=True)
-    if not args.no_browser and desktop():
+    if not args.no_browser and desktop() and os.environ.get("LENS_NO_OPEN") != "1":
         threading.Timer(0.3, lambda: webbrowser.open(f"http://localhost:{port}/?t={inst.token}")).start()
 
     def idle_stop():  # once installed, the page's Open Lens closes it; else it goes after a while on its own

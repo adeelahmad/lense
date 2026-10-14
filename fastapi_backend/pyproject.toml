@@ -1,6 +1,6 @@
 [project]
 name = "lens"
-version = "0.7.0"
+version = "0.8.1"
 description = "Lens: intelligence for your agent. Safe, secure and cost-effective. Turns your live data streams into a cited knowledge graph your agent can reason over."
 requires-python = ">=3.12,<3.14"
 readme = "README.md"
@@ -45,8 +45,13 @@ insightface = ["insightface", "onnxruntime"]
 # Objects: YOLOX on ONNX Runtime (Apache-2.0; the model is a YOLOX .onnx file). Ultralytics YOLO also works if
 # installed by hand (pip install ultralytics): it's AGPL-3.0, so it isn't an extra here.
 objects = ["onnxruntime"]
+# A local prompt-injection classifier (ai.injection_check "classifier"): ProtectAI's DeBERTa model on ONNX Runtime
+injection = ["onnxruntime", "tokenizers"]
 # Checking IIIF manifests against the official schema
 validate = ["jsonschema"]
+# the SMB share of the file tree (smb_share.py): impacket's SMB server (a modified Apache 1.1 license); fetched when
+# Settings › SMB share is turned on
+smb = ["impacket>=0.13"]
 # Outlook .msg emails (extract-msg is GPL-3.0; .eml needs nothing)
 msg = ["extract-msg"]
 
@@ -73,7 +78,10 @@ dev = [
     "mkdocs-material[imaging]>=9.7.7",
     "onnxruntime>=1.18",  # the objects tests run a small YOLOX-shaped model
     "onnx>=1.23.2",  # ... which they build
+    "tokenizers>=0.20",  # the injection classifier tests run a tiny model and tokenizer
     "mcp>=2.3.0",  # the official MCP client, to test the MCP server with
+    "impacket>=0.13",  # the SMB share's server, and the SMB client its tests sign in with
+    "botocore>=1.43.111",
 ]
 
 [tool.hatch.build.targets.wheel]
