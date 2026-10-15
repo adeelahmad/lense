@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import type { ReactNode } from "react";
 
@@ -61,7 +61,12 @@ const VIEW = (over: Partial<SetupView> = {}): SetupView => ({
     max_upload_mb: 4096,
     watches: 0,
   },
-  telemetry: { enabled: false, endpoint: null, locked: [] },
+  telemetry: {
+    enabled: false,
+    endpoint: null,
+    locked: [],
+    analytics: { enabled: false, measurement_id: null, secret_set: false, locked: [] },
+  },
   oauth: { enabled: true, access_minutes: 60, refresh_days: 30 },
   budget: {
     hard_usd: null,
@@ -286,7 +291,9 @@ describe("SetupWizard", () => {
     m(Setup.finish).mockImplementation(() => ok({ ok: true }));
     wrap(<SetupWizard />);
     fireEvent.click(await screen.findByRole("button", { name: /Telemetry/ }));
-    fireEvent.click(await screen.findByRole("radio", { name: "On" }));
+    fireEvent.click(
+      within(await screen.findByRole("radiogroup", { name: "Send telemetry" })).getByRole("radio", { name: "On" }),
+    );
     const save = screen.getByRole("button", { name: "Save and continue" });
     expect(save).toBeDisabled(); // on needs somewhere to send to
     fireEvent.change(screen.getByLabelText("OTLP endpoint"), { target: { value: "localhost:4318" } });
@@ -297,10 +304,41 @@ describe("SetupWizard", () => {
     expect(m(Setup.saveTelemetry).mock.calls[0][0].body).toEqual({ enabled: false, endpoint: "http://localhost:4318" });
     fireEvent.click(save);
     await waitFor(() => expect(m(Setup.saveTelemetry).mock.calls.length).toBe(2));
-    expect(m(Setup.saveTelemetry).mock.calls[1][0].body).toEqual({ enabled: true, endpoint: "http://localhost:4318" });
+    expect(m(Setup.saveTelemetry).mock.calls[1][0].body).toEqual({
+      enabled: true,
+      endpoint: "http://localhost:4318",
+      analytics: false,
+      measurement_id: null,
+      api_secret: null,
+    });
     // back to what's still to ask: the model provider
     expect(await screen.findByLabelText("Base URL")).toBeInTheDocument();
     expect(Setup.finish).not.toHaveBeenCalled();
+  });
+
+  it("opts in to Google Analytics with a measurement id and secret", async () => {
+    m(Setup.getSetup).mockImplementation(() => ok(VIEW({ namespace: { existing: ["media"], locked: false } })));
+    m(Setup.saveTelemetry).mockImplementation(() => ok({ ok: true }));
+    m(Setup.finish).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    fireEvent.click(await screen.findByRole("button", { name: /Telemetry/ }));
+    const group = await screen.findByRole("radiogroup", { name: "Share usage statistics with Google Analytics" });
+    fireEvent.click(within(group).getByRole("radio", { name: "On" }));
+    const save = screen.getByRole("button", { name: "Save and continue" });
+    expect(save).toBeDisabled(); // on needs an id and a secret
+    fireEvent.change(screen.getByLabelText("Measurement id"), { target: { value: "UA-1" } });
+    fireEvent.change(screen.getByLabelText("Measurement Protocol API secret"), { target: { value: "s3cret" } });
+    expect(save).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Measurement id"), { target: { value: "G-TEST1234" } });
+    fireEvent.click(save);
+    await waitFor(() => expect(m(Setup.saveTelemetry).mock.calls.length).toBe(1));
+    expect(m(Setup.saveTelemetry).mock.calls[0][0].body).toEqual({
+      enabled: false,
+      endpoint: null,
+      analytics: true,
+      measurement_id: "G-TEST1234",
+      api_secret: "s3cret",
+    });
   });
 
   it("lets apps sign in for a set time, or turns it off", async () => {

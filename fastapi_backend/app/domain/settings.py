@@ -50,6 +50,7 @@ EDITABLE = {
     "matterbridge": None,
     "notifications": None,
     "telemetry": None,
+    "analytics": None,
     "logs": None,
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
     "updates": ("check", "check_hours", "auto_install", "email"),
@@ -138,6 +139,7 @@ SECRETS = {
     "mailbox": ("password",),
     "matterbridge": ("slack_token", "discord_token", "telegram_token", "matrix_password"),
     "telemetry": ("headers", "prometheus_token"),
+    "analytics": ("api_secret",),
     "fedora": ("password",),
     "tunnel": ("token", "api_token"),
     "https": ("dns_credentials", "eab_hmac_key"),
@@ -181,6 +183,7 @@ ENUMS = {
     ("https", "min_tls"): {"1.2", "1.3"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
+    ("analytics", "region"): {"global", "eu"},
     ("logs", "level"): set(logs.LEVELS),
     ("logs", "syslog_level"): set(logs.LEVELS),
     ("logs", "format"): {"text", "json"},
@@ -215,6 +218,9 @@ ENV_OVERRIDES = {
     ("logs", "format"): "LENS_LOG_FORMAT",
     ("telemetry", "prometheus"): "LENS_PROMETHEUS",
     ("telemetry", "prometheus_token"): "LENS_PROMETHEUS_TOKEN",
+    ("analytics", "enabled"): "LENS_ANALYTICS",
+    ("analytics", "measurement_id"): "LENS_GA_MEASUREMENT_ID",
+    ("analytics", "api_secret"): "LENS_GA_API_SECRET",
     ("telemetry", "grafana_url"): "LENS_GRAFANA_URL",
     ("fedora", "enabled"): "LENS_FEDORA",
     ("fedora", "url"): "LENS_FEDORA_URL",
@@ -462,6 +468,8 @@ def _check(section, key, value, default):
         return _notify_setting(key, value)
     if section == "telemetry":
         return _telemetry_setting(key, value)
+    if section == "analytics" and key != "region":
+        return _analytics_setting(key, value)
     if section == "logs":
         return _logs_setting(key, value)
     if section == "updates":
@@ -1315,6 +1323,31 @@ def _telemetry_setting(key, value):
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"telemetry.{key} is a whole number from {lo} to {hi}")
     return value
+
+
+def _analytics_setting(key, value):
+    from . import analytics
+
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("analytics.enabled is true or false")
+        return value
+    if key == "measurement_id":
+        if value in (None, ""):
+            return None
+        v = value.strip().upper() if isinstance(value, str) else ""
+        if not analytics.MEASUREMENT_RX.match(v):
+            raise ValueError("analytics.measurement_id is a GA4 measurement id, like G-ABC123XYZ")
+        return v
+    if key == "events":
+        if not (isinstance(value, list) and all(isinstance(x, str) for x in value)) or set(value) - set(analytics.EVENTS):
+            raise ValueError(f"analytics.events is a list of: {', '.join(analytics.EVENTS)}")
+        return [e for e in analytics.EVENTS if e in value]
+    if key == "inactive_days":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("analytics.inactive_days is a whole number of days from 1 to 365")
+        return value
+    raise ValueError(f"unknown setting analytics.{key}")
 
 
 def _origin(url):

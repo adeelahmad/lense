@@ -3295,6 +3295,146 @@
         }
       }
     },
+    "/api/v1/settings/analytics/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Analytics Status",
+        "description": "Whether usage statistics go to Google Analytics, which events, and how the last send went. Off by default.",
+        "operationId": "analytics_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/analytics/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Analytics",
+        "description": "Send one lens_test event to Google Analytics' validation server (checked there, not recorded), on or off.",
+        "operationId": "test_analytics",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Usage Metrics",
+        "description": "Daily, weekly and monthly active people, churn, retention by sign-up week and feature use over the last `days`\ndays, worked out here from the activity ledger and sign-ins; nothing is sent anywhere.",
+        "operationId": "usage_metrics",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 180,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsMetrics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics/events": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Usage Events",
+        "description": "The events Lens counted each day (install, daily active, feature used, upgrade, inactive...), newest first, and\nwhether each went to Google Analytics. Kept here whether or not Google Analytics is on.",
+        "operationId": "usage_events",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsageEvent"
+                  },
+                  "title": "Response Admin-Usage Events"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/logs/status": {
       "get": {
         "tags": [
@@ -5125,7 +5265,7 @@
           "setup"
         ],
         "summary": "Save Telemetry",
-        "description": "Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector). Off unless chosen.",
+        "description": "Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector), and usage statistics\nto your own Google Analytics property when `analytics` is true. Each is off unless chosen.",
         "operationId": "save_telemetry",
         "requestBody": {
           "content": {
@@ -27682,6 +27822,381 @@
           "by_kind"
         ],
         "title": "ActivityTotals"
+      },
+      "AnalyticsChurn": {
+        "properties": {
+          "previous_active": {
+            "type": "integer",
+            "title": "Previous Active"
+          },
+          "retained": {
+            "type": "integer",
+            "title": "Retained"
+          },
+          "churned": {
+            "type": "integer",
+            "title": "Churned"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "returning": {
+            "type": "integer",
+            "title": "Returning"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "previous_active",
+          "retained",
+          "churned",
+          "returning"
+        ],
+        "title": "AnalyticsChurn"
+      },
+      "AnalyticsCohort": {
+        "properties": {
+          "week": {
+            "type": "string",
+            "title": "Week"
+          },
+          "users": {
+            "type": "integer",
+            "title": "Users"
+          },
+          "retention": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Retention"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "week",
+          "users",
+          "retention"
+        ],
+        "title": "AnalyticsCohort"
+      },
+      "AnalyticsDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "active_users": {
+            "type": "integer",
+            "title": "Active Users"
+          },
+          "actions": {
+            "type": "integer",
+            "title": "Actions"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day",
+          "active_users",
+          "actions"
+        ],
+        "title": "AnalyticsDay"
+      },
+      "AnalyticsEvent": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "on"
+        ],
+        "title": "AnalyticsEvent"
+      },
+      "AnalyticsFeature": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "actions": {
+            "type": "integer",
+            "title": "Actions"
+          },
+          "users": {
+            "type": "integer",
+            "title": "Users"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "feature",
+          "actions",
+          "users"
+        ],
+        "title": "AnalyticsFeature"
+      },
+      "AnalyticsMetrics": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "since": {
+            "type": "string",
+            "title": "Since"
+          },
+          "until": {
+            "type": "string",
+            "title": "Until"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDay"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "dau": {
+            "type": "integer",
+            "title": "Dau"
+          },
+          "wau": {
+            "type": "integer",
+            "title": "Wau"
+          },
+          "mau": {
+            "type": "integer",
+            "title": "Mau"
+          },
+          "stickiness": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stickiness"
+          },
+          "accounts": {
+            "type": "integer",
+            "title": "Accounts"
+          },
+          "active_users": {
+            "type": "integer",
+            "title": "Active Users"
+          },
+          "new_users": {
+            "type": "integer",
+            "title": "New Users"
+          },
+          "churn": {
+            "$ref": "#/components/schemas/AnalyticsChurn"
+          },
+          "retention": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsCohort"
+            },
+            "type": "array",
+            "title": "Retention"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsFeature"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "last_active_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Active Day"
+          },
+          "days_since_active": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Since Active"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "days",
+          "since",
+          "until",
+          "daily",
+          "dau",
+          "wau",
+          "mau",
+          "accounts",
+          "active_users",
+          "new_users",
+          "churn",
+          "retention",
+          "features"
+        ],
+        "title": "AnalyticsMetrics",
+        "description": "Active people, churn, retention and feature use, worked out on this machine from the activity ledger and\nsign-ins (docs/analytics.md#the-numbers)."
+      },
+      "AnalyticsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "measurement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Id"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "last_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sent At"
+          },
+          "last_sent": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Last Sent",
+            "default": []
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "configured",
+          "events"
+        ],
+        "title": "AnalyticsStatus",
+        "description": "Whether usage statistics go to Google Analytics, and how the last send went (docs/analytics.md)."
+      },
+      "AnalyticsTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Messages",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "AnalyticsTestResult"
       },
       "AnswerCheck": {
         "properties": {
@@ -54363,6 +54878,44 @@
         ],
         "title": "SetupAdmin"
       },
+      "SetupAnalyticsView": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "measurement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Id"
+          },
+          "secret_set": {
+            "type": "boolean",
+            "title": "Secret Set"
+          },
+          "locked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locked"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "secret_set",
+          "locked"
+        ],
+        "title": "SetupAnalyticsView"
+      },
       "SetupBudget": {
         "properties": {
           "hard_usd": {
@@ -54863,6 +55416,41 @@
               }
             ],
             "title": "Endpoint"
+          },
+          "analytics": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analytics"
+          },
+          "measurement_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Id"
+          },
+          "api_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Secret"
           }
         },
         "additionalProperties": false,
@@ -54892,13 +55480,17 @@
             },
             "type": "array",
             "title": "Locked"
+          },
+          "analytics": {
+            "$ref": "#/components/schemas/SetupAnalyticsView"
           }
         },
         "additionalProperties": true,
         "type": "object",
         "required": [
           "enabled",
-          "locked"
+          "locked",
+          "analytics"
         ],
         "title": "SetupTelemetryView"
       },
@@ -59743,6 +60335,48 @@
           "size"
         ],
         "title": "UploadStart"
+      },
+      "UsageEvent": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "at",
+          "day",
+          "name"
+        ],
+        "title": "UsageEvent",
+        "description": "An event Lens counted for a day (docs/analytics.md#events)."
       },
       "UserCreate": {
         "properties": {

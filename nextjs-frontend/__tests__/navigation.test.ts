@@ -8,6 +8,8 @@ describe("navigation", () => {
     expect(labels(true)).toEqual(expect.arrayContaining(["Settings", "Admin"]));
     expect(labels(false)).toContain("Settings");
     expect(labels(false)).not.toContain("Admin");
+    expect(labels(true)).toContain("Analytics");
+    expect(labels(false)).not.toContain("Analytics");
     expect(labels(true)).not.toContain("Speakers");
     // Admins see every source as a sensor; members keep Sources, the watched folders feeding their namespaces.
     expect(labels(true)).toContain("Sensors");
