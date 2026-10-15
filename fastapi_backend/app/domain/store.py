@@ -619,6 +619,9 @@ DEFAULTS = {
     # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
     # default; reads: log API reads (GET) too; keep_days: how long rows are kept
     "activity": {"enabled": True, "reads": False, "keep_days": 365},
+    # the stream of activities automations follow (docs/automations.md): keep_days: how long activities with no row
+    # of their own (the event log) are kept; poll_seconds: how often followers look when nothing wakes them
+    "events": {"keep_days": 30, "poll_seconds": 5},
     # database backups (docs/database.md, Backups): schedule is a cron expression in timezone, or none (the default)
     # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
     # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
@@ -1250,6 +1253,18 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS notify_delivery_status ON notify_delivery FIELDS status",
     "DEFINE TABLE IF NOT EXISTS notify_event SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS notify_state SCHEMALESS",
+    # the stream of activities (domain/events.py, docs/automations.md): activities no row of their own records
+    # (event_log:<n>), the keys they were emitted with (event_log_key:<hash>), where each consumer's next look starts
+    # (event_cursor:<consumer>) and what each consumer claimed (event_claim:<hash of consumer and key>)
+    "DEFINE TABLE IF NOT EXISTS event_log SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_log_logged ON event_log FIELDS logged_at",
+    "DEFINE INDEX IF NOT EXISTS event_log_published ON event_log FIELDS published",
+    "DEFINE TABLE IF NOT EXISTS event_log_key SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_log_key_at ON event_log_key FIELDS at",
+    "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
+    "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",

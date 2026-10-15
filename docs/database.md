@@ -68,6 +68,13 @@ cosine; servers only) defined when the first vector is stored, since its `DIMENS
 which model and dimension that is. A server searches it with `embedding <|k,ef|> $vec AND …filters`, which 3.2.4
 applies inside the index scan (a filtered search still returns k rows).
 
+The stream of activities automations follow ([Automations](automations.md#contract)) is mostly a view over rows
+kept anyway, such as `recording.created_at`. What no row records goes in `event_log:<n>` (by `logged_at` and
+`published`, kept for `events.keep_days`), with the keys it was emitted with in `event_log_key:<hash>`. Each consumer
+of the stream keeps where its next look starts in `event_cursor:<consumer>` (a position per source), and claims what
+it handles in `event_claim:<hash of consumer and key>`; a claim is a `CREATE` only one process wins, and claims go
+after a day.
+
 ## Upgrades
 
 Installs keep their data across updates (running `install.sh` again, a new image, `git pull`). New tables, fields and
