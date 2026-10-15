@@ -25,6 +25,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **The update notice no longer pushes pages off the screen.** While *Lens vX is out* shows above them, Chat, the
   graph and a recording's page are that much shorter, so a phone's question box and a recording's player stay in
   sight.
+- **An MCP server for each namespace.** A namespace's owner can turn on its own MCP server under Admin → Namespaces →
+  the namespace → Connect apps, which copies its address (`/mcp/<namespace>`). An agent connected there has the same
+  tools but sees that namespace alone, whatever else the person who signs it in can read, and a token an app gets for
+  it opens nothing else in Lens. Off by default ([One namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server)).
 
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 

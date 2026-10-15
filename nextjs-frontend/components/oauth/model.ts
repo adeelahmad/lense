@@ -70,6 +70,16 @@ export const canWrite = (scope: string | null | undefined) => (scope ?? "").spli
 
 export const ACCESS_LABEL = (scope: string | null | undefined) => (canWrite(scope) ? "Read & write" : "Read only");
 
+/** The namespace an app asks access to alone, when it signs in for that namespace's own MCP server (…/mcp/<name>). */
+export function namespaceOf(resource: string | null | undefined): string | null {
+  if (!resource) return null;
+  try {
+    return /^\/mcp\/([a-z0-9_-]+)\/?$/.exec(new URL(resource).pathname)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** An app's web address as a host name, when it gave one. */
 export function appHost(uri: string | null | undefined): string | null {
   if (!uri) return null;

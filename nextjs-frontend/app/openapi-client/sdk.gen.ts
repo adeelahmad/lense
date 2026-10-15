@@ -550,6 +550,9 @@ import type {
   GetNamespaceFacesData,
   GetNamespaceFacesErrors,
   GetNamespaceFacesResponses,
+  GetNamespaceIntegrationsData,
+  GetNamespaceIntegrationsErrors,
+  GetNamespaceIntegrationsResponses,
   GetNamespaceMetadataData,
   GetNamespaceMetadataErrors,
   GetNamespaceMetadataResponses,
@@ -1547,6 +1550,9 @@ import type {
   UpdateNamespaceCollectionResponses,
   UpdateNamespaceData,
   UpdateNamespaceErrors,
+  UpdateNamespaceIntegrationsData,
+  UpdateNamespaceIntegrationsErrors,
+  UpdateNamespaceIntegrationsResponses,
   UpdateNamespaceMetadataData,
   UpdateNamespaceMetadataErrors,
   UpdateNamespaceMetadataResponses,
@@ -4242,6 +4248,44 @@ export class Namespaces {
   ): RequestResult<UpdateAssistantMemoryResponses, UpdateAssistantMemoryErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateAssistantMemoryResponses, UpdateAssistantMemoryErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/assistant/memories/{mid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Namespace Integrations
+   *
+   * Whether the namespace's own MCP server is on, and its address.
+   */
+  public static getNamespaceIntegrations<ThrowOnError extends boolean = false>(
+    options: Options<GetNamespaceIntegrationsData, ThrowOnError>,
+  ): RequestResult<GetNamespaceIntegrationsResponses, GetNamespaceIntegrationsErrors, ThrowOnError> {
+    return (options.client ?? client).get<
+      GetNamespaceIntegrationsResponses,
+      GetNamespaceIntegrationsErrors,
+      ThrowOnError
+    >({ url: "/api/v1/namespaces/{name}/integrations", ...options });
+  }
+
+  /**
+   * Update Namespace Integrations
+   *
+   * Owners: turn the namespace's own MCP server on or off. Off, it answers 403; apps keep their access to the rest of
+   * Lens as before.
+   */
+  public static updateNamespaceIntegrations<ThrowOnError extends boolean = false>(
+    options: Options<UpdateNamespaceIntegrationsData, ThrowOnError>,
+  ): RequestResult<UpdateNamespaceIntegrationsResponses, UpdateNamespaceIntegrationsErrors, ThrowOnError> {
+    return (options.client ?? client).patch<
+      UpdateNamespaceIntegrationsResponses,
+      UpdateNamespaceIntegrationsErrors,
+      ThrowOnError
+    >({
+      url: "/api/v1/namespaces/{name}/integrations",
       ...options,
       headers: {
         "Content-Type": "application/json",
