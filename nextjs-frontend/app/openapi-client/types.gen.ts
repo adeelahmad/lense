@@ -9861,6 +9861,59 @@ export type NoteHistory = {
 };
 
 /**
+ * NoteHit
+ */
+export type NoteHit = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * Summary
+   */
+  summary?: string | null;
+  /**
+   * Place
+   */
+  place?: "project" | "area" | "resource" | "archive" | null;
+  /**
+   * Parent
+   *
+   * the page it's inside, in the tree
+   */
+  parent?: number | null;
+  /**
+   * About
+   *
+   * what this is the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Author
+   */
+  author?: "person" | "assistant";
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Snippet
+   *
+   * the words around the match in its text, when the text has it
+   */
+  snippet?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteHomeSuggestion
  */
 export type NoteHomeSuggestion = {
@@ -10327,6 +10380,23 @@ export type NotePageUpdate = {
    * show it as a page or on the edgeless canvas
    */
   view?: "page" | "edgeless" | null;
+};
+
+/**
+ * NoteSearch
+ */
+export type NoteSearch = {
+  /**
+   * Total
+   *
+   * how many pages match; `pages` has the first `limit`
+   */
+  total: number;
+  /**
+   * Pages
+   */
+  pages: Array<NoteHit>;
+  [key: string]: unknown;
 };
 
 /**
@@ -26629,6 +26699,60 @@ export type LinkTargetsResponses = {
 };
 
 export type LinkTargetsResponse = LinkTargetsResponses[keyof LinkTargetsResponses];
+
+export type SearchPagesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Q
+     *
+     * words in the title, one-line summary or text
+     */
+    q?: string;
+    /**
+     * Ns
+     *
+     * only this namespace (default: every one you can read)
+     */
+    ns?: string | null;
+    /**
+     * Place
+     *
+     * only notes filed here
+     */
+    place?: "project" | "area" | "resource" | "archive" | null;
+    /**
+     * Free
+     *
+     * only free notes, not the pages of things
+     */
+    free?: boolean;
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/notes/search";
+};
+
+export type SearchPagesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SearchPagesError = SearchPagesErrors[keyof SearchPagesErrors];
+
+export type SearchPagesResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteSearch;
+};
+
+export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
 
 export type PageAboutData = {
   body?: never;

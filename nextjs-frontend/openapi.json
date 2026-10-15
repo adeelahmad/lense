@@ -9723,6 +9723,119 @@
         }
       }
     },
+    "/api/v1/notes/search": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Search Pages",
+        "description": "Pages found by their words, those with them in the title first, then the latest changed, each with the words\naround the match: what the Notes page and Jump to show, and what the assistant's find_notes reads.",
+        "operationId": "search_pages",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "description": "words in the title, one-line summary or text",
+              "default": "",
+              "title": "Q"
+            },
+            "description": "words in the title, one-line summary or text"
+          },
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only this namespace (default: every one you can read)",
+              "title": "Ns"
+            },
+            "description": "only this namespace (default: every one you can read)"
+          },
+          {
+            "name": "place",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "project",
+                    "area",
+                    "resource",
+                    "archive"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only notes filed here",
+              "title": "Place"
+            },
+            "description": "only notes filed here"
+          },
+          {
+            "name": "free",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "only free notes, not the pages of things",
+              "default": false,
+              "title": "Free"
+            },
+            "description": "only free notes, not the pages of things"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteSearch"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/about/{kind}/{key}": {
       "get": {
         "tags": [
@@ -44308,6 +44421,114 @@
         ],
         "title": "NoteHistory"
       },
+      "NoteHit": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "project",
+                  "area",
+                  "resource",
+                  "archive"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent",
+            "description": "the page it's inside, in the tree"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "what this is the page of, like \"recording:12\"; null for a free note"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "person",
+              "assistant"
+            ],
+            "title": "Author",
+            "default": "person"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snippet",
+            "description": "the words around the match in its text, when the text has it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "namespace"
+        ],
+        "title": "NoteHit"
+      },
       "NoteHomeSuggestion": {
         "properties": {
           "page": {
@@ -45222,6 +45443,29 @@
         "additionalProperties": false,
         "type": "object",
         "title": "NotePageUpdate"
+      },
+      "NoteSearch": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "how many pages match; `pages` has the first `limit`"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/NoteHit"
+            },
+            "type": "array",
+            "title": "Pages"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "total",
+          "pages"
+        ],
+        "title": "NoteSearch"
       },
       "NoteTree": {
         "properties": {

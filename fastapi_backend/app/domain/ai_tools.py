@@ -1138,6 +1138,8 @@ class Toolbox(ops_tools.OpsTools):
                     "place": r.get("place"),
                     "page_of": r.get("about"),
                     "namespace": names.get(r["space"]),
+                    "inside": r.get("parent"),
+                    "snippet": r.get("snippet"),
                 }
             )
             for r in hits

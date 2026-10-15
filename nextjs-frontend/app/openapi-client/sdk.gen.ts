@@ -1279,6 +1279,9 @@ import type {
   SealVaultData,
   SealVaultErrors,
   SealVaultResponses,
+  SearchPagesData,
+  SearchPagesErrors,
+  SearchPagesResponses,
   SearchPhotosData,
   SearchPhotosErrors,
   SearchPhotosResponses,
@@ -5111,6 +5114,21 @@ export class Notes {
   ): RequestResult<LinkTargetsResponses, LinkTargetsErrors, ThrowOnError> {
     return (options.client ?? client).get<LinkTargetsResponses, LinkTargetsErrors, ThrowOnError>({
       url: "/api/v1/notes/targets",
+      ...options,
+    });
+  }
+
+  /**
+   * Search Pages
+   *
+   * Pages found by their words, those with them in the title first, then the latest changed, each with the words
+   * around the match: what the Notes page and Jump to show, and what the assistant's find_notes reads.
+   */
+  public static searchPages<ThrowOnError extends boolean = false>(
+    options?: Options<SearchPagesData, ThrowOnError>,
+  ): RequestResult<SearchPagesResponses, SearchPagesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<SearchPagesResponses, SearchPagesErrors, ThrowOnError>({
+      url: "/api/v1/notes/search",
       ...options,
     });
   }
