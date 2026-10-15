@@ -75,8 +75,8 @@ export function includedFrom(manifest: Json | null | undefined): Included[] {
   } else
     out.push({
       key: "media",
-      label: "Audio",
-      detail: "no audio: transcript only",
+      label: "Media",
+      detail: "no media: text only",
       on: false,
     });
   if (captions.id)
@@ -113,13 +113,13 @@ export function includedFrom(manifest: Json | null | undefined): Included[] {
   out.push({
     key: "downloads",
     label: "Downloads",
-    detail: downloads.length ? downloads.join(" · ") : "transcript not open",
+    detail: downloads.length ? downloads.join(" · ") : "text not open",
     on: downloads.length > 0,
   });
   out.push({
     key: "search",
     label: "Search inside",
-    detail: m.service ? "Content Search 2.0" : "transcript not open",
+    detail: m.service ? "Content Search 2.0" : "text not open",
     on: Boolean(m.service),
   });
   const records = arr(m.seeAlso).map((r) => (String(r.format).includes("xml") ? "Dublin Core" : "schema.org"));

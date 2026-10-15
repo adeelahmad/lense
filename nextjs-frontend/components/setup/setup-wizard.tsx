@@ -359,7 +359,7 @@ function NamespaceStep({ view, onNext }: { view: SetupView; onNext: (saved: bool
     return (
       <>
         <StepHead title="Namespaces">
-          Namespaces keep recordings, speakers and people&apos;s access apart.{" "}
+          Namespaces keep assets, people and members&apos; access apart.{" "}
           {ns.locked ? (
             <>
               This server&apos;s are set in archive.yaml or <code className="font-mono">LENS_NAMESPACE</code>, so there
@@ -1211,8 +1211,8 @@ function TelemetryStep({
             )}
           </Field>
           <p className="-mt-2 text-[12px] text-fg-muted">
-            Sent: route templates, job steps, record ids, model names, token counts, durations and costs. Never
-            transcripts, prompts, file names, titles or people.
+            Sent: route templates, job steps, record ids, model names, token counts, durations and costs. Never asset
+            text, prompts, file names, titles or people.
           </p>
         </>
       )}

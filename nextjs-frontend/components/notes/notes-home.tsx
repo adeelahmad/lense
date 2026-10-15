@@ -152,8 +152,8 @@ export function NotesHome() {
         <SkeletonRows rows={5} />
       ) : !all.length && !q ? (
         <EmptyState icon={<NotebookPen />} title="No notes yet" actions={newNote}>
-          The assistant writes notes as it learns, and you can write your own. Type @ in a note to link a recording,
-          person or another note, and # for a topic. Every recording and entity also has a page of its own.
+          The assistant writes notes as it learns, and you can write your own. Type @ in a note to link an asset, person
+          or another note, and # for a topic. Every asset and entity also has a page of its own.
         </EmptyState>
       ) : !rows.length ? (
         <EmptyState icon={<Search />} title={words ? `No notes have “${words}”` : "No notes here"}>

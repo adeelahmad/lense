@@ -1,4 +1,4 @@
-"""Storage sources (where files live, through rclone; email accounts and calendar feeds) and watched folders (admins)."""
+"""Storage sources (where files live, through rclone; email accounts, Gmail and calendar feeds) and watched folders (admins)."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from pydantic import Field
 
 from app.schemas.common import Created, Ok, RequestModel, ResponseModel
 
-SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "ical", "gcal"]
+SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "gmail", "ical", "gcal"]
 WatchKinds = Literal["audio", "transcripts", "both", "documents", "all"]
 KINDS_HELP = (
-    "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and "
+    "what to pick up: audio (and video), transcripts, both of those (PDFs read as text), documents (PDFs and "
     "images), or all of them (PDFs as documents; the default)"
 )
 
@@ -21,6 +21,10 @@ class Backend(ResponseModel):
     fields: dict[str, str] = Field(description="parameters and their defaults")
     secrets: list[str]
     oauth: str | None = Field(default=None, description="the command that produces the token, for OAuth backends")
+    google: bool = Field(
+        default=False,
+        description="signs in to Google: with a service account key, or as a Google account (its authorized user JSON as `token`)",
+    )
 
 
 class SourceHealth(ResponseModel):
@@ -83,7 +87,7 @@ class BrowseEntry(ResponseModel):
     modified: str | None = None
     title: str | None = Field(default=None, description="an email's subject, a calendar event's title")
     when: str | None = Field(default=None, description="when an email was sent, or a calendar event starts")
-    imported: list[ImportedAs] = Field(default_factory=list, description="the recordings this file already is, and where")
+    imported: list[ImportedAs] = Field(default_factory=list, description="the assets this file already is, and where")
 
 
 RouteField = Literal["from", "to", "subject", "list", "mailbox"]

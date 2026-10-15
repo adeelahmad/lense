@@ -219,7 +219,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
               review={v("speakers.review_threshold") as number}
             />
             <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-              When valid, the three zones read: <b>new speaker</b> below review · <b>◆ review queue</b> between ·{" "}
+              When valid, the three zones read: <b>new person</b> below review · <b>◆ review queue</b> between ·{" "}
               <b>✓ auto-match</b> at match and above.
             </p>
           </div>
@@ -427,8 +427,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
         <>
           <F ctx={ctx} id="auth.passwords" />
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from
-            People (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
+            People add passkeys in their profile. Someone new, or who lost their passkey, gets a sign-in link from Admin
+            → Members (or <code className="font-mono text-[12px]">lens users link their@email</code> on the server).
           </p>
           <SignInProviders />
         </>
@@ -522,7 +522,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </More>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
             Uploads arrive in pieces and carry on where they stopped if the connection drops. Finished files are kept in
-            the server’s data folder, under uploads. Transcript files have their own limit, under Access &amp;
+            the server’s data folder, under uploads. Text and document files have their own limit, under Access &amp;
             embedding; watched folders have no limit.
           </p>
         </>
@@ -800,8 +800,8 @@ function TelemetryBody({ ctx }: { ctx: BodyCtx }) {
       <F ctx={ctx} id="telemetry.prices" />
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         What is sent: route templates (never paths or queries), job steps and how they ended, record ids, model names,
-        token counts, durations and estimated cost. Never transcript, prompt or answer text, file names, titles,
-        namespace names, people or addresses. Each worker follows these settings on its own.
+        token counts, durations and estimated cost. Never asset, prompt or answer text, file names, titles, namespace
+        names, people or addresses. Each worker follows these settings on its own.
       </p>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<PlugZap />} onClick={() => test.mutate()} disabled={test.isPending || !where}>
@@ -1066,8 +1066,8 @@ function EncryptionBody({ ctx }: { ctx: BodyCtx }) {
         </Banner>
       ) : (
         <Banner title={on ? "Files are encrypted on disk." : "Files are kept as they are."}>
-          Encrypted files still play, seek, download and are processed as before. Transcripts, search and the rest of
-          the database aren’t covered; put the data volume on an encrypted disk for those.
+          Encrypted files still play, seek, download and are processed as before. Their text, search and the rest of the
+          database aren’t covered; put the data volume on an encrypted disk for those.
         </Banner>
       )}
       <F ctx={ctx} id="encryption.files" />
@@ -1277,8 +1277,8 @@ function FedoraBody({ ctx }: { ctx: BodyCtx }) {
       </div>
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
         Each resource is described with Dublin Core and links back to its Lens address (owl:sameAs). Changes to a
-        recording’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed,
-        new recordings and deletions follow. The workers send it.
+        asset’s metadata go within a minute; everything is compared on the schedule above, so what analysis changed, new
+        assets and deletions follow. The workers send it.
       </p>
       <div className="flex flex-wrap items-center gap-2.5">
         <Button size="sm" icon={<RefreshCw />} onClick={() => sync.mutate()} disabled={sync.isPending || !url}>
@@ -2878,7 +2878,7 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
               {!s.configured
                 ? "Search by meaning is off"
                 : s.current
-                  ? `${s.indexed} of ${s.recordings} recordings indexed with ${s.model}`
+                  ? `${s.indexed} of ${s.recordings} assets indexed with ${s.model}`
                   : s.indexed_model
                     ? `Indexed with ${s.indexed_model}; nothing yet with ${s.model}`
                     : `Nothing indexed with ${s.model} yet`}
@@ -2897,8 +2897,8 @@ function SearchBody({ ctx }: { ctx: BodyCtx }) {
           </div>
           <span className="text-[12px] leading-[1.4] text-fg-secondary">
             {s.configured
-              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New recordings are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
-              : "Turn it on and name a model to start. Recordings are indexed by their pipelines and an hourly routine."}
+              ? `${s.passages} passages${s.dimension ? ` of ${s.dimension} dimensions` : ""}. New assets are indexed by their pipeline's Index for meaning step; the “${"Index for search by meaning"}” routine catches up every hour (Routines).`
+              : "Turn it on and name a model to start. Assets are indexed by their pipelines and an hourly routine."}
             {index.data &&
               ` Queued ${index.data.recordings}${index.data.remaining ? "; more are waiting for the next run" : ""}.`}
           </span>
@@ -3011,11 +3011,7 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="iiif.provider.homepage" label="Homepage" />
           <F ctx={ctx} id="iiif.provider.logo" label="Logo" />
         </div>
-        <F
-          ctx={ctx}
-          id="iiif.layers"
-          hint="Annotation layers are published only when a recording’s transcript is open."
-        />
+        <F ctx={ctx} id="iiif.layers" hint="Annotation layers are published only when an asset’s text is open." />
         <div className="flex flex-col gap-1.5">
           <span className="text-[13px] font-bold leading-tight text-fg-strong">
             External viewers <span className="font-normal text-fg-muted">· “Open in” buttons</span>
@@ -3051,7 +3047,7 @@ function IiifBody({ ctx }: { ctx: BodyCtx }) {
       <div className="flex flex-col gap-2">
         <span className="text-[13px] font-bold leading-tight text-fg-strong">Access per namespace</span>
         <p className="text-[12.5px] text-fg-muted">
-          The default for recordings that don’t set their own. Saved into each namespace’s metadata profile.
+          The default for assets that don’t set their own. Saved into each namespace’s metadata profile.
         </p>
         {!ready ? (
           <Skeleton className="h-24 w-full" />

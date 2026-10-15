@@ -32,7 +32,7 @@ export function citedNumbers(text: string): number[] {
  */
 export function shortTitle(title: string | null | undefined, max = 24): string {
   let t = (title ?? "").trim();
-  if (!t) return "Recording";
+  if (!t) return "Asset";
   const cut = t.split(/\s+[—–]\s+|\s+-\s+|:\s+/)[0].trim();
   if (cut) t = cut;
   t = t.replace(/^episode\s+/i, "Ep. ").replace(/^interview\s+/i, "Interview ");

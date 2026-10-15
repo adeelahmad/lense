@@ -63,7 +63,7 @@ def resource_history(
 ) -> list[ActivityEntry]:
     """A resource's history, newest first: API requests that changed it, calls made for it (models, embeddings, the
     decision model, webhooks, web tools) with tokens and cost, runs that ended, its audit log entries, and its graph
-    changes (an entity's, a namespace's, or what analysing a recording changed; docs/graph-history.md)."""
+    changes (an entity's, a namespace's, or what analysing an asset changed; docs/graph-history.md)."""
     _may_see(db, user, acl, resource)
     return activity.history(db, resource, limit, before, kind)
 

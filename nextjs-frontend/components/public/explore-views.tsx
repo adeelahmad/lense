@@ -46,7 +46,7 @@ export function PublicHomeView() {
       <header className="flex flex-col gap-2">
         <h1 className="text-[28px] font-bold leading-[1.15] text-fg sm:text-[34px]">Explore the archive</h1>
         <p className="max-w-[62ch] text-[15px] leading-[1.55] text-fg-secondary">
-          Listen to and read the recordings their owners have made public.
+          Browse the assets their owners have made public.
         </p>
         <PublicSearchForm className="mt-2 max-w-[560px]" />
       </header>
@@ -78,7 +78,7 @@ export function PublicHomeView() {
           </div>
         ) : (
           <EmptyState icon={<Star />} title="Nothing featured yet">
-            Owners feature public recordings in a recording’s access settings.
+            Owners feature public assets in an asset’s access settings.
           </EmptyState>
         )}
       </section>
@@ -97,7 +97,7 @@ export function PublicHomeView() {
           </div>
         ) : (
           <EmptyState icon={<FolderOpen />} title="Nothing is public yet">
-            Collections appear here once they have recordings you can see.
+            Collections appear here once they have assets you can see.
           </EmptyState>
         )}
       </section>
@@ -138,7 +138,7 @@ export function PublicCollectionView({ name }: { name: string }) {
             {c.summary && <p className="max-w-[72ch] text-[15px] leading-[1.55] text-fg">{c.summary}</p>}
             <p className="tabular flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-fg-secondary">
               <span>
-                {count(c.total)} recording{c.total === 1 ? "" : "s"}
+                {count(c.total)} asset{c.total === 1 ? "" : "s"}
               </span>
               {c.rights && (
                 <span>
@@ -180,7 +180,7 @@ export function PublicCollectionView({ name }: { name: string }) {
             </Button>
           }
         >
-          You’re a member of <b>{c.name}</b>, so you see all of its recordings. Visitors see the public ones.
+          You’re a member of <b>{c.name}</b>, so you see all of its assets. Visitors see the public ones.
         </Banner>
       )}
       {c?.network && !c.member && <Banner>{networkNote(c.network, "collection")}</Banner>}
@@ -193,8 +193,8 @@ export function PublicCollectionView({ name }: { name: string }) {
           ))}
         </div>
       ) : (
-        <EmptyState icon={<FolderOpen />} title="No recordings yet">
-          Recordings imported into {c.name} appear here.
+        <EmptyState icon={<FolderOpen />} title="No assets yet">
+          Assets imported into {c.name} appear here.
         </EmptyState>
       )}
       {c && c.total > PAGE && (

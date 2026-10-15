@@ -65,7 +65,7 @@ export function MappingField({
           Speaker mapping
         </label>
         <span className="text-[12px] text-fg-muted">
-          one per line · <code className="font-mono">label = speaker</code>
+          one per line · <code className="font-mono">label = name</code>
         </span>
       </div>
       <textarea
@@ -95,12 +95,12 @@ export function MappingField({
               {existing.length === 1 ? "exists" : "exist"} in {namespace} ✓
             </span>
           )}
-          <span className="text-fg-muted">· names that don’t exist become new speakers</span>
+          <span className="text-fg-muted">· names that don’t exist become new people</span>
         </div>
         {namespace &&
           fresh.map((n) => (
             <span key={n} className="text-gold-dark">
-              ◆ “{n}” isn’t a speaker in {namespace} yet — it will be created.
+              ◆ “{n}” isn’t a person in {namespace} yet — it will be created.
             </span>
           ))}
         {generic.length > 0 && (

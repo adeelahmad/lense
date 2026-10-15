@@ -24,7 +24,7 @@ import { data, useApiClient } from "@/lib/api/browser";
 import { bytes, plural, relative } from "@/lib/format";
 
 const KIND_NOTE: Record<string, string> = {
-  transcript: "Transcript",
+  transcript: "Text",
   audio: "Audio",
   video: "Video",
   document: "Document",
@@ -349,7 +349,7 @@ function ImportChosenDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={`Import ${plural(paths.length, "file")}?`}
-      description="Audio, video, documents and images stay on the source: they’re copied for processing and shown from there. Transcripts are imported. Files a namespace has from this source already are left as they are."
+      description="Audio, video, documents and images stay on the source: they’re copied for processing and shown from there. Text files are imported. Files a namespace has from this source already are left as they are."
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -409,7 +409,7 @@ function ImportChosenDialog({
               label="Import PDF, Word and text files as"
               items={[
                 { value: "document", label: "Documents" },
-                { value: "transcript", label: "Transcripts" },
+                { value: "transcript", label: "Text" },
               ]}
               value={docsAs}
               onChange={(v) => setDocsAs(v as "document" | "transcript")}
@@ -417,7 +417,7 @@ function ImportChosenDialog({
             <span className="text-[12.5px] text-fg-muted">
               {docsAs === "document"
                 ? "Their pages, to look at and search; scans are read by OCR."
-                : "Only their text, as transcripts without media."}
+                : "Only their text, without media."}
             </span>
           </div>
         )}

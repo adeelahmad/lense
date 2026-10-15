@@ -60,8 +60,8 @@ ENTITY_SCHEMA = {
     "required": ["entities"],
 }
 ENTITY_SYSTEM = (
-    "You find named things in a transcript: people, organisations, products, places, events, works and topics. Use the "
-    "names as they are written in the transcript. Give each one's type and the number of a line it is on. Reply with "
+    "You find named things in a text: people, organisations, products, places, events, works and topics. Use the "
+    "names as they are written in the text. Give each one's type and the number of a line it is on. Reply with "
     "JSON only."
 )
 
@@ -251,7 +251,7 @@ def extract_llm(db, cfg, rid, c, so_far):
             "Found so far (keep the right ones, correct their names or types, add what is missing):\n"
             + "\n".join(f"- {e['name']} ({e['type']})" + (f", line {e['seg']}" if e.get("seg") is not None else "") for e in so_far)
         )
-    ask.append("Transcript, one numbered line each:\n" + lines)
+    ask.append("Text, one numbered line each:\n" + lines)
     reply = llm.json_out(cfg, ENTITY_SYSTEM, "\n\n".join(ask), ENTITY_SCHEMA, c.get("model"))
     out = []
     for e in (reply or {}).get("entities") or []:
@@ -368,7 +368,7 @@ def try_graph(db, cfg, graph, scope="recording", rid=None, spaces=None, user=Non
     log = []
     if scope == "recording":
         if rid is None:
-            raise ValueError("choose a recording to try it on")
+            raise ValueError("choose an asset to try it on")
         r = flow.Run(db, cfg, KITS[scope], templates.context(db, cfg, rid), log.append, dry=True, user=user, rid=rid, by=user)
     else:
         names = store.space_names(db)

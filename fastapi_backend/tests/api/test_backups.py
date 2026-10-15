@@ -155,6 +155,44 @@ def test_backups_keep_and_restore_the_files_too(web):
     assert (second / "objects/ab/abcdef").read_bytes() == b"blob"  # a link, so the later backup still has it
 
 
+def test_a_microsandbox_backs_up_only_lenss_own_files(folder, monkeypatch, caplog):
+    """In a microsandbox, data_dir (/data) also holds the Lens it runs (.lens: apt, the venv, the web build, some of it
+    root's), caches and SurrealDB's own folder: none of it is backed up, and a file Lens can't read doesn't stop it."""
+    data = folder / "sandbox-data"
+    for rel, body in {
+        "uploads/pods/1/talk.mp3": b"talk",
+        "surreal/lens.db/000001.vlog": b"database",
+        ".lens/apt/lock": b"",
+        ".lens/venv/bin/python": b"elf",
+        ".pnpm-store/v3/x": b"pkg",
+        ".cache/uv/y": b"cache",
+        ".DS_Store": b"finder",
+        "reports/1/locked.pdf": b"not ours",
+    }.items():
+        (data / rel).parent.mkdir(parents=True, exist_ok=True)
+        (data / rel).write_bytes(body)
+    real = shutil.copy2
+
+    def copy2(src, dst, **kw):
+        if str(src).endswith("locked.pdf"):
+            raise PermissionError(13, "Permission denied", str(src))
+        return real(src, dst, **kw)
+
+    monkeypatch.setattr(datafiles.shutil, "copy2", copy2)
+    kept = datafiles.snapshot(data, "manual-1")
+    got = sorted(str(p.relative_to(kept)) for p in kept.rglob("*") if p.is_file())
+    assert got == ["uploads/pods/1/talk.mp3"]
+    assert "left out 1 file(s) Lens can't read, such as reports/1/locked.pdf" in caplog.text
+
+    # restoring leaves them where they are too
+    (data / "uploads/pods/1/talk.mp3").write_bytes(b"changed")
+    assert datafiles.restore(data, "manual-1")
+    assert (data / "uploads/pods/1/talk.mp3").read_bytes() == b"talk"
+    assert (data / ".lens/venv/bin/python").read_bytes() == b"elf"
+    assert (data / "surreal/lens.db/000001.vlog").read_bytes() == b"database"
+    assert (data / ".DS_Store").exists() and (data / ".pnpm-store/v3/x").exists()
+
+
 def test_a_backup_from_before_files_were_kept_leaves_them(web):
     client, db, cfg, h = web
     data = _files(cfg)

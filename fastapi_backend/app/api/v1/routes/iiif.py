@@ -23,7 +23,7 @@ router = APIRouter(tags=["iiif"])
 
 @router.get("/recordings/{rid}/iiif")
 def get_recording_iiif(rid: int, request: Request, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg) -> IiifPanel:
-    """The recording's manifest (as `json`), whether it is published, its layers, a schema check and viewer links."""
+    """The asset's manifest (as `json`), whether it is published, its layers, a schema check and viewer links."""
     acl.recording(rid)
     man = iiif.manifest(db, cfg, rid, base_url(request, cfg))
     problems = iiif.validate(man)
@@ -49,7 +49,7 @@ def get_recording_iiif(rid: int, request: Request, user: CurrentUser, acl: Acl, 
 def get_content_state(
     rid: int, request: Request, user: CurrentUser, acl: Acl, cfg: Cfg, t0: float | None = None, t1: float | None = None
 ) -> ContentState:
-    """A IIIF Content State pointing at a moment (t0..t1 seconds) of the recording, and links that open it."""
+    """A IIIF Content State pointing at a moment (t0..t1 seconds) of the asset, and links that open it."""
     acl.recording(rid)
     base = base_url(request, cfg)
     state, enc = iiif.content_state(base, rid, t0, t1)
@@ -72,9 +72,9 @@ def preview_iiif_import(body: IiifUrl, user: AdminWriter) -> dict[str, Any]:
 
 @router.post("/import/iiif", responses={202: {"model": IiifImported, "description": "importing in the background"}})
 def import_iiif(body: IiifImport, user: AdminWriter, db: Db, cfg: Cfg) -> IiifImported:
-    """Import recordings (audio, captions and metadata) from a IIIF manifest or collection into a namespace.
+    """Import assets (audio, captions and metadata) from a IIIF manifest or collection into a namespace.
 
-    With `wait`, answers with the new recording ids; otherwise imports in the background (202).
+    With `wait`, answers with the new asset ids; otherwise imports in the background (202).
     """
     url, ns = body.url, body.namespace.strip()
     if not store.NS_RX.match(ns):

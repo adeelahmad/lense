@@ -117,7 +117,7 @@ def estimate(db, cfg, ids, steps):
 
 def create(db, cfg, user, ids, steps, label, selection=None, sample=None, confirm=None, skipped=0):
     if not ids:
-        raise ValueError("nothing to run: no recordings you can change match")
+        raise ValueError("nothing to run: no assets you can change match")
     est = estimate(db, cfg, ids, steps)
     if est["needs_confirmation"] and not sample and (confirm or "").strip() != est["confirm_text"]:
         raise PermissionError(f"type {est['confirm_text']} to confirm a run this size")
@@ -294,7 +294,7 @@ def combine(db, cfg, bid, instructions=None, key=None):
         [
             {
                 "role": "system",
-                "content": "You write concise overviews across many recordings. Use only the numbered results and cite them as [n].",
+                "content": "You write concise overviews across many assets (recordings, documents, photos). Use only the numbered results and cite them as [n].",
             },
             {"role": "user", "content": f"{ask}\n\nResults:\n" + "\n".join(lines)[: cfg["llm"].get("max_chars") or 24000]},
         ],

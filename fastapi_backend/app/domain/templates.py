@@ -17,8 +17,8 @@ R = store.R
 KINDS = ("prompt", "report", "export")
 LIMIT = 2_000_000
 DEFAULT_SYSTEM = (
-    "You analyse transcripts of recorded conversations. Be accurate and specific, and don't invent anything "
-    "that isn't in the transcript. Reply with JSON only."
+    "You analyse the assets of a personal archive: transcripts of recordings, documents and other text. Be accurate "
+    "and specific, and don't invent anything that isn't in the text. Reply with JSON only."
 )
 
 
@@ -111,7 +111,7 @@ def context(db, cfg, rid):
         ],
         "segments": segs,
         "full_transcript": full,
-        "transcript": full if len(full) <= cap else full[:cap] + "\n[… transcript truncated]",
+        "transcript": full if len(full) <= cap else full[:cap] + "\n[… text truncated]",
         "sections": [{"title": x["title"], "time": store.tc(x["t0"]), "t0": x["t0"]} for x in d["sections"]],
         "entities": [{"name": e["name"], "type": e["type"], "mentions": len(e["segs"])} for e in d["entities"]],
         "keywords": [w for w, _ in d["keywords"]],

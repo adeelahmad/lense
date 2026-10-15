@@ -6,7 +6,7 @@ import { parseStart } from "@/components/recording/model";
 import { RecordingPage } from "@/components/recording/recording-page";
 
 // The recording's own title replaces this once it loads (client-side, so the page never waits on the API to render).
-export const metadata: Metadata = { title: "Recording" };
+export const metadata: Metadata = { title: "Asset" };
 
 type Props = {
   params: Promise<{ id: string }>;

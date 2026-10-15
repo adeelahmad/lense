@@ -208,9 +208,9 @@ class Access:
             # the namespace role's permission, or a collection role ranking as the built-in role that first has it
             coll = hierarchy.ROLES.get(self.collection_role(sid, cid) or "", 0)
             if not self.can(sid, role) and coll < auth.ROLES[rl.minimum(role)]:
-                raise HTTPException(403, f"needs the {role} permission for this recording")
+                raise HTTPException(403, f"needs the {role} permission for this asset")
         elif have < auth.ROLES[role]:
-            raise HTTPException(403, f"needs {role} access to this recording")
+            raise HTTPException(403, f"needs {role} access to this asset")
 
     def partial(self) -> dict[int, list[int]]:
         """The namespaces this person sees only some collections of (no role there, a role on collections in it):

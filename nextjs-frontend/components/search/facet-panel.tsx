@@ -155,9 +155,9 @@ export function FacetPanel({
   const groups: Group[] = facets
     ? [
         { key: "namespace", title: "Namespace", values: facets.namespaces },
-        { key: "speaker", title: "Speaker", values: facets.speakers },
+        { key: "speaker", title: "Person", values: facets.speakers },
         { key: "emotion", title: "Emotion", values: facets.emotions },
-        { key: "recording", title: "Recording", values: facets.recordings },
+        { key: "recording", title: "Asset", values: facets.recordings },
         { key: "object", title: "Objects seen", values: facets.objects },
       ]
     : [];

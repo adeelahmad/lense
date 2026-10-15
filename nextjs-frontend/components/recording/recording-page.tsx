@@ -56,7 +56,7 @@ export function RecordingPage({
     const e = (rec.error ?? player.error) as unknown;
     if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
       return (
-        <EmptyState icon={<FileQuestion />} title="This recording isn't here" className="py-24">
+        <EmptyState icon={<FileQuestion />} title="This asset isn't here" className="py-24">
           It may have been deleted, or it&apos;s in a namespace you don&apos;t have access to.
           <div className="mt-4">
             <Button asChild variant="secondary">
@@ -70,7 +70,7 @@ export function RecordingPage({
       <EmptyState
         tone="error"
         icon={<TriangleAlert />}
-        title="Couldn't load this recording"
+        title="Couldn't load this asset"
         className="py-24"
         actions={
           <Button

@@ -131,4 +131,8 @@ describe("upgrade steps", () => {
     expect(at("rolling-back", "start")).toEqual(["done", "done", "done", "failed", "pending"]);
     expect(at("done")).toEqual(["done", "done", "done", "done", "done"]);
   });
+  it("mark the backup failed when backing up stopped the upgrade", () => {
+    expect(at("failed", "backup")).toEqual(["failed", "pending", "pending", "pending", "pending"]);
+    expect(at("failed", "download")).toEqual(["done", "failed", "pending", "pending", "pending"]);
+  });
 });
