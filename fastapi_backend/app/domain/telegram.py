@@ -125,6 +125,7 @@ def message(me, msg):
         "text": text,
         "event": "",
         "direct": private or mentioned or replied,
+        "private": private,
         "voice": vn.get("file_id"),
         "files": _files(msg),
         "thread": ["telegram", chat["id"], who.get("id")],

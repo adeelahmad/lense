@@ -1312,6 +1312,10 @@ SCHEMA = [
     # the chat-room bridge (bridge.py): which process reads Matterbridge (bridge_state:lease); its conversations are
     # chats with a `bridge` key (the room and person)
     "DEFINE TABLE IF NOT EXISTS bridge_state SCHEMALESS",
+    # where each chat channel tells its account's person things nobody asked about yet (chat_route:<channel>: the
+    # private chat it last had with someone it vouches for; channels.tell)
+    "DEFINE TABLE IF NOT EXISTS chat_route SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS chat_route_account ON chat_route FIELDS account",
     # templates, pipelines, outputs, chat, edits
     "DEFINE TABLE IF NOT EXISTS template SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS template_version SCHEMALESS",
