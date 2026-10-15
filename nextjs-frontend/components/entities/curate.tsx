@@ -200,6 +200,14 @@ export function EntityFind({
     onPick({ id: e.id, name: e.name });
     setQ("");
   };
+  // Enter before the list caught up with what was typed picks from the list for that text, not the one still showing
+  const [want, setWant] = useState(false);
+  const waiting = found.isFetching || debounced !== q.trim();
+  useEffect(() => {
+    if (!want || waiting) return;
+    setWant(false);
+    pick(items[active]);
+  });
   return (
     <div className="flex flex-col gap-1">
       <div className="relative">
@@ -224,7 +232,11 @@ export function EntityFind({
               setActive((a) => Math.max(0, a - 1));
             } else if (e.key === "Enter") {
               e.preventDefault();
-              pick(items[active]);
+              if (!waiting) pick(items[active]);
+              else {
+                setDebounced(q.trim());
+                setWant(true);
+              }
             } else if (e.key === "Escape" && onCancel) {
               e.preventDefault();
               e.stopPropagation();
