@@ -45,7 +45,9 @@ then.
   question (up to 12,000 characters of page text and 4,000 of the highlight) as what the person is looking at, not as
   citable excerpts. The question keeps the page's address, title and highlight, shown above it; the page's text isn't
   stored. A recording's transcript and document keep their own selection toolbar, whose Ask in chat goes to the
-  recording's chat.
+  recording's chat. The Ask button stays clear of the page's own buttons: when one is under it and scrolling can't
+  move it away (a row of buttons pinned to the bottom of the screen, or the last button with the page at its end), it
+  rises above them, or steps out of sight when there's no room to rise.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
   is set up, and which (`GET /chats/capabilities`), so the app says so before the first question.
 
