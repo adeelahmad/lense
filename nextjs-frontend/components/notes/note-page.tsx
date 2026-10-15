@@ -431,8 +431,14 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
           </div>
         </>
       )}
+      {embedded && canEdit && !(page.body ?? "").trim() && (
+        <p className="m-0 text-[13px] text-fg-muted">
+          Nothing written on {page.title} yet. Write below: @ links people, things and recordings, # links topics.
+        </p>
+      )}
       <BlockEditor
         key={`${page.about ?? `page:${page.id}`}:${restored}`}
+        className={embedded && view === "page" ? "rounded-md border border-border px-4 py-2" : undefined}
         markdown={page.body ?? ""}
         doc={saved?.doc ?? null}
         readOnly={!canEdit}
@@ -488,7 +494,7 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
           }}
         />
       )}
-      {saved && <ActivityPanel resource={`note_page:${saved.id}`} title="Costs and activity" />}
+      {saved && !embedded && <ActivityPanel resource={`note_page:${saved.id}`} title="Costs and activity" />}
     </article>
   );
 }
