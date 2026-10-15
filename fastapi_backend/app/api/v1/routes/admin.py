@@ -30,6 +30,7 @@ from app.domain import (
     matterbridge,
     monitoring,
     nfs_share,
+    nsfw,
     semantic,
     settings,
     slack,
@@ -114,6 +115,8 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
     if section == "encryption" and "files" in body and bool(body["files"]) != bool(files_were):
         cfg = request.app.state.settings.current()
         keyring.convert(db, cfg, bool(cfg["encryption"].get("files")))  # the files already kept follow, in the background
+    if section == "nsfw" and "threshold" in body:
+        nsfw.reflag(db, request.app.state.settings.current())  # what's flagged follows the new threshold
     return Ok()
 
 

@@ -257,6 +257,9 @@ DELETE /api/v1/namespaces/{name}/notifications/{tid}
 POST   /api/v1/namespaces/{name}/notifications/{tid}/test
 POST   /api/v1/namespaces/{name}/notifications/{tid}/secret
 GET    /api/v1/namespaces/{name}/notifications/{tid}/deliveries
+GET    /api/v1/namespaces/{name}/nsfw
+PUT    /api/v1/namespaces/{name}/nsfw
+POST   /api/v1/namespaces/{name}/nsfw/classify
 GET    /api/v1/namespaces/{name}/collections
 POST   /api/v1/namespaces/{name}/collections
 GET    /api/v1/namespaces/{name}/collections/{cid}
@@ -295,6 +298,15 @@ Matterbridge target also takes `gateway` (required), `username` and `token`. A w
 removes it). `POST …/{tid}/test` sends a test message now and answers `{ok, code, error}`; `GET …/{tid}/deliveries`
 lists the latest 50 messages with their `status` (`pending`, `sending`, `sent`, `failed`, `dropped`), `attempts`,
 answer `code` and `error`. Changes are audited as `namespace.notification.create`, `.update`, `.delete` and `.secret`.
+
+`/namespaces/{name}/nsfw` says how [NSFW classification](nsfw.md) works in a namespace (viewers): whether it's
+`enabled`, the `threshold` and `display` that apply, what the namespace chose itself (`own`, `null` where it follows
+the archive) and the archive's settings (`archive`), and how many resources are `classified`, `flagged` and
+`unclassified`. `PUT` with `{enabled?, threshold?, display?, classify?}` changes the namespace's own choices (owners;
+`null` follows the archive again, a new threshold flags or unflags what was classified at once), and `classify: true`
+also queues the `nsfw` step for its videos, documents and images not classified yet, answering how many runs were
+`queued`. Audited as `namespace.nsfw`. `POST …/nsfw/classify` queues them on its own (editors) and answers the `jobs`.
+Both are a 409 where classification is off in the namespace.
 
 ### Collections of a namespace
 
@@ -342,6 +354,7 @@ GET    /api/v1/resources/tags
 GET    /api/v1/resources/origins
 GET    /api/v1/resources/languages
 GET    /api/v1/resources/objects
+GET    /api/v1/resources/nsfw
 POST   /api/v1/resources/tags
 POST   /api/v1/resources/collection
 GET    /api/v1/resources/{rid}
@@ -360,6 +373,7 @@ GET    /api/v1/resources/{rid}/ip-groups
 PUT    /api/v1/resources/{rid}/ip-groups/{gid}
 DELETE /api/v1/resources/{rid}/ip-groups/{gid}
 GET    /api/v1/resources/{rid}/player
+PUT    /api/v1/resources/{rid}/nsfw
 GET    /api/v1/resources/{rid}/embed-link
 GET    /api/v1/resources/{rid}/audio
 GET    /api/v1/resources/{rid}/wordcloud.svg
@@ -400,6 +414,7 @@ repeat a parameter that takes several values (`?status=new&status=error`) to mat
 | `language` | language codes, ignoring case; `none` for recordings whose language isn't known |
 | `object` | kinds of object seen in them (`person`, `car` …; [Objects](#objects)), ignoring case |
 | `edited_by` | `me`: recordings you edited (corrected a line of the transcript, changed the catalogue record, or renamed) |
+| `sensitive` | where [NSFW classification](nsfw.md) is on: `only` the ones flagged NSFW, `exclude` them, or `include` them. Without it, flagged ones are left out where their namespace hides them (`display: hide`) |
 | `sort` | `date`, `title`, `duration`, `speakers`, `status` or `importance`; `-` in front for descending (default `-date`). Recordings without the value come last either way |
 | `limit`, `offset` | one page (default 500 rows, at most 1000) |
 
@@ -1045,12 +1060,25 @@ and each place it was found (`[t, x, y, w, h, score]`, at most 500). The kinds a
 `GET /resources?object=` filters on; search finds them by name (`source: object`), and its `object` filter and facet
 use them ([search](#search)). Moving or deleting a resource moves or deletes its objects.
 
+### NSFW
+
+The `nsfw` step scores a video's sampled frames, a document's pages or an image for NSFW pictures with a model on the
+server, where [NSFW classification](nsfw.md) is on in the resource's namespace (off by default); it comes after
+`objects` in the standard pipeline, and is skipped, saying why, where it's off. A resource, its player and its Library
+row carry `nsfw`: `{flagged, score, manual, blur, display, threshold, checked, of, at}`, and on the resource and its
+player `hits`, its highest-scoring pictures (`{t, score, frame}`, a signed link); `null` where it's off in the
+namespace or the resource wasn't classified. `PUT /resources/{rid}/nsfw {flagged}` (editors) marks it NSFW (`true`)
+or not (`false`) by hand, over the model's score, or hands it back to the score (`null`); a 409 where it's off.
+Audited as `recording.nsfw`. `GET /resources/nsfw` (`ns` for one namespace) says whether it's `on` in any namespace
+you read, how many resources are `flagged`, and how many of those the Library leaves out (`hidden`). Search hits and
+photo search results carry `nsfw: true` for the ones the web app blurs.
+
 ### Descriptions
 
 The `describe` step has a model that can see images, the one an admin chose as `llm.vision_model`, say in a few
 sentences what each page of a document or an image shows, and each shot of a video (from its keyframe): the setting,
 the people (by what they do and wear, never who they might be), the things and any text in it. It comes after
-`objects` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource. Without an
+`nsfw` in the standard pipeline, and describes at most `llm.describe_max` pages or shots of a resource. Without an
 LLM, or with no `llm.vision_model`, it's skipped, saying why; a model that can't see makes it fail with what the server
 said ([Configuration](configuration.md#descriptions)). The player's `descriptions` lists them in order:
 `{idx, t0, t1, text, model, frame, paged}`: the shot or page, where it starts and ends (ms; on pages, the page from 0

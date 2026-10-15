@@ -4,6 +4,7 @@ import { FileQuestion, RotateCw, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { NsfwPictures } from "@/components/nsfw/nsfw";
 import { keyToAction } from "@/components/player/keys";
 import { PlayerProvider, usePlayerApi, usePlayerState } from "@/components/player/media";
 import { AudioLayout } from "@/components/recording/audio-layout";
@@ -334,17 +335,19 @@ function Inner({ id, start, focus, page, rec, model, state, jobs, turns, speaker
 
   return (
     <RecordingProvider value={value}>
-      {paged ? (
-        <DocumentLayout compact={compact} />
-      ) : video ? (
-        <VideoLayout compact={compact} onCommand={(fn) => (videoCmd.current = fn)} />
-      ) : compact ? (
-        <MobileLayout />
-      ) : (
-        <AudioLayout />
-      )}
-      {!video && !paged && model.audio && <AudioElement src={model.audio} />}
-      <RecordingDialogs state={dialog} onClose={() => setDialog(null)} />
+      <NsfwPictures state={rec.nsfw}>
+        {paged ? (
+          <DocumentLayout compact={compact} />
+        ) : video ? (
+          <VideoLayout compact={compact} onCommand={(fn) => (videoCmd.current = fn)} />
+        ) : compact ? (
+          <MobileLayout />
+        ) : (
+          <AudioLayout />
+        )}
+        {!video && !paged && model.audio && <AudioElement src={model.audio} />}
+        <RecordingDialogs state={dialog} onClose={() => setDialog(null)} />
+      </NsfwPictures>
     </RecordingProvider>
   );
 }

@@ -1443,6 +1443,13 @@
       "source": "docs/access.md \"never a closed part\""
     },
     {
+      "property": "N-NSFW",
+      "reason": "access control from NSFW classification; blurring and hiding flagged resources are display preferences of the web app, and the score can be wrong; anyone who may read a resource still opens it, sees its pictures (sensitive=include, signed frame links, public pages, IIIF, embeds) and reads its classification",
+      "false_friend": true,
+      "provenance": "documented",
+      "source": "docs/nsfw.md \"display preferences, not access control\""
+    },
+    {
       "property": "N-RDF-XML",
       "reason": "XML parsing in RDF import; RDF/XML is refused, so XXE and billion-laughs do not apply there; RDF import only, not docx",
       "false_friend": false,
