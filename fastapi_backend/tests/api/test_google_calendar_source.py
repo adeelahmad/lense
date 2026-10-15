@@ -298,9 +298,9 @@ def test_connecting_a_google_account_in_the_browser(google, client, new_client, 
     # no OAuth client anywhere: Lens says what it needs, and the redirect URI to give Google
     got = client.get("/api/v1/sources/google-client", headers=h).json()
     assert got == {"origin": None, "client_id": None, "redirect_uri": "http://127.0.0.1/api/v1/auth/external/google/callback"}
-    r = client.post(f"/api/v1/sources/{sid}/google/connect", headers=h, json={})
+    r = client.post(f"/api/v1/sources/{sid}/google", headers=h, json={})
     assert r.status_code == 400 and "needs a Google OAuth client" in r.json()["detail"]
-    r = client.post(f"/api/v1/sources/{sid}/google/connect", headers=h, json={"client_id": "only-an-id"})
+    r = client.post(f"/api/v1/sources/{sid}/google", headers=h, json={"client_id": "only-an-id"})
     assert r.status_code == 400 and "both the client ID and the client secret" in r.json()["detail"]
 
     # the Google sign-in provider's client is used, through its own redirect URI
@@ -308,7 +308,7 @@ def test_connecting_a_google_account_in_the_browser(google, client, new_client, 
     r = client.post("/api/v1/auth/providers", headers=h, json={"kind": "google", "client_id": "lens-web", "client_secret": "web secret 1"})
     assert r.status_code == 200, r.text
     assert client.get("/api/v1/sources/google-client", headers=h).json()["origin"] == "sign-in"
-    url = client.post(f"/api/v1/sources/{sid}/google/connect", headers=h, json={}).json()["url"]
+    url = client.post(f"/api/v1/sources/{sid}/google", headers=h, json={}).json()["url"]
     q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
     assert q["client_id"] == "lens-web" and q["scope"].split() == ["openid", "email", *gcal.SCOPES]
     path, back = _back(client.get(google.consent(url, MARA), follow_redirects=False))
@@ -320,15 +320,25 @@ def test_connecting_a_google_account_in_the_browser(google, client, new_client, 
     audit = db.rows("SELECT email, action, target, detail FROM audit_log WHERE action = 'source.google_connect'")
     assert audit == [{"email": "root@x.io", "action": "source.google_connect", "target": f"storage_source:{sid}", "detail": [MARA]}]
 
+    # only from the web app: an API token's answer would carry the cookie away from the person's browser
+    tok = client.post("/api/v1/tokens", headers=h, json={"name": "agent", "scope": "write"}).json()["token"]
+    r = client.post(f"/api/v1/sources/{sid}/google", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 403 and "from the web app" in r.json()["detail"]
+    # whoever started it must still be an admin when Google sends them back
+    url = client.post(f"/api/v1/sources/{sid}/google", headers=h).json()["url"]  # no body: the client Lens has
+    db.q("UPDATE external_flow SET account = 'gone'")
+    _, back = _back(client.get(google.consent(url, MARA), follow_redirects=False))
+    assert back["google_error"] == "only admins can connect a Google account"
+
     # cancelled on Google's page; calendars unticked there; a code used twice; another browser
-    url = client.post(f"/api/v1/sources/{sid}/google/connect", headers=h, json={}).json()["url"]
+    url = client.post(f"/api/v1/sources/{sid}/google", headers=h, json={}).json()["url"]
     state = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))["state"]
     _, back = _back(client.get(f"/api/v1/auth/external/google/callback?error=access_denied&state={state}", follow_redirects=False))
     assert "you cancelled" in back["google_error"] and back["source"] == str(sid)
-    url = client.post(f"/api/v1/sources/{sid}/google/connect", headers=h, json={}).json()["url"]
+    url = client.post(f"/api/v1/sources/{sid}/google", headers=h, json={}).json()["url"]
     _, back = _back(client.get(google.consent(url, MARA, granted="openid email"), follow_redirects=False))
     assert "wasn't given access" in back["google_error"]
-    url = client.post(f"/api/v1/sources/{sid}/google/connect", headers=h, json={}).json()["url"]
+    url = client.post(f"/api/v1/sources/{sid}/google", headers=h, json={}).json()["url"]
     callback = google.consent(url, MARA)
     other = new_client()
     r = other.get(callback, follow_redirects=False)
@@ -349,9 +359,19 @@ def test_connecting_a_google_account_in_the_browser(google, client, new_client, 
         "redirect_uri": "http://127.0.0.1/api/v1/auth/external/google/callback",
     }
     google.calendars[TEAM]["readers"].add(MARA)
-    url = client.post(f"/api/v1/sources/{sid2}/google/connect", headers=h, json={}).json()["url"]
+    url = client.post(f"/api/v1/sources/{sid2}/google", headers=h, json={}).json()["url"]
     _, back = _back(client.get(google.consent(url, MARA), follow_redirects=False))
     assert back["google"] == "connected"
     src = next(s for s in client.get("/api/v1/sources", headers=h).json() if s["id"] == sid2)
     assert src["secrets"] == {"token": {"secret": True, "set": True}, "service_account_credentials": {"secret": True, "set": False}}
     assert google_auth.credentials(cfg, sources.get(db, sid2))["kind"] == "authorized_user"
+
+
+def test_scopes_by_type(monkeypatch):
+    src = {"type": "gcal", "params": {"via": "imap"}}
+    assert google_auth.scopes_for(src) == gcal.SCOPES
+    # a type whose scopes depend on its settings (Gmail over IMAP needs all of Gmail)
+    monkeypatch.setattr(gcal, "SCOPES", lambda p: ["https://mail.google.com/"] if p.get("via") == "imap" else ["x"])
+    assert google_auth.scopes_for(src) == ("https://mail.google.com/",)
+    with pytest.raises(ValueError, match="doesn't sign in with a Google account"):
+        google_auth.scopes_for({"type": "ical", "params": {}})

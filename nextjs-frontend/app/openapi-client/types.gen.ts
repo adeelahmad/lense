@@ -32565,7 +32565,10 @@ export type GoogleClientResponses = {
 export type GoogleClientResponse = GoogleClientResponses[keyof GoogleClientResponses];
 
 export type ConnectGoogleData = {
-  body: GoogleConnect;
+  /**
+   * Body
+   */
+  body?: GoogleConnect | null;
   path: {
     /**
      * Sid
@@ -32573,7 +32576,7 @@ export type ConnectGoogleData = {
     sid: number;
   };
   query?: never;
-  url: "/api/v1/sources/{sid}/google/connect";
+  url: "/api/v1/sources/{sid}/google";
 };
 
 export type ConnectGoogleErrors = {

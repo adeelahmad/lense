@@ -360,10 +360,11 @@ importing chosen ones and watching work as above.
       `<your Lens address>/api/v1/auth/external/google/callback` (the address Google sign-in uses too; the form shows
       it). While the client's OAuth consent screen is in Testing, Google ends its refresh tokens after 7 days and warns
       that the app isn't verified; publish it to keep the connection. A connection whose sign-in stopped working shows
-      **Connect Google account** on its row. An agent starts the same flow
-      (`POST /api/v1/sources/{id}/google/connect` returns the consent address), but the consent itself is a person's,
-      in the browser that asked. What is kept is the "authorized user" JSON (`client_id`, `client_secret`,
-      `refresh_token`), which can also be pasted instead (Or paste an authorized user JSON): `gcloud auth
+      **Connect Google account** on its row. Connecting happens in the web app (`POST /api/v1/sources/{id}/google`
+      returns the consent address, and refuses API tokens), because the consent itself is a person's and comes back to
+      the browser that asked. What is kept is the "authorized user" JSON (`client_id`, `client_secret`,
+      `refresh_token`), which an agent or a person can also save directly as the `token` (Or paste an authorized user
+      JSON): `gcloud auth
       application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/calendar.readonly,https://www.googleapis.com/auth/cloud-platform`
       writes one (to `application_default_credentials.json` in gcloud's folder).
     - **Service account** (`service_account_credentials`, its .json key file). On its own it reads the calendars shared

@@ -229,14 +229,19 @@ FLOW_MINUTES = 10
 CALLBACK = "/api/v1/auth/external/google/callback"  # the Google sign-in provider's own: one redirect URI for both
 
 
-def scopes_for(src):
-    """The scopes a source's type reads with (its module's SCOPES)."""
+def _module(src):
     from . import feeds  # feeds imports gcal, which imports this
 
     mod = feeds.OWN.get(src["type"])
     if mod is None or not getattr(mod, "SCOPES", None):
         raise ValueError(f"a {src['type']} source doesn't sign in with a Google account")
-    return tuple(mod.SCOPES)
+    return mod
+
+
+def scopes_for(src):
+    """The scopes a source's type reads with: its module's SCOPES, or SCOPES(params) when they depend on its settings."""
+    s = _module(src).SCOPES
+    return tuple(s(src.get("params") or {}) if callable(s) else s)
 
 
 def client(db, cfg, client_id=None, client_secret=None):
@@ -268,7 +273,7 @@ def client(db, cfg, client_id=None, client_secret=None):
     )
 
 
-def connect_start(db, cfg, src, origin, given=None, by=None):
+def connect_start(db, cfg, src, origin, given=None, account=None):
     """Google's consent page for connecting an account to source `src`, and the browser secret to keep in a cookie
     (the sign-in cookie: the flow is an external_flow, used once, ten minutes, bound to this browser)."""
     from . import auth, settings, store
@@ -294,8 +299,7 @@ def connect_start(db, cfg, src, origin, given=None, by=None):
             "browser": auth.sha(browser),
             "redirect_uri": redirect_uri,
             "origin": origin.rstrip("/"),
-            "account": (by or {}).get("id"),  # who started it, for the audit log
-            "by": (by or {}).get("email"),
+            "account": account,  # the admin who started it: still one when Google sends them back
             "expires_at": expires,
         },
     )
@@ -356,6 +360,7 @@ def connect_finish(db, cfg, flow, code, state):
     user = json.dumps(
         {"type": "authorized_user", "client_id": flow["client_id"], "client_secret": client_secret, "refresh_token": body["refresh_token"]}
     )
-    params = {"account": email} if "account" in sources.BACKENDS[src["type"]]["fields"] else None
+    field = getattr(_module(src), "ACCOUNT", "account")  # the parameter that names the connected account
+    params = {field: email} if email and field in sources.BACKENDS[src["type"]]["fields"] else None
     sources.update(db, cfg, src["id"], params=params, secret_values={"token": user, "service_account_credentials": None})
     return src["id"], email

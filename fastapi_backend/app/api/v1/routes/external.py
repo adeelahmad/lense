@@ -123,12 +123,13 @@ def _source_connected(db: Db, cfg: Cfg, flow: dict, code: str, state: str, error
     if error or not code:
         why = "you cancelled" if error == "access_denied" else (error_description or error or "no code came back")
         q = {"google_error": f"connecting the Google account didn't finish: {why}", "source": sid}
+    elif not (u := auth.active_account(db, flow.get("account"))) or not u.get("admin"):
+        q = {"google_error": "only admins can connect a Google account", "source": sid}
     else:
         try:
             sid, email = google_auth.connect_finish(db, cfg, flow, code, state)
             sources.test(db, cfg, sid)
-            who = {"id": flow.get("account"), "email": flow.get("by")}
-            auth.audit(db, who, "source.google_connect", f"storage_source:{sid}", [email] if email else None)
+            auth.audit(db, u, "source.google_connect", f"storage_source:{sid}", [email] if email else None)
             q = {"google": "connected", "source": sid, "account": email}
         except KeyError:
             q = {"google_error": "that connection was removed meanwhile"}

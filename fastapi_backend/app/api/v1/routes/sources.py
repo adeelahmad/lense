@@ -108,21 +108,29 @@ def google_client(user: AdminReader, request: Request, db: Db, cfg: Cfg) -> Goog
     return GoogleClient(origin=c["origin"], client_id=c["client_id"], redirect_uri=web_origin(request) + google_auth.CALLBACK)
 
 
-@router.post("/sources/{sid}/google/connect")
+@router.post("/sources/{sid}/google")
 def connect_google(
-    sid: int, body: GoogleConnect, user: AdminWriter, request: Request, response: Response, db: Db, cfg: Cfg
+    sid: int, user: AdminWriter, request: Request, response: Response, db: Db, cfg: Cfg, body: GoogleConnect | None = None
 ) -> GoogleConnectStart:
     """Connect a Google account to a Google source (Google Calendar): open the returned address in this browser, consent
     there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept sealed on
     the source. Without a client here, the Google sign-in provider's (Settings › Sign-in) or an earlier connection's is
-    used. Audited as `source.google_connect`."""
+    used. Only from the web app: the consent comes back to the browser that asked (an agent saves an authorized user
+    JSON it already has as the source's `token` instead). Audited as `source.google_connect`."""
+    if user.via != "access":
+        raise HTTPException(
+            403,
+            "connect Google from the web app: the consent comes back to the browser that asked, so API tokens and apps "
+            "can't (save an authorized user JSON as the source's token instead)",
+        )
+    body = body or GoogleConnect()
     try:
         src = sources.get(db, sid)
     except KeyError:
         raise HTTPException(404, "not found") from None
     origin = web_origin(request)
     try:
-        url, browser = google_auth.connect_start(db, cfg, src, origin, (body.client_id, body.client_secret), user.as_audit())
+        url, browser = google_auth.connect_start(db, cfg, src, origin, (body.client_id, body.client_secret), user.id)
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
     _cookie(response, origin, browser)

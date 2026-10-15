@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:38f61b321ebe0a2ea4af6e9c47693f1b450537e72eddb35ab311268fb156a6ae"
+prose_version: "threat-model.md@sha256:1bf49d3651980252985120d788bd83430455a49dbadb69cc5160ccdfade82586"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -340,7 +340,7 @@ entry_points:
         x-condition: "client: admins only; state and code: anyone who can send the admin a link"
         control_kinds: [data, x-credential, x-collaborator-data]
         obligation_id: admin-creates-sources
-        caller_must_enforce: "admin only; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the read-only scope was granted; returns only to the starting web origin"
+        caller_must_enforce: "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the read-only scope was granted; returns only to the starting web origin"
         provenance: {kind: documented, source: 'docs/processing.md "the consent itself is a person''s"'}
   - id: "POST /imports/web, extension http tools, notification targets"
     component: outbound
