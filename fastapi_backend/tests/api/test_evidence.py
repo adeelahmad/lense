@@ -236,7 +236,7 @@ def test_everything_lens_found_goes_in(here, client, db, cfg, folder):
     r = client.get(f"/api/v1/recordings/{rid}/evidence.pdf", headers=he, params={"include": ["notes", "file", "summary"]})
     assert r.status_code == 200, r.text
     text = _text(r.content)
-    assert '0:01: Shared with the team (' in text and '0:01 to 0:03 "The invoice is paid": Payment (' in text
+    assert "0:01: Shared with the team (" in text and '0:01 to 0:03 "The invoice is paid": Payment (' in text
     assert "Payment" in text and "Is this the March invoice?" in text
     assert "Only mine to read" not in text  # a private note is its writer's alone
     assert "Summary (written by a model)" in text and "Term: Berlin" not in text and "Berlin, Germany" not in text
@@ -296,7 +296,13 @@ def test_what_is_seen_on_pages_and_in_a_video(here, client, env, db, cfg, folder
     text = evidence_report.write(db, cfg, rid, ["details", "visual"])
     assert "Type: video" in text and "Size: 640 × 360 pixels, 25 frames a second" in text
     assert "Shots: 1" in text and "Text on screen:" in text and "- 0:01: INVOICE 42" in text
-    assert "Summary" not in text
+    assert "Summary" not in text and "NSFW" not in text  # nothing to say where classifying is off
+
+    db.q("UPDATE $r SET nsfw = {score: 0.93, flagged: true, checked: 12, of: 40}", r=R("recording", rid))
+    assert "NSFW" not in evidence_report.write(db, cfg, rid, ["details"])
+    db.q("UPDATE $s SET nsfw = {enabled: true}", s=R("space", store.ns_id(db, "pods")))
+    text = evidence_report.write(db, cfg, rid, ["details"])
+    assert "NSFW: flagged (its most likely picture scored 0.93, flagged from 0.80; 12 of 40 pictures checked)" in text
 
 
 def test_places_only_for_members(db, cfg, folder):

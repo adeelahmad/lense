@@ -4,6 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
 import { usePlayerApi, usePlayerState, usePlayerTick } from "@/components/player/media";
+import { useBlur } from "@/components/nsfw/nsfw";
 import { useRec } from "@/components/recording/context";
 import { ariaTimeText, chapterAt, segmentAt } from "@/components/recording/model";
 import { blocks, faceLanes, initialZoom, shotAt, timelineWindow, voiceSpans } from "@/components/recording/video/model";
@@ -44,6 +45,7 @@ export function VideoTimeline({ compact }: { compact?: boolean }) {
   const api = usePlayerApi();
   const { time } = usePlayerState();
   const color = useFaceColors();
+  const blur = useBlur();
   const dur = Math.max(1, model.durationMs);
   const [zoom, setZoom] = useState(() => initialZoom(dur));
   const [center, setCenter] = useState<number | null>(null);
@@ -328,7 +330,7 @@ export function VideoTimeline({ compact }: { compact?: boolean }) {
             <div className="aspect-video overflow-hidden rounded-xs bg-black">
               {frame && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={frame} alt="" className="size-full object-cover" />
+                <img src={frame} alt="" className={cn("size-full object-cover", blur)} />
               )}
             </div>
             <span className="tabular text-[11px] font-semibold leading-none">

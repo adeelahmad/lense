@@ -99,6 +99,7 @@ EDITABLE = {
         "object_engine",
         "object_min_score",
     ),
+    "nsfw": None,
     "server": ("embed_frame_ancestors", "max_upload_mb", "allowed_hosts", "session_hours", "secure_cookies", "trusted_proxies"),
     "uploads": None,
     "files": None,
@@ -473,6 +474,8 @@ def _check(section, key, value, default):
         return _smb_setting(key, value)
     if section == "components":
         return _component_setting(key, value)
+    if section == "nsfw":
+        return _nsfw_setting(key, value)
     if section == "mail" and key != "security":
         return _mail_setting(key, value)
     if section == "bridge" and key not in ("answer", "enabled", "approve"):
@@ -880,6 +883,25 @@ def _component_setting(key, value):
             raise ValueError("components.also lists components to fetch: " + ", ".join(sorted(known)))
         return list(dict.fromkeys(value))
     raise ValueError(f"unknown setting components.{key}")
+
+
+def _nsfw_setting(key, value):
+    from . import nsfw
+
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("nsfw.enabled is true or false")
+        return value
+    if key == "threshold":
+        return nsfw.check_threshold(value, "nsfw.threshold")
+    if key == "display":
+        return nsfw.check_display(value, "nsfw.display")
+    if key == "max_frames":
+        lo, hi = nsfw.MAX_FRAMES
+        if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+            raise ValueError(f"nsfw.max_frames is a whole number from {lo} to {hi}")
+        return value
+    raise ValueError(f"unknown setting nsfw.{key}")
 
 
 def _decision_setting(key, value):

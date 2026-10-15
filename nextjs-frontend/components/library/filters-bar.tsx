@@ -3,7 +3,7 @@
 import { Check, ChevronDown, FolderTree, Search, X } from "lucide-react";
 import { forwardRef, useState, type ReactNode } from "react";
 
-import type { CollectionNode, FieldDef } from "@/app/openapi-client/types.gen";
+import type { CollectionNode, FieldDef, NsfwCounts } from "@/app/openapi-client/types.gen";
 import { fieldFilterLabel } from "@/components/fields/fields-model";
 import { collectionName } from "@/components/library/collections-model";
 import {
@@ -20,6 +20,7 @@ import {
   type SpeakerChoice,
   type StatusFilter,
 } from "@/components/library/model";
+import { SENSITIVE_CHIP, SENSITIVE_LABEL, type SensitiveFilter } from "@/components/nsfw/nsfw-model";
 import { objectName } from "@/components/recording/objects-model";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/field";
@@ -258,7 +259,7 @@ function FieldFilterForm({
 
 /**
  * Library filters: namespace, collection, field, source, status, speaker, date, duration, language, media, tags and
- * the kinds of object seen (once any have been).
+ * the kinds of object seen (once any have been), and NSFW (where it's on).
  */
 export function FiltersBar({
   filters,
@@ -278,6 +279,7 @@ export function FiltersBar({
   fields,
   fieldsLoading,
   objects = [],
+  nsfw,
 }: {
   filters: Filters;
   onChange: (f: Filters) => void;
@@ -305,6 +307,8 @@ export function FiltersBar({
   fieldsLoading?: boolean;
   /** The kinds of object seen in the recordings in scope (GET /recordings/objects), most first. */
   objects?: { object: string; recordings: number }[];
+  /** NSFW classification in scope (GET /recordings/nsfw): the chip shows where it's on. */
+  nsfw?: NsfwCounts;
 }) {
   const { namespaces: full, partialNamespaces, namespace, setNamespace, isPartial } = useArchive();
   const namespaces = [...full, ...partialNamespaces].sort((a, b) => a.name.localeCompare(b.name));
@@ -741,6 +745,27 @@ export function FiltersBar({
                   })}
               </div>
             </div>
+          )}
+        </Chip>
+      )}
+      {(nsfw?.on || filters.sensitive !== "any") && (
+        <Chip
+          label={
+            filters.sensitive === "any" && nsfw?.hidden
+              ? `NSFW: ${count(nsfw.hidden)} hidden`
+              : SENSITIVE_CHIP[filters.sensitive]
+          }
+          active={filters.sensitive !== "any"}
+          onClear={() => set({ sensitive: "any" })}
+          width={230}
+        >
+          {(close) => (
+            <Radio<SensitiveFilter>
+              value={filters.sensitive}
+              options={SENSITIVE_LABEL}
+              onChange={(sensitive) => set({ sensitive })}
+              close={close}
+            />
           )}
         </Chip>
       )}

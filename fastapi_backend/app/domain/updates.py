@@ -247,6 +247,29 @@ def upgrade(db, cfg, ref=None, by=None, backup=True, wait=False):
     return run_state(db)
 
 
+def reconfigure(db, cfg, https, by=None, wait=False):
+    """Have this machine run install.sh again for the version it runs, with the HTTPS ports opened (https=True) or
+    closed (docs/https.md). Lens restarts; nothing else changes. Returns the run."""
+    if not agent():
+        raise UpdateError("this machine has no upgrade agent; run the line shown instead")
+    run = run_state(db) or {}
+    if run.get("state") in ACTIVE and not run.get("error"):
+        raise UpdateError("an upgrade is already under way; try again when it's done")
+    run = {"id": secrets.token_hex(8), "ref": "", "https": bool(https), "by": by, "state": "queued", "asked_at": _ts(), "error": None}
+    _put(db, upgrade=run)
+    t = threading.Thread(target=_hand_over, args=(db, run, False), daemon=True, name="reconfigure")
+    t.start()
+    if wait:
+        t.join()
+    return run_state(db)
+
+
+def manual_https(cfg, https):
+    """The line that opens (or closes) the HTTPS ports by hand, on the machine Lens runs on."""
+    line = manual(cfg)
+    return f"{line[: -len(' sh')]} LENS_HTTPS={1 if https else 0} sh"
+
+
 def _hand_over(db, run, backup):
     try:
         if backup:
@@ -256,7 +279,8 @@ def _hand_over(db, run, backup):
                 run["backup"] = dst.name
         inbox = control_dir() / "inbox"
         part = inbox / f".upgrade.{run['id']}"
-        part.write_text(f"id={run['id']}\nref={run['ref']}\nby={run.get('by') or ''}\nat={_ts()}\n", encoding="utf-8")
+        extra = f"https={1 if run['https'] else 0}\n" if run.get("https") is not None else ""
+        part.write_text(f"id={run['id']}\nref={run['ref']}\n{extra}by={run.get('by') or ''}\nat={_ts()}\n", encoding="utf-8")
         part.replace(inbox / "upgrade")
         run.update(state="queued", queued_at=_ts())
     except Exception as e:  # noqa: BLE001 - the admin reads why

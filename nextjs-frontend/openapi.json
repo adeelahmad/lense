@@ -2583,6 +2583,55 @@
         }
       }
     },
+    "/api/v1/settings/https/ports": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Https Ports",
+        "description": "Open (or close) the HTTPS ports: this machine's upgrade agent runs install.sh again for the version running,\nwith LENS_HTTPS=1 (or 0), and Lens restarts. Without an agent, `manual` is the line to run there instead.",
+        "operationId": "https_ports",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/HttpsPorts"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpsStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/https/providers": {
       "get": {
         "tags": [
@@ -5077,6 +5126,143 @@
         }
       }
     },
+    "/api/v1/namespaces/{name}/nsfw": {
+      "get": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Get Namespace Nsfw",
+        "description": "NSFW classification here (docs/nsfw.md): whether it's on, the threshold and how flagged resources show, what the\nnamespace chose for itself and the archive's settings, and how many resources are classified and flagged.",
+        "operationId": "get_namespace_nsfw",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamespaceNsfw"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Update Namespace Nsfw",
+        "description": "Owners: turn NSFW classification on or off for this namespace, or give it its own threshold or display; null\nfollows the archive's setting again. A new threshold re-flags what's classified at once. `classify` also queues the\nnsfw step for its videos, documents and images not classified yet. Audited as `namespace.nsfw`.",
+        "operationId": "update_namespace_nsfw",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NamespaceNsfwUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NamespaceNsfw"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/nsfw/classify": {
+      "post": {
+        "tags": [
+          "namespaces"
+        ],
+        "summary": "Classify Namespace Nsfw",
+        "description": "Editors: queue the nsfw step for the namespace's videos, documents and images not classified yet (those added\nwhile it's on are classified by their pipeline). 409 where classification is off.",
+        "operationId": "classify_namespace_nsfw",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsQueued"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/namespaces/{name}/wordcloud.svg": {
       "get": {
         "tags": [
@@ -6529,6 +6715,29 @@
             "description": "me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
           },
           {
+            "name": "sensitive",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "include",
+                    "only",
+                    "exclude"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "where NSFW classification is on (docs/nsfw.md): only those flagged NSFW, exclude them, or include them. Without it, flagged ones are left out where their namespace hides them (display hide)",
+              "title": "Sensitive"
+            },
+            "description": "where NSFW classification is on (docs/nsfw.md): only those flagged NSFW, exclude them, or include them. Without it, flagged ones are left out where their namespace hides them (display hide)"
+          },
+          {
             "name": "collection",
             "in": "query",
             "required": false,
@@ -6933,6 +7142,58 @@
         }
       }
     },
+    "/api/v1/resources/nsfw": {
+      "get": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Nsfw Counts",
+        "description": "NSFW classification in the recordings you can read (or one namespace's): whether it's on in any of their\nnamespaces, how many are flagged, and how many of those the Library leaves out (docs/nsfw.md).",
+        "operationId": "nsfw_counts",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "one namespace",
+              "title": "Ns"
+            },
+            "description": "one namespace"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NsfwCounts"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/collection": {
       "post": {
         "tags": [
@@ -7092,6 +7353,67 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{rid}/nsfw": {
+      "put": {
+        "tags": [
+          "resources"
+        ],
+        "summary": "Mark Recording Nsfw",
+        "description": "Mark a resource NSFW or not by hand (editors), where NSFW classification is on in its namespace; your call wins\nover the model's score until you send null. 409 where classification is off. Audited as `recording.nsfw`.",
+        "operationId": "mark_recording_nsfw",
+        "parameters": [
+          {
+            "name": "rid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Rid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordingNsfwUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NsfwState"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Recordings-Mark Recording Nsfw"
                 }
               }
             }
@@ -37400,6 +37722,19 @@
         ],
         "title": "HttpsCertificate"
       },
+      "HttpsPorts": {
+        "properties": {
+          "open": {
+            "type": "boolean",
+            "title": "Open",
+            "description": "open the HTTPS ports (true) or close them",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HttpsPorts"
+      },
       "HttpsProvider": {
         "properties": {
           "name": {
@@ -37523,6 +37858,34 @@
             ],
             "title": "Process",
             "description": "the server process with the HTTPS ports"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what can open the ports from here (the upgrade agent: systemd, launchd)"
+          },
+          "manual": {
+            "type": "string",
+            "title": "Manual",
+            "description": "the line that opens the ports by hand, on the machine Lens runs on"
+          },
+          "reconfigure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpgradeRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the last run that opened or closed the ports (as in /admin/updates)"
           }
         },
         "additionalProperties": true,
@@ -37531,7 +37894,8 @@
           "enabled",
           "running",
           "ports_open",
-          "origin"
+          "origin",
+          "manual"
         ],
         "title": "HttpsStatus"
       },
@@ -41865,6 +42229,133 @@
         "type": "object",
         "title": "NamespaceMetadataUpdate"
       },
+      "NamespaceNsfw": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "description": "its videos, documents and images are classified by the nsfw step"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold",
+            "description": "a resource is flagged when one of its pictures scores at least this (0.5 to 0.99)"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "blur",
+              "hide",
+              "show"
+            ],
+            "title": "Display",
+            "description": "how flagged resources show in the web app: blurred, left out of the Library, or as they are"
+          },
+          "own": {
+            "$ref": "#/components/schemas/NsfwChoices",
+            "description": "what the namespace chose for itself (owners change it)"
+          },
+          "archive": {
+            "$ref": "#/components/schemas/NsfwChoices",
+            "description": "the archive's settings (Settings \u2192 NSFW, admins), for what the namespace didn't choose"
+          },
+          "classified": {
+            "type": "integer",
+            "title": "Classified",
+            "description": "its resources classified so far",
+            "default": 0
+          },
+          "flagged": {
+            "type": "integer",
+            "title": "Flagged",
+            "description": "how many of them are flagged NSFW",
+            "default": 0
+          },
+          "unclassified": {
+            "type": "integer",
+            "title": "Unclassified",
+            "description": "its videos, documents and images not classified yet",
+            "default": 0
+          },
+          "queued": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queued",
+            "description": "with classify: how many runs were queued"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "threshold",
+          "display",
+          "own",
+          "archive"
+        ],
+        "title": "NamespaceNsfw",
+        "description": "NSFW classification in a namespace (docs/nsfw.md): what applies, what the namespace chose for itself, and the\narchive's settings it otherwise follows."
+      },
+      "NamespaceNsfwUpdate": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 0.99,
+                "minimum": 0.5
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold"
+          },
+          "display": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "blur",
+                  "hide",
+                  "show"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display"
+          },
+          "classify": {
+            "type": "boolean",
+            "title": "Classify",
+            "description": "also queue the nsfw step for its videos, documents and images not classified yet",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "NamespaceNsfwUpdate",
+        "description": "Only the fields you send change; send null to follow the archive's setting again."
+      },
       "NamespaceStats": {
         "properties": {
           "from": {
@@ -44370,6 +44861,223 @@
         ],
         "title": "NotifyTestResult"
       },
+      "NsfwChoices": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled",
+            "description": "on or off; null: as the archive's setting says"
+          },
+          "threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold",
+            "description": "flag a picture at least this likely to be NSFW; null: the archive's"
+          },
+          "display": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "blur",
+                  "hide",
+                  "show"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display",
+            "description": "blur, hide or show what's flagged; null: the archive's"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "NsfwChoices"
+      },
+      "NsfwCounts": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On",
+            "description": "it's on in at least one of their namespaces"
+          },
+          "flagged": {
+            "type": "integer",
+            "title": "Flagged",
+            "description": "how many are flagged NSFW",
+            "default": 0
+          },
+          "hidden": {
+            "type": "integer",
+            "title": "Hidden",
+            "description": "how many of those the Library leaves out unless asked (their namespace hides them)",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "NsfwCounts",
+        "description": "NSFW classification in the recordings you can read (docs/nsfw.md)."
+      },
+      "NsfwHit": {
+        "properties": {
+          "t": {
+            "type": "integer",
+            "title": "T",
+            "description": "where it is: ms into a video, or a page number from 0"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "how likely it is to be NSFW, from 0 to 1"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frame",
+            "description": "a signed link to the frame or page"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "t",
+          "score"
+        ],
+        "title": "NsfwHit",
+        "description": "One of a resource's pictures that scored highest."
+      },
+      "NsfwState": {
+        "properties": {
+          "flagged": {
+            "type": "boolean",
+            "title": "Flagged",
+            "description": "flagged NSFW: a person's call if they made one, else its highest score is at least the threshold"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score",
+            "description": "the highest score of its pictures, from 0 (safe for work) to 1; null when only marked"
+          },
+          "manual": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual",
+            "description": "a person marked it NSFW (true) or not (false); null: the score decides"
+          },
+          "blur": {
+            "type": "boolean",
+            "title": "Blur",
+            "description": "flagged, and its namespace blurs or hides what's flagged: the web app blurs its pictures",
+            "default": false
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "blur",
+              "hide",
+              "show"
+            ],
+            "title": "Display",
+            "description": "how its namespace shows what's flagged: blur, hide (left out of the Library) or show",
+            "default": "blur"
+          },
+          "threshold": {
+            "type": "number",
+            "title": "Threshold",
+            "description": "its namespace's threshold",
+            "default": 0.8
+          },
+          "checked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked",
+            "description": "how many of its frames or pages were scored"
+          },
+          "of": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Of",
+            "description": "how many it has"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when it was classified"
+          },
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/NsfwHit"
+            },
+            "type": "array",
+            "title": "Hits",
+            "description": "its highest-scoring pictures (on the resource and its player)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "flagged"
+        ],
+        "title": "NsfwState",
+        "description": "What NSFW classification found (docs/nsfw.md), where it's on in the resource's namespace."
+      },
       "OAuthGrant": {
         "properties": {
           "id": {
@@ -45445,6 +46153,12 @@
             ],
             "title": "Thumb",
             "description": "a signed link to it, small"
+          },
+          "nsfw": {
+            "type": "boolean",
+            "title": "Nsfw",
+            "description": "flagged NSFW where its namespace blurs or hides that: the web app blurs it",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -46173,6 +46887,17 @@
             "title": "Faces Pixelate",
             "description": "the namespace pixelates faces in the pictures visitors see",
             "default": false
+          },
+          "nsfw": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NsfwState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "NSFW classification, where it's on in its namespace and it was classified"
           }
         },
         "additionalProperties": true,
@@ -48657,6 +49382,17 @@
               }
             ],
             "description": "the places and dates anytopdf found (analysis.anytopdf)"
+          },
+          "nsfw": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NsfwState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "NSFW classification, where it's on in its namespace and it was classified"
           }
         },
         "additionalProperties": true,
@@ -49032,6 +49768,28 @@
         ],
         "title": "RecordingMoved"
       },
+      "RecordingNsfwUpdate": {
+        "properties": {
+          "flagged": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flagged",
+            "description": "true: NSFW; false: not NSFW; null: let the score decide again"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "flagged"
+        ],
+        "title": "RecordingNsfwUpdate"
+      },
       "RecordingSpeaker": {
         "properties": {
           "id": {
@@ -49328,6 +50086,17 @@
             ],
             "title": "Role",
             "description": "your role on it: through its namespace or its collection (an admin of the collection is an owner)"
+          },
+          "nsfw": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/NsfwState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "NSFW classification, where it's on in its namespace and it was classified"
           }
         },
         "additionalProperties": true,
@@ -51806,6 +52575,12 @@
             ],
             "title": "Similarity",
             "description": "found by meaning: how alike the passage is to the query (cosine, up to 1)"
+          },
+          "nsfw": {
+            "type": "boolean",
+            "title": "Nsfw",
+            "description": "its recording is flagged NSFW where its namespace blurs or hides that: the web app blurs its frame",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -57887,7 +58662,19 @@
           "ref": {
             "type": "string",
             "title": "Ref",
-            "description": "the release tag (or branch) being installed"
+            "description": "the release tag (or branch) being installed; empty: the one running, set up again"
+          },
+          "https": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Https",
+            "description": "the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)"
           },
           "state": {
             "type": "string",

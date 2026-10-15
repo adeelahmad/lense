@@ -20,7 +20,8 @@ class Release(ResponseModel):
 
 class UpgradeRun(ResponseModel):
     id: str
-    ref: str = Field(description="the release tag (or branch) being installed")
+    ref: str = Field(description="the release tag (or branch) being installed; empty: the one running, set up again")
+    https: bool | None = Field(None, description="the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)")
     state: Literal["backing-up", "queued", "running", "done", "failed"]
     by: str | None = None
     asked_at: str | None = None

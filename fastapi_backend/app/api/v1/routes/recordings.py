@@ -28,6 +28,7 @@ from app.domain import (
     keyring,
     library,
     moving,
+    nsfw,
     render,
     sources,
     store,
@@ -46,6 +47,8 @@ from app.schemas.recordings import (
     LanguageCount,
     MediaKind,
     NamespaceAccess,
+    NsfwCounts,
+    NsfwState,
     ObjectCount,
     OriginCount,
     Output,
@@ -59,6 +62,7 @@ from app.schemas.recordings import (
     RecordingIpGroup,
     RecordingMove,
     RecordingMoved,
+    RecordingNsfwUpdate,
     RecordingSort,
     RecordingsPlace,
     RecordingsRetag,
@@ -137,6 +141,11 @@ def list_recordings(
     edited_by: Literal["me"] | None = Query(
         None, description="me: recordings you edited (corrected the transcript, changed the catalogue record or renamed)"
     ),
+    sensitive: Literal["include", "only", "exclude"] | None = Query(
+        None,
+        description="where NSFW classification is on (docs/nsfw.md): only those flagged NSFW, exclude them, or include them. "
+        "Without it, flagged ones are left out where their namespace hides them (display hide)",
+    ),
     collection: int | None = Query(None, description="a collection: the recordings in it and in the collections inside it"),
     field: int | None = Query(None, description="a custom field (of resources): the recordings with a value for it, or with `value`"),
     value: str | None = Query(
@@ -196,6 +205,7 @@ def list_recordings(
             cfg=cfg,
             field=by_field,
             objects=object,
+            sensitive=sensitive,
         )
     response.headers["X-Total-Count"] = str(total)
     for r in rows:
@@ -233,6 +243,14 @@ def list_objects(acl: Acl, user: CurrentUser, db: Db, ns: str | None = Query(Non
     in, the most first (the objects step finds them)."""
     spaces, within = acl.scope(ns)
     return [ObjectCount.model_validate(x) for x in library.object_counts(db, spaces, within)]
+
+
+@router.get("/nsfw")
+def nsfw_counts(acl: Acl, user: CurrentUser, db: Db, cfg: Cfg, ns: str | None = Query(None, description="one namespace")) -> NsfwCounts:
+    """NSFW classification in the recordings you can read (or one namespace's): whether it's on in any of their
+    namespaces, how many are flagged, and how many of those the Library leaves out (docs/nsfw.md)."""
+    spaces, within = acl.scope(ns)
+    return NsfwCounts.model_validate(library.nsfw_counts(db, cfg, spaces, within))
 
 
 @router.post("/collection")
@@ -294,7 +312,27 @@ def get_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Recording:
     d["attached_to"] = _attached_to(acl, db, r.get("attached_to"))
     if r.get("enrichment") and acl.member(r):  # where a photo was taken: members only
         d["enrichment"] = {k: v for k, v in r["enrichment"].items() if k != "photo_fp"}
+    d["nsfw"] = _nsfw(db, cfg, r, rid)
     return Recording.model_validate(sign_urls(d, full=True))
+
+
+def _nsfw(db: DB, cfg: dict[str, Any], rec: dict[str, Any], rid: int) -> dict[str, Any] | None:
+    """A resource's NSFW classification under its namespace's policy, with its highest-scoring pictures."""
+    b = nsfw.brief(rec.get("nsfw"), nsfw.policy(db, cfg, rec["space"]))
+    return {**b, "hits": nsfw.hits(rec.get("nsfw"), rid)} if b else None
+
+
+@router.put("/{rid}/nsfw")
+def mark_recording_nsfw(rid: int, body: RecordingNsfwUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> NsfwState | None:
+    """Mark a resource NSFW or not by hand (editors), where NSFW classification is on in its namespace; your call wins
+    over the model's score until you send null. 409 where classification is off. Audited as `recording.nsfw`."""
+    acl.recording(rid, "editor")
+    try:
+        got = nsfw.mark(db, cfg, rid, body.flagged, user.email)
+    except nsfw.Off as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "recording.nsfw", f"recording:{rid}", {"flagged": body.flagged})
+    return NsfwState.model_validate(got) if got else None
 
 
 def _attached_to(acl: Access, db: DB, link: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -513,7 +551,9 @@ def decline_access_request(rid: int, account: int, acl: Acl, user: Writer, db: D
 def get_player(rid: int, acl: Acl, db: Db, cfg: Cfg, s: str = "") -> Player:
     """Player data. Works with a share link (``?s=``) as well as signed in; media links in it are signed."""
     rec = acl.recording(rid, share=s)
-    return sign_urls(render.player_data(db, rid, audio_link(db, cfg, rid, s)), full=acl.member(rec))
+    data = render.player_data(db, rid, audio_link(db, cfg, rid, s))
+    data["nsfw"] = _nsfw(db, cfg, rec, rid)
+    return sign_urls(data, full=acl.member(rec))
 
 
 @router.get("/{rid}/embed-link")

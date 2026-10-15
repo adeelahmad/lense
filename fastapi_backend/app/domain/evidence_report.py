@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from functools import cached_property
 
-from . import analyze, comments, content_types, entity_setup, fields, highlights, hierarchy, library, metadata, render, store
+from . import analyze, comments, content_types, entity_setup, fields, highlights, hierarchy, library, metadata, nsfw, render, store
 from . import topics as topicmod
 
 R = store.R
@@ -227,6 +227,7 @@ class Report:
         came = origins.of(rec)
         page.pair("Came from", origins.names([came])[came])
         page.pair("Status", rec.get("status"))
+        page.pair("NSFW", self._nsfw())
         if rec.get("attached_to") and rec["attached_to"].get("resource"):
             email = self.db.one("SELECT title FROM $r", r=R("recording", int(rec["attached_to"]["resource"]))) or {}
             page.pair("Attached to the email", email.get("title") or f"resource {rec['attached_to']['resource']}")
@@ -256,6 +257,19 @@ class Report:
         made = rec.get("rendition") or {}
         if made.get("from") and made.get("by"):
             page.pair("Read from", f"a PDF {made['by']} made of its {made['from']} file")
+
+    def _nsfw(self):
+        """Its NSFW classification, where classifying is on in its namespace (docs/nsfw.md)."""
+        b = nsfw.brief(self.rec.get("nsfw"), nsfw.policy(self.db, self.cfg, self.rec["space"]))
+        if not b:
+            return None
+        how = ["by a person"] if b.get("manual") is not None else []
+        if b.get("score") is not None:
+            how.append(f"its most likely picture scored {b['score']:.2f}, flagged from {b['threshold']:.2f}")
+        if b.get("checked") is not None:
+            how.append(f"{b['checked']} of {b.get('of') or b['checked']} pictures checked")
+        said = "flagged" if b["flagged"] else "not flagged"
+        return f"{said} ({'; '.join(how)})" if how else said
 
     def _metadata(self, page):
         meta = metadata.effective(self.db, self.cfg, self.rid)
