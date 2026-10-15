@@ -9836,6 +9836,148 @@
         }
       }
     },
+    "/api/v1/notes/deleted": {
+      "get": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Deleted Pages",
+        "description": "Pages deleted in the last 30 days, the latest first: each can be put back until then.",
+        "operationId": "deleted_pages",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only this namespace (default: every one you can read)",
+              "title": "Ns"
+            },
+            "description": "only this namespace (default: every one you can read)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NoteDeleted"
+                  },
+                  "title": "Response Notes-Deleted Pages"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/deleted/{pid}/restore": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Restore Deleted",
+        "description": "Put a deleted page back where it was, with its links, files and history (Undo after Delete). Editors.",
+        "operationId": "restore_deleted",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notes/deleted/{pid}": {
+      "delete": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Purge Deleted",
+        "description": "Delete a deleted page for good now, with its files and history, rather than after 30 days. Editors.",
+        "operationId": "purge_deleted",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/about/{kind}/{key}": {
       "get": {
         "tags": [
@@ -9994,7 +10136,7 @@
           "notes"
         ],
         "summary": "Delete Page",
-        "description": "Delete a page; the pages inside it move up a level. Needs editor access.",
+        "description": "Delete a page; the pages inside it move up a level. It can be put back from recently deleted for\n`TRASH_DAYS` (30) days (`POST /notes/deleted/{pid}/restore`). Needs editor access.",
         "operationId": "delete_page",
         "parameters": [
           {
@@ -44238,6 +44380,59 @@
           "text"
         ],
         "title": "NoteCreate"
+      },
+      "NoteDeleted": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About",
+            "description": "what it was the page of, like \"recording:12\"; null for a free note"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "deleted_at": {
+            "type": "string",
+            "title": "Deleted At"
+          },
+          "deleted_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted By",
+            "description": "who deleted it (their email)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "namespace",
+          "deleted_at"
+        ],
+        "title": "NoteDeleted"
       },
       "NoteFile": {
         "properties": {

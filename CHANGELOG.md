@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Delete a note with Undo.** Deleting a note no longer asks first: the notice has Undo, which puts it back where it
+  was. Deleted notes wait in Recently deleted, at the bottom of the Notes page, for 30 days with their files and
+  history, to put back with one click or delete for good; then they go on their own
+  ([Deleting and putting back](docs/notes.md#deleting-and-putting-back)).
 - **The Ask button no longer covers buttons.** The floating Ask button at the bottom right used to sit on whatever was
   there, such as Import on the Import page. Now, when a button or field is under it and scrolling can't move it clear
   (a row of buttons pinned to the bottom of the screen, or the last button on a page scrolled to its end), the Ask

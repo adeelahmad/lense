@@ -285,6 +285,9 @@ import type {
   DeleteCustomNodeData,
   DeleteCustomNodeErrors,
   DeleteCustomNodeResponses,
+  DeletedPagesData,
+  DeletedPagesErrors,
+  DeletedPagesResponses,
   DeleteEntityData,
   DeleteEntityErrors,
   DeleteEntityResponses,
@@ -1075,6 +1078,9 @@ import type {
   ProposeGraphChangeData,
   ProposeGraphChangeErrors,
   ProposeGraphChangeResponses,
+  PurgeDeletedData,
+  PurgeDeletedErrors,
+  PurgeDeletedResponses,
   PushData,
   PushResponses,
   PushStreamData,
@@ -1186,6 +1192,9 @@ import type {
   RestoreBackupData,
   RestoreBackupErrors,
   RestoreBackupResponses,
+  RestoreDeletedData,
+  RestoreDeletedErrors,
+  RestoreDeletedResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -5132,6 +5141,48 @@ export class Notes {
   }
 
   /**
+   * Deleted Pages
+   *
+   * Pages deleted in the last 30 days, the latest first: each can be put back until then.
+   */
+  public static deletedPages<ThrowOnError extends boolean = false>(
+    options?: Options<DeletedPagesData, ThrowOnError>,
+  ): RequestResult<DeletedPagesResponses, DeletedPagesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<DeletedPagesResponses, DeletedPagesErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Deleted
+   *
+   * Put a deleted page back where it was, with its links, files and history (Undo after Delete). Editors.
+   */
+  public static restoreDeleted<ThrowOnError extends boolean = false>(
+    options: Options<RestoreDeletedData, ThrowOnError>,
+  ): RequestResult<RestoreDeletedResponses, RestoreDeletedErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreDeletedResponses, RestoreDeletedErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted/{pid}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Purge Deleted
+   *
+   * Delete a deleted page for good now, with its files and history, rather than after 30 days. Editors.
+   */
+  public static purgeDeleted<ThrowOnError extends boolean = false>(
+    options: Options<PurgeDeletedData, ThrowOnError>,
+  ): RequestResult<PurgeDeletedResponses, PurgeDeletedErrors, ThrowOnError> {
+    return (options.client ?? client).delete<PurgeDeletedResponses, PurgeDeletedErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted/{pid}",
+      ...options,
+    });
+  }
+
+  /**
    * Page About
    *
    * The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one.
@@ -5148,7 +5199,8 @@ export class Notes {
   /**
    * Delete Page
    *
-   * Delete a page; the pages inside it move up a level. Needs editor access.
+   * Delete a page; the pages inside it move up a level. It can be put back from recently deleted for
+   * `TRASH_DAYS` (30) days (`POST /notes/deleted/{pid}/restore`). Needs editor access.
    */
   public static deletePage<ThrowOnError extends boolean = false>(
     options: Options<DeletePageData, ThrowOnError>,
