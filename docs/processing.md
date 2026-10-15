@@ -119,6 +119,8 @@ and opens each in a side panel where editors rename, retype, describe, merge and
 - **Merge or retype many:** editors tick rows (or the whole page) and the bar at the bottom merges them into one (the
   one on the fixed list, else the most mentioned; the arrow picks another) or gives them all one type.
 - Every merge and bulk type change happens at once and has **Undo** on its notice, so nothing asks to confirm.
+- **From a recording:** in a recording's **Entities** tab, the pencil next to an entity opens the same side panel, so
+  editors rename, retype, hide or merge it without leaving the recording.
 
 - **Index** (`GET /api/v1/entities`):
   - Search forgives misspellings and covers aliases.
