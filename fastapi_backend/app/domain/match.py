@@ -1027,6 +1027,63 @@ def describe_join(join, kind=None):
     return f"what {who} in {within}, together in one run"
 
 
+# ---------- which automations an activity could start ----------
+def _actors(m):
+    """The actor ids a where tree only lets through (actor.id equals or in), or None when it lets any through."""
+    if "all" in m:
+        found = [x for x in (_actors(c) for c in m["all"]) if x is not None]
+        return set.intersection(*found) if found else None
+    if "any" in m:
+        parts = [_actors(c) for c in m["any"]]
+        return set().union(*parts) if parts and None not in parts else None
+    if m.get("path") == "actor.id" and m.get("op") == "equals" and isinstance(m.get("value"), str):
+        return {m["value"]}
+    if m.get("path") == "actor.id" and m.get("op") == "in" and all(isinstance(x, str) for x in m.get("value") or [None]):
+        return set(m["value"])
+    return None
+
+
+def compile_triggers(automations):
+    """An index of the stream triggers of the automations switched on, for the dispatcher: `kinds`, every kind they
+    listen for (to follow); `by_kind`, for each kind (descendants included) the triggers listening, as
+    {automation (its id), as, trigger, row (the automation)}; and `hint`, for each source whose every listening trigger names the actors it takes
+    (where actor.id equals or is in), {source name: {"actors": [...]}} for events.follow, so a busy sensor table is
+    read only for the sensors someone listens to. A webhook trigger listens for webhook.received."""
+    from . import events
+
+    by_kind: dict[str, list] = {}
+    actors: dict[str, set | None] = {}  # per kind: the actors every trigger on it names, None when one takes any
+    for a in automations or []:
+        if not a.get("enabled", True):
+            continue
+        for t in a.get("triggers") or []:
+            if t.get("on") in ("event", "relative"):
+                names = t.get("kinds") or []
+            elif t.get("on") == "webhook" and "webhook.received" in events._KINDS:
+                names = ["webhook.received"]
+            else:
+                continue
+            try:
+                kinds = events.expand(names)
+            except ValueError:  # a kind that went away: the trigger listens for nothing
+                continue
+            who = _actors(t["where"]) if t.get("where") else None
+            for k in sorted(kinds):
+                by_kind.setdefault(k, []).append({"automation": a.get("id"), "as": t.get("as"), "trigger": t, "row": a})
+                actors[k] = None if who is None or (k in actors and actors[k] is None) else (actors.get(k) or set()) | who
+    hint = {}
+    for src in events.sources():
+        mine = events.produces(src) & set(by_kind)
+        if mine and all(actors[k] is not None for k in mine):
+            hint[src.name] = {"actors": sorted(set().union(*(actors[k] for k in mine)))}
+    return {"kinds": sorted(by_kind), "by_kind": by_kind, "hint": hint}
+
+
+def candidates(index, activity):
+    """The triggers in an index (compile_triggers) an activity could start: [{automation, as, trigger, row}]."""
+    return list(index["by_kind"].get((activity or {}).get("kind"), []))
+
+
 # ---------- reading trees ----------
 def leaves(tree):
     """The tests in a tree, in order (not the lookbacks: `lookbacks`)."""
