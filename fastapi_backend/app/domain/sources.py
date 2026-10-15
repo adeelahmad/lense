@@ -1,10 +1,10 @@
 """Storage sources through rclone, and the folders on them that the archive watches.
 
 A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, or a folder on
-this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP) or a calendar feed (iCal),
-whose messages and events are shown as files (feeds.py). A watch maps a folder on a source to a namespace: new audio, video,
-documents (PDFs) and images become resources queued for the whole pipeline, their files staying on the source; new
-transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
+this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP), a calendar feed (iCal) or
+Google Calendar, whose messages and events are shown as files (feeds.py). A watch maps a folder on a source to a
+namespace: new audio, video, documents (PDFs) and images become resources queued for the whole pipeline, their files
+staying on the source; new transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
 messages to other namespaces, or skip them (mail_routes.py). Credentials are stored encrypted and handed to rclone in a private
 temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
@@ -22,7 +22,7 @@ import shutil
 import subprocess
 import tempfile
 
-from . import convert, deletion, feeds, ingest, jobs, mail_routes, settings, store
+from . import convert, deletion, feeds, google_auth, ingest, jobs, mail_routes, settings, store
 
 R = store.R
 BACKENDS = {
@@ -340,22 +340,19 @@ def _check_params(typ, params, secret_values):
     return spec
 
 
-def _secret(k, v):
-    """A secret as it's stored: a service account's key file is checked and kept on one line, as rclone reads it."""
+def _secret(typ, k, v):
+    """A secret as it's stored: a service account's key file is checked and kept on one line, as rclone reads it; a
+    Google source's connected account is checked too (google_auth.py)."""
+    if BACKENDS[typ].get("google"):
+        return google_auth.check_secret(k, v)
     if k != "service_account_credentials":
         return str(v)
-    try:
-        key = json.loads(v)
-    except ValueError:
-        raise ValueError("the service account key isn't JSON: upload the .json key file Google Cloud gave you") from None
-    if not isinstance(key, dict) or key.get("type") != "service_account" or not key.get("client_email") or not key.get("private_key"):
-        raise ValueError("that isn't a service account key: it needs type service_account, client_email and private_key")
-    return json.dumps(key, separators=(",", ":"))
+    return google_auth.service_key(v)
 
 
 def create(db, cfg, name, typ, params=None, secret_values=None, user=None):
     spec = _check_params(typ, params, secret_values)
-    plain = {k: _secret(k, v) for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
+    plain = {k: _secret(typ, k, v) for k, v in (secret_values or {}).items() if isinstance(v, str) and v}
     sid = db.next_id("storage_source")
     sealed = {k: settings.seal(cfg, v, f"source:{sid}:{k}") for k, v in plain.items()}
     db.q(
@@ -383,7 +380,7 @@ def update(db, cfg, sid, name=None, params=None, secret_values=None):
         if v is None or v == "":
             sealed.pop(k, None)
         elif isinstance(v, str):
-            sealed[k] = settings.seal(cfg, _secret(k, v), f"source:{sid}:{k}")
+            sealed[k] = settings.seal(cfg, _secret(src["type"], k, v), f"source:{sid}:{k}")
     db.q(
         "UPDATE $r MERGE $d",
         r=R("storage_source", sid),

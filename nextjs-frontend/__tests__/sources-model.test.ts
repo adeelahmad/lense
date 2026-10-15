@@ -6,6 +6,7 @@ import {
   healthOf,
   imapHost,
   nextScan,
+  parseGoogleAccount,
   parseRcloneToken,
   parseServiceAccountKey,
   pickupText,
@@ -205,6 +206,53 @@ describe("connections", () => {
     expect(buildPayload(ICAL, cal, "ical").secrets).toEqual({ url: "webcal://cal.example.org/team.ics" });
     expect(suggestName("ical", cal.params)).toBe("Calendar feed");
     expect([fileKind("Harbour report.eml"), fileKind("2026-10-02 Stand-up.ics")]).toEqual(["document", "transcript"]);
+  });
+  it("signs Google Calendar in as a Google account or a service account", () => {
+    const GCAL: BackendSpec = {
+      label: "Google Calendar",
+      fields: { calendars: "", impersonate: "", days_back: "365" },
+      secrets: ["token", "service_account_credentials"],
+    };
+    const account = '{"type":"authorized_user","client_id":"c","client_secret":"s","refresh_token":"r","quota":"x"}';
+    expect(parseGoogleAccount(account)).toEqual({
+      ok: true,
+      json: '{"client_id":"c","client_secret":"s","refresh_token":"r"}',
+    });
+    expect(parseGoogleAccount("").ok).toBe(null);
+    expect(parseGoogleAccount("{oops").ok).toBe(false);
+    expect(parseGoogleAccount('{"refresh_token":"r"}').ok).toBe(false);
+
+    const blank = emptyForm(GCAL);
+    expect(blank.driveAuth).toBe("token");
+    expect(Object.keys(validateForm("gcal", GCAL, blank, false))).toEqual(["token"]);
+    const connected = { ...blank, secrets: { token: account } };
+    expect(validateForm("gcal", GCAL, connected, false)).toEqual({});
+    expect(validateForm("gcal", GCAL, blank, true, (k) => k === "token")).toEqual({});
+    expect(
+      validateForm("gcal", GCAL, { ...connected, params: { ...blank.params, days_back: "a year" } }, false),
+    ).toHaveProperty("days_back");
+    // an account replaces a saved key, and a key file replaces a connected account
+    expect(buildPayload(GCAL, connected, "gcal")).toEqual({
+      params: { calendars: "", impersonate: "", days_back: "365" },
+      secrets: {
+        token: '{"client_id":"c","client_secret":"s","refresh_token":"r"}',
+        service_account_credentials: null,
+      },
+    });
+    const key = JSON.stringify({
+      type: "service_account",
+      client_email: "lens@p.iam.gserviceaccount.com",
+      private_key: "K",
+    });
+    const sa = { ...blank, driveAuth: "service_account" as const, secrets: { service_account_credentials: key } };
+    expect(validateForm("gcal", GCAL, sa, false)).toEqual({});
+    expect(buildPayload(GCAL, sa, "gcal").secrets).toEqual({ service_account_credentials: key, token: null });
+
+    expect(sourceSubtitle({ type: "gcal", params: { calendars: "" } })).toBe("Google Calendar · every calendar");
+    expect(sourceSubtitle({ type: "gcal", params: { calendars: "a@x, b@x", impersonate: "mara@x.io" } })).toBe(
+      "Google Calendar · as mara@x.io · 2 calendars",
+    );
+    expect(suggestName("gcal", blank.params)).toBe("Google Calendar");
   });
   it("confirms deletes by name, loosely", () => {
     expect(confirms(" dropbox ·  callrecorder", "Dropbox · CallRecorder")).toBe(true);
