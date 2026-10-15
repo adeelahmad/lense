@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
+
 - **Evidence PDFs hold everything Lens found.** After each resource's own file come pages of what Lens knows about
   it: its details, metadata and custom fields, tags, topics, the summary and analysis models wrote, its sections,
   speakers, emotion and sounds (overall, by speaker, and marked on each transcript line, such as "(Happy, Laughter)"),
@@ -76,6 +78,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `.mcp.json`, and a plugin's such servers come along when an admin installs it. They run in the MCP runner, an opt-in
   container with none of Lens's data or keys (`COMPOSE_PROFILES=mcp`), start on first use and stop after 15 idle
   minutes ([Assistant](docs/assistant.md#the-mcp-runner)).
+
+### Features
+
+- **updates:** upgrade page with live steps, and roll back when the new version doesn't start ([#262](https://github.com/adeelahmad/lense/pull/262))
+- **setup:** ask only what has no default in the first-run wizard ([#376](https://github.com/adeelahmad/lense/pull/376))
+- **settings:** private networks for web pages and feeds in Settings → Documents ([#378](https://github.com/adeelahmad/lense/pull/378))
+- **settings:** a Hugging Face token in Settings → Components ([#379](https://github.com/adeelahmad/lense/pull/379))
+
+### Fixes
+
+- **install:** install on a computer without Docker or KVM access, and run the line again there ([#368](https://github.com/adeelahmad/lense/pull/368))
+
+### Dependencies
+
+- move to lucide-react 1.x ([#369](https://github.com/adeelahmad/lense/pull/369))
+- move to Tailwind CSS 4 ([#377](https://github.com/adeelahmad/lense/pull/377))
 
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 
