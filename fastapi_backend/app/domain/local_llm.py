@@ -378,6 +378,17 @@ def fetch_server(cfg, say=None):
     return str(exe)
 
 
+def _answers_anyone(port):
+    """Whether llama-server serves a request that has no API key (it binds 0.0.0.0 in a container)."""
+    try:
+        with _open(f"http://127.0.0.1:{port}/v1/models", timeout=5):
+            return True
+    except urllib.error.HTTPError as e:
+        return e.code not in (401, 403)
+    except (urllib.error.URLError, OSError):
+        return False
+
+
 def address(cfg):
     """(host to bind, host others reach it at). In a container, other containers (workers) reach it at its address."""
     own = conf(cfg).get("host")
@@ -565,7 +576,9 @@ class Runner:
             if c.get("threads"):
                 cmd += ["-t", str(c["threads"])]
             env = dict(os.environ)
-            env["LLAMA_ARG_API_KEY"] = key  # llama-server's --api-key, not on the command line where `ps` shows it
+            # llama-server's --api-key, not on the command line where `ps` shows it: LLAMA_API_KEY in llama.cpp's
+            # current builds, LLAMA_ARG_API_KEY in older ones
+            env["LLAMA_API_KEY"] = env["LLAMA_ARG_API_KEY"] = key
             lib = str(pathlib.Path(exe).parent)
             env["LD_LIBRARY_PATH"] = lib + (os.pathsep + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
             self.phase = "starting"
@@ -584,6 +597,11 @@ class Runner:
                 time.sleep(1)
             if not (self.proc and self.proc.poll() is None):
                 return
+            if _answers_anyone(c["port"]):
+                self.stop_process()
+                raise LocalModelError(
+                    "llama-server answered without its API key, so it was stopped: this llama.cpp reads the key from a variable Lens doesn't set"
+                )
             self.url, self.phase, self.error, self.fails = url, "running", None, 0
             self._save()
             self._point_provider(self.cfg_fn(), url, m["id"], key)

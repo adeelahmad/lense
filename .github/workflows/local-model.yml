@@ -1,9 +1,10 @@
 name: Local model
 
 # A local model (docs/local-models.md) on x64 and arm64 (a Raspberry Pi, Docker on a Mac): in the backend image, Lens
-# fetches llama.cpp's server for this platform, and it starts and answers with a small model. llama.cpp publishes new
-# builds every day and has changed where and how (from v0.6.0 the builds are off its latest release, and its arm64
-# build needs glibc 2.38), so this runs every week too, not only when the image or the fetch changes.
+# fetches llama.cpp's server for this platform, and it starts, asks for its API key and answers with a small model.
+# llama.cpp publishes new builds every day and has changed where and how (from v0.6.0 the builds are off its latest
+# release, its arm64 build needs glibc 2.38, and the key's variable was renamed), so this runs every week too, not
+# only when the image or the fetch changes.
 on:
   pull_request:
     paths:
@@ -57,7 +58,7 @@ jobs:
           model = pathlib.Path(cfg["data_dir"]) / "stories15M-q4_0.gguf"
           urllib.request.urlretrieve("https://huggingface.co/ggml-org/models/resolve/main/tinyllamas/stories15M-q4_0.gguf", model)
           # as local_llm.Runner starts it
-          env = {**os.environ, "LD_LIBRARY_PATH": str(pathlib.Path(exe).parent), "LLAMA_ARG_API_KEY": "ci"}
+          env = {**os.environ, "LD_LIBRARY_PATH": str(pathlib.Path(exe).parent), "LLAMA_API_KEY": "ci", "LLAMA_ARG_API_KEY": "ci"}
           proc = subprocess.Popen([exe, "-m", str(model), "--host", "127.0.0.1", "--port", "8091", "-c", "256"], env=env)
           try:
               deadline = time.monotonic() + 180
@@ -71,6 +72,7 @@ jobs:
                       pass
                   assert time.monotonic() < deadline, "llama-server didn't answer in 3 minutes"
                   time.sleep(1)
+              assert not local_llm._answers_anyone(8091), "llama-server answers without its API key"
               req = urllib.request.Request(
                   "http://127.0.0.1:8091/v1/completions",
                   json.dumps({"prompt": "Once upon a time", "max_tokens": 8}).encode(),
