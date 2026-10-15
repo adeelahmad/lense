@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The Ask button no longer covers buttons.** The floating Ask button at the bottom right used to sit on whatever was
+  there, such as Import on the Import page. Now, when a button or field is under it and scrolling can't move it clear
+  (a row of buttons pinned to the bottom of the screen, or the last button on a page scrolled to its end), the Ask
+  button rises above it, and steps out of sight when there's no room to rise. Dialogs, drawers and toasts drawn over
+  it don't move it. The clicks survey now fails a journey whose control the Ask button covers, and checks every page
+  for it ([Chat on any page](docs/assistant.md)).
 - **Google Calendar as a sensor.** Add a Google Calendar connection on the Sources page (or `POST /api/v1/sources`
   with type `gcal`): each calendar is a folder and each event becomes text, as an iCal feed's do, read-only through
   Google's Calendar API. It signs in as a Google account (an OAuth client's authorized user JSON) or as a service
