@@ -10137,6 +10137,12 @@ export type NotePage = {
    */
   view?: "page" | "edgeless" | null;
   /**
+   * Pinned
+   *
+   * you pinned it: it shows first on your Notes page and in your tree
+   */
+  pinned?: boolean;
+  /**
    * Created At
    */
   created_at?: string | null;
@@ -10352,6 +10358,12 @@ export type NotePageItem = {
    * how the editor shows it (default: page)
    */
   view?: "page" | "edgeless" | null;
+  /**
+   * Pinned
+   *
+   * you pinned it: it shows first on your Notes page and in your tree
+   */
+  pinned?: boolean;
   /**
    * Created At
    */
@@ -27416,6 +27428,66 @@ export type MovePageResponses = {
 };
 
 export type MovePageResponse = MovePageResponses[keyof MovePageResponses];
+
+export type UnpinPageData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/pin";
+};
+
+export type UnpinPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UnpinPageError = UnpinPageErrors[keyof UnpinPageErrors];
+
+export type UnpinPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type UnpinPageResponse = UnpinPageResponses[keyof UnpinPageResponses];
+
+export type PinPageData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/pin";
+};
+
+export type PinPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PinPageError = PinPageErrors[keyof PinPageErrors];
+
+export type PinPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type PinPageResponse = PinPageResponses[keyof PinPageResponses];
 
 export type DeletePageFileData = {
   body?: never;

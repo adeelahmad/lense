@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Pin notes.** A note's ⋯ menu in the tree has Pin: pinned notes show at the top of the tree and first on the
+  Notes page, for the person who pinned them only ([Pinned notes](docs/notes.md#pinned-notes)).
 - **Notes tree menu.** Each note in the tree in the left navigation has a ⋯ menu to add a note inside, rename it in
   place, move it (find the note to put it in by name, or move it to the top) and delete it with Undo, so nothing needs
   dragging and it works on a phone. The navigation links and the tree now scroll together, so a long tree has room

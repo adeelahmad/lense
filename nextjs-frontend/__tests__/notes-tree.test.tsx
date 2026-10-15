@@ -13,6 +13,8 @@ jest.mock("@/app/openapi-client", () => ({
     updatePage: jest.fn(),
     deletePage: jest.fn(),
     restoreDeleted: jest.fn(),
+    pinPage: jest.fn(),
+    unpinPage: jest.fn(),
   },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
@@ -21,8 +23,9 @@ let pathname = "/notes";
 jest.mock("next/navigation", () => ({ usePathname: () => pathname, useRouter: () => ({ push }) }));
 const toast = jest.fn();
 jest.mock("@/components/ui/toast", () => ({ useToast: () => toast }));
+let editor = true;
 jest.mock("@/lib/hooks/session", () => ({
-  useArchive: () => ({ namespaces: [{ name: "home" }], namespace: "home", can: () => true }),
+  useArchive: () => ({ namespaces: [{ name: "home" }], namespace: "home", can: () => editor }),
 }));
 
 const ok = (data: unknown) => Promise.resolve({ data, response: { ok: true, status: 200 } });
@@ -54,6 +57,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   localStorage.clear();
   pathname = "/notes";
+  editor = true;
   m(Notes.listPages).mockImplementation(() => ok({ namespace: "home", pages: PAGES }));
 });
 
@@ -118,5 +122,39 @@ describe("the notes tree", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/notes"));
     expect(m(Notes.deletePage).mock.calls[0][0].path).toEqual({ pid: 4 });
     expect(toast.mock.calls[0][0]).toMatchObject({ title: "Deleted “Trips”", action: { label: "Undo" } });
+  });
+
+  it("pins a note, which then shows at the top, and unpins it there", async () => {
+    m(Notes.pinPage).mockImplementation(() => ok({ id: 4, title: "Trips", pinned: true }));
+    m(Notes.unpinPage).mockImplementation(() => ok({ id: 4, title: "Trips", pinned: false }));
+    show();
+    await choose("Trips", "Pin");
+    const pinned = await screen.findByRole("group", { name: "Pinned notes" });
+    expect(within(pinned).getByRole("link", { name: "Trips" })).toHaveAttribute("href", "/notes/4");
+    await waitFor(() => expect(Notes.pinPage).toHaveBeenCalled());
+    expect(m(Notes.pinPage).mock.calls[0][0].path).toEqual({ pid: 4 });
+    fireEvent.click(within(pinned).getByRole("button", { name: "Unpin Trips" }));
+    await waitFor(() => expect(screen.queryByRole("group", { name: "Pinned notes" })).not.toBeInTheDocument());
+    expect(m(Notes.unpinPage).mock.calls[0][0].path).toEqual({ pid: 4 });
+  });
+
+  it("lets someone who can only read pin, and nothing else", async () => {
+    editor = false;
+    show();
+    fireEvent.keyDown(await screen.findByRole("button", { name: "More for Trips" }), { key: "Enter" });
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((i) => i.textContent)).toEqual(["Pin"]);
+    expect(screen.queryByRole("button", { name: "New note inside Trips" })).not.toBeInTheDocument();
+  });
+
+  it("takes a pin back when the server says no", async () => {
+    m(Notes.pinPage).mockImplementation(() =>
+      Promise.resolve({ error: { detail: "Up to 50 notes can be pinned" }, response: { ok: false, status: 400 } }),
+    );
+    show();
+    await choose("Trips", "Pin");
+    await waitFor(() => expect(toast).toHaveBeenCalled());
+    expect(toast.mock.calls[0][0].title).toBe("Couldn’t pin it");
+    expect(screen.queryByRole("group", { name: "Pinned notes" })).not.toBeInTheDocument();
   });
 });
