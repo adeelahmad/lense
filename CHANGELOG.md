@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
+  with "I ran out of steps before finishing". Now it's asked to answer from what it found, with the tools off, and says
+  what it didn't get to check; a reply with nothing in it is asked again the same way. It also knows its step budget up
+  front, so it looks things up in fewer rounds, and the same lookup twice in one answer points it at the result it
+  already has instead of running it again ([The assistant's tools](docs/assistant.md#the-assistants-tools)).
 - **Backups hold Lens's files too.** Each backup now also keeps the files under `data_dir` (uploads, objects, media,
   frames, renditions, web pages, reports, exports, podcasts, certificates), and restoring one puts them back. Files
   that haven't changed since the previous backup are hard links, so a backup takes only the room of what changed; the
