@@ -450,12 +450,24 @@ def drop_token(db, tid):
 
 # ---------- roles ----------
 def roles(db, user):
-    """{space id: role} for this person; admins own everything."""
+    """{space id: role} for this person, as a built-in role (a custom role counts as its rank, roles.py); admins own
+    everything."""
+    from . import roles as rl
+
+    return {sid: rl.rank(perms) for sid, perms in permissions(db, user).items()}
+
+
+def permissions(db, user):
+    """{space id: the permissions this person's role there has}; admins have all of them everywhere."""
+    from . import roles as rl
+
     if not user:
         return {}
     if user.get("admin"):
-        return {sid: "owner" for sid in db.values("SELECT VALUE record::id(id) FROM space")}
-    return {r["space"]: r["role"] for r in db.rows("SELECT space, role FROM membership WHERE account = $a", a=user["id"])}
+        return {sid: rl.ALL for sid in db.values("SELECT VALUE record::id(id) FROM space")}
+    rows = db.rows("SELECT space, role FROM membership WHERE account = $a", a=user["id"])
+    table = rl.table(db) if any(r["role"] not in rl.BUILTIN for r in rows) else rl.BUILTIN
+    return {r["space"]: table[r["role"]] for r in rows if r["role"] in table}
 
 
 def allows(role_map, sid, need="viewer"):
@@ -463,13 +475,16 @@ def allows(role_map, sid, need="viewer"):
 
 
 def set_role(db, uid, sid, role):
+    """Give someone a role in a namespace (built-in or custom), or take it away (None)."""
+    from . import roles as rl
+
     rid = R("membership", f"{uid}-{sid}")
     if role is None:
         db.q("DELETE $r", r=rid)
-    elif role in ROLES:
+    elif rl.exists(db, role):
         db.q("UPSERT $r CONTENT $d", r=rid, d={"account": uid, "space": sid, "role": role})
     else:
-        raise ValueError("role is viewer, editor or owner")
+        raise ValueError(f"there's no role called {role}")
 
 
 def members(db, sid):

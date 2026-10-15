@@ -5,7 +5,8 @@
 There is no public sign-up. The first admin is created with a one-time **setup code** that the API prints in its log
 on first start (or `lens users add you@example.com --admin`, or `LENS_ADMIN_EMAIL` in `.env`). On a fresh install the
 web app then opens a short setup wizard ([Configuration](configuration.md#first-run-setup)). Admins then add people and
-give them roles per namespace: viewer, editor or owner.
+give them roles per namespace: viewer, editor, owner, or a custom role made of permissions
+([Access](access.md#roles-and-permissions)).
 
 ## Signing in: passkeys
 

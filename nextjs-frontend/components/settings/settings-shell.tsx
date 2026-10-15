@@ -43,6 +43,7 @@ import {
   PackageCheck,
   RadioTower,
   Lock,
+  RefreshCw,
   Network,
   ScrollText,
 } from "lucide-react";
@@ -97,6 +98,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   mailbox: AtSign,
   telemetry: Activity,
   analytics: BarChart3,
+  updates: RefreshCw,
   logs: ScrollText,
   fedora: Archive,
   sensors: RadioTower,

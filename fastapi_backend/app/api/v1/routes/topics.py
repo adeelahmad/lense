@@ -78,7 +78,7 @@ def get_topic(tid: int, user: CurrentUser, acl: Acl, db: Db) -> TopicDetail:
 def create_topic(name: str, body: TopicCreate, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDetail:
     """Add a topic to the namespace's vocabulary."""
     sid = acl.nsid(name)
-    acl.need(sid, "editor")
+    acl.need(sid, "curate")
     with domain_errors():
         tid = topics.create(db, sid, body.label, body.alt, body.definition, body.broader, body.related, user=user.email)
     auth.audit(db, user.as_audit(), "topic.create", f"topic:{tid}", body.model_dump())
@@ -99,7 +99,7 @@ def topic_candidates(name: str, user: CurrentUser, acl: Acl, db: Db, limit: int 
 def skip_topic_candidate(name: str, body: TopicSkip, user: Writer, acl: Acl, db: Db) -> Ok:
     """Stop offering a label as a new topic."""
     sid = acl.nsid(name)
-    acl.need(sid, "editor")
+    acl.need(sid, "curate")
     with domain_errors():
         topics.skip_candidate(db, sid, body.label)
     auth.audit(db, user.as_audit(), "topic.skip", f"namespace:{name}", {"label": body.label})
@@ -109,7 +109,7 @@ def skip_topic_candidate(name: str, body: TopicSkip, user: Writer, acl: Acl, db:
 @router.patch("/topics/{tid}")
 def update_topic(tid: int, body: TopicUpdate, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDetail:
     """Rename it, change its other labels or definition, or what it is narrower than or related to."""
-    _topic_space(db, acl, tid, "editor")
+    _topic_space(db, acl, tid, "curate")
     changes = body.model_dump(exclude_unset=True)
     with domain_errors():
         topics.update(
@@ -131,7 +131,7 @@ def update_topic(tid: int, body: TopicUpdate, request: Request, user: Writer, ac
 @router.delete("/topics/{tid}")
 def delete_topic(tid: int, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
     """Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows again."""
-    _topic_space(db, acl, tid, "editor")
+    _topic_space(db, acl, tid, "curate")
     with domain_errors():
         eid = topics.delete(db, tid)
     auth.audit(db, user.as_audit(), "topic.delete", f"topic:{tid}", {"entity": eid} if eid else None)
@@ -143,7 +143,7 @@ def delete_topic(tid: int, request: Request, user: Writer, acl: Acl, db: Db) -> 
 def merge_topics(body: TopicMerge, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDetail:
     """Fold topics into one: their labels become its other labels and their recordings are about it."""
     for t in [body.keep, *body.others]:
-        _topic_space(db, acl, t, "editor")
+        _topic_space(db, acl, t, "curate")
     with domain_errors():
         topics.merge(db, body.keep, body.others, user=user.email)
     auth.audit(db, user.as_audit(), "topic.merge", f"topic:{body.keep}", {"others": body.others})
@@ -154,7 +154,7 @@ def merge_topics(body: TopicMerge, request: Request, user: Writer, acl: Acl, db:
 @router.post("/topics/{tid}/recordings")
 def tag_recordings(tid: int, body: TopicRecordings, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDetail:
     """Say recordings of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't."""
-    _topic_space(db, acl, tid, "editor")
+    _topic_space(db, acl, tid, "curate")
     with domain_errors():
         topics.tag(db, tid, body.recordings, body.remove, user=user.email)
     auth.audit(db, user.as_audit(), "topic.untag" if body.remove else "topic.tag", f"topic:{tid}", {"recordings": body.recordings})
@@ -176,7 +176,7 @@ def entity_to_topic(eid: int, request: Request, user: Writer, acl: Acl, db: Db) 
     row = db.one("SELECT space FROM $r", r=R("entity", int(eid)))
     if not row:
         raise HTTPException(404, "not found")
-    acl.need(row["space"], "editor")
+    acl.need(row["space"], "curate")
     with domain_errors():
         tid = topics.from_entity(db, eid, user=user.email)
     auth.audit(db, user.as_audit(), "topic.from_entity", f"topic:{tid}", {"entity": eid})

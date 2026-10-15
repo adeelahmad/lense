@@ -22,7 +22,13 @@ class UpgradeRun(ResponseModel):
     id: str
     ref: str = Field(description="the release tag (or branch) being installed; empty: the one running, set up again")
     https: bool | None = Field(None, description="the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)")
-    state: Literal["backing-up", "queued", "running", "done", "failed"]
+    state: Literal["backing-up", "queued", "running", "rolling-back", "done", "failed", "rolled-back"] = Field(
+        description="rolling-back / rolled-back: the new version didn't start, so the agent went back to the one before"
+    )
+    step: Literal["download", "build", "start", "check"] | None = Field(
+        None, description="while running: what the agent is on (the backup comes before)"
+    )
+    restore: str | None = Field(None, description="after a rollback: whether the backup was put back, and why")
     by: str | None = None
     asked_at: str | None = None
     queued_at: str | None = None

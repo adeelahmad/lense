@@ -177,6 +177,8 @@ ENUMS = {
     ("tunnel", "mode"): {"off", "quick", "token", "managed"},
     ("https", "ca"): {"letsencrypt", "zerossl", "both", "custom"},
     ("https", "challenge"): {"http", "tls-alpn", "dns"},
+    ("https", "client_auth"): {"off", "optional", "required"},
+    ("https", "min_tls"): {"1.2", "1.3"},
     ("files", "store"): {"local", "connection"},
     ("documents", "converter"): {"auto", "anytopdf", "lens"},
     ("analytics", "region"): {"global", "eu"},

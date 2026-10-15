@@ -268,8 +268,11 @@ def decide(db, rid, account, approve, by=None):
 
 
 def owners(db, space):
-    """The email addresses of a namespace's owners (members with the owner role; admins when it has none)."""
-    ids = db.values("SELECT VALUE account FROM membership WHERE space = $s AND role = 'owner'", s=space)
+    """The email addresses of a namespace's owners (members whose role has the publish permission; admins when it has
+    none)."""
+    from . import roles
+
+    ids = roles.holders(db, space, "publish")
     cond = "id IN $ids" if ids else "admin = true"
     return db.values(f"SELECT VALUE email FROM account WHERE {cond} AND disabled != true", ids=[R("account", i) for i in ids])
 

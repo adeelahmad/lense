@@ -35,6 +35,7 @@ import time
 import urllib.parse
 
 import httpx
+from cryptography.hazmat.primitives import serialization
 
 from . import store
 
@@ -256,11 +257,34 @@ def check(cfg):
             raise ValueError(f"https.{k} is a port number")
     if t.get("https_port") and t.get("https_port") == t.get("http_port"):
         raise ValueError("the HTTPS and HTTP ports are different ports")
+    if (t.get("client_auth") or "off") != "off":
+        client_cas(t.get("client_ca") or "")
+    elif t.get("client_ca"):
+        client_cas(t["client_ca"])
     o = urllib.parse.urlsplit(origin(cfg))
     if o.scheme != "http" or not o.hostname:
         raise ValueError("the web app's address for HTTPS is an http:// address, like http://frontend:3000")
     if t.get("enabled") and not names:
         raise ValueError("enter the domain name Lens is reached at, like lens.example.com")
+
+
+def client_cas(pem):
+    """The CA certificates in PEM text, as base64 DER for Caddy. ValueError when there's none or one doesn't parse."""
+    import base64
+
+    from cryptography import x509
+
+    blocks = re.findall(r"-----BEGIN CERTIFICATE-----[^-]+-----END CERTIFICATE-----", pem or "")
+    if not blocks:
+        raise ValueError("paste the PEM of the CA that signs client certificates (-----BEGIN CERTIFICATE-----)")
+    out = []
+    for b in blocks:
+        try:
+            c = x509.load_pem_x509_certificate(b.encode())
+        except ValueError:
+            raise ValueError("a client CA certificate doesn't parse; paste it as PEM") from None
+        out.append(base64.b64encode(c.public_bytes(serialization.Encoding.DER)).decode())
+    return out
 
 
 # ---------- Caddy's configuration ----------
@@ -312,14 +336,29 @@ def caddy_config(cfg, storage):
     if t.get("hsts"):
         handle.append({"handler": "headers", "response": {"set": {"Strict-Transport-Security": ["max-age=31536000"]}}})
     handle.append({"handler": "reverse_proxy", "upstreams": [{"dial": upstream}]})
-    servers: dict = {
-        "lens": {
-            "listen": [f":{https_port}"],
-            "routes": [{"match": [{"host": names}], "handle": handle, "terminal": True}],
-            # its own redirect below: Caddy's would send people to the port inside the container
-            "automatic_https": {"disable_redirects": True},
-        }
+    routes: list[dict] = [{"match": [{"host": names}], "handle": handle, "terminal": True}]
+    lens: dict = {
+        "listen": [f":{https_port}"],
+        "routes": routes,
+        # its own redirect below: Caddy's would send people to the port inside the container
+        "automatic_https": {"disable_redirects": True},
     }
+    policy: dict = {}
+    if t.get("strict_sni"):
+        policy["match"] = {"sni": names}  # no other name, and no SNI at all, gets a handshake
+        lens["strict_sni_host"] = True  # the Host a request names is the name its connection was made for
+        routes.append({"handle": [{"handler": "static_response", "status_code": 421}]})
+    mode = {"optional": "verify_if_given", "required": "require_and_verify"}.get(t.get("client_auth") or "off")
+    if mode:
+        policy["client_authentication"] = {
+            "ca": {"provider": "inline", "trusted_ca_certs": client_cas(t.get("client_ca") or "")},
+            "mode": mode,
+        }
+    if t.get("min_tls") == "1.3":
+        policy["protocol_min"] = "tls1.3"
+    if policy:
+        lens["tls_connection_policies"] = [policy]
+    servers: dict = {"lens": lens}
     if t.get("redirect_http", True):
         port = public_port()
         target = "https://{http.request.host}" + ("" if port == 443 else f":{port}") + "{http.request.uri}"

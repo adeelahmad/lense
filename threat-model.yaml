@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:d826f9e81ce15f6f4d52487aef3cbc5a52c3630841862d160f6bce50b5bf839c"
+prose_version: "threat-model.md@sha256:870fccb52070eff68ed08439f449cbdfb8a979e24533b8a82093d0848d6a4172"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -611,6 +611,14 @@ outputs:
     downstream_must_not_assume:
       - {id: dmna-export-escaping, statement: "escaping for the consumer's format", provenance: {kind: inferred, question_id: Q24}}
   - component: authz
+    channel: "Evidence PDFs (evidence.py, evidence_report.py)"
+    taint: same-as-input
+    x-taint-note: "the resource's file and what Lens holds about it, for anyone who can read it; places only for members of its namespace; shared notes, highlights and comments only when picked, never private notes; what a model wrote is labelled"
+    taint_provenance: {kind: documented, source: 'docs/api.md "never anyone''s private notes"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-evidence-pdf-less, statement: "that a PDF handed on holds less than its reader could see (pick its parts)", provenance: {kind: documented, source: 'docs/api.md "never anyone''s private notes"'}}
+  - component: authz
     channel: "Recording description (IIIF, public pages)"
     taint: same-as-input
     x-taint-note: "never a closed part; anyone who may see the page sees it"
@@ -1174,10 +1182,18 @@ properties_claimed:
     kind: integrity
     components: [authz]
     tier: security-critical
-    conditions: "a principal does no more than its role allows; writes need a write-capable principal and editor or owner; publishing and access changes need owner, through every API path"
+    conditions: "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions"
     violation_symptoms: [integrity-bypass]
     x-voided-by: "session tokens can write; API and app tokens need write scope (api/deps.py:59-60); admins own everything (domain/auth.py:357); collection admin is owner of its recordings (api/deps.py:183); admin's app token keeps namespace roles (api/deps.py:96) but not admin routes (api/deps.py:124-125)"
     provenance: {kind: documented, source: 'SECURITY.md "doing more than your role allows"'}
+  - id: P-ROLE-GRANT
+    kind: authorization
+    components: [authz]
+    tier: security-critical
+    conditions: "only admins make, change and delete roles; built-in roles never change; a non-admin with the members permission gives only roles whose permissions they hold all of, and changes only people whose role they hold all of"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "admins hold every permission; a custom role change applies to every holder at once (domain/roles.py update); the guard is in api/v1/routes/users.py set_member"
+    provenance: {kind: documented, source: 'docs/access.md "they can''t promote themselves or take out an owner"'}
   - id: P-NO-INJECTION
     kind: integrity
     components: [authz, ingest, query]

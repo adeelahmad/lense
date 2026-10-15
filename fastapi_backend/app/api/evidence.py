@@ -5,19 +5,28 @@ from __future__ import annotations
 import urllib.error
 from typing import Any
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Query
 from fastapi.responses import Response
 
 from app.api.streaming import LOCKED
-from app.domain import anytopdf, evidence, keyring
+from app.domain import anytopdf, evidence, evidence_report, keyring
 from app.domain.store import DB
+from app.schemas.recordings import EvidencePart
 
 PDF: dict[int | str, dict[str, Any]] = {200: {"content": {"application/pdf": {}}}}
+INCLUDE = Query(
+    None,
+    description="the parts of the PDF; repeat for several. Without it: every part but notes. "
+    + "; ".join(f"{k}: {v}" for k, v in evidence_report.PARTS.items()),
+)
 
 
-def download(db: DB, cfg: dict[str, Any], rids: list[int], title: str) -> Response:
+def download(
+    db: DB, cfg: dict[str, Any], rids: list[int], title: str, include: list[EvidencePart] | None = None, places: set[int] | None = None
+) -> Response:
+    """The evidence PDF of these resources as a download. `places`: the ones whose places the reader may see."""
     try:
-        data = evidence.make(db, cfg, rids)
+        data = evidence.make(db, cfg, rids, include, places)
     except keyring.Locked:
         raise HTTPException(423, LOCKED) from None
     except FileNotFoundError as e:

@@ -11,7 +11,7 @@ elsewhere, always waits for approval.
 
 from __future__ import annotations
 
-from . import auth, blobs, convert, decide, feeds, jobs, links, llm, metadata, settings, setup, sources, store, uploads
+from . import auth, blobs, convert, decide, feeds, jobs, links, llm, metadata, roles, settings, setup, sources, store, uploads
 
 R = store.R
 _S = {"type": "string"}
@@ -112,7 +112,7 @@ ADMIN_TOOLS = [
         "invite_person",
         "Add someone by email, optionally with a role in one namespace (viewer, editor or owner). Lens emails them a "
         "sign-in link when mail is set up; otherwise an admin sends one from Admin → People. No passwords.",
-        {"email": _S, "name": _S, "namespace": _S, "role": {"type": "string", "enum": ["viewer", "editor", "owner"]}},
+        {"email": _S, "name": _S, "namespace": _S, "role": {"type": "string", "description": "viewer, editor, owner or a custom role"}},
         ["email"],
         True,
     ),
@@ -124,7 +124,7 @@ ADMIN_TOOLS = [
         {
             "email": _S,
             "namespace": _S,
-            "role": {"type": "string", "enum": ["viewer", "editor", "owner", "none"]},
+            "role": {"type": "string", "description": "viewer, editor, owner, a custom role, or none"},
             "disabled": {"type": "boolean"},
         },
         ["email"],
@@ -425,6 +425,8 @@ class OpsTools:
             raise ValueError(f"{email} already has an account: change_person gives them a role")
         if namespace:
             _space(self.db, namespace)
+        if role and not roles.exists(self.db, role):
+            raise ValueError(f"there's no role called {role}")
         where = f" as {role or 'viewer'} of {namespace}" if namespace else ""
         args = store.clean({"email": email, "name": name, "namespace": namespace, "role": (role or "viewer") if namespace else None})
         return self._change("invite_person", args, f"Invite {email}{where}")
@@ -437,6 +439,8 @@ class OpsTools:
             raise ValueError("give a namespace and a role, or disabled")
         if namespace:
             _space(self.db, namespace)
+        if role and role != "none" and not roles.exists(self.db, role):
+            raise ValueError(f"there's no role called {role}")
         parts = [f"{'no role' if role == 'none' else role} in {namespace}"] if namespace and role else []
         if disabled is not None:
             parts.append("disable the account" if disabled else "enable the account")

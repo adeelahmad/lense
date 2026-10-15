@@ -9,7 +9,7 @@ import { Namespaces, Pipelines, Users } from "@/app/openapi-client";
 import { IpGroupsSection } from "@/components/access/ip-groups";
 import { NsAssistantSection } from "@/components/assistant/ns-assistant-section";
 import { ImportHooksSection } from "@/components/imports/import-hooks";
-import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
+import { AdminFrame, usePeople, useRoles } from "@/components/admin/admin-frame";
 import { roleLabel, type Role } from "@/components/admin/people-model";
 import { ActivityPanel, BudgetPanel, CostCell, useBudgets, useCosts } from "@/components/costs/costs";
 import { isUnreachable } from "@/components/errors/error-states";
@@ -101,7 +101,7 @@ export function NamespacesPage() {
                     <CostCell resource={`space:${n.id}`} costs={costs.data?.costs} budgets={budgets} />
                   </Td>
                   <Td>
-                    <RoleChip role={roleIn(n.name) as Role} />
+                    <RoleChip role={roleIn(n.name) as "viewer" | "editor" | "owner" | null} />
                   </Td>
                 </Tr>
               ))}
@@ -211,6 +211,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
   const { namespaces, admin, can, me } = useArchive();
   const known = namespaces.find((n) => n.name === ns);
   const isOwner = can("owner", ns);
+  const roles = useRoles();
   const members = useQuery({
     queryKey: ["members", ns],
     queryFn: () => data(Users.listMembers({ client, path: { name: ns } })),
@@ -362,9 +363,9 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                       id={f.id}
                       value={role}
                       onChange={(e) => setRole(e.target.value as Role)}
-                      options={["viewer", "editor", "owner"].map((r) => ({
+                      options={roles.names.map((r) => ({
                         value: r,
-                        label: roleLabel(r as Role),
+                        label: roleLabel(r, roles.labels),
                       }))}
                     />
                   )}
@@ -440,9 +441,9 @@ export function NamespaceDetail({ ns }: { ns: string }) {
                               self ? "bg-surface text-fg-muted" : "bg-background text-fg",
                             )}
                           >
-                            {["viewer", "editor", "owner"].map((r) => (
+                            {roles.names.map((r) => (
                               <option key={r} value={r}>
-                                {roleLabel(r as Role)}
+                                {roleLabel(r, roles.labels)}
                               </option>
                             ))}
                           </select>

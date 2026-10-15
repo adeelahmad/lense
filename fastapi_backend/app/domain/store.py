@@ -600,6 +600,13 @@ DEFAULTS = {
         "origin": "",
         "https_port": 8443,
         "http_port": 8080,
+        # strict_sni: only the domains get a TLS handshake (no SNI, an IP or another name is refused), and a request's
+        # Host must match its SNI (else 421). client_auth: off, optional (a certificate, when given, must be from
+        # client_ca) or required (mutual TLS); client_ca: PEM of the CAs that sign client certificates. min_tls: 1.2 or 1.3
+        "strict_sni": False,
+        "client_auth": "off",
+        "client_ca": "",
+        "min_tls": "1.2",
     },
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
@@ -1144,6 +1151,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS account_email ON account FIELDS email UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS role SCHEMALESS",  # custom roles (roles.py), keyed by name
     "DEFINE TABLE IF NOT EXISTS membership SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS membership_account ON membership FIELDS account",
     "DEFINE INDEX IF NOT EXISTS membership_space ON membership FIELDS space",

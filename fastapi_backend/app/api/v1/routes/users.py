@@ -7,9 +7,20 @@ from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, store
+from app.domain import auth, roles, store
 from app.schemas.common import Created, Ok
-from app.schemas.users import Member, MemberSet, UserCreate, UserUpdate, UserWithRoles
+from app.schemas.users import (
+    Member,
+    MemberSet,
+    RoleCreate,
+    RoleOut,
+    RolePermission,
+    Roles,
+    RoleUpdate,
+    UserCreate,
+    UserUpdate,
+    UserWithRoles,
+)
 
 router = APIRouter(tags=["users"])
 
@@ -84,17 +95,67 @@ def remove_user(uid: int, user: AdminWriter, db: Db, cfg: Cfg, lose_vaults: bool
 @router.get("/namespaces/{name}/members")
 def list_members(name: str, user: CurrentUser, acl: Acl, db: Db) -> list[Member]:
     """Who has a role in this namespace (owners only)."""
-    return auth.members(db, acl.namespace(name, "owner"))
+    return auth.members(db, acl.namespace(name, "members"))
 
 
 @router.put("/namespaces/{name}/members")
 def set_member(name: str, body: MemberSet, user: Writer, acl: Acl, db: Db) -> Ok:
-    """Give someone a role in this namespace, change it, or (role null) remove them. Owners only."""
-    sid = acl.namespace(name, "owner")
+    """Give someone a role in this namespace (built-in or custom), change it, or (role null) remove them. Needs the
+    members permission; someone who isn't an admin gives only roles they hold every permission of, and changes only
+    people whose role they hold every permission of."""
+    sid = acl.namespace(name, "members")
     acct = auth.find_account(db, body.email) if body.email else auth.get_account(db, body.account or 0)
-    if not acct:
+    if not acct or acct.get("removed_at"):
         raise HTTPException(404, "no such person")
+    if not user.admin:
+        mine = user.perms.get(sid, frozenset())
+        table = roles.table(db)
+        now = db.one("SELECT VALUE role FROM $r", r=auth.R("membership", f"{acct['id']}-{sid}"))
+        for r in (body.role, now):
+            if r and not table.get(r, roles.ALL) <= mine:
+                raise HTTPException(403, f"the {r} role can do more than yours here")
     with domain_errors():
         auth.set_role(db, acct["id"], sid, body.role)
     auth.audit(db, user.as_audit(), "member.set", f"space:{sid}", {"account": acct["id"], "role": body.role})
+    return Ok()
+
+
+@router.get("/roles")
+def list_roles(user: CurrentUser, db: Db) -> Roles:
+    """The permissions a role can have, and every role: viewer, editor and owner, then the custom ones."""
+    return Roles(
+        permissions=[RolePermission(name=n, label=label, first=first) for n, (first, label) in roles.PERMISSIONS.items()],
+        roles=[RoleOut.model_validate(r) for r in roles.listing(db)],
+    )
+
+
+@router.post("/roles")
+def create_role(body: RoleCreate, user: AdminWriter, db: Db) -> RoleOut:
+    """A custom role (admins), given per namespace like the built-in ones. Audited as `role.create`."""
+    with domain_errors():
+        name = roles.create(db, body.name, body.permissions, body.label, body.description)
+    auth.audit(db, user.as_audit(), "role.create", f"role:{name}", {"permissions": sorted(body.permissions)})
+    return next(RoleOut.model_validate(r) for r in roles.listing(db) if r["name"] == name)
+
+
+@router.patch("/roles/{name}")
+def update_role(name: str, body: RoleUpdate, user: AdminWriter, db: Db) -> RoleOut:
+    """Change a custom role's label, description or permissions; everyone holding it gets the change at once.
+    Built-in roles can't change. Audited as `role.update`."""
+    with domain_errors():
+        roles.update(db, name, body.permissions, body.label, body.description)
+    auth.audit(db, user.as_audit(), "role.update", f"role:{name}", body.model_dump(exclude_unset=True))
+    return next(RoleOut.model_validate(r) for r in roles.listing(db) if r["name"] == name)
+
+
+@router.delete("/roles/{name}")
+def delete_role(name: str, user: AdminWriter, db: Db) -> Ok:
+    """Delete a custom role. Refused (409) while anyone holds it. Audited as `role.delete`."""
+    try:
+        roles.delete(db, name)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    except ValueError as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "role.delete", f"role:{name}")
     return Ok()

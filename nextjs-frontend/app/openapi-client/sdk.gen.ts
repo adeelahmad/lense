@@ -205,6 +205,9 @@ import type {
   CreatePodcastData,
   CreatePodcastErrors,
   CreatePodcastResponses,
+  CreateRoleData,
+  CreateRoleErrors,
+  CreateRoleResponses,
   CreateRoutineData,
   CreateRoutineErrors,
   CreateRoutineResponses,
@@ -345,6 +348,9 @@ import type {
   DeleteRemoteBackupData,
   DeleteRemoteBackupErrors,
   DeleteRemoteBackupResponses,
+  DeleteRoleData,
+  DeleteRoleErrors,
+  DeleteRoleResponses,
   DeleteRoutineData,
   DeleteRoutineErrors,
   DeleteRoutineResponses,
@@ -887,6 +893,8 @@ import type {
   ListRecordingsData,
   ListRecordingsErrors,
   ListRecordingsResponses,
+  ListRolesData,
+  ListRolesResponses,
   ListRoutinesData,
   ListRoutinesResponses,
   ListRunsData,
@@ -1533,6 +1541,9 @@ import type {
   UpdateRecordingMetadataErrors,
   UpdateRecordingMetadataResponses,
   UpdateRecordingResponses,
+  UpdateRoleData,
+  UpdateRoleErrors,
+  UpdateRoleResponses,
   UpdateRoutineData,
   UpdateRoutineErrors,
   UpdateRoutineResponses,
@@ -2389,13 +2400,80 @@ export class Users {
   /**
    * Set Member
    *
-   * Give someone a role in this namespace, change it, or (role null) remove them. Owners only.
+   * Give someone a role in this namespace (built-in or custom), change it, or (role null) remove them. Needs the
+   * members permission; someone who isn't an admin gives only roles they hold every permission of, and changes only
+   * people whose role they hold every permission of.
    */
   public static setMember<ThrowOnError extends boolean = false>(
     options: Options<SetMemberData, ThrowOnError>,
   ): RequestResult<SetMemberResponses, SetMemberErrors, ThrowOnError> {
     return (options.client ?? client).put<SetMemberResponses, SetMemberErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/members",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Roles
+   *
+   * The permissions a role can have, and every role: viewer, editor and owner, then the custom ones.
+   */
+  public static listRoles<ThrowOnError extends boolean = false>(
+    options?: Options<ListRolesData, ThrowOnError>,
+  ): RequestResult<ListRolesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListRolesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/roles",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Role
+   *
+   * A custom role (admins), given per namespace like the built-in ones. Audited as `role.create`.
+   */
+  public static createRole<ThrowOnError extends boolean = false>(
+    options: Options<CreateRoleData, ThrowOnError>,
+  ): RequestResult<CreateRoleResponses, CreateRoleErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateRoleResponses, CreateRoleErrors, ThrowOnError>({
+      url: "/api/v1/roles",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Role
+   *
+   * Delete a custom role. Refused (409) while anyone holds it. Audited as `role.delete`.
+   */
+  public static deleteRole<ThrowOnError extends boolean = false>(
+    options: Options<DeleteRoleData, ThrowOnError>,
+  ): RequestResult<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError>({
+      url: "/api/v1/roles/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Role
+   *
+   * Change a custom role's label, description or permissions; everyone holding it gets the change at once.
+   * Built-in roles can't change. Audited as `role.update`.
+   */
+  public static updateRole<ThrowOnError extends boolean = false>(
+    options: Options<UpdateRoleData, ThrowOnError>,
+  ): RequestResult<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError>({
+      url: "/api/v1/roles/{name}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -4771,8 +4849,11 @@ export class Resources {
    * Evidence Pdf
    *
    * The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with
-   * their transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't
-   * run here (it's fetched on first use unless Settings › Documents says never to use it).
+   * their transcript, each line marked with its emotion and sound), searchable, then the pages of what Lens found
+   * about it (details, metadata, tags, topics, summary, analysis, sections, speakers, emotion, entities, keywords,
+   * what is seen, places and dates; notes when asked for), then a provenance page with each file's SHA-256 and size.
+   * `include` picks the parts. 503 when anytopdf can't run here (it's fetched on first use unless Settings ›
+   * Documents says never to use it).
    */
   public static evidencePdf<ThrowOnError extends boolean = false>(
     options: Options<EvidencePdfData, ThrowOnError>,
@@ -9134,7 +9215,8 @@ export class Collections {
    * Collection Evidence
    *
    * The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
-   * one's pages, then a provenance page with every file's SHA-256 and size. At most 50 recordings.
+   * one's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a
+   * resource's evidence PDF. At most 50 recordings.
    */
   public static collectionEvidence<ThrowOnError extends boolean = false>(
     options: Options<CollectionEvidenceData, ThrowOnError>,
