@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Sources } from "@/app/openapi-client";
 import {
@@ -52,8 +52,8 @@ export function ConnectionFields({
   /** Sign in again through rclone; shown while a saved connection can also just be saved. */
   onSignIn?: () => void;
   signingIn?: boolean;
-  /** Connect with Google (Google Calendar): save the connection and go to Google's consent screen, through this OAuth
-   * client when one is given, else the one Lens has. */
+  /** Connect with Google (Google Calendar, Google Drive): save the connection and go to Google's consent screen,
+   * through this OAuth client when one is given, else the one Lens has. */
   onConnectGoogle?: (client: { client_id?: string; client_secret?: string }) => void;
   connectingGoogle?: boolean;
 }) {
@@ -63,9 +63,15 @@ export function ConnectionFields({
   const googleClient = useQuery({
     queryKey: ["google-client"],
     queryFn: () => data(Sources.googleClient({ client: api })),
-    enabled: type === "gcal" || type === "gmail",
+    enabled: type === "gcal" || type === "gmail" || type === "drive",
     staleTime: 60_000,
   });
+  // a new Drive connection connects with Google when Lens has a Google OAuth client already, else through rclone
+  const hasClient = Boolean(googleClient.data?.origin);
+  useEffect(() => {
+    if (type === "drive" && !saved && hasClient && form.signInWith === "rclone")
+      onChange({ ...form, signInWith: "google" });
+  }, [hasClient]);
   const editing = saved;
   const p = form.params;
   const set = (k: string, v: string) => onChange({ ...form, params: { ...p, [k]: v } });
@@ -234,17 +240,13 @@ export function ConnectionFields({
     );
   };
 
-  /** Google Calendar or Gmail as a Google account: Connect with Google (Google's consent screen), or an authorized user
-   * JSON pasted under the fold. */
-  const googleAccount = (() => {
+  /** Connect with Google (Google's consent screen) for a Google account, through the OAuth client Lens has or one
+   * entered here; `api` is the Google API that client's project turns on, `account` the address connected. */
+  const connectWithGoogle = (api: string, connected: boolean, account?: string) => {
     const g = googleClient.data;
-    const gmail = type === "gmail";
-    const account = gmail ? p.user : p.account;
-    const connected = editing && isSet("token") && form.secrets.token === undefined;
     const needClient = Boolean(g) && (g?.origin == null || ownClient);
-    const pasted = form.secrets.token ?? "";
     return (
-      <div className="flex flex-col gap-3">
+      <>
         {connected && (
           <p className="rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
             {account ? (
@@ -285,9 +287,8 @@ export function ConnectionFields({
             </div>
             <div className="flex flex-col gap-1.5 text-[12.5px] leading-normal text-fg-secondary">
               <span>
-                In Google Cloud › APIs &amp; Services: enable the {gmail ? "Gmail" : "Google Calendar"} API, then under
-                Credentials create an OAuth client ID (a web application) with this authorized redirect URI. Lens keeps
-                the client with the connection.
+                In Google Cloud › APIs &amp; Services: enable the {api}, then under Credentials create an OAuth client
+                ID (a web application) with this authorized redirect URI. Lens keeps the client with the connection.
               </span>
               <CodeBlock inline text={g.redirect_uri} label="redirect URI" />
             </div>
@@ -320,6 +321,22 @@ export function ConnectionFields({
             </span>
           )}
         </div>
+      </>
+    );
+  };
+
+  /** Google Calendar or Gmail as a Google account: Connect with Google, or an authorized user JSON pasted under the
+   * fold. */
+  const googleAccount = (() => {
+    const gmail = type === "gmail";
+    const pasted = form.secrets.token ?? "";
+    return (
+      <div className="flex flex-col gap-3">
+        {connectWithGoogle(
+          gmail ? "Gmail API" : "Google Calendar API",
+          editing && isSet("token") && form.secrets.token === undefined,
+          gmail ? p.user : p.account,
+        )}
         {errors.token && !pasted.trim() && (
           <p role="alert" className="text-[12.5px] text-red-dark">
             {errors.token}
@@ -389,16 +406,25 @@ export function ConnectionFields({
       const serviceAccount = serviceAccountKey("Share the folders Lens should read with that address.");
       return (
         <div className="flex flex-col gap-3">
-          <Segmented
-            className="w-full [&>button]:flex-1 [&>button]:justify-center"
-            value={form.driveAuth}
-            onChange={(v) => onChange({ ...form, driveAuth: v as ConnForm["driveAuth"] })}
-            items={[
-              { value: "token", label: "Google account" },
-              { value: "service_account", label: "Service account" },
-            ]}
-          />
-          {form.driveAuth === "service_account" ? serviceAccount : token}
+          {googleAuth}
+          {form.driveAuth === "service_account" ? (
+            serviceAccount
+          ) : form.signInWith === "google" ? (
+            <div className="flex flex-col gap-3">
+              {connectWithGoogle("Google Drive API", editing && isSet("token") && Boolean(p.client_id), p.account)}
+              {errors.token && (
+                <p role="alert" className="text-[12.5px] text-red-dark">
+                  {errors.token}
+                </p>
+              )}
+              {how("Or sign in through rclone, with no Google app of your own", "rclone")}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {token}
+              {how(hasClient ? "Connect with Google instead" : "Connect through your own Google app instead", "google")}
+            </div>
+          )}
           {select("scope", DRIVE_SCOPES)}
           {text("root_folder_id", {
             mono: true,

@@ -321,6 +321,16 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
   they end on to `POST /api/v1/sources/rclone-signin/{id}` (`{"address": …}`), which answers `{connected: <id>}`
   (400: not this sign-in's address, still waiting; 410: cancelled, refused or ran out). `DELETE` stops it. Audited as
   `source.signin`.
+- **Google Drive can connect with Google** as Google Calendar does: when Lens has a Google OAuth client (the Google
+  sign-in provider's, or an earlier Google connection's), a new Google account connection uses it, so **Connect with
+  Google** saves the connection, opens Google's consent screen in this browser and comes back with the account
+  connected (its address shows on the connection). Read only asks Google for `drive.readonly`, Full access for all of
+  Drive. With no client Lens signs in through rclone; Connect through your own Google app instead takes a web
+  application client of a Google Cloud project with the Drive API turned on (the form shows the redirect URI to
+  register). The connection keeps that client with its token (`client_id`, and the secret encrypted) so rclone renews
+  the token with it; a token from rclone (signing in through rclone, or pasted) drops it. A connection whose sign-in
+  stopped working shows **Connect Google account** on its row. As for Google Calendar, connecting happens in the web
+  app (`POST /api/v1/sources/{id}/google`).
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.

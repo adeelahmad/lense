@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:d1f27b3387a181da8d9f699026aa6119a29c986eb39e71b5e6b752a980d9f61d"
+prose_version: "threat-model.md@sha256:57d608a9097062f83292cc010b6762eb2d823ccd4e6743ab243ba80c870f4759"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -349,7 +349,7 @@ entry_points:
         x-condition: "client: admins only; state and code: anyone who can send the admin a link"
         control_kinds: [data, x-credential, x-collaborator-data]
         obligation_id: admin-creates-sources
-        caller_must_enforce: "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the source's scope was granted (read only, but all of Gmail over IMAP); returns only to the starting web origin"
+        caller_must_enforce: "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the source's scope was granted (read only, but all of Gmail over IMAP, all of Drive for Drive set to full access); Drive keeps its client's secret sealed too; returns only to the starting web origin"
         provenance: {kind: documented, source: 'docs/processing.md "the consent itself is a person''s"'}
   - id: "POST /imports/web, extension http tools, notification targets"
     component: outbound
