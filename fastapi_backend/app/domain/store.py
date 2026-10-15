@@ -1264,6 +1264,12 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS event_cursor SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS event_claim SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS event_claim_at ON event_claim FIELDS at",
+    # what automations keep between activities (domain/match.py): the last value a `changed` test saw, joins waiting
+    # for their other triggers and decide answers (automation_state:<hash>), and how many went to make room
+    "DEFINE TABLE IF NOT EXISTS automation_state SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_state_automation ON automation_state FIELDS automation, at",
+    "DEFINE INDEX IF NOT EXISTS automation_state_expires ON automation_state FIELDS expires_at",
+    "DEFINE TABLE IF NOT EXISTS automation_state_dropped SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",

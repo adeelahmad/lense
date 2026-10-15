@@ -604,7 +604,9 @@ its person can read; "read" does not mean "public".
 
 - **Prompt injection**: bounded by the person's tools, not by filtering (N-PROMPT). **Bombs**: not bounded beyond
   upload size and page caps (N-BOMBS). **ReDoS**: Cypher refuses nested repeats heuristically; admin regexes are
-  trusted (Q25). **XXE and billion laughs**: RDF/XML is refused (N-RDF-XML); docx XML goes to the stdlib parser (Q22).
+  trusted (Q25). Patterns in automations' conditions (`matches`, which members write and which run on outside text)
+  refuse nested repeats and repeated alternatives that start alike, read at most 20,000 characters and give up after
+  50 ms each. **XXE and billion laughs**: RDF/XML is refused (N-RDF-XML); docx XML goes to the stdlib parser (Q22).
 - **SSRF**: in model for non-admin URLs (P-SSRF-GUARD) and guarded admin operands (P-ADMIN-GUARD); out for other
   admin URLs (N-ADMIN). **CSRF**: no cookies on the API (N-CSRF), except the IIIF flow (Q1).
 - **Brute force and volume DoS**: out beyond the sign-in throttles (N-VOLUME, N-THROTTLE-SCOPE). **Clickjacking**:
