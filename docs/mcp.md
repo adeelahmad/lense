@@ -52,7 +52,7 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `fetch` | an asset's whole text at once, as `[m:ss] Speaker: …` lines |
 | `cite` | a citation for a moment (a line or a second, and a few lines from there): the words, who said or wrote them, the asset and date, the time, the link, and all of it as Markdown |
 | `list_entities` | people, organisations, products, places, events, works and terms mentioned, by name, type, namespace or asset |
-| `get_entity` | one entity: its names, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
+| `get_entity` | one entity: its names, its page's link, how often and when it is mentioned, what it is mentioned with, who mentions it most, and the lines that mention it |
 | `explore_graph` | the knowledge graph around an entity (`e12`) or a person (`s3`), one or two steps out |
 | `find_path` | the shortest chain of links between two of them, with lines that show each link |
 | `sparql` | a read-only SPARQL query (SELECT, ASK, CONSTRUCT or DESCRIBE) over one namespace's linked data ([RDF](rdf.md)): JSON results, or Turtle |

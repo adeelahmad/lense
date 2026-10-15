@@ -14386,6 +14386,58 @@
         }
       }
     },
+    "/api/v1/wiki/{ns}/{address}": {
+      "get": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Find Wiki Page",
+        "description": "The page /wiki/<ns>/<address> names: the entity called that (spaces as underscores, any case), or the one a name\nit had before a rename or a merge now belongs to. When `canonical` is false, show `path` instead.",
+        "operationId": "find_wiki_page",
+        "parameters": [
+          {
+            "name": "ns",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ns"
+            }
+          },
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/entities/{eid}/mentions": {
       "get": {
         "tags": [
@@ -34813,6 +34865,18 @@
             ],
             "title": "Collection",
             "description": "a defined entity of one collection (and those inside it)"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "its page in the web app, by name: /wiki/<namespace>/<Name_As_Written>"
           }
         },
         "additionalProperties": true,
@@ -62578,6 +62642,50 @@
         ],
         "title": "WebPage",
         "description": "A web page captured as a document: where it was, and when."
+      },
+      "WikiPage": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "entity"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "namespace": {
+            "type": "string",
+            "title": "Namespace"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "its name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "its own address, like /wiki/work/Ada_Lovelace"
+          },
+          "canonical": {
+            "type": "boolean",
+            "title": "Canonical",
+            "description": "false: the address asked for is another way to write it (any case, or a name it had before a rename or merge); show `path`"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "namespace",
+          "title",
+          "path",
+          "canonical"
+        ],
+        "title": "WikiPage",
+        "description": "What a wiki address names, and the address to show for it."
       },
       "WorkerComponents": {
         "properties": {
