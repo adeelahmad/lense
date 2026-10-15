@@ -35,6 +35,7 @@ from . import (
     topics,
     untrusted,
     uploads,
+    wiki,
 )
 
 R = store.R
@@ -911,6 +912,7 @@ class Toolbox(ops_tools.OpsTools):
                 "name": e["name"],
                 "type": e["type_label"],
                 "namespace": e["namespace"],
+                "page": wiki.path(e["namespace"], e["name"]),
                 "mentions": e["mentions"],
                 "recordings": e["recordings"],
                 **({"description": e["description"]} if e.get("description") else {}),

@@ -199,7 +199,7 @@ export function EntityDrawer({
         d && (
           <>
             <Button asChild size="xs" variant="ghost" icon={<NotebookPen />}>
-              <Link href={`/notes/about/entity/${id}`}>Page</Link>
+              <Link href={d.page ?? `/entities/${id}`}>Page</Link>
             </Button>
             <Button asChild size="xs" variant="ghost" icon={<History />}>
               <Link href={`/routines/history?entity=${id}`}>History</Link>

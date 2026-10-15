@@ -50,6 +50,20 @@ class EntityDetail(ResponseModel):
     defined: bool = Field(False, description="on the fixed list people defined")
     builtin: str | None = Field(None, description="unknown or unlabeled: one of the two entities that are always there")
     collection: int | None = Field(None, description="a defined entity of one collection (and those inside it)")
+    page: str | None = Field(None, description="its page in the web app, by name: /wiki/<namespace>/<Name_As_Written>")
+
+
+class WikiPage(ResponseModel):
+    """What a wiki address names, and the address to show for it."""
+
+    kind: str = Field(description="entity")
+    id: int
+    namespace: str
+    title: str = Field(description="its name")
+    path: str = Field(description="its own address, like /wiki/work/Ada_Lovelace")
+    canonical: bool = Field(
+        description="false: the address asked for is another way to write it (any case, or a name it had before a rename or merge); show `path`"
+    )
 
 
 class MentionList(ResponseModel):

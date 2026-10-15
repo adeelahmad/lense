@@ -492,17 +492,18 @@ export const JOURNEYS = [
     ns: "",
     module: "Entities",
     feature: "Find an entity and see where it was mentioned",
+    note: "Its name opens its own page, /wiki/<namespace>/Raspberry_Pi, with its notes and every line that says it.",
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
-      const entity = page.getByRole("main").getByRole("button", { name: "Raspberry Pi", exact: true });
+      const entity = page.getByRole("main").getByRole("link", { name: "Raspberry Pi", exact: true });
       await madeInBackground(ctx, "/entities", entity, "/", "the entity the imports' analysis makes");
       await go(ctx, "Entities");
       await meter.type(page.getByRole("searchbox", { name: "Find entities" }), "rasp", "part of its name");
       // the list filters as you type: the other entity leaves it
       await page.getByRole("main").getByRole("table").getByText("Lens", { exact: true }).waitFor({ state: "hidden" });
       await meter.click(entity, "Raspberry Pi");
-      await page.waitForURL(/entity=\d+/);
+      await page.waitForURL(/\/wiki\/[^/]+\/Raspberry_Pi$/);
       await page.getByText(/Raspberry Pi can run Lens/).first().waitFor();
     },
   },

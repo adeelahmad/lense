@@ -13,7 +13,7 @@ import math
 import re
 from collections import Counter, defaultdict, deque
 
-from . import analyze, entity_setup, graph_history, notebook, render, store
+from . import analyze, entity_setup, graph_history, notebook, render, store, wiki
 
 R = store.R
 TYPES = {
@@ -239,6 +239,7 @@ def detail(db, eid, spaces):
         "defined": bool(e.get("defined")),
         "builtin": e.get("builtin"),
         "collection": e.get("collection"),
+        "page": wiki.path(names.get(e["space"]) or "", e["name"]),
     }
 
 

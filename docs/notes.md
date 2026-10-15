@@ -7,8 +7,10 @@ Status: **built**: pages (free notes in a tree, a page per recording, entity, to
 links with backlinks (# links topics), the tree in the left navigation, the page view with the BlockSuite editor, the
 model keeping titles and summaries up to date, assistant tools to find, read, write and update notes, and MCP tools to
 find, read and write them ([MCP](mcp.md)), page history with restore, suggested links to what a note names, the
-project or area a note fits under, and images and attachments kept where Settings → Storage says.
-**Planned**: nesting notes under their project or area without a click, pages in the graph.
+project or area a note fits under, images and attachments kept where Settings → Storage says, and every entity's
+own page at a wiki address, `/wiki/<namespace>/<Name>` ([Entity pages](#entity-pages)).
+**Planned**: nesting notes under their project or area without a click, pages in the graph, wiki addresses for topics,
+recordings and the other things that have pages.
 
 ## A page
 
@@ -28,6 +30,28 @@ A thing's page is made the first time someone writes on it; until then `GET /api
 draft with its name and the pages that already link to it. A page follows its recording to another namespace. When a
 thing is deleted, or an entity is merged into another, its page stays as a free note at the top of the tree, so
 nothing written on it is lost.
+
+## Entity pages
+
+Every entity (a person, organisation, product, place, event, work or term) has a page of its own, named by its name
+the way a wiki names pages: spaces become underscores and the rest stays as written, so Ada Lovelace in namespace
+`work` is at `/wiki/work/Ada_Lovelace`. Nothing is stored for the address: it is the name. The page shows what the
+entity is (its type, the other ways it's said and its description), the notes people and the assistant keep on it in
+the BlockSuite editor below, every line that says it with a link to that moment, the recordings and the people it comes
+up with most, the entities it's mentioned together with (each a link to its own page), the same entity in other
+namespaces, and similar content. **Edit** opens the panel that changes it, as on the Entities page; renaming it moves
+the page to the new name.
+
+The address is read the way analysis matches names: in any case and spacing (`/wiki/work/ada_lovelace`), and by a name
+the entity had before a rename or the name of one merged into it. Those open the page and switch the address to its
+own. A name with `/` or `?` in it is escaped in the address (`AC/DC` is `/wiki/work/AC%2FDC`). The entity's name on the
+Entities page, in a note's `@` link, in the graph and in the RDF URI `/id/entity/<id>` all lead to its page, and
+`/entities/<id>` (and an entity's page's old address, `/notes/about/entity/<id>`) does too.
+
+`GET /api/v1/entities/{eid}` and the MCP tool `get_entity` give the page's address (`page`, `url`); the assistant's
+`find_entities` gives it too. `GET /api/v1/wiki/{ns}/{address}` says which entity an address names (`id`, `path`, and
+`canonical: false` when the address is another way of writing it). An address only answers for the namespace's members;
+to anyone else it is not there.
 
 ## Links
 
@@ -112,6 +136,9 @@ text with the Markdown and keeps the drawings. OctoBase is AGPL-3.0, so it would
 co-editing rather than inside Lens.
 
 ## Refine later
+
+Wiki addresses for topics, recordings, collections and speakers, and a namespace's wiki index page; two entities whose
+names differ only by `_` and a space share an address (the one with spaces wins).
 
 Pages for people who see only some collections of a namespace; differences between versions; live co-editing through
 OctoBase; pages and their links as nodes and relationships in the graph.
