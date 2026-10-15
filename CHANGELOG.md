@@ -10,6 +10,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   to sign in. Labels are its folders, and a watch follows Gmail's history: it reads only what arrived, and one that
   leaves what's there reads nothing old. The connection dialog's Gmail option is in progress; until it lands, add one
   through the API ([Gmail and Google Workspace](docs/processing.md#gmail-and-google-workspace)).
+
+## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
+
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
   with "I ran out of steps before finishing". Now it's asked to answer from what it found, with the tools off, and says
   what it didn't get to check; a reply with nothing in it is asked again the same way. It also knows its step budget up
@@ -46,6 +49,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `delete_topic`, `undo_topic_change` and `undo_graph_change` (with a write-scope token and editor access), and the
   assistant proposes topic merges, renames, definitions and deletes for the person to approve
   (`propose_topic_change`) ([MCP](docs/mcp.md), [Topics](docs/topics.md)).
+
+### Features
+
+- **settings:** group the sections and find a setting by name ([#390](https://github.com/adeelahmad/lense/pull/390))
+- **settings:** fold the options most people leave as they are ([#392](https://github.com/adeelahmad/lense/pull/392))
+- **nav:** name the navigation's groups ([#394](https://github.com/adeelahmad/lense/pull/394))
 
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 
