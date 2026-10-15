@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:15139a8c048dbb4982d18de5199aa0bfb8ba69f00ce75168406b1c91a2f563fd"
+prose_version: "threat-model.md@sha256:de9526f9cea4733f4e66ca162a11b4e616c074d04a212cd7ff78ea1e2b225c35"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1210,6 +1210,14 @@ properties_claimed:
     violation_symptoms: [integrity-bypass]
     x-voided-by: "liveness checked per request (api/deps.py:92); JWT algorithm from ALGORITHM (config.py:27); dev secrets (docker-compose.yml:24); no bypass flag found"
     provenance: {kind: documented, source: 'docs/authentication.md "Every request checks that the account is still active"'}
+  - id: P-REMOVE
+    kind: authentication
+    components: [identity, authz]
+    tier: security-critical
+    conditions: "removing an account ends every way it signs in at once and takes every role, collection role and recording permission; its email can make a new account, which inherits nothing; admins only, never yourself, never the Matterbridge account, never the last passkey into a vault unless the admin agrees to lose its files"
+    violation_symptoms: [integrity-bypass]
+    x-voided-by: "the account row stays as a marker with an .invalid email (domain/auth.py remove_account); shared notes, views and comments keep its id"
+    provenance: {kind: documented, source: 'docs/authentication.md "Removing someone"'}
   - id: P-BEARER-ONLY
     kind: authentication
     components: [identity]

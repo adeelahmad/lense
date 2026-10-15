@@ -1129,6 +1129,9 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveUserData,
+  RemoveUserErrors,
+  RemoveUserResponses,
   RemoveVaultPasskeyData,
   RemoveVaultPasskeyErrors,
   RemoveVaultPasskeyResponses,
@@ -2262,7 +2265,8 @@ export class Users {
    * Make Signin Link
    *
    * A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts
-   * three days; making another stops the last one. Share it privately. Audited as `user.signin_link`.
+   * three days; making another stops the last one. Share it privately, or with email=true Lens emails it to them
+   * when mail is set up (`emailed` says whether it did). Audited as `user.signin_link`.
    */
   public static makeSigninLink<ThrowOnError extends boolean = false>(
     options: Options<MakeSigninLinkData, ThrowOnError>,
@@ -2319,6 +2323,23 @@ export class Users {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Remove User
+   *
+   * Remove someone for good (docs/authentication.md#removing-someone): their sign-ins, roles, permissions and
+   * private things go; what they shared stays under their name, and their email can be invited again. Disabling
+   * (PATCH) is the reversible way. Refused (409) for the account Matterbridge answers as, and when their passkeys are
+   * the only way into a vault, unless lose_vaults=true. Audited as `user.remove`.
+   */
+  public static removeUser<ThrowOnError extends boolean = false>(
+    options: Options<RemoveUserData, ThrowOnError>,
+  ): RequestResult<RemoveUserResponses, RemoveUserErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveUserResponses, RemoveUserErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}",
+      ...options,
     });
   }
 

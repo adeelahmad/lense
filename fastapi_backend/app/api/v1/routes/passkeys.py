@@ -15,7 +15,7 @@ from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer, domain_error
 from app.config import settings
 from app.core.security import create_access_token
 from app.domain import auth, external_login, passkeys
-from app.email import app_url, send_signin_link_email
+from app.email import app_url, mail_enabled, send_invite_email, send_signin_link_email
 from app.schemas.auth import (
     ForgotPasswordRequest,
     LoginTicket,
@@ -279,18 +279,24 @@ def remove_passkey(pid: str, user: Writer, request: Request, db: Db, cfg: Cfg) -
 
 # ---------- admins ----------
 @people.post("/users/{uid}/signin-link")
-def make_signin_link(uid: int, user: AdminWriter, request: Request, db: Db) -> SigninLink:
+def make_signin_link(
+    uid: int, user: AdminWriter, request: Request, db: Db, cfg: Cfg, tasks: BackgroundTasks, email: bool = False
+) -> SigninLink:
     """A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts
-    three days; making another stops the last one. Share it privately. Audited as `user.signin_link`."""
+    three days; making another stops the last one. Share it privately, or with email=true Lens emails it to them
+    when mail is set up (`emailed` says whether it did). Audited as `user.signin_link`."""
     u = auth.active_account(db, uid)
     if not u:
         raise HTTPException(404, "not found (or disabled)")
     raw = passkeys.create_link(db, uid, by=user.email)
     auth.audit(db, user.as_audit(), "user.signin_link", f"account:{uid}")
     row = db.one("SELECT expires_at FROM $r", r=auth.R("signin_link", auth.sha(raw)))
-    return SigninLink(
-        url=passkeys.link_url(raw, web_origin(request) if request.headers.get("x-forwarded-host") else None), expires_at=row["expires_at"]
-    )
+    url = passkeys.link_url(raw, web_origin(request) if request.headers.get("x-forwarded-host") else None)
+    emailed = email and mail_enabled(cfg)
+    if emailed:
+        mailed = url if request.headers.get("x-forwarded-host") else passkeys.link_url(raw, app_url(cfg))
+        tasks.add_task(send_invite_email, cfg, u["email"], u.get("name"), user.name or user.email, mailed, passkeys.LINK_HOURS)
+    return SigninLink(url=url, expires_at=row["expires_at"], emailed=emailed)
 
 
 @people.delete("/users/{uid}/passkeys")
