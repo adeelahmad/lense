@@ -27,6 +27,7 @@ from . import (
     analytics,
     backups,
     budgets,
+    events,
     fedora,
     jobs,
     notebook,
@@ -603,6 +604,11 @@ def run_due(db, cfg, log=print, now=None):
     stamp = _iso(now)
     sweep(db, now)
     activity.tidy(db, cfg)  # the activity ledger past activity.keep_days, once an hour
+    try:
+        events.tidy(db, cfg)  # the event log past events.keep_days and claims past a day, once an hour
+    except Exception as e:  # noqa: BLE001 - the schedule carries on
+        if log:
+            log(f"events: {type(e).__name__}: {e}")
     try:
         analytics.tick(db, cfg, now)  # once a day, while Google Analytics is on (docs/analytics.md)
     except Exception as e:  # noqa: BLE001 - the schedule carries on

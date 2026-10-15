@@ -100,7 +100,13 @@ def paths(tree):
 
 
 def _label(path, kind):
-    """A path in words (`kind` is for naming fields by their titles, once kinds have schemas)."""
+    """A path in words: with a kind, the title its schema gives the field there ("the title"), else the path."""
+    if kind and path:
+        from . import events
+
+        title = (events.field_at(kind, path) or {}).get("title")
+        if title:
+            return f"the {title[0].lower()}{title[1:]}"
     return path or "the value"
 
 
