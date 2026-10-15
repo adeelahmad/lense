@@ -463,12 +463,14 @@ Where namespaces may send notifications ([Notifications](notifications.md)). Set
 
 ## Automations
 
-The stream of activities automations follow ([Automations](automations.md#contract)). Settings → Automations:
+The stream of activities automations follow ([Automations](automations.md#contract)), and their timers. Settings →
+Automations:
 
 | Setting | Default | |
 |---|---|---|
 | `events.poll_seconds` | 5 | how often followers look for new activities when nothing wakes them, 1–3600 |
 | `events.keep_days` | 30 | how long activities with no row of their own (the event log) are kept, 1–3650 days |
+| `automations.catch_up` | `1h` | how late a timer (a schedule, an action that waits) may still fire after Lens was off, `0s` to `7d`; older ones are missed ([Time](automations.md#time)) |
 
 ## Trusted proxies
 
