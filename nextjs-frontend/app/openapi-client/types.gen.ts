@@ -354,6 +354,33 @@ export type ActivityLens = {
 };
 
 /**
+ * ActivityMark
+ *
+ * Your own review marks on an activity; nobody else sees them.
+ */
+export type ActivityMark = {
+  /**
+   * Reviewed
+   */
+  reviewed?: boolean;
+  /**
+   * Important
+   */
+  important?: boolean;
+  /**
+   * Hidden
+   */
+  hidden?: boolean;
+  /**
+   * At
+   *
+   * when you last marked it
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * ActivityObject
  *
  * What the activity is about; each kind adds its own fields (GET /activities/kinds has its schema).
@@ -405,6 +432,14 @@ export type ActivityPage = {
    */
   namespaces?: {
     [key: string]: string;
+  };
+  /**
+   * Marks
+   *
+   * your marks on items, by id (those you marked)
+   */
+  marks?: {
+    [key: string]: ActivityMark;
   };
   [key: string]: unknown;
 };
@@ -8926,6 +8961,26 @@ export type ManifestChecked = {
 };
 
 /**
+ * MarkIn
+ *
+ * Marks to set: each given true or false; one left out stays as it is.
+ */
+export type MarkIn = {
+  /**
+   * Reviewed
+   */
+  reviewed?: boolean | null;
+  /**
+   * Important
+   */
+  important?: boolean | null;
+  /**
+   * Hidden
+   */
+  hidden?: boolean | null;
+};
+
+/**
  * Marketplace
  */
 export type Marketplace = {
@@ -9049,6 +9104,51 @@ export type MarketplaceSuggestion = {
    * Source
    */
   source: string;
+  [key: string]: unknown;
+};
+
+/**
+ * MarksIn
+ */
+export type MarksIn = {
+  /**
+   * Reviewed
+   */
+  reviewed?: boolean | null;
+  /**
+   * Important
+   */
+  important?: boolean | null;
+  /**
+   * Hidden
+   */
+  hidden?: boolean | null;
+  /**
+   * Ids
+   *
+   * the activities' ids
+   */
+  ids: Array<string>;
+};
+
+/**
+ * MarksOut
+ */
+export type MarksOut = {
+  /**
+   * Marks
+   *
+   * your marks now, by id
+   */
+  marks: {
+    [key: string]: ActivityMark;
+  };
+  /**
+   * Unknown
+   *
+   * ids of activities there are none of, or you can't see
+   */
+  unknown?: Array<string>;
   [key: string]: unknown;
 };
 
@@ -24605,6 +24705,24 @@ export type ListActivitiesData = {
      */
     where?: string | null;
     /**
+     * Reviewed
+     *
+     * only those you marked reviewed (true) or haven't (false)
+     */
+    reviewed?: boolean | null;
+    /**
+     * Important
+     *
+     * only those you marked important (true) or haven't (false)
+     */
+    important?: boolean | null;
+    /**
+     * Hidden
+     *
+     * only those you hid (true) or haven't (false)
+     */
+    hidden?: boolean | null;
+    /**
      * Before
      *
      * the next of the page before
@@ -24654,6 +24772,31 @@ export type ListActivityKindsResponses = {
 
 export type ListActivityKindsResponse = ListActivityKindsResponses[keyof ListActivityKindsResponses];
 
+export type MarkActivitiesData = {
+  body: MarksIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/activities/mark";
+};
+
+export type MarkActivitiesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MarkActivitiesError = MarkActivitiesErrors[keyof MarkActivitiesErrors];
+
+export type MarkActivitiesResponses = {
+  /**
+   * Successful Response
+   */
+  200: MarksOut;
+};
+
+export type MarkActivitiesResponse = MarkActivitiesResponses[keyof MarkActivitiesResponses];
+
 export type GetActivityData = {
   body?: never;
   path: {
@@ -24683,6 +24826,36 @@ export type GetActivityResponses = {
 };
 
 export type GetActivityResponse = GetActivityResponses[keyof GetActivityResponses];
+
+export type MarkActivityData = {
+  body: MarkIn;
+  path: {
+    /**
+     * Activity Id
+     */
+    activity_id: string;
+  };
+  query?: never;
+  url: "/api/v1/activities/{activity_id}/mark";
+};
+
+export type MarkActivityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MarkActivityError = MarkActivityErrors[keyof MarkActivityErrors];
+
+export type MarkActivityResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActivityMark;
+};
+
+export type MarkActivityResponse = MarkActivityResponses[keyof MarkActivityResponses];
 
 export type RemoveBudgetData = {
   body?: never;

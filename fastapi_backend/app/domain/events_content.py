@@ -150,5 +150,11 @@ class RecordingsSource(events.Source):
         got = _activities(db, [r]) if r else []
         return got[0] if got else None
 
+    def get_many(self, db, cfg, ids):
+        ns = [int(m.group(1)) for m in (re.match(r"^create-recording-(\d+)$", i) for i in ids) if m]
+        if not ns:
+            return []
+        return _activities(db, db.rows(f"SELECT {FIELDS} FROM recording WHERE id IN $rs", rs=[R("recording", n) for n in ns]))
+
 
 events.register_source(RecordingsSource())

@@ -4770,7 +4770,7 @@
           "activities"
         ],
         "summary": "List Activities",
-        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`.",
+        "description": "What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams\n2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are\nleft out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`\nhas your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them.",
         "operationId": "list_activities",
         "parameters": [
           {
@@ -4929,6 +4929,60 @@
             "description": "a match tree on the activity, as JSON"
           },
           {
+            "name": "reviewed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only those you marked reviewed (true) or haven't (false)",
+              "title": "Reviewed"
+            },
+            "description": "only those you marked reviewed (true) or haven't (false)"
+          },
+          {
+            "name": "important",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only those you marked important (true) or haven't (false)",
+              "title": "Important"
+            },
+            "description": "only those you marked important (true) or haven't (false)"
+          },
+          {
+            "name": "hidden",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "only those you hid (true) or haven't (false)",
+              "title": "Hidden"
+            },
+            "description": "only those you hid (true) or haven't (false)"
+          },
+          {
             "name": "before",
             "in": "query",
             "required": false,
@@ -5010,6 +5064,48 @@
         }
       }
     },
+    "/api/v1/activities/mark": {
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Mark Activities",
+        "description": "Mark activities reviewed, important or hidden, or clear those marks, for yourself alone: each mark given true or\nfalse, one left out stays as it is. Up to 500 at once; `unknown` lists the ids there are no activities of, or\nthat you can't see.",
+        "operationId": "mark_activities",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarksIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarksOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/activities/{activity_id}": {
       "get": {
         "tags": [
@@ -5036,6 +5132,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StreamActivity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/{activity_id}/mark": {
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Mark Activity",
+        "description": "Mark one activity reviewed, important or hidden, or clear a mark, for yourself alone: each mark given true or\nfalse, one left out stays as it is. The answer is your marks on it now.",
+        "operationId": "mark_activity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityMark"
                 }
               }
             }
@@ -29225,6 +29374,41 @@
         ],
         "title": "ActivityLens"
       },
+      "ActivityMark": {
+        "properties": {
+          "reviewed": {
+            "type": "boolean",
+            "title": "Reviewed",
+            "default": false
+          },
+          "important": {
+            "type": "boolean",
+            "title": "Important",
+            "default": false
+          },
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden",
+            "default": false
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "when you last marked it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ActivityMark",
+        "description": "Your own review marks on an activity; nobody else sees them."
+      },
       "ActivityObject": {
         "properties": {
           "type": {
@@ -29304,6 +29488,14 @@
             "type": "object",
             "title": "Namespaces",
             "description": "the names of the namespaces in items, by id"
+          },
+          "marks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ActivityMark"
+            },
+            "type": "object",
+            "title": "Marks",
+            "description": "your marks on items, by id (those you marked)"
           }
         },
         "additionalProperties": true,
@@ -43856,6 +44048,47 @@
         ],
         "title": "ManifestChecked"
       },
+      "MarkIn": {
+        "properties": {
+          "reviewed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed"
+          },
+          "important": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Important"
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "MarkIn",
+        "description": "Marks to set: each given true or false; one left out stays as it is."
+      },
       "Marketplace": {
         "properties": {
           "id": {
@@ -44079,6 +44312,85 @@
           "source"
         ],
         "title": "MarketplaceSuggestion"
+      },
+      "MarksIn": {
+        "properties": {
+          "reviewed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed"
+          },
+          "important": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Important"
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden"
+          },
+          "ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Ids",
+            "description": "the activities' ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "MarksIn"
+      },
+      "MarksOut": {
+        "properties": {
+          "marks": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ActivityMark"
+            },
+            "type": "object",
+            "title": "Marks",
+            "description": "your marks now, by id"
+          },
+          "unknown": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unknown",
+            "description": "ids of activities there are none of, or you can't see"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "marks"
+        ],
+        "title": "MarksOut"
       },
       "MatterbridgeRoom": {
         "properties": {

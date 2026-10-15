@@ -1008,6 +1008,12 @@ import type {
   MakeSigninLinkData,
   MakeSigninLinkErrors,
   MakeSigninLinkResponses,
+  MarkActivitiesData,
+  MarkActivitiesErrors,
+  MarkActivitiesResponses,
+  MarkActivityData,
+  MarkActivityErrors,
+  MarkActivityResponses,
   MarkEntitiesNotSameData,
   MarkEntitiesNotSameErrors,
   MarkEntitiesNotSameResponses,
@@ -3702,7 +3708,8 @@ export class Activities {
    *
    * What happened in Lens, newest first: new assets and everything else the stream holds, each an Activity Streams
    * 2.0 activity with a Lens kind. Give `next` as `before` for the page after. Noisy kinds (like sensor readings) are
-   * left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`.
+   * left out unless named in `kinds`. Text from outside Lens is listed in each activity's `lens.untrusted`. `marks`
+   * has your own marks on the page's activities; `reviewed`, `important` and `hidden` filter by them.
    */
   public static listActivities<ThrowOnError extends boolean = false>(
     options?: Options<ListActivitiesData, ThrowOnError>,
@@ -3730,6 +3737,26 @@ export class Activities {
   }
 
   /**
+   * Mark Activities
+   *
+   * Mark activities reviewed, important or hidden, or clear those marks, for yourself alone: each mark given true or
+   * false, one left out stays as it is. Up to 500 at once; `unknown` lists the ids there are no activities of, or
+   * that you can't see.
+   */
+  public static markActivities<ThrowOnError extends boolean = false>(
+    options: Options<MarkActivitiesData, ThrowOnError>,
+  ): RequestResult<MarkActivitiesResponses, MarkActivitiesErrors, ThrowOnError> {
+    return (options.client ?? client).post<MarkActivitiesResponses, MarkActivitiesErrors, ThrowOnError>({
+      url: "/api/v1/activities/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
    * Get Activity
    *
    * One activity by its id, like create-recording-7.
@@ -3740,6 +3767,25 @@ export class Activities {
     return (options.client ?? client).get<GetActivityResponses, GetActivityErrors, ThrowOnError>({
       url: "/api/v1/activities/{activity_id}",
       ...options,
+    });
+  }
+
+  /**
+   * Mark Activity
+   *
+   * Mark one activity reviewed, important or hidden, or clear a mark, for yourself alone: each mark given true or
+   * false, one left out stays as it is. The answer is your marks on it now.
+   */
+  public static markActivity<ThrowOnError extends boolean = false>(
+    options: Options<MarkActivityData, ThrowOnError>,
+  ): RequestResult<MarkActivityResponses, MarkActivityErrors, ThrowOnError> {
+    return (options.client ?? client).post<MarkActivityResponses, MarkActivityErrors, ThrowOnError>({
+      url: "/api/v1/activities/{activity_id}/mark",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 }
