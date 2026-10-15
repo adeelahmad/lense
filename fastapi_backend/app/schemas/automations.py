@@ -206,3 +206,16 @@ class AutomationStarted(ResponseModel):
 
 class AutomationUpcoming(ResponseModel):
     times: list[Any] = Field(default_factory=list, description="when it runs next, from its schedules and timers (coming soon)")
+
+
+class AutomationDraftRequest(RequestModel):
+    text: str = Field(
+        max_length=2000, description="what it should do, in a sentence, like: when a recording is added to pods, log its title"
+    )
+    spaces: list[int] | None = Field(None, description="namespace ids it would work in; default: each one you can edit")
+
+
+class AutomationDrafted(ResponseModel):
+    draft: dict[str, Any] = Field(description="what POST /automations takes, switched off: name, triggers, if, graph")
+    dropped: list[str] = Field(default_factory=list, description="parts of the model's draft that didn't fit, and why")
+    unmapped: list[str] = Field(default_factory=list, description="parts of the sentence it couldn't express (schedules, say)")

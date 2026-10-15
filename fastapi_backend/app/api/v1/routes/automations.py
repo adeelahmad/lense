@@ -9,12 +9,14 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import Acl, Cfg, CurrentUser, Db, Principal, Writer, domain_errors
-from app.domain import actions, auth, automations, events, store
+from app.domain import actions, auth, automation_draft, automations, events, store
 from app.schemas.automations import (
     ActionInfo,
     Automation,
     AutomationCatalog,
     AutomationCreate,
+    AutomationDrafted,
+    AutomationDraftRequest,
     AutomationDraftTry,
     AutomationPolicy,
     AutomationRun,
@@ -208,6 +210,15 @@ def decide_held_run(run: int, body: HeldRunDecision, user: Writer, acl: Acl, db:
         got = automations.decide_held(db, cfg, run, body.run, user.email)
     auth.audit(db, user.as_audit(), "automation.release" if body.run else "automation.skip", f"automation:{r['automation']}", {"run": run})
     return AutomationStarted(run=got, status=None if got is None else automations.get_run(db, got)["status"])
+
+
+@router.post("/draft")
+def draft_automation(body: AutomationDraftRequest, user: Writer, db: Db, cfg: Cfg) -> AutomationDrafted:
+    """Describe an automation in words: the model (one call, in the activity ledger, refused over budget) turns the
+    sentence into a draft with the kinds of activity, the match operators and the actions as its vocabulary. What
+    doesn't fit is dropped and said; nothing is saved. Try it with POST /automations/test, then save it."""
+    with domain_errors():
+        return AutomationDrafted(**automation_draft.draft(db, cfg, body.text, _who(user), body.spaces))
 
 
 @router.post("/test")

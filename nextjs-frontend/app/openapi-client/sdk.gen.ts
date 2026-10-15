@@ -421,6 +421,9 @@ import type {
   DownloadFileData,
   DownloadFileErrors,
   DownloadFileResponses,
+  DraftAutomationData,
+  DraftAutomationErrors,
+  DraftAutomationResponses,
   DropPasskeysData,
   DropPasskeysErrors,
   DropPasskeysResponses,
@@ -4176,6 +4179,26 @@ export class Automations {
   ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
     return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
       url: "/api/v1/automations/runs/{run}/decide",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Draft Automation
+   *
+   * Describe an automation in words: the model (one call, in the activity ledger, refused over budget) turns the
+   * sentence into a draft with the kinds of activity, the match operators and the actions as its vocabulary. What
+   * doesn't fit is dropped and said; nothing is saved. Try it with POST /automations/test, then save it.
+   */
+  public static draftAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DraftAutomationData, ThrowOnError>,
+  ): RequestResult<DraftAutomationResponses, DraftAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<DraftAutomationResponses, DraftAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/draft",
       ...options,
       headers: {
         "Content-Type": "application/json",

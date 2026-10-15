@@ -13,6 +13,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
   ([Agents](docs/automations.md#agents)).
+- **Describe an automation in words.** `POST /api/v1/automations/draft` asks the model once to turn a sentence into
+  a draft automation to try and save, and says what didn't fit and what it couldn't express
+  ([Describe it in words](docs/automations.md#describe-it-in-words)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

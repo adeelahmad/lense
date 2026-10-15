@@ -46,6 +46,7 @@ merged is called built.
 | Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
 | Running automations: following the stream, limits, budgets, runs as `automation.ran`, trying and running now, the API (`app/domain/automations.py`) | built |
 | Automations for agents: the MCP tools and the assistant's, switching on and running now by approval | built |
+| Describing an automation in words: a draft from a sentence (`POST /api/v1/automations/draft`) | built |
 | Joins, the studio | planned |
 
 ## Contract
@@ -979,6 +980,27 @@ person who made it (`run_as`), with their permissions, in namespaces they can ed
 `GET /api/v1/automations/actions` lists what an action node can do: each action's params (a JSON Schema), its effect
 and what it gives back.
 
+### Describe it in words
+
+Built (`app/domain/automation_draft.py`). `POST /api/v1/automations/draft {"text": "when a recording is added to pods,
+log its title", "spaces": [3]}` asks the model once to turn the sentence into a draft, with the kinds of activity and
+their fields, the [match operators](#match-trees) and the [actions](#actions-and-intents) as its vocabulary. The answer
+is `{draft, dropped, unmapped}`:
+
+- `draft` is what `POST /automations` takes, switched off: its name, triggers (on activities, a webhook, whose
+  address comes when it is saved, by hand, or in time: a schedule, a time, or a time in an activity such as a
+  meeting's start, in UTC unless the sentence names a zone), If and a graph with its actions in order (an action that may reach
+  outside Lens hangs off the one before it, as [the leaf rule](#the-event-workflow-scope) has it).
+- `dropped` says what in the model's draft didn't fit and why: a trigger, its `where`, the If, an action that doesn't
+  exist or params that don't fit its schema. With no trigger left it runs when you run it; with no action left it has
+  no Then yet.
+- `unmapped` lists what the sentence asked for that it couldn't express, such as "when both arrive" (joins are
+  planned).
+
+Nothing is saved: try the draft (`POST /automations/test`), change it, then save it. The call counts in the [activity
+ledger](activity.md) for you and its namespaces, and isn't made once a budget they count for, or everything's, is
+used up.
+
 ### Agents
 
 Built. Over [MCP](mcp.md) an agent uses `automations` (list them, read one with its latest runs, or one run),
@@ -1128,3 +1150,4 @@ held run until you pick.
   last status and the stream).
 - Automations that listen for every kind (or hundreds of automations): an index of triggers by kind and `where`, so a
   look reads each activity once whatever the number of automations.
+- Drafts from a sentence: the person's own time zone when the sentence names none (today UTC).
