@@ -26,12 +26,11 @@ describe("navigation", () => {
       const order = groups.filter((g, i) => g !== groups[i - 1]);
       expect(order).toEqual(["", "Explore", "Automate", "Manage"]);
     }
-    expect(navFor(true).filter((i) => i.group === "Manage").map((i) => i.label)).toEqual([
-      "Costs",
-      "Analytics",
-      "Settings",
-      "Admin",
-    ]);
+    expect(
+      navFor(true)
+        .filter((i) => i.group === "Manage")
+        .map((i) => i.label),
+    ).toEqual(["Costs", "Analytics", "Settings", "Admin"]);
   });
 
   it("matches the active section", () => {
