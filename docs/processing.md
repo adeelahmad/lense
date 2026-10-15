@@ -300,8 +300,23 @@ Admins can also import chosen files of a source once, without watching their fol
 files, then Import (`POST /api/v1/import/source`). The listing marks files that are assets already, and where.
 
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
-  to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
-  `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.
+  to rclone in a private temporary config file per call; tokens rclone refreshes are saved back.
+- **Dropbox, OneDrive, and Google Drive as a Google account sign in through rclone on the Lens server**, with nothing
+  to install elsewhere and no app of your own: Sign in with Dropbox (or Microsoft, Google) opens the service's page in
+  a new tab, which asks you to allow rclone, the tool Lens connects with. Afterwards the service sends that tab to
+  `http://127.0.0.1:53682/?state=…&code=…`, where `rclone authorize` waits on the server. When your browser runs on
+  the same machine as Lens that reaches rclone and the dialog carries on by itself; otherwise the page doesn't load:
+  copy its address from the address bar and paste it into the dialog. Lens passes only that address's state, code and
+  error on to rclone, and only when the state is this sign-in's. The connection is then made and tested (OneDrive's
+  own drive filled in), and the dialog goes on to pick a folder. One sign-in runs at a time (rclone listens on one
+  port), each for ten minutes. A connection whose token stopped working shows Sign in again. Pasting the token
+  `rclone authorize dropbox` (or drive, onedrive) prints on another computer still works: Paste a token from rclone
+  instead.
+- Agents sign in through rclone the same way: `POST /api/v1/sources/rclone-signin` with `{"type": "dropbox"}` (or
+  `{"source": <id>}`, and `params`) answers `{id, url, port}`; the person opens `url`, and the agent posts the address
+  they end on to `POST /api/v1/sources/rclone-signin/{id}` (`{"address": …}`), which answers `{connected: <id>}`
+  (400: not this sign-in's address, still waiting; 410: cancelled, refused or ran out). `DELETE` stops it. Audited as
+  `source.signin`.
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.
