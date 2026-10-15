@@ -413,6 +413,26 @@ def move(db, pid, parent=None, before=None):
     db.q("UPDATE $r SET parent = $p, position = $pos, updated_at = $t", r=R("note_page", int(pid)), p=parent, pos=position, t=store.now())
 
 
+DAILY_ROOT = "Daily notes"
+
+
+def today(db, sid, account, date=None):
+    """The namespace's note for the day `date` (YYYY-MM-DD, the person's today; default the server's), made the first
+    time it's asked for: titled with the date, inside the "Daily notes" note, which is made too when there's none.
+    Its id."""
+    day = _date(date) or store.now()[:10]
+    pid = db.one("SELECT VALUE record::id(id) FROM note_page WHERE space = $s AND daily = $d LIMIT 1", s=sid, d=day)
+    if pid:
+        return int(pid)
+    root = db.one("SELECT VALUE record::id(id) FROM note_page WHERE space = $s AND daily_root = true LIMIT 1", s=sid)
+    if not root:
+        root = create(db, sid, account, DAILY_ROOT, summary="A note for each day")
+        db.q("UPDATE $r SET daily_root = true", r=R("note_page", root))
+    pid = create(db, sid, account, day, date=day, parent=root)
+    db.q("UPDATE $r SET daily = $d", r=R("note_page", pid), d=day)
+    return pid
+
+
 PINS_MAX = 50  # a person's pinned notes, per namespace
 
 

@@ -567,3 +567,27 @@ def test_pins(client, env, db):
         assert client.put(f"/api/v1/notes/{b['id']}/pin", headers=he).status_code == 200
     finally:
         notebook.PINS_MAX = old
+
+
+def test_daily_notes(client, env, db):
+    he, hv = env["he"], env["hv"]
+    r = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-15"})
+    assert r.status_code == 200, r.text
+    day = r.json()
+    assert (day["title"], day["date"]) == ("2026-10-15", "2026-10-15")
+    root = client.get(f"/api/v1/notes/{day['parent']}", headers=he).json()
+    assert root["title"] == "Daily notes" and root["parent"] is None
+    # the same day again is the same note, even renamed; the next day goes beside it
+    client.patch(f"/api/v1/notes/{day['id']}", headers=he, json={"title": "Launch day"})
+    assert client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-15"}).json()["id"] == day["id"]
+    nxt = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-16"}).json()
+    assert nxt["id"] != day["id"] and nxt["parent"] == root["id"]
+    # without a date it's the server's today
+    assert client.post("/api/v1/notes/today", headers=he, json={"ns": "pods"}).json()["date"] == store.now()[:10]
+    # editors only, and a date that is one
+    assert client.post("/api/v1/notes/today", headers=hv, json={"ns": "pods"}).status_code == 403
+    assert client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "soon"}).status_code == 400
+    # the daily notes' note, when deleted, is made again the next time
+    assert client.delete(f"/api/v1/notes/{root['id']}", headers=he).status_code == 200
+    again = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-17"}).json()
+    assert again["parent"] not in (None, root["id"])

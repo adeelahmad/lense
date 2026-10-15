@@ -149,6 +149,11 @@ class NotePageUpdate(RequestModel):
     view: Literal["page", "edgeless"] | None = Field(None, description="show it as a page or on the edgeless canvas")
 
 
+class NoteToday(RequestModel):
+    ns: str = Field(description="the namespace whose daily note it is")
+    date: str | None = Field(None, description="YYYY-MM-DD, your today (default: the server's)")
+
+
 class NotePageMove(RequestModel):
     parent: int | None = Field(None, description="the page to put it inside; null for the top")
     before: int | None = Field(None, description="put it before this sibling; null for the end")

@@ -135,6 +135,14 @@ and entities aren't in the tree: they open from those things.
 `POST /api/v1/notes/{pid}/move` with `{parent}` moves a note (`null` for the top); `PATCH /api/v1/notes/{pid}` with
 `{title}` renames it.
 
+## Today's note
+
+**Today** on the Notes page (or **Today's note** in Jump to, or the address `/notes/today`) opens the note for the
+day in the namespace in view, made the first time it's asked for: titled with the date (like 2026-10-15) and inside a
+**Daily notes** note, made too when there's none. It's the day where you are, and one note a day per namespace that
+everyone there shares; rename or move it like any note. `POST /api/v1/notes/today` with `{ns, date}` (editors) gives
+the same note to agents.
+
 ## Pinned notes
 
 **Pin** in a note's ⋯ menu in the tree pins it for you: it shows at the top of the tree, under **Pinned**, and first

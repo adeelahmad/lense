@@ -36,6 +36,7 @@ from app.schemas.notebook import (
     NotePageMove,
     NotePageUpdate,
     NoteSearch,
+    NoteToday,
     NoteTree,
     NoteVersion,
     NoteVersionItem,
@@ -113,6 +114,16 @@ def create_page(body: NotePageCreate, user: Writer, acl: Acl, db: Db) -> NotePag
             doc=body.doc,
             view=body.view,
         )
+    return _out(acl, db, notebook.get(db, pid), user)
+
+
+@router.post("/today")
+def today_page(body: NoteToday, user: Writer, acl: Acl, db: Db) -> NotePage:
+    """The namespace's note for the day (`date`, your today), made the first time it's asked for: titled with the
+    date, inside the "Daily notes" note. Needs editor access."""
+    sid = acl.namespace(body.ns, "editor")
+    with domain_errors():
+        pid = notebook.today(db, sid, user.id, body.date)
     return _out(acl, db, notebook.get(db, pid), user)
 
 
