@@ -662,6 +662,37 @@ export const JOURNEYS = [
     },
   },
   {
+    id: "graph-merge",
+    ns: "interviews",
+    module: "Graph",
+    feature: "Merge an entity into another from the graph, then undo it",
+    note: "Find the node, Merge in its panel, type the other's name and Enter; the notice has Undo, so nothing asks to confirm.",
+    from: "/",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      await go(ctx, "Graph");
+      const find = page.getByRole("combobox", { name: "Find in graph" });
+      await page.getByRole("region", { name: "Graph" }).waitFor();
+      await page.waitForTimeout(1000);
+      // On a phone the filters, the find box among them, sit behind a button
+      if (!(await find.isVisible())) await meter.click(page.getByRole("button", { name: "Filters" }), "Filters");
+      await meter.type(find, "rasp", "part of the name");
+      await page.getByRole("option", { name: /Raspberry Pi/ }).first().waitFor();
+      await meter.press("Enter", "Enter to pick it");
+      const filters = page.getByRole("dialog", { name: "Graph filters" });
+      if (await filters.isVisible().catch(() => false))
+        await meter.click(filters.getByRole("button", { name: "Close" }), "close the filters (they stay open over the node)");
+      await page.getByRole("heading", { name: "Raspberry Pi" }).first().waitFor();
+      await meter.click(page.getByRole("button", { name: "Merge", exact: true }).first(), "Merge in its panel");
+      await meter.type(page.getByRole("combobox", { name: "Entity to merge into Raspberry Pi" }), "lens", "the other's name");
+      await page.getByRole("option", { name: /^Lens/ }).first().waitFor();
+      await meter.press("Enter", "Enter to merge it");
+      await page.getByText("Merged Lens into Raspberry Pi").first().waitFor();
+      await meter.click(page.getByRole("button", { name: "Undo" }), "Undo on the notice");
+      await page.getByText("Merge undone").first().waitFor();
+    },
+  },
+  {
     // Last: it points Lens at a cloud model, which the stand-in model behind the journeys above isn't
     id: "cloud-model",
     ns: "",

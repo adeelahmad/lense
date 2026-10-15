@@ -28,13 +28,14 @@ const same = (a: number[], b: number[]) => a.length === b.length && a.every((x, 
 export function TopicDrawer({
   id,
   ns,
-  all,
+  all: given,
   onSelect,
   onClose,
 }: {
   id: number;
   ns: string;
-  all: TopicItem[];
+  /** The namespace's topics; looked up when not given (in the graph). */
+  all?: TopicItem[];
   onSelect: (id: number) => void;
   onClose: () => void;
 }) {
@@ -43,6 +44,12 @@ export function TopicDrawer({
   const toast = useToast();
   const { can } = useArchive();
   const canEdit = can("editor", ns);
+  const vocab = useQuery({
+    queryKey: ["topics", ns],
+    queryFn: () => data(Topics.listTopics({ client, query: { ns, limit: 1000 } })),
+    enabled: !given,
+  });
+  const all = given ?? ((vocab.data?.items ?? []) as TopicItem[]);
   const t = useQuery({
     queryKey: ["topic", id],
     queryFn: () => data(Topics.getTopic({ client, path: { tid: id } })),
@@ -70,6 +77,7 @@ export function TopicDrawer({
     qc.invalidateQueries({ queryKey: ["topic"] });
     qc.invalidateQueries({ queryKey: ["topics"] });
     qc.invalidateQueries({ queryKey: ["recording-topics"] });
+    qc.invalidateQueries({ queryKey: ["graph"] });
   };
   const fail = (title: string) => (err: unknown) =>
     toast({ title, body: err instanceof ApiError ? err.message : "Please try again.", tone: "red" });

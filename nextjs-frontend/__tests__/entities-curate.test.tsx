@@ -93,6 +93,26 @@ describe("merging into an entity", () => {
     expect(m(Entities.undoEntityMerge).mock.calls[0][0].path).toEqual({ mid: 44 });
   });
 
+  it("waits for the list of what was typed when Enter comes first", async () => {
+    const all = [
+      { id: 2, name: "Matterbridge", type_label: "Term", mentions: 5 },
+      { id: 3, name: "Lens", type_label: "Term", mentions: 2 },
+    ];
+    m(Entities.listEntities).mockImplementation(({ query }: { query: { q?: string } }) =>
+      ok({ total: 2, items: query.q ? all.filter((e) => e.name.toLowerCase().includes(query.q!)) : all }),
+    );
+    m(Entities.mergeEntities).mockReturnValue(ok({ ok: true, merge: 45 }));
+    show(<MergeInto keep={{ id: 1, name: "Raspberry Pi" }} ns="pods" open onOpenChange={() => undefined} />);
+    const box = screen.getByRole("combobox", { name: "Entity to merge into Raspberry Pi" });
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(2));
+    // typed and Enter at once: the unfiltered list (Matterbridge first) is still showing
+    fireEvent.change(box, { target: { value: "lens" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    await waitFor(() => expect(Entities.mergeEntities).toHaveBeenCalled());
+    expect(m(Entities.mergeEntities).mock.calls[0][0].body).toEqual({ keep: 1, others: [3] });
+    expect(Entities.mergeEntities).toHaveBeenCalledTimes(1);
+  });
+
   it("offers the ones that may be the same, to merge or set apart", async () => {
     m(Entities.listEntitySuggestions).mockReturnValue(
       ok([
