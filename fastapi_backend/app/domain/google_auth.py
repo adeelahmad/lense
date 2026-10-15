@@ -251,9 +251,9 @@ CALLBACK = "/api/v1/auth/external/google/callback"  # the Google sign-in provide
 
 
 def _module(src):
-    from . import feeds  # feeds imports gcal, which imports this
+    from . import feeds, gmail  # they import this
 
-    mod = feeds.OWN.get(src["type"])
+    mod = feeds.OWN.get(src["type"]) or {"gmail": gmail}.get(src["type"])
     if mod is None or not getattr(mod, "SCOPES", None):
         raise ValueError(f"a {src['type']} source doesn't sign in with a Google account")
     return mod

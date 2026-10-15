@@ -5,6 +5,7 @@ Everything runs against a fake Google (tests/fake_gmail.py) and the fake IMAP se
 from __future__ import annotations
 
 import json
+import urllib.parse
 
 import pytest
 from cryptography.hazmat.primitives import serialization
@@ -231,6 +232,44 @@ def test_a_connected_google_account(client, db, cfg, admin, google, monkeypatch)
     google_auth._TOKENS.clear()
     h = client.post(f"/api/v1/sources/{sid}/test", headers=admin).json()
     assert not h["ok"] and "Connect the Google account again" in h["error"]
+
+
+def _connect(client, google, sid, headers, **consent):
+    """Connect with Google from the browser: Google's consent page, then its way back to Sources (the query)."""
+    r = client.post(f"/api/v1/sources/{sid}/google", headers=headers, json={})
+    assert r.status_code == 200, r.text
+    url = r.json()["url"]
+    code, state = google.consent(url, **consent)
+    back = client.get("/api/v1/auth/external/google/callback", params={"code": code, "state": state}, follow_redirects=False)
+    assert back.status_code == 303, back.text
+    u = urllib.parse.urlsplit(back.headers["location"])
+    assert u.path == "/sources"
+    return dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query)), dict(urllib.parse.parse_qsl(u.query))
+
+
+def test_connecting_the_account_in_the_browser(client, db, cfg, admin, google):
+    sid = client.post("/api/v1/sources", headers=admin, json={"type": "gmail", "name": "My mail"}).json()["id"]
+    body = {"kind": "google", "client_id": google.client_id, "client_secret": google.client_secret, "enabled": False}
+    assert client.post("/api/v1/auth/providers", json=body, headers=admin).status_code == 200
+
+    # Google asks to read mail, read only; someone unticks the box there: not connected
+    asked, back = _connect(client, google, sid, admin, untick=[GMAIL_READ])
+    assert asked["scope"].split() == ["openid", "email", GMAIL_READ] and asked["access_type"] == "offline"
+    assert "wasn't given access" in back["google_error"] and back["source"] == str(sid)
+    assert not sources.get(db, sid).get("sealed")
+
+    # connected: the account's address is the source's user, its refresh token kept sealed
+    _, back = _connect(client, google, sid, admin)
+    assert back == {"google": "connected", "source": str(sid), "account": MARA}
+    src = client.get("/api/v1/sources", headers=admin).json()[0]
+    assert src["params"]["user"] == MARA and src["secrets"]["token"]["set"] and src["health"]["ok"]
+    assert json.loads(google_auth.secret(cfg, sources.get(db, sid), "token"))["client_id"] == google.client_id
+
+    # read over IMAP instead: Google is asked for all of Gmail
+    r = client.patch(f"/api/v1/sources/{sid}", headers=admin, json={"params": {"via": "imap"}})
+    assert r.json()["health"]["error"].endswith("connect the Google account again")
+    asked, back = _connect(client, google, sid, admin)
+    assert MAIL in asked["scope"].split() and back["google"] == "connected"
 
 
 def test_an_agent_gives_a_token_it_has(client, admin, google):

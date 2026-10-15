@@ -410,13 +410,16 @@ A Gmail or Google Workspace mailbox (type `gmail`) is read through Google's Gmai
 or over IMAP (`via: imap`). For a personal Gmail account, an email (IMAP) connection with an app password works too,
 with nothing to set up at Google. A Gmail source signs in one of two ways:
 
-- **Google account** (`token`): the "authorized user" JSON (`client_id`, `client_secret`, `refresh_token`) of an
-  OAuth client of your own Google Cloud project, with the Gmail API turned on there, kept encrypted like a password.
-  `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/cloud-platform`
-  writes one (with `https://mail.google.com/` instead to read over IMAP); an agent can give one it already has. Enter
-  the account's address as `user` to read over IMAP. Google reviews apps that read Gmail before people outside your
-  Workspace domain can use them without a warning: an app in testing works for its test users, whose sign-ins Google
-  ends after seven days. Connecting the account from the connection dialog, with no JSON to make, is in progress.
+- **Google account** (`token`): **Connect with Google** in the connection form, as for
+  [Google Calendar](#email-imap-calendar-feeds-ical-and-google-calendar): Google's consent screen asks to read your mail
+  (read only; all of Gmail to read over IMAP, since Google has no read-only scope for it), then sends you back to
+  Sources with the account connected, its address as the source's `user`, and its labels open. Turn on the Gmail API in
+  the OAuth client's Google Cloud project and add the Gmail scope to its consent screen. Google reviews apps that read
+  Gmail before people outside your Workspace domain can use them without a warning: while the consent screen is in
+  Testing, it works for its test users and Google ends their sign-ins after seven days. Unticking the mail permission on
+  Google's page leaves the source unconnected, and says so. An agent saves the `token` directly instead (in the form:
+  Or paste an authorized user JSON): `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/cloud-platform`
+  writes one; enter the account's address as `user` to read over IMAP.
 - **A service account** (Google Workspace). Upload the service account's JSON key and enter the address of the person
   whose mail Lens reads; nobody signs in. A Workspace admin lets the account's client id use
   `https://www.googleapis.com/auth/gmail.readonly` (or `https://mail.google.com/` to read over IMAP) under Admin

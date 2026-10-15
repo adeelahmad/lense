@@ -7,6 +7,7 @@ import { Sources } from "@/app/openapi-client";
 import {
   DRIVE_SCOPES,
   FIELD_LABEL,
+  GMAIL_VIA,
   IMAP_SECURITY,
   S3_PROVIDERS,
   SIGNIN_SERVICE,
@@ -15,6 +16,7 @@ import {
   type ConnForm,
   type SignInWith,
   type SourceType,
+  gmailScope,
   imapHost,
   parseServiceAccountKey,
 } from "@/components/sources/source-model";
@@ -61,7 +63,7 @@ export function ConnectionFields({
   const googleClient = useQuery({
     queryKey: ["google-client"],
     queryFn: () => data(Sources.googleClient({ client: api })),
-    enabled: type === "gcal",
+    enabled: type === "gcal" || type === "gmail",
     staleTime: 60_000,
   });
   const editing = saved;
@@ -232,10 +234,12 @@ export function ConnectionFields({
     );
   };
 
-  /** Google Calendar as a Google account: Connect with Google (Google's consent screen), or an authorized user JSON
-   * pasted under the fold. */
+  /** Google Calendar or Gmail as a Google account: Connect with Google (Google's consent screen), or an authorized user
+   * JSON pasted under the fold. */
   const googleAccount = (() => {
     const g = googleClient.data;
+    const gmail = type === "gmail";
+    const account = gmail ? p.user : p.account;
     const connected = editing && isSet("token") && form.secrets.token === undefined;
     const needClient = Boolean(g) && (g?.origin == null || ownClient);
     const pasted = form.secrets.token ?? "";
@@ -243,9 +247,9 @@ export function ConnectionFields({
       <div className="flex flex-col gap-3">
         {connected && (
           <p className="rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
-            {p.account ? (
+            {account ? (
               <>
-                Connected as <strong className="font-semibold text-fg">{p.account}</strong>.
+                Connected as <strong className="font-semibold text-fg">{account}</strong>.
               </>
             ) : (
               "A Google account is connected."
@@ -281,9 +285,9 @@ export function ConnectionFields({
             </div>
             <div className="flex flex-col gap-1.5 text-[12.5px] leading-normal text-fg-secondary">
               <span>
-                In Google Cloud › APIs &amp; Services: enable the Google Calendar API, then under Credentials create an
-                OAuth client ID (a web application) with this authorized redirect URI. Lens keeps the client with the
-                connection.
+                In Google Cloud › APIs &amp; Services: enable the {gmail ? "Gmail" : "Google Calendar"} API, then under
+                Credentials create an OAuth client ID (a web application) with this authorized redirect URI. Lens keeps
+                the client with the connection.
               </span>
               <CodeBlock inline text={g.redirect_uri} label="redirect URI" />
             </div>
@@ -325,7 +329,7 @@ export function ConnectionFields({
           <summary className="cursor-pointer font-semibold text-fg-secondary">Or paste an authorized user JSON</summary>
           <div className="mt-2">
             <Field
-              hint="client_id, client_secret and refresh_token of an OAuth client of yours with the calendar.readonly scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving"
+              hint={`client_id, client_secret and refresh_token of an OAuth client of yours with the ${gmail ? (p.via === "imap" ? "https://mail.google.com/" : "gmail.readonly") : "calendar.readonly"} scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving`}
               error={pasted.trim() ? errors.token : undefined}
             >
               {({ id, describedBy, invalid }) => (
@@ -349,6 +353,18 @@ export function ConnectionFields({
       </div>
     );
   })();
+
+  const googleAuth = (
+    <Segmented
+      className="w-full [&>button]:flex-1 [&>button]:justify-center"
+      value={form.driveAuth}
+      onChange={(v) => onChange({ ...form, driveAuth: v as ConnForm["driveAuth"] })}
+      items={[
+        { value: "token", label: "Google account" },
+        { value: "service_account", label: "Service account" },
+      ]}
+    />
+  );
 
   switch (type) {
     case "s3":
@@ -524,18 +540,48 @@ export function ConnectionFields({
           </p>
         </div>
       );
+    case "gmail": {
+      const keyText = form.secrets.service_account_credentials;
+      const key = keyText ? parseServiceAccountKey(keyText) : null;
+      const clientId = key?.ok && key.clientId ? key.clientId : "its client ID";
+      return (
+        <div className="flex flex-col gap-3">
+          {googleAuth}
+          {form.driveAuth === "service_account" ? (
+            <>
+              {serviceAccountKey(
+                `A Workspace admin lets ${clientId} use ${gmailScope(p.via)} (Admin console › Security › API controls › Domain-wide delegation).`,
+              )}
+              {text("user", {
+                label: "Mailbox",
+                placeholder: "you@company.com",
+                hint: "The address of the person whose mail Lens reads",
+              })}
+            </>
+          ) : (
+            <>
+              {googleAccount}
+              {form.secrets.token?.trim() &&
+                text("user", {
+                  label: "Address",
+                  optional: p.via !== "imap",
+                  placeholder: "you@gmail.com",
+                  hint: "The account’s address, to read over IMAP",
+                })}
+            </>
+          )}
+          {select("via", GMAIL_VIA)}
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            Labels are folders and each message becomes an email document, with its attachments. Lens only reads: mail
+            stays unread.
+          </p>
+        </div>
+      );
+    }
     case "gcal":
       return (
         <div className="flex flex-col gap-3">
-          <Segmented
-            className="w-full [&>button]:flex-1 [&>button]:justify-center"
-            value={form.driveAuth}
-            onChange={(v) => onChange({ ...form, driveAuth: v as ConnForm["driveAuth"] })}
-            items={[
-              { value: "token", label: "Google account" },
-              { value: "service_account", label: "Service account" },
-            ]}
-          />
+          {googleAuth}
           {form.driveAuth === "service_account" ? (
             <>
               {serviceAccountKey("Share the calendars Lens should read with that address, and enter their IDs below.")}

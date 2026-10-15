@@ -30,6 +30,11 @@ const BACKENDS = {
     fields: { calendars: "", impersonate: "", days_back: "365", account: "" },
     secrets: ["token", "service_account_credentials"],
   },
+  gmail: {
+    label: "Gmail or Google Workspace",
+    fields: { user: "", via: "api" },
+    secrets: ["token", "service_account_credentials"],
+  },
 };
 const CALLBACK = "https://lens.example/api/v1/auth/external/google/callback";
 const CONSENT = "https://accounts.google.com/o/oauth2/v2/auth?client_id=c";
@@ -161,5 +166,28 @@ describe("connecting a Google account", () => {
       client_id: "123.apps.googleusercontent.com",
       client_secret: "shh",
     });
+  });
+
+  it("connects Gmail the same way, and asks a service account whose mail it reads", async () => {
+    (Sources.googleClient as jest.Mock).mockImplementation(() =>
+      ok({ origin: "sign-in", client_id: "c", redirect_uri: CALLBACK }),
+    );
+    show(jest.fn());
+    fireEvent.click(screen.getByRole("radio", { name: /Gmail/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Service account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
+    expect(await screen.findByText("Enter the address of the person whose mail Lens reads.")).toBeInTheDocument();
+    expect(Sources.createSource).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Google account" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Connect with Google" }));
+    await waitFor(() => expect(navigate.assign).toHaveBeenCalledWith(CONSENT));
+    expect((Sources.createSource as jest.Mock).mock.calls[0][0].body).toEqual({
+      type: "gmail",
+      name: "Gmail",
+      params: { user: "", via: "api" },
+      secrets: {},
+    });
+    expect((Sources.connectGoogle as jest.Mock).mock.calls[0][0]).toMatchObject({ path: { sid: 7 }, body: {} });
   });
 });
