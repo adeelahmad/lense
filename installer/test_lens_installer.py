@@ -251,13 +251,14 @@ class Server(unittest.TestCase):
         self.assertIn("password", json.loads(data)["error"])
 
     def wait(self):
-        for _ in range(100):
+        # a minute: on a busy Windows runner, sh (Git's) can take several seconds just to start the fake install.sh
+        end = time.monotonic() + 60
+        while True:
             _, _, data = self.call("GET", "/api/progress")
             p = json.loads(data)
-            if p["state"] not in ("idle", "running"):
+            if p["state"] not in ("idle", "running") or time.monotonic() > end:
                 return p
             time.sleep(0.1)
-        return p
 
 
 if __name__ == "__main__":

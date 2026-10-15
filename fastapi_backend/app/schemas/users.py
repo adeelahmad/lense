@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from pydantic import Field
 
 from app.schemas.auth import UserPublic
-from app.schemas.common import RequestModel, ResponseModel, Role
+from app.schemas.common import RequestModel, ResponseModel
+
+RoleName = Annotated[str, Field(min_length=1, max_length=40, description="viewer, editor, owner or a custom role's name")]
 
 
 class UserWithRoles(UserPublic):
-    roles: dict[str, Role] = Field(default_factory=dict, description="namespace name -> role")
+    roles: dict[str, str] = Field(default_factory=dict, description="namespace name -> role (built-in or custom)")
     passkeys: int = Field(0, description="how many passkeys they have")
     password: bool = Field(False, description="whether they have a password")
 
@@ -30,7 +34,7 @@ class UserUpdate(RequestModel):
 
 class Member(ResponseModel):
     account: int
-    role: Role
+    role: str
     email: str | None = None
     name: str | None = None
 
@@ -40,4 +44,38 @@ class MemberSet(RequestModel):
 
     email: str | None = None
     account: int | None = None
-    role: Role | None = None
+    role: RoleName | None = None
+
+
+class RolePermission(ResponseModel):
+    name: str
+    label: str
+    first: str = Field(description="the built-in role that first has it")
+
+
+class RoleOut(ResponseModel):
+    name: str
+    label: str
+    description: str = ""
+    permissions: list[str]
+    builtin: bool
+    rank: str = Field(description="the largest built-in role it covers; the checks that ask for a rank give it that much")
+    members: int = Field(0, description="how many people hold it, across namespaces")
+
+
+class Roles(ResponseModel):
+    permissions: list[RolePermission]
+    roles: list[RoleOut]
+
+
+class RoleCreate(RequestModel):
+    name: str = Field(description="2 to 40 lowercase letters, digits, - and _; can't change later")
+    label: str | None = None
+    description: str | None = None
+    permissions: list[str] = Field(default_factory=list, description="read is always included")
+
+
+class RoleUpdate(RequestModel):
+    label: str | None = None
+    description: str | None = None
+    permissions: list[str] | None = None

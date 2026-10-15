@@ -24,6 +24,7 @@ import {
   type ModelProvider,
 } from "@/components/settings/model-providers";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
+import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { VoicePicker } from "@/components/settings/voice-picker";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
@@ -424,6 +425,20 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <StorageBody ctx={ctx} />;
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
+    case "updates":
+      return (
+        <>
+          <UpdatesPanel />
+          <Sub>Checking</Sub>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="updates.check" />
+            {/* shown once the server has the setting (updates.email, from the release notices) */}
+            {ctx.view.updates?.values && "email" in ctx.view.updates.values && <F ctx={ctx} id="updates.email" />}
+            <F ctx={ctx} id="updates.auto_install" />
+          </div>
+          <F ctx={ctx} id="updates.check_hours" />
+        </>
+      );
     case "logs":
       return <LogsBody ctx={ctx} />;
     case "fedora":
@@ -464,6 +479,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="documents.convert_seconds" />
           <F ctx={ctx} id="documents.attachment_resources" />
           <F ctx={ctx} id="documents.video_urls" />
+          <F ctx={ctx} id="documents.web_networks" />
           <F ctx={ctx} id="documents.converter" />
           <F ctx={ctx} id="documents.anytopdf_url" />
           <F ctx={ctx} id="documents.anytopdf_token" />
@@ -2882,10 +2898,6 @@ function Startup({ view }: { view: SettingsView }) {
     ["rclone", b.rclone ?? "—"],
     ["LibreOffice", b.soffice ?? "—"],
     ["Chromium", b.chromium ?? "—"],
-    [
-      "Web capture",
-      b.web_networks?.length ? `public addresses and ${b.web_networks.join(" · ")}` : "public addresses only",
-    ],
     ["YOLOX model", b.yolox_model ?? "—"],
     ["Watchable folders", b.local_roots?.length ? b.local_roots.join(" · ") : "none: local folders can’t be watched"],
   ];

@@ -97,7 +97,7 @@ def import_transcript(body: ImportRequest, request: Request, acl: Acl, user: Wri
     check_pipeline(db, body.pipeline)
     try:
         sid = store.ns_id(db, ns, create=False)
-        acl.need(sid, "editor")
+        acl.need(sid, "import")
     except KeyError:
         if not user.admin:
             raise HTTPException(403, "only admins can create namespaces") from None
@@ -140,7 +140,7 @@ def import_web_page(body: WebImportRequest, acl: Acl, user: Writer, db: Db, cfg:
     check_pipeline(db, body.pipeline)
     try:
         sid = store.ns_id(db, ns, create=False)
-        acl.need(sid, "editor")
+        acl.need(sid, "import")
     except KeyError:
         if not user.admin:
             raise HTTPException(403, "only admins can create namespaces") from None
@@ -173,7 +173,7 @@ def import_video(body: VideoImportRequest, acl: Acl, user: Writer, db: Db, cfg: 
     sid: int | None
     try:
         sid = store.ns_id(db, ns, create=False)
-        acl.need(sid, "editor")
+        acl.need(sid, "import")
     except KeyError:
         if not user.admin:
             raise HTTPException(403, "only admins can create namespaces") from None
@@ -209,7 +209,7 @@ def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, c
     sid: int | None
     try:
         sid = store.ns_id(db, ns, create=False)
-        acl.need(sid, "editor")
+        acl.need(sid, "import")
     except KeyError:
         if not user.admin:
             raise HTTPException(403, "only admins can create namespaces") from None

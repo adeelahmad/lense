@@ -121,7 +121,7 @@ def list_speaker_recordings(sid: int, acl: Acl, user: CurrentUser, db: Db) -> li
 
 @router.post("/speakers/{sid}")
 def rename_speaker(sid: int, body: SpeakerRename, request: Request, acl: Acl, user: Writer, db: Db) -> Ok:
-    acl.need(speaker_space(db, sid), "editor")
+    acl.need(speaker_space(db, sid), "curate")
     spk.rename(db, sid, body.name[:80])
     request.app.state.graph_cache.clear()
     return Ok()
@@ -130,7 +130,7 @@ def rename_speaker(sid: int, body: SpeakerRename, request: Request, acl: Acl, us
 @router.post("/speakers/{sid}/merge")
 def merge_speaker(sid: int, body: SpeakerMergeRequest, request: Request, acl: Acl, user: Writer, db: Db) -> SpeakerMerged:
     """Fold this speaker into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo."""
-    acl.need(speaker_space(db, sid), "editor")
+    acl.need(speaker_space(db, sid), "curate")
     try:
         mid = spk.merge(db, sid, body.into, by=user.email)
     except (ValueError, KeyError, TypeError) as e:
@@ -145,7 +145,7 @@ def undo_speaker_merge(mid: int, request: Request, acl: Acl, user: Writer, db: D
     m = db.one("SELECT space FROM $r", r=R("merge", mid))
     if not m:
         raise HTTPException(404, "not found")
-    acl.need(m["space"], "editor")
+    acl.need(m["space"], "curate")
     try:
         spk.undo(db, mid, by=user.email)
     except ValueError as e:
@@ -158,8 +158,8 @@ def undo_speaker_merge(mid: int, request: Request, acl: Acl, user: Writer, db: D
 @router.post("/speakers/{sid}/link")
 def link_speaker(sid: int, body: SpeakerLinkRequest, request: Request, acl: Acl, user: Writer, db: Db) -> Ok:
     """Mark this speaker and one in another namespace as the same person (you need editor access to both)."""
-    acl.need(speaker_space(db, sid), "editor")
-    acl.need(speaker_space(db, body.with_), "editor")
+    acl.need(speaker_space(db, sid), "curate")
+    acl.need(speaker_space(db, body.with_), "curate")
     try:
         spk.link(db, sid, body.with_)
     except (ValueError, KeyError, TypeError) as e:
@@ -173,8 +173,8 @@ def link_speaker(sid: int, body: SpeakerLinkRequest, request: Request, acl: Acl,
 def unlink_speaker(sid: int, body: SpeakerPair, request: Request, acl: Acl, user: Writer, db: Db) -> Ok:
     """They aren't the same person after all: remove the link (editor access to both). 404 when they aren't linked.
     Audited as speaker.unlink."""
-    acl.need(speaker_space(db, sid), "editor")
-    acl.need(speaker_space(db, body.with_), "editor")
+    acl.need(speaker_space(db, sid), "curate")
+    acl.need(speaker_space(db, body.with_), "curate")
     if not spk.unlink(db, sid, body.with_):
         raise HTTPException(404, "they aren't linked")
     auth.audit(db, user.as_audit(), "speaker.unlink", f"speaker:{sid}", {"with": body.with_})
@@ -186,8 +186,8 @@ def unlink_speaker(sid: int, body: SpeakerPair, request: Request, acl: Acl, user
 def not_same_speaker(sid: int, body: SpeakerPair, request: Request, acl: Acl, user: Writer, db: Db) -> Ok:
     """These two aren't the same person: drop the suggestion to merge them (one namespace) or link them (two), and
     never suggest it again. Editor access to both namespaces. Audited as speaker.not_same."""
-    acl.need(speaker_space(db, sid), "editor")
-    acl.need(speaker_space(db, body.with_), "editor")
+    acl.need(speaker_space(db, sid), "curate")
+    acl.need(speaker_space(db, body.with_), "curate")
     try:
         spk.not_same(db, sid, body.with_, user.email)
     except ValueError as e:

@@ -86,7 +86,7 @@ def get_namespace_metadata(name: str, user: CurrentUser, acl: Acl, db: Db) -> Na
 @router.put("/namespaces/{name}/metadata")
 def update_namespace_metadata(name: str, body: NamespaceMetadataUpdate, user: Writer, acl: Acl, db: Db) -> NamespaceMetadata:
     """Collection metadata and the profile (required fields, defaults, vocabularies, default access). Owners only."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     with domain_errors():
         out = md.save_namespace(db, sid, body.meta, body.profile, user.email)
     auth.audit(db, user.as_audit(), "metadata.namespace", name)
@@ -98,7 +98,7 @@ def bulk_update_metadata(body: MetadataBulk, user: Writer, acl: Acl, db: Db, cfg
     """Set or clear fields on many recordings. `dry_run` (the default) reports what would change."""
     rids = list(body.recordings)
     if body.namespace:
-        sid = acl.namespace(body.namespace, "editor")
+        sid = acl.namespace(body.namespace, "edit")
         rids += db.values("SELECT VALUE record::id(id) FROM recording WHERE space = $s", s=sid)
     for rid in set(rids):
         acl.recording(rid, _role_for([*body.set, *body.clear]))

@@ -4,12 +4,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Evidence PDFs hold everything Lens found.** After each resource's own file come pages of what Lens knows about
+  it: its details, metadata and custom fields, tags, topics, the summary and analysis models wrote, its sections,
+  speakers, emotion and sounds (overall, by speaker, and marked on each transcript line, such as "(Happy, Laughter)"),
+  entities, keywords, the faces, objects, descriptions and text on screen seen in it, and the places and dates found
+  in it. Notes, highlights and comments people shared go in when picked. Export › Choose what goes in it… (and the
+  button beside a collection's Evidence PDF) picks the parts, and `include` does the same in the API
+  ([Evidence PDFs](docs/api.md#evidence-pdfs)).
+- **Roles with permissions.** Viewer, editor and owner are now sets of permissions (read, edit, import, process,
+  curate, share, publish, remove, members, manage), and admins make custom roles from them in Admin → Roles, given per
+  namespace like the built-in ones. Existing access is unchanged. Someone who manages members but isn't an admin gives
+  only roles they hold all of ([Access](docs/access.md#roles-and-permissions)).
 - **Invite and remove people.** Making an account in Admin → People now emails the sign-in link as an invitation when
   mail is set up, and the link is still shown to share yourself. **Remove for good** ends every way someone signs in,
   takes their roles and their private chats, notes and views, and keeps what they shared under their name; their email
   can be invited again ([Authentication](docs/authentication.md#removing-someone)). The assistant gets `list_people`,
   `invite_person` and `change_person`, which always wait for an admin's approval.
-
 - **NSFW classification, with a model on your server.** Turn it on in Settings → NSFW for every namespace, or on a
   namespace's page for that one (off by default). The new `nsfw` step scores a video's sampled frames, a document's
   pages or an image with an Apache-2.0 model (fetched on first use, about 105 MB with ONNX Runtime) and flags the
@@ -17,7 +27,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   them, left out of the Library, or shown with a label; editors can mark one NSFW or not by hand, and **Classify
   existing** classifies what was there before. Agents use it through the API and MCP (`nsfw_settings`, `set_nsfw`,
   `mark_nsfw`) ([NSFW classification](docs/nsfw.md)).
-
 - **Apache Tika.** Lens can use an Apache Tika server (`--profile tika` in the compose files, or one of your own, set
   in Settings → Documents). Documents nothing here can make into a PDF, such as Word files on a lean server or a
   Raspberry Pi, are read by Tika as text, and every document's own title, authors, language and dates are read as

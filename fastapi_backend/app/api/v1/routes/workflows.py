@@ -65,7 +65,7 @@ def try_workflow(body: WorkflowTryRequest, user: AdminWriter, acl: Acl, db: Db, 
     if body.scope == "recording":
         if body.recording is None:
             raise HTTPException(400, "choose a recording to try it on")
-        acl.recording(body.recording, "editor")
+        acl.recording(body.recording, "process")
     else:
         spaces = [acl.namespace(n) for n in body.namespaces] if body.namespaces else sorted(store.space_names(db))
     with domain_errors():
@@ -111,7 +111,7 @@ def create_workflow_version(wid: int, body: WorkflowVersionCreate, user: AdminWr
 @router.post("/{wid}/run")
 def run_workflow(wid: int, body: WorkflowRunRequest, user: Writer, acl: Acl, db: Db) -> JobQueued:
     """Run this workflow on one recording now, as a job (after anything its current job still has to do)."""
-    acl.recording(body.recording, "editor")
+    acl.recording(body.recording, "process")
     try:
         w = workflows.get(db, wid, body.version)
     except KeyError:

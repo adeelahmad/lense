@@ -94,7 +94,7 @@ def create_note(rid: int, body: NoteCreate, user: Writer, acl: Acl, db: Db) -> N
     """Write a note about a moment (`t0`–`t1`, with the `quote` picked in the transcript) or about the whole recording.
     Anyone who can read the recording can; only you see it unless you share it with everyone who can read the
     recording, which needs editor access. Up to 500 each on a recording. Sharing is audited (`note.share`)."""
-    rec = _recording(acl, db, rid, "editor" if body.shared else "viewer")
+    rec = _recording(acl, db, rid, "edit" if body.shared else "viewer")
     with domain_errors():
         nid = notes.create(db, rid, rec["space"], user.id, body.text, body.t0, body.t1, body.quote, body.shared, rec.get("duration_ms"))
     if body.shared:
@@ -113,7 +113,7 @@ def update_note(rid: int, nid: int, body: NoteUpdate, user: Writer, acl: Acl, db
     if body.text is None and body.shared is None:
         raise HTTPException(400, "change the text, or share or unshare it")
     if body.shared and not n["shared"]:
-        acl.need_in(rec["space"], rec.get("collection"), "editor")
+        acl.need_in(rec["space"], rec.get("collection"), "edit")
     with domain_errors():
         notes.update(db, nid, body.text, body.shared)
     if body.shared is not None and body.shared != bool(n["shared"]):

@@ -1,7 +1,8 @@
 /**
  * People (Admin AD1–AD2): pending changes in the role matrix, and temporary passwords that are easy to read out.
  */
-export type Role = "viewer" | "editor" | "owner";
+/** viewer, editor, owner, or a custom role's name (Admin › Roles). */
+export type Role = string;
 export type Person = {
   id: number;
   email: string;
@@ -20,16 +21,16 @@ export type Person = {
 export type Pending = { uid: number; ns: string; role: Role | null } | { uid: number; admin: boolean };
 export const cellKey = (uid: number, col: string) => `${uid}:${col}`;
 
-export function roleLabel(r: Role | null | undefined): string {
-  return r ? r[0].toUpperCase() + r.slice(1) : "—";
+export function roleLabel(r: Role | null | undefined, labels?: Record<string, string>): string {
+  return r ? (labels?.[r] ?? r[0].toUpperCase() + r.slice(1)) : "—";
 }
 
 /** "Sam Whitaker · customer-calls — → Viewer", "Lena Vogel · platform admin off → on". */
-export function describePending(p: Pending, people: Person[]): string {
+export function describePending(p: Pending, people: Person[], labels?: Record<string, string>): string {
   const who = people.find((x) => x.id === p.uid);
   const name = who?.name || who?.email || `Account ${p.uid}`;
   if ("admin" in p) return `${name} · platform admin ${p.admin ? "off → on" : "on → off"}`;
-  return `${name} · ${p.ns} ${roleLabel(who?.roles?.[p.ns])} → ${roleLabel(p.role)}`;
+  return `${name} · ${p.ns} ${roleLabel(who?.roles?.[p.ns], labels)} → ${roleLabel(p.role, labels)}`;
 }
 
 /** Applies a cell edit to the pending map: back to the saved value removes it. */

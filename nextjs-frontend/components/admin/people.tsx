@@ -5,7 +5,7 @@ import { ChevronDown, Ellipsis, RefreshCw, UserPlus, Users as UsersIcon } from "
 import { useRef, useState, type KeyboardEvent } from "react";
 
 import { Auth, Users } from "@/app/openapi-client";
-import { AdminFrame, usePeople } from "@/components/admin/admin-frame";
+import { AdminFrame, usePeople, useRoles } from "@/components/admin/admin-frame";
 import {
   cellKey,
   describePending,
@@ -30,8 +30,6 @@ import { count, nameFromEmail, shortDate } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
 import { cn } from "@/lib/utils";
 
-const ROLES: (Role | "")[] = ["", "viewer", "editor", "owner"];
-
 type Dialogs =
   | { kind: "create" }
   | { kind: "reset"; person: Person }
@@ -47,6 +45,7 @@ export function PeoplePage() {
   const toast = useToast();
   const { me, namespaces } = useArchive();
   const people = usePeople();
+  const roles = useRoles();
   const [pending, setPending] = useState<Map<string, Pending>>(new Map());
   const [dialog, setDialog] = useState<Dialogs | null>(null);
   const status = useQuery({ queryKey: ["auth-status"], queryFn: () => data(Auth.status({ client })) });
@@ -156,6 +155,8 @@ export function PeoplePage() {
         <RoleGrid
           people={list}
           namespaces={nsNames}
+          roles={roles.names}
+          labels={roles.labels}
           pending={pending}
           myId={me?.user.id}
           passwords={passwords}
@@ -179,7 +180,7 @@ export function PeoplePage() {
             {changes.length} change{changes.length === 1 ? "" : "s"}:{" "}
             {changes
               .slice(0, 2)
-              .map((c) => describePending(c, list))
+              .map((c) => describePending(c, list, roles.labels))
               .join("; ")}
             {changes.length > 2 ? ` and ${changes.length - 2} more` : ""}
           </span>
@@ -217,6 +218,8 @@ type Action = "reset" | "disable" | "enable" | "rename" | "link" | "passkeys" | 
 function RoleGrid({
   people,
   namespaces,
+  roles,
+  labels,
   pending,
   myId,
   passwords,
@@ -225,6 +228,8 @@ function RoleGrid({
 }: {
   people: Person[];
   namespaces: string[];
+  roles: string[];
+  labels: Record<string, string>;
   pending: Map<string, Pending>;
   myId?: number;
   passwords?: boolean;
@@ -408,9 +413,9 @@ function RoleGrid({
                             changed ? "border-blue bg-blue-surface" : "border-border bg-background",
                           )}
                         >
-                          {ROLES.map((x) => (
+                          {["", ...roles].map((x) => (
                             <option key={x} value={x}>
-                              {roleLabel((x || null) as Role | null)}
+                              {roleLabel(x || null, labels)}
                             </option>
                           ))}
                         </select>
@@ -583,7 +588,8 @@ function CreateDialog({ passwords, onClose }: { passwords: boolean; onClose: () 
   const [admin, setAdmin] = useState(false);
   const usePassword = passwords && withPassword;
   const [ns, setNs] = useState(topNs ?? namespaces[0]?.name ?? "");
-  const [role, setRole] = useState<"none" | "viewer" | "editor" | "owner">("viewer");
+  const roles = useRoles();
+  const [role, setRole] = useState<string>("viewer");
   const shownName = name.trim() || nameFromEmail(email);
   const create = useMutation({
     mutationFn: async () => {
@@ -704,11 +710,9 @@ function CreateDialog({ passwords, onClose }: { passwords: boolean; onClose: () 
                   <Select
                     id={f.id}
                     value={role}
-                    onChange={(e) => setRole(e.target.value as typeof role)}
+                    onChange={(e) => setRole(e.target.value)}
                     options={[
-                      { value: "viewer", label: "Viewer" },
-                      { value: "editor", label: "Editor" },
-                      { value: "owner", label: "Owner" },
+                      ...roles.names.map((r) => ({ value: r, label: roleLabel(r, roles.labels) })),
                       { value: "none", label: "No role yet" },
                     ]}
                   />

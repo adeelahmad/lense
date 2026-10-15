@@ -204,7 +204,7 @@ def propose_graph_change(request: Request, body: ChangeAsk, user: Writer, acl: A
         except KeyError:
             raise HTTPException(404, "not found") from None
     for r in rows:
-        acl.need(r["space"], "editor")
+        acl.need(r["space"], "curate")
     origin = {"by": user.email, "via": user.via}
     try:
         cid, status = organize.propose(db, body.kind, ids[0], ids[1], body.reason, origin, body.apply, user.email)

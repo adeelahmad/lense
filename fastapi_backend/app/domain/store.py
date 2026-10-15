@@ -1133,6 +1133,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS account SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS account_email ON account FIELDS email UNIQUE",
+    "DEFINE TABLE IF NOT EXISTS role SCHEMALESS",  # custom roles (roles.py), keyed by name
     "DEFINE TABLE IF NOT EXISTS membership SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS membership_account ON membership FIELDS account",
     "DEFINE INDEX IF NOT EXISTS membership_space ON membership FIELDS space",

@@ -42,23 +42,31 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 
 ## First-run setup
 
-A fresh install (no accounts when the API first starts) walks its first admin through setup in the web app:
+A fresh install (no accounts when the API first starts) walks its first admin through setup in the web app, asking
+only what has no answer yet and no default:
 
 1. **Admin account**, with the one-time setup code from the log (`make setup-code`), so a stranger who finds a new
    public server can't claim it. The admin signs in with a passkey ([Authentication](authentication.md#signing-in-passkeys)).
    Skipped when `LENS_ADMIN_EMAIL` creates the admin at startup; then open the sign-in link the log prints (or sign
    in with `LENS_ADMIN_PASSWORD`, if you set one).
-2. **Namespace**: the first one, with its knowledge graph shared or isolated. Already done when archive.yaml or
-   `LENS_NAMESPACE` names namespaces, or an install script made one.
-3. **Model provider**: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM), its model and key,
-   with a test. Servers running nearby and [cloud providers](#cloud-model-providers) are a click.
-4. **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), where Lens keeps its own files (this
-   machine or a storage connection, [Storage](storage.md)), the largest upload, and optionally a folder inside
-   `sources.local_roots` to watch.
-5. **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
-   with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
-   the MCP server's address to add to an assistant.
-6. **Telemetry**: off unless chosen ([Telemetry](telemetry.md)).
+2. **Model provider**, while there is none: an OpenAI-compatible server (OpenAI, Ollama, llama.cpp, LM Studio, vLLM),
+   its model and key, with a test. Servers running nearby and [cloud providers](#cloud-model-providers) are a click.
+3. **Budget**, for a paid (cloud) model with none ([Budgets](budgets.md#one-budget-for-everything)); a model on this
+   machine or its network costs nothing, so it isn't asked.
+
+When the model is set already, by the [web installer](get-started.md#the-web-installer) (which asks for the budget
+with it) or by `.env`, there is nothing left to ask: the wizard finishes at startup and the first admin goes straight
+to Lens. These have defaults, so the wizard doesn't ask them; each is a click away there, and in Settings:
+
+* **Namespace**: the first one, with its knowledge graph shared or isolated; `archive` (shared) unless chosen. Already
+  there when archive.yaml or `LENS_NAMESPACE` names namespaces, or an install script made one.
+* **Storage**: where data lives (shown; set in archive.yaml and `SURREAL_URL`), where Lens keeps its own files (this
+  machine or a storage connection, [Storage](storage.md)), the largest upload, and optionally a folder inside
+  `sources.local_roots` to watch.
+* **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
+  with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
+  the MCP server's address to add to an assistant.
+* **Telemetry**: off unless chosen ([Telemetry](telemetry.md)).
 
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,
@@ -66,7 +74,8 @@ show locked. Installs that already had accounts never see the wizard. The API si
 this machine or the Docker host, with their models), `GET /api/v1/setup/llm/providers` (the
 [cloud providers](#cloud-model-providers)), `PUT /api/v1/setup/storage`, `PUT /api/v1/setup/oauth`,
 `PUT /api/v1/setup/telemetry` and `POST /api/v1/setup/finish`
-(admins); `GET /api/v1/auth/status` says whether it is still pending (`wizard_pending`).
+(admins); `GET /api/v1/setup` says what is still to ask (`todo`: `llm`, `budget`), and `GET /api/v1/auth/status`
+whether the wizard is still pending (`wizard_pending`).
 
 ## Frontend environment
 
@@ -234,6 +243,7 @@ each the first time it's needed; without them, PDFs and images are read as befor
 | `documents.convert_seconds` | 300 | how long making one PDF may take before its job fails, 10–3600 seconds |
 | `documents.attachment_resources` | true | whether an email's attachments that Lens can read (documents, images, audio, video, emails) also become resources of their own; they're kept as its files either way |
 | `documents.video_urls` | false | whether videos and podcasts can be imported by their address ([API](api.md#videos-and-podcasts)): their media is downloaded with yt-dlp, which Lens fetches on first use |
+| `documents.web_networks` | `[]` | private networks (CIDR, such as `192.168.1.0/24`) that web pages, calendar feeds and videos may be fetched from besides the public internet: for an intranet, or a calendar server at home. The web app can't list this machine (loopback) or link-local addresses, where clouds answer with the server's own credentials; archive.yaml or `LENS_WEB_NETWORKS` in `.env` (comma-separated, added to archive.yaml's) can. Those stay whatever Settings saves: the networks listed in Settings are added to them |
 | `documents.converter` | `auto` | who makes the PDFs: `auto` uses [anytopdf](#anytopdf) only for what LibreOffice and Chromium can't do here, `anytopdf` uses it for every document and image (and fetches it), `lens` never uses it |
 | `documents.anytopdf_url` | none | a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work`, such as `https://convert.home:8640`. Set, it converts instead of the program here |
 | `documents.anytopdf_token` | none | the node's bearer token (its `ANYTOPDF_QUEUE_TOKEN`), kept encrypted |
@@ -248,7 +258,6 @@ Set at startup only (the config file; the web app can't choose what the server r
 | `documents.soffice` | `soffice` or `libreoffice` on PATH | LibreOffice |
 | `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too); it also captures web pages ([API](api.md#web-pages)) |
 | `documents.anytopdf` | the one Lens downloaded, else `anytopdf` on PATH | the anytopdf program |
-| `documents.web_networks` | `[]` | networks (CIDR, such as `10.20.0.0/16`) that web pages and calendar feeds may be fetched from besides the public internet: for an intranet, or a calendar server at home; loopback and cloud metadata addresses stay out unless listed. `LENS_WEB_NETWORKS` in `.env` (comma-separated) adds to it, for Docker and the packages |
 
 ### Apache Tika
 
