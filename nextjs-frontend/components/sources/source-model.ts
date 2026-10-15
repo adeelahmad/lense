@@ -18,6 +18,7 @@ export const TYPE_ORDER: SourceType[] = [
   "local",
   "imap",
   "ical",
+  "gcal",
 ];
 
 /** Short names for the type picker and rows (the backend's labels are longer). */
@@ -32,6 +33,7 @@ export const TYPE_NAME: Record<SourceType, string> = {
   local: "This machine",
   imap: "Email (IMAP)",
   ical: "Calendar feed",
+  gcal: "Google Calendar",
 };
 
 /** How to name the storage itself in sentences ("Files in the bucket aren’t touched"). */
@@ -46,6 +48,7 @@ export const STORAGE_NOUN: Record<SourceType, string> = {
   local: "the folder",
   imap: "the mailbox",
   ical: "the calendar",
+  gcal: "Google Calendar",
 };
 
 /** Field labels for the backend's parameter and secret names. */
@@ -72,6 +75,8 @@ export const FIELD_LABEL: Record<string, string> = {
   url: "URL",
   vendor: "Vendor",
   security: "Security",
+  calendars: "Calendars",
+  days_back: "Days back",
 };
 
 export const S3_PROVIDERS = [
@@ -149,6 +154,13 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
       return `IMAP · ${str(p.user) ? `${str(p.user)}@` : ""}${str(p.host) || "no host"}${str(p.port) ? `:${str(p.port)}` : ""}`;
     case "ical":
       return "Calendar feed · address kept secret";
+    case "gcal": {
+      const chosen = str(p.calendars)
+        .split(/[,\s]+/)
+        .filter(Boolean).length;
+      const who = str(p.impersonate) ? ` · as ${str(p.impersonate)}` : "";
+      return `Google Calendar${who} · ${chosen ? plural(chosen, "calendar") : "every calendar"}`;
+    }
     default:
       return "Folder on this machine";
   }
@@ -415,11 +427,31 @@ export type ConnForm = {
   sftpAuth: "pass" | "key_pem";
   /** What was pasted from `rclone authorize` (OAuth types). */
   tokenText: string;
-  /** Google Drive signs in with a token, or as a service account (its JSON key file). */
+  /** Google Drive and Google Calendar sign in as a Google account (a token), or as a service account (its JSON key
+   * file). */
   driveAuth: "token" | "service_account";
 };
 
 export type ServiceAccountKey = { ok: true; email: string } | { ok: false; error: string };
+
+export type GoogleAccountCheck = { ok: true; json: string } | { ok: false; error: string } | { ok: null };
+
+/** A connected Google account as Google Calendar keeps it: the "authorized user" JSON that
+ * `gcloud auth application-default login` writes ({client_id, client_secret, refresh_token}). */
+export function parseGoogleAccount(text: string): GoogleAccountCheck {
+  const t = text.trim();
+  if (!t) return { ok: null };
+  let o: Record<string, unknown> | null;
+  try {
+    o = JSON.parse(t);
+  } catch {
+    return { ok: false, error: "That isn’t JSON. Paste the whole authorized user file, including the braces." };
+  }
+  const keys = ["client_id", "client_secret", "refresh_token"] as const;
+  if (!o || typeof o !== "object" || !keys.every((k) => typeof o?.[k] === "string" && o[k]))
+    return { ok: false, error: "It needs client_id, client_secret and refresh_token." };
+  return { ok: true, json: JSON.stringify(Object.fromEntries(keys.map((k) => [k, o?.[k]]))) };
+}
 
 /** A Google Cloud service account key file: what it signs in as, or why it isn't one. */
 export function parseServiceAccountKey(text: string): ServiceAccountKey {
@@ -484,7 +516,7 @@ export function validateForm(
     if (!str(form.params[k])) e[k] = msg;
   };
   const secret = (k: string) => (form.secrets[k] === undefined ? editing && isSet(k) : Boolean(form.secrets[k]));
-  const serviceAccount = type === "drive" && form.driveAuth === "service_account";
+  const serviceAccount = (type === "drive" || type === "gcal") && form.driveAuth === "service_account";
   if (serviceAccount) {
     const k = form.secrets.service_account_credentials;
     const key = k ? parseServiceAccountKey(k) : null;
@@ -519,6 +551,15 @@ export function validateForm(
     if (form.params.port && !/^\d{1,5}$/.test(form.params.port.trim())) e.port = "A port is a number, e.g. 993.";
     if (!secret("pass")) e.pass = "Enter the password (an app password, where the provider has them).";
   }
+  if (type === "gcal") {
+    if (form.driveAuth === "token") {
+      const t = parseGoogleAccount(form.secrets.token ?? "");
+      if (t.ok === false) e.token = t.error;
+      else if (t.ok === null && !secret("token")) e.token = "Paste the Google account’s authorized user JSON.";
+    }
+    if (form.params.days_back && !/^\d{1,5}$/.test(form.params.days_back.trim()))
+      e.days_back = "A number of days, or empty for every event.";
+  }
   if (type === "ical") {
     const url = form.secrets.url;
     if (url === undefined ? !(editing && isSet("url")) : !/^(https?|webcals?):\/\/\S+$/i.test(url.trim()))
@@ -541,7 +582,9 @@ export function buildPayload(
     const v = form.secrets[k];
     const other =
       (type === "sftp" && k !== form.sftpAuth) ||
-      (type === "drive" && k === "service_account_credentials" && form.driveAuth !== "service_account");
+      ((type === "drive" || type === "gcal") &&
+        k === "service_account_credentials" &&
+        form.driveAuth !== "service_account");
     if (other) {
       // Signing in one way drops the other secret only when it was explicitly cleared.
       if (v === "") secrets[k] = null;
@@ -550,7 +593,15 @@ export function buildPayload(
     if (v === undefined) continue;
     secrets[k] = v === "" ? null : type === "sftp" && k === "key_pem" ? v.replace(/\r\n/g, "\n") : v;
   }
-  if (type === "drive" && form.driveAuth === "service_account") {
+  if (type === "gcal") {
+    const t = parseGoogleAccount(form.secrets.token ?? "");
+    if (form.driveAuth === "service_account") {
+      if (secrets.service_account_credentials) secrets.token = null; // a key file signs in before the account would
+    } else if (t.ok) {
+      secrets.token = t.json;
+      secrets.service_account_credentials = null;
+    }
+  } else if (type === "drive" && form.driveAuth === "service_account") {
     if (secrets.service_account_credentials) secrets.token = null; // rclone would sign in as the account anyway
   } else if (spec.oauth) {
     const t = parseRcloneToken(form.tokenText);

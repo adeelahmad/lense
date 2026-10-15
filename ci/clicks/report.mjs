@@ -100,6 +100,11 @@ export function markdown(result, base) {
   lines.push(
     `| **All** | **${result.journeys.length} features** | **${sum.clicks}** | **${sum.keys}** | **${sum.prompts}** |${sw(`**${sum.swipes}**`)} **${sum.clicks + sum.keys + sum.prompts + sum.swipes}** | |`,
   );
+  const covered = (result.pages || []).filter((p) => p.askCovers?.length);
+  if (covered.length) {
+    lines.push("", "## Covered by the Ask button", "", "With the page at its end, the floating Ask button lies over these:", "");
+    for (const p of covered) lines.push(`- ${p.label} (\`${p.page}\`): ${p.askCovers.join(", ")}`);
+  }
   lines.push("", "## Per module", "", `| Module | Features | ${Clicks} | Keys | Prompts |${sw("Swipes")}`, `|---|--:|--:|--:|--:|${sw("--:")}`);
   for (const m of modules) {
     const js = result.journeys.filter((x) => x.module === m);

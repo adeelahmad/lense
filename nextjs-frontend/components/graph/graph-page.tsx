@@ -280,7 +280,7 @@ export function GraphPage() {
   // an earlier version is for looking: edits go to the graph as it is now
   const onEdit = asOf ? undefined : setEditing;
   return (
-    <div className="grid h-[calc(100dvh-4rem)] grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
+    <div className="grid h-[calc(100dvh-4rem-var(--lens-banner,0px))] grid-cols-1 lg:grid-cols-[250px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)_320px]">
       <h1 className="sr-only">Graph</h1>
       <aside
         aria-label="Graph filters"

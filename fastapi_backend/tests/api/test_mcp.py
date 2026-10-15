@@ -472,6 +472,7 @@ def test_note_tools(client, db, env):
     found = tool(client, h, "find_notes", query="capsid")
     assert [(n["note_id"], n["summary"], n["place"]) for n in found["notes"]] == [(plan, "Shipping capsids", "project")]
     assert found["notes"][0]["url"].endswith(f"/notes/{plan}")
+    assert tool(client, h, "find_notes", query="friday")["notes"][0]["snippet"] == "Ship on Friday, see ep1."
     assert tool(client, h, "find_notes", place="area")["total"] == 0
     got = tool(client, h, "read_note", note_id=plan)
     assert got["body"].startswith("Ship on Friday") and got["links"] == [{"target": f"recording:{a}", "name": got["links"][0]["name"]}]
