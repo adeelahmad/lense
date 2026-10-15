@@ -8,6 +8,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   the namespace → Connect apps, which copies its address (`/mcp/<namespace>`). An agent connected there has the same
   tools but sees that namespace alone, whatever else the person who signs it in can read, and a token an app gets for
   it opens nothing else in Lens. Off by default ([One namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server)).
+- **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
+  `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
+  what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,
+  and the assets, people and entities it comes up with. Its name on the Entities page now opens it (the rest of
+  the row still opens the side panel), as do `@` links in notes, the graph panel and the entity's RDF URI. Any case, a
+  name it had before a rename, or the name of one merged into it opens it too ([Entity pages](docs/notes.md#entity-pages)).
+- **The update notice no longer pushes pages off the screen.** While *Lens vX is out* shows above them, Chat, the
+  graph and a recording's page are that much shorter, so a phone's question box and a recording's player stay in
+  sight.
 
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 
@@ -41,6 +50,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   shows only Projects, Areas, Resources or Archive, and each note says which notes it's inside. Jump to (⌘K) finds notes
   as well. `GET /api/v1/notes/search`; `find_notes` gives agents the words around each match
   ([Finding notes](docs/notes.md#finding-notes)).
+- **Paste a Drive folder's link.** A Google Drive connection's Root folder and shared drive take the link from the
+  browser's address bar as well as the bare id, so limiting imports to one folder is a paste, not hunting for the id.
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 

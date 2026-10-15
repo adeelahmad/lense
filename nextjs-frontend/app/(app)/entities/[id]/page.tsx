@@ -1,8 +1,13 @@
-import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-/** Entities have no page of their own in the design: an entity opens in the graph with its panel. */
+import { ToEntityPage } from "@/components/wiki/to-entity-page";
+
+export const metadata: Metadata = { title: "Entity" };
+
+/** An entity by id (what links and the RDF URI /id/entity/<id> use): its own page, by name, under /wiki. */
 export default async function EntityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^\d+$/.test(id)) notFound();
-  redirect(`/graph?focus=e${id}`);
+  return <ToEntityPage id={Number(id)} />;
 }

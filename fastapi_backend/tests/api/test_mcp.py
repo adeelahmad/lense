@@ -282,6 +282,7 @@ def test_entities_and_the_graph(client, env, monkeypatch):
 
     e = tool(client, h, "get_entity", entity_id=dyno["entity_id"], mentions=2)
     assert e["name"] == "Dyno Therapeutics" and e["mentions"] == 4 and e["next_mentions_offset"] == 2
+    assert e["url"] == "http://localhost:3000/wiki/pods/Dyno_Therapeutics"  # its page, by name
     assert tool_error(client, h, "get_entity", entity_id=dyno["entity_id"], mentions_offset=10001).startswith("mentions_offset")
     for name in ("list_recordings", "list_entities", "list_topics"):  # every page offset has the same cap as search's
         assert tool_error(client, h, name, offset=10001).startswith("offset"), name
