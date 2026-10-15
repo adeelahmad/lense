@@ -12,6 +12,7 @@ merged is called built.
 | Match trees: one condition language for triggers, an automation's If and workflow nodes | built |
 | Operators for times, lists, text patterns and changes (`in`, `matches`, `within`, `changed`...) | built |
 | Looking back over the stream in an automation's If (`seen`) | built |
+| Joins: `all`, `count`, `absent` and `batch`, completed as the stream brings each trigger's activities and as their timers fire ([Joins](#joins)) | built |
 | Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
 | New assets as `asset.added` (the `recordings` source) | built |
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
@@ -49,7 +50,7 @@ merged is called built.
 | Running automations: following the stream, limits, budgets, runs as `automation.ran`, trying and running now, the API (`app/domain/automations.py`) | built |
 | Automations for agents: the MCP tools and the assistant's, switching on and running now by approval | built |
 | Describing an automation in words: a draft from a sentence (`POST /api/v1/automations/draft`) | built |
-| Joins, the studio | planned |
+| The studio | planned |
 
 ## Contract
 
@@ -415,7 +416,8 @@ tree, `path` (when given) is the part of the value the tree tests. Graphs saved 
 ### Automations: triggers and joins
 
 Built as shapes with checks (`app/domain/automation_spec.py`), saved ([Saving automations](#saving-automations)) and
-run ([Running automations](#running-automations)) for triggers on `event` and `manual` and the join `any`. Each check gives a cleaned copy, or a ValueError naming the first problem.
+run ([Running automations](#running-automations)), joins included. Each check gives a cleaned copy, or a ValueError
+naming the first problem.
 
 ```json
 {"name": "School emails", "enabled": true, "spaces": [3], "run_as": 1,
@@ -440,6 +442,35 @@ run ([Running automations](#running-automations)) for triggers on `event` and `m
 - `check_if(tree)`: the If is a match tree over the run context, so its paths start with one of the context's keys.
 - `check_policy(p, nodes, allow_auto=False)`: `{action node id: ask or auto}`. Only a person in a signed-in session
   lets a node run on its own; everywhere else (agents, drafts, the workflow API) `auto` is refused.
+
+#### Joins
+
+Built (`match.join_step`). Running automations hands each activity a trigger matched (after its guards and its
+claim) to `match.join_step(db, cfg, automation, alias, activity)`, which gives a list of completions, each
+`{"as": alias, "events": {alias: activity or [activities]}, "event": the last}`, and each completion fires the
+automation: its If and graph see every trigger's activity in `events` (`{{ events.mail.object.subject }}`), and
+`event` is the last. Triggers a join doesn't name fire on their own, as with `any`. Windows are measured between the
+activities' `published` times.
+
+| Mode | Example | Completes |
+| --- | --- | --- |
+| `any` | `{"mode": "any"}` | at once, for each activity |
+| `all` | `{"mode": "all", "within": "1d", "key": "object.from.0"}`: an email from the school and a calendar event from the same sender within a day | when every trigger has an activity within `within` of the others (on the same `key`); each trigger's latest one goes in `events`, then it starts again |
+| `count` | `{"mode": "count", "of": "login", "at_least": 3, "within": "5m", "key": "actor.id"}`: three failed logins from one device in five minutes | when `of` has `at_least` activities within `within` (per `key`), with the list of them; then it counts again |
+| `absent` | `{"mode": "absent", "after": "mail", "missing": "reply", "within": "2d", "key": "object.thread"}`: no reply within two days | when `within` passes after `after` with no `missing` on the same key published after it, with the first `after` activity; a `missing` one in time cancels it |
+| `batch` | `{"mode": "batch", "of": "alert", "within": "1h"}`: the hour's alerts, acted on once | `within` after the first activity, with every one collected (up to 500), by trigger |
+
+- What a join waits on is kept in `automation_state` (kind `join`) with small copies of the activities (long text
+  cut), written so two processes at once lose nothing (a version on each row). A row expires `within` after its
+  newest activity, or a day after an `absent` or `batch` timer's time.
+- `absent` and `batch` set [timers](#timers) for their automation (`absent-<automation>-<key>`,
+  `batch-<automation>`), so they outlast a restart and fire once; their handlers, `join.absent` and `join.batch`
+  (`match.TIMER_HANDLERS`), fire the automation. A `missing` activity in time calls its timer off. A timer that ends
+  without firing (the automation is switched off, or Lens was off past `automations.catch_up`) drops what it waited
+  on, so the next activity starts afresh; one that can't be set (the automation has 1000 timers waiting) drops it
+  too, with a line in the log.
+- `match.describe_join(join)` reads a join in words: `all of the triggers within 10 minutes, for the same
+  object.from`; `3 times login within 5 minutes`; `mail, then no reply within 2 days`.
 
 ### Webhook trigger
 
@@ -1024,9 +1055,9 @@ person who made it (`run_as`), with their permissions, in namespaces they can ed
   value, and saving that again keeps it.
 - **Checks** when it is saved: the triggers, the join and the If as in [the contract](#automations-triggers-and-joins),
   the graph, the namespaces, `limits` (`cooldown`, like `10m`, default `0s`; `max_per_hour`, 1 to 3600, default 60)
-  and the policy. Joins other than `any` are refused as coming soon until joins are built. Saving sets the timers of
-  its `schedule` and `at` triggers ([Schedule, at and relative triggers](#schedule-at-and-relative-triggers)), and
-  switching it off or deleting it calls them off.
+  and the policy. Saving sets the timers of its `schedule` and `at` triggers ([Schedule, at and relative
+  triggers](#schedule-at-and-relative-triggers)), and switching it off or deleting it calls them off, with any its
+  joins set.
 - **Webhook triggers** get their address when the automation is saved ([Webhook trigger](#webhook-trigger)): the
   answer's `hooks` gives each new one's `url` and signing `secret`, shown this once, and the trigger keeps the hook's
   id. Saving it again keeps its address; a webhook trigger dropped (or changed to another kind) loses it at once.
@@ -1060,8 +1091,8 @@ is `{draft, dropped, unmapped}`:
 - `dropped` says what in the model's draft didn't fit and why: a trigger, its `where`, the If, an action that doesn't
   exist or params that don't fit its schema. With no trigger left it runs when you run it; with no action left it has
   no Then yet.
-- `unmapped` lists what the sentence asked for that it couldn't express, such as "when both arrive" (joins are
-  planned).
+- `unmapped` lists what the sentence asked for that it couldn't express, such as "when both arrive" (a draft
+  doesn't make joins yet; add one before saving).
 
 Nothing is saved: try the draft (`POST /automations/test`), change it, then save it. The call counts in the [activity
 ledger](activity.md) for you and its namespaces, and isn't made once a budget they count for, or everything's, is
@@ -1099,8 +1130,9 @@ Each new activity is checked against each trigger that listens for its kind (a w
 
 Then it is claimed (for the automation, trigger and activity together), so it runs each automation once, even with the
 API and a worker both following. **`automations.fire(db, cfg, automation_id, alias, activity, events=None, dry=False)`**
-is the one way every trigger starts a run (the stream with its webhook calls, run now, and later the clock, timers and
-joins); it gives the run's id, or none when nothing ran. A run goes:
+is the one way every trigger starts a run (the stream with its webhook calls, run now, the clock, timers and joins);
+with a join other than `any`, the claimed activity goes to the join first ([Joins](#joins)) and the automation fires
+when it completes. It gives the run's id, or none when nothing ran. A run goes:
 
 1. **Its person**: if the person it acts for lost their account, their admin role (for one that works everywhere) or
    the right to edit one of its namespaces, the run fails saying so, and the automation is switched off.
@@ -1143,8 +1175,13 @@ held run until you pick.
 
 ## Refine later
 
+- A draft from a sentence that makes joins ("when both arrive", "if no reply within 2 days").
+- Switching an automation off and on keeps what an `all` or `count` join was waiting on, until its window passes; a
+  changed join keeps the old one's rows until they expire.
+
 - Variables inside match values (`{"var": "vars.threshold"}`), once saved variables are built.
 - Statistical conditions, such as a reading above its 7-day average.
+- Sequences longer than two steps ("A, then B, then C").
 - The canvas shows and edits match trees on condition, filter and switch nodes (today it edits one test; a tree
   saved through the API is kept).
 - A `?format=as2` JSON-LD view and per-actor outboxes for ActivityPub; SurrealDB `DEFINE EVENT` for Update verbs that
