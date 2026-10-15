@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.schemas.backups import BackupSchedule, CopyWork, RestoreWork
 from app.schemas.common import RequestModel, ResponseModel
@@ -22,6 +22,10 @@ class UpgradeRun(ResponseModel):
     id: str
     ref: str = Field(description="the release tag (or branch) being installed; empty: the one running, set up again")
     https: bool | None = Field(None, description="the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)")
+    public: bool | None = Field(
+        None, description="the web app made reachable from other machines on the network (true) or this one only (false) by this run"
+    )
+    target: Literal["full", "lean"] | None = Field(None, description="the edition this run changed to")
     state: Literal["backing-up", "queued", "running", "rolling-back", "done", "failed", "rolled-back"] = Field(
         description="rolling-back / rolled-back: the new version didn't start, so the agent went back to the one before"
     )
@@ -51,6 +55,40 @@ class UpdateStatus(ResponseModel):
     agent: str | None = Field(None, description="what upgrades this machine (systemd, launchd); none: run `manual` there")
     manual: str = Field(description="the line that upgrades it by hand, on the machine Lens runs on")
     upgrade: UpgradeRun | None = Field(None, description="the last upgrade asked for")
+
+
+class InstallLines(ResponseModel):
+    public: str = Field(description="the install line that makes the web app reachable from other machines (LENS_PUBLIC=1)")
+    private: str = Field(description="the install line that keeps it to this machine (LENS_PUBLIC=0)")
+    full: str = Field(description="the install line for the full edition (LENS_TARGET=full)")
+    lean: str = Field(description="the install line for the lean edition (LENS_TARGET=lean)")
+
+
+class InstallStatus(ResponseModel):
+    public: bool | None = Field(
+        None,
+        description="the web app is reachable from other machines on the network (LENS_BIND), or from this one only; "
+        "none: Lens wasn't started by install.sh or docker-compose.prod.yml, so it doesn't know",
+    )
+    target: Literal["full", "lean"] | None = Field(
+        None,
+        description="the edition (LENS_TARGET): full has LibreOffice and Chromium, to read Office files, web pages and "
+        "emails; lean doesn't. None: not known here",
+    )
+    agent: str | None = Field(None, description="what changes them on this machine (systemd, launchd); none: run a `manual` line there")
+    manual: InstallLines = Field(description="the line to run on the machine Lens runs on for each choice, when there's no agent")
+    reconfigure: UpgradeRun | None = Field(None, description="the last run that changed either (as in /admin/updates)")
+
+
+class InstallChange(RequestModel):
+    public: bool | None = Field(None, description="reachable from other machines on the network (true) or this machine only (false)")
+    target: Literal["full", "lean"] | None = Field(None, description="the edition: full or lean")
+
+    @model_validator(mode="after")
+    def _something(self) -> InstallChange:
+        if self.public is None and self.target is None:
+            raise ValueError("say what to change: public, target or both")
+        return self
 
 
 class UpgradeRequest(RequestModel):

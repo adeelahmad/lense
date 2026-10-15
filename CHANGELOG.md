@@ -20,6 +20,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   takes their roles and their private chats, notes and views, and keeps what they shared under their name; their email
   can be invited again ([Authentication](docs/authentication.md#removing-someone)). The assistant gets `list_people`,
   `invite_person` and `change_person`, which always wait for an admin's approval.
+- **Reachable from the network, and the edition, changed in Settings.** Settings › Access & embedding has **Reachable
+  from other devices on this network**, and Settings › Components the edition: Full (LibreOffice and Chromium, to read
+  Office files, web pages and emails) or Lean. Changing either says what will happen and applies with one button: the
+  machine's upgrade agent runs the install again for the version running, and Lens restarts. Before, the install line
+  had to run again with `LENS_PUBLIC` or `LENS_TARGET`; without an agent, Settings shows that line. Agents use
+  `GET`/`PUT /api/v1/admin/install` and the MCP tools `install_settings` and `set_install_settings`
+  ([Updates](docs/updates.md#setting-the-machine-up-again)).
 - **NSFW classification, with a model on your server.** Turn it on in Settings → NSFW for every namespace, or on a
   namespace's page for that one (off by default). The new `nsfw` step scores a video's sampled frames, a document's
   pages or an image with an Apache-2.0 model (fetched on first use, about 105 MB with ONNX Runtime) and flags the

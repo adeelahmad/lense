@@ -8,8 +8,9 @@
 #
 # It takes a release tag (vX.Y.Z), or the branch this install already follows; nothing else, whoever wrote the
 # request. An empty ref sets up the version running again, as Settings › HTTPS does with https=1 or 0 to open or close
-# the HTTPS ports (docs/https.md). If the new version doesn't start, it goes back to the code that ran before and
-# starts that (rolled-back). Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
+# the HTTPS ports (docs/https.md), and Settings with public=1 or 0 (reachable from other machines on the network, or
+# this one only) and target=full or lean (the edition). If the new version doesn't start, it goes back to the code that
+# ran before and starts that (rolled-back). Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
 #
 # A request with action=services turns the monitoring containers on or off instead (docs/prometheus.md): it adds or
 # removes `monitoring` in COMPOSE_PROFILES in .env and starts or stops Prometheus, node-exporter and Grafana, and says
@@ -91,6 +92,8 @@ backup="$(val backup "$REQ")"
 action="$(val action "$REQ")"
 monitoring="$(val monitoring "$REQ")"
 https="$(val https "$REQ")"
+public="$(val public "$REQ")"
+target="$(val target "$REQ")"
 rm -f "$REQ"
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 env_of() { [ -f "$DIR/.env" ] && sed -n "s/^$1=//p" "$DIR/.env" | head -1; }
@@ -119,6 +122,8 @@ if [ -z "$ref" ]; then # the version running: this install's branch, or the rele
   [ -n "$ref" ] || ref="$(git -C "$DIR" describe --tags --exact-match 2>/dev/null || true)"
 fi
 case "$https" in 0 | 1 | "") ;; *) https="" ;; esac
+case "$public" in 0 | 1 | "") ;; *) public="" ;; esac
+case "$target" in full | lean | "") ;; *) target="" ;; esac
 if ! printf '%s' "$ref" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' && [ "$ref" != "$branch" ]; then
   echo "Not upgrading to '$ref': only a release tag (vX.Y.Z) or this install's branch ($branch)." >>"$CTL/upgrade.log"
   status failed "finished_at=$(now)" "code=2" "error=only a release tag (vX.Y.Z) or this install's branch can be installed"
@@ -126,16 +131,17 @@ if ! printf '%s' "$ref" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' && [ "$ref" != "$
 fi
 status running "step=download"
 
-# install.sh with the settings this install was made with, its lines in the log; the step it is on goes into the
-# status as it goes. Its exit code, after.
+# install.sh with the settings this install was made with, but for what the request changes (an empty LENS_PUBLIC
+# leaves the address as .env has it), its lines in the log; the step it is on goes into the status as it goes. Its
+# exit code, after.
 install() { # extra environment, as NAME=value words
   rm -f "$CTL/.code"
   {
     (
       cd "$DIR" &&
         env LENS_DIR="$DIR" LENS_REF="$ref" LENS_NO_OPEN=1 LENS_YES=1 LENS_WIZARD=0 LENS_AGENT_RUN=1 \
-          LENS_REPO="$(env_of LENS_REPO)" LENS_TARGET="$(env_of LENS_TARGET)" LENS_BACKEND="$(env_of LENS_BACKEND)" \
-          LENS_HTTPS="${https:-$(env_of LENS_HTTPS)}" \
+          LENS_REPO="$(env_of LENS_REPO)" LENS_TARGET="${target:-$(env_of LENS_TARGET)}" LENS_BACKEND="$(env_of LENS_BACKEND)" \
+          LENS_HTTPS="${https:-$(env_of LENS_HTTPS)}" LENS_PUBLIC="$public" \
           GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$DIR" "$@" \
           sh "$DIR/install.sh"
     ) </dev/null 2>&1 || echo "$?" >"$CTL/.code"

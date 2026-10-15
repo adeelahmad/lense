@@ -1,17 +1,27 @@
-"""New releases, upgrading from the web app, and the database backups (admins only; docs/updates.md)."""
+"""New releases, upgrading from the web app, how the machine is set up (reachable on the network, the edition), and
+the database backups (admins only; docs/updates.md)."""
 
 from __future__ import annotations
 
 import contextlib
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import FileResponse
 
 from app.api.deps import AdminReader, AdminWriter, Cfg, Db, domain_errors
 from app.domain import auth, backups, monitoring, updates
 from app.schemas.backups import BackupSchedule, RestoreWork
 from app.schemas.common import Ok
-from app.schemas.updates import Backup, Backups, Monitoring, MonitoringRequest, UpdateStatus, UpgradeRequest
+from app.schemas.updates import (
+    Backup,
+    Backups,
+    InstallChange,
+    InstallStatus,
+    Monitoring,
+    MonitoringRequest,
+    UpdateStatus,
+    UpgradeRequest,
+)
 
 router = APIRouter(tags=["updates"])
 
@@ -44,6 +54,31 @@ def start_upgrade(user: AdminWriter, db: Db, cfg: Cfg, body: UpgradeRequest | No
         raise HTTPException(409, str(e)) from None
     auth.audit(db, user.as_audit(), "lens.upgrade", None, {"ref": (run or {}).get("ref"), "backup": body.backup})
     return UpdateStatus.model_validate(updates.view(db, cfg))
+
+
+@router.get("/admin/install")
+def get_install(user: AdminReader, db: Db, cfg: Cfg) -> InstallStatus:
+    """How install.sh set this machine up: whether other machines on the network reach the web app, and the edition
+    (full or lean); what can change them here, and how the last change went."""
+    return InstallStatus.model_validate(updates.install_view(db, cfg))
+
+
+@router.put("/admin/install", status_code=202)
+def set_install(body: InstallChange, user: AdminWriter, response: Response, db: Db, cfg: Cfg) -> InstallStatus:
+    """Make the web app reachable from other machines on the network (public) or this machine only, or change the
+    edition (target: full, with LibreOffice and Chromium, or lean): this machine's upgrade agent runs install.sh again
+    for the version running with LENS_PUBLIC and LENS_TARGET, and Lens restarts; GET /admin/install follows along.
+    What is so already is left alone, and with nothing left to change nothing restarts (200). Without an agent, 409
+    says the line to run on the machine instead (`manual` has each one)."""
+    try:
+        asked = updates.change_install(db, cfg, body.public, body.target, by=user.email)
+    except updates.UpdateError as e:
+        raise HTTPException(409, str(e)) from None
+    if asked:
+        auth.audit(db, user.as_audit(), "lens.install", None, asked)
+    else:
+        response.status_code = 200
+    return InstallStatus.model_validate(updates.install_view(db, cfg))
 
 
 @router.get("/admin/monitoring")

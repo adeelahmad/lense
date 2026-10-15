@@ -51,6 +51,7 @@
         "/iiif/auth/token, /probe, /logout",
         "workers and DB peers",
         "host control inbox and the monitoring scrape token",
+        "admin machine setup requests",
         "microsandbox program requests"
       ],
       "touches": [
@@ -502,12 +503,21 @@
     },
     {
       "entry_point": "host control inbox and the monitoring scrape token",
-      "parameter": "inbox/upgrade request (release ref, or action=services with monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
+      "parameter": "inbox/upgrade request (release ref, empty for the version running, with https=0|1, public=0|1 and target=full|lean; or action=services with monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
       "attacker_controllable": "yes",
       "component": "authz",
-      "caller_must_enforce": "the agent installs only a release tag or the install's branch and only toggles the monitoring profile; the token is compared in constant time and grants metrics only",
+      "caller_must_enforce": "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the monitoring profile, so a writer can at most restart Lens with those choices or open it to the network; the token is compared in constant time and grants metrics only",
       "provenance": "documented",
       "source": "docs/updates.md, docs/prometheus.md"
+    },
+    {
+      "entry_point": "admin machine setup requests",
+      "parameter": "PUT /api/v1/admin/install {public, target}, POST /api/v1/settings/https/ports {open}, MCP set_install_settings",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again",
+      "provenance": "documented",
+      "source": "docs/updates.md \"Setting the machine up again\""
     },
     {
       "entry_point": "microsandbox program requests",

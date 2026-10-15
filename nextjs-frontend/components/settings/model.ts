@@ -220,14 +220,14 @@ export const SECTIONS: SectionSpec[] = [
     label: "Components",
     backend: ["components"],
     description:
-      "The engines and models Lens fetches for itself, sized to each worker’s machine. Steps that need one wait while it arrives.",
+      "The edition, full or lean, and the engines and models Lens fetches for itself, sized to each worker’s machine. Steps that need one wait while it arrives.",
   },
   {
     id: "access",
     label: "Access & embedding",
     backend: ["server"],
     description:
-      "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
+      "Who can reach the server, from this machine or the network, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
   },
   {
     id: "remote-access",

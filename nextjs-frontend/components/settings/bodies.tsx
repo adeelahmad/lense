@@ -10,6 +10,7 @@ import type { HttpsStatus, MatterbridgeStatus } from "@/app/openapi-client/types
 import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
+import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -351,6 +352,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "components":
       return (
         <>
+          <EditionChoice />
           <F ctx={ctx} id="components.auto" />
           <F ctx={ctx} id="components.hf_token" />
           <ComponentsStatus ctx={ctx} />
@@ -359,6 +361,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "access":
       return (
         <>
+          <NetworkReach />
           <F ctx={ctx} id="server.allowed_hosts" />
           <F ctx={ctx} id="server.embed_frame_ancestors" />
           <F ctx={ctx} id="server.trusted_proxies" />
