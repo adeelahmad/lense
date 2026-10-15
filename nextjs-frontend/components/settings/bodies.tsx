@@ -479,6 +479,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="documents.convert_seconds" />
           <F ctx={ctx} id="documents.attachment_resources" />
           <F ctx={ctx} id="documents.video_urls" />
+          <F ctx={ctx} id="documents.web_networks" />
           <F ctx={ctx} id="documents.converter" />
           <F ctx={ctx} id="documents.anytopdf_url" />
           <F ctx={ctx} id="documents.anytopdf_token" />
@@ -2897,10 +2898,6 @@ function Startup({ view }: { view: SettingsView }) {
     ["rclone", b.rclone ?? "—"],
     ["LibreOffice", b.soffice ?? "—"],
     ["Chromium", b.chromium ?? "—"],
-    [
-      "Web capture",
-      b.web_networks?.length ? `public addresses and ${b.web_networks.join(" · ")}` : "public addresses only",
-    ],
     ["YOLOX model", b.yolox_model ?? "—"],
     ["Watchable folders", b.local_roots?.length ? b.local_roots.join(" · ") : "none: local folders can’t be watched"],
   ];

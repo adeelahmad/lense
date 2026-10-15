@@ -120,6 +120,7 @@ EDITABLE = {
         "tika_url",
         "tika_text",
         "tika_metadata",
+        "web_networks",
     ),
 }
 MAIL_SECURITY = ("ssl", "starttls", "none")
@@ -312,6 +313,9 @@ def effective(db, base, reveal=True):
             continue
         allowed = EDITABLE[sec]
         cfg[sec] = store._merge(cfg[sec], {k: v for k, v in _data(row).items() if allowed is None or k in allowed})
+        if sec == "documents":  # the web app adds networks to the server's own (archive.yaml, LENS_WEB_NETWORKS)
+            server = (base.get("documents") or {}).get("web_networks") or []
+            cfg[sec]["web_networks"] = list(dict.fromkeys([*server, *(cfg[sec].get("web_networks") or [])]))
         for k, sealed in (row.get("sealed") or {}).items():
             if not reveal:
                 cfg[sec][k] = {"secret": True, "set": True}
@@ -538,6 +542,8 @@ def _check(section, key, value, default):
         if not (u and VIEWER_URL.match(value.strip()) and u.hostname and u.username is None and u.password is None):
             raise ValueError("documents.tika_url is a Tika server's http(s) address with no password in it, such as http://tika:9998")
         return value.strip().rstrip("/")
+    if (section, key) == ("documents", "web_networks"):
+        return _web_networks(value)
     if (section, key) == ("documents", "anytopdf_token"):
         if value in (None, ""):
             return None
@@ -597,6 +603,38 @@ def _check(section, key, value, default):
     if not ok:
         raise ValueError(f"{section}.{key} should be {type(default).__name__}")
     return value
+
+
+# What the web app can't open web pages, feeds and downloads to: this machine (loopback), and link-local addresses,
+# where clouds answer with the server's own credentials (169.254.169.254). archive.yaml or LENS_WEB_NETWORKS, on the
+# server, can still list them.
+SERVER_ONLY_NETWORKS = [ipaddress.ip_network(n) for n in ("0.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16", "::/127", "fe80::/10")]
+
+
+def _network(value):
+    try:
+        return str(ipaddress.ip_network(str(value).strip(), strict=False))
+    except ValueError:
+        return str(value)
+
+
+def _web_networks(value):
+    """documents.web_networks from the web app: private networks pages and feeds may be fetched from."""
+    if not isinstance(value, list):
+        raise ValueError("documents.web_networks is a list of networks like 192.168.1.0/24")
+    out = []
+    for v in value:
+        try:
+            net = ipaddress.ip_network(str(v).strip(), strict=False)
+        except ValueError:
+            raise ValueError(f"documents.web_networks: {v} isn't a network like 192.168.1.0/24") from None
+        if any(net.version == bad.version and net.overlaps(bad) for bad in SERVER_ONLY_NETWORKS):
+            raise ValueError(
+                f"documents.web_networks: {net} reaches this server itself or a cloud's metadata address, which only "
+                "archive.yaml or LENS_WEB_NETWORKS on the server can allow"
+            )
+        out.append(str(net))
+    return list(dict.fromkeys(out))
 
 
 LOCAL_LLM_RANGES = {"context": (512, 262144), "threads": (1, 512), "gpu_layers": (0, 999), "port": (1024, 65535)}
@@ -1370,6 +1408,10 @@ def save(db, base, section, changes, user=None):
         if k not in defaults:
             raise ValueError(f"unknown setting {section}.{k}")
         before = data.get(k, (base.get(section) or {}).get(k))
+        if (section, k) == ("documents", "web_networks") and isinstance(v, list):
+            # the server's own networks are shown with the rest and stay whatever the web app sends: keep only the others
+            server = {_network(x) for x in (base.get("documents") or {}).get("web_networks") or []}
+            v = [x for x in v if _network(x) not in server]
         data[k] = _check(section, k, v, defaults[k])
         new_headers = isinstance((changes or {}).get("headers"), str)  # the mask echoed back is no new value
         if (section, k) == ("telemetry", "endpoint") and not new_headers and _origin(before) != _origin(data[k]):

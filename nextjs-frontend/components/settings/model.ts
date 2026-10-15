@@ -23,8 +23,6 @@ export type SettingsView = Record<string, SectionView> & {
     chromium?: string;
     /** The anytopdf program (documents.anytopdf), or "not installed". */
     anytopdf?: string;
-    /** Networks web pages may be captured from besides the public internet (documents.web_networks). */
-    web_networks?: string[];
     /** The YOLOX model the objects step uses, or "not found". */
     yolox_model?: string;
   } & Record<string, unknown>;
@@ -3096,6 +3094,14 @@ export const FIELDS: FieldSpec[] = [
     kind: "switch",
     hint: "Its title, authors, language and dates, as Dublin Core",
   },
+  {
+    section: "documents",
+    key: "web_networks",
+    label: "Private networks Lens may fetch from",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24: web pages, calendar feeds and videos there can be imported. Public addresses always can, and networks set on the server stay",
+  },
   // IIIF & metadata
   {
     section: "iiif",
@@ -3411,6 +3417,9 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;
   else if (mNets && mNets.length === 0) e["smb.allowed_networks"] = "List at least one network";
+  const wNets = values["documents.web_networks"] as string[] | undefined;
+  const badWNet = wNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badWNet) e["documents.web_networks"] = `“${badWNet}” isn’t a network like 192.168.1.0/24`;
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;
