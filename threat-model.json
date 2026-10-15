@@ -4,7 +4,7 @@
   "commit": "5f799f2ff8bb8a762d8151d9b10b535a17878b55",
   "date": "2026-10-05",
   "scope_subpath": null,
-  "description": "Lens is a self-hosted archive for recordings, transcripts and documents: it transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
+  "description": "Lens is a self-hosted archive for documents, recordings, photos and messages: it reads, transcribes, indexes and publishes them, and people search and chat over them. One operator (the instance admin) runs an instance for their own people: a FastAPI API, a Next.js web app that proxies the API and holds the sign-in session, and background workers, around one SurrealDB database, with content split into namespaces and per-namespace roles. Exposing an instance to the internet behind HTTPS (reverse proxy or Cloudflare tunnel) is supported. Only the instance admin (equivalent to host code execution) and the host operator are trusted; everyone else is trusted only as far as their role.",
   "confidence": {
     "documented": 246,
     "inferred": 99
@@ -176,7 +176,7 @@
       "component": "authz",
       "boundary": "B2, request to role: the main boundary; namespace isolation lives here, in application code. B5: workers, the API and the web app trust the database and each other.",
       "provenance": "inferred",
-      "reachability_precondition": "lets a principal read or change more than its role and the recording's access level allow, or open media without a link the server signed for it",
+      "reachability_precondition": "lets a principal read or change more than its role and the asset's access level allow, or open media without a link the server signed for it",
       "source": "threat-model.md §1.4 (untagged boundary list)"
     },
     {
@@ -795,7 +795,7 @@
       "property": "P-NS-ISOLATION",
       "violation_symptom": "info-leak, integrity-bypass",
       "severity_tier": "security",
-      "conditions": "a principal with no role in a namespace and no grant for a recording cannot read or change anything in it, except what the recording's access level opens to anyone (P-ACCESS-PARTS); the namespace and its recordings answer 404; grants for one recording open only that recording's visitor pages and IIIF",
+      "conditions": "a principal with no role in a namespace and no grant for an asset cannot read or change anything in it, except what the asset's access level opens to anyone (P-ACCESS-PARTS); the namespace and its assets answer 404; grants for one asset open only that asset's visitor pages and IIIF",
       "provenance": "documented",
       "source": "SECURITY.md \"reading or changing anything in a namespace you have no role in\""
     },
@@ -803,9 +803,9 @@
       "property": "P-ACCESS-PARTS",
       "violation_symptom": "info-leak",
       "severity_tier": "security",
-      "conditions": "a closed part of a public recording, and any restricted or private recording, opens only for a role, permission, IP group or link; a closed transcript's text stays out of search and downloads; only owners change access and open parts",
+      "conditions": "a closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link; a closed text part stays out of search and downloads; only owners change access and open parts",
       "provenance": "documented",
-      "source": "docs/access.md \"the parts of a public recording anyone may use\""
+      "source": "docs/access.md \"the parts of a public asset anyone may use\""
     },
     {
       "property": "P-ROLE",
@@ -843,9 +843,9 @@
       "property": "P-SHARE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "a share link opens one recording, read-only; it expires and can be revoked; only hashes are stored; a dead link answers the same 410 whatever went wrong",
+      "conditions": "a share link opens one asset, read-only; it expires and can be revoked; only hashes are stored; a dead link answers the same 410 whatever went wrong",
       "provenance": "documented",
-      "source": "docs/authentication.md \"give read-only access to one recording's player and embed\""
+      "source": "docs/authentication.md \"give read-only access to one asset's player and embed\""
     },
     {
       "property": "P-AUTH-REQ",
@@ -1247,7 +1247,7 @@
     },
     {
       "property": "N-DB-PLAIN",
-      "reason": "encryption of the SurrealDB content (transcripts, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit",
+      "reason": "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit",
       "false_friend": true,
       "provenance": "documented",
       "source": "docs/encryption.md \"the SurrealDB database itself\""
@@ -1275,7 +1275,7 @@
     },
     {
       "property": "N-IDS",
-      "reason": "secret identifiers; recording and entity ids are sequential and authorization never relies on them; short share codes are about 58 bits; a route that relied on id secrecy breaks P-NS-ISOLATION instead",
+      "reason": "secret identifiers; asset and entity ids are sequential and authorization never relies on them; short share codes are about 58 bits; a route that relied on id secrecy breaks P-NS-ISOLATION instead",
       "false_friend": true,
       "provenance": "inferred",
       "source": "open question Q6"
@@ -1478,14 +1478,14 @@
     },
     {
       "property": "N-PUBLIC",
-      "reason": "privacy of a public recording's open parts: anyone may use them; open parts only; closed parts and restricted or private recordings are P-ACCESS-PARTS",
+      "reason": "privacy of a public asset's open parts: anyone may use them; open parts only; closed parts and restricted or private assets are P-ACCESS-PARTS",
       "false_friend": false,
       "provenance": "documented",
-      "source": "docs/access.md \"the parts of a public recording anyone may use\""
+      "source": "docs/access.md \"the parts of a public asset anyone may use\""
     },
     {
       "property": "N-DESCRIPTION",
-      "reason": "hiding a recording's description when its parts are closed; anyone who may see the page",
+      "reason": "hiding an asset's description when its parts are closed; anyone who may see the page",
       "false_friend": false,
       "provenance": "documented",
       "source": "docs/access.md \"never a closed part\""
@@ -1543,11 +1543,11 @@
     "When the SMB share is on, list only your own networks, keep its port off the internet, and revoke file access keys you no longer use",
     "Give the chat-room bridge its own low-role account",
     "Run workers only on trusted hosts; they hold the DB credential",
-    "Pick model and speech servers you trust with transcripts and audio",
+    "Pick model and speech servers you trust with your assets' text and audio",
     "Run conversion where Chromium can keep its sandbox (non-root, user namespaces)",
     "Enable another person's extension only when you trust its author",
     "Escape exported text, RDF, IIIF metadata and assistant output for your own sink",
-    "Treat transcript text and MCP results as untrusted prompt input in your agents",
+    "Treat asset text and MCP results as untrusted prompt input in your agents",
     "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS",
     "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets",
     "Keep logs that record request paths private when sensor push tokens are in use",
@@ -1606,7 +1606,7 @@
     },
     {
       "pattern": "Pointing the assistant at a hosted model for sensitive archives",
-      "why_unsafe": "Transcripts leave the machine",
+      "why_unsafe": "Assets' text leaves the machine",
       "instead": "Use a local model server"
     }
   ],
@@ -1618,7 +1618,7 @@
       "suppression": "The server issued the link through an allow-listed field (media.LINK_KEYS), to a principal who could read that path when it was issued, and it is within its expiry. A link minted from text people or models wrote is P-MEDIA-LINK, not this entry"
     },
     {
-      "reported_as": "A recording's description shows while its parts are closed",
+      "reported_as": "An asset's description shows while its parts are closed",
       "why_safe": "Covers authz; symptom 'info-leak of description'. Exact-match conditions (§1.15): The field is the description, shown to someone who may see the page.",
       "cites": "properties_not_provided[38]",
       "suppression": "The field is the description, shown to someone who may see the page"
@@ -1699,7 +1699,7 @@
     {
       "claim": "Q7: A share token (`?s=`) works on the audio, video, frames and page API routes, not only the player and embed. By design?",
       "field": "properties_provided",
-      "proposed": "yes; it grants viewer on that one recording on any route that takes `s`.",
+      "proposed": "yes; it grants viewer on that one asset on any route that takes `s`.",
       "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
@@ -1715,7 +1715,7 @@
       "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."
     },
     {
-      "claim": "Q10: Share links survive the creator losing their role. Report links sign media for every recording in the page. Signed links outlive role removal and moves. By design?",
+      "claim": "Q10: Share links survive the creator losing their role. Report links sign media for every asset in the page. Signed links outlive role removal and moves. By design?",
       "field": "properties_not_provided",
       "proposed": "yes; disclaim. Revoke shares, or rotate `ACCESS_SECRET_KEY`.",
       "ruling": "Decided 2026-10-06 (maintainer, delegated): proposed answer."

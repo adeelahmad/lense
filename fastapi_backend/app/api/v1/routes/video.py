@@ -239,7 +239,7 @@ def merge_face(fid: int, body: FaceMerge, user: Writer, acl: Acl, db: Db) -> Fac
 
 @router.post("/faces/{fid}/speaker")
 def link_face_speaker(fid: int, body: FaceSpeaker, user: Writer, acl: Acl, db: Db) -> Ok:
-    """Say whose voice goes with this face (null unlinks)."""
+    """Say which person this face is (null unlinks)."""
     _face_space(db, acl, fid, "curate")
     with domain_errors():
         facemod.link_speaker(db, fid, body.speaker)
@@ -249,7 +249,7 @@ def link_face_speaker(fid: int, body: FaceSpeaker, user: Writer, acl: Acl, db: D
 
 @router.post("/faces/{fid}/dismiss")
 def dismiss_face_suggestion(fid: int, body: FaceDismiss, user: Writer, acl: Acl, db: Db) -> Ok:
-    """Drop a suggestion (`kind` face or speaker, with its id)."""
+    """Drop a suggestion (`kind` face, or speaker for a person, with its id)."""
     _face_space(db, acl, fid, "curate")
     facemod.dismiss(db, fid, body.kind or "face", body.id)
     return Ok()

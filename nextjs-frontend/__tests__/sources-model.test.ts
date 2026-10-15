@@ -315,7 +315,7 @@ describe("watched folders", () => {
     // what each choice picks up; new folders take everything
     expect(WATCH_KINDS[0].value).toBe("all");
     expect(watchSummary({ namespace: "papers", kinds: "documents" })).toContain("documents and images only");
-    expect(watchSummary({ namespace: "papers", kinds: "both" })).toContain("audio and transcripts");
+    expect(watchSummary({ namespace: "papers", kinds: "both" })).toContain("audio and text");
     expect(watchSummary({ namespace: "papers" })).toContain("· everything ·");
   });
   it("says when the next scan is", () => {

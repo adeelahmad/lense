@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The Ask button no longer covers buttons.** The floating Ask button at the bottom right used to sit on whatever was
+  there, such as Import on the Import page. Now, when a button or field is under it and scrolling can't move it clear
+  (a row of buttons pinned to the bottom of the screen, or the last button on a page scrolled to its end), the Ask
+  button rises above it, and steps out of sight when there's no room to rise. Dialogs, drawers and toasts drawn over
+  it don't move it. The clicks survey now fails a journey whose control the Ask button covers, and checks every page
+  for it ([Chat on any page](docs/assistant.md)).
 - **Google Calendar as a sensor.** Add a Google Calendar connection on the Sources page (or `POST /api/v1/sources`
   with type `gcal`): each calendar is a folder and each event becomes text, as an iCal feed's do, read-only through
   Google's Calendar API. It signs in as a Google account (an OAuth client's authorized user JSON) or as a service
@@ -16,6 +22,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   also shows the redirect URI to register. A connection whose sign-in stopped working has **Connect Google account**
   on its row; pasting the authorized user JSON still works
   ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+- **Find a note.** The Notes page has a search box that finds notes by the words in their title, summary or text (the
+  pages of recordings and entities too), with the words around each match marked, and Enter opens the first. A filter
+  shows only Projects, Areas, Resources or Archive, and each note says which notes it's inside. Jump to (⌘K) finds notes
+  as well. `GET /api/v1/notes/search`; `find_notes` gives agents the words around each match
+  ([Finding notes](docs/notes.md#finding-notes)).
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 
@@ -320,6 +331,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   anytopdf, telemetry), takes the administrator password when installing needs it, then installs with live progress
   and opens Lens's setup page. Its answers become ordinary settings in Lens, editable there
   ([Get started](docs/get-started.md#the-web-installer)). `LENS_WIZARD=0` keeps the install in the terminal.
+- **Assets, not recordings.** The web app, the assistant, the API descriptions and the docs now call an item of any
+  kind an asset (or a document, when it is one), and keep "recording" for audio and video. API paths, MCP tool names
+  and stored data are unchanged.
+- **People, not speakers.** Everyone Lens recognises by voice or face is a person, on the People page, in the graph and
+  for the assistant; names found in text are named people. An item's text is its text, not its transcript, unless it
+  came from speech, and search says where words are found, not where they were said. The admin's account list is now
+  Members. "Speaker" stays for voices in audio (who spoke when).
 
 ### Features
 

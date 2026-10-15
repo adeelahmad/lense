@@ -72,7 +72,7 @@ def list_topics(
 
 @router.get("/topics/{tid}")
 def get_topic(tid: int, user: CurrentUser, acl: Acl, db: Db) -> TopicDetail:
-    """A topic with its broader, narrower and related topics and the recordings about it."""
+    """A topic with its broader, narrower and related topics and the assets about it."""
     _topic_space(db, acl, tid)
     return _detail(db, acl, tid)
 
@@ -91,8 +91,8 @@ def create_topic(name: str, body: TopicCreate, request: Request, user: Writer, a
 
 @router.get("/namespaces/{name}/topics/candidates")
 def topic_candidates(name: str, user: CurrentUser, acl: Acl, db: Db, limit: int = 30) -> list[TopicCandidate]:
-    """What the namespace's summaries say recordings are about that no topic covers yet, the most recordings first.
-    Adding one as a topic suggests it for those recordings; skipping one stops it being offered."""
+    """What the namespace's summaries say assets are about that no topic covers yet, the most assets first.
+    Adding one as a topic suggests it for those assets; skipping one stops it being offered."""
     sid = acl.nsid(name)
     acl.need(sid)
     return [TopicCandidate(**c) for c in topics.candidates(db, sid, min(max(limit, 1), 100))]
@@ -133,7 +133,7 @@ def update_topic(tid: int, body: TopicUpdate, request: Request, user: Writer, ac
 
 @router.delete("/topics/{tid}")
 def delete_topic(tid: int, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDeleted:
-    """Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows
+    """Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows
     again. `undo` takes it back (POST /topics/changes/{undo}/undo)."""
     _topic_space(db, acl, tid, "curate")
     with domain_errors():
@@ -145,7 +145,7 @@ def delete_topic(tid: int, request: Request, user: Writer, acl: Acl, db: Db) -> 
 
 @router.post("/topics/merge")
 def merge_topics(body: TopicMerge, request: Request, user: Writer, acl: Acl, db: Db) -> TopicMerged:
-    """Fold topics into one: their labels become its other labels and their recordings are about it. `undo` takes it
+    """Fold topics into one: their labels become its other labels and their assets are about it. `undo` takes it
     back (POST /topics/changes/{undo}/undo)."""
     for t in [body.keep, *body.others]:
         _topic_space(db, acl, t, "curate")
@@ -166,7 +166,7 @@ def list_topic_changes(name: str, user: CurrentUser, acl: Acl, db: Db, limit: in
 
 @router.post("/topics/changes/{cid}/undo")
 def undo_topic_change(cid: int, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
-    """Take back a merge or a delete: the topics come back with their labels, recordings and pages. What changed
+    """Take back a merge or a delete: the topics come back with their labels, assets and pages. What changed
     since stays. Refused (400) when another topic has taken one of their labels meanwhile."""
     row = db.one("SELECT space FROM $r", r=R("topic_change", int(cid)))
     if not row:
@@ -181,7 +181,7 @@ def undo_topic_change(cid: int, request: Request, user: Writer, acl: Acl, db: Db
 
 @router.post("/topics/{tid}/recordings")
 def tag_recordings(tid: int, body: TopicRecordings, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDetail:
-    """Say recordings of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't."""
+    """Say assets of the topic's namespace are about it (accepting suggestions too), or with `remove` that they aren't."""
     _topic_space(db, acl, tid, "curate")
     with domain_errors():
         topics.tag(db, tid, body.recordings, body.remove, user=user.email)
@@ -192,14 +192,14 @@ def tag_recordings(tid: int, body: TopicRecordings, request: Request, user: Writ
 
 @router.get("/recordings/{rid}/topics")
 def recording_topics(rid: int, user: CurrentUser, acl: Acl, db: Db) -> list[RecordingTopic]:
-    """The topics a recording is about, and those suggested for it."""
+    """The topics an asset is about, and those suggested for it."""
     acl.recording(rid)
     return [RecordingTopic(**t) for t in topics.of_recording(db, rid)]
 
 
 @router.post("/entities/{eid}/topic", status_code=201)
 def entity_to_topic(eid: int, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDetail:
-    """Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the recordings that
+    """Make a topic-like entity (type TERM) a topic: its names become the topic's labels and the assets that
     mention it are about the topic. The entity is hidden; deleting the topic shows it again."""
     row = db.one("SELECT space FROM $r", r=R("entity", int(eid)))
     if not row:

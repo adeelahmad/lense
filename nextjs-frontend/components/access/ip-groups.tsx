@@ -47,7 +47,7 @@ export function IpGroupsSection({ ns, isOwner, admin }: { ns: string; isOwner: b
             IP groups
           </h2>
           <p className="text-[13px] leading-[1.45] text-fg-secondary">
-            Visitors from these addresses, in a reading room or on a campus network, see all of {ns}’s recordings or the
+            Visitors from these addresses, in a reading room or on a campus network, see all of {ns}’s assets or the
             ones chosen for them, without signing in: on the pages visitors see and in IIIF.
           </p>
         </div>
@@ -223,8 +223,8 @@ function IpGroupDialog({ ns, group, onClose }: { ns: string; group: IpGroup | "n
             value={everything ? "all" : "chosen"}
             onChange={(v) => setEverything(v === "all")}
             options={[
-              { value: "all", label: "Every recording", hint: `in ${ns}, now and later` },
-              { value: "chosen", label: "Chosen recordings", hint: "in each one’s Access dialog" },
+              { value: "all", label: "Every asset", hint: `in ${ns}, now and later` },
+              { value: "chosen", label: "Chosen assets", hint: "in each one’s Access dialog" },
             ]}
           />
         </div>
@@ -287,7 +287,7 @@ export function RecordingIpGroups({ rid, ns }: { rid: number; ns: string }) {
             {q.data.map((g) => (
               <li key={g.id} className="border-t border-border py-2 first:border-t-0">
                 {g.everything ? (
-                  <Tooltip content={`${g.name} opens every recording in ${ns}; change that on the namespace’s page`}>
+                  <Tooltip content={`${g.name} opens every asset in ${ns}; change that on the namespace’s page`}>
                     <span className="block w-fit">{box(g)}</span>
                   </Tooltip>
                 ) : (

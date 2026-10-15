@@ -84,7 +84,7 @@ export function RenameDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Rename recording"
+      title="Rename asset"
       description="The new title shows everywhere: the Library, search, reports and shared links."
     >
       <form onSubmit={submit} className="flex flex-col gap-5">
@@ -135,7 +135,7 @@ export function AccessDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Who can see this recording"
+      title="Who can see this asset"
       description="Members of its namespace, people it’s shared with and visitors from its IP groups always see all of it."
       wide
     >

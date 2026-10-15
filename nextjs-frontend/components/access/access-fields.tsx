@@ -40,7 +40,7 @@ export function AccessFields({
 }) {
   const current = ACCESS.find((a) => a.value === value.access) ?? ACCESS[ACCESS.length - 1];
   const pub = value.access === "public";
-  const partsReason = disabled ? disabledReason : "Only a public recording opens parts to everyone";
+  const partsReason = disabled ? disabledReason : "Only a public asset opens parts to everyone";
   return (
     <div className="flex flex-col gap-3">
       <ChoiceCards
@@ -99,7 +99,7 @@ export function AccessFields({
           <span className="flex flex-col">
             <span className="text-[13.5px] font-semibold text-fg">Featured</span>
             <span className="text-[12px] text-fg-muted">
-              {pub ? "Shown on the public home page" : "Only public recordings are featured"}
+              {pub ? "Shown on the public home page" : "Only public assets are featured"}
             </span>
           </span>
         }

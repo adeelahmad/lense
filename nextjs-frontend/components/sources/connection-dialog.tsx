@@ -430,7 +430,7 @@ export function ConnectionDialog({
         {result && !editing && (
           <Field
             label="Name"
-            hint="Shown in the list, in watched folders and on imported recordings’ paths"
+            hint="Shown in the list, in watched folders and on imported assets’ paths"
             error={errors.name}
           >
             {({ id, describedBy, invalid }) => (

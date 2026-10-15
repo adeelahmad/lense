@@ -53,17 +53,17 @@ export function describeSelection(
 ): string {
   const s = (sel ?? {}) as BatchSelection;
   if (s.collection) return `the saved collection ${names.collection ? `“${names.collection}”` : `#${s.collection}`}`;
-  if (s.recordings?.length) return plural(s.recordings.length, "chosen recording");
+  if (s.recordings?.length) return plural(s.recordings.length, "chosen asset");
   const parts: string[] = [];
   const f = (s.filter ?? {}) as Record<string, unknown>;
   if (s.entity || (f.entities as unknown[] | undefined)?.length)
-    parts.push(`every recording that mentions ${names.entity ?? "the entity"}`);
+    parts.push(`every asset that mentions ${names.entity ?? "the entity"}`);
   if (s.speaker || (f.speakers as unknown[] | undefined)?.length)
-    parts.push(`every recording with ${names.speaker ?? "the speaker"}`);
-  if (typeof f.q === "string" && f.q) parts.push(`recordings matching “${f.q}”`);
+    parts.push(`every asset with ${names.speaker ?? "the person"}`);
+  if (typeof f.q === "string" && f.q) parts.push(`assets matching “${f.q}”`);
   const ns = s.namespace ?? (Array.isArray(f.namespaces) ? (f.namespaces as string[]).join(", ") : null);
-  if (ns) parts.push(parts.length ? `in ${ns}` : `every recording in ${ns}`);
-  return parts.join(" ") || "every recording you can change";
+  if (ns) parts.push(parts.length ? `in ${ns}` : `every asset in ${ns}`);
+  return parts.join(" ") || "every asset you can change";
 }
 
 export type ProgressParts = {

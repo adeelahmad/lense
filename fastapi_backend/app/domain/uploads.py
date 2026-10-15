@@ -163,7 +163,7 @@ def start(db, cfg, ns, filename, size, by, title=None, modified=None, attach=Non
         raise ValueError("only audio or video can be attached to a transcript")
     why = convert.unavailable(cfg, name)
     if why:
-        instead = "; import it as a transcript instead" if ext in TRANSCRIPT_EXT else ""
+        instead = "; import it as text instead" if ext in TRANSCRIPT_EXT else ""
         raise ValueError(f"this {convert.word(name)} can't be read here: {why}{instead}")
     if size <= 0:
         raise ValueError("the file is empty")
@@ -292,7 +292,7 @@ def finish(db, cfg, row, admin=False):
         if not rec:
             raise KeyError(target)
         if has_media(db, cfg, rec):
-            raise HasMedia("that recording has audio already")
+            raise HasMedia("that asset has audio already")
         sid = rec["space"]
     else:
         sid = store.ns_id(db, row["namespace"], create=admin)

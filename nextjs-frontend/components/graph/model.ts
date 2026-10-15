@@ -28,16 +28,16 @@ export type GraphData = {
 };
 
 /** Node groups in the filter list, in the design's order. Speakers first, then entity types. */
-export const NODE_GROUPS: { key: string; label: string; shape: Shape }[] = [
-  { key: "speaker", label: "Speakers", shape: "circle" },
-  { key: "PERSON", label: "People", shape: "ring" },
+export const NODE_GROUPS: { key: string; label: string; one?: string; shape: Shape }[] = [
+  { key: "speaker", label: "People", one: "Person", shape: "circle" },
+  { key: "PERSON", label: "Named people", one: "Named person", shape: "ring" },
   { key: "ORG", label: "Organisations", shape: "square" },
   { key: "PRODUCT", label: "Products", shape: "diamond" },
   { key: "PLACE", label: "Places", shape: "triangle" },
   { key: "TERM", label: "Terms", shape: "pill" },
   { key: "EVENT", label: "Events", shape: "hexagon" },
   { key: "WORK", label: "Works", shape: "rounded" },
-  { key: "recording", label: "Recordings", shape: "doc" },
+  { key: "recording", label: "Assets", shape: "doc" },
   { key: "collection", label: "Collections", shape: "folder" },
   { key: "namespace", label: "Namespaces", shape: "octagon" },
   { key: "topic", label: "Topics", shape: "tag" },
@@ -69,7 +69,7 @@ export const EDGE_KINDS: {
   gold?: boolean;
   width: number;
 }[] = [
-  { key: "together", label: "Spoke together", width: 2.2 },
+  { key: "together", label: "Appear together", width: 2.2 },
   { key: "mentions", label: "Mentions", width: 1.1 },
   {
     key: "mentioned together",
@@ -87,7 +87,7 @@ export const EDGE_KINDS: {
     width: 1.6,
   },
   { key: "contains", label: "Contains", width: 1.2 },
-  { key: "speaks in", label: "Speaks in", dash: "4 2", width: 1.1 },
+  { key: "speaks in", label: "Appears in", dash: "4 2", width: 1.1 },
   { key: "mentioned in", label: "Mentioned in", dash: "2 2", width: 1 },
   { key: "about", label: "About", dash: "5 2", width: 1.2 },
   { key: "narrower", label: "Narrower", width: 1.4 },
@@ -113,11 +113,11 @@ export function nodeShape(n: Pick<GraphNode, "kind" | "type">): Shape {
   return NODE_GROUPS.find((g) => g.key === nodeGroup(n))?.shape ?? "circle";
 }
 
-/** "Organisation", "Speaker"… */
+/** "Organisation", "Person"… */
 export function typeLabel(n: Pick<GraphNode, "kind" | "type">): string {
   const g = NODE_GROUPS.find((x) => x.key === nodeGroup(n));
   if (!g) return "Entity";
-  return g.label.replace(/s$/, "");
+  return g.one ?? g.label.replace(/s$/, "");
 }
 
 /** Identity links are shown whatever their weight. */
@@ -223,7 +223,7 @@ export function summarize(nodes: GraphNode[], edges: GraphEdge[], scopeLabel: st
     .slice(0, 3)
     .filter((n) => degree.get(n.id));
   const speakers = nodes.filter((n) => n.kind === "speaker").length;
-  const head = `${nodes.length} ${nodes.length === 1 ? "node" : "nodes"} (${speakers} ${speakers === 1 ? "speaker" : "speakers"}) and ${edges.length} ${edges.length === 1 ? "link" : "links"} in ${scopeLabel}.`;
+  const head = `${nodes.length} ${nodes.length === 1 ? "node" : "nodes"} (${speakers} ${speakers === 1 ? "person" : "people"}) and ${edges.length} ${edges.length === 1 ? "link" : "links"} in ${scopeLabel}.`;
   if (!top.length) return head;
   return `${head} Most connected: ${top.map((n) => `${n.label} (${degree.get(n.id)} ${degree.get(n.id) === 1 ? "link" : "links"})`).join(", ")}.`;
 }

@@ -98,6 +98,24 @@ class NoteTree(ResponseModel):
     pages: list[NotePageItem]
 
 
+class NoteHit(ResponseModel):
+    id: int
+    title: str
+    summary: str | None = None
+    place: Place | None = None
+    parent: int | None = Field(None, description="the page it's inside, in the tree")
+    about: str | None = Field(None, description='what this is the page of, like "recording:12"; null for a free note')
+    author: Literal["person", "assistant"] = "person"
+    updated_at: str | None = None
+    namespace: str
+    snippet: str | None = Field(None, description="the words around the match in its text, when the text has it")
+
+
+class NoteSearch(ResponseModel):
+    total: int = Field(description="how many pages match; `pages` has the first `limit`")
+    pages: list[NoteHit]
+
+
 class NotePageCreate(RequestModel):
     ns: str = Field(description="the namespace it goes in")
     title: str = Field(min_length=1, max_length=200)

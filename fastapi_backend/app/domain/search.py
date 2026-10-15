@@ -514,7 +514,7 @@ def _facets(db, groups, where_f, base, screen, ns, spaces, recording, files=Fals
     speakers = [
         {
             "id": i,
-            "name": (people.get(i) or {}).get("name") or (people.get(i) or {}).get("label") or f"Speaker {i}",
+            "name": (people.get(i) or {}).get("name") or (people.get(i) or {}).get("label") or f"Person {i}",
             "namespace": space_names.get((people.get(i) or {}).get("space")),
             "count": n,
         }

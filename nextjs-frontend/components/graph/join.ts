@@ -13,7 +13,8 @@ import { useArchive } from "@/lib/hooks/session";
 
 type Joins = "entity" | "speaker" | "topic";
 const JOINS: string[] = ["entity", "speaker", "topic"];
-const NOUN: Record<Joins, string> = { entity: "An entity", speaker: "A speaker", topic: "A topic" };
+const NOUN: Record<Joins, string> = { entity: "An entity", speaker: "A person", topic: "A topic" };
+const ANOTHER: Record<Joins, string> = { entity: "entity", speaker: "person", topic: "topic" };
 
 /** What one node can join: an entity of one namespace joins another entity (merged in its namespace, linked across
  * namespaces), and a speaker or a topic joins one of its namespace. A global node joining several namespaces joins
@@ -30,9 +31,9 @@ export function joinPlan(
 ): "merge" | "link" | "merge-speaker" | "merge-topic" | string {
   const k = joinKind(from) ?? "entity";
   if (into.id === from.id) return "Pick another node to merge into.";
-  if (!joinKind(from) || joinKind(into) !== k) return `${NOUN[k]} merges into another ${k}.`;
+  if (!joinKind(from) || joinKind(into) !== k) return `${NOUN[k]} merges into another ${ANOTHER[k]}.`;
   if (k === "entity") return from.ns[0] === into.ns[0] ? "merge" : "link";
-  if (from.ns[0] !== into.ns[0]) return `${k === "speaker" ? "Speakers" : "Topics"} are merged within one namespace.`;
+  if (from.ns[0] !== into.ns[0]) return `${k === "speaker" ? "People" : "Topics"} are merged within one namespace.`;
   return k === "speaker" ? "merge-speaker" : "merge-topic";
 }
 

@@ -34,7 +34,7 @@ export function ChaptersRail({ className }: { className?: string }) {
           <p className="px-2 py-1 text-[13px] leading-[1.45] text-fg-muted">
             {pending
               ? "Chapters are created by the Analyze step."
-              : "No chapters: Analyze found no topic changes, or hasn't run on this recording."}
+              : "No chapters: Analyze found no topic changes, or hasn't run on this asset."}
           </p>
           {pending && (
             <div className="flex flex-col gap-2 px-2 py-1" aria-hidden>

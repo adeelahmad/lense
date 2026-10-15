@@ -88,7 +88,7 @@ export function scopeFromParams(p: URLSearchParams): Scope {
 export function namespaceSize(nss: Pick<Namespace, "recordings" | "ms">[]): string {
   const recs = nss.reduce((a, n) => a + ((n.recordings as number) ?? 0), 0);
   const ms = nss.reduce((a, n) => a + ((n.ms as number) ?? 0), 0);
-  return `${count(recs)} ${recs === 1 ? "recording" : "recordings"} · ${hoursShort(ms)}`;
+  return `${count(recs)} ${recs === 1 ? "asset" : "assets"} · ${hoursShort(ms)}`;
 }
 
 export function hoursShort(ms: number): string {
@@ -104,10 +104,10 @@ export function recordingsLabel(
   ids: number[],
   byId: Map<number, Pick<RecordingSummary, "title" | "duration_ms">>,
 ): { label: string; size?: string } {
-  if (ids.length === 1) return { label: byId.get(ids[0])?.title ?? `Recording #${ids[0]}` };
+  if (ids.length === 1) return { label: byId.get(ids[0])?.title ?? `Asset #${ids[0]}` };
   const ms = ids.reduce((a, id) => a + (byId.get(id)?.duration_ms ?? 0), 0);
   return {
-    label: `${count(ids.length)} recordings`,
+    label: `${count(ids.length)} assets`,
     size: ms ? hoursShort(ms) : undefined,
   };
 }
@@ -128,13 +128,11 @@ export function scopeWords(s: Scope): string {
         ? ns[0]
         : `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}`;
   const extra = [
-    s.recordings?.length
-      ? `${s.recordings.length === 1 ? "one recording" : `${s.recordings.length} recordings`}`
-      : null,
+    s.recordings?.length ? `${s.recordings.length === 1 ? "one asset" : `${s.recordings.length} assets`}` : null,
     s.collections?.length
       ? `${s.collections.length === 1 ? "one collection" : `${s.collections.length} collections`}`
       : null,
-    s.speakers?.length ? "chosen speakers" : null,
+    s.speakers?.length ? "chosen people" : null,
   ]
     .filter(Boolean)
     .join(", ");

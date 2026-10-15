@@ -428,7 +428,7 @@ def build_reports(db, cfg, ns=None, rid=None, audio_mode=None, log=print):
         _links(out_dir, links)
         if links:
             written.append(report_namespace(db, cfg, n["id"], out_dir, links))
-            log(f"  {n['name']}: {len(links)} recording report(s) and an overview")
+            log(f"  {n['name']}: {len(links)} asset report(s) and an overview")
     return written
 
 

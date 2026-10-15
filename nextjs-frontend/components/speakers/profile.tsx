@@ -100,8 +100,8 @@ function RenameDialog({
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Rename speaker"
-      description="The name shows everywhere this voice speaks in this namespace. Leave it empty to go back to the automatic label."
+      title="Rename person"
+      description="The name shows everywhere this person appears in this namespace. Leave it empty to go back to the automatic label."
       actions={
         <>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -173,7 +173,7 @@ export function SpeakerProfile({ id }: { id: number }) {
 
   if (dir.isLoading && !me)
     return (
-      <div className="flex flex-col gap-4 px-4 py-6 md:px-6" aria-busy="true" aria-label="Loading speaker">
+      <div className="flex flex-col gap-4 px-4 py-6 md:px-6" aria-busy="true" aria-label="Loading person">
         <Skeleton className="h-12 w-64" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-40 w-full" />
@@ -184,10 +184,10 @@ export function SpeakerProfile({ id }: { id: number }) {
       <div className="px-4 py-6 md:px-6">
         <EmptyState
           icon={<AudioLines />}
-          title="This speaker isn’t here"
+          title="This person isn’t here"
           actions={
             <Button asChild variant="secondary">
-              <Link href="/settings/speakers">All speakers</Link>
+              <Link href="/settings/speakers">All people</Link>
             </Button>
           }
         >
@@ -207,7 +207,7 @@ export function SpeakerProfile({ id }: { id: number }) {
         href={`/settings/speakers?ns=${encodeURIComponent(ns ?? "")}`}
         className="inline-flex w-fit items-center gap-1 text-[13px] font-semibold text-fg-secondary hover:text-fg"
       >
-        <ChevronLeft className="size-4" aria-hidden /> Speakers in {ns}
+        <ChevronLeft className="size-4" aria-hidden /> People in {ns}
       </Link>
       <div className="grid gap-6 rounded-lg border border-border px-4 py-5 md:px-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">

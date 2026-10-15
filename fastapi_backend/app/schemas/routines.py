@@ -33,7 +33,7 @@ class RoutineCatalog(ResponseModel):
     routines: list[Routine]
     actions: list[str] = Field(description="what a routine can do: sync, pipeline, workflow, sensors (tidy sensor data)")
     recordings: list[str] = Field(
-        description="which recordings a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)"
+        description="which assets a pipeline or workflow action takes: new, unprocessed, all, unindexed (not yet searchable by meaning)"
     )
 
 

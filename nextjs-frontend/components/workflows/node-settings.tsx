@@ -179,10 +179,7 @@ export function NodeSettings({
 
         {node.type === "llm" && (
           <>
-            <Field
-              label="Prompt template"
-              hint="What came in is {{ input }}; the recording is there as in any template"
-            >
+            <Field label="Prompt template" hint="What came in is {{ input }}; the asset is there as in any template">
               {({ id, describedBy }) => (
                 <Select
                   id={id}
@@ -349,7 +346,7 @@ export function NodeSettings({
             />
             <Lines
               label="Terms"
-              hint="One per line, as Name|TYPE: always found, wherever they’re said"
+              hint="One per line, as Name|TYPE: always found, wherever they appear"
               placeholder={"Acme Corp|ORG\nProject Falcon|PRODUCT"}
               value={(c.terms as string[] | undefined) ?? []}
               show={(v) => String(v)}
@@ -427,7 +424,7 @@ export function NodeSettings({
         )}
 
         {node.type === "output" && (
-          <Field label="Output name" hint="Saved on the recording as outputs.<name>; lowercase letters, digits and _">
+          <Field label="Output name" hint="Saved on the asset as outputs.<name>; lowercase letters, digits and _">
             {({ id, describedBy }) => (
               <Input
                 id={id}
@@ -446,7 +443,7 @@ export function NodeSettings({
             label="Custom field"
             hint={
               fields.length
-                ? "Set on recordings in the field’s namespace; elsewhere the node fails and says why"
+                ? "Set on assets in the field’s namespace; elsewhere the node fails and says why"
                 : "No custom fields yet: add one in a namespace’s settings"
             }
           >

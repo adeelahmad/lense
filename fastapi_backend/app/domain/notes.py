@@ -63,7 +63,7 @@ def create(db, rid, space, account, text, t0=None, t1=None, quote=None, shared=F
     text = _text(text)
     t0, t1 = _moment(t0, t1, duration_ms)
     if len(db.values("SELECT VALUE id FROM note WHERE recording = $r AND account = $a", r=int(rid), a=account)) >= MAX_NOTES:
-        raise ValueError(f"You have {MAX_NOTES} notes on this recording already; delete one first.")
+        raise ValueError(f"You have {MAX_NOTES} notes on this asset already; delete one first.")
     quote = " ".join(str(quote or "").split())[:QUOTE_MAX] or None
     nid = db.next_id("note")
     t = store.now()
