@@ -6,31 +6,38 @@ import { useCallback } from "react";
 import { Speakers } from "@/app/openapi-client";
 import { useLinkEntities, useMergeEntities } from "@/components/entities/curate";
 import type { GraphNode } from "@/components/graph/model";
+import { useTopicChanges } from "@/components/topics/curate";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
 
+type Joins = "entity" | "speaker" | "topic";
+const JOINS: string[] = ["entity", "speaker", "topic"];
+const NOUN: Record<Joins, string> = { entity: "An entity", speaker: "A speaker", topic: "A topic" };
+
 /** What one node can join: an entity of one namespace joins another entity (merged in its namespace, linked across
- * namespaces) and a speaker joins a speaker of its namespace. A global node joining several namespaces joins nothing. */
-export function joinKind(n: Pick<GraphNode, "kind" | "refs" | "ns"> | null | undefined): "entity" | "speaker" | null {
+ * namespaces), and a speaker or a topic joins one of its namespace. A global node joining several namespaces joins
+ * nothing. */
+export function joinKind(n: Pick<GraphNode, "kind" | "refs" | "ns"> | null | undefined): Joins | null {
   if (!n || n.refs.length !== 1 || n.ns.length !== 1) return null;
-  return n.kind === "entity" || n.kind === "speaker" ? n.kind : null;
+  return JOINS.includes(n.kind) ? (n.kind as Joins) : null;
 }
 
 /** How `from` joins `into` (`into` is kept), or why it can't. */
 export function joinPlan(
   from: Pick<GraphNode, "id" | "kind" | "refs" | "ns">,
   into: Pick<GraphNode, "id" | "kind" | "refs" | "ns">,
-): "merge" | "link" | "merge-speaker" | string {
-  const k = joinKind(from);
+): "merge" | "link" | "merge-speaker" | "merge-topic" | string {
+  const k = joinKind(from) ?? "entity";
   if (into.id === from.id) return "Pick another node to merge into.";
-  if (!k || joinKind(into) !== k)
-    return k === "speaker" ? "A speaker merges into another speaker." : "An entity merges into another entity.";
-  if (k === "speaker") return from.ns[0] === into.ns[0] ? "merge-speaker" : "Speakers are merged within one namespace.";
-  return from.ns[0] === into.ns[0] ? "merge" : "link";
+  if (!joinKind(from) || joinKind(into) !== k) return `${NOUN[k]} merges into another ${k}.`;
+  if (k === "entity") return from.ns[0] === into.ns[0] ? "merge" : "link";
+  if (from.ns[0] !== into.ns[0]) return `${k === "speaker" ? "Speakers" : "Topics"} are merged within one namespace.`;
+  return k === "speaker" ? "merge-speaker" : "merge-topic";
 }
 
-/** Merging nodes on the graph canvas: entities (with Undo), entities of two namespaces linked, and speakers. */
+/** Merging nodes on the graph canvas, each with Undo: entities, entities of two namespaces linked, speakers and
+ * topics. */
 export function useGraphJoin() {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -38,6 +45,7 @@ export function useGraphJoin() {
   const { can } = useArchive();
   const { merge } = useMergeEntities();
   const link = useLinkEntities();
+  const topics = useTopicChanges();
   const joinable = useCallback(
     (n: GraphNode | null | undefined): boolean => Boolean(n && joinKind(n) && can("editor", n.ns[0])),
     [can],
@@ -84,7 +92,7 @@ export function useGraphJoin() {
   const join = useCallback(
     async (from: GraphNode, into: GraphNode): Promise<boolean> => {
       const plan = joinPlan(from, into);
-      if (plan === "merge-speaker" || plan === "merge" || plan === "link") {
+      if (plan === "merge-speaker" || plan === "merge-topic" || plan === "merge" || plan === "link") {
         if (!joinable(into)) {
           toast({
             title: "You can’t change that one",
@@ -98,6 +106,7 @@ export function useGraphJoin() {
       const b = { id: into.refs[0], name: into.label };
       if (plan === "merge") return merge(b, [a]);
       if (plan === "merge-speaker") return speakers(from, into);
+      if (plan === "merge-topic") return topics.merge({ id: b.id, label: b.name }, [{ id: a.id, label: a.name }]);
       if (plan === "link") {
         await link(b, a);
         return false;
@@ -105,7 +114,7 @@ export function useGraphJoin() {
       toast({ title: "Those can’t be merged", body: plan, tone: "red" });
       return false;
     },
-    [joinable, merge, speakers, link, toast],
+    [joinable, merge, speakers, topics, link, toast],
   );
   return { joinable, join };
 }

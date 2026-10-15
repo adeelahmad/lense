@@ -1,12 +1,13 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Merge, NotebookPen, Trash2, X } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Check, GitMerge, NotebookPen, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Topics } from "@/app/openapi-client";
 import { SimilarSection } from "@/components/similar/similar-list";
+import { TopicMergeInto, useTopicChanges, useTopicRefresh } from "@/components/topics/curate";
 import { broaderChoices, splitLabels, type TopicItem } from "@/components/topics/model";
 import { TopicPicker } from "@/components/topics/topic-picker";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +41,6 @@ export function TopicDrawer({
   onClose: () => void;
 }) {
   const client = useApiClient();
-  const qc = useQueryClient();
   const toast = useToast();
   const { can } = useArchive();
   const canEdit = can("editor", ns);
@@ -61,7 +61,7 @@ export function TopicDrawer({
   const [broader, setBroader] = useState<number[]>([]);
   const [related, setRelated] = useState<number[]>([]);
   const [merging, setMerging] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const changes = useTopicChanges();
   const d = t.data;
   useEffect(() => {
     if (d) {
@@ -73,12 +73,7 @@ export function TopicDrawer({
     }
   }, [d]);
 
-  const refresh = () => {
-    qc.invalidateQueries({ queryKey: ["topic"] });
-    qc.invalidateQueries({ queryKey: ["topics"] });
-    qc.invalidateQueries({ queryKey: ["recording-topics"] });
-    qc.invalidateQueries({ queryKey: ["graph"] });
-  };
+  const refresh = useTopicRefresh();
   const fail = (title: string) => (err: unknown) =>
     toast({ title, body: err instanceof ApiError ? err.message : "Please try again.", tone: "red" });
 
@@ -117,16 +112,6 @@ export function TopicDrawer({
     onSuccess: refresh,
     onError: fail("Couldn’t change it"),
   });
-  const remove = useMutation({
-    mutationFn: () => data(Topics.deleteTopic({ client, path: { tid: id } })),
-    onSuccess: () => {
-      refresh();
-      qc.invalidateQueries({ queryKey: ["entities"] });
-      toast({ title: "Topic deleted", tone: "green" });
-      onClose();
-    },
-    onError: fail("Couldn’t delete it"),
-  });
 
   const accepted = (d?.about ?? []).filter((a) => a.status === "accepted");
   const suggested = (d?.about ?? []).filter((a) => a.status === "suggested");
@@ -144,10 +129,22 @@ export function TopicDrawer({
             </Button>
             {canEdit && (
               <>
-                <Button size="xs" variant="ghost" icon={<Merge />} onClick={() => setMerging(true)}>
+                <Button
+                  size="xs"
+                  variant={merging ? "secondary" : "ghost"}
+                  icon={<GitMerge />}
+                  aria-pressed={merging}
+                  onClick={() => setMerging((m) => !m)}
+                >
                   Merge
                 </Button>
-                <Button size="xs" variant="danger-ghost" icon={<Trash2 />} onClick={() => setDeleting(true)}>
+                <Button
+                  size="xs"
+                  variant="danger-ghost"
+                  icon={<Trash2 />}
+                  disabled={changes.pending}
+                  onClick={() => void changes.remove({ id: d.id, label: d.label }).then((gone) => gone && onClose())}
+                >
                   Delete
                 </Button>
               </>
@@ -161,6 +158,7 @@ export function TopicDrawer({
         {t.isError && <Banner tone="error">{t.error.message}</Banner>}
         {d && (
           <>
+            <TopicMergeInto keep={{ id: d.id, label: d.label }} all={all} open={merging} onOpenChange={setMerging} />
             {d.from_entity ? (
               <p className="m-0 text-[12.5px] text-fg-secondary">
                 Made from an entity of the same name, hidden while this topic exists. Deleting the topic shows it again.
@@ -321,96 +319,7 @@ export function TopicDrawer({
           </>
         )}
       </div>
-      {d && (
-        <MergeDialog
-          open={merging}
-          onOpenChange={setMerging}
-          keep={d.id}
-          label={d.label}
-          all={all}
-          onMerged={() => {
-            refresh();
-            setMerging(false);
-          }}
-        />
-      )}
-      <Dialog
-        open={deleting}
-        onOpenChange={setDeleting}
-        title={`Delete ${d?.label ?? "this topic"}?`}
-        description="Its narrower topics move up to its broader ones, and recordings stop being about it."
-        actions={
-          <>
-            <Button variant="ghost" onClick={() => setDeleting(false)}>
-              Cancel
-            </Button>
-            <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate()}>
-              Delete topic
-            </Button>
-          </>
-        }
-      />
     </Drawer>
-  );
-}
-
-/** Fold other topics into this one: their labels become its other labels, their recordings are about it. */
-function MergeDialog({
-  open,
-  onOpenChange,
-  keep,
-  label,
-  all,
-  onMerged,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-  keep: number;
-  label: string;
-  all: TopicItem[];
-  onMerged: () => void;
-}) {
-  const client = useApiClient();
-  const [others, setOthers] = useState<number[]>([]);
-  const merge = useMutation({
-    mutationFn: () => data(Topics.mergeTopics({ client, body: { keep, others } })),
-    onSuccess: () => {
-      setOthers([]);
-      onMerged();
-    },
-  });
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={`Merge into ${label}`}
-      description="The topics you pick are deleted; their labels become other labels of this one, and their recordings are about it."
-      actions={
-        <>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button variant="primary" disabled={!others.length || merge.isPending} onClick={() => merge.mutate()}>
-            Merge
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-2">
-        <TopicPicker
-          value={others}
-          onChange={setOthers}
-          choices={all.filter((t) => t.id !== keep)}
-          all={all}
-          placeholder="Pick a topic to merge…"
-        />
-        {merge.isError && (
-          <p role="alert" className="m-0 text-[13px] text-red-dark">
-            {merge.error instanceof ApiError ? merge.error.message : "Couldn’t merge them. Please try again."}
-          </p>
-        )}
-      </div>
-    </Dialog>
   );
 }
 

@@ -18474,6 +18474,47 @@ export type TopicCandidate = {
 };
 
 /**
+ * TopicChange
+ */
+export type TopicChange = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Kind
+   *
+   * merge or delete
+   */
+  kind: string;
+  /**
+   * Keep
+   *
+   * the topic a merge kept
+   */
+  keep?: number | null;
+  /**
+   * Labels
+   *
+   * the topics that went
+   */
+  labels?: Array<string>;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Undone
+   */
+  undone?: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * TopicCreate
  */
 export type TopicCreate = {
@@ -18497,6 +18538,23 @@ export type TopicCreate = {
    * Related
    */
   related?: Array<number>;
+};
+
+/**
+ * TopicDeleted
+ */
+export type TopicDeleted = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Undo
+   *
+   * the change to take back with POST /topics/changes/{undo}/undo
+   */
+  undo: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -18640,6 +18698,67 @@ export type TopicMerge = {
    * Others
    */
   others: Array<number>;
+};
+
+/**
+ * TopicMerged
+ */
+export type TopicMerged = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Alt
+   */
+  alt?: Array<string>;
+  /**
+   * Definition
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<TopicRef>;
+  /**
+   * Narrower
+   */
+  narrower?: Array<TopicRef>;
+  /**
+   * Related
+   */
+  related?: Array<TopicRef>;
+  /**
+   * Recordings
+   */
+  recordings?: number;
+  /**
+   * From Entity
+   */
+  from_entity?: number | null;
+  /**
+   * Updated
+   */
+  updated?: string | null;
+  /**
+   * About
+   */
+  about?: Array<TopicAbout>;
+  /**
+   * Undo
+   *
+   * the change to take back with POST /topics/changes/{undo}/undo
+   */
+  undo: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -29657,7 +29776,7 @@ export type DeleteTopicResponses = {
   /**
    * Successful Response
    */
-  200: Ok;
+  200: TopicDeleted;
 };
 
 export type DeleteTopicResponse = DeleteTopicResponses[keyof DeleteTopicResponses];
@@ -29839,10 +29958,77 @@ export type MergeTopicsResponses = {
   /**
    * Successful Response
    */
-  200: TopicDetail;
+  200: TopicMerged;
 };
 
 export type MergeTopicsResponse = MergeTopicsResponses[keyof MergeTopicsResponses];
+
+export type ListTopicChangesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/namespaces/{name}/topics/changes";
+};
+
+export type ListTopicChangesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTopicChangesError = ListTopicChangesErrors[keyof ListTopicChangesErrors];
+
+export type ListTopicChangesResponses = {
+  /**
+   * Response Topics-List Topic Changes
+   *
+   * Successful Response
+   */
+  200: Array<TopicChange>;
+};
+
+export type ListTopicChangesResponse = ListTopicChangesResponses[keyof ListTopicChangesResponses];
+
+export type UndoTopicChangeData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/changes/{cid}/undo";
+};
+
+export type UndoTopicChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoTopicChangeError = UndoTopicChangeErrors[keyof UndoTopicChangeErrors];
+
+export type UndoTopicChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UndoTopicChangeResponse = UndoTopicChangeResponses[keyof UndoTopicChangeResponses];
 
 export type TagRecordingsData = {
   body: TopicRecordings;

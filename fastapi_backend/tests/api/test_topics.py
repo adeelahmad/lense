@@ -1,5 +1,5 @@
 """Topics: the vocabulary (labels, broader, narrower, related), recordings about topics, topics made from entities,
-and topics in the property graph and in RDF."""
+undoing merges and deletes, and topics in the property graph and in RDF."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import pytest
 from rdflib import Graph, URIRef
 from rdflib.namespace import SKOS
 
-from app.domain import analyze, topics
+from app.domain import analyze, notebook, store, topics
 from app.domain.store import R
 from tests.api.test_entities import Env
 
@@ -94,6 +94,75 @@ def test_topic_from_entity(env):
         ("entity.show", f"topic {t['id']} was deleted"),
         ("entity.hide", f"became topic {t['id']}"),
     ]
+
+
+def test_undo_a_merge(env):
+    c, ed, vi, db = env.c, env.h["editor"], env.h["viewer"], env.db
+    t = make(c, ed, "Funding")
+    u = make(c, ed, "Grants", alt=["bursaries"], definition="Money given.")
+    v = make(c, ed, "Money", broader=[u["id"]], related=[u["id"]])
+    c.post(f"/api/v1/topics/{t['id']}/recordings", json={"recordings": [1, 2]}, headers=ed)
+    c.post(f"/api/v1/topics/{u['id']}/recordings", json={"recordings": [2, 4]}, headers=ed)
+    page = notebook.create(db, store.ns_id(db, "pods"), "ed@x.io", "Grant notes", about_thing=f"topic:{u['id']}")
+    m = c.post("/api/v1/topics/merge", json={"keep": t["id"], "others": [u["id"]]}, headers=ed).json()
+    assert m["alt"] == ["Grants", "bursaries"] and [a["recording"] for a in m["about"]] == [1, 2, 4]
+    assert c.get(f"/api/v1/topics/{v['id']}", headers=vi).json()["broader"] == [{"id": t["id"], "label": "Funding"}]
+    changes = c.get("/api/v1/namespaces/pods/topics/changes", headers=vi).json()
+    assert [(x["id"], x["kind"], x["keep"], x["labels"], x["undone"]) for x in changes] == [
+        (m["undo"], "merge", t["id"], ["Grants"], False)
+    ]
+    assert c.post(f"/api/v1/topics/changes/{m['undo']}/undo", headers=vi).status_code == 403
+    assert c.post(f"/api/v1/topics/changes/{m['undo']}/undo", headers=ed).status_code == 200
+    # both topics as they were: labels, recordings, broader and related, and the page
+    back = c.get(f"/api/v1/topics/{u['id']}", headers=vi).json()
+    assert (back["label"], back["alt"], back["definition"]) == ("Grants", ["bursaries"], "Money given.")
+    assert [a["recording"] for a in back["about"]] == [2, 4]
+    assert back["related"] == [{"id": v["id"], "label": "Money"}]
+    kept = c.get(f"/api/v1/topics/{t['id']}", headers=vi).json()
+    assert kept["alt"] == [] and kept["related"] == [] and [a["recording"] for a in kept["about"]] == [1, 2]
+    money = c.get(f"/api/v1/topics/{v['id']}", headers=vi).json()
+    assert money["broader"] == money["related"] == [{"id": u["id"], "label": "Grants"}]
+    assert db.one("SELECT about FROM $r", r=R("note_page", page))["about"] == f"topic:{u['id']}"
+    # once only
+    again = c.post(f"/api/v1/topics/changes/{m['undo']}/undo", headers=ed)
+    assert again.status_code == 400 and "Nothing to undo" in again.text
+    assert c.get("/api/v1/namespaces/pods/topics/changes", headers=vi).json()[0]["undone"] is True
+    assert c.post("/api/v1/topics/changes/999/undo", headers=ed).status_code == 404
+
+
+def test_undo_a_delete(env):
+    c, ed, vi = env.c, env.h["editor"], env.h["viewer"]
+    bio = make(c, ed, "Biology")
+    gene = make(c, ed, "Gene therapy", alt=["GT"], broader=[bio["id"]])
+    vec = make(c, ed, "Viral vectors", broader=[gene["id"]])
+    c.post(f"/api/v1/topics/{gene['id']}/recordings", json={"recordings": [1]}, headers=ed)
+    d = c.delete(f"/api/v1/topics/{gene['id']}", headers=ed).json()
+    assert c.get(f"/api/v1/topics/{vec['id']}", headers=vi).json()["broader"] == [{"id": bio["id"], "label": "Biology"}]
+    assert c.post(f"/api/v1/topics/changes/{d['undo']}/undo", headers=ed).status_code == 200
+    g = c.get(f"/api/v1/topics/{gene['id']}", headers=vi).json()
+    assert (g["label"], g["alt"], g["broader"]) == ("Gene therapy", ["GT"], [{"id": bio["id"], "label": "Biology"}])
+    assert [a["recording"] for a in g["about"]] == [1]
+    assert c.get(f"/api/v1/topics/{vec['id']}", headers=vi).json()["broader"] == [{"id": gene["id"], "label": "Gene therapy"}]
+    # a label someone has taken since keeps the topic away
+    d = c.delete(f"/api/v1/topics/{gene['id']}", headers=ed).json()
+    make(c, ed, "gt")
+    clash = c.post(f"/api/v1/topics/changes/{d['undo']}/undo", headers=ed)
+    assert clash.status_code == 400 and "Another topic is called Gene therapy" in clash.text
+    assert c.get(f"/api/v1/topics/{gene['id']}", headers=vi).status_code == 404
+
+
+def test_undo_deleting_a_topic_made_from_an_entity(env):
+    c, ed, vi = env.c, env.h["editor"], env.h["viewer"]
+    aws = env.eid("Amazon Web Services")
+    t = c.post(f"/api/v1/entities/{aws}/topic", headers=ed).json()
+    d = c.delete(f"/api/v1/topics/{t['id']}", headers=ed).json()
+    assert c.get(f"/api/v1/entities/{aws}", headers=vi).json()["hidden"] is False
+    assert c.post(f"/api/v1/topics/changes/{d['undo']}/undo", headers=ed).status_code == 200
+    back = c.get(f"/api/v1/topics/{t['id']}", headers=vi).json()
+    assert back["from_entity"] == aws and {a["source"] for a in back["about"]} == {"entity"}
+    assert c.get(f"/api/v1/entities/{aws}", headers=vi).json()["hidden"] is True
+    hist = c.get("/api/v1/graph/history", headers=vi, params={"entity": aws}).json()["versions"]
+    assert (hist[0]["op"], hist[0]["why"]) == ("entity.hide", f"topic {t['id']} is back")
 
 
 def test_topics_in_the_graph_and_rdf(env):

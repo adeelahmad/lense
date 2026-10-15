@@ -37,11 +37,11 @@ describe("editing from the graph", () => {
 });
 
 describe("merging on the canvas", () => {
-  it("joins entities and speakers of one namespace, nothing that spans several", () => {
-    expect([joinKind(acme), joinKind(alice), joinKind(joined), joinKind(topic), joinKind(null)]).toEqual([
+  it("joins entities, speakers and topics of one namespace, nothing that spans several", () => {
+    expect([joinKind(acme), joinKind(alice), joinKind(topic), joinKind(joined), joinKind(null)]).toEqual([
       "entity",
       "speaker",
-      null,
+      "topic",
       null,
       null,
     ]);
@@ -56,5 +56,8 @@ describe("merging on the canvas", () => {
     expect(joinPlan(alice, topic)).toBe("A speaker merges into another speaker.");
     expect(joinPlan(alice, node("s8", "speaker", [8], ["calls"]))).toBe("Speakers are merged within one namespace.");
     expect(joinPlan(acme, joined)).toBe("An entity merges into another entity.");
+    expect(joinPlan(node("t6", "topic", [6], ["pods"]), topic)).toBe("merge-topic");
+    expect(joinPlan(topic, acme)).toBe("A topic merges into another topic.");
+    expect(joinPlan(topic, node("t7", "topic", [7], ["calls"]))).toBe("Topics are merged within one namespace.");
   });
 });
