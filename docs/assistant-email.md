@@ -71,7 +71,7 @@ subject: newsletter = skip
 
 A rule's conditions are on `from`, `to` (To, Cc and the address it arrived at), `subject`, `list` (List-Id) and
 `mailbox`, joined by `;`, with patterns joined by `,`. Patterns work as in an email watch's routing rules
-([Processing](processing.md#email-imap-and-calendar-feeds-ical)): one without `*` or `?` matches anywhere in the
+([Processing](processing.md#email-imap-calendar-feeds-ical-and-google-calendar)): one without `*` or `?` matches anywhere in the
 text. `skip` leaves the email unanswered. When no rule matches, or a rule names a namespace that doesn't exist, Lens
 picks the namespace for each question, as in an open chat room ([Chat rooms](chat-rooms.md)).
 

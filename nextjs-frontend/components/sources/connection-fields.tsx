@@ -162,6 +162,39 @@ export function ConnectionFields({
     )
   ) : null;
 
+  /** A Google service account's .json key file (Google Drive, Google Calendar). */
+  const serviceAccountKey = (share: string) => {
+    const keyText = form.secrets.service_account_credentials;
+    const key = keyText ? parseServiceAccountKey(keyText) : null;
+    return (
+      <Field
+        label={FIELD_LABEL.service_account_credentials}
+        hint={
+          key?.ok
+            ? `Signs in as ${key.email}. ${share}`
+            : editing && isSet("service_account_credentials") && keyText === undefined
+              ? "A key is saved (never shown again). Choose a file to replace it."
+              : "The .json key file from Google Cloud (IAM › Service accounts › Keys). Never shown again after saving"
+        }
+        error={errors.service_account_credentials}
+      >
+        {({ id, describedBy }) => (
+          <input
+            id={id}
+            aria-describedby={describedBy}
+            type="file"
+            accept=".json,application/json"
+            className="text-[13px]"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              setSecret("service_account_credentials", f ? await f.text() : undefined);
+            }}
+          />
+        )}
+      </Field>
+    );
+  };
+
   switch (type) {
     case "s3":
       return (
@@ -182,35 +215,7 @@ export function ConnectionFields({
     case "dropbox":
       return token;
     case "drive": {
-      const keyText = form.secrets.service_account_credentials;
-      const key = keyText ? parseServiceAccountKey(keyText) : null;
-      const serviceAccount = (
-        <Field
-          label={FIELD_LABEL.service_account_credentials}
-          hint={
-            key?.ok
-              ? `Signs in as ${key.email}. Share the folders Lens should read with that address.`
-              : editing && isSet("service_account_credentials") && keyText === undefined
-                ? "A key is saved (never shown again). Choose a file to replace it."
-                : "The .json key file from Google Cloud (IAM › Service accounts › Keys). Never shown again after saving"
-          }
-          error={errors.service_account_credentials}
-        >
-          {({ id, describedBy }) => (
-            <input
-              id={id}
-              aria-describedby={describedBy}
-              type="file"
-              accept=".json,application/json"
-              className="text-[13px]"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                setSecret("service_account_credentials", f ? await f.text() : undefined);
-              }}
-            />
-          )}
-        </Field>
-      );
+      const serviceAccount = serviceAccountKey("Share the folders Lens should read with that address.");
       return (
         <div className="flex flex-col gap-3">
           <Segmented
@@ -359,6 +364,73 @@ export function ConnectionFields({
           <p className="text-[12.5px] leading-normal text-fg-secondary">
             Each event becomes text: its title, when and where, who, and its description. An event that changes is read
             again.
+          </p>
+        </div>
+      );
+    case "gcal":
+      return (
+        <div className="flex flex-col gap-3">
+          <Segmented
+            className="w-full [&>button]:flex-1 [&>button]:justify-center"
+            value={form.driveAuth}
+            onChange={(v) => onChange({ ...form, driveAuth: v as ConnForm["driveAuth"] })}
+            items={[
+              { value: "token", label: "Google account" },
+              { value: "service_account", label: "Service account" },
+            ]}
+          />
+          {form.driveAuth === "service_account" ? (
+            <>
+              {serviceAccountKey("Share the calendars Lens should read with that address, and enter their IDs below.")}
+              {text("impersonate", {
+                optional: true,
+                placeholder: "you@company.com",
+                hint: "Workspace only: read this user’s calendars (needs domain-wide delegation)",
+              })}
+            </>
+          ) : editing && isSet("token") && form.secrets.token === undefined ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
+              <span className="flex-1">A Google account is connected (never shown again).</span>
+              <Button size="sm" variant="secondary" onClick={() => setSecret("token", "")}>
+                Replace
+              </Button>
+            </div>
+          ) : (
+            <Field
+              label="Google account"
+              hint="The authorized user JSON (client_id, client_secret, refresh_token) of an OAuth client of yours with the calendar.readonly scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving"
+              error={errors.token}
+            >
+              {({ id, describedBy, invalid }) => (
+                <Textarea
+                  id={id}
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  mono
+                  rows={3}
+                  className="min-h-[64px] text-[12px]"
+                  placeholder='{"client_id": "…", "client_secret": "…", "refresh_token": "…"}'
+                  value={form.secrets.token ?? ""}
+                  onChange={(e) => setSecret("token", e.target.value || undefined)}
+                  spellCheck={false}
+                />
+              )}
+            </Field>
+          )}
+          {text("calendars", {
+            mono: true,
+            optional: true,
+            placeholder: "team@group.calendar.google.com",
+            hint: "Calendar IDs, comma separated (Google Calendar › Settings › Integrate calendar). Empty: every calendar in the account",
+          })}
+          {text("days_back", {
+            optional: true,
+            placeholder: "365",
+            hint: "Leave out events that ended more than this many days ago. Empty: every event",
+          })}
+          <p className="text-[12.5px] leading-normal text-fg-secondary">
+            Each calendar is a folder and each event becomes text: its title, when and where, who, how it repeats, and
+            its description. Lens only reads; an event that changes is read again.
           </p>
         </div>
       );
