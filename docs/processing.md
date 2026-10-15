@@ -110,8 +110,10 @@ Nodes are people and named things. Edges are:
 People, organisations, products, places, events, works and topics are extracted from every asset's text. Dates and
 numbers are extracted too, but hidden unless asked for.
 
-The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab)
-and opens each in a side panel where editors rename, retype, describe, merge and hide it.
+The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab).
+An entity's name opens its own page, `/wiki/<namespace>/<Name>`, with its notes, every line that says it and what it
+comes up with ([Entity pages](notes.md#entity-pages)); the rest of its row opens a side panel where editors rename,
+retype, describe, merge and hide it.
 
 - **Merge from the side panel:** **Merge** opens a find box; type a name and press Enter, and the entity picked is
   merged into the open one at once. Its **Maybe the same** list offers likely doubles (same letters, an acronym, a near
@@ -128,8 +130,10 @@ and opens each in a side panel where editors rename, retype, describe, merge and
     mentions, and hidden entities.
   - Sorts: most mentioned, most assets, most recent, rising, and name.
   - Options: grouping by name across namespaces, a twelve-month sparkline, and facets.
-- **Entity page:** its details and aliases, paged mentions (each line with the words highlighted, linking to its moment),
-  a timeline by month or week and namespace, and connections (entities mentioned together, people, assets).
+- **Entity page** (`/wiki/<namespace>/<Name>` in the web app; `GET /api/v1/wiki/{ns}/{address}` finds it by name): its
+  details and aliases, its notes, paged mentions (each line with the words highlighted, linking to its moment), and
+  connections (entities mentioned together, people, assets); the API also gives a timeline by month or week and
+  namespace.
 - **Explorer:**
   - `GET /api/v1/graph/explore?focus=e12` gives the neighbourhood of an entity or person. Depth is one or two hops, and it
     can be filtered by type, edge kind and strength, within one namespace or all shared ones.

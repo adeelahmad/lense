@@ -4,6 +4,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
+  `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
+  what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,
+  and the assets, people and entities it comes up with. Its name on the Entities page now opens it (the rest of
+  the row still opens the side panel), as do `@` links in notes, the graph panel and the entity's RDF URI. Any case, a
+  name it had before a rename, or the name of one merged into it opens it too ([Entity pages](docs/notes.md#entity-pages)).
+- **The update notice no longer pushes pages off the screen.** While *Lens vX is out* shows above them, Chat, the
+  graph and a recording's page are that much shorter, so a phone's question box and a recording's player stay in
+  sight.
+
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 
 - **Installing an update from the web app works again in a microsandbox.** *Back up and install* stopped at the

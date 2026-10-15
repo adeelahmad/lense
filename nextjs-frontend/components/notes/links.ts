@@ -2,14 +2,13 @@
 export function hrefFor(target: string, ns?: string | null): string | null {
   const [kind, id] = target.split(":");
   if (!id || !/^\d+$/.test(id)) return null;
-  const q = ns ? `&ns=${encodeURIComponent(ns)}` : "";
   switch (kind) {
     case "page":
       return `/notes/${id}`;
     case "recording":
       return `/resources/${id}`;
-    case "entity":
-      return `/entities?entity=${id}${q}`;
+    case "entity": // its page, by name (/wiki/<namespace>/<Name>)
+      return `/entities/${id}`;
     case "topic":
       return `/topics/${id}`;
     case "speaker":
@@ -21,10 +20,10 @@ export function hrefFor(target: string, ns?: string | null): string | null {
   }
 }
 
-/** The page of a thing: /notes/about/entity/5. */
+/** The page of a thing: /notes/about/recording/5; an entity's is its wiki page, reached by /entities/5. */
 export function pageOf(target: string): string {
   const [kind, id] = target.split(":");
-  return `/notes/about/${kind}/${id}`;
+  return kind === "entity" ? `/entities/${id}` : `/notes/about/${kind}/${id}`;
 }
 
 export const PLACES = [
