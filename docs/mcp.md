@@ -82,7 +82,7 @@ namespace there.
 | `list_topics` | each namespace's vocabulary of topics ([Topics](topics.md)), by any label, top topics or the narrower ones of a topic |
 | `get_topic` | one topic: its labels, definition, broader, narrower and related topics, and the recordings about it, with links |
 | `suggest_topic` | suggest that recordings are about a topic; it waits for someone to accept it. Needs a write-scope token and editor access |
-| `find_notes` | [notes](notes.md) by words in their title, summary or text, or by where they're filed (PARA), with links |
+| `find_notes` | [notes](notes.md) by words in their title, summary or text, or by where they're filed (PARA), with the words around the match and links |
 | `read_note` | a note's Markdown with its links and backlinks, by id or as the page of a thing (`recording:12`) |
 | `write_note` | write a note or a thing's page, marked as written by an assistant. Needs a write-scope token and editor access |
 | `create_podcast` | make a two-host learning [episode](podcasts.md) about recordings or lines in them, with an angle, a length and a style; it's made in the background. Needs a write-scope token and editor access where it goes |

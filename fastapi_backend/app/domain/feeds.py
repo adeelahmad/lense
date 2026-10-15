@@ -1,5 +1,5 @@
-"""Sources that aren't file storage: IMAP mailboxes and iCalendar feeds, shown as folders of files so browsing,
-choosing files, watching and importing work for them as they do for rclone's storage (sources.py).
+"""Sources that aren't file storage: IMAP mailboxes, iCalendar feeds and Google Calendar (gcal.py), shown as folders of
+files so browsing, choosing files, watching and importing work for them as they do for rclone's storage (sources.py).
 
 - An IMAP account's folders are its mailboxes, and each message is a file, `<mailbox>/<uidvalidity>-<uid>.eml`: a
   UID stands for one message only while the mailbox's UIDVALIDITY stays the same, so a mailbox the server rebuilt
@@ -34,8 +34,10 @@ import urllib.parse
 import urllib.request
 from email import policy
 
-from . import calendars, netguard
+from . import calendars, gcal, netguard
 
+# sources a module of their own handles: browse, list_files, fetch, immutable and test, as below
+OWN = {"gcal": gcal}
 TYPES = {
     "imap": {
         "label": "Email (IMAP)",
@@ -47,6 +49,7 @@ TYPES = {
         "fields": {"user": ""},
         "secrets": ["url", "pass"],
     },
+    **{k: m.TYPE for k, m in OWN.items()},
 }
 SECURITY = ("ssl", "starttls", "none")
 # not taken when a whole account is watched: what can't be opened, the bin, junk and drafts, and the mailboxes that
@@ -487,6 +490,8 @@ def check_path(path):
 
 
 def browse(cfg, src, path=""):
+    if src["type"] in OWN:
+        return OWN[src["type"]].browse(cfg, src, check_path(path))
     return (_imap_browse if src["type"] == "imap" else _ical_browse)(cfg, src, check_path(path))
 
 
@@ -494,6 +499,8 @@ def list_files(cfg, src, path="", cursor=None):
     """Every file under `path`; for IMAP with a watch's `cursor` (a list of {mailbox, validity, uid}), only messages
     after it."""
     path = check_path(path)
+    if src["type"] in OWN:
+        return OWN[src["type"]].list_files(cfg, src, path, cursor)
     if src["type"] == "imap":
         return _imap_files(cfg, src, path, {c["mailbox"]: c for c in cursor or []})
     return _ical_browse(cfg, src, path)
@@ -501,13 +508,19 @@ def list_files(cfg, src, path="", cursor=None):
 
 def fetch(cfg, src, path):
     """The file's bytes: a message as the server keeps it, an event as an .ics of its own."""
+    if src["type"] in OWN:
+        return OWN[src["type"]].fetch(cfg, src, check_path(path))
     return (_imap_fetch if src["type"] == "imap" else _ical_fetch)(cfg, src, check_path(path))
 
 
 def immutable(src):
     """Whether a file, once fetched, never changes (an IMAP message), so a cached copy can be kept."""
+    if src["type"] in OWN:
+        return OWN[src["type"]].immutable(src)
     return src["type"] == "imap"
 
 
 def test(cfg, src):
+    if src["type"] in OWN:
+        return OWN[src["type"]].test(cfg, src)
     (_imap_test if src["type"] == "imap" else _ical_test)(cfg, src)
