@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Names get their real types, not Term.** The built-in extractor now tells people, places, organisations, events,
+  works and dates apart without a model: by a title or role before a name, a given name, the word a name ends or
+  starts with (Corp, University of, Summit, Act, River), lists of countries, regions and large cities and of
+  well-known companies and products, what a name is called ("a company called Lumen") and the namespace's named
+  speakers. Only names nothing tells stay Terms, and "and"
+  no longer joins two names into one. Existing entities analysis left as Terms are typed once on upgrade, keeping
+  every type people set; the change is in the graph's history to roll back
+  ([How a name gets its type](docs/processing.md#entities-and-the-graph-explorer)).
 - **Backups hold Lens's files too.** Each backup now also keeps the files under `data_dir` (uploads, objects, media,
   frames, renditions, web pages, reports, exports, podcasts, certificates), and restoring one puts them back. Files
   that haven't changed since the previous backup are hard links, so a backup takes only the room of what changed; the

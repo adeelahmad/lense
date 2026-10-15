@@ -9,7 +9,7 @@ import re
 import urllib.request
 from collections import Counter, defaultdict
 
-from . import enrich, entity_map, entity_setup, graph_history, store, telemetry
+from . import enrich, entity_map, entity_setup, graph_history, name_types, store, telemetry
 
 STOP = set(
     """a about above after again against all almost also am an and any are aren as at be because been before being
@@ -47,7 +47,7 @@ def words(text):
     return out
 
 
-# ---------- named things (rules; spaCy optional) ----------
+# ---------- named things (rules, typed by name_types.py; spaCy optional) ----------
 STOPCAP = set(
     (
         "I A The This That These Those It Its So And But Or If When While What Why How Who Where Which Yes No Okay Ok Right "
@@ -65,12 +65,7 @@ STOPCAP = set(
 ACR_STOP = {"I", "A", "OK", "AI", "TV", "PM", "AM", "US", "UK", "EU", "OMG"}
 TITLES = {"Dr", "Mr", "Mrs", "Ms", "Prof", "Professor", "Sir", "Dame", "Senator", "President", "Minister"}
 CONTRACTION = re.compile(r"['’](?:m|re|ve|ll|d|t)$", re.I)
-CONNECT = {"of", "for", "and", "de", "la", "van", "von", "the", "&"}
-ORG_END = re.compile(
-    r"^(Inc|Ltd|Corp|Corporation|Company|Co|LLC|Group|Bank|Therapeutics|Labs?|Laboratories|University|Institute|"
-    r"Foundation|Agency|Department|Committee|Council|Association|Society|Commission|Ministry|Office|Board|"
-    r"Partners|Capital|Systems|Technologies|Holdings|Hospital|School|College)$"
-)
+CONNECT = {"of", "for", "de", "la", "van", "von", "the", "&"}  # not "and": "Kenya and Nigeria" are two names
 TOK = re.compile(r"[^\W_](?:[\w’'&.-]*[^\W_])?")
 MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
 DATE_RX = re.compile(
@@ -98,6 +93,11 @@ def _acr(t):
     return re.fullmatch(r"[A-Z0-9&]{2,8}", t) is not None and any(c.isupper() for c in t)
 
 
+def _role(t, nxt):
+    """A role said before a name, as in "CEO Maria" or "Director Maria", rather than the start of a name."""
+    return t.casefold() in name_types.ROLES and _base(t) not in TITLES and (t.isupper() or nxt.casefold() in name_types.given_names())
+
+
 def ent_key(name):
     return re.sub(r"\s+", " ", _base(name).lower()).strip()
 
@@ -112,7 +112,10 @@ def parse_gazetteer(items):
     return sorted(out, key=lambda g: -len(g[0]))
 
 
-def extract_entities(text, gaz=()):
+def extract_entities(text, gaz=(), people=frozenset()):
+    """[(name, type)] in the order said: the gazetteer's names, dates, runs of capitalised words (typed by
+    name_types.kind from the name and the words around it; TERM when nothing tells) and numbers. `people`: keys of names
+    known to be people."""
     out, taken = [], []
 
     def add(s, e, t, typ):
@@ -161,6 +164,8 @@ def extract_entities(text, gaz=()):
             or CONTRACTION.search(toks[a][0])
         ):
             a += 1
+        while a < b and _role(toks[a][0], toks[a + 1][0]):
+            a += 1  # "CEO Maria Garcia" is Maria Garcia, said after her role
         while b >= a and toks[b][0] in CONNECT:
             b -= 1
         span = toks[a : b + 1]
@@ -175,16 +180,7 @@ def extract_entities(text, gaz=()):
                 continue
         s0 = span[0][1]
         name = _base(text[s0 : span[-1][2]])
-        last = _base(span[-1][0])
-        typ = (
-            "PERSON"
-            if first.rstrip(".") in TITLES and len(span) > 1
-            else "ORG"
-            if ORG_END.match(last)
-            else "PRODUCT"
-            if any(ch.isdigit() for x in span for ch in x[0]) and not _acr(name)
-            else "TERM"
-        )
+        typ = name_types.kind([x[0] for x in span], text[:s0], text[s0 + len(name) :], people) or "TERM"
         add(s0, s0 + len(name), name, typ)
     for m in NUM_RX.finditer(text):
         s = m.group(0).strip()
@@ -383,6 +379,29 @@ def _place(db, cfg, nid, rec, setup, listed, first, segs, ch):
     return known
 
 
+def people_of(db, nid):
+    """Keys of the names of the namespace's named speakers, whole and first names: they're people where they're said."""
+    out = set()
+    for n in db.values("SELECT VALUE name FROM speaker WHERE space = $s AND name != NONE AND name != ''", s=nid):
+        k = ent_key(str(n))
+        if k and not k.startswith("speaker"):
+            out.add(k)
+            if " " in k and len(k.split()[0]) >= 3:
+                out.add(k.split()[0])
+    return frozenset(out)
+
+
+def one_type(seg_ents):
+    """Each name gets one type in a recording: the one most of its lines give it, a term only where none gives another
+    (a Dr Lee in one line is a person in every line)."""
+    votes = defaultdict(Counter)
+    for es in seg_ents:
+        for n, t in es:
+            votes[ent_key(n)][t] += 1
+    best = {k: max(c, key=lambda t: (t != "TERM", c[t])) for k, c in votes.items()}
+    return [[(n, best.get(ent_key(n), t)) for n, t in es] for es in seg_ents]
+
+
 def analyze_recording(db, cfg, rid, seg_ents=None):
     """Entities, keywords, sections and talk statistics. `seg_ents` (per line, [(name, type)]) replaces the extractor:
     a workflow's save entities node passes what its nodes found."""
@@ -397,12 +416,15 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
     extra = entity_map.terms(db, nid, entity_map.chain_of(db, rec.get("collection"))) if listed else []
     gaz = parse_gazetteer(list(cfg["analysis"].get("gazetteer") or []) + extra)  # the defined entities, however written
     use_spacy = cfg["analysis"]["entities"] == "spacy"
+    people = people_of(db, nid) if seg_ents is None and not use_spacy else frozenset()
     given, seg_ents, toks, wc, tn, ts = seg_ents, [], [], [], Counter(), defaultdict(Counter)
     for k, s in enumerate(segs):
         if given is not None:
             seg_ents.append(list(given[k]) if k < len(given) else [])
         else:
-            seg_ents.append(spacy_entities(s["text"], cfg["analysis"]["spacy_model"]) if use_spacy else extract_entities(s["text"], gaz))
+            seg_ents.append(
+                spacy_entities(s["text"], cfg["analysis"]["spacy_model"]) if use_spacy else extract_entities(s["text"], gaz, people)
+            )
         ws = words(s["text"])
         toks.append([w for w, _ in ws])
         wc.append(len(s["text"].split()))
@@ -418,6 +440,7 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
             es[:] = [(n, typed.get(ent_key(n), t) if t == "TERM" else t) for n, t in es]  # a bare term anytopdf knows
             have = {ent_key(n) for n, _ in es}
             es.extend(h for h in hints if ent_key(h[0]) not in have)
+    seg_ents = one_type(seg_ents)
     if setup["types"] and not listed:  # the namespace (or collection) keeps only some types
         seg_ents = [[(n, t) for n, t in es if entity_setup.keeps(setup, t)] for es in seg_ents]
     surface = {t: c.most_common(1)[0][0] for t, c in ts.items()}
@@ -425,10 +448,14 @@ def analyze_recording(db, cfg, rid, seg_ents=None):
     titles = section_titles(starts, toks, surface, seg_ents, len(segs)) if segs else []
     keys = {ent_key(n) for es in seg_ents for n, _ in es} - {""}
     alias = {k: max((L for L in keys if len(L) > len(k) and L.endswith(" " + k)), key=len, default=k) for k in keys}
-    first = {}
+    first, votes = {}, defaultdict(Counter)
     for es in seg_ents:
         for name, typ in es:
-            first.setdefault(alias.get(ent_key(name), ent_key(name)), (name, typ))
+            k = ent_key(name)
+            first.setdefault(alias.get(k, k), (name, typ))
+            votes[alias.get(k, k)][typ] += 1
+    # a short form takes its full name's type ("Johnson" after "Dr Sarah Johnson"), a term only when nothing else
+    first = {k: (n, max(votes[k], key=lambda t: (t != "TERM", votes[k][t]))) for k, (n, _) in first.items()}
     with graph_history.acting(via="analysis", recording=rid), graph_history.change(db, "analysis", recording=rid) as ch:
         known = _place(db, cfg, nid, rec, setup, listed, first, segs, ch)
     over = {

@@ -14,7 +14,7 @@ from app.domain.store import R
 
 # Every step that has shipped, in order. A database remembers steps by name, so these may never be renamed, reordered
 # or removed: add new steps to the end of migrations.steps() and here.
-SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step"]
+SHIPPED = ["access-levels", "collection-homes", "tour-seen", "document-read-step", "entity-types"]
 
 
 def test_steps_are_append_only():
@@ -62,8 +62,8 @@ def test_steps_an_older_lens_counted_are_not_run_again(db):
     db.q("DELETE migration")
     db.q("UPSERT $r SET n = 1", r=R("seq", "migrations"))
     rid = _old_shape(db)
-    assert migrations.pending(db) == ["collection-homes", "tour-seen", "document-read-step"]
-    assert store.migrate(db) == ["collection-homes", "tour-seen", "document-read-step"]
+    assert migrations.pending(db) == ["collection-homes", "tour-seen", "document-read-step", "entity-types"]
+    assert store.migrate(db) == ["collection-homes", "tour-seen", "document-read-step", "entity-types"]
     row = db.one("SELECT meta_json, collection FROM $r", r=R("recording", rid))
     assert json.loads(row["meta_json"]) == {"access": "signed-in"}  # access-levels was counted as done, so not rerun
     assert row["collection"] == store.default_collection(db, store.ns_id(db, "pods"))
@@ -139,7 +139,7 @@ def test_lens_migrations_lists_and_runs(tmp_path, monkeypatch, capsys):
     assert "pending  access-levels" in out and "pending  collection-homes" in out
     cli.main(["--config", str(cfg_path), "migrations", "--run"])
     out = capsys.readouterr().out
-    assert "ran 4 upgrade(s): access-levels, collection-homes, tour-seen, document-read-step" in out
+    assert "ran 5 upgrade(s): access-levels, collection-homes, tour-seen, document-read-step, entity-types" in out
     assert "done     access-levels" in out
 
 

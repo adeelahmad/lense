@@ -78,13 +78,13 @@ def test_recordings_about_topics(env):
 
 def test_topic_from_entity(env):
     c, ed, vi, db = env.c, env.h["editor"], env.h["viewer"], env.db
-    aws = env.eid("Amazon Web Services")
+    aws = env.eid("AWS")  # a term (Amazon Web Services is an organisation)
     mentioned_in = {m["recording"] for m in db.rows("SELECT recording FROM mentions WHERE entity = $e", e=aws)}
     assert c.post(f"/api/v1/entities/{aws}/topic", headers=vi).status_code == 403
     dyno = env.eid("Dyno Therapeutics")
     assert c.post(f"/api/v1/entities/{dyno}/topic", headers=ed).status_code == 400  # an organisation, not a topic
     t = c.post(f"/api/v1/entities/{aws}/topic", headers=ed).json()
-    assert t["label"] == "Amazon Web Services" and t["from_entity"] == aws
+    assert t["label"] == "AWS" and t["from_entity"] == aws
     assert {a["recording"] for a in t["about"]} == mentioned_in and {a["source"] for a in t["about"]} == {"entity"}
     assert c.get(f"/api/v1/entities/{aws}", headers=vi).json()["hidden"] is True
     # deleting the topic shows the entity again
@@ -155,7 +155,7 @@ def test_undo_a_delete(env):
 
 def test_undo_deleting_a_topic_made_from_an_entity(env):
     c, ed, vi = env.c, env.h["editor"], env.h["viewer"]
-    aws = env.eid("Amazon Web Services")
+    aws = env.eid("AWS")  # a term (Amazon Web Services is an organisation)
     t = c.post(f"/api/v1/entities/{aws}/topic", headers=ed).json()
     d = c.delete(f"/api/v1/topics/{t['id']}", headers=ed).json()
     assert c.get(f"/api/v1/entities/{aws}", headers=vi).json()["hidden"] is False
