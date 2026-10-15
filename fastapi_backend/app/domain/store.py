@@ -1351,6 +1351,7 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS graph_change_pair ON graph_change FIELDS pair",
     # the entity graph's history (graph_history.py): one append-only event per change, and named versions
     "DEFINE TABLE IF NOT EXISTS graph_event SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS graph_event_at ON graph_event FIELDS at",  # read as activities (events_content.py)
     "DEFINE TABLE IF NOT EXISTS graph_tag SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS graph_checkpoint SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS graph_checkpoint_part SCHEMALESS",
@@ -1435,6 +1436,7 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS note_page_parent ON note_page FIELDS parent",
     "DEFINE INDEX IF NOT EXISTS note_page_about ON note_page FIELDS about_key UNIQUE",
     "DEFINE INDEX IF NOT EXISTS note_page_refine ON note_page FIELDS refine_pending",
+    "DEFINE INDEX IF NOT EXISTS note_page_created ON note_page FIELDS created_at",
     # the links in a page's body (@ and # mentions), for backlinks and the graph
     "DEFINE TABLE IF NOT EXISTS note_link SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_link_page ON note_link FIELDS page",
@@ -1442,6 +1444,7 @@ SCHEMA = [
     # what a page was before each change (notebook.snapshot): its history, to look back at and restore
     "DEFINE TABLE IF NOT EXISTS note_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_version_page ON note_version FIELDS page",
+    "DEFINE INDEX IF NOT EXISTS note_version_at ON note_version FIELDS at",
     # deleted pages, under their own id, until they're put back or TRASH_DAYS pass (notebook.delete)
     "DEFINE TABLE IF NOT EXISTS note_trash SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_trash_space ON note_trash FIELDS space",
@@ -1452,6 +1455,7 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS comment SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS comment_rec ON comment FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS comment_parent ON comment FIELDS parent",
+    "DEFINE INDEX IF NOT EXISTS comment_created ON comment FIELDS created_at",
     # passages of resources marked in colour by their editors (app/domain/highlights.py)
     "DEFINE TABLE IF NOT EXISTS highlight SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS highlight_rec ON highlight FIELDS recording",
