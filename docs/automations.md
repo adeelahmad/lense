@@ -13,7 +13,8 @@ merged is called built.
 | Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
 | New assets as `asset.added` (the `recordings` source) | built |
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
-| More kinds: jobs, deletions, calendar moves, comments, notes, graph changes, sensors, chat | planned |
+| Runs that finished or failed, deletions and calendar events that moved | built |
+| More kinds: comments, notes, graph changes, sensors, chat | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -21,6 +22,7 @@ merged is called built.
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
+| Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
 | The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
 | The decide node (the decision model picks a branch) | planned |
@@ -91,6 +93,10 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `upload.added` | `asset.added` | `recordings` | `path` (the file's name), `mediaType`, `size`, `duration` | Sam uploaded “Call with the school” |
 | `web_page.saved` | `asset.added` | `recordings` | `href` (the page's address), `site` | Sam saved “Museum opening hours” from museum.example.org |
 | `import.received` | `asset.added` | `recordings` | `via`: hook (an import hook), paste (pasted text) or file (a file read as text) | Phone shortcut imported “Shopping list” |
+| `asset.processed` | | `jobs` | the asset's fields, `job` (`lens:job/<id>`), `steps`, `batch`; tagged with its entities | “School trip on Friday” finished processing (pages, analyze, embed) |
+| `asset.failed` | | `jobs` | as `asset.processed`, with `step` (where it failed) and `error` | Processing “Call with the school” failed at transcribe |
+| `asset.deleted` | | `log` | `type`, `id`, `name`, `media` | Sam deleted “Old minutes” |
+| `calendar_event.changed` | | `log` | `startTime`, `endTime`, `location`, `calendar`, and `before` (`startTime`, `endTime`) | Family calendar moved “Parents' evening” to 2026-10-21 18:00 |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
 from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
@@ -98,6 +104,13 @@ from, never by reading its file: an email (content type email, or from an IMAP o
 (webcapture.py, mediaurl.py), a file from a storage source or Drive, an upload, an import (pasted text, a transcript
 imported), else `asset.added`. A file an email or archive held, made a resource of its own, stays `asset.added`: the
 email is what arrived. A trigger on `asset.added` matches every one of them.
+
+A run of an asset's pipeline that finishes is `asset.processed` (it succeeded) or `asset.failed`, one activity per
+run, batch runs included. Its actor is whoever queued it, and its tags are the asset's entities (the ten most
+mentioned), which exist only once it has been processed: `asset.processed` is the kind for "when an email about St
+Mary's is understood". A run tried again finishes again, as another activity. A deletion is logged as
+`asset.deleted` where the asset is deleted (once per asset); a calendar event read again that starts at another time
+is logged as `calendar_event.changed` (once per event and new start), with the times it had before.
 
 Fields come from what the row keeps, so reading them costs nothing on the ingest path. A message's addressing is
 kept as it is listed (`recording.mail`: who sent it to whom, its subject, list, mailbox, and Gmail's snippet), an
@@ -129,6 +142,9 @@ A kind belongs to the source named in its `source`, and a source may list more i
   `lens:sensor/<id>`), or Lens (a folder scan). `events_content.actors(db, labels)` names them the way Lens writes
   them down (an account id, an email, `watch:<id>`, `routine:<id>`, `import_hook:<id>`, `automation:<id>`, ...),
   in a few queries for a whole page, and keeps names for 30 seconds.
+- `jobs` (`app/domain/events_content.py`) reads `job` by `finished_at`, the id breaking ties, as `asset.processed`
+  and `asset.failed`; their ids carry the time they finished (`processed-job-51-1792081450`), so a run tried again
+  is a new activity.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
@@ -294,6 +310,9 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | `call_tool` | calls one of the assistant's tools (`tool`, with `args`) as the automation | read: a change becomes an approval | `{tool, result, summary, approvals}` |
 | `ask_agent` | hands what happened (`about`, by default the event) to the agent with your `instructions`, limited to some `tools` if you like, for up to `max_steps` rounds (6, at most 12) | read: changes become approvals | `{answer, chat, approvals, steps}` |
 | `http_request` | sends a `method` (GET, POST or PUT) to a `url`, with `headers` and a `body` (text, or an object sent as JSON) | out | `{status, ok, body, json, content_type, truncated, method, url, headers}`: the answer, as outside text |
+| `run_workflow` | runs a recording `workflow` (its published `version`, or the one named) on an `asset` as a job | lens | `{job, workflow, version, asset}` |
+| `run_pipeline` | processes an `asset` again with a `pipeline` (or the one its namespace uses), keeping its outputs | lens | `{job, pipeline, asset}` |
+| `run_routine` | asks the scheduler to run a `routine` now (`propose_only` to only propose its changes) | lens, so it asks | `{routine, requested, propose_only}` |
 
 #### Telling a person
 
@@ -347,6 +366,16 @@ key ([Encryption](encryption.md)), bound to the automation and to the scheme, ho
 sealed value can't be copied into another automation or sent to another host; it is opened only to send. A locked
 vault stops the request until it is unlocked.
 
+#### Running Lens work
+
+`run_workflow` and `run_pipeline` take an `asset`: an asset id, or the activity's object (`lens:recording/<id>`, which
+is the default, `{{ event.object.id }}`). On the asset the activity is about, in the automation's namespaces, they run
+without asking; on any other, they ask first. They need the automation's person to be able to process assets in that
+namespace, queue a job (after whatever the asset's job still has to do) that shows as by "automation: <name>", and pass
+on the job's id. `run_routine` asks the scheduler to start a routine's run within half a minute, as Run in Settings
+does: routines are an admin's, the routine must work only in the automation's namespaces, a run over one of its budgets
+is refused, and it always asks first. The run's id shows in the routine's runs.
+
 ### The event workflow scope
 
 Built: what an automation does is a workflow of scope `event` (`app/domain/automation_nodes.py`), saved and
@@ -397,6 +426,8 @@ back. Text from outside Lens (`lens.untrusted` on the activity, or what a node p
 - Name an automation actor by its automation's name once automations are stored.
 - A timeline page filtered to one child of `asset.added` (only emails, say) reads every new asset and keeps those of
   that kind, up to five source pages; narrow it in the query (path, `remote`, `web`) if that proves slow.
+- Moves of Google Calendar and iCal events only: events in a calendar file on storage are read as new files. An
+  event that was cancelled or deleted from its calendar isn't an activity yet.
 - Folder scans of a namespace's own folders as `file.added`; uploaded `.ics` files with their event's fields; a
   snippet for IMAP messages before they are read (it needs the message body).
 - Per-recipient threading of email conversations; entity tags on new assets once extraction runs at ingest.
@@ -412,3 +443,5 @@ back. Text from outside Lens (`lens.untrusted` on the activity, or what a node p
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
+- Running Lens work: a routine run's id passed on (today the scheduler starts it later); waiting for the job and passing
+  on its outputs; roles on collections counting for `process`; running a pipeline on every asset a join collected.
