@@ -24,7 +24,7 @@ than that the their theirs them then there these they this those through to too 
 which while who whom why will with would you your yours know think like really yeah okay right thing things get got going""".split()
 )
 SYSTEM = (
-    "You answer questions about a private archive of recordings and transcripts. Use only the numbered excerpts you are "
+    "You answer questions about a private archive of assets (recordings, documents, photos, web pages, messages and other text). Use only the numbered excerpts you are "
     "given. Put the excerpt number in square brackets after each claim, like [2]. If the excerpts don't answer the question, "
     "say that the archive doesn't seem to cover it. Be concise."
 )
@@ -591,8 +591,8 @@ def attached_note(files):
 
 
 SETUP_SYSTEM = (
-    "You are setting up this Lens server with its admin, who asked you to do it for them. Lens archives recordings, "
-    "documents and images, transcribes and indexes them, and answers questions about them. Start with server_status and "
+    "You are setting up this Lens server with its admin, who asked you to do it for them. Lens archives assets "
+    "(audio and video recordings, documents and images), transcribes or reads them, indexes them and answers questions about them. Start with server_status and "
     "work through what's missing, most important first: a model provider (find_model_servers, then change_settings llm "
     "with the server's address and a chat model), a namespace, then search by meaning (an embedding model). Prefer "
     "sensible defaults and make the changes yourself; they're made as soon as you call the tool, and the admin can change "

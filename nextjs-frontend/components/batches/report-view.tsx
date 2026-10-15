@@ -56,7 +56,7 @@ export function ReportView({ id }: { id: number }) {
       <div className="mx-auto flex max-w-[560px] flex-col gap-4 px-4 py-10">
         <EmptyState
           icon={<FileText />}
-          title={b.status === "finished" ? "Not combined yet" : "Still reading the recordings"}
+          title={b.status === "finished" ? "Not combined yet" : "Still reading the assets"}
           actions={
             <Button asChild variant="secondary">
               <Link href={`/batches/${id}`}>Open the batch run</Link>
@@ -93,7 +93,7 @@ export function ReportView({ id }: { id: number }) {
               {report.instructions && report.instructions.length < 90 ? report.instructions : b.label}
             </h1>
             <p className="m-0 mt-1 text-[12.5px] text-fg-muted">
-              {plural(b.recordings.length, "recording")}
+              {plural(b.recordings.length, "asset")}
               {hours ? ` · ${hoursShort(hours)}` : ""} · {b.label} → combined · {shortDate(report.at)}
             </p>
           </div>

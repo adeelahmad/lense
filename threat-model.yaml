@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:3b18b5c164872c06803e63502f8ff6bc0991de270c3d5629ad19e178eddc2e37"
+prose_version: "threat-model.md@sha256:248bb1824abf7c079978a5d0cf561b3440c3f80da9a1583ee55f737944ec7c42"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -47,7 +47,7 @@ components:
   - name: authz
     scope: in
     x-family: "Authorization & data API (AuthZ)"
-    reachability_precondition: "lets a principal read or change more than its role and the recording's access level allow, or open media without a link the server signed for it"
+    reachability_precondition: "lets a principal read or change more than its role and the asset's access level allow, or open media without a link the server signed for it"
     provenance: {kind: documented, source: 'SECURITY.md "What counts"'}
   - name: outbound
     scope: in
@@ -312,7 +312,7 @@ entry_points:
         control_kinds: [data, type-class, size]
         caller_must_enforce: "none — P-UPLOAD"
         provenance: {kind: documented, source: 'docs/configuration.md "Uploads accept only the types"'}
-  - id: "watched folders, storage sources, IMAP, iCal"
+  - id: "watched folders, storage sources, IMAP, Gmail, iCal"
     component: outbound
     parameters:
       - name: "remote file names, bytes, mail, events"
@@ -341,7 +341,7 @@ entry_points:
         control_kinds: [resource-name, x-network-destination]
         caller_must_enforce: "none — P-SSRF-GUARD"
         provenance: {kind: maintainer, date: "2026-10"}
-  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, iCal, MQTT bridge, OIDC issuer)"
+  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)"
     component: outbound
     parameters:
       - name: "URL, credentials, api_key_env"
@@ -545,7 +545,7 @@ contract_dimensions:
   - {component: authz, dimension: x-reference-lifecycle-share-report-links, status: unresolved, conditions: "share and report links after the creator loses a role; after a move", question_id: Q10, provenance: {kind: inferred, question_id: Q10}}
   - {component: authz, dimension: concurrency-reentrancy, status: unresolved, conditions: "roles load per request; caches key on the readable set", question_id: Q8, provenance: {kind: inferred, question_id: Q8}}
   - {component: authz, dimension: resource-complexity, status: disclaimed, property_id: N-VOLUME, conditions: "no rate limit on read APIs", provenance: {kind: documented, source: 'SECURITY.md "denial of service by sheer volume"'}}
-  - {component: authz, dimension: x-access-parts, status: claimed, property_id: P-ACCESS-PARTS, conditions: "access levels, open parts, description", x-routes-to: "P-ACCESS-PARTS, N-PUBLIC", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
+  - {component: authz, dimension: x-access-parts, status: claimed, property_id: P-ACCESS-PARTS, conditions: "access levels, open parts, description", x-routes-to: "P-ACCESS-PARTS, N-PUBLIC", provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}}
   - {component: authz, dimension: x-client-address-compose, status: claimed, property_id: P-IPGROUP, conditions: "both compose files trust the web app container, so each visitor gets their own address", x-routes-to: "P-IPGROUP, P-THROTTLE", provenance: {kind: documented, source: 'docs/deployment.md "so each visitor gets their own"'}}
   - {component: authz, dimension: x-client-address-other-variants, status: unresolved, conditions: "web app alone, installers, NAS, Proxmox without a reverse proxy setting X-Forwarded-For", question_id: Q2, provenance: {kind: inferred, question_id: Q2}}
   - {component: authz, dimension: x-share-scope, status: unresolved, conditions: "?s= share tokens open the audio, video, frames and page API routes", question_id: Q7, provenance: {kind: inferred, question_id: Q7}}
@@ -616,7 +616,7 @@ contract_dimensions:
 # ---------------------------------------------------------------- §1.8
 outputs:
   - component: authz
-    channel: "JSON API responses (titles, transcripts, notes, metadata)"
+    channel: "JSON API responses (titles, assets' text, notes, metadata)"
     taint: same-as-input
     x-taint-note: "as typed by people or produced by ASR/OCR; search snippet is HTML-escaped with <mark>"
     taint_provenance: {kind: documented, source: 'docs/api.md "an HTML-escaped `snippet`"'}
@@ -667,7 +667,7 @@ outputs:
   - component: authz
     channel: "Report pages (api/pages.py)"
     taint: same-as-input
-    x-taint-note: "links re-signed on read for every recording of the namespace in the page"
+    x-taint-note: "links re-signed on read for every asset of the namespace in the page"
     taint_provenance: {kind: inferred, question_id: Q10}
     invariants: []
     downstream_must_not_assume:
@@ -688,7 +688,7 @@ outputs:
     invariants:
       - {id: inv-mcp-person-reads, statement: "results contain only what the person can read", property_id: P-RETRIEVAL, provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
     downstream_must_not_assume:
-      - {id: dmna-mcp-text-as-instructions, statement: "that transcript text is safe to follow as instructions", provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
+      - {id: dmna-mcp-text-as-instructions, statement: "that an asset's text is safe to follow as instructions", provenance: {kind: documented, source: 'docs/mcp.md "sees exactly what that person sees"'}}
   - component: outbound
     channel: "Error text from remote servers (LLM, speech, rclone, IMAP callers)"
     taint: same-as-input
@@ -754,7 +754,7 @@ outputs:
     invariants:
       - {id: inv-share-uniform-410, statement: "a dead link answers the same 410 whatever went wrong", property_id: P-SHARE, provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
     downstream_must_not_assume:
-      - {id: dmna-410-meaningful, statement: "that a 410 says anything about the recording", provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
+      - {id: dmna-410-meaningful, statement: "that a 410 says anything about the asset", provenance: {kind: documented, source: 'docs/authentication.md "the same whatever went wrong"'}}
 
 # ---------------------------------------------------------------- §1.10
 adversaries:
@@ -1209,26 +1209,26 @@ properties_claimed:
     kind: confidentiality
     components: [authz]
     tier: security-critical
-    conditions: "a principal with no role in a namespace and no grant for a recording cannot read or change anything in it, except what the recording's access level opens to anyone (P-ACCESS-PARTS); the namespace and its recordings answer 404; grants for one recording open only that recording's visitor pages and IIIF"
+    conditions: "a principal with no role in a namespace and no grant for an asset cannot read or change anything in it, except what the asset's access level opens to anyone (P-ACCESS-PARTS); the namespace and its assets answer 404; grants for one asset open only that asset's visitor pages and IIIF"
     violation_symptoms: [info-leak, integrity-bypass]
-    x-voided-by: "admins own every namespace (domain/auth.py:356-357, api/deps.py:160); share or signed link grants viewer on one recording (api/deps.py:252); collection role adds to namespace role (api/deps.py:183); visitor-address trust (api/deps.py:339-346); checks are per handler, no central policy (Q8)"
+    x-voided-by: "admins own every namespace (domain/auth.py:356-357, api/deps.py:160); share or signed link grants viewer on one asset (api/deps.py:252); collection role adds to namespace role (api/deps.py:183); visitor-address trust (api/deps.py:339-346); checks are per handler, no central policy (Q8)"
     provenance: {kind: documented, source: 'SECURITY.md "reading or changing anything in a namespace you have no role in"'}
   - id: P-ACCESS-PARTS
     kind: confidentiality
     components: [authz]
     tier: security-critical
     x-tier-question: Q37
-    conditions: "a closed part of a public recording, and any restricted or private recording, opens only for a role, permission, IP group or link; a closed transcript's text stays out of search and downloads; only owners change access and open parts"
+    conditions: "a closed part of a public asset, and any restricted or private asset, opens only for a role, permission, IP group or link; a closed text part stays out of search and downloads; only owners change access and open parts"
     violation_symptoms: [info-leak]
-    x-voided-by: "an owner opening parts or making a recording public; a moved recording keeps its old access"
-    provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}
+    x-voided-by: "an owner opening parts or making an asset public; a moved asset keeps its old access"
+    provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}
   - id: P-ROLE
     kind: integrity
     components: [authz]
     tier: security-critical
     conditions: "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions"
     violation_symptoms: [integrity-bypass]
-    x-voided-by: "session tokens can write; API and app tokens need write scope (api/deps.py:59-60); admins own everything (domain/auth.py:357); collection admin is owner of its recordings (api/deps.py:183); admin's app token keeps namespace roles (api/deps.py:96) but not admin routes (api/deps.py:124-125)"
+    x-voided-by: "session tokens can write; API and app tokens need write scope (api/deps.py:59-60); admins own everything (domain/auth.py:357); collection admin is owner of its assets (api/deps.py:183); admin's app token keeps namespace roles (api/deps.py:96) but not admin routes (api/deps.py:124-125)"
     provenance: {kind: documented, source: 'SECURITY.md "doing more than your role allows"'}
   - id: P-ROLE-GRANT
     kind: authorization
@@ -1252,16 +1252,16 @@ properties_claimed:
     tier: security-critical
     conditions: "media, frames, documents and reports open without a session only through a link the server signed for that path, or a live share link; text people or models write is never signed"
     violation_symptoms: [info-leak]
-    x-voided-by: "knowing ACCESS_SECRET_KEY signs any path (core/security.py:43); dev compose key (docker-compose.yml:24); lifetime MEDIA_URL_EXPIRE_SECONDS (config.py:30); report pages sign every recording of the namespace (api/pages.py:140-141); signing limited to allow-listed fields (api/media.py:25-30)"
+    x-voided-by: "knowing ACCESS_SECRET_KEY signs any path (core/security.py:43); dev compose key (docker-compose.yml:24); lifetime MEDIA_URL_EXPIRE_SECONDS (config.py:30); report pages sign every asset of the namespace (api/pages.py:140-141); signing limited to allow-listed fields (api/media.py:25-30)"
     provenance: {kind: documented, source: 'docs/architecture.md "is never signed"'}
   - id: P-SHARE
     kind: integrity
     components: [authz]
     tier: security-critical
-    conditions: "a share link opens one recording, read-only; it expires and can be revoked; only hashes are stored; a dead link answers the same 410 whatever went wrong"
+    conditions: "a share link opens one asset, read-only; it expires and can be revoked; only hashes are stored; a dead link answers the same 410 whatever went wrong"
     violation_symptoms: [integrity-bypass]
-    x-voided-by: "liveness plus recording match only (domain/auth.py:441-444); ?s= routes (api/deps.py:252, Q7)"
-    provenance: {kind: documented, source: 'docs/authentication.md "give read-only access to one recording''s player and embed"'}
+    x-voided-by: "liveness plus asset match only (domain/auth.py:441-444); ?s= routes (api/deps.py:252, Q7)"
+    provenance: {kind: documented, source: 'docs/authentication.md "give read-only access to one asset''s player and embed"'}
   - id: P-AUTH-REQ
     kind: authentication
     components: [web, identity]
@@ -1647,11 +1647,11 @@ properties_disclaimed:
   - {id: N-EGRESS, components: [outbound], tier: security-critical, false_friend: true, conditions: "an egress firewall; netguard guards web import, iCal feeds, extension http tools, notifications and Chromium, nothing else; admin-set URLs other than iCal feeds (model, speech, Fedora, IIIF import, rclone sources, IMAP, MQTT bridge, OIDC, telemetry, tunnel) are unguarded", x-false-friend-note: "'public addresses only' reads as server-wide", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: N-CODE-GUARD, components: [assistant], tier: security-critical, false_friend: true, conditions: "a sandbox for Python code tools; audit hooks, rlimits and an optional network namespace only raise the bar; admin-written code; runs as the Lens user", x-false-friend-note: "guard is not isolation", provenance: {kind: documented, source: 'domain/code_tools.py docstring "they aren''t a wall"'}}
   - {id: N-DOWNLOADS, components: [optional], tier: security-critical, false_friend: false, conditions: "integrity beyond HTTPS and the publisher for llama.cpp, cloudflared, pip installs and hf: models; catalog GGUF files are still checked (P-MODEL-CHECKSUM)", provenance: {kind: maintainer, date: "2026-10"}}
-  - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (transcripts, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
+  - {id: N-DB-PLAIN, components: [outbound], tier: security-critical, false_friend: true, conditions: "encryption of the SurrealDB content (assets' text, indexes), derived files, renditions, reports, exports and the storage-source cache; stated limit", x-false-friend-note: "vaults cover files only", provenance: {kind: documented, source: 'docs/encryption.md "the SurrealDB database itself"'}}
   - {id: N-KEY-WITH-DATA, components: [outbound], tier: security-critical, false_friend: true, conditions: "key separation; unless ARCHIVE_SECRET_KEY comes from outside, secret.key lives in data_dir next to the sealed rows and the backups; a copy of data_dir opens sealed secrets and server-wrapped file keys", x-false-friend-note: "'stored encrypted' reads as safe in a stolen backup", provenance: {kind: inferred, question_id: Q14}}
   - {id: N-SIGNED-BEARER, components: [authz], tier: security-critical, false_friend: true, conditions: "identity binding or early revocation for signed links; a link opens its path for whoever holds it until it expires (6 h; IIIF 1 h); path, expiry and full are bound, extra query parameters are not; which fields get signed is P-MEDIA-LINK", x-false-friend-note: "a signed link is a capability, not a login", provenance: {kind: documented, source: 'core/security.py sign_path docstring "grants read access to exactly this path until it expires"'}}
   - {id: N-LINK-AFTER-ROLE, components: [authz], tier: security-critical, false_friend: false, conditions: "re-checks of share links and report links against the creator's current role; share links last until expiry or revocation", provenance: {kind: inferred, question_id: Q10}}
-  - {id: N-IDS, components: [authz], tier: correctness-only, false_friend: true, conditions: "secret identifiers; recording and entity ids are sequential and authorization never relies on them; short share codes are about 58 bits; a route that relied on id secrecy breaks P-NS-ISOLATION instead", x-false-friend-note: "unguessable-looking ids are not authorization", provenance: {kind: inferred, question_id: Q6}}
+  - {id: N-IDS, components: [authz], tier: correctness-only, false_friend: true, conditions: "secret identifiers; asset and entity ids are sequential and authorization never relies on them; short share codes are about 58 bits; a route that relied on id secrecy breaks P-NS-ISOLATION instead", x-false-friend-note: "unguessable-looking ids are not authorization", provenance: {kind: inferred, question_id: Q6}}
   - {id: N-APP-LAYER, components: [authz], tier: security-critical, false_friend: true, conditions: "database-enforced tenant isolation; every namespace is rows in one SurrealDB database under one credential; anyone with the DB credential or a worker host sees all namespaces", x-false-friend-note: "namespaces are not DB namespaces", provenance: {kind: inferred, question_id: Q9}}
   - {id: N-XFF, components: [authz], tier: security-critical, false_friend: true, conditions: "trust in visitor addresses without a correct proxy chain; covers proxy chains the operator builds; the compose files' own chain is claimed (P-IPGROUP, P-THROTTLE); other shipped variants are Q2", x-false-friend-note: "IP groups are not authentication", provenance: {kind: documented, source: 'docs/configuration.md "Without it, a visitor can claim any address"'}}
   - {id: N-WEBGATE, components: [web], tier: correctness-only, false_friend: true, conditions: "authorization in the web app; proxy.ts redirects pages, the API decides; /api, /mcp, /iiif, /embed, /s bypass the page gate", provenance: {kind: inferred, question_id: Q8}}
@@ -1680,8 +1680,8 @@ properties_disclaimed:
   - {id: N-AUDIT, components: [identity, authz], tier: correctness-only, false_friend: false, conditions: "tamper evidence or completeness of the audit and activity logs; sign-in requests are not logged there; operations record only; admins read it", provenance: {kind: documented, source: 'docs/activity.md "aren''t logged here"'}}
   - {id: N-MQTT-SUBSCRIBE, components: [optional], tier: security-critical, false_friend: true, conditions: "topic isolation on the MQTT hub: anything can subscribe to it, with + and #; signed-in or anonymous-when-enabled clients", x-false-friend-note: "a hub login is not per-stream access", provenance: {kind: documented, source: 'docs/sensors.md "anything can subscribe to it"'}}
   - {id: N-BRIDGE, components: [outbound], tier: security-critical, false_friend: false, conditions: "per-person access in chat rooms; the bridge (Matterbridge, the Telegram bot or the assistant's mailbox) answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); the mailbox answers only mailbox.users whose provider vouched for From", provenance: {kind: documented, source: 'docs/chat-rooms.md "answers as the admin who turned it on"'}}
-  - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public recording's open parts: anyone may use them; open parts only; closed parts and restricted or private recordings are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public recording anyone may use"'}}
-  - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding a recording's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
+  - {id: N-PUBLIC, components: [authz], tier: correctness-only, false_friend: false, conditions: "privacy of a public asset's open parts: anyone may use them; open parts only; closed parts and restricted or private assets are P-ACCESS-PARTS", provenance: {kind: documented, source: 'docs/access.md "the parts of a public asset anyone may use"'}}
+  - {id: N-DESCRIPTION, components: [authz], tier: correctness-only, false_friend: false, conditions: "hiding an asset's description when its parts are closed; anyone who may see the page", provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}}
   - {id: N-NSFW, components: [web, authz], tier: correctness-only, false_friend: true, conditions: "access control from NSFW classification; blurring and hiding flagged resources are display preferences of the web app, and the score can be wrong; anyone who may read a resource still opens it, sees its pictures (sensitive=include, signed frame links, public pages, IIIF, embeds) and reads its classification", x-false-friend-note: "'hidden' reads as restricted", provenance: {kind: documented, source: 'docs/nsfw.md "display preferences, not access control"'}}
   - {id: N-RDF-XML, components: [query], tier: security-critical, false_friend: false, conditions: "XML parsing in RDF import; RDF/XML is refused, so XXE and billion-laughs do not apply there; RDF import only, not docx", provenance: {kind: documented, source: 'rdf_import.py docstring "RDF/XML isn''t read"'}}
 
@@ -1710,11 +1710,11 @@ downstream_responsibilities:
   - {id: dr-limit-smb-share, component: optional, statement: "When the SMB share is on, list only your own networks, keep its port off the internet, and revoke file access keys you no longer use", enforces: [P-SMB, enable-and-limit-smb], provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}}
   - {id: dr-bridge-own-account, component: outbound, statement: "Give the chat-room bridge its own low-role account", enforces: [N-BRIDGE], provenance: {kind: documented, source: 'docs/chat-rooms.md "it reads only what that account can read"'}}
   - {id: dr-trusted-worker-hosts, component: authz, statement: "Run workers only on trusted hosts; they hold the DB credential", enforces: [N-APP-LAYER, trusted-peer-hosts], provenance: {kind: inferred, question_id: Q9}}
-  - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with transcripts and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: dr-trusted-model-servers, component: assistant, statement: "Pick model and speech servers you trust with your assets' text and audio", enforces: [], x-protects: "§1.8 prompts", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: dr-chromium-sandbox, component: ingest, statement: "Run conversion where Chromium can keep its sandbox (non-root, user namespaces)", enforces: [N-CHROMIUM], provenance: {kind: documented, source: 'docs/configuration.md "runs with its sandbox where it can"'}}
   - {id: dr-trusted-extensions-only, component: assistant, statement: "Enable another person's extension only when you trust its author", enforces: [N-PROMPT, enable-only-trusted-extensions], x-protects: "N-PROMPT, §1.14", provenance: {kind: inferred, question_id: Q27}}
   - {id: dr-escape-exports, component: authz, statement: "Escape exported text, RDF, IIIF metadata and assistant output for your own sink", enforces: [dmna-export-escaping, dmna-api-text-safe-for-sinks, dmna-assistant-grounded], x-protects: "§1.8", provenance: {kind: inferred, question_id: Q24}}
-  - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat transcript text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
+  - {id: dr-untrusted-prompt-input, component: assistant, statement: "Treat asset text and MCP results as untrusted prompt input in your agents", enforces: [N-PROMPT, dmna-mcp-text-as-instructions], provenance: {kind: inferred, question_id: Q26}}
   - {id: dr-iiif-over-https, component: authz, statement: "Keep the IIIF cookie SameSite=None; Secure by serving IIIF over HTTPS", enforces: [], x-protects: "IIIF cookie", provenance: {kind: documented, source: 'docs/iiif.md "its cookie is `SameSite=None; Secure`"'}}
   - {id: dr-verify-webhook-signature, component: outbound, statement: "Verify webhook-signature on receipt; treat Slack and Discord target URLs as secrets", enforces: [dmna-chat-webhooks-signed], x-protects: "§1.8 webhook bodies", provenance: {kind: documented, source: 'domain/notify.py docstring "signed the Standard Webhooks way"'}}
   - {id: dr-limit-nfs-share, component: optional, statement: "When the NFS share is on, list only your own networks and pick an account that sees only what the share should show", enforces: [P-NFS, enable-and-limit-nfs], provenance: {kind: documented, source: 'docs/file-shares.md "NFS has no login"'}}
@@ -1735,7 +1735,7 @@ known_misuses:
   - {id: km-admin-for-python-tool, components: [assistant], pattern: "Making someone admin so they can write a Python tool", x-why-unsafe: "Admin equals host code execution", safer_alternative: "Use prompt, graph or http tools", x-provenance-basis: "§1.2 roles and trust; §1.13 'Make only fully trusted people admins'", provenance: {kind: maintainer, date: "2026-10"}}
   - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
-  - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Transcripts leave the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Assets' text leaves the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
 
 # ---------------------------------------------------------------- §1.15
 known_non_findings:
@@ -1751,7 +1751,7 @@ known_non_findings:
     components: [authz]
     x-sink: "IIIF manifests, public pages"
     symptom: "info-leak of description"
-    tool_pattern: "A recording's description shows while its parts are closed"
+    tool_pattern: "An asset's description shows while its parts are closed"
     conditions: "The field is the description, shown to someone who may see the page"
     discharged_by: [N-DESCRIPTION]
     provenance: {kind: documented, source: 'docs/access.md "never a closed part"'}

@@ -8,6 +8,16 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   was. Deleted notes wait in Recently deleted, at the bottom of the Notes page, for 30 days with their files and
   history, to put back with one click or delete for good; then they go on their own
   ([Deleting and putting back](docs/notes.md#deleting-and-putting-back)).
+
+## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
+
+- **Installing an update from the web app works again in a microsandbox.** *Back up and install* stopped at the
+  backup with `Permission denied: '/data/.lens/apt/lock'`, and so did every backup there, because backups had started
+  keeping everything under `/data`, including the Lens the microsandbox runs (`.lens`). Backups now keep only Lens's
+  own files: hidden folders at the top of `data_dir`, and SurrealDB's own folder (the backup's export already holds the
+  database), are left out, and a file Lens can't read is left out with a warning instead of stopping the backup. When
+  backing up stops an upgrade, Settings now marks *Back up the database* as the step that failed
+  ([Backups](docs/database.md#backups)).
 - **The Ask button no longer covers buttons.** The floating Ask button at the bottom right used to sit on whatever was
   there, such as Import on the Import page. Now, when a button or field is under it and scrolling can't move it clear
   (a row of buttons pinned to the bottom of the screen, or the last button on a page scrolled to its end), the Ask
@@ -20,6 +30,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   account, which reads the calendars shared with it or, in Google Workspace, a user's calendars through domain-wide
   delegation. Calls to Google show in the activity ledger
   ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+- **Gmail and Google Workspace as a sensor.** A new kind of email source reads a Gmail or Google Workspace mailbox
+  through Google's Gmail API (read only) or over IMAP. It signs in as a Google account (its authorized user JSON, as
+  for Google Calendar), or as a Workspace service account with domain-wide delegation, so nobody has to sign in.
+  Labels are its folders, and a watch follows Gmail's history: it reads only what arrived, and one that leaves what's
+  there reads nothing old. Connecting the account from the connection dialog is in progress
+  ([Gmail and Google Workspace](docs/processing.md#gmail-and-google-workspace)).
 - **Find a note.** The Notes page has a search box that finds notes by the words in their title, summary or text (the
   pages of recordings and entities too), with the words around each match marked, and Enter opens the first. A filter
   shows only Projects, Areas, Resources or Archive, and each note says which notes it's inside. Jump to (⌘K) finds notes
@@ -329,6 +345,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   anytopdf, telemetry), takes the administrator password when installing needs it, then installs with live progress
   and opens Lens's setup page. Its answers become ordinary settings in Lens, editable there
   ([Get started](docs/get-started.md#the-web-installer)). `LENS_WIZARD=0` keeps the install in the terminal.
+- **Assets, not recordings.** The web app, the assistant, the API descriptions and the docs now call an item of any
+  kind an asset (or a document, when it is one), and keep "recording" for audio and video. API paths, MCP tool names
+  and stored data are unchanged.
+- **People, not speakers.** Everyone Lens recognises by voice or face is a person, on the People page, in the graph and
+  for the assistant; names found in text are named people. An item's text is its text, not its transcript, unless it
+  came from speech, and search says where words are found, not where they were said. The admin's account list is now
+  Members. "Speaker" stays for voices in audio (who spoke when).
 
 ### Features
 

@@ -97,7 +97,7 @@ export function DefineDialog({
             />
           )}
         </Field>
-        <Field label="Also said as" optional hint="Other names, spellings or abbreviations, separated by commas.">
+        <Field label="Also known as" optional hint="Other names, spellings or abbreviations, separated by commas.">
           {(ids) => (
             <Input
               id={ids.id}
@@ -119,7 +119,7 @@ export function DefineDialog({
             />
           )}
         </Field>
-        <Field label="For" hint="An entity of one collection is only matched in its recordings and those inside it.">
+        <Field label="For" hint="An entity of one collection is only matched in its assets and those inside it.">
           {(ids) => (
             <Select
               id={ids.id}

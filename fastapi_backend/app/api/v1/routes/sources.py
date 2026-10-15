@@ -49,7 +49,7 @@ def _watch(db: DB, wid: int) -> None:
 @router.get("/sources/backends")
 def list_backends(user: CurrentUser) -> dict[str, Backend]:
     """The kinds of storage a source can be, with their settings and secrets."""
-    keys = {"label", "fields", "secrets", "oauth"}
+    keys = {"label", "fields", "secrets", "oauth", "google"}
     return {k: Backend.model_validate({f: x for f, x in v.items() if f in keys}) for k, v in sources.BACKENDS.items()}
 
 
@@ -97,7 +97,7 @@ def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
 @router.get("/sources/{sid}/browse")
 def browse_source(sid: int, user: AdminReader, db: Db, cfg: Cfg, path: str = "") -> list[BrowseEntry]:
     """The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
-    recordings each file already is."""
+    assets each file already is."""
     _source(db, sid)
     try:
         entries = sources.browse(db, cfg, sid, path)
@@ -134,7 +134,7 @@ def create_watch(body: WatchCreate, user: AdminWriter, db: Db, cfg: Cfg) -> Crea
 def preview_watch(body: WatchPreviewRequest, user: AdminWriter, db: Db, cfg: Cfg) -> WatchPreview:
     """How many files a watched folder would pick up (the backfill count), before creating it."""
     try:
-        files = sources.list_files(db, cfg, sources.get(db, body.source), body.path)
+        files = sources.list_files(db, cfg, sources.get(db, body.source), body.path, headers=False)
     except KeyError:
         raise HTTPException(400, "no such source") from None
     except (ValueError, RuntimeError) as e:

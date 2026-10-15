@@ -110,8 +110,8 @@ export function RunDialog({
   onOpenChange,
   onRun,
   pending,
-  title = "Run on a recording",
-  description = "This runs the published version for real: each step’s output is saved on the recording, as a Reprocess would.",
+  title = "Run on an asset",
+  description = "This runs the published version for real: each step’s output is saved on the asset, as a Reprocess would.",
   action = "Run",
 }: {
   open: boolean;
@@ -151,7 +151,7 @@ export function RunDialog({
             disabled={!rid || pending}
             onClick={() => {
               const r = editable.find((x) => String(x.id) === rid);
-              if (r) onRun(r.id, r.title ?? `Recording ${r.id}`);
+              if (r) onRun(r.id, r.title ?? `Asset ${r.id}`);
             }}
           >
             {pending ? "Starting…" : action}
@@ -160,10 +160,10 @@ export function RunDialog({
       }
     >
       <Field
-        label="Recording"
+        label="Asset"
         hint={
           recs.isSuccess && !editable.length
-            ? "You need editor access to a recording’s namespace to run on it."
+            ? "You need editor access to an asset’s namespace to run on it."
             : undefined
         }
       >
@@ -178,7 +178,7 @@ export function RunDialog({
                 ? [{ value: "", label: "Loading…" }]
                 : editable.map((r) => ({
                     value: String(r.id),
-                    label: `${r.title ?? `Recording ${r.id}`} · ${r.namespace}`,
+                    label: `${r.title ?? `Asset ${r.id}`} · ${r.namespace}`,
                   }))
             }
           />
@@ -503,12 +503,12 @@ export function PipelineEditor({ id }: { id?: number }) {
             disabled={!can("editor") || dirty || (version != null && version !== base?.current)}
             disabledReason={
               !can("editor")
-                ? "Needs editor access to a recording’s namespace"
+                ? "Needs editor access to an asset’s namespace"
                 : "Runs use the published version: publish this one first"
             }
             onClick={() => setRunOpen(true)}
           >
-            Run on a recording
+            Run on an asset
           </Button>
         )}
         {!creating && (

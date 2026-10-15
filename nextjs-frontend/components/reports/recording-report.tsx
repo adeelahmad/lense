@@ -81,7 +81,7 @@ function Paper({ rec, player }: { rec: Recording; player: Player }) {
     <article className="report-paper flex min-h-[1123px] w-[794px] max-w-full flex-col gap-[18px] px-[68px] py-16 font-sans shadow-[0_2px_12px_rgba(0,0,0,.14)] max-md:px-6 max-md:py-8">
       <div className="flex justify-between text-[11px] font-medium uppercase leading-none tracking-[.04em] text-fg-secondary">
         <span>Lens · {rec.namespace}</span>
-        <span>Recording report</span>
+        <span>Asset report</span>
       </div>
       <h2 className="text-[28px] font-bold leading-[1.2] tracking-[-.015em]">{rec.title || "Untitled"}</h2>
       <p className="text-[12.5px] leading-normal text-fg-secondary">
@@ -159,7 +159,7 @@ function Paper({ rec, player }: { rec: Recording; player: Player }) {
       )}
       <span className="flex-1" />
       <div className="flex justify-between border-t border-border pt-2 text-[10px] leading-none text-fg-muted">
-        <span>Printed {shortDate(new Date().toISOString())} · Recording report (built-in)</span>
+        <span>Printed {shortDate(new Date().toISOString())} · Asset report (built-in)</span>
         <span>Lens</span>
       </div>
     </article>
@@ -206,7 +206,7 @@ export function RecordingReport({ id }: { id: number }) {
 
   const options: Tpl[] = useMemo(() => {
     const outs = (outputs.data ?? []).filter((o) => o.key.startsWith("report_"));
-    const list: Tpl[] = [{ value: "builtin", label: "Recording report (built-in)" }];
+    const list: Tpl[] = [{ value: "builtin", label: "Asset report (built-in)" }];
     for (const t of (templates.data ?? []).filter((x) => x.kind === "report")) {
       const out = outs.find((o) => Number((o.origin as { template?: unknown } | null)?.template) === t.id);
       const url = (out?.value as { url?: unknown } | null)?.url;
@@ -279,7 +279,7 @@ export function RecordingReport({ id }: { id: number }) {
     return (
       <EmptyState
         tone="error"
-        title="Couldn’t load this recording’s report"
+        title="Couldn’t load this asset’s report"
         actions={
           <Button asChild variant="secondary">
             <Link href="/reports">Back to reports</Link>
@@ -366,7 +366,7 @@ export function RecordingReport({ id }: { id: number }) {
   const note = tpl.template
     ? tpl.created
       ? `Built by the Report step · ${shortDate(tpl.created, true)} · template v${tpl.version}`
-      : "Not built for this recording yet."
+      : "Not built for this asset yet."
     : r.report_url
       ? `HTML page built by the Report step${
           typeof r.analyzed_at === "string"
@@ -461,7 +461,7 @@ export function RecordingReport({ id }: { id: number }) {
             )
           ) : (
             <EmptyState
-              title={`${tpl.name} isn’t built for this recording yet`}
+              title={`${tpl.name} isn’t built for this asset yet`}
               className="w-[794px] max-w-full rounded-md border border-dashed border-border"
             >
               {canEdit

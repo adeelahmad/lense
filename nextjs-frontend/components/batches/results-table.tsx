@@ -89,7 +89,7 @@ export function ResultsTable({ id, results, recordings }: { id: number; results:
     <section aria-labelledby="results" className="flex flex-col gap-3 rounded-lg border border-border p-5">
       <div className="flex flex-wrap items-center gap-2">
         <h2 id="results" className="flex-1 text-[17px] font-bold text-fg">
-          Results · {results.key ?? "outputs"} from {count(recordings)} {recordings === 1 ? "recording" : "recordings"}
+          Results · {results.key ?? "outputs"} from {count(recordings)} {recordings === 1 ? "asset" : "assets"}
         </h2>
         <Button
           size="sm"
@@ -127,7 +127,7 @@ export function ResultsTable({ id, results, recordings }: { id: number; results:
         </span>
       </div>
       {results.rows.length === 0 ? (
-        <p className="m-0 text-[13.5px] text-fg-secondary">No results yet. They appear as each recording finishes.</p>
+        <p className="m-0 text-[13.5px] text-fg-secondary">No results yet. They appear as each asset finishes.</p>
       ) : (
         <div className="overflow-hidden rounded-md border border-border">
           <Table aria-label="Results">
@@ -138,7 +138,7 @@ export function ResultsTable({ id, results, recordings }: { id: number; results:
                     {label(c)}
                   </SortTh>
                 ))}
-                <SortTh {...th("title")}>Recording</SortTh>
+                <SortTh {...th("title")}>Asset</SortTh>
                 <SortTh {...th("date")}>Date</SortTh>
               </tr>
             </THead>
@@ -155,7 +155,7 @@ export function ResultsTable({ id, results, recordings }: { id: number; results:
                       href={recordingHref(Number(r.recording))}
                       className="block truncate text-fg-secondary hover:text-fg-accent hover:underline"
                     >
-                      {cellText(r.title) || `Recording ${cellText(r.recording)}`}
+                      {cellText(r.title) || `Asset ${cellText(r.recording)}`}
                     </Link>
                   </Td>
                   <Td className="tabular whitespace-nowrap text-fg-secondary">

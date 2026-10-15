@@ -106,7 +106,7 @@ describe("saved views", () => {
     expect(fromView(s).filters.objects).toEqual(["car", "dog"]);
     expect(sameState(s, { ...s, objects: ["dog", "Car"] })).toBe(true);
     expect(sameState(s, { ...s, objects: ["car"] })).toBe(false);
-    expect(describeView({ objects: ["car", "cell phone"] })).toBe("All recordings · with Car or Cell phone");
+    expect(describeView({ objects: ["car", "cell phone"] })).toBe("All assets · with Car or Cell phone");
   });
 
   it("keeps the collection they show", () => {
@@ -117,18 +117,18 @@ describe("saved views", () => {
     expect(sameState(s, { ...s, collection: 8 })).toBe(false);
     expect(sameState(s, { ...s })).toBe(true);
     expect(describeView({ collection: 7 }, undefined, (id) => (id === 7 ? "Talks" : null))).toBe(
-      "All recordings · in Talks",
+      "All assets · in Talks",
     );
-    expect(describeView({ collection: 7 })).toBe("All recordings · in a collection");
+    expect(describeView({ collection: 7 })).toBe("All assets · in a collection");
   });
 
   it("describes them", () => {
     expect(describeView(viewState(library))).toBe(
       "Needs attention · “capsid” · Analyzed, Job failed · Alice · Last 30 days · #Interview · by title",
     );
-    expect(describeView({})).toBe("All recordings");
-    expect(describeView({ sort: "date" })).toBe("All recordings · by date, oldest first");
-    expect(describeView({ media: "video", duration: "long" })).toBe("All recordings · 30–60 min · Video");
+    expect(describeView({})).toBe("All assets");
+    expect(describeView({ sort: "date" })).toBe("All assets · by date, oldest first");
+    expect(describeView({ media: "video", duration: "long" })).toBe("All assets · 30–60 min · Video");
     expect(viewMeta(view({}))).toBe("podcasts");
     expect(viewMeta(view({ shared: true }))).toBe("podcasts · shared");
     expect(viewMeta(view({ namespace: null }))).toBe("All namespaces");

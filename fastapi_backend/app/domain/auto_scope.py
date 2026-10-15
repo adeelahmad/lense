@@ -16,7 +16,7 @@ from .ops_tools import describe_namespace
 
 QUESTION = (
     "Which namespace is this question about? Namespaces keep separate parts of someone's life or work apart; "
-    "pick the one whose recordings would answer it, or none when it's about something none of them holds."
+    "pick the one whose assets would answer it, or none when it's about something none of them holds."
 )
 NONE = "none of these"
 MAX_EXISTING = 2

@@ -45,8 +45,8 @@ function PartialNamespace({ ns, onAll }: { ns: string; onAll: () => void }) {
           </>
         }
       >
-        This page covers whole namespaces, and you were given access to some collections of {ns}: their recordings are
-        in the Library and in search. Ask an owner of {ns} for a role in it to see the rest.
+        This page covers whole namespaces, and you were given access to some collections of {ns}: their assets are in
+        the Library and in search. Ask an owner of {ns} for a role in it to see the rest.
       </EmptyState>
     </div>
   );

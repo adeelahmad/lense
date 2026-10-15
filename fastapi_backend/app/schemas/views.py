@@ -19,7 +19,7 @@ class ViewState(RequestModel):
     tab: LibraryTab = "all"
     q: str = Field("", max_length=200, description="the filter box")
     statuses: list[RecordingState] = Field(default_factory=list, max_length=7)
-    speaker: str | None = Field(None, max_length=200, description="a speaker's name: whoever has it in the namespaces shown")
+    speaker: str | None = Field(None, max_length=200, description="a person's name: whoever has it in the namespaces shown")
     date: Literal["any", "today", "7d", "30d", "90d", "1y"] = "any"
     duration: Literal["any", "short", "medium", "long", "xlong"] = Field(
         "any", description="short: under 10 min; medium: 10–30; long: 30–60; xlong: over an hour"
@@ -37,7 +37,7 @@ class ViewState(RequestModel):
     )
     sort: RecordingSort = "-date"
     collection: int | None = Field(None, description="a collection of the view's namespace (and the ones inside it)")
-    field: int | None = Field(None, description="a custom field of the view's namespace: the recordings with a value for it")
+    field: int | None = Field(None, description="a custom field of the view's namespace: the assets with a value for it")
     value: str | None = Field(None, max_length=200, description="with field: the value to match (GET /recordings `value`)")
 
 
@@ -76,7 +76,7 @@ class SearchState(RequestModel):
     speaker: int | None = None
     emotion: str | None = Field(None, max_length=40)
     recording: int | None = None
-    object: str | None = Field(None, max_length=60, description="a kind of object the recordings have (person, car …)")
+    object: str | None = Field(None, max_length=60, description="a kind of object the assets have (person, car …)")
 
 
 class SavedSearch(ResponseModel):
@@ -86,11 +86,11 @@ class SavedSearch(ResponseModel):
     shared: bool = Field(False, description="everyone with a role in its namespace sees it")
     q: str
     speaker: int | None = None
-    speaker_name: str | None = Field(None, description="the speaker's name, when you can read their namespace")
+    speaker_name: str | None = Field(None, description="the person's name, when you can read their namespace")
     emotion: str | None = None
     recording: int | None = None
-    recording_title: str | None = Field(None, description="the recording's title, when you can read it")
-    object: str | None = Field(None, description="a kind of object the recordings have")
+    recording_title: str | None = Field(None, description="the asset's title, when you can read it")
+    object: str | None = Field(None, description="a kind of object the assets have")
     created_by: str | None = Field(None, description="its maker's email")
     created_at: str | None = None
     updated_at: str | None = None

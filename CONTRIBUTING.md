@@ -28,7 +28,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/): `type(optional
 the colon for a breaking change.
 
 ```
-feat(chat): answer from the selected recordings
+feat(chat): answer from the selected assets
 fix(worker): retry a stalled transcription
 docs: explain the Synology package
 feat(api)!: drop the v1 recordings endpoint

@@ -44,7 +44,7 @@ export function collectionPath(name: string): string {
 export const KIND_WORD: Record<string, string> = {
   audio: "Audio",
   video: "Video",
-  transcript: "Transcript only",
+  transcript: "Text only",
   document: "Document",
   image: "Image",
 };
@@ -120,7 +120,10 @@ const PART_WORDS: Record<AccessPart, { what: (kind: string) => string; verb: (ki
     verb: (kind) =>
       kind === "video" ? "watch it" : kind === "document" ? "see them" : kind === "image" ? "see it" : "listen to it",
   },
-  transcript: { what: (kind) => (PAGED.has(kind) ? "The text" : "The transcript"), verb: () => "read it" },
+  transcript: {
+    what: (kind) => (PAGED.has(kind) || kind === "transcript" ? "The text" : "The transcript"),
+    verb: () => "read it",
+  },
   index: { what: (kind) => (PAGED.has(kind) ? "The sections" : "The chapters"), verb: () => "see them" },
 };
 
@@ -224,13 +227,13 @@ export function requestLine(
     return `The owners of ${ns} declined your request ${relative(req.decided_at, now)}. You can ask again.`;
   return locked
     ? `You can ask the owners of ${ns} for access.`
-    : `Parts of this recording are closed. You can ask the owners of ${ns} for access to all of it.`;
+    : `Parts of this asset are closed. You can ask the owners of ${ns} for access to all of it.`;
 }
 
 /** Why a visitor from an IP group sees everything: "You’re connecting from Reading room, so you see all of it." */
 export function networkNote(network: string, what: "recording" | "collection", access?: string | null): string {
   if (what === "collection")
-    return `You’re connecting from ${network}, so you see all of its recordings. Visitors elsewhere see the public ones.`;
+    return `You’re connecting from ${network}, so you see all of its assets. Visitors elsewhere see the public ones.`;
   return `You’re connecting from ${network}, so you see all of it${access === "public" ? ", not only the parts open to everyone" : ""}.`;
 }
 

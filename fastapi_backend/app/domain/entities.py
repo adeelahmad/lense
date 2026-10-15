@@ -437,7 +437,7 @@ def _label_nodes(db, ids, ents):
             e = ents[int(i[1:])]
             out[i] = {"id": i, "kind": "entity", "label": e["name"], "type": e["type"], "namespace": names.get(e["space"])}
         else:
-            out[i] = {"id": i, "kind": "speaker", "label": spk.get(int(i[1:]), "Speaker")}
+            out[i] = {"id": i, "kind": "speaker", "label": spk.get(int(i[1:]), "Person")}
     return out
 
 

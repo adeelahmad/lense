@@ -236,7 +236,7 @@ def choose(db, gid, space, rid, on=True):
     A group that opens everything can't choose."""
     g = get(db, gid, space)
     if g.get("everything"):
-        raise ValueError(f"{g['name']} opens every recording in the namespace")
+        raise ValueError(f"{g['name']} opens every asset in the namespace")
     if (rid in (g.get("recordings") or [])) == on:
         return False
     fn = "array::union" if on else "array::complement"

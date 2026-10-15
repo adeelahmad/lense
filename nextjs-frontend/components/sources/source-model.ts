@@ -32,6 +32,7 @@ export const TYPE_NAME: Record<SourceType, string> = {
   webdav: "WebDAV",
   local: "This machine",
   imap: "Email (IMAP)",
+  gmail: "Gmail",
   ical: "Calendar feed",
   gcal: "Google Calendar",
 };
@@ -47,6 +48,7 @@ export const STORAGE_NOUN: Record<SourceType, string> = {
   webdav: "the WebDAV server",
   local: "the folder",
   imap: "the mailbox",
+  gmail: "the mailbox",
   ical: "the calendar",
   gcal: "Google Calendar",
 };
@@ -152,6 +154,8 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
       return `WebDAV · ${str(p.url) || "no URL"}`;
     case "imap":
       return `IMAP · ${str(p.user) ? `${str(p.user)}@` : ""}${str(p.host) || "no host"}${str(p.port) ? `:${str(p.port)}` : ""}`;
+    case "gmail":
+      return `Gmail · ${str(p.user) || "no address"} · ${str(p.via) === "imap" ? "IMAP" : "API"}`;
     case "ical":
       return "Calendar feed · address kept secret";
     case "gcal": {
@@ -344,12 +348,12 @@ export type WatchKinds = NonNullable<Watch["kinds"]>;
 export const WATCH_KINDS: { value: WatchKinds; label: string; summary: string }[] = [
   { value: "all", label: "Everything", summary: "everything" },
   { value: "audio", label: "Audio and video", summary: "audio only" },
-  { value: "transcripts", label: "Transcripts (PDFs, Word and text files among them)", summary: "transcripts only" },
+  { value: "transcripts", label: "Text (transcripts, PDFs, Word and text files)", summary: "text only" },
   { value: "documents", label: "Documents and images", summary: "documents and images only" },
   {
     value: "both",
-    label: "Audio and transcripts (PDFs, Word and text files as transcripts)",
-    summary: "audio and transcripts",
+    label: "Audio and text (transcripts, PDFs, Word and text files)",
+    summary: "audio and text",
   },
 ];
 const PICK: Record<string, string> = Object.fromEntries(WATCH_KINDS.map((k) => [k.value, k.summary]));

@@ -94,11 +94,11 @@ export function RdfMenu({ target }: { target: { recording: number } | { namespac
 /** A summary of an import in words: "2 recordings would change, 1 description matched nothing". */
 export function importSummary(r: RdfImportResult): string {
   const n = (x: number, what: string) => `${x} ${what}${x === 1 ? "" : "s"}`;
-  const changed = `${n(r.changed, "recording")} ${r.dry_run ? "would change" : "changed"}`;
+  const changed = `${n(r.changed, "asset")} ${r.dry_run ? "would change" : "changed"}`;
   const same = r.matched - r.changed;
   return [
     changed,
-    same ? `${n(same, "description")} already said` : "",
+    same ? `${n(same, "description")} already up to date` : "",
     r.unmatched.length ? `${n(r.unmatched.length, "description")} matched nothing` : "",
   ]
     .filter(Boolean)
@@ -143,7 +143,7 @@ export function RdfImportDialog({ ns, open, onClose }: { ns: string; open: boole
       onOpenChange={(o) => !o && close()}
       wide
       title={`Import RDF into ${ns}`}
-      description="Dublin Core descriptions in Turtle, N-Triples or JSON-LD. Each is matched to a recording by its Lens URI or an identifier it already has; every change is kept in its history."
+      description="Dublin Core descriptions in Turtle, N-Triples or JSON-LD. Each is matched to an asset by its Lens URI or an identifier it already has; every change is kept in its history."
       actions={
         <>
           <Button variant="ghost" onClick={close}>
@@ -204,7 +204,7 @@ export function RdfImportDialog({ ns, open, onClose }: { ns: string; open: boole
                 .filter((i) => i.fields.length || i.notes.length)
                 .map((i) => (
                   <li key={i.subject}>
-                    Recording {i.recording}: {i.fields.length ? i.fields.join(", ") : "no change"}
+                    Asset {i.recording}: {i.fields.length ? i.fields.join(", ") : "no change"}
                     {i.notes.map((n) => (
                       <span key={n} className="block text-[12px] text-fg-muted">
                         {n}
@@ -214,7 +214,7 @@ export function RdfImportDialog({ ns, open, onClose }: { ns: string; open: boole
                 ))}
               {preview.unmatched.slice(0, 10).map((u) => (
                 <li key={u.subject} className="text-fg-muted">
-                  No recording for {u.title ? `“${u.title}”` : u.subject}
+                  No asset for {u.title ? `“${u.title}”` : u.subject}
                 </li>
               ))}
             </ul>
@@ -232,7 +232,7 @@ export type SparqlResults = {
   results?: { bindings: Record<string, SparqlTerm>[] };
 };
 
-export const SPARQL_EXAMPLE = `# The 20 entities mentioned in the most recordings
+export const SPARQL_EXAMPLE = `# The 20 entities mentioned in the most assets
 SELECT ?entity ?name (COUNT(?r) AS ?recordings) WHERE {
   ?r dcterms:references ?entity .
   ?entity skos:prefLabel ?name .
@@ -278,7 +278,7 @@ export function SparqlDialog({ ns, open, onClose }: { ns: string; open: boolean;
       onOpenChange={(o) => !o && onClose()}
       wide
       title={`Query ${ns} with SPARQL`}
-      description="Read-only: SELECT, ASK, CONSTRUCT or DESCRIBE over this namespace's recordings (Dublin Core), collections, entities and speakers. dcterms, skos, foaf, owl, rdfs, xsd and lens are known prefixes."
+      description="Read-only: SELECT, ASK, CONSTRUCT or DESCRIBE over this namespace's assets (Dublin Core), collections, entities and people. dcterms, skos, foaf, owl, rdfs, xsd and lens are known prefixes."
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>

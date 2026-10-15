@@ -104,7 +104,7 @@ def test_a_file_goes_where_it_fits_without_asking(app, db, cfg, folder, new_clie
     assert c.get(f"/api/v1/uploads/{up['id']}", headers=h).json()["namespace"] == "pods"
     body = jev.seen[-1][1]
     assert set(body["questions"]["q"]["criteria"]) == {"calls", "pods"}
-    assert "Holds recordings such as" in body["questions"]["q"]["criteria"]["pods"]  # what's in it tells them apart
+    assert "Holds assets such as" in body["questions"]["q"]["criteria"]["pods"]  # what's in it tells them apart
     state = json.loads(body["state"])
     assert state["their_message"] == "the podcast pilot" and state["files"][0]["file"] == "school-trip.wav"
     told = json.loads(llm.seen[-1]["messages"][-1]["content"])

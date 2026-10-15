@@ -11,20 +11,21 @@ Each row names every resource it counts for, as `table:id`:
 | Resource | Example |
 | --- | --- |
 | A routine and one of its runs | `routine:3`, `routine_run:12` |
-| A job, its recording, namespace and pipeline | `job:40`, `recording:7`, `space:1`, `pipeline:2` |
+| A job, its asset, namespace and pipeline | `job:40`, `recording:7`, `space:1`, `pipeline:2` |
 | A workflow | `workflow:4` |
 | A chat | `chat:9` |
 | A note (its refinement and filing, and the requests that changed it) | `note_page:5` |
 | The person who asked | `account:1` |
 
-A model call inside a workflow step of a job that a routine queued counts for the workflow, the job, the recording,
+A model call inside a workflow step of a job that a routine queued counts for the workflow, the job, the asset,
 its namespace, its pipeline and the routine. A request counts for the resources in its path (`PATCH
 /api/v1/routines/3` is `routine:3`), for what a `POST` made (from the `id` in its reply), and for who sent it.
 
 Besides the resources, a row has its kind (`in`, `out` or `run`), what it was (`POST /api/v1/routines/{rid}`,
-`model.chat`, `embeddings`, `decision`, `notify.webhook`, `tool.http`, `job.succeeded`, `routine.done`), the model,
+`model.chat`, `embeddings`, `decision`, `notify.webhook`, `tool.http`, `google.token`, `gmail.list`, `job.succeeded`,
+`routine.done`), the model,
 tokens in and out, the estimated cost in USD, how long it took, and how it ended (an error's type or HTTP status,
-never its message). It never holds prompt, reply, transcript or file content.
+never its message). It never holds prompt, reply, asset text or file content.
 
 ## Costs
 
@@ -66,7 +67,7 @@ GET /api/v1/activity/totals?period=day            # everything (admins)
 GET /api/v1/activity/top?table=routine&period=week  # what cost most (admins)
 ```
 
-Admins see every resource. Everyone else sees their own account's activity, their own chats', and the recordings and
+Admins see every resource. Everyone else sees their own account's activity, their own chats', and the assets and
 namespaces they can read.
 
 ## Settings

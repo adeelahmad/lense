@@ -4,19 +4,23 @@ Backups) and put back when it is restored.
 
 A file that hasn't changed since the newest earlier backup is a hard link to that backup's copy, so backing up again
 takes no more room than what changed. Left out: what Lens fetches or rebuilds by itself (models, bin, python, cache,
-search), what's passing (tmp, locks, logs, unfinished uploads), the backups, the embedded database (the backup's own
-part) and secret.key (keep it apart from the backups, docs/encryption.md).
+search), what's passing (tmp, locks, logs, unfinished uploads), the backups, the database's own folder (the embedded
+database, or SurrealDB's in a microsandbox, surreal: the backup's own part), secret.key (keep it apart from the
+backups, docs/encryption.md), and hidden entries at the top (.lens, where a microsandbox keeps the Lens it runs, and
+caches). A file Lens can't read isn't its own, so it is left out too, with a warning.
 """
 
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 import pathlib
 import shutil
 import time
 
-SKIP = {"backups", "secret.key", "tmp", "locks", "logs", "bin", "models", "python", "cache", "search"}
+log = logging.getLogger("lens")
+SKIP = {"backups", "secret.key", "tmp", "locks", "logs", "bin", "models", "python", "cache", "search", "surreal"}
 FOLDER = ".files"
 
 
@@ -28,11 +32,16 @@ def _skipped(name, skip):
     return name in skip or name == ".partial" or name.endswith((".part", ".partial"))
 
 
+def _top_skipped(name, skip):
+    """A top-level entry of data_dir that isn't backed up: SKIP's, and hidden ones (a microsandbox's .lens, caches)."""
+    return _skipped(name, skip) or name.startswith(".")
+
+
 def _entries(data, skip):
     """The top-level entries of data_dir that are backed up."""
     if not data.is_dir():
         return []
-    return sorted(p for p in data.iterdir() if not _skipped(p.name, skip) and not p.is_symlink())
+    return sorted(p for p in data.iterdir() if not _top_skipped(p.name, skip) and not p.is_symlink())
 
 
 def _walk(data, skip):
@@ -108,6 +117,7 @@ def snapshot(data_dir, name, db_path=None):
         raise RuntimeError(
             f"backing up the files needs {need >> 20} MB and the disk has {free >> 20} MB free; free some space, or delete older backups"
         )
+    unread = []
     try:
         for src, rel, old in plan:
             out = part / rel
@@ -118,11 +128,18 @@ def snapshot(data_dir, name, db_path=None):
                     continue
                 except OSError:  # another file system, or too many links
                     pass
-            with contextlib.suppress(FileNotFoundError):  # gone meanwhile
+            try:
                 shutil.copy2(src, out)
+            except FileNotFoundError:  # gone meanwhile
+                pass
+            except PermissionError:  # not Lens's own (another user's file): left out
+                out.unlink(missing_ok=True)
+                unread.append(str(rel))
     except BaseException:
         shutil.rmtree(part, ignore_errors=True)
         raise
+    if unread:
+        log.warning("backup %s: left out %d file(s) Lens can't read, such as %s", name, len(unread), unread[0])
     part.rename(dst)
     return dst
 
@@ -143,7 +160,7 @@ def restore(data_dir, name, db_path=None):
             p.rename(held / p.name)
             moved.append(p.name)
         for p in sorted(src.iterdir()):
-            if _skipped(p.name, skip):
+            if _top_skipped(p.name, skip):
                 continue
             if p.is_dir():
                 shutil.copytree(p, data / p.name, symlinks=False)

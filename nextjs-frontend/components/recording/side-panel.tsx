@@ -184,7 +184,7 @@ export function PanelTabs({
       <div
         ref={list}
         role="tablist"
-        aria-label="Recording panels"
+        aria-label="Asset panels"
         onKeyDown={onKey}
         className="flex min-w-0 flex-1 overflow-x-auto scrollbar-none"
       >
@@ -307,7 +307,7 @@ export function SidePanel() {
   const tabs = useAudioTabs();
   const current = [...AUDIO_TABS, ...MORE_TABS].some((t) => t.value === tab) ? tab : "summary";
   return (
-    <aside aria-label="Recording panels" className="flex min-h-0 min-w-0 flex-col border-l border-border bg-background">
+    <aside aria-label="Asset panels" className="flex min-h-0 min-w-0 flex-col border-l border-border bg-background">
       <PanelTabs tabs={tabs} more={MORE_TABS} value={current} onChange={setTab} idBase="side" />
       <PanelScroll id="side" tab={current}>
         <PanelBody tab={current} />

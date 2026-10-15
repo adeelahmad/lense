@@ -75,7 +75,7 @@ export function PublicRecordingView({
     return q.error instanceof ApiError && q.error.status === 404 ? (
       <Unavailable what="recording" signedIn={signedIn} />
     ) : (
-      <LoadError what="this recording" message={q.error.message} retry={() => q.refetch()} />
+      <LoadError what="this asset" message={q.error.message} retry={() => q.refetch()} />
     );
   if (q.data.view === "locked") return <Locked rec={q.data} />;
   return <RecordingBody rec={q.data} signedIn={signedIn} start={start} page={page} />;
@@ -92,8 +92,8 @@ function Locked({ rec }: { rec: Rec }) {
         <span className="text-[12.5px] font-semibold uppercase tracking-[0.04em] text-fg-muted">Content locked</span>
         <h1 className="text-[20px] font-bold leading-tight text-fg">{rec.title || "Untitled"}</h1>
         <p className="max-w-[44ch] text-[14px] leading-normal text-fg-secondary">
-          This recording is restricted: only members of {rec.namespace ?? "its namespace"}, and people it’s shared with,
-          can open it.
+          This asset is restricted: only members of {rec.namespace ?? "its namespace"}, and people it’s shared with, can
+          open it.
         </p>
         {rec.can_request && <RequestAccess rec={rec} className="mt-2 w-full text-left" />}
       </section>
@@ -106,7 +106,7 @@ function PageSkeleton() {
     <div
       className="mx-auto flex w-full max-w-[1120px] flex-col gap-5 px-4 py-6 sm:px-6"
       aria-busy="true"
-      aria-label="Loading the recording"
+      aria-label="Loading the asset"
     >
       <Skeleton className="h-4 w-24" />
       <Skeleton className="h-8 w-3/5" />
@@ -153,7 +153,7 @@ function RecordingBody({
       {rec.member && <MemberNote rec={rec} />}
       {rec.granted && (
         <Banner>
-          You were given permission on this {paged ? "resource" : "recording"}, so you see all of it
+          You were given permission on this {paged ? "resource" : "asset"}, so you see all of it
           {rec.access === "public" ? ", not only the parts open to everyone." : "."}
         </Banner>
       )}
@@ -279,7 +279,7 @@ function MediaCard({ rec, duration, signedIn }: { rec: Rec; duration: number; si
           preload="metadata"
           className="aspect-video w-full cursor-pointer rounded-sm bg-black object-contain"
           onClick={() => api.toggle()}
-          aria-label={`Video: ${rec.title ?? "recording"}`}
+          aria-label={`Video: ${rec.title ?? "asset"}`}
         />
       ) : (
         <audio ref={api.attach} src={m.url} preload="metadata" className="hidden" />
@@ -474,7 +474,7 @@ function DescriptionCard({ meta }: { meta: Meta }) {
   const rows = descriptionRows(meta);
   if (!rows.length) return null;
   return (
-    <Card title="About this recording">
+    <Card title="About this asset">
       <dl className="flex flex-col gap-2.5">
         {rows.map((r) => (
           <div key={r.label} className="flex flex-col gap-0.5">
