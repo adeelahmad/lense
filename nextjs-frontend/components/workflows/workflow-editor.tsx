@@ -19,6 +19,7 @@ import {
   problems as findProblems,
   sameGraph,
   starter,
+  suggestedWorkflowName,
   type CustomDef,
   type Scope,
   type WfGraph,
@@ -26,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { Menu, MenuContent, MenuItem, MenuLabel, MenuTrigger } from "@/components/ui/menu";
+import { RenameTitle } from "@/components/ui/rename-title";
 import { EmptyState, Skeleton } from "@/components/ui/states";
 import { Segmented } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
@@ -92,6 +94,11 @@ export function WorkflowEditor({ id }: { id?: number }) {
   const why = readOnly ? "Only admins can change workflows" : undefined;
   const latest = base ? Math.max(base.current, ...(base.history ?? []).map((h) => h.version)) : 0;
   const dirty = creating ? true : base ? !sameGraph(base.graph as WfGraph, graph) : false;
+  const guess = suggestedWorkflowName(
+    scope,
+    (catalog.data?.workflows ?? []).map((w) => w.name),
+  );
+  const named = name.trim() || guess;
   const problems = findProblems(graph, (tid) => tpl.get(tid)?.kind, scope, "workflow", customOf);
   const firstProblem = Object.entries(problems)[0];
   const nextV = latest + 1;
@@ -107,7 +114,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
     mutationFn: async (publish: boolean) => {
       const body = cleanGraph(graph);
       if (creating) {
-        const r = await data(Workflows.createWorkflow({ client, body: { name: name.trim(), graph: body, scope } }));
+        const r = await data(Workflows.createWorkflow({ client, body: { name: named, graph: body, scope } }));
         return { id: r.id, version: 1 };
       }
       const r = await data(
@@ -124,7 +131,7 @@ export function WorkflowEditor({ id }: { id?: number }) {
       void qc.invalidateQueries({ queryKey: ["workflow", r.id] });
       setNotes("");
       if (creating) {
-        toast({ tone: "green", title: "Workflow created", body: name });
+        toast({ tone: "green", title: "Workflow created", body: named });
         router.push(`/workflows/${r.id}`);
         return;
       }
@@ -208,14 +215,26 @@ export function WorkflowEditor({ id }: { id?: number }) {
         {creating ? (
           <Input
             aria-label="Workflow name"
-            placeholder="Name, e.g. Entities and meeting notes"
+            placeholder={guess}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="h-9 w-[320px] text-[16px] font-bold"
             autoFocus
           />
         ) : (
-          <h1 className="text-[18px] font-bold text-fg">{base?.name}</h1>
+          <RenameTitle
+            name={base?.name ?? ""}
+            what="workflow"
+            onRename={
+              readOnly
+                ? undefined
+                : async (n) => {
+                    await data(Workflows.updateWorkflow({ client, path: { wid: id! }, body: { name: n } }));
+                    void qc.invalidateQueries({ queryKey: ["workflows"] });
+                    await qc.invalidateQueries({ queryKey: ["workflow", id] });
+                  }
+            }
+          />
         )}
         {creating && (
           <Segmented
@@ -319,8 +338,8 @@ export function WorkflowEditor({ id }: { id?: number }) {
         <Button
           size="sm"
           variant="approve"
-          disabled={Boolean(publishReason) || save.isPending || (creating && !name.trim())}
-          disabledReason={publishReason ?? "Give the workflow a name"}
+          disabled={Boolean(publishReason) || save.isPending}
+          disabledReason={publishReason}
           onClick={() => save.mutate(true)}
         >
           {creating ? "Create workflow" : `Publish v${nextV}`}

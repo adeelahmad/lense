@@ -135,7 +135,7 @@ def import_web_page(body: WebImportRequest, acl: Acl, user: Writer, db: Db, cfg:
     ns = body.namespace.strip()
     if not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
-    if not convert.chromium(cfg):
+    if not convert.web_capture(cfg):
         raise HTTPException(400, "capturing web pages needs Chromium on the server (the lens:full image)")
     check_pipeline(db, body.pipeline)
     try:
@@ -200,7 +200,7 @@ def import_web_links(body: LinksImportRequest, acl: Acl, user: Writer, db: Db, c
     ns = body.namespace.strip()
     if not store.NS_RX.match(ns):
         raise HTTPException(400, "choose a namespace: lowercase letters, digits, - and _")
-    if not convert.chromium(cfg):
+    if not convert.web_capture(cfg):
         raise HTTPException(400, "capturing web pages needs Chromium on the server (the lens:full image)")
     given = [bool(body.data), bool((body.text or "").strip()), bool(body.urls)]
     if sum(given) != 1:

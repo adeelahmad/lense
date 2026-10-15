@@ -267,3 +267,14 @@ def test_a_new_workers_first_job_is_traced(client, db, cfg, folder, collector):
     assert worker.drain() == 1
     telemetry.flush()
     assert "job" in {s["name"] for s in fake_otlp.Handler.spans}
+
+
+def test_grafana_link_and_machine_now(client, db):
+    h = admin(client, db)
+    assert client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["grafana_url"] is None
+    assert client.put("/api/v1/settings/telemetry", json={"grafana_url": "ftp://x"}, headers=h).status_code == 400
+    r = client.put("/api/v1/settings/telemetry", json={"grafana_url": "http://localhost:3001/"}, headers=h)
+    assert r.status_code == 200
+    assert client.get("/api/v1/settings", headers=h).json()["telemetry"]["values"]["grafana_url"] == "http://localhost:3001"
+    m = client.get("/api/v1/admin/health", headers=h).json()["machine"]
+    assert m["uptime"] >= 0 and m["cpus"] >= 1

@@ -3,6 +3,7 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { isActive, navFor } from "@/components/app-shell/nav-config";
 import { NotesTree } from "@/components/notes/notes-tree";
@@ -11,7 +12,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { count } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-/** The primary nav rail: 224px open, 60px collapsed (icons with tooltips). */
+/** The primary nav rail: 224px open, 60px collapsed (icons with tooltips). `top` goes under the brand (the phone's
+ * drawer puts the namespace switcher there). */
 export function Nav({
   admin,
   collapsed,
@@ -19,6 +21,7 @@ export function Nav({
   counts,
   onNavigate,
   className,
+  top,
 }: {
   admin: boolean;
   collapsed: boolean;
@@ -26,6 +29,7 @@ export function Nav({
   counts: { recordings?: number; reviews?: number };
   onNavigate?: () => void;
   className?: string;
+  top?: ReactNode;
 }) {
   const pathname = usePathname();
   return (
@@ -40,6 +44,7 @@ export function Nav({
       <div className={cn("flex h-7 items-center px-2 pb-4 pt-1", collapsed && "justify-center px-0")}>
         <Brand collapsed={collapsed} />
       </div>
+      {top}
       {navFor(admin).map((it) => {
         const on = isActive(pathname, it.href);
         const n = it.countKey ? counts[it.countKey] : undefined;

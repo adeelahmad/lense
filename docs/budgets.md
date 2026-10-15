@@ -22,6 +22,26 @@ PUT /api/v1/budgets?resource=routine:3
 (also for a resource without a budget, with its estimated next run), and `DELETE /api/v1/budgets?resource=…`
 removes one.
 
+## One budget for everything
+
+Besides budgets for single resources, `all` caps everything Lens spends: every model call, run and job, whatever it is
+for. The setup wizard and the web installer ask for it after a cloud model (one on your own machine costs nothing), as a
+scale for the hard limit with the soft limit at 80% of it; Settings › Budgets changes it.
+
+```http
+PUT /api/v1/setup/budget
+{"hard_usd": 25, "soft_usd": 20, "period": "month", "on_over": "ask", "price_in": 3, "price_out": 15}
+```
+
+- **Soft limit**: past it, the budget is `near` and warns, as `warn_at` does (it is saved as `warn_at` = soft ÷ hard).
+- **Hard limit**: at it, routines and jobs are held (or skipped, with `on_over: "skip"`) as any budget's are, and model
+  calls that cost money stop with the reason until the limit goes up or the period turns. Models without a price
+  (one on your own computer) keep working, unless the budget also caps `tokens`.
+- `price_in`, `price_out`: the chat model's price in USD per million tokens (`ai.price_in`, `ai.price_out`), so
+  what it spends is counted. Without a price a budget in USD counts nothing for that model.
+- `hard_usd: null` removes the budget. `GET /api/v1/setup` shows it under `budget`. `PUT /api/v1/budgets?resource=all`
+  sets it like any other budget, with `tokens` too.
+
 ## Before a run
 
 Before a routine runs and before a job's first step, Lens looks at the budgets of everything the run counts for: the
@@ -47,7 +67,23 @@ Asking a routine to run from the app or the API when it's over budget is refused
 Every five minutes the scheduler looks at every budget. One that crosses `warn_at` or its cap gets an alert, once per
 period: on the budget (`alert`) and as a `budget.near` or `budget.over` row in its activity history.
 
+## The meter and the Costs page
+
+The top bar shows what the namespace picked in the switcher spent, against its budget: "$1.20 / $5" with a bar, gold
+once the budget is near (`warn_at`) and red when it's used up. It counts the budget's own period (day, week or month);
+without a budget it shows what was spent over the period you pick (day, week or month, remembered in this browser).
+With "All namespaces" it shows what all of Lens spent (admins only), against the budget for all of Lens when one is set.
+Clicking it opens the details: used and left, the spend for the period you pick and the models it went to.
+
+**Costs** in the left menu has the rest for the same namespace and period: spend by day, by model, what cost most
+(routines, pipelines, workflows, chats, documents), by namespace (for all of Lens), the namespace's budget to set or
+change (admins), and every other budget with how much of it is used.
+
+`GET /api/v1/budgets/meter?ns=&period=&detail=` serves both. Anyone who can read a namespace sees its meter; all of
+Lens is admins'. A namespace's spend is the calls that count for it: its jobs, and requests to its own pages.
+
 ## Refine later
 
 Forecasting from a routine's schedule (its runs left this period), per-person budgets, budget warnings sent through
-notifications and the weekly digest, and the assistant answering "where do my budgets stand?" in chat.
+notifications and the weekly digest, and the assistant answering "where do my budgets stand?" in chat. The meter could
+count chats in a namespace (they aren't attributed to one yet) and show a forecast to the end of the period.

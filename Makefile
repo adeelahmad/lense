@@ -10,8 +10,16 @@ DOCKER_COMPOSE ?= $(shell docker compose version >/dev/null 2>&1 && echo docker 
 help: ## List the commands
 	@awk '/^[a-zA-Z_-]+:.*##/{split($$1, target, ":"); print "  " target[1] "\t" substr($$0, index($$0,"##")+3)}' $(MAKEFILE_LIST)
 
-# Local development
-.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs docs-build hooks
+# Local development. The checks run through Nx (nx.json and each project's project.json), as CI runs them, and come
+# back from its local cache (.nx/cache) when nothing they read has changed. Nx itself is the root package.json's one
+# dependency, installed on first use.
+NX = pnpm exec nx
+
+.PHONY: start-backend test-backend lint-backend start-frontend test-frontend lint-frontend openapi worker docs docs-build hooks affected
+
+node_modules/.bin/nx: package.json pnpm-lock.yaml
+	pnpm install --frozen-lockfile
+	@touch $@
 
 hooks: ## Install the git hooks: lint on commit, Conventional Commit messages
 	cd $(BACKEND_DIR) && uv run pre-commit install -c ../.pre-commit-config.yaml
@@ -22,33 +30,43 @@ start-backend: $(BACKEND_DIR)/.env $(BACKEND_DIR)/archive.yaml ## Start the API 
 worker: ## Run a job worker against the configured database
 	cd $(BACKEND_DIR) && uv run lens worker
 
-test-backend: ## Run the backend tests
-	cd $(BACKEND_DIR) && uv run pytest -n auto
+test-backend: node_modules/.bin/nx ## Run the backend tests
+	$(NX) run backend:test
 
-lint-backend: ## Lint, format check and type check the backend
-	cd $(BACKEND_DIR) && uv run ruff check . && uv run ruff format --check . && uv run mypy
+lint-backend: node_modules/.bin/nx ## Lint, format check and type check the backend
+	$(NX) run-many -t lint typecheck -p backend
 
 start-frontend: $(FRONTEND_DIR)/.env.local ## Start the web app with hot reload
 	cd $(FRONTEND_DIR) && ./start.sh
 
-test-frontend: ## Run the frontend tests
-	cd $(FRONTEND_DIR) && pnpm run test
+test-frontend: node_modules/.bin/nx ## Run the frontend tests
+	$(NX) run frontend:test
 
-lint-frontend: ## Lint and type check the frontend
-	cd $(FRONTEND_DIR) && pnpm run lint && pnpm run tsc
+lint-frontend: node_modules/.bin/nx ## Lint and type check the frontend
+	$(NX) run-many -t lint typecheck -p frontend
 
-openapi: ## Regenerate the OpenAPI schema and the frontend client
-	cd $(BACKEND_DIR) && uv run python -m commands.generate_openapi_schema
-	cd $(FRONTEND_DIR) && pnpm run generate-client
+openapi: node_modules/.bin/nx ## Regenerate the OpenAPI schema and the frontend client
+	$(NX) run backend:openapi
 
-docs: ## Serve the documentation (docs-build checks it the way CI does)
-	cd $(BACKEND_DIR) && uv run mkdocs serve -f ../mkdocs.yml
+docs: node_modules/.bin/nx ## Serve the documentation (docs-build checks it the way CI does)
+	$(NX) run docs:serve
 
-docs-build: ## Build the documentation site, failing on broken links
-	cd $(BACKEND_DIR) && uv run mkdocs build --strict -f ../mkdocs.yml --site-dir ../site
+docs-build: node_modules/.bin/nx ## Build the documentation site, failing on broken links
+	$(NX) run docs:build
+
+affected: node_modules/.bin/nx ## Lint, type check, test and build only the projects your changes affect, against main
+	$(NX) affected -t lint typecheck test build
 
 # Run it (Docker)
 PROD_COMPOSE=$(DOCKER_COMPOSE) -f docker-compose.prod.yml
+.PHONY: clicks
+clicks: env ## Count the clicks, keys and taps each journey takes on a fresh Lens, computer and phone (ci/clicks), vs the baselines
+	cd $(BACKEND_DIR) && uv sync
+	cd $(FRONTEND_DIR) && pnpm install && pnpm run build
+	cd ci/clicks && npm ci
+	ci/clicks/run.sh --compare ci/clicks/baseline.json
+	ci/clicks/run.sh --device phone --compare ci/clicks/baseline-phone.json
+
 .PHONY: run dev stop setup-code logs
 
 run: .env ## Build once and run the whole stack, no hot reload (the fast way to use it): http://localhost:3000

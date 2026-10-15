@@ -117,7 +117,11 @@ folders feeding their namespaces):
 - A sensor's page: each stream with its last value and a chart of hourly averages (a day, a week or a month), the
   latest readings, its kinds of log line to label or drop, and its settings: name, namespace, what it keeps and for how
   long (empty boxes follow the settings, 0 days keeps them for good), a webhook's new token, a bridge's connection.
-- **Files, email and calendars**: the Sources page, as before.
+- **Files, email and calendars**: the Sources page, as before. **Watch a local folder**, on the Sensors tab, opens the
+  folders this machine allows (`sources.local_roots`, set at startup) straight away, each with a **Watch** button, so a
+  folder is watched in four clicks: Sensors, Watch a local folder, Watch, Start watching. The connection to this
+  machine is made on the way when there's none yet; it has nothing to fill in, so adding **This machine** in Add
+  connection doesn't ask for a test or a name either (the test step only shows if the test fails).
 - **Hub logins**: the usernames devices sign in to the MQTT hub with, with a password made for you.
 - **Settings → Sensors**: the hub, its ports and networks, and the defaults for what's kept.
 

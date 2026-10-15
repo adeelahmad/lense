@@ -99,6 +99,10 @@ class TokenLimits(ResponseModel):
     never_expire: bool = Field(description="keys may be made that never expire (days: 0)")
 
 
+class ApiTokenRename(RequestModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
 class ApiToken(ResponseModel):
     id: int
     name: str

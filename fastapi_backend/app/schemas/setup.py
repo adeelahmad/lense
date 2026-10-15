@@ -55,6 +55,19 @@ class SetupOAuthView(ResponseModel):
     refresh_days: int
 
 
+class SetupBudgetView(ResponseModel):
+    # the overall budget (budgets.py, resource `all`): none set is no limit
+    hard_usd: float | None = None
+    soft_usd: float | None = None
+    period: str = "month"
+    on_over: str = "ask"
+    # the chat model's price, USD per million tokens in and out (ai.price_in, ai.price_out): a budget in money
+    # counts only what has a price
+    price_in: float | None = None
+    price_out: float | None = None
+    model: str | None = None
+
+
 class SetupView(ResponseModel):
     pending: bool
     admin: SetupAdmin
@@ -63,6 +76,7 @@ class SetupView(ResponseModel):
     storage: SetupStorageView
     telemetry: SetupTelemetryView
     oauth: SetupOAuthView
+    budget: SetupBudgetView
 
 
 class SetupNamespace(RequestModel):
@@ -83,6 +97,16 @@ class LocalModelServer(ResponseModel):
     # chat models first
     models: list[str]
     suggested: str
+
+
+class CloudModelProvider(ResponseModel):
+    name: str
+    base_url: str
+    # the model picking it fills in, then other suggestions
+    model: str
+    models: list[str]
+    # where the provider hands out API keys
+    key_url: str
 
 
 class SetupStorage(RequestModel):
@@ -108,6 +132,18 @@ class SetupOAuth(RequestModel):
     # left out: unchanged
     access_minutes: int | None = None
     refresh_days: int | None = None
+
+
+class SetupBudget(RequestModel):
+    # the hard limit in USD per period; none: no limit (the overall budget is removed)
+    hard_usd: float | None = Field(default=None, ge=0, le=1_000_000)
+    # the soft limit, which warns; none: 80% of the hard limit
+    soft_usd: float | None = Field(default=None, ge=0, le=1_000_000)
+    period: Literal["day", "week", "month"] = "month"
+    # at the hard limit, runs wait for a person (ask) or are skipped (skip); paid model calls stop either way
+    on_over: Literal["ask", "skip"] = "ask"
+    price_in: float | None = Field(default=None, ge=0, le=100_000)
+    price_out: float | None = Field(default=None, ge=0, le=100_000)
 
 
 class SetupFinish(RequestModel):

@@ -14,6 +14,7 @@ class Converters(ResponseModel):
     pages: bool = Field(description="text, Markdown, saved web pages and .eml emails (Chromium or LibreOffice)")
     msg: bool = Field(description="Outlook .msg emails (those, and the extract-msg package)")
     web: bool = Field(False, description="web pages captured from their address (Chromium; POST /import/web)")
+    tika: bool = Field(False, description="a Tika server reads, as text, the documents nothing else here can (documents.tika_url)")
 
 
 class UploadLimits(ResponseModel):

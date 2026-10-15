@@ -102,7 +102,8 @@ export function GraphAsk({
 
   const rows = answer?.result.rows ?? [];
   return (
-    <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex flex-col items-stretch gap-2 pr-12 sm:items-start">
+    // above the floating Ask button on a phone
+    <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex flex-col items-stretch gap-2 pr-12 max-sm:bottom-20 sm:items-start">
       {(answer || error) && open && (
         <section
           aria-label="Answer"

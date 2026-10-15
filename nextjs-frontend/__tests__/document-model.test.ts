@@ -27,6 +27,7 @@ import {
   pagesSummary,
   pageStart,
   parsePage,
+  describedRows,
   renditionNote,
   textNote,
   zoomStep,
@@ -186,11 +187,21 @@ describe("a document's pages", () => {
       ["Sent", "on 2026-09-29"],
     ]);
     expect(emailRows(null, String)).toEqual([]);
-    expect([renditionNote({ by: "libreoffice" }), renditionNote({ by: "chromium" }), renditionNote(null)]).toEqual([
-      "made into a PDF by LibreOffice",
-      "made into a PDF by Chromium",
-      null,
+    expect([
+      renditionNote({ by: "libreoffice" }),
+      renditionNote({ by: "chromium" }),
+      renditionNote({ by: "anytopdf" }),
+      renditionNote(null),
+    ]).toEqual(["made into a PDF by LibreOffice", "made into a PDF by Chromium", "made into a PDF by anytopdf", null]);
+    const told = { title: "Tide tables", creators: ["Ada", "Ben"], created: "2024-03-01T12:00:00Z", pages: 3 };
+    expect(describedRows(told, (iso) => `on ${iso.slice(0, 10)}`)).toEqual([
+      ["Title", "Tide tables"],
+      ["Authors", "Ada; Ben"],
+      ["Created", "on 2024-03-01"],
+      ["Pages", "3"],
     ]);
+    expect(describedRows({ creators: ["Ada"] }, String)).toEqual([["Author", "Ada"]]);
+    expect(describedRows(null, String)).toEqual([]);
   });
 
   it("puts a document's notes, rows and search matches on pages", () => {
@@ -258,13 +269,13 @@ describe("importing documents and images", () => {
     ]).toEqual(["transcript", "transcript", "document", "document"]);
     expect(conversionProblem("a.pdf", none)).toBeNull();
     expect(conversionProblem("a.eml", none)).toBe(
-      "Reading it needs Chromium or LibreOffice on the server (the lens:full image).",
+      "Reading it needs Chromium or LibreOffice on the server (the lens:full image), or a Tika server.",
     );
     expect(conversionProblem("a.msg")).toBe("Reading Outlook emails needs the extract-msg package on the server.");
     expect(localProblem({ name: "deck.pptx", size: 10 }, none)).toMatchObject({
       code: "unsupported",
       title: "This server can’t read powerpoint presentations",
-      body: "Reading it needs LibreOffice on the server (the lens:full image).",
+      body: "Reading it needs LibreOffice on the server (the lens:full image) or a Tika server.",
     });
     expect(localProblem({ name: "notes.docx", size: 10 }, none, "document")?.body).toMatch(
       /Import it as a transcript instead\.$/,

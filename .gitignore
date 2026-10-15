@@ -173,3 +173,7 @@ local-shared-data/*
 .lens-build
 .lens-sandbox
 .lens-control/
+
+# Nx (package.json, nx.json): the root's node_modules is Nx itself; .nx holds its local cache and project graph
+/node_modules/
+/.nx/

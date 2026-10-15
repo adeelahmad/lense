@@ -245,6 +245,9 @@ DEFAULTS = {
         "anytopdf": None,  # the anytopdf program; None: the one downloaded on first use, else one on PATH
         "anytopdf_url": None,  # a conversion node: `anytopdf queue serve` on another machine
         "anytopdf_token": None,
+        "tika_url": None,  # tika.py: a Tika server (the compose files' `tika` profile: http://tika:9998); None: off
+        "tika_text": True,  # with a Tika server: it reads, as text, documents Lens can't make into PDFs
+        "tika_metadata": True,  # with a Tika server: it reads what every document says about itself
     },
     "workers": {
         "inline": 1,
@@ -280,6 +283,11 @@ DEFAULTS = {
         "compact_model": None,  # a cheaper model to write those summaries (None: the chat's model)
         "context_tokens": None,  # the chat model's context window; summarised early before it fills (None: 16000)
         "organise_notes": True,  # notes nobody filed are filed in PARA, or a suggestion waits on them (notebook.py)
+        "untrusted_marking": True,  # third-party text reaches the model marked as data, not instructions (untrusted.py)
+        "untrusted_asks": True,  # after reading it, tools that send data out or change the server ask first (ai_tools.py)
+        "browser": True,  # people may connect their browser's Lens side panel for the assistant to use (browser.py)
+        "browser_steps": 25,  # at most this many tool steps in an answer that uses the browser
+        "injection_check": "patterns",  # flag text that reads like instructions to an AI: patterns, classifier, model, off
         "disabled_tools": [],
         "max_steps": 6,
         "max_transcript_reads": 20,
@@ -334,19 +342,29 @@ DEFAULTS = {
     },
     # speech providers (domain/speech.py): transcription, speakers and text to speech by a service instead of this
     # server, picked in transcribe.engine, diarize.engine and voice. A base URL can be a proxy or a compatible server.
+    # {p}_max_minutes and {p}_max_mb are the most audio a provider takes in one request: a longer recording is cut into
+    # pieces at pauses and their transcripts joined (docs/speech-providers.md, Long recordings, says where each comes from)
     "speech": {
         "openai_base_url": "https://api.openai.com/v1",
         "openai_model": "whisper-1",
         "openai_api_key": None,
+        "openai_max_minutes": 10,  # 25 MB a file; GPT-4o transcription takes up to 25 minutes
+        "openai_max_mb": 25,
         "elevenlabs_base_url": "https://api.elevenlabs.io",
         "elevenlabs_model": "scribe_v1",
         "elevenlabs_api_key": None,
+        "elevenlabs_max_minutes": 600,  # up to 10 hours and 3 GB
+        "elevenlabs_max_mb": 3000,
         "assemblyai_base_url": "https://api.assemblyai.com",
         "assemblyai_model": "universal",
         "assemblyai_api_key": None,
+        "assemblyai_max_minutes": 600,  # up to 10 hours; 2.2 GB through its upload endpoint
+        "assemblyai_max_mb": 2200,
         "deepgram_base_url": "https://api.deepgram.com",
         "deepgram_model": "nova-3",
         "deepgram_api_key": None,
+        "deepgram_max_minutes": 120,  # 2 GB; it stops a request after 10 minutes of work, so two hours at a time
+        "deepgram_max_mb": 2000,
         "gemini_base_url": "https://generativelanguage.googleapis.com",
         "gemini_model": "gemini-2.5-flash-preview-tts",
         "gemini_api_key": None,
@@ -370,7 +388,65 @@ DEFAULTS = {
         # approving the assistant's reversible changes (entity merges and edits, new namespaces) by replying in the room,
         # for the people in bridge.users; everything else is approved in the web app (bridge.ROOM_SAFE)
         "approve": "low_risk",
+        # web addresses the answer built itself are broken up (hxxps://evil[.]example), so the room's app doesn't fetch
+        # them to preview: an injection could fill one with what the answer read (bridge.safe_links)
+        "safe_links": True,
         "poll_seconds": 2,
+    },
+    # the assistant in Telegram through a bot of your own (telegram.py), with the room settings bridge has: account,
+    # name, answer, users (Telegram usernames or user ids), rooms ("<chat id> = namespace") and approve
+    "telegram": {
+        "enabled": False,
+        "token": None,
+        "account": None,
+        "name": "Lens",
+        "answer": "mention",
+        "users": [],
+        "rooms": [],
+        "approve": "low_risk",
+        # a Bot API server of your own (telegram-bot-api), else Telegram's
+        "api_url": None,
+    },
+    # Slack through an app of your own over Socket Mode (slack.py), made from the manifest in Settings › Slack:
+    # bot_token is its xoxb- token, app_token its app-level xapp- token (connections:write); the room settings are
+    # bridge's: account, name, answer, users (Slack usernames or ids), rooms ("slack/<channel> = namespace"), approve
+    "slack": {
+        "enabled": False,
+        "bot_token": None,
+        "app_token": None,
+        "account": None,
+        "name": "Lens",
+        "answer": "mention",
+        "users": [],
+        "rooms": [],
+        "approve": "low_risk",
+    },
+    # the assistant's own email address (mailbox.py): mail sent or forwarded to it is answered by email and what's
+    # attached imported, with the room settings bridge has: account, name, users (the addresses it answers) and
+    # approve. The servers are guessed from the address when not set; the ports follow the security when not set.
+    "mailbox": {
+        "enabled": False,
+        "address": None,
+        "password": None,
+        "username": None,  # the sign-in name, when it isn't the address
+        "imap_host": None,
+        "imap_port": None,
+        "imap_security": "ssl",
+        "smtp_host": None,
+        "smtp_port": None,
+        "smtp_security": "starttls",
+        "folder": "INBOX",
+        "account": None,
+        "name": "Lens",
+        "users": [],
+        # "from: *@acme.com = acme", "subject: newsletter = skip" (mail_routes.py's conditions): the namespace mail is for
+        "routes": [],
+        "approve": "low_risk",
+        "imports": "auto",  # what's attached is imported without waiting for approval ("ask": it waits)
+        # whose mail counts as theirs: what the receiving server authenticated (DKIM, SPF, DMARC), or From as it is
+        "check": "authenticated",
+        "auth_server": None,  # the server whose Authentication-Results count (else the topmost)
+        "poll_seconds": 30,
     },
     # Matterbridge run by Lens (matterbridge.py): with `run` on, the matterbridge service in Docker Compose gets its
     # config from these, a gateway per room, and the bridge talks to it; off, bridge.url is a Matterbridge of your own
@@ -431,6 +507,16 @@ DEFAULTS = {
     # or open up arbitrary folders on the server. Local folders can only be watched inside local_roots.
     "sources": {"rclone": None, "local_roots": [], "check_seconds": 15, "cache_dir": None},
     "reports": {"audio": "link"},
+    # the read-only SMB share of the file tree (smb_share.py, docs/smb.md): off until an admin turns it on, then
+    # served by `lens worker` to people signing in with a file access key, from allowed_networks only. bind and port
+    # are startup settings only: in Docker it listens on 0.0.0.0:4445 inside the container, published where the web
+    # app is (LENS_SHARE_BIND, else LENS_BIND) on LENS_SMB_PORT.
+    "smb": {
+        "enabled": False,
+        "bind": os.environ.get("LENS_SMB_LISTEN") or "127.0.0.1",
+        "port": int(os.environ.get("LENS_SMB_LISTEN_PORT") or 4445),
+        "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "100.64.0.0/10", "fc00::/7", "::1/128"],
+    },
     # sensors (sensors.py, docs/sensors.md): off until an admin turns them on. Then the MQTT hub and the syslog listener
     # run in the process that runs routines (`lens worker`), on these ports; syslog is taken only from syslog_networks.
     # store, raw_days, rollup_days, important_days and max_per_minute are what a stream sensor gets unless it has its own.
@@ -452,6 +538,18 @@ DEFAULTS = {
         "max_per_minute": 600,
         "triage": False,
     },
+    # the file tree over NFS (domain/nfs_share.py, docs/file-tree.md): off until turned on; read-only, shown as `account`
+    # (an account id; null: the first admin), to the machines in allowed_networks. bind is a startup setting only.
+    "nfs": {
+        "enabled": False,
+        "bind": "0.0.0.0",
+        "port": 2049,
+        "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "fc00::/7", "::1/128"],
+        "account": None,
+    },
+    # the graph as files over S3 and WebDAV (shares.py, docs/file-tree.md): off until an admin turns it on. Then the process
+    # that runs routines (`lens worker`) serves it, read-only, on these ports. bind is a startup setting only.
+    "shares": {"enabled": False, "bind": "0.0.0.0", "s3": True, "s3_port": 9555, "webdav": True, "webdav_port": 9556},
     # notifications to webhooks and Matterbridge (docs/notifications.md): targets reach public addresses only, and the
     # private networks listed here (a Matterbridge on the LAN or the Docker network); app_url is where links in messages
     # point (null: FRONTEND_URL)
@@ -470,6 +568,33 @@ DEFAULTS = {
     # tunnel and DNS record for hostname with api_token). origin: the web app as this server reaches it (default
     # LENS_TUNNEL_ORIGIN, else FRONTEND_URL). token and api_token are secrets.
     "tunnel": {"mode": "off", "hostname": "", "token": None, "api_token": None, "origin": ""},
+    # HTTPS with certificates from Let's Encrypt or ZeroSSL, got and renewed by Caddy run by Lens (domain/https.py). Off
+    # by default. domains: the names to serve (and get certificates for); ca: letsencrypt, zerossl, both (Let's Encrypt
+    # then ZeroSSL) or custom (ca_url, an ACME directory); challenge: http (ports 80 and 443 reach this machine), tls-alpn
+    # (only 443) or dns (a TXT record through dns_provider's API: any caddy-dns plugin, dns_package to use another one;
+    # dns_credentials is its fields as JSON). eab_*: external account binding. https_port and http_port are where Caddy
+    # listens in the container (install.sh publishes 443 and 80 to them). dns_credentials and eab_hmac_key are secrets.
+    "https": {
+        "enabled": False,
+        "domains": [],
+        "email": "",
+        "ca": "both",
+        "ca_url": "",
+        "staging": False,
+        "challenge": "http",
+        "dns_provider": "",
+        "dns_package": "",
+        "dns_credentials": None,
+        "dns_resolvers": [],
+        "propagation": "",
+        "eab_key_id": "",
+        "eab_hmac_key": None,
+        "redirect_http": True,
+        "hsts": False,
+        "origin": "",
+        "https_port": 8443,
+        "http_port": 8080,
+    },
     "notifications": {"enabled": True, "networks": [], "poll_seconds": 5, "max_attempts": 6, "app_url": None},
     # OpenTelemetry traces and metrics (docs/telemetry.md): off unless an admin turns it on, and sent only to the OTLP/HTTP
     # endpoint set here (e.g. a collector at http://localhost:4318). headers is a secret: key=value pairs for the
@@ -480,6 +605,10 @@ DEFAULTS = {
     # the activity ledger (docs/activity.md): every change and call in or out, with its cost, per resource. On by
     # default; reads: log API reads (GET) too; keep_days: how long rows are kept
     "activity": {"enabled": True, "reads": False, "keep_days": 365},
+    # database backups (docs/database.md, Backups): schedule is a cron expression in timezone, or none (the default)
+    # for none; the newest `keep` scheduled backups are kept. connection: a storage connection (sources.py) every new
+    # backup is also copied to, under folder, encrypted with a key from secret.key first (none: kept here only)
+    "backups": {"schedule": None, "timezone": "UTC", "keep": 7, "connection": None, "folder": "lens-backups"},
     "telemetry": {
         "enabled": False,
         "endpoint": None,
@@ -494,6 +623,29 @@ DEFAULTS = {
         # the scraper sends as a bearer token, and nothing is served until one is set
         "prometheus": False,
         "prometheus_token": None,
+        # where Grafana shows Lens's charts (docs/prometheus.md), for a link on Admin → System health; none: no link
+        "grafana_url": None,
+    },
+    # logging (docs/logging.md): level and format for the console (docker logs) and a file per process under
+    # data_dir/logs (what Settings → Logs shows); levels sets single loggers, like {"httpx": "warning"}. syslog sends
+    # every line at syslog_level or above to a syslog server (RFC 5424 over udp, tcp or tls); off by default
+    "logs": {
+        "level": "info",
+        "format": "text",
+        "levels": {},
+        "file": True,
+        "file_mb": 5,
+        "file_keep": 2,
+        "syslog": False,
+        "syslog_host": None,
+        "syslog_port": 514,
+        "syslog_transport": "udp",
+        "syslog_level": "info",
+        "syslog_facility": "local0",
+        "syslog_format": "text",
+        "syslog_framing": "octet",
+        "syslog_verify": True,
+        "syslog_app_name": "lens",
     },
     # usage analytics (docs/analytics.md): the numbers are worked out locally from the activity ledger; Google Analytics
     # is off unless an admin turns it on with a GA4 measurement id and a Measurement Protocol API secret (sealed)
@@ -617,9 +769,10 @@ RETRIES = 8
 
 
 def _retryable(err):
-    """SurrealDB's optimistic transactions fail with a write conflict when two touch the same record at once."""
+    """SurrealDB's optimistic transactions fail with a write conflict when two touch the same record at once, and ask
+    for a retry when a transaction's snapshot is older than the commit oracle's GC window (a busy server)."""
     m = str(err)
-    return "can be retried" in m or "Transaction conflict" in m or "Write conflict" in m
+    return "can be retried" in m or "Transaction conflict" in m or "Write conflict" in m or "retry required" in m
 
 
 def _lost(err):
@@ -641,6 +794,31 @@ def _closed(c):
 
 def _backoff(attempt):
     time.sleep(min(0.5, 0.005 * 2**attempt) * (0.5 + random.random()))
+
+
+def _released(folder, wait=60.0):
+    """Wait (up to `wait` seconds) until this process has no file under `folder` open: a closed embedded engine lets
+    go of its files when it is collected, and copying or replacing them before then mixes old writes into the new."""
+    import gc
+
+    gc.collect()
+    root = str(pathlib.Path(folder).resolve()) + os.sep
+    fds = pathlib.Path("/proc/self/fd")
+    if not fds.is_dir():  # not Linux: collecting is all that can be done
+        return
+    until = time.monotonic() + wait
+    while time.monotonic() < until:
+        held = False
+        for fd in list(fds.iterdir()):
+            with contextlib.suppress(OSError):
+                if os.readlink(fd).startswith(root):
+                    held = True
+                    break
+        if not held:
+            return
+        gc.collect()
+        time.sleep(0.02)
+    raise RuntimeError(f"the embedded database still had files open {wait:.0f} s after closing it; try again")
 
 
 class DB:
@@ -716,16 +894,24 @@ class DB:
         """Every connection closed meanwhile (once the queries in flight finish), then opened again: for copying an
         embedded database's files."""
         held = [self._pool.get() for _ in self._all]
+        n = len(held)
         for c in held:
             with contextlib.suppress(Exception):
                 c.close()
+            # the embedded engine keeps its files open, and may still write them, until its handle is dropped
+            with contextlib.suppress(AttributeError):
+                c._db = None
+        del c
+        # the places stay taken, so a query meanwhile waits for the pool instead of opening a connection of its own
+        held, self._all = [], [None] * n
         try:
+            if self.embedded:
+                _released(self.url.partition("://")[2])
             yield
         finally:
-            self._all = []
-            for _ in held:
+            for i in range(n):
                 c = self._open()
-                self._all.append(c)
+                self._all[i] = c
                 self._pool.put(c)
 
     @contextlib.contextmanager
@@ -945,7 +1131,8 @@ SCHEMA = [
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",
-    # the Cloudflare tunnel: which process runs cloudflared, and what it's doing (app/domain/tunnel.py)
+    # the Cloudflare tunnel: which process runs cloudflared, and what it's doing (app/domain/tunnel.py); HTTPS: which
+    # process runs Caddy (app/domain/https.py)
     "DEFINE TABLE IF NOT EXISTS app_service SCHEMALESS",
     # each namespace's data key, wrapped by the keys that can open it (app/domain/keyring.py)
     "DEFINE TABLE IF NOT EXISTS data_key SCHEMALESS",
@@ -998,6 +1185,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS external_identity_account ON external_identity FIELDS account",
     "DEFINE INDEX IF NOT EXISTS external_identity_provider ON external_identity FIELDS provider",
     "DEFINE TABLE IF NOT EXISTS external_flow SCHEMALESS",
+    # access keys for the file tree's S3 server (s3.py): id is the key id, the secret sealed
+    "DEFINE TABLE IF NOT EXISTS file_key SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS file_key_account ON file_key FIELDS account",
     "DEFINE TABLE IF NOT EXISTS api_token SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS api_token_hash ON api_token FIELDS hash UNIQUE",
     "DEFINE INDEX IF NOT EXISTS api_token_account ON api_token FIELDS account",
@@ -1077,6 +1267,8 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",
     "DEFINE TABLE IF NOT EXISTS sensor_service SCHEMALESS",
+    # the file-sharing servers running now (smb_share.py): one row per server and process, refreshed while it runs
+    "DEFINE TABLE IF NOT EXISTS share_service SCHEMALESS",
     # the chat-room bridge (bridge.py): which process reads Matterbridge (bridge_state:lease); its conversations are
     # chats with a `bridge` key (the room and person)
     "DEFINE TABLE IF NOT EXISTS bridge_state SCHEMALESS",
@@ -1131,6 +1323,11 @@ SCHEMA = [
     # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
     "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",
+    # browsers connected for the assistant to use (browser.py): a side panel's session, and the actions asked of it
+    "DEFINE TABLE IF NOT EXISTS browser_session SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS browser_session_account ON browser_session FIELDS account",
+    "DEFINE TABLE IF NOT EXISTS browser_action SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS browser_action_session ON browser_action FIELDS session, state",
     "DEFINE TABLE IF NOT EXISTS segment_edit SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS segment_edit_rec ON segment_edit FIELDS recording",
     # descriptive metadata history, IIIF change discovery and IIIF authorization
@@ -1232,6 +1429,10 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS job_batch ON job FIELDS batch",
     "DEFINE TABLE IF NOT EXISTS approval SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS approval_chat ON approval FIELDS chat",
+    # the scheduled backup (domain/backups.py): backup_schedule:next holds when it's next due and how the last went
+    "DEFINE TABLE IF NOT EXISTS backup_schedule SCHEMALESS",
+    # backup_remote:last: how copying the last backup to backups.connection went
+    "DEFINE TABLE IF NOT EXISTS backup_remote SCHEMALESS",
 ]
 
 
@@ -1308,15 +1509,21 @@ def connect(cfg, upgrade=True):
     """Open the database, apply the schema and, unless upgrade=False (for `lens migrations`), bring its data up to
     date (domain/migrations.py)."""
     db = DB(cfg)
-    # one round trip, not one per statement: against a server that was over a second for every test's database
-    db.run([_analyzer(cfg), *SCHEMA], transaction=False)
-    _search_engine(db, cfg)
-    for name, spec in cfg["namespaces"].items():
-        sid = ns_id(db, name)
-        db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
+    prepare(db, cfg)
     if upgrade:
         migrate(db)
     return db
+
+
+def prepare(db, cfg):
+    """The schema, word search and the namespaces archive.yaml names: on every start, and after a restore
+    (domain/backups.py)."""
+    # one round trip, not one per statement: against a server that was over a second for every test's database
+    db.run([_analyzer(cfg), *SCHEMA], transaction=False)
+    _search_engine(db, cfg, rebuild=getattr(db, "textindex", None) is not None)
+    for name, spec in cfg["namespaces"].items():
+        sid = ns_id(db, name)
+        db.q("UPDATE $r SET graph = $g", r=R("space", sid), g=spec["graph"])
 
 
 def migrate(db):

@@ -62,6 +62,7 @@ accounts. See [Authentication](authentication.md#signing-in-passkeys).
 GET    /api/v1/tokens
 GET    /api/v1/tokens/limits
 POST   /api/v1/tokens
+PATCH  /api/v1/tokens/{token_id}
 DELETE /api/v1/tokens/{token_id}
 GET    /api/v1/admin/tokens
 DELETE /api/v1/admin/tokens/{token_id}
@@ -69,7 +70,8 @@ DELETE /api/v1/admin/tokens/{token_id}
 
 `POST /tokens {name, scope, days?}` makes an API key (while signed in). `days` defaults to `tokens.default_days`; more
 than `tokens.max_days`, or `0` (never expires) when `tokens.never_expire` is off, is a 400. `GET /tokens/limits` says
-`{default_days, max_days, never_expire}`. `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
+`{default_days, max_days, never_expire}`. `PATCH /tokens/{token_id} {name}` renames one of your keys (audited as
+`token.rename`). `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
 `DELETE /admin/tokens/{token_id}` revokes any of them; revoking is audited as `token.revoke`.
 
 ## oauth
@@ -507,7 +509,10 @@ made, unless someone named or dated it. Its attachments are kept as its files (r
 read become resources of their own beside it, each with `attached_to: {resource, file, title}` (the email, and its
 title when the caller may see it); an attachment file's `resource` is the resource it became, or the one it was already
 in the namespace (`documents.attachment_resources`). Transcribing an email again keeps and makes nothing twice.
-`GET /uploads/limits` says what the server can convert (`convert: {office, pages, msg}`); an upload it can't read is
+`GET /uploads/limits` says what the server can convert (`convert: {office, pages, msg, tika}`); with an
+[Apache Tika](configuration.md#apache-tika) server set, what nothing else can convert is read by Tika as text without
+pages (`engine` `text:tika`), and every document has `described`, what it says about itself as Dublin Core terms
+(`POST /settings/documents/tika/test` checks the server). An upload it can't read is
 refused, saying what it needs, and the files that can be transcripts too (PDFs, Word, text and Markdown) can be imported
 as transcripts instead (`POST /import`). Its pipeline's read step (its transcribe step, for a document or an image:
 no speech model is fetched for one) draws its pages and reads their text: a PDF's own text, block by block with where each block is on its page (poppler's
@@ -593,6 +598,22 @@ Note pages ([Notes](notes.md)), apart from the notes on a recording above. `GET 
 page was before each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.
+
+## the graph as files
+
+```
+GET    /api/v1/tree?path=
+GET    /api/v1/tree/file?path=
+GET    /api/v1/shares/s3
+POST   /api/v1/shares/s3/keys
+DELETE /api/v1/shares/s3/keys/{key_id}
+GET    /api/v1/shares/s3/keys
+```
+
+The archive as folders and files ([The graph as files](file-tree.md)): `tree` lists a folder (an empty path lists your
+namespaces; in each, `Collections`, `Topics` and `Entities`), `tree/file` reads a file with byte ranges. Read-only; everyone sees what they can read in the web app.
+`shares/s3` is the [S3](file-tree.md#s3) and [WebDAV](file-tree.md#webdav) servers' state and your access keys; keys are
+made only while signed in.
 
 ## comments
 
@@ -690,7 +711,9 @@ POST   /api/v1/import/web/links
 `POST /import` queues the namespace's pipeline after the import, or the saved pipeline named by `pipeline` (any of
 `GET /pipelines`; 400 for one that doesn't exist, before anything is saved). Every import takes a `collection` of the
 namespace to put the recordings in (default: its default collection; 404 for one of another namespace): `POST /import`,
-`POST /import/source`, `POST /uploads` and `POST /import/iiif`.
+`POST /import/source`, `POST /uploads` and `POST /import/iiif`. A transcript imported without its audio has nothing to
+transcribe and its speakers came with it, so its pipeline's transcribe and diarize steps are left out and no speech or
+voice model is fetched for it.
 
 `POST /api/v1/import/source {source, paths, namespace, pipeline?, collection?, documents_as?}` imports chosen files of
 a storage source now, rather than watching their folder (admins, like sources; up to 500 paths, as
@@ -838,6 +861,7 @@ recording later leaves its uploaded file in place, like any other media file.
 ```
 GET    /api/v1/search
 GET    /api/v1/search/terms
+GET    /api/v1/similar
 GET    /api/v1/graph
 GET    /api/v1/mentions
 ```
@@ -866,6 +890,16 @@ keeps to what was said.
 when search by meaning is set up and the query has no "phrases" or OR, else keyword). The reply's `mode` is how it was
 matched, `semantic` whether search by meaning is set up, and `meaning` why it wasn't used when asked for. Each hit's
 `match` is `words`, `meaning` (with its `similarity`, cosine, and shown at the passage's best line) or `both`.
+
+`GET /similar` lists the resources most like one thing, best first, in the namespaces you can read and the
+collections you were given a role on ([similar content](processing.md#similar-content)): a `text` (what was selected,
+up to 2,000 characters; `exclude` leaves out the resource it was selected in), a `recording`, a `topic` or an
+`entity`; give exactly one (422 otherwise, 404 for one you can't read). `limit` (default 10, at most 50) and `offset`
+page through them. Each item says why it's alike in `match` (`meaning`, `words`, `topics`, `entities`), with its
+`similarity` by meaning, up to three `cites` (moments to open: `source`, `idx`, `t0` or `page`, and a `snippet` with the
+key words marked), the key `words` it says, and the `topics` and `entities` in common. The reply's `mode` is `meaning`
+when an embedding model compared them too, else `words`; `terms` are the key words looked for and `meaning` says why
+it wasn't by meaning when search by meaning is set up. A resource is never listed as like itself.
 
 Search has no prefix search (`interp*` looks for the word "interp"). `GET /search/terms?prefix=interp` lists whole
 words said in the namespaces you can read (`ns` for one) that start with it, the most said first, with how often and
@@ -1118,9 +1152,13 @@ GET    /api/v1/templates
 POST   /api/v1/templates
 POST   /api/v1/templates/preview
 GET    /api/v1/templates/{tid}
+PATCH  /api/v1/templates/{tid}
 POST   /api/v1/templates/{tid}/versions
 GET    /api/v1/templates/{tid}/diff
 ```
+
+`PATCH {name?, description?}` renames a template or changes its description (admins); its text changes by saving a
+version.
 
 ## pipelines
 
@@ -1128,9 +1166,13 @@ GET    /api/v1/templates/{tid}/diff
 GET    /api/v1/pipelines
 POST   /api/v1/pipelines
 GET    /api/v1/pipelines/{pid}
+PATCH  /api/v1/pipelines/{pid}
 POST   /api/v1/pipelines/{pid}/versions
 POST   /api/v1/pipelines/{pid}/run
 ```
+
+`PATCH {name?, description?}` renames a pipeline or changes its description (admins); its steps change by saving a
+version.
 
 ## chats
 
@@ -1168,6 +1210,21 @@ answers, so a filter collection's new recordings count, and a deleted collection
 `GET /chats/{cid}` returns each answer with the `steps` the assistant took (`{tool, args, summary}`), its `notice` and
 `error`, and its latest source `check` (`{claims, supported, verdicts, uncited}`), as they were when it was written
 or checked.
+
+### browser
+
+```
+POST   /api/v1/browser/sessions
+GET    /api/v1/browser/sessions
+DELETE /api/v1/browser/sessions/{sid}
+GET    /api/v1/browser/sessions/{sid}/actions
+POST   /api/v1/browser/actions/{aid}
+POST   /api/v1/browser/sessions/{sid}/run
+```
+
+A browser's Lens side panel connects a session and carries out the actions the assistant asks of it; a question sent
+with `browser` (`POST /chats/{cid}/messages {content, browser}`) can use that browser while it's connected. See
+[The assistant in your browser](browser-assistant.md).
 
 ## collections
 

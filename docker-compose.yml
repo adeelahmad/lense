@@ -25,6 +25,7 @@ x-backend: &backend
     SURREAL_URL: ws://surrealdb:8000
     SURREAL_USER: ${SURREAL_USER:-root}
     SURREAL_PASS: ${SURREAL_PASS:-root}
+    LENS_NFS_PORT: ${LENS_NFS_PORT:-12049}
     ARCHIVE_CONFIG: /app/docker/archive.yaml
     RUN_BACKGROUND: "false"
     MAIL_SERVER: mail
@@ -37,10 +38,17 @@ x-backend: &backend
     LENS_TUNNEL_ORIGIN: http://frontend:3000
     # the web app's container (and the one running the tunnel): their X-Forwarded-For names the visitor, for throttles
     LENS_TRUSTED_PROXY_HOSTS: frontend,backend,worker
+    # the SMB share of the file tree (docs/smb.md): listens on 4445 in the container; LENS_SMB_PORT is where it's
+    # published, for the address Settings shows
+    LENS_SMB_LISTEN: 0.0.0.0
+    LENS_SMB_PORT: ${LENS_SMB_PORT:-1445}
     CORS_ORIGINS: '["http://localhost:3000"]'
     OPENAPI_OUTPUT_FILE: ./shared-data/openapi.json
     # the volume shared with the matterbridge service (its config, written from Settings → Chat rooms)
     LENS_MATTERBRIDGE_DIR: /matterbridge
+    # the MCP runner (the optional `mcp` service, docs/assistant.md): MCP servers that run as a program, sandboxed there
+    LENS_MCP_RUNNER_URL: http://mcp:8090
+    LENS_MCP_TOKEN_FILE: /mcp-key/token
   volumes:
     - ./fastapi_backend:/app
     # the image's own packages, not the source tree's: anonymous, so `make dev` (up --build --renew-anon-volumes)
@@ -50,10 +58,11 @@ x-backend: &backend
     - ./local-shared-data:/app/shared-data
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
     - matterbridge-data:/matterbridge
+    - mcp-key:/mcp-key:ro
   depends_on:
     surrealdb:
       condition: service_healthy
-  networks: [lens]
+  networks: [lens, mcp]
 
 services:
   surrealdb:
@@ -87,6 +96,11 @@ services:
       - "${LENS_SENSOR_BIND:-127.0.0.1}:${LENS_MQTT_PORT:-1883}:1883"
       - "${LENS_SENSOR_BIND:-127.0.0.1}:${LENS_SYSLOG_PORT:-5514}:5514/udp"
       - "${LENS_SENSOR_BIND:-127.0.0.1}:${LENS_SYSLOG_PORT:-5514}:5514/tcp"
+      - "${LENS_SHARE_BIND:-127.0.0.1}:${LENS_NFS_PORT:-12049}:2049"  # the file tree over NFS, once turned on
+      - "${LENS_SHARE_BIND:-127.0.0.1}:${LENS_SMB_PORT:-1445}:4445"  # the file tree over SMB, once turned on
+      # the graph as files over S3 and WebDAV (docs/file-tree.md), once File shares are on; LENS_S3_PORT / LENS_WEBDAV_PORT
+      - "${LENS_SHARE_BIND:-127.0.0.1}:${LENS_S3_PORT:-9555}:9555"
+      - "${LENS_SHARE_BIND:-127.0.0.1}:${LENS_WEBDAV_PORT:-9556}:9556"
     healthcheck:
       disable: true
 
@@ -131,6 +145,39 @@ services:
       - matterbridge-data:/matterbridge
     networks: [lens]
 
+  # Apache Tika (docs/configuration.md#apache-tika): reads the text and description of about a thousand kinds of file where Lens can't make
+  # them into PDFs itself, and what every document says about itself. Opt-in, about 250 MB of memory:
+  # `docker compose --profile tika up -d` (or COMPOSE_PROFILES=tika in .env), then Settings → Documents → Tika server:
+  # http://tika:9998. Reachable only inside Lens's network; it has no sign-in of its own.
+  tika:
+    image: apache/tika:${TIKA_VERSION:-4.0.0-1}
+    profiles: [tika]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      JAVA_TOOL_OPTIONS: -Xmx${TIKA_HEAP:-512m}
+    networks: [lens]
+
+  # The MCP runner (mcp-runner/runner.py, docs/assistant.md): MCP servers that run as a program (stdio, usually npx or
+  # uvx), which admins add as extensions. Opt-in: `docker compose --profile mcp up -d`, or COMPOSE_PROFILES=mcp in .env.
+  # The sandbox: none of Lens's data or keys, no capabilities, a read-only image, and a network shared only with the
+  # backend (and the internet).
+  mcp:
+    image: lens-mcp:dev
+    build: ./mcp-runner
+    profiles: [mcp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 2g
+    pids_limit: 512
+    volumes:
+      - mcp-data:/data
+      - mcp-key:/key
+    networks: [mcp]
+
   # StyleTTS2 (docs/speech-providers.md#styletts2): spoken answers and podcasts read on this machine, in a voice like a
   # short clip you put in its voices volume. Heavy (PyTorch and a 1 GB model, fetched on first use), so opt-in:
   # `docker compose --profile styletts2 up -d`, then Settings → AI assistant → Voice → StyleTTS2.
@@ -162,6 +209,8 @@ services:
 volumes:
   surreal-data:
   matterbridge-data:
+  mcp-data:
+  mcp-key:
   styletts2-data:
   styletts2-voices:
   archive-data:
@@ -169,4 +218,6 @@ volumes:
 
 networks:
   lens:
+    driver: bridge
+  mcp:
     driver: bridge

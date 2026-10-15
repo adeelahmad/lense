@@ -6,13 +6,14 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.deps import Acl, AdminWriter, CurrentUser, Db, Writer, domain_errors
 from app.domain import auth, content_types, jobs, pipelines
-from app.schemas.common import Created
+from app.schemas.common import Created, Ok
 from app.schemas.pipelines import (
     JobQueued,
     Pipeline,
     PipelineCatalog,
     PipelineCreate,
     PipelineRunRequest,
+    PipelineUpdate,
     PipelineVersionCreate,
 )
 from app.schemas.templates import VersionSaved
@@ -56,6 +57,15 @@ def get_pipeline(pid: int, user: CurrentUser, db: Db, version: int | None = None
         "SELECT version, notes, created_at, created_by FROM pipeline_version WHERE pipeline = $p ORDER BY version DESC", p=pid
     )
     return p
+
+
+@router.patch("/{pid}")
+def update_pipeline(pid: int, body: PipelineUpdate, user: AdminWriter, db: Db) -> Ok:
+    """Its name and description (the steps change by saving a version)."""
+    with domain_errors():
+        pipelines.rename(db, pid, body.name, body.description)
+    auth.audit(db, user.as_audit(), "pipeline.update", f"pipeline:{pid}")
+    return Ok()
 
 
 @router.post("/{pid}/versions")

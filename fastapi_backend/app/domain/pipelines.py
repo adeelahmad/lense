@@ -167,6 +167,18 @@ def create(db, name, steps, description=None, user=None, graph=None):
     return pid
 
 
+def rename(db, pid, name=None, description=None):
+    """A pipeline's name and description (its steps change by saving a version)."""
+    if not db.one("SELECT id FROM $r", r=R("pipeline", pid)):
+        raise KeyError(pid)
+    if name is not None:
+        if not name.strip():
+            raise ValueError("give the pipeline a name")
+        db.q("UPDATE $r SET name = $n", r=R("pipeline", pid), n=name.strip()[:80])
+    if description is not None:
+        db.q("UPDATE $r SET description = $d", r=R("pipeline", pid), d=description.strip() or None)
+
+
 def save_version(db, pid, steps, notes=None, user=None, publish=True, graph=None):
     if not db.one("SELECT id FROM $r", r=R("pipeline", pid)):
         raise KeyError(pid)

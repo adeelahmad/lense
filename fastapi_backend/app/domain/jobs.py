@@ -198,7 +198,11 @@ STEPS = {
 
 def for_source(steps, source):
     """A pipeline's steps as they run on a resource of this source: a document or an image is read, not transcribed,
-    and has no voices to tell apart, so a speech or voice model is never fetched for it."""
+    and has no voices to tell apart, so a speech or voice model is never fetched for it. An imported transcript has
+    nothing to transcribe and its speakers came with it, so it skips both steps too (unless they're all that was asked
+    for: those still run, to say why there's nothing to do)."""
+    if source == "transcript":
+        return [s for s in steps if s.get("type") not in ("transcribe", "diarize")] or steps
     if source not in ("document", "image"):
         return steps
     out = []
@@ -710,6 +714,33 @@ def cancel(db, jid):
         db.q("UPDATE $j SET cancel_requested = true, updated_at = $t", j=R("job", jid), t=t)
     else:
         raise ValueError(f"the job has already {j['status']}")
+
+
+def migrate_document_steps(db):
+    """Documents and images queued before they had a read step of their own: what their runs have left reads them
+    instead of transcribing them, so they stop waiting for a speech model, and a run that failed at transcribe runs
+    again (unless a newer run of the same file is queued)."""
+    rows = db.rows(
+        "SELECT record::id(id) AS id, recording, steps, step_index, status FROM job "
+        "WHERE status IN $a OR (status = 'failed' AND next_step = 'transcribe')",
+        a=ACTIVE,
+    )
+    for j in rows:
+        if _source(db, j["recording"]) not in ("document", "image"):
+            continue
+        i, steps = j.get("step_index") or 0, [_spec(s) for s in j.get("steps") or []]
+        left = for_source(steps[i:], "document")
+        if left == steps[i:] or not left:
+            continue
+        db.q(
+            "UPDATE $j SET steps = $s, next_step = $n, updated_at = $t",
+            j=R("job", j["id"]),
+            s=steps[:i] + left,
+            n=left[0]["type"],
+            t=store.now(),
+        )
+        if j["status"] == "failed" and not any(r["recording"] == j["recording"] and r["status"] in ACTIVE for r in rows):
+            retry(db, j["id"])
 
 
 def retry(db, jid):
