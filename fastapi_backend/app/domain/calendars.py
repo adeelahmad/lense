@@ -378,6 +378,31 @@ def event_text(event):
     return "\n".join([f"# {title}", "", *head, *([""] + [desc] if desc else [])]) + "\n"
 
 
+def _address(value):
+    return re.sub(r"^mailto:", "", (value or "").strip(), flags=re.I).strip().lower() or None
+
+
+def details(raw, calendar=None):
+    """What an automation or the timeline reads of a calendar's first event (an event's own .ics), kept on its
+    resource as `event`: {uid, startTime, endTime, location, organizer, attendees, calendar}; None for no event."""
+    events = parse(raw)["events"]
+    if not events:
+        return None
+    ev = events[0]
+    p, v = first(ev, "DTEND")
+    _, org = first(ev, "ORGANIZER")
+    out = {
+        "uid": key(ev)[:300],
+        "startTime": iso(start(ev)),
+        "endTime": iso(when(p, v, ev.get("zones"))),
+        "location": unescape(first(ev, "LOCATION")[1] or "").strip()[:300] or None,
+        "organizer": _address(org),
+        "attendees": [a for a in (_address(v) for _, v in all_of(ev, "ATTENDEE")) if a][:50] or None,
+        "calendar": (calendar or "")[:200] or None,
+    }
+    return {k: v for k, v in out.items() if v is not None}
+
+
 def text(raw):
     """A whole calendar as Markdown, its events in order of when they start (for a .ics file read as a transcript)."""
     cal = parse(raw)

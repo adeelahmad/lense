@@ -596,10 +596,19 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
             if feeds.handles(src) and not feeds.immutable(src):
                 _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
             rid = ingest.import_transcript(db, cfg, ns, local, title=title, log=lambda *a: None, collection=collection)
+            event = _event_of(local, f, src)
         db.q(
             "UPDATE $r MERGE $d",
             r=R("recording", rid),
-            d=store.clean({"path": shown, "remote": {"source": src["id"], "path": f["path"]}, "recorded_at": f.get("when")}),
+            d=store.clean(
+                {
+                    "path": shown,
+                    "remote": {"source": src["id"], "path": f["path"]},
+                    "recorded_at": f.get("when"),
+                    "mail": _mail_of(f),
+                    "event": event,
+                }
+            ),
         )
         return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
     if f.get("key"):  # the same message in two mailboxes (a Message-ID) is one resource
@@ -609,7 +618,7 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
     known = db.one("SELECT record::id(id) AS id FROM recording WHERE fp_key = $k", k=f"{space}:{fp}")
     if known:
         return known["id"], None
-    rid = db.next_id("recording")
+    rid, mail = db.next_id("recording"), _mail_of(f)
     db.q(
         "CREATE $r CONTENT $d",
         r=R("recording", rid),
@@ -627,9 +636,44 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
             "size": f["size"],
             "status": "new",
             "created_at": store.now(),
+            **({"mail": mail} if mail else {}),
         },
     )
     return rid, jobs.enqueue(db, rid, steps or None, by=by, pipeline=pipeline)
+
+
+def _mail_of(f):
+    """What a mailbox said of a message as it was listed (feeds._addressing: who sent it to whom, its subject, list
+    and mailbox, a snippet where the server gives one), kept small on its resource as `mail`, for automations and the
+    timeline (events_content.py) to read without opening the message. None for a file that isn't a message."""
+    m = f.get("mail")
+    if not isinstance(m, dict):
+        return None
+    box = m.get("mailbox")
+    out = {
+        "from": [str(a)[:200] for a in m.get("from") or []][:20],
+        "to": [str(a)[:200] for a in m.get("to") or []][:50],
+        "cc": [str(a)[:200] for a in m.get("cc") or []][:50],
+        "subject": str(m.get("subject") or "")[:300],
+        "list": str(m.get("list") or "")[:200],
+        "mailbox": [str(b)[:200] for b in box][:20] if isinstance(box, list) else str(box or "")[:200],
+        "date": f.get("when"),
+        "snippet": " ".join(str(m.get("snippet") or "").split())[:300],
+    }
+    return {k: v for k, v in out.items() if v} or None
+
+
+def _event_of(local, f, src):
+    """A calendar event's times, place and people (calendars.details), kept on its resource as `event`; None for a file
+    that isn't an event, or one that can't be read."""
+    if not str(f.get("path") or "").lower().endswith(".ics"):
+        return None
+    from . import calendars
+
+    try:
+        return calendars.details(pathlib.Path(local).read_text(encoding="utf-8-sig", errors="replace"), src.get("name"))
+    except (OSError, ValueError):
+        return None
 
 
 def _same_resource(db, space, sid, path, fp):

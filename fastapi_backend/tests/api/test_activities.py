@@ -33,9 +33,11 @@ def test_the_timeline_lists_new_assets_newest_first(client, db, cfg, folder):
     page = client.get(URL, headers=env["hr"]).json()
     assert [a["id"] for a in page["items"]] == [call, pods2, pods1] and page["next"] is None
     first = page["items"][0]
-    assert first["kind"] == "asset.added" and first["type"] == "Create" and first["actor"] == events.LENS
+    # transcripts imported from the command line are imports (a child of asset.added), by Lens
+    assert first["kind"] == "import.received" and first["type"] == "Create" and first["actor"] == events.LENS
+    assert first["object"]["via"] == "file" and first["object"]["content_type"] == "text"
     assert first["object"]["id"] == "lens:recording/" + call.split("-")[-1] and first["lens"]["untrusted"] == ["object.name"]
-    assert first["summary"].startswith("Lens added “") and sorted(page["namespaces"].values()) == ["calls", "pods"]
+    assert first["summary"].startswith("Lens imported “") and sorted(page["namespaces"].values()) == ["calls", "pods"]
     # each person sees their namespaces' alone
     assert [a["id"] for a in client.get(URL, headers=env["hv"]).json()["items"]] == [pods2, pods1]
     mine = client.get(URL, headers=env["hc"]).json()

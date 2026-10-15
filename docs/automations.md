@@ -12,7 +12,8 @@ merged is called built.
 | Match trees: one condition language for triggers, an automation's If and workflow nodes | built |
 | Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
 | New assets as `asset.added` (the `recordings` source) | built |
-| More kinds: emails, files, calendar events, jobs, deletions, comments, notes, graph changes, sensors, chat | planned |
+| New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
+| More kinds: jobs, deletions, calendar moves, comments, notes, graph changes, sensors, chat | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -74,9 +75,32 @@ registered), and whether it is `noisy` (left out of the timeline unless named). 
 then its own), `events.descendants(name)` the kind and every kind under it, and `events.field_at(kind, path)` the
 schema of one field, whose `title` names it in words (`match.describe(tree, kind)` says "the title contains “call”").
 
-| Kind | Parent | Source | Object |
-| --- | --- | --- | --- |
-| `asset.added` | | `recordings` | `{type: Audio, Video, Image or Document, id: lens:recording/<id>, name: its title, url: /resources/<id>, media: audio, video, image, document or transcript, content_type}` |
+Every kind's object has `type`, `id`, `name` and `url`; the table lists what each adds. Its fields' titles, a sample
+and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event_kinds` over MCP).
+
+| Kind | Parent | Source | Object | Example summary |
+| --- | --- | --- | --- | --- |
+| `asset.added` | | `recordings` | `{type: Audio, Video, Image or Document, id: lens:recording/<id>, name: its title, url: /resources/<id>, media: audio, video, image, document or transcript, content_type}` | Lens added “Scan 12” |
+| `email.received` | `asset.added` | `recordings` | `from`, `to`, `cc` (addresses), `subject`, `list`, `mailbox`, `date` (sent), `snippet` (the start of its text), `attachments` (how many) | Work mail received “School trip on Friday” from office@stmarys.org |
+| `calendar_event.added` | `asset.added` | `recordings` | `startTime`, `endTime`, `location`, `organizer`, `attendees` (addresses), `calendar` | Family calendar added the event “Parents' evening” on 2026-10-20 |
+| `file.added` | `asset.added` | `recordings` | `path` (in its source), `mediaType`, `size` (bytes), `duration` (seconds) | Office share added “Minutes” |
+| `upload.added` | `asset.added` | `recordings` | `path` (the file's name), `mediaType`, `size`, `duration` | Sam uploaded “Call with the school” |
+| `web_page.saved` | `asset.added` | `recordings` | `href` (the page's address), `site` | Sam saved “Museum opening hours” from museum.example.org |
+| `import.received` | `asset.added` | `recordings` | `via`: hook (an import hook), paste (pasted text) or file (a file read as text) | Phone shortcut imported “Shopping list” |
+
+A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
+from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
+(content type calendar_event, or from an iCal feed or Google Calendar), an import hook's, one saved from the web
+(webcapture.py, mediaurl.py), a file from a storage source or Drive, an upload, an import (pasted text, a transcript
+imported), else `asset.added`. A file an email or archive held, made a resource of its own, stays `asset.added`: the
+email is what arrived. A trigger on `asset.added` matches every one of them.
+
+Fields come from what the row keeps, so reading them costs nothing on the ingest path. A message's addressing is
+kept as it is listed (`recording.mail`: who sent it to whom, its subject, list, mailbox, and Gmail's snippet), an
+event's times, place and people as it is imported (`recording.event`), and an email's attachments and the start of
+its text once it has been read (`recording.email`). Emails and events imported before these were kept have only the
+fields their rows had. Outside text (titles, subjects, addresses, snippets, places, file names, page addresses) is
+listed in `lens.untrusted`.
 
 ### Sources and the event log
 
@@ -94,9 +118,13 @@ so nothing is stored twice:
 A kind belongs to the source named in its `source`, and a source may list more in `kinds`. Two are built:
 
 - `recordings` (`app/domain/events_content.py`) reads `recording` by `created_at`, the id breaking ties, as
-  `asset.added`. The actor is whoever added it: an automation (its first job was queued by `automation:<id>`), the
-  storage source a watched file came from (`Service`, `lens:source/<id>`), the person whose upload it was (`Person`,
-  `lens:account/<id>`), or Lens (a folder scan).
+  `asset.added` and its children (Kinds, above). The actor is whoever added it: an automation (its first job was
+  queued by `automation:<id>`), the storage source or mailbox it came from (`Service`, `lens:source/<id>`), an import
+  hook (`Service`, `lens:import_hook/<id>`), the person whose upload, clip or import it was (`Person`,
+  `lens:account/<id>`, or `lens:email/<address>` for someone who isn't an account), a sensor's digest (`Service`,
+  `lens:sensor/<id>`), or Lens (a folder scan). `events_content.actors(db, labels)` names them the way Lens writes
+  them down (an account id, an email, `watch:<id>`, `routine:<id>`, `import_hook:<id>`, `automation:<id>`, ...),
+  in a few queries for a whole page, and keeps names for 30 seconds.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
@@ -307,6 +335,11 @@ written. `ask_agent` passes the activity it is about the same way.
   no row records; pushing instead of polling.
 - People given only some collections of a namespace see that namespace's activities about those collections.
 - Name an automation actor by its automation's name once automations are stored.
+- A timeline page filtered to one child of `asset.added` (only emails, say) reads every new asset and keeps those of
+  that kind, up to five source pages; narrow it in the query (path, `remote`, `web`) if that proves slow.
+- Folder scans of a namespace's own folders as `file.added`; uploaded `.ics` files with their event's fields; a
+  snippet for IMAP messages before they are read (it needs the message body).
+- Per-recipient threading of email conversations; entity tags on new assets once extraction runs at ingest.
 - Telling a person: buttons on chat approvals (Telegram inline keyboards, Slack Block Kit); email as a `notify`
   channel; web push; private chats through Matterbridge (it can't tell them from rooms); with several people let in,
   "me" is whoever last wrote privately, until each chat user has a Lens account of their own; telling which links in a
