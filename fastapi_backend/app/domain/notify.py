@@ -282,6 +282,15 @@ class _PinnedHTTP(http.client.HTTPConnection):
 def post(cfg, url, body, headers, timeout=TIMEOUT, deadline=DEADLINE):
     """POST to a target: (status, the start of its answer), within `deadline` seconds in all. ValueError when the
     address isn't allowed; OSError and http.client errors when it can't be reached or doesn't answer in time."""
+    status, data, _, _ = request(cfg, "POST", url, body, {"Content-Type": "application/json", **headers}, timeout, deadline, 2000)
+    return status, data.decode("utf-8", "replace")
+
+
+def request(cfg, method, url, body, headers, timeout=TIMEOUT, deadline=DEADLINE, limit=2000):
+    """One HTTP request to a public address (or a network an admin allowed, `networks`), pinned to the address that was
+    checked, without following redirects: (status, the first `limit` bytes of the answer, its Content-Type, whether
+    there was more), within `deadline` seconds in all. ValueError when the address isn't allowed; OSError and
+    http.client errors when it can't be reached or doesn't answer in time."""
     u = urllib.parse.urlsplit(url)
     port = u.port or (443 if u.scheme == "https" else 80)
     nets = networks(cfg)
@@ -312,9 +321,10 @@ def post(cfg, url, body, headers, timeout=TIMEOUT, deadline=DEADLINE):
     timer.daemon = True
     timer.start()
     try:
-        conn.request("POST", path, body=body, headers={"User-Agent": UA, "Content-Type": "application/json", **headers})
+        conn.request(method, path, body=body, headers={"User-Agent": UA, **headers})
         r = conn.getresponse()
-        answer = r.status, r.read(2000).decode("utf-8", "replace")
+        data = r.read(limit + 1)
+        answer = r.status, data[:limit], r.getheader("Content-Type") or "", len(data) > limit
     except (OSError, http.client.HTTPException):
         if time.monotonic() - started >= deadline:
             raise TimeoutError(f"no full answer within {deadline} seconds") from None

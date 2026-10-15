@@ -13,7 +13,8 @@ an intent out, or with `dry` says what it would do and changes nothing. An actio
 (`person`), with their permissions as they are when it runs (`reach`), and what it writes is by the automation itself
 (`actor`). Params marked `"format": "prompt"` are prompts: the engine renders them with `render_prompt`, which wraps
 what the run read from outside Lens as data. `log_line` ships here; the other actions are registered by a module per
-group, loaded with this one: actions_messages.py (notify), actions_ai.py (ask_model, call_tool, ask_agent).
+group, loaded with this one: actions_messages.py (notify), actions_ai.py (ask_model, call_tool, ask_agent),
+actions_web.py (http_request).
 """
 
 from __future__ import annotations
@@ -341,4 +342,4 @@ register(
 )
 
 
-from . import actions_ai, actions_messages  # noqa: E402, F401 - they register their actions; loaded with the catalog
+from . import actions_ai, actions_messages, actions_web  # noqa: E402, F401 - they register their actions; loaded with the catalog
