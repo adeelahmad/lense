@@ -15,7 +15,7 @@ merged is called built.
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
 | Runs that finished or failed, deletions and calendar events that moved | built |
 | Comments, notes written and saved, and changes to the entity graph | built |
-| More kinds: sensors, chat, webhooks, system events | planned |
+| More kinds: sensors, chat, system events | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -26,6 +26,7 @@ merged is called built.
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
+| A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Storing and running automations, schedules and timers, joins, approvals, variables, the studio | planned |
 
@@ -101,6 +102,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `note.created` | | `note_pages` | a `Page`: `summary`, `about` (what it's the page of), `place`, `author` (person or assistant) | Assistant wrote the note “St Mary's School” |
 | `note.saved` | | `note_versions` | as `note.created`, with `version` (the page as it was before) and `why` | Sam edited the note “School trip plans” |
 | `entity.changed` | | `graph` | `op` (created, renamed, merged, split, linked, unlinked, deleted, rolled back, changed), `change` (the graph's own op), `entityType`, `before` (a renamed entity's name), `version`, `count`; tagged with its entities | Sam renamed “St Marys” to “St Mary's School” |
+| `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
 from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
@@ -264,6 +266,41 @@ gives a cleaned copy, or a ValueError naming the first problem.
 - `check_if(tree)`: the If is a match tree over the run context, so its paths start with one of the context's keys.
 - `check_policy(p, nodes, allow_auto=False)`: `{action node id: ask or auto}`. Only a person in a signed-in session
   lets a node run on its own; everywhere else (agents, drafts, the workflow API) `auto` is refused.
+
+### Webhook trigger
+
+Built (`app/domain/automation_hooks.py`, `POST /api/v1/automations/hooks/{token}`). A trigger `{"on": "webhook"}`
+is a secret address anything that can send HTTP calls to set the automation off: Home Assistant's `rest_command`, a
+phone shortcut, another service. No webhook exists until an automation with such a trigger is saved.
+
+- `automation_hooks.token_for(db, cfg, automation_id, alias, signed=False)` makes the hook for one trigger when the
+  automation is saved: `{"hook": id, "url": address, "path": address without the server, "secret": signing secret}`.
+  The address and secret are shown this once; the row (`automation_hook {automation, alias, token_hash, secret,
+  signed, created_at, last_called_at, calls}`) keeps only the token's hash and the secret sealed with the server's
+  key. Calling it again for the same trigger replaces the hook, and the old address stops working. The trigger keeps
+  the hook's id in `hook`. `automation_hooks.revoke(db, hook)` deletes it (when the trigger or the automation goes);
+  `for_automation(db, id)` lists an automation's hooks.
+- A call needs only the token in the address (`lah_...`). It takes JSON, a form (text fields; files are refused) or
+  text, up to 64 KB, at most 60 calls a minute per hook (in the API process; 429 with `Retry-After` past it), and
+  answers 202 `{"id": activity}` at once. 401 for a token that isn't a hook's, 403 while the automation is switched
+  off, 413 over 64 KB, 415 for anything but JSON, a form or text.
+- What was sent becomes a `webhook.received` activity in the event log, with the payload, its content type and the
+  query as outside text. Its namespace is the automation's (admins see it while the automation isn't stored).
+- Signed calls: a caller that signs the Standard Webhooks way (`webhook-id`, `webhook-timestamp` in seconds,
+  `webhook-signature: v1,<base64 HMAC-SHA256 of "<id>.<timestamp>.<body>">` keyed with the secret, as Lens signs its
+  own [notification webhooks](notifications.md#webhooks)) has the signature checked, and the time must be within five minutes.
+  A hook made with `signed=True` refuses calls that aren't signed. A call naming its message (`webhook-id`, or an
+  `Idempotency-Key` header) is logged once however often the sender retries it.
+- In Docker the API runs no background work, so the worker's automations see the call on their next look (5
+  seconds, `events.poll_seconds`).
+
+Lens has three kinds of webhook address; they don't share tokens or do each other's jobs:
+
+| Address | Made by | What a call does |
+| --- | --- | --- |
+| `POST /api/v1/automations/hooks/{token}` | saving an automation with a webhook trigger | sets that automation off with what was sent (`webhook.received`); nothing is kept but the activity |
+| `POST /api/v1/sensors/push/{token}` ([Sensors](sensors.md)) | an admin adding a webhook sensor | keeps readings (numbers, on/off, text) for charts, with the sensor's handling |
+| `POST /api/v1/hooks/import/{token}` ([Import webhooks](api.md#import-webhooks)) | a namespace's owner | imports files, web pages or text as assets |
 
 ### Run context
 
@@ -454,3 +491,5 @@ the agent can draft an event as a note.
 - Changing assets: asking first instead of failing when a move would show an asset to new people (risk that reads the
   database); fields on collections and files; tags; roles on collections counting for `edit`.
 - Writing calendar events (a new Google consent, so it changes existing installs).
+- Webhook trigger: signed answers to the caller (what the run did); a rate limit shared by every API process (today
+  each counts its own); showing a hook's last call in the studio.
