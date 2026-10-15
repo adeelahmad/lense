@@ -11,6 +11,7 @@ from app.domain import ai_tools, events, ingest, store
 from tests.helpers import login, make_user, quiet, seed
 
 URL = "/api/v1/activities"
+ASSETS = {"kinds": "asset.added"}  # analysis changes the graph too (entity.changed); these tests read the assets
 
 
 def _env(client, db, cfg, folder):
@@ -30,7 +31,7 @@ def test_the_timeline_lists_new_assets_newest_first(client, db, cfg, folder):
     env = _env(client, db, cfg, folder)
     pods1, pods2, call = env["ids"]
     assert client.get(URL).status_code == 401
-    page = client.get(URL, headers=env["hr"]).json()
+    page = client.get(URL, params=ASSETS, headers=env["hr"]).json()
     assert [a["id"] for a in page["items"]] == [call, pods2, pods1] and page["next"] is None
     first = page["items"][0]
     # transcripts imported from the command line are imports (a child of asset.added), by Lens
@@ -39,15 +40,15 @@ def test_the_timeline_lists_new_assets_newest_first(client, db, cfg, folder):
     assert first["object"]["id"] == "lens:recording/" + call.split("-")[-1] and first["lens"]["untrusted"] == ["object.name"]
     assert first["summary"].startswith("Lens imported “") and sorted(page["namespaces"].values()) == ["calls", "pods"]
     # each person sees their namespaces' alone
-    assert [a["id"] for a in client.get(URL, headers=env["hv"]).json()["items"]] == [pods2, pods1]
-    mine = client.get(URL, headers=env["hc"]).json()
+    assert [a["id"] for a in client.get(URL, params=ASSETS, headers=env["hv"]).json()["items"]] == [pods2, pods1]
+    mine = client.get(URL, params=ASSETS, headers=env["hc"]).json()
     assert [a["id"] for a in mine["items"]] == [call] and list(mine["namespaces"].values()) == ["calls"]
     # a page at a time
-    one = client.get(URL, params={"limit": 1}, headers=env["hr"]).json()
-    two = client.get(URL, params={"limit": 1, "before": one["next"]}, headers=env["hr"]).json()
+    one = client.get(URL, params={**ASSETS, "limit": 1}, headers=env["hr"]).json()
+    two = client.get(URL, params={**ASSETS, "limit": 1, "before": one["next"]}, headers=env["hr"]).json()
     assert [a["id"] for a in one["items"] + two["items"]] == [call, pods2] and two["next"]
     # filters
-    assert [a["id"] for a in client.get(URL, params={"namespace": "pods"}, headers=env["hr"]).json()["items"]] == [pods2, pods1]
+    assert [a["id"] for a in client.get(URL, params={**ASSETS, "namespace": "pods"}, headers=env["hr"]).json()["items"]] == [pods2, pods1]
     assert client.get(URL, params={"kinds": "asset.added"}, headers=env["hc"]).json()["items"][0]["id"] == call
     title = first["object"]["name"]
     where = json.dumps({"all": [{"path": "object.name", "op": "equals", "value": title}]})
@@ -75,8 +76,8 @@ def test_agents_read_the_timeline_too(client, db, cfg, folder):
 
     env = _env(client, db, cfg, folder)
     pods1, pods2, call = env["ids"]
-    got = tool(client, env["hv"], "timeline")
-    assert got == client.get(URL, params={"limit": 20}, headers=env["hv"]).json()  # the same as the API
+    got = tool(client, env["hv"], "timeline", kinds=["asset.added"])
+    assert got == client.get(URL, params={**ASSETS, "limit": 20}, headers=env["hv"]).json()  # the same as the API
     assert [a["id"] for a in got["items"]] == [pods2, pods1]
     assert [a["id"] for a in tool(client, env["hr"], "timeline", namespace="calls", kinds=["asset.added"])["items"]] == [call]
     assert "any needs at least one condition" in tool_error(client, env["hr"], "timeline", where='{"any": []}')
@@ -85,7 +86,7 @@ def test_agents_read_the_timeline_too(client, db, cfg, folder):
     pods = {store.ns_id(db, "pods")}
     box = ai_tools.Toolbox(db, cfg, {"id": 99, "email": "v"}, pods, set(), {}, None)
     assert "timeline" in {s["function"]["name"] for s in box.specs()} and box.untrusted("timeline")
-    out, summary = box.call("timeline", {})
+    out, summary = box.call("timeline", {"kinds": ["asset.added"]})
     assert [a["id"] for a in json.loads(out)["activities"]] == [pods2, pods1] and summary == "Read 2 activities from the timeline"
     assert "isn't in this conversation" in json.loads(box.call("timeline", {"namespace": "calls"})[0])["error"]
 

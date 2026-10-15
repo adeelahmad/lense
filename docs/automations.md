@@ -14,7 +14,8 @@ merged is called built.
 | New assets as `asset.added` (the `recordings` source) | built |
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
 | Runs that finished or failed, deletions and calendar events that moved | built |
-| More kinds: comments, notes, graph changes, sensors, chat | planned |
+| Comments, notes written and saved, and changes to the entity graph | built |
+| More kinds: sensors, chat, webhooks, system events | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -94,6 +95,10 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `asset.failed` | | `jobs` | as `asset.processed`, with `step` (where it failed) and `error` | Processing “Call with the school” failed at transcribe |
 | `asset.deleted` | | `log` | `type`, `id`, `name`, `media` | Sam deleted “Old minutes” |
 | `calendar_event.changed` | | `log` | `startTime`, `endTime`, `location`, `calendar`, and `before` (`startTime`, `endTime`) | Family calendar moved “Parents' evening” to 2026-10-21 18:00 |
+| `comment.added` | | `comments` | a `Note`: `content`, `inReplyTo` (the comment it answers), `quote` (the passage), `t0`, `t1` (the moment, ms); `target` is the asset | Sam commented on “Call with the school” |
+| `note.created` | | `note_pages` | a `Page`: `summary`, `about` (what it's the page of), `place`, `author` (person or assistant) | Assistant wrote the note “St Mary's School” |
+| `note.saved` | | `note_versions` | as `note.created`, with `version` (the page as it was before) and `why` | Sam edited the note “School trip plans” |
+| `entity.changed` | | `graph` | `op` (created, renamed, merged, split, linked, unlinked, deleted, rolled back, changed), `change` (the graph's own op), `entityType`, `before` (a renamed entity's name), `version`, `count`; tagged with its entities | Sam renamed “St Marys” to “St Mary's School” |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
 from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
@@ -108,6 +113,16 @@ mentioned), which exist only once it has been processed: `asset.processed` is th
 Mary's is understood". A run tried again finishes again, as another activity. A deletion is logged as
 `asset.deleted` where the asset is deleted (once per asset); a calendar event read again that starts at another time
 is logged as `calendar_event.changed` (once per event and new start), with the times it had before.
+
+A comment on an asset, or a reply on its thread, is `comment.added`, by whoever wrote it, with the asset as its
+`target`. A note page is `note.created` when it is made (the assistant's own notes too) and `note.saved` when it
+changes: at most one activity per page in each ten minutes of the clock (`note-<page>-<window>`), read from the
+versions the notebook keeps of each change. A follower hears of a window's first change, as soon as it is made; the
+timeline shows its newest. Every change to the entity graph (`graph_event`, [graph history](graph-history.md)) is one
+`entity.changed`, about its first entity that is still there, tagged with up to twenty of its entities and in the
+first of its namespaces. Its `op` says what happened in a word; its actor is the automation, the assistant or the
+agent over MCP it was made through, else the person, the routine, or Lens (analysis). A change that spans namespaces
+(a link between two) names entities of each, so only admins see it, with every namespace in `lens.spaces`.
 
 Fields come from what the row keeps, so reading them costs nothing on the ingest path. A message's addressing is
 kept as it is listed (`recording.mail`: who sent it to whom, its subject, list, mailbox, and Gmail's snippet), an
@@ -142,6 +157,9 @@ A kind belongs to the source named in its `source`, and a source may list more i
 - `jobs` (`app/domain/events_content.py`) reads `job` by `finished_at`, the id breaking ties, as `asset.processed`
   and `asset.failed`; their ids carry the time they finished (`processed-job-51-1792081450`), so a run tried again
   is a new activity.
+- `comments` reads `comment` by `created_at`; `note_pages` reads `note_page` by `created_at`; `note_versions` reads
+  `note_version` by `at` (to the millisecond) and keeps one version for each page and window; `graph` reads
+  `graph_event` by `at`, the event number breaking ties (numbers are given out in order, so the two agree).
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
@@ -376,6 +394,16 @@ vault stops the request until it is unlocked.
 - Folder scans of a namespace's own folders as `file.added`; uploaded `.ics` files with their event's fields; a
   snippet for IMAP messages before they are read (it needs the message body).
 - Per-recipient threading of email conversations; entity tags on new assets once extraction runs at ingest.
+- `note.saved` comes as a window's first change is made, while the person may still be typing; an automation can
+  wait a little before it reads the page (M6). A page made and then written on shows both `note.created` and
+  `note.saved`.
+- A graph change across namespaces is for admins; show it to whoever reads all of its namespaces, as the graph's
+  history does.
+- Every processed asset's analysis is an `entity.changed` (op created or changed); the timeline page could fold them
+  into the asset's `asset.processed`.
+- SurrealDB 3.2.4 gives a range's first rows, not its last, for `ORDER BY ... DESC LIMIT n` over an index, so
+  sources write a page's time bounds so that no index range is used, and its cursor (`events.after_sql`) reads the
+  table in full. Paging is right; give it one ordered index read per page once SurrealDB does that right.
 - Telling a person: buttons on chat approvals (Telegram inline keyboards, Slack Block Kit); email as a `notify`
   channel; web push; private chats through Matterbridge (it can't tell them from rooms); with several people let in,
   "me" is whoever last wrote privately, until each chat user has a Lens account of their own; telling which links in a
