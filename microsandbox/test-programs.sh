@@ -2,7 +2,7 @@
 # Tests programs.sh: LibreOffice and Chromium installed when Lens (the lens user) asks for them, with a stand-in for
 # apt that puts a program on PATH instead of installing packages. Run it as root in the image run.sh runs in:
 #
-#   docker run --rm -v "$PWD:/lens:ro" python:3.12-slim-bookworm sh /lens/microsandbox/test-programs.sh
+#   docker run --rm -v "$PWD:/lens:ro" python:3.12-slim-trixie sh /lens/microsandbox/test-programs.sh
 set -eu
 
 here="$(cd "$(dirname "$0")" && pwd)"

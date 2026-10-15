@@ -2,7 +2,7 @@
 # Lens in one microsandbox microVM (docs/microsandbox.md): SurrealDB, the API, a job worker and the web app, with no
 # Docker on the machine. install.sh starts it with LENS_BACKEND=microsandbox:
 #
-#   msb run -d --name lens ... -v ~/lens:/lens:ro --mount-named lens-data:/data python:3.12-slim-bookworm \
+#   msb run -d --name lens ... -v ~/lens:/lens:ro --mount-named lens-data:/data python:3.12-slim-trixie \
 #     -- sh /lens/microsandbox/run.sh
 #
 # microsandbox runs images but can't build them, and sandboxes can't reach each other by name, so the stack the Docker
@@ -66,12 +66,13 @@ apt_install() {
   mkdir -p "$OPT/apt/partial"
   retry apt-get update -q --error-on=any &&
     retry apt-get install -y -q --no-install-recommends -o Dir::Cache::archives="$OPT/apt" "$@" &&
+    { apt-get autoclean -q -o Dir::Cache::archives="$OPT/apt" || true; } && # those of an earlier Debian, or version
     rm -rf /var/lib/apt/lists/*
 }
 stamp=/var/lib/lens-packages
 if [ ! -f "$stamp" ]; then
   log "Installing system packages..."
-  apt_install ffmpeg tesseract-ocr antiword poppler-utils ca-certificates curl xz-utils unzip
+  apt_install ffmpeg tesseract-ocr antiword poppler-utils ca-certificates libgomp1 curl xz-utils unzip
   id lens >/dev/null 2>&1 || useradd --create-home --uid 1000 lens
   touch "$stamp"
 fi

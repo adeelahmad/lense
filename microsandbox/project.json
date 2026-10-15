@@ -20,8 +20,8 @@
       "options": {
         "cwd": "{workspaceRoot}",
         "commands": [
-          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-bookworm sh /lens/microsandbox/test-dns.sh",
-          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-bookworm sh /lens/microsandbox/test-programs.sh"
+          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-trixie sh /lens/microsandbox/test-dns.sh",
+          "docker run --rm -v \"$PWD:/lens:ro\" mirror.gcr.io/library/python:3.12-slim-trixie sh /lens/microsandbox/test-programs.sh"
         ],
         "parallel": false
       }
