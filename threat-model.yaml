@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:3a67bde8156d99328a02a17319e1838323ab0a1249e55049cd01eff0a0e2cbac"
+prose_version: "threat-model.md@sha256:a36ca3faa54f4a7c18d9d924c04de56aa9dc528f80daa19b74ba1b30ab53a241"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -610,6 +610,14 @@ outputs:
     invariants: []
     downstream_must_not_assume:
       - {id: dmna-export-escaping, statement: "escaping for the consumer's format", provenance: {kind: inferred, question_id: Q24}}
+  - component: authz
+    channel: "Evidence PDFs (evidence.py, evidence_report.py)"
+    taint: same-as-input
+    x-taint-note: "the resource's file and what Lens holds about it, for anyone who can read it; places only for members of its namespace; shared notes, highlights and comments only when picked, never private notes; what a model wrote is labelled"
+    taint_provenance: {kind: documented, source: 'docs/api.md "never anyone''s private notes"'}
+    invariants: []
+    downstream_must_not_assume:
+      - {id: dmna-evidence-pdf-less, statement: "that a PDF handed on holds less than its reader could see (pick its parts)", provenance: {kind: documented, source: 'docs/api.md "never anyone''s private notes"'}}
   - component: authz
     channel: "Recording description (IIIF, public pages)"
     taint: same-as-input

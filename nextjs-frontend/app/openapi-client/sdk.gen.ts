@@ -4780,8 +4780,11 @@ export class Resources {
    * Evidence Pdf
    *
    * The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with
-   * their transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't
-   * run here (it's fetched on first use unless Settings › Documents says never to use it).
+   * their transcript, each line marked with its emotion and sound), searchable, then the pages of what Lens found
+   * about it (details, metadata, tags, topics, summary, analysis, sections, speakers, emotion, entities, keywords,
+   * what is seen, places and dates; notes when asked for), then a provenance page with each file's SHA-256 and size.
+   * `include` picks the parts. 503 when anytopdf can't run here (it's fetched on first use unless Settings ›
+   * Documents says never to use it).
    */
   public static evidencePdf<ThrowOnError extends boolean = false>(
     options: Options<EvidencePdfData, ThrowOnError>,
@@ -9143,7 +9146,8 @@ export class Collections {
    * Collection Evidence
    *
    * The collection's recordings you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
-   * one's pages, then a provenance page with every file's SHA-256 and size. At most 50 recordings.
+   * one's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a
+   * resource's evidence PDF. At most 50 recordings.
    */
   public static collectionEvidence<ThrowOnError extends boolean = false>(
     options: Options<CollectionEvidenceData, ThrowOnError>,

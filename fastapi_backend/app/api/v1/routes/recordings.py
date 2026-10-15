@@ -42,6 +42,7 @@ from app.schemas.common import AccessLevel, Ok
 from app.schemas.recordings import (
     AccessRequest,
     EmbedLink,
+    EvidencePart,
     JobQueued,
     LanguageCount,
     MediaKind,
@@ -691,12 +692,16 @@ def export_recording(rid: int, fmt: str, acl: Acl, db: Db) -> Response:
 
 
 @router.get("/{rid}/evidence.pdf", response_class=Response, responses=evidence_api.PDF)
-def evidence_pdf(rid: int, acl: Acl, db: Db, cfg: Cfg) -> Response:
+def evidence_pdf(rid: int, acl: Acl, db: Db, cfg: Cfg, include: list[EvidencePart] | None = evidence_api.INCLUDE) -> Response:
     """The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with
-    their transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't
-    run here (it's fetched on first use unless Settings › Documents says never to use it)."""
+    their transcript, each line marked with its emotion and sound), searchable, then the pages of what Lens found
+    about it (details, metadata, tags, topics, summary, analysis, sections, speakers, emotion, entities, keywords,
+    what is seen, places and dates; notes when asked for), then a provenance page with each file's SHA-256 and size.
+    `include` picks the parts. 503 when anytopdf can't run here (it's fetched on first use unless Settings ›
+    Documents says never to use it)."""
     rec = acl.recording(rid)
-    return evidence_api.download(db, cfg, [rid], rec.get("title") or f"recording {rid}")
+    places = {rid} if acl.member(rec) else set()
+    return evidence_api.download(db, cfg, [rid], rec.get("title") or f"recording {rid}", include, places)
 
 
 @router.patch("/{rid}/segments/{idx}")
