@@ -2,7 +2,8 @@
 
 Lens tells admins when a new release is out, backs the database up, and installs the release from the web app, so
 upgrading never needs a terminal. Status: **built**: the check, backups, one-click upgrades with their progress and a
-rollback when the new version doesn't start, in Settings → Updates and a banner for admins.
+rollback when the new version doesn't start, in Settings → Updates and a banner for admins, and
+[setting the machine up again](#setting-the-machine-up-again) from Settings.
 
 ## The check
 
@@ -69,6 +70,42 @@ with `LENS_UPGRADE_AGENT=0`), the API gives the one line to run on the machine i
 
 `updates.auto_install: true` installs a new release on its own as soon as the check sees it, once per release. It is
 off by default: what Lens runs changes only when an admin says so.
+
+## Setting the machine up again
+
+Some choices are made when Lens is installed, as settings on the install line. Three of them can be changed later from
+the web app, with no terminal: the agent runs install.sh again for the version running (a request with an empty
+`ref`), changing only what the request says, and Lens restarts.
+
+| In Settings | On the install line | In the request |
+| --- | --- | --- |
+| **Access & embedding › Reachable from other devices on this network** | `LENS_PUBLIC=1` (or `0`: this machine only) | `public=1` or `0` |
+| **Components › Edition**: Full (LibreOffice and Chromium, to read Office files, web pages and emails) or Lean | `LENS_TARGET=full` or `lean` | `target=full` or `lean` |
+| **HTTPS › Open the HTTPS ports** ([HTTPS](https.md)) | `LENS_HTTPS=1` | `https=1` or `0` |
+
+Changing one says what will happen (Lens restarts; opening it to the network lets other devices reach its sign-in
+page; with Docker a new edition is built, which can take a few minutes), then one button applies it. Without an
+agent, the same place shows the install line to run on the machine. install.sh keeps each choice in `.env`
+(`LENS_BIND`, `LENS_TARGET`, `LENS_HTTPS`), so upgrades keep them; what a request leaves out stays as `.env` has it.
+The agent takes nothing but `0` or `1`, and `full` or `lean`.
+
+Lens reads how it runs from what it was started with: `docker-compose.prod.yml` and a microsandbox pass on
+`LENS_TARGET` and `LENS_BIND` (`0.0.0.0` or the machine's own address: the network; `127.0.0.1`: this machine only).
+Started some other way, it says it doesn't know, rather than guessing.
+
+For agents: `GET /api/v1/admin/install` says `public` and `target` (or null), whether there's an agent, the install
+line for each choice (`manual`) and how the last change went (`reconfigure`). `PUT /api/v1/admin/install` with
+`{"public": true}`, `{"target": "lean"}` or both asks for the change (202, audited as `lens.install`); what is so
+already is left alone, and with nothing left to change nothing restarts (200). Without an agent it answers 409 with
+the line to run. The MCP tools `install_settings` and `set_install_settings` do the same (admins, and a write-scope
+token to change them).
+
+### Refine later
+
+- Windows installs have no upgrade agent, and the line Lens shows to run there is the one for Linux and Macs
+  (`curl … | sh`), for upgrades, the HTTPS ports and these choices alike.
+- Installs not started by install.sh, `docker-compose.prod.yml` or a microsandbox (Cloudron, the NAS packages,
+  Proxmox) show whether the network reaches Lens and its edition as not known.
 
 ## Backups
 
