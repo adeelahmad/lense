@@ -34,6 +34,7 @@ with AES-GCM and are write-only: the API reports whether one is set, never its v
 | `LENS_SETUP_SETTINGS` | | settings to start with, as JSON `{"section": {"key": value}}` (or that JSON base64url-encoded): saved once at startup as if made in the app, so unlike the variables above they stay editable there. The [web installer](get-started.md#the-web-installer) writes its answers here; a `budget` section (`hard_usd`, `soft_usd`, `period`, `on_over`, `price_in`, `price_out`) sets [the overall budget](budgets.md#one-budget-for-everything) |
 | `LENS_SETUP_WIZARD` | | `off`: never show the setup wizard |
 | `LENS_TELEMETRY` / `LENS_TELEMETRY_ENDPOINT` / `LENS_TELEMETRY_HEADERS` | off | opt-in OpenTelemetry traces and metrics, sent only to this OTLP/HTTP endpoint ([Telemetry](telemetry.md)); `LENS_TELEMETRY=off` keeps it off whatever Settings say |
+| `LENS_ANALYTICS` / `LENS_GA_MEASUREMENT_ID` / `LENS_GA_API_SECRET` | off | opt-in usage events sent to your own Google Analytics 4 property ([Usage analytics](analytics.md)) |
 | `LENS_TARGET` / `LENS_BIND` | | how install.sh set the machine up: the edition (`full` or `lean`) and where the web app's port is published (`0.0.0.0`: the network, `127.0.0.1`: this machine only). `docker-compose.prod.yml` and a microsandbox pass them on from `.env`, and Settings show them; unset, Lens says it doesn't know. They're changed in Settings, which has the install run again ([Updates](updates.md#setting-the-machine-up-again)) |
 | `LENS_LOG_LEVEL` / `LENS_LOG_FORMAT` | info / text | the log level and console format for the API and every worker ([Logging](logging.md)); win over Settings → Logs |
 | `FRONTEND_URL` | `http://localhost:3000` | the web app's address as people use it: links in emails, and where apps send people to sign in ([OAuth](authentication.md#oauth)) |
@@ -67,7 +68,8 @@ to Lens. These have defaults, so the wizard doesn't ask them; each is a click aw
 * **Apps and AI**: whether apps and AI assistants (Claude, ChatGPT, Cursor and other MCP clients) may sign people in
   with their Lens account ([OAuth](authentication.md#oauth)), on unless turned off, how long their tokens last, and
   the MCP server's address to add to an assistant.
-* **Telemetry**: off unless chosen ([Telemetry](telemetry.md)).
+* **Telemetry**: off unless chosen ([Telemetry](telemetry.md)), and Google Analytics usage events, off unless
+  chosen ([Usage analytics](analytics.md)).
 
 Every step can be skipped, and the whole wizard too; all of it stays in Settings. Values from the environment win and
 show locked. Installs that already had accounts never see the wizard. The API side is `GET /api/v1/setup`,

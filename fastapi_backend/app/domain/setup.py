@@ -230,6 +230,12 @@ def view(db, cfg):
             "enabled": bool(shown["telemetry"].get("enabled")),
             "endpoint": shown["telemetry"].get("endpoint"),
             "locked": [k for k in settings.locked("telemetry") if k in ("enabled", "endpoint")],
+            "analytics": {
+                "enabled": bool(shown["analytics"].get("enabled")),
+                "measurement_id": shown["analytics"].get("measurement_id"),
+                "secret_set": isinstance(shown["analytics"].get("api_secret"), dict),
+                "locked": settings.locked("analytics"),
+            },
         },
         "budget": budget_view(db, shown),
         "oauth": {
@@ -312,6 +318,27 @@ def save_telemetry(db, cfg, enabled, endpoint, user=None):
     keep = {k: v for k, v in values.items() if k not in locked}
     if keep:
         settings.save(db, cfg, "telemetry", keep, user)
+    return sorted(keep)
+
+
+def save_analytics(db, cfg, enabled, measurement_id=None, api_secret=None, user=None):
+    """Opt in to Google Analytics (or stay out), leaving out what the environment sets. On needs a measurement id and
+    an API secret, given here or saved before."""
+    locked = settings.locked("analytics")
+    values = {"enabled": bool(enabled)}
+    if (measurement_id or "").strip():
+        values["measurement_id"] = measurement_id.strip()
+    if (api_secret or "").strip():
+        values["api_secret"] = api_secret.strip()
+    keep = {k: v for k, v in values.items() if k not in locked}
+    if enabled:
+        shown = settings.effective(db, cfg, reveal=False)["analytics"]
+        if not (values.get("measurement_id") or shown.get("measurement_id")):
+            raise ValueError("Google Analytics needs a GA4 measurement id, like G-ABC123XYZ")
+        if not (values.get("api_secret") or shown.get("api_secret")):
+            raise ValueError("Google Analytics needs a Measurement Protocol API secret (Admin → Data streams in GA)")
+    if keep:
+        settings.save(db, cfg, "analytics", keep, user)
     return sorted(keep)
 
 

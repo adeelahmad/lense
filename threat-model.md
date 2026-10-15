@@ -200,7 +200,8 @@ flowchart LR
   and workers may run at once; throttle counters and the setup code live in each process's memory *(inferred, Q5)*.
 
 **Host side effects.** Lens makes no outbound connection except to configured sources, model servers, mail,
-notification and telemetry targets; telemetry is off by default and there is no update check *(maintainer, 2026-10)*.
+notification and telemetry targets; telemetry and the Google Analytics export (`analytics.py`: daily counts for the
+install, no personal content) are off by default and there is no update check *(maintainer, 2026-10)*.
 
 | Behaviour | Observed | Tag |
 | --- | --- | --- |
@@ -241,7 +242,7 @@ machine requires HTTPS, and a changed DB credential when SurrealDB runs as its o
 | Chromium sandbox | off as root or without user namespaces | the `netguard` proxy is the only barrier | Yes | *(documented, docs/configuration.md "runs with its sandbox where it can")* |
 | `sensors.enabled`, `sensors.mqtt_anonymous` | off (`bind` `0.0.0.0`); off | opens MQTT and syslog listeners; anonymous MQTT publish | Yes; anonymous is the admin's choice | *(documented, docs/sensors.md "Sensors are off until an admin turns them on")* |
 | `shares.enabled` | off (`bind` `0.0.0.0`) | opens the read-only S3 and WebDAV servers for the asset tree | Yes | *(documented, docs/file-tree.md "Off until an admin turns it on")* |
-| `tunnel.mode`, `local_llm.enabled`, `telemetry` | off | outbound tunnel (Cloudflare terminates TLS, Q30); local model server; OTLP export | Yes | *(documented, docs/remote-access.md "It's off until an admin turns it on")* |
+| `tunnel.mode`, `local_llm.enabled`, `telemetry`, `analytics.enabled` | off | outbound tunnel (Cloudflare terminates TLS, Q30); local model server; OTLP export; GA4 Measurement Protocol export of daily counts | Yes | *(documented, docs/remote-access.md "It's off until an admin turns it on")* |
 | `https.enabled` (and install.sh's `LENS_HTTPS=1`, which Settings › HTTPS can also ask the upgrade agent for) | off | Caddy, fetched at run time, terminates TLS on ports 443/80 in the worker and proxies to the web app; the DNS provider's credentials are written to `data_dir/https/caddy.json` (mode 600), not a command line | Yes | *(documented, docs/https.md "Off by default")* |
 | Reachable from the network: install.sh's `LENS_PUBLIC` (kept as `LENS_BIND`), also switched from Settings › Access & embedding, `PUT /api/v1/admin/install` or MCP `set_install_settings` | `1` (`0.0.0.0`) on a server without a desktop, else `0` (`127.0.0.1`) | publishes the web app's port to the network over plain HTTP, and the sensor, file-share and Grafana ports with it unless `LENS_SENSOR_BIND` or `LENS_SHARE_BIND` say otherwise. Admins (an agent with an admin's write-scope token too) can open it without a shell: the host upgrade agent runs install.sh again; audited as `lens.install` | Supported on a trusted LAN only until HTTPS is set up, as the headless-host row | *(documented, docs/updates.md "Setting the machine up again")* |
 | Edition: install.sh's `LENS_TARGET`, also switched from Settings › Components or `PUT /api/v1/admin/install` | `full` | full ships LibreOffice and Chromium (Ingest's child processes); lean leaves them out | Yes, either | *(documented, docs/updates.md "Setting the machine up again")* |

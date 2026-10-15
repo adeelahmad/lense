@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Analytics.** A new Analytics page (admins) shows active people per day, week and month, stickiness, churn rate,
+  retention by sign-up week and feature use, worked out on the server from the activity ledger and sign-ins. Each day
+  Lens also keeps a few counted events (install, daily active, feature used, upgrade, inactive, return). They can
+  optionally go to your own Google Analytics 4 property too; that is off by default and is set in Settings → Usage
+  analytics or the setup wizard ([Usage analytics](docs/analytics.md)).
 - **Merge entities in fewer clicks, and undo instead of confirm.** On the Entities page, tick rows and the bar at the
   bottom merges them into one (the one on the fixed list, else the most mentioned) or gives them one type. An entity's
   side panel has **Merge**, a find box where Enter merges the entity picked into it, and **Maybe the same**, its likely
