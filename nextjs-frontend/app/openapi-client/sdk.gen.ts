@@ -672,6 +672,9 @@ import type {
   HomeSuggestionsData,
   HomeSuggestionsErrors,
   HomeSuggestionsResponses,
+  HttpsPortsData,
+  HttpsPortsErrors,
+  HttpsPortsResponses,
   HttpsProvidersData,
   HttpsProvidersResponses,
   HttpsStatusData,
@@ -2690,6 +2693,25 @@ export class Admin {
     return (options?.client ?? client).get<HttpsStatusResponses, unknown, ThrowOnError>({
       url: "/api/v1/settings/https/status",
       ...options,
+    });
+  }
+
+  /**
+   * Https Ports
+   *
+   * Open (or close) the HTTPS ports: this machine's upgrade agent runs install.sh again for the version running,
+   * with LENS_HTTPS=1 (or 0), and Lens restarts. Without an agent, `manual` is the line to run there instead.
+   */
+  public static httpsPorts<ThrowOnError extends boolean = false>(
+    options?: Options<HttpsPortsData, ThrowOnError>,
+  ): RequestResult<HttpsPortsResponses, HttpsPortsErrors, ThrowOnError> {
+    return (options?.client ?? client).post<HttpsPortsResponses, HttpsPortsErrors, ThrowOnError>({
+      url: "/api/v1/settings/https/ports",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+      },
     });
   }
 

@@ -41,6 +41,7 @@ import {
   Hash,
   PackageCheck,
   RadioTower,
+  Lock,
   Network,
   ScrollText,
 } from "lucide-react";
@@ -84,6 +85,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   components: PackageCheck,
   access: ShieldCheck,
   "remote-access": Cloud,
+  https: Lock,
   "sign-in": LockKeyhole,
   encryption: FileLock,
   notifications: Bell,

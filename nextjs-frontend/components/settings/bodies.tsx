@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Admin, Fedora, Metadata, Sensors, Shares, Sources, Users } from "@/app/openapi-client";
-import type { MatterbridgeStatus } from "@/app/openapi-client/types.gen";
+import type { HttpsStatus, MatterbridgeStatus } from "@/app/openapi-client/types.gen";
 import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
@@ -37,7 +37,7 @@ import {
 } from "@/components/settings/model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import { Select, Switch } from "@/components/ui/field";
+import { Field, Input, Select, Switch } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
@@ -345,6 +345,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <MailboxBody ctx={ctx} />;
     case "remote-access":
       return <TunnelBody ctx={ctx} />;
+    case "https":
+      return <HttpsBody ctx={ctx} />;
     case "components":
       return (
         <>
@@ -1376,6 +1378,259 @@ function MailBody({ ctx }: { ctx: BodyCtx }) {
           </Banner>
         ))}
       {test.isError && <Banner tone="error">{test.error.message}</Banner>}
+    </>
+  );
+}
+
+const OTHER_DNS = "__other";
+
+/** Settings › HTTPS, when no server process has the HTTPS ports: open them through the upgrade agent (Lens restarts),
+ * or the line to run on the machine. */
+function HttpsPorts({
+  status: s,
+  open,
+  busy,
+  error,
+}: {
+  status: HttpsStatus;
+  open: () => void;
+  busy: boolean;
+  error?: string;
+}) {
+  const run = s.reconfigure;
+  const going = run && !run.error && ["queued", "running"].includes(run.state);
+  if (going)
+    return (
+      <Banner title="Opening the HTTPS ports.">
+        Lens is setting itself up again with ports 443 and 80 and restarts; this page follows when it’s back.
+        {(run.log ?? []).length > 0 && (
+          <pre className="mt-2 max-h-40 overflow-auto rounded-sm bg-surface-neutral p-2 font-mono text-[11.5px]">
+            {(run.log ?? []).join("\n")}
+          </pre>
+        )}
+      </Banner>
+    );
+  return (
+    <Banner tone="warning" title="No server process has the HTTPS ports yet.">
+      {run?.error && <span className="block text-red-dark">The last try didn’t work: {run.error}</span>}
+      {error && <span className="block text-red-dark">{error}</span>}
+      {s.agent ? (
+        <>
+          Lens opens ports 443 and 80 on this machine and restarts, keeping them through upgrades.
+          <span className="mt-2 block">
+            <Button size="sm" onClick={open} disabled={busy}>
+              Open the HTTPS ports
+            </Button>
+          </span>
+        </>
+      ) : (
+        <>
+          Run this on the machine Lens runs on: it opens ports 443 and 80 and keeps them through upgrades.
+          <pre className="mt-2 overflow-auto rounded-sm bg-surface-neutral p-2 font-mono text-[11.5px]">{s.manual}</pre>
+        </>
+      )}
+    </Banner>
+  );
+}
+
+/** Settings › HTTPS: the domains Lens serves over https://, how it gets their certificates, and how that's going. */
+function HttpsBody({ ctx }: { ctx: BodyCtx }) {
+  const client = useApiClient();
+  const t = ctx.view.https;
+  const on = ctx.state("https.enabled").value === true;
+  const challenge = (ctx.state("https.challenge").value as string | undefined) ?? "http";
+  const ca = (ctx.state("https.ca").value as string | undefined) ?? "both";
+  const provider = ctx.state("https.dns_provider");
+  const creds = ctx.state("https.dns_credentials");
+  const eab = ctx.state("https.eab_hmac_key");
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [other, setOther] = useState(false);
+  const status = useQuery({
+    queryKey: ["https-status", t?.updated_at ?? null],
+    queryFn: () => data(Admin.httpsStatus({ client })),
+    refetchInterval: (q) =>
+      !q.state.data?.enabled ? false : q.state.data.certificates?.length && !q.state.data.error ? 30_000 : 3_000,
+  });
+  const providers = useQuery({
+    queryKey: ["https-providers"],
+    queryFn: () => data(Admin.httpsProviders({ client })),
+    enabled: challenge === "dns",
+    staleTime: Infinity,
+  });
+  const qc = useQueryClient();
+  const ports = useMutation({
+    mutationFn: () => data(Admin.httpsPorts({ client, body: { open: true } })),
+    onSuccess: (got) => qc.setQueryData(["https-status", t?.updated_at ?? null], got),
+  });
+  const s = status.data;
+  const secret = (k: string) => Boolean(((t?.values?.[k] ?? {}) as { set?: boolean }).set);
+  const prov = (provider.value as string | undefined) ?? "";
+  const known = providers.data?.find((p) => p.name === prov);
+  const choice = other || (prov && providers.data && !known) ? OTHER_DNS : prov;
+  const setField = (name: string, value: string) => {
+    const next = { ...fields, [name]: value };
+    setFields(next);
+    const filled = Object.fromEntries(Object.entries(next).filter(([, v]) => v.trim() !== ""));
+    creds.onChange(Object.keys(filled).length ? JSON.stringify(filled) : undefined);
+  };
+  const expiry = (iso: string) => new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
+  return (
+    <>
+      {!s || !s.enabled ? (
+        <Banner title="Off.">
+          Lens answers over http:// only, or through a proxy or tunnel in front of it. Turn this on to serve it at your
+          own domain over https://, where passkeys work too.
+        </Banner>
+      ) : !s.ports_open ? (
+        <HttpsPorts status={s} open={() => ports.mutate()} busy={ports.isPending} error={ports.error?.message} />
+      ) : s.error ? (
+        <Banner tone="error" title={s.running ? "No certificate yet: Lens keeps trying." : "HTTPS isn’t running."}>
+          {s.error}
+        </Banner>
+      ) : s.certificates?.length && s.url ? (
+        <Banner tone="success" title="Serving over HTTPS.">
+          <a href={s.url} target="_blank" rel="noreferrer" className="font-mono font-semibold hover:underline">
+            {s.url}
+          </a>
+        </Banner>
+      ) : (
+        <Banner title="Getting the certificate.">
+          Lens starts Caddy and asks the certificate authority within a few seconds.
+        </Banner>
+      )}
+      {s?.enabled && (s.certificates ?? []).length > 0 && (
+        <ul className="flex flex-col gap-1 text-[12.5px] text-fg-secondary">
+          {(s.certificates ?? []).map((c) => (
+            <li key={c.names.join(",")}>
+              <span className="font-mono text-fg">{c.names.join(", ")}</span> · {c.issuer} · until {expiry(c.expires)},
+              renewed on its own
+            </li>
+          ))}
+        </ul>
+      )}
+      <F ctx={ctx} id="https.enabled" />
+      <F ctx={ctx} id="https.domains" />
+      <F ctx={ctx} id="https.email" />
+      <F ctx={ctx} id="https.challenge" />
+      {challenge === "dns" && (
+        <>
+          <Field label="DNS provider">
+            {({ id }) => (
+              <Select
+                id={id}
+                value={choice}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setOther(v === OTHER_DNS);
+                  setFields({});
+                  creds.onChange(undefined);
+                  provider.onChange(v === OTHER_DNS ? "" : v);
+                }}
+                options={[
+                  { value: "", label: "Choose…" },
+                  ...(providers.data ?? []).map((p) => ({ value: p.name, label: p.label })),
+                  { value: OTHER_DNS, label: "Another caddy-dns plugin" },
+                ]}
+              />
+            )}
+          </Field>
+          {choice === OTHER_DNS ? (
+            <>
+              <F
+                ctx={ctx}
+                id="https.dns_provider"
+                label="Plugin name"
+                hint="The provider’s name in caddy-dns, like hetzner."
+              />
+              <F ctx={ctx} id="https.dns_package" />
+              <SecretSetting
+                key={`creds-${t?.updated_at ?? "none"}`}
+                label="Its fields, as JSON"
+                placeholder='{"api_token": "…"}'
+                isSet={secret("dns_credentials")}
+                updatedBy={t?.updated_by}
+                updatedAt={t?.updated_at}
+                value={creds.value as string | undefined}
+                onChange={(x) => creds.onChange(x)}
+              />
+            </>
+          ) : (
+            known && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {known.fields.map((f) => (
+                  <Field key={f.name} label={f.label}>
+                    {({ id }) => (
+                      <Input
+                        id={id}
+                        type={f.secret ? "password" : "text"}
+                        autoComplete="off"
+                        mono
+                        placeholder={secret("dns_credentials") ? "saved: type to replace" : ""}
+                        value={fields[f.name] ?? ""}
+                        onChange={(e) => setField(f.name, e.target.value)}
+                      />
+                    )}
+                  </Field>
+                ))}
+              </div>
+            )
+          )}
+          <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+            Lens fetches a Caddy built with this provider’s plugin the first time. The credentials are kept encrypted
+            and given to Caddy only in a file only Lens can read.
+          </p>
+        </>
+      )}
+      <details className="text-[13px]">
+        <summary className="cursor-pointer font-semibold text-fg-secondary">More options</summary>
+        <div className="mt-3 flex flex-col gap-4">
+          <F ctx={ctx} id="https.ca" />
+          {ca === "custom" && <F ctx={ctx} id="https.ca_url" />}
+          {(ca === "both" || ca === "letsencrypt") && <F ctx={ctx} id="https.staging" />}
+          {ca !== "letsencrypt" && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="https.eab_key_id" />
+              <SecretSetting
+                key={`eab-${t?.updated_at ?? "none"}`}
+                label="EAB HMAC key"
+                placeholder="Paste the HMAC key"
+                isSet={secret("eab_hmac_key")}
+                updatedBy={t?.updated_by}
+                updatedAt={t?.updated_at}
+                value={eab.value as string | undefined}
+                onChange={(x) => eab.onChange(x)}
+              />
+            </div>
+          )}
+          {challenge === "dns" && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <F ctx={ctx} id="https.dns_resolvers" />
+              <F ctx={ctx} id="https.propagation" />
+            </div>
+          )}
+          <F ctx={ctx} id="https.redirect_http" />
+          <F ctx={ctx} id="https.hsts" />
+          <F
+            ctx={ctx}
+            id="https.origin"
+            hint={`Where Caddy reaches the web app from the server${s ? ` (now ${s.origin})` : ""}. Leave empty unless you moved it.`}
+          />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="https.https_port" />
+            <F ctx={ctx} id="https.http_port" />
+          </div>
+        </div>
+      </details>
+      {on && s && (s.log ?? []).length > 0 && (
+        <details className="text-[12.5px]">
+          <summary className="cursor-pointer font-semibold text-fg-secondary">
+            What Caddy said{s.process ? ` (in ${s.process})` : ""}
+          </summary>
+          <pre className="mt-2 max-h-64 overflow-auto rounded-sm bg-surface-neutral p-2.5 font-mono text-[11.5px] leading-snug">
+            {(s.log ?? []).join("\n")}
+          </pre>
+        </details>
+      )}
     </>
   );
 }
