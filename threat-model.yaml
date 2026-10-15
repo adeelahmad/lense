@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:16e8f3084a18a5cc02c60dbf6ec3d75ea8ae614933ed4c72f0c2297eb26ff063"
+prose_version: "threat-model.md@sha256:f430a4e9bedcf37ca6a5f5e2e782a3e72a9ac674b6dc78ebc91fc152af9e92a4"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -465,6 +465,15 @@ entry_points:
         obligation_id: admin-is-trusted
         caller_must_enforce: "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again"
         provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
+  - id: "entity and topic curation tools"
+    component: authz
+    parameters:
+      - name: "MCP edit_entity, edit_topic, merge_topics, delete_topic, undo_topic_change, undo_graph_change; assistant propose_topic_change: entity and topic ids, names, labels, definitions"
+        attacker_controllable: true
+        x-condition: "an agent with an editor's write-scope token; indirectly through content the model reads"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited"
+        provenance: {kind: documented, source: 'docs/mcp.md "curate entities and topics as an editor does"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:
