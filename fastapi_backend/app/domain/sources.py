@@ -592,11 +592,16 @@ def _ingest(db, cfg, src, f, kind, space, by, steps=None, pipeline=None, collect
         ns = (db.one("SELECT name FROM $s", s=R("space", space)) or {})["name"]
         from . import keyring
 
+        old = None
         with keyring.plain_path(db, cfg, cached_copy(db, cfg, src["id"], f["path"], space)) as local:
             if feeds.handles(src) and not feeds.immutable(src):
-                _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
+                old = _same_resource(db, space, src["id"], f["path"], ingest.fingerprint(local))
             rid = ingest.import_transcript(db, cfg, ns, local, title=title, log=lambda *a: None, collection=collection)
             event = _event_of(local, f, src)
+        if old and event and isinstance(old.get("event"), dict):
+            from . import events_content
+
+            events_content.calendar_moved(db, rid, space, src, title, old["event"], event)  # calendar_event.changed
         db.q(
             "UPDATE $r MERGE $d",
             r=R("recording", rid),
@@ -678,15 +683,17 @@ def _event_of(local, f, src):
 
 def _same_resource(db, space, sid, path, fp):
     """A calendar event that changed is read again into the resource it already is (found by where it came from), not
-    made a second one: that resource takes the new file's fingerprint, which the import then finds."""
+    made a second one: that resource takes the new file's fingerprint, which the import then finds. Returns that
+    resource as it was (its id, fingerprint and event), or None."""
     old = db.one(
-        "SELECT record::id(id) AS id, fingerprint FROM recording WHERE space = $sp AND remote.source = $s AND remote.path = $p LIMIT 1",
+        "SELECT record::id(id) AS id, fingerprint, event FROM recording WHERE space = $sp AND remote.source = $s AND remote.path = $p LIMIT 1",
         sp=space,
         s=sid,
         p=path,
     )
     if old and old.get("fingerprint") != fp:
         db.q("UPDATE $r SET fingerprint = $f, fp_key = $k", r=R("recording", old["id"]), f=fp, k=f"{space}:{fp}")
+    return old
 
 
 def file_kind(cfg, name, documents_as="document"):

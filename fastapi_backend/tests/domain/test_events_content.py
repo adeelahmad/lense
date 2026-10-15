@@ -10,11 +10,26 @@ from email.message import EmailMessage
 
 import pytest
 
-from app.domain import convert, events, events_content, feeds, gmail, import_hooks, ingest, sources, store, uploads, webcapture
-from tests.helpers import make_user, write_wav
+from app.domain import (
+    convert,
+    deletion,
+    events,
+    events_content,
+    feeds,
+    gmail,
+    import_hooks,
+    ingest,
+    jobs,
+    sources,
+    store,
+    uploads,
+    webcapture,
+)
+from tests.helpers import PODS1, drain, make_user, write_wav
 
 R = store.R
 ADMIN = events.viewer(1, None, admin=True)
+PODS = "\n".join(f"[00:{i:02d}] {line.split('|')[0]}: {line.split('|')[2]}" for i, line in enumerate(PODS1.splitlines()))
 ICS = """BEGIN:VCALENDAR\r
 VERSION:2.0\r
 BEGIN:VEVENT\r
@@ -357,3 +372,88 @@ def test_paging_six_hundred_assets_of_one_second(db, cfg):
     commit()
     got = [a["id"] for a in first + rest]
     assert len(first) == 500 and len(got) == 605 and len(set(got)) == 605
+
+
+# ---------- runs, deletions, calendar moves ----------
+def test_finished_runs_are_processed_or_failed_with_the_assets_entities(db, cfg, monkeypatch):
+    sam = make_user(db, "sam@example.org", "sam password 1")
+    start(db, cfg, "test.runs")
+    rid = ingest.import_text(db, cfg, "pods", PODS, title="Capsid episode")
+    jid = jobs.enqueue(db, rid, ["analyze"], by="sam@example.org")
+    drain(db, cfg)
+    got = [a for a in new(db, cfg, "test.runs") if a["kind"] == "asset.processed"]
+    assert len(got) == 1
+    a = got[0]
+    finished = db.one("SELECT finished_at FROM $r", r=R("job", jid))["finished_at"]
+    assert a["id"] == f"processed-job-{jid}-{int(events._parse(finished).timestamp())}" and a["type"] == "Update"
+    assert a["actor"] == {"type": "Person", "id": f"lens:account/{sam}", "name": "sam"} and a["space"] == store.ns_id(db, "pods")
+    assert a["object"]["id"] == f"lens:recording/{rid}" and a["object"]["job"] == f"lens:job/{jid}" and a["object"]["steps"] == ["analyze"]
+    assert a["summary"] == "“Capsid episode” finished processing (analyze)"
+    names = [t["name"] for t in a["tag"]]
+    assert "Dyno Therapeutics" in names and len(names) <= 10 and all(t["type"] == "Mention" for t in a["tag"])
+    assert names[0] == "Dyno Therapeutics"  # the most mentioned first
+    assert events.get(db, cfg, a["id"], ADMIN) == a
+    # a run that fails says where and why; tried again, it finishes again as another activity
+    monkeypatch.setitem(jobs.STEPS, "report", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("the report model isn't reachable")))
+    bad = jobs.enqueue(db, rid, ["report"], by="automation:4")
+    drain(db, cfg)
+    fail = [x for x in new(db, cfg, "test.runs") if x["kind"] == "asset.failed"]
+    assert len(fail) == 1 and fail[0]["actor"]["id"] == "lens:automation/4" and fail[0]["type"] == "Announce"
+    assert fail[0]["object"]["step"] == "report" and "isn't reachable" in fail[0]["object"]["error"]
+    assert fail[0]["summary"] == "Processing “Capsid episode” failed at report" and "object.error" in fail[0]["lens"]["untrusted"]
+    first = fail[0]["id"]
+    time.sleep(1.05)  # a second later, so the second try finishes at another time
+    jobs.retry(db, bad)
+    drain(db, cfg)
+    again = [x for x in new(db, cfg, "test.runs") if x["kind"] == "asset.failed"]
+    assert len(again) == 1 and again[0]["id"] != first and events.get(db, cfg, first, ADMIN) is None
+    assert events.get_many(db, cfg, [first, again[0]["id"], a["id"]], ADMIN) == {again[0]["id"]: again[0], a["id"]: a}
+    # the timeline narrows by kind in its query; a viewer of another namespace sees none of it
+    ids = [x["id"] for x in events.page(db, cfg, ADMIN, flt={"kinds": ["asset.failed"]})["items"]]
+    assert ids == [again[0]["id"]]
+    assert events.page(db, cfg, events.viewer(9, {store.ns_id(db, "calls")}), flt={"kinds": ["asset.processed"]})["items"] == []
+
+
+def test_a_deletion_is_logged_once_as_asset_deleted(db, cfg):
+    sam = make_user(db, "sam@example.org", "sam password 1")
+    pods = store.ns_id(db, "pods")
+    rid = ingest.import_text(db, cfg, "pods", "[00:00] Sam: Old minutes.", title="Old minutes")
+    start(db, cfg, "test.gone")
+    deletion.delete(db, cfg, rid, "sam@example.org")
+    got = new(db, cfg, "test.gone", kinds=["asset.deleted"])
+    assert len(got) == 1
+    a = got[0]
+    assert a["kind"] == "asset.deleted" and a["type"] == "Delete" and a["space"] == pods and a["id"].startswith("log-")
+    assert a["actor"] == {"type": "Person", "id": f"lens:account/{sam}", "name": "sam"}
+    assert a["object"] == {"type": "Document", "id": f"lens:recording/{rid}", "name": "Old minutes", "media": "transcript"}
+    assert a["summary"] == "sam deleted “Old minutes”"
+    # logged once per asset, whatever retries
+    assert events_content.deleted(db, rid, {"title": "Old minutes", "space": pods, "source": "transcript"}, "sam@example.org") == a["id"]
+    assert len(db.values("SELECT VALUE id FROM event_log WHERE kind = 'asset.deleted'")) == 1
+
+
+def test_an_event_that_moves_is_calendar_event_changed(db, cfg, monkeypatch):
+    pods = store.ns_id(db, "pods")
+    src = source(db, "Family calendar", "ical", user="")
+    body = {"now": ICS.encode()}
+    monkeypatch.setattr(feeds, "fetch", lambda cfg, src, path: body["now"])
+    f = {"path": "evening.ics", "title": "Parents' evening", "size": len(ICS), "modified": store.now(), "when": None}
+    rid, _ = sources._ingest(db, cfg, src, f, "transcript", pods, "watch:1")
+    start(db, cfg, "test.moves")
+    # the same event, read again, starts a day later
+    body["now"] = ICS.replace("20261020T17", "20261021T17").replace("20261020T18", "20261021T18").encode()
+    again, _ = sources._ingest(db, cfg, src, {**f, "modified": "2026-10-16T08:00:00+00:00"}, "transcript", pods, "watch:1")
+    assert again == rid and db.one("SELECT event FROM $r", r=R("recording", rid))["event"]["startTime"] == "2026-10-21T17:00:00+00:00"
+    got = new(db, cfg, "test.moves", kinds=["calendar_event.changed"])
+    assert len(got) == 1
+    a = got[0]
+    assert a["actor"] == {"type": "Service", "id": f"lens:source/{src['id']}", "name": "Family calendar"} and a["type"] == "Update"
+    assert a["object"]["startTime"] == "2026-10-21T17:00:00+00:00" and a["object"]["endTime"] == "2026-10-21T18:30:00+00:00"
+    assert a["object"]["before"] == {"startTime": "2026-10-20T17:00:00+00:00", "endTime": "2026-10-20T18:30:00+00:00"}
+    assert a["summary"] == "Family calendar moved “Parents' evening” to 2026-10-21 17:00" and a["object"]["id"] == f"lens:recording/{rid}"
+    # read again unchanged, or the same move noticed twice: nothing more
+    sources._ingest(db, cfg, src, {**f, "modified": "2026-10-16T09:00:00+00:00"}, "transcript", pods, "watch:1")
+    old = {"startTime": "2026-10-20T17:00:00+00:00"}
+    new_ = db.one("SELECT event FROM $r", r=R("recording", rid))["event"]
+    assert events_content.calendar_moved(db, rid, pods, src, "Parents' evening", old, new_) == a["id"]
+    assert len(db.values("SELECT VALUE id FROM event_log WHERE kind = 'calendar_event.changed'")) == 1
