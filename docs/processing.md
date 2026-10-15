@@ -321,7 +321,7 @@ A folder scan and a routine run are each claimed first, so several processes doi
 ## Storage sources
 
 Admins add sources in the app (`/api/v1/sources`): S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB,
-WebDAV, or a folder on this machine; or an email account (IMAP) or a calendar feed (iCal), below. A watched folder maps a path on a source to a namespace, with include/exclude
+WebDAV, or a folder on this machine; or an email account (IMAP), a calendar feed (iCal) or Google Calendar, below. A watched folder maps a path on a source to a namespace, with include/exclude
 patterns, audio and/or transcripts, a polling interval, how long a file must be unchanged before it is picked up, and
 whether files already there are imported (backfill). New audio is queued for the full pipeline; new transcripts are
 imported and analysed. Audio stays where it is: it is copied to a cache for processing and streamed from the source for
@@ -343,9 +343,9 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 - Folders on this machine can only be watched inside `sources.local_roots`, and the rclone binary can only be set in
   archive.yaml: the web app can neither open up the server's disk nor choose what runs.
 
-### Email (IMAP) and calendar feeds (iCal)
+### Email (IMAP), calendar feeds (iCal) and Google Calendar
 
-Two kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
+Three kinds of source aren't storage and don't use rclone; their messages and events are shown as files, so browsing,
 importing chosen ones and watching work as above.
 
 - **Email (IMAP)**: host, port, security (SSL/TLS, STARTTLS or none), user and password (an app password where the
@@ -376,6 +376,29 @@ importing chosen ones and watching work as above.
   attendees, how it repeats, and its description), dated when it starts: an all-day event on its date, wherever you
   are. Time zones are read as IANA names, Windows' names (as Outlook writes them), or the calendar's own VTIMEZONE. An event that changes (its LAST-MODIFIED,
   or its size) is read again into the resource it already is, rather than made a second one.
+- **Google Calendar** (`gcal`): read through Google's Calendar API with read-only access (`calendar.readonly`), so
+  nothing in the calendar is changed. Each calendar is a folder and each event a file `<calendar id>/<event id>.ics`,
+  named by its date and title, and read as text exactly as an iCal feed's events are; it also says which occurrences
+  of a repeating event were cancelled and the event's video call. A changed occurrence of a repeating event is an event
+  of its own, as Google keeps it; working-location entries ("Home", "Office") are left out. It signs in one of two ways,
+  each kept encrypted like a password and never shown again:
+
+    - **Google account** (`token`): the "authorized user" JSON (`client_id`, `client_secret`, `refresh_token`) of an
+      OAuth client of your own Google Cloud project, with the Calendar API turned on there. `gcloud auth
+      application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/calendar.readonly,https://www.googleapis.com/auth/cloud-platform`
+      writes one (to `application_default_credentials.json` in gcloud's folder).
+    - **Service account** (`service_account_credentials`, its .json key file). On its own it reads the calendars shared
+      with its address: share them, and give their IDs in `calendars` (Google Calendar › Settings › Integrate
+      calendar). In Google Workspace it can read a user's calendars instead (`impersonate`), once an admin gave it
+      domain-wide delegation for the `calendar.readonly` scope (Admin console › Security › API controls).
+
+    `calendars` (IDs, comma separated) limits the source to those; empty, it reads every calendar in the account's
+    list, and watching the whole account (no path) leaves out Google's own (holidays, birthdays, week numbers). Events
+    that ended more than `days_back` days ago (365) are left out; empty takes every event. A watch lists each calendar
+    again every poll (`events.list`, 2,500 events a call). Every call to Google is a row in the activity ledger
+    (`google.token`, `google.calendar`); Google throttling the account shows as working, slowly, and a scan it
+    interrupts is tried again at the next poll. The token endpoint is always Google's own, whatever a key file says. Without a Google Cloud project,
+    a Google calendar's secret address in iCal format (Settings › Integrate calendar) works as a calendar feed.
 - `.eml` and `.ics` files in any source, and uploaded through Import, can be read as text this way too.
 
 ## Pipelines and templates

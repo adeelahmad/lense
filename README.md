@@ -80,7 +80,7 @@ Everything below is built and merged. Work that is still in a pull request is li
   ([Extending the assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins),
   [the MCP runner](docs/assistant.md#the-mcp-runner))
 - **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks
-  (a local folder in four clicks); IMAP mail and iCal calendars; a built-in MQTT broker, syslog and webhook streams;
+  (a local folder in four clicks); IMAP mail, iCal calendars and Google Calendar; a built-in MQTT broker, syslog and webhook streams;
   import webhooks for scanners and phone shortcuts. Upload audio, video, PDFs, Office files, photos, JSON and zip or
   tar archives, and, with an Apache Tika server (an opt-in extra), documents nothing else here can read; capture web
   pages one at a time, from a link list or a bookmarks file, by API or by asking the assistant, from private networks

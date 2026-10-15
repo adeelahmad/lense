@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:f430a4e9bedcf37ca6a5f5e2e782a3e72a9ac674b6dc78ebc91fc152af9e92a4"
+prose_version: "threat-model.md@sha256:3b18b5c164872c06803e63502f8ff6bc0991de270c3d5629ad19e178eddc2e37"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -322,6 +322,16 @@ entry_points:
         obligation_id: admin-creates-sources
         caller_must_enforce: "admin creates sources"
         provenance: {kind: inferred, question_id: Q17}
+  - id: "Google Calendar sources"
+    component: outbound
+    parameters:
+      - name: "service account key file or connected account's refresh token, calendar ids, impersonate; the events Google returns"
+        attacker_controllable: true
+        x-condition: "key and token: admins only, sealed and write-only; events: anyone who can invite the account to an event or edit a calendar it reads"
+        control_kinds: [data, x-credential, x-prompt-injection, size]
+        obligation_id: admin-creates-sources
+        caller_must_enforce: "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters"
+        provenance: {kind: documented, source: 'docs/processing.md "The token endpoint is always Google''s own"'}
   - id: "POST /imports/web, extension http tools, notification targets"
     component: outbound
     parameters:
