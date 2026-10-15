@@ -34,6 +34,14 @@ nextjs-frontend/
   app/openapi-client/       generated from the API's OpenAPI schema; never edit by hand
 ```
 
+## Navigation
+
+The nav rail (`components/app-shell/nav-config.ts`) is in four groups, each named above its first item (a line when
+the rail is collapsed to icons): what people use every day (Home, Library, Search, Chat, Notes), **Explore** what Lens
+found (Entities, Topics, Graph, Podcasts, Reports), **Automate** what runs by itself (Pipelines, Routines, Extensions,
+Sensors, or Sources for people who aren't admins), and **Manage** Lens (Costs, Analytics, Settings, Admin). Every page
+stays one click from Home; ⌘K reaches every page, recording and setting by name.
+
 ## Design system
 
 Colour is semantic, never decorative: blue means working, selected or a link; green means ready or succeeded; red

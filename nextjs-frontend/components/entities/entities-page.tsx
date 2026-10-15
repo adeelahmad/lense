@@ -6,6 +6,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { Entities } from "@/app/openapi-client";
+import { EntityBulkBar } from "@/components/entities/bulk-bar";
+import { useEntityRefresh, useMergeEntities } from "@/components/entities/curate";
 import { DefineDialog } from "@/components/entities/define-dialog";
 import { EntityDrawer } from "@/components/entities/entity-drawer";
 import {
@@ -22,11 +24,12 @@ import { useCollectionTree } from "@/components/library/use-collections";
 import { Badge } from "@/components/ui/badge";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import { SearchInput, Select } from "@/components/ui/field";
+import { Checkbox, SearchInput, Select } from "@/components/ui/field";
 import { EmptyState, PageHeader, SkeletonRows } from "@/components/ui/states";
 import { Pagination, SortTh, Table, Td, Th, THead, Tr } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
-import { data, useApiClient } from "@/lib/api/browser";
+import { useToast } from "@/components/ui/toast";
+import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { count, plural, shortDate } from "@/lib/format";
 import { needRole, useArchive } from "@/lib/hooks/session";
 
@@ -46,6 +49,14 @@ export function EntitiesPage() {
   const open = Number(params.get("entity")) || null;
   const view = (["hidden", "types", "setup"] as const).find((v) => v === params.get("view")) ?? "all";
   const listing = view === "all" || view === "hidden";
+  const editor = Boolean(ns) && can("editor", ns);
+  // rows picked to merge or retype, kept by id so paging and filtering don't lose them
+  const [picked, setPicked] = useState<Map<number, EntityRow>>(new Map());
+  useEffect(() => setPicked(new Map()), [ns, view]);
+  const toast = useToast();
+  const refresh = useEntityRefresh();
+  const { merge, pending: merging } = useMergeEntities();
+  const [retyping, setRetyping] = useState(false);
 
   const set = (changes: Record<string, string | null>, keepPage = false) => {
     const p = new URLSearchParams(params.toString());
@@ -79,6 +90,71 @@ export function EntitiesPage() {
     placeholderData: keepPreviousData,
   });
   const rows = (list.data?.items ?? []) as unknown as EntityRow[];
+  const pickable = rows.filter((e) => !e.builtin);
+  const toggle = (e: EntityRow, on: boolean) =>
+    setPicked((m) => {
+      const next = new Map(m);
+      if (on) next.set(e.id, e);
+      else next.delete(e.id);
+      return next;
+    });
+  const allOn = pickable.length > 0 && pickable.every((e) => picked.has(e.id));
+  const someOn = pickable.some((e) => picked.has(e.id));
+
+  const mergePicked = async (keep: EntityRow) => {
+    const others = [...picked.values()].filter((e) => e.id !== keep.id);
+    if (await merge(keep, others)) {
+      setPicked(new Map());
+      if (open && others.some((o) => o.id === open)) set({ entity: String(keep.id) }, true);
+    }
+  };
+  // Give the picked ones one type; Undo puts each back to the type it had.
+  const retypePicked = async (type: string) => {
+    const before = [...picked.values()];
+    const label = types.data?.find((t) => t.type === type)?.label ?? type;
+    const retype = (ids: number[], t: string) => data(Entities.retypeEntities({ client, body: { ids, type: t } }));
+    setRetyping(true);
+    try {
+      await retype(
+        before.map((e) => e.id),
+        type,
+      );
+      refresh();
+      setPicked(new Map());
+      toast({
+        title: `${plural(before.length, "entity", "entities")} ${before.length === 1 ? "is" : "are"} ${label} now`,
+        tone: "green",
+        duration: 10000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            const back = new Map<string, number[]>();
+            for (const e of before) back.set(e.type, [...(back.get(e.type) ?? []), e.id]);
+            void Promise.all([...back].map(([t, ids]) => retype(ids, t)))
+              .then(() => {
+                refresh();
+                toast({ title: "Types put back", tone: "green" });
+              })
+              .catch((err) =>
+                toast({
+                  title: "Couldn’t put the types back",
+                  body: err instanceof ApiError ? err.message : "Please try again.",
+                  tone: "red",
+                }),
+              );
+          },
+        },
+      });
+    } catch (err) {
+      toast({
+        title: "Couldn’t change the type",
+        body: err instanceof ApiError ? err.message : "Please try again.",
+        tone: "red",
+      });
+    } finally {
+      setRetyping(false);
+    }
+  };
 
   if (!namespaces.length)
     return (
@@ -225,6 +301,16 @@ export function EntitiesPage() {
               <Table aria-label="Entities">
                 <THead className="border-t-0">
                   <tr>
+                    {editor && (
+                      <Th className="w-10">
+                        <Checkbox
+                          aria-label="Pick every entity on this page"
+                          checked={allOn ? true : someOn ? "indeterminate" : false}
+                          disabled={!pickable.length}
+                          onCheckedChange={(on) => pickable.forEach((e) => toggle(e, on))}
+                        />
+                      </Th>
+                    )}
                     <SortTh {...sortBy("name")}>Name</SortTh>
                     <Th className="w-[140px]">Type</Th>
                     <Th className="hidden lg:table-cell">Description</Th>
@@ -252,6 +338,17 @@ export function EntitiesPage() {
                         className="h-[50px] cursor-pointer"
                         onClick={() => set({ entity: String(e.id) }, true)}
                       >
+                        {editor && (
+                          <Td onClick={(ev) => ev.stopPropagation()}>
+                            {!e.builtin && (
+                              <Checkbox
+                                aria-label={`Pick ${e.name}`}
+                                checked={picked.has(e.id)}
+                                onCheckedChange={(on) => toggle(e, on)}
+                              />
+                            )}
+                          </Td>
+                        )}
                         <Td>
                           <button
                             type="button"
@@ -304,6 +401,16 @@ export function EntitiesPage() {
               />
             </div>
           )}
+          {editor && (
+            <EntityBulkBar
+              picked={[...picked.values()]}
+              types={types.data ?? []}
+              busy={merging || retyping}
+              onMerge={(keep) => void mergePicked(keep)}
+              onRetype={(t) => void retypePicked(t)}
+              onClear={() => setPicked(new Map())}
+            />
+          )}
         </>
       )}
       {ns && (
@@ -319,7 +426,13 @@ export function EntitiesPage() {
         />
       )}
       {open && ns && listing && (
-        <EntityDrawer id={open} ns={ns} types={types.data ?? []} onClose={() => set({ entity: null }, true)} />
+        <EntityDrawer
+          id={open}
+          ns={ns}
+          types={types.data ?? []}
+          onClose={() => set({ entity: null }, true)}
+          onOpen={(id) => set({ entity: String(id) }, true)}
+        />
       )}
     </div>
   );

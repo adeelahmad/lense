@@ -33,6 +33,7 @@ import threading
 import time
 import uuid
 
+from . import datafiles
 from .store import R, now
 
 log = logging.getLogger("lens")
@@ -166,6 +167,11 @@ def backup(db, label="manual"):
         shutil.rmtree(part, ignore_errors=True) if part.is_dir() else part.unlink(missing_ok=True)
         raise
     part.rename(dst)
+    try:  # and the files under data_dir (datafiles.py)
+        datafiles.snapshot(db.data_dir, dst.name, rest if db.embedded else None)
+    except BaseException:
+        shutil.rmtree(dst, ignore_errors=True) if dst.is_dir() else dst.unlink(missing_ok=True)
+        raise
     return dst
 
 
@@ -173,6 +179,7 @@ def _prune(folder, label):
     for old in sorted(folder.glob(f"{label}-*"), reverse=True)[KEEP:]:
         with contextlib.suppress(OSError):
             shutil.rmtree(old) if old.is_dir() else old.unlink()
+        datafiles.drop(folder.parent, old.name)
 
 
 def _backup_before(db, steps_):

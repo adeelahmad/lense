@@ -602,21 +602,92 @@ SETUP_SYSTEM = (
 )
 
 
+# tools that read the archive and give the same result when called again with the same arguments, within one answer
+SAME_AGAIN = {
+    "search_transcripts",
+    "find_similar",
+    "list_recordings",
+    "read_transcript",
+    "recording_outputs",
+    "find_entities",
+    "entity_mentions",
+    "entity_timeline",
+    "find_topics",
+    "topic_recordings",
+    "graph_neighbours",
+    "speaker_stats",
+    "graph_schema",
+    "graph_query",
+    "graph_related",
+    "graph_paths",
+}
+AGAIN = "You made this same call earlier in this answer, and its result is above: use it rather than calling it again."
+
+FINISH = (
+    "Don't call any more tools now: answer the question from what you found above, citing it, and say in a sentence "
+    "what you didn't get to check."
+)
+
+
+def _plain(msgs):
+    """The conversation without tool calls, for a server that won't answer while tools are offered: each call and what
+    it returned become text, and messages from the same side run together (some chat templates need them to alternate)."""
+    out = []
+    for m in msgs:
+        role, text = m["role"], m.get("content") or ""
+        if role == "assistant" and m.get("tool_calls"):
+            calls = []
+            for c in m["tool_calls"]:
+                fn = c.get("function") or {}
+                args = fn.get("arguments") or {}
+                calls.append(f"{fn.get('name')} {args if isinstance(args, str) else json.dumps(args)}")
+            text = (text + "\n\n" if text else "") + "Called " + "; ".join(calls)
+        elif role == "tool":
+            role, text = "user", "What the tool returned:\n" + text
+        if out and out[-1]["role"] == role and role != "system":
+            out[-1]["content"] += "\n\n" + text
+        else:
+            out.append({"role": role, "content": text})
+    return out
+
+
+def _finish(cfg, msgs, tools, model):
+    """The answer once the tool steps are spent, or after a reply that said nothing: the model is asked once more, with
+    the tools off. Empty if it still says nothing."""
+    msgs = msgs + [{"role": "user", "content": FINISH}]
+    try:
+        text = llm.chat_message(cfg, msgs, tools=tools, model=model, tool_choice="none")["content"]
+    except llm.ToolsUnsupported:  # a server that won't take tool_choice "none"
+        text = ""
+    if not text.strip():  # it called a tool anyway, or said nothing: the same conversation as plain text, no tools offered
+        text = llm.chat(cfg, _plain(msgs), model=model)
+    return text
+
+
 def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, setup=False, summary=None):
     """The tool loop: yields ("step", {...}) for each tool call, then ("answer", text), or ("direct", text) when the model
     answered without looking anything up (it never saw the archive, so the caller can answer from a search instead).
-    Raises llm.ToolsUnsupported."""
+    Every turn ends in an answer: when the steps run out, or the model replies with nothing, it's asked to answer from
+    what it found, with the tools off. Raises llm.ToolsUnsupported."""
     system = TOOL_SYSTEM + untrusted.rules(cfg) + ("\n\n" + SETUP_SYSTEM if setup else "")
     note = getattr(toolbox, "system_note", None)  # skills, and context from hooks (extensions.py)
     system += note() if note else ""
     system += summary_note(summary)
+    system += (
+        f"\n\nYou have up to {max_steps} rounds of tool calls for this question (make calls that don't depend on each other "
+        "in the same round), then you answer. Answer as soon as you have enough."
+    )
     msgs = [{"role": "system", "content": system}] + past_turns(history, summary=summary, cfg=cfg)
     msgs.append({"role": "user", "content": question})
-    for step in range(max_steps):
-        msg = llm.chat_message(cfg, msgs, tools=toolbox.specs(), model=model)
+    tools, looked, made = toolbox.specs(), False, set()
+    for _ in range(max_steps):
+        msg = llm.chat_message(cfg, msgs, tools=tools, model=model)
         if not msg["tool_calls"]:
-            yield ("direct" if step == 0 else "answer"), msg["content"]
-            return
+            if msg["content"].strip():
+                yield ("answer" if looked else "direct"), msg["content"]
+                return
+            break  # a reply with nothing in it
+        looked = True
         msgs.append({"role": "assistant", "content": msg["content"], "tool_calls": msg["tool_calls"]})
         for c in msg["tool_calls"]:
             fn = c.get("function") or {}
@@ -628,11 +699,19 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
                     args = {}
             if not isinstance(args, dict):
                 args = {}
+            name = fn.get("name", "")
+            key = (name, json.dumps(args, sort_keys=True, default=str))
+            if key in made:  # the same read again (a step spent, nothing new learned): it's pointed at the result it has
+                msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": json.dumps({"note": AGAIN})})
+                continue
+            # anything that may change what a read returns (a note written, a setting changed) makes every read new again
+            made = made | {key} if name in SAME_AGAIN else set()
             # as the model reads it: what the tool read from the archive, the web or another server marked as data
-            result, summary = toolbox.call(fn.get("name", ""), args, model=True)
-            yield "step", {"tool": fn.get("name"), "args": args, "summary": summary}
+            result, summary = toolbox.call(name, args, model=True)
+            yield "step", {"tool": name, "args": args, "summary": summary}
             msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": result})
-    yield "answer", "I ran out of steps before finishing. Try a narrower question."
+    text = _finish(cfg, msgs, tools, model) or "I couldn't put an answer together from what I found. Try again, or ask something narrower."
+    yield ("answer" if looked else "direct"), text
 
 
 VERIFY = {

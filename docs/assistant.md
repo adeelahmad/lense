@@ -95,11 +95,17 @@ When the configured model supports function calling, chat becomes an agent.
   outputs, entities and their mentions and timelines, the knowledge graph, people, and content similar to a text,
   an asset, a topic or an entity (`find_similar`).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
-  `ai.max_steps` and `ai.max_transcript_reads`.
+  `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
+- **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
+  asked once more to answer from what it found, with the tools off, and to say what it didn't get to check. A server
+  that calls tools anyway gets the conversation again as plain text, without tools. That last ask is one more model
+  call, logged in the activity ledger like the others. The same archive read twice in one answer (same tool, same
+  arguments) isn't run again: the model is pointed at the result it already has.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
-- **Approvals:** running a template on assets and changing entities (merging, renaming, retyping, describing one
-  and its other names, hiding one, or adding one to a namespace's fixed list) don't happen directly.
+- **Approvals:** running a template on assets, changing entities (merging, renaming, retyping, describing one
+  and its other names, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
+  renaming, describing or deleting one; [Topics](topics.md)) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
   (`POST /api/v1/approvals/<id>`). Viewers only get the read tools.
 - **Check sources** (`POST /api/v1/chats/<id>/messages/<id>/check`) re-checks every cited claim against the lines it

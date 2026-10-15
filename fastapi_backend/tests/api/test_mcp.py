@@ -75,6 +75,12 @@ def test_clients_are_sent_to_sign_in(client, app, env):
     assert [t["name"] for t in tools if not t["annotations"]["readOnlyHint"]] == [
         "suggest_topic",
         "propose_graph_change",
+        "undo_graph_change",
+        "edit_entity",
+        "edit_topic",
+        "merge_topics",
+        "delete_topic",
+        "undo_topic_change",
         "write_note",
         "create_podcast",
         "set_nsfw",
@@ -411,6 +417,45 @@ def test_topic_tools(client, db, env):
     ]
     assert "list of whole numbers" in tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=["x"])
     assert tool_error(client, he, "suggest_topic", topic_id=gene, recording_ids=[env["ids"][2]])  # calls isn't theirs
+
+
+def test_editing_topics_and_entities(client, db, env):
+    h = env["h"]  # a read-only app token for a pods viewer
+    pods = store.ns_id(db, "pods")
+    bio = topics.create(db, pods, "Biology")
+    life = topics.create(db, pods, "Life sciences", alt=["bioscience"])
+    dyno = tool(client, h, "list_entities", query="Dyno Therapeutics")["entities"][0]["entity_id"]
+    assert "read-only" in tool_error(client, h, "edit_topic", topic_id=bio, label="Biol")
+    assert "read-only" in tool_error(client, h, "merge_topics", keep_id=bio, other_ids=[life])
+    assert "read-only" in tool_error(client, h, "edit_entity", entity_id=dyno, description="A gene therapy company.")
+    make_user(db, "ed@x.io", "editor password 1", roles={"pods": "editor"})
+    he = login(client, "ed@x.io", "editor password 1")
+    # topics: edit, merge and undo, delete and undo
+    assert "say what changes" in tool_error(client, he, "edit_topic", topic_id=bio)
+    t = tool(client, he, "edit_topic", topic_id=bio, definition="Living things.", also=["bio"])
+    assert (t["label"], t["also"], t["definition"]) == ("Biology", ["bio"], "Living things.")
+    m = tool(client, he, "merge_topics", keep_id=bio, other_ids=[life])
+    assert m["also"] == ["bio", "Life sciences", "bioscience"] and m["undo_id"]
+    assert tool(client, he, "undo_topic_change", undo_id=m["undo_id"]) == {"undone": m["undo_id"]}
+    assert tool(client, h, "get_topic", topic_id=life)["label"] == "Life sciences"
+    assert "Nothing to undo" in tool_error(client, he, "undo_topic_change", undo_id=m["undo_id"])
+    d = tool(client, he, "delete_topic", topic_id=life)
+    assert tool_error(client, h, "get_topic", topic_id=life)
+    tool(client, he, "undo_topic_change", undo_id=d["undo_id"])
+    assert tool(client, h, "get_topic", topic_id=life)["also"] == ["bioscience"]
+    # entities: describe, say how else it's said, rename, hide and show
+    e = tool(client, he, "edit_entity", entity_id=dyno, description="A gene therapy company.", aliases=["Dyno"])
+    assert (e["description"], e["aliases"]) == ("A gene therapy company.", ["dyno"])  # aliases are kept as keys
+    e = tool(client, he, "edit_entity", entity_id=dyno, new_name="Dyno Tx", hidden=True)
+    assert e["name"] == "Dyno Tx" and "dyno therapeutics" in e["aliases"] and e["hidden"] is True
+    assert tool(client, he, "edit_entity", entity_id=dyno, hidden=False)["hidden"] is False
+    assert "say what changes" in tool_error(client, he, "edit_entity", entity_id=dyno)
+    # merging entities goes through a graph change, which can be undone
+    other = client.post("/api/v1/namespaces/pods/entities", json={"name": "Dyno Inc", "type": "ORG"}, headers=he).json()["id"]
+    ch = tool(client, he, "propose_graph_change", kind="merge", a=f"e{dyno}", b=f"e{other}", apply=True)
+    assert ch["status"] == "applied"
+    assert tool(client, he, "undo_graph_change", change_id=ch["id"]) == {"undone": ch["id"]}
+    assert tool(client, h, "get_entity", entity_id=other)["entity_id"] == other
 
 
 def test_note_tools(client, db, env):

@@ -289,7 +289,7 @@ export function ProblemCard({
         )}
         {mediaType && admin && (
           <Button asChild size="sm" variant="ghost">
-            <Link href="/settings/uploads">Upload settings</Link>
+            <Link href="/settings/uploads?field=uploads.extensions">Upload settings</Link>
           </Button>
         )}
         {onKind && it.kind === "transcript" && canBeTranscript(it.file.name) && (

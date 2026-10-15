@@ -606,6 +606,9 @@ def _pairs(ents):
 
 
 def suggestions(db, spaces, eid=None, limit=50):
+    if eid:  # one entity's: only its namespace can hold its doubles
+        own = db.one("SELECT space FROM $r", r=R("entity", int(eid)))
+        spaces = {own["space"]} & set(spaces) if own else set()
     ents = (
         [
             e

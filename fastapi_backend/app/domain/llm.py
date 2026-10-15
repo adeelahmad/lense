@@ -244,11 +244,12 @@ class ToolsUnsupported(LLMError):
     pass
 
 
-def chat_message(cfg, messages, tools=None, model=None, temperature=0.2):
-    """One assistant turn; returns {"content", "tool_calls"}. Raises ToolsUnsupported if the server rejects tools."""
+def chat_message(cfg, messages, tools=None, model=None, temperature=0.2, tool_choice="auto"):
+    """One assistant turn; returns {"content", "tool_calls"}. Raises ToolsUnsupported if the server rejects tools.
+    tool_choice "none" offers the tools (so earlier calls in the messages still make sense) but asks for text."""
     payload = {"model": model or cfg["llm"]["model"], "messages": messages, "temperature": temperature}
     if tools:
-        payload.update(tools=tools, tool_choice="auto")
+        payload.update(tools=tools, tool_choice=tool_choice)
     try:
         with telemetry.model_call(cfg, payload) as call, _post(cfg, payload) as r:
             j = call.reply(_load(r))

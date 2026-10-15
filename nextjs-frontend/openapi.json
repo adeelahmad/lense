@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.9.0"
+    "version": "0.10.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -3295,6 +3295,146 @@
         }
       }
     },
+    "/api/v1/settings/analytics/status": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Analytics Status",
+        "description": "Whether usage statistics go to Google Analytics, which events, and how the last send went. Off by default.",
+        "operationId": "analytics_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/analytics/test": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Test Analytics",
+        "description": "Send one lens_test event to Google Analytics' validation server (checked there, not recorded), on or off.",
+        "operationId": "test_analytics",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsTestResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Usage Metrics",
+        "description": "Daily, weekly and monthly active people, churn, retention by sign-up week and feature use over the last `days`\ndays, worked out here from the activity ledger and sign-ins; nothing is sent anywhere.",
+        "operationId": "usage_metrics",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 180,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalyticsMetrics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/analytics/events": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Usage Events",
+        "description": "The events Lens counted each day (install, daily active, feature used, upgrade, inactive...), newest first, and\nwhether each went to Google Analytics. Kept here whether or not Google Analytics is on.",
+        "operationId": "usage_events",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsageEvent"
+                  },
+                  "title": "Response Admin-Usage Events"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/logs/status": {
       "get": {
         "tags": [
@@ -3953,7 +4093,7 @@
         ],
         "responses": {
           "200": {
-            "description": "the backup (an embedded one as a .tar.gz)",
+            "description": "the backup: an export with no files as it is, anything else as a .tar.gz",
             "content": {
               "application/gzip": {}
             }
@@ -5125,7 +5265,7 @@
           "setup"
         ],
         "summary": "Save Telemetry",
-        "description": "Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector). Off unless chosen.",
+        "description": "Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector), and usage statistics\nto your own Google Analytics property when `analytics` is true. Each is off unless chosen.",
         "operationId": "save_telemetry",
         "requestBody": {
           "content": {
@@ -14994,7 +15134,7 @@
           "topics"
         ],
         "summary": "Delete Topic",
-        "description": "Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows again.",
+        "description": "Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows\nagain. `undo` takes it back (POST /topics/changes/{undo}/undo).",
         "operationId": "delete_topic",
         "parameters": [
           {
@@ -15013,7 +15153,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Ok"
+                  "$ref": "#/components/schemas/TopicDeleted"
                 }
               }
             }
@@ -15200,7 +15340,7 @@
           "topics"
         ],
         "summary": "Merge Topics",
-        "description": "Fold topics into one: their labels become its other labels and their assets are about it.",
+        "description": "Fold topics into one: their labels become its other labels and their assets are about it. `undo` takes it\nback (POST /topics/changes/{undo}/undo).",
         "operationId": "merge_topics",
         "requestBody": {
           "content": {
@@ -15218,7 +15358,107 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TopicDetail"
+                  "$ref": "#/components/schemas/TopicMerged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/topics/changes": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "List Topic Changes",
+        "description": "The namespace's latest topic merges and deletes, newest first, each with whether it was undone.",
+        "operationId": "list_topic_changes",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopicChange"
+                  },
+                  "title": "Response Topics-List Topic Changes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/changes/{cid}/undo": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Undo Topic Change",
+        "description": "Take back a merge or a delete: the topics come back with their labels, assets and pages. What changed\nsince stays. Refused (400) when another topic has taken one of their labels meanwhile.",
+        "operationId": "undo_topic_change",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -27683,6 +27923,381 @@
         ],
         "title": "ActivityTotals"
       },
+      "AnalyticsChurn": {
+        "properties": {
+          "previous_active": {
+            "type": "integer",
+            "title": "Previous Active"
+          },
+          "retained": {
+            "type": "integer",
+            "title": "Retained"
+          },
+          "churned": {
+            "type": "integer",
+            "title": "Churned"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate"
+          },
+          "returning": {
+            "type": "integer",
+            "title": "Returning"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "previous_active",
+          "retained",
+          "churned",
+          "returning"
+        ],
+        "title": "AnalyticsChurn"
+      },
+      "AnalyticsCohort": {
+        "properties": {
+          "week": {
+            "type": "string",
+            "title": "Week"
+          },
+          "users": {
+            "type": "integer",
+            "title": "Users"
+          },
+          "retention": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Retention"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "week",
+          "users",
+          "retention"
+        ],
+        "title": "AnalyticsCohort"
+      },
+      "AnalyticsDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "active_users": {
+            "type": "integer",
+            "title": "Active Users"
+          },
+          "actions": {
+            "type": "integer",
+            "title": "Actions"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "day",
+          "active_users",
+          "actions"
+        ],
+        "title": "AnalyticsDay"
+      },
+      "AnalyticsEvent": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "on"
+        ],
+        "title": "AnalyticsEvent"
+      },
+      "AnalyticsFeature": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "actions": {
+            "type": "integer",
+            "title": "Actions"
+          },
+          "users": {
+            "type": "integer",
+            "title": "Users"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "feature",
+          "actions",
+          "users"
+        ],
+        "title": "AnalyticsFeature"
+      },
+      "AnalyticsMetrics": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "since": {
+            "type": "string",
+            "title": "Since"
+          },
+          "until": {
+            "type": "string",
+            "title": "Until"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsDay"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "dau": {
+            "type": "integer",
+            "title": "Dau"
+          },
+          "wau": {
+            "type": "integer",
+            "title": "Wau"
+          },
+          "mau": {
+            "type": "integer",
+            "title": "Mau"
+          },
+          "stickiness": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stickiness"
+          },
+          "accounts": {
+            "type": "integer",
+            "title": "Accounts"
+          },
+          "active_users": {
+            "type": "integer",
+            "title": "Active Users"
+          },
+          "new_users": {
+            "type": "integer",
+            "title": "New Users"
+          },
+          "churn": {
+            "$ref": "#/components/schemas/AnalyticsChurn"
+          },
+          "retention": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsCohort"
+            },
+            "type": "array",
+            "title": "Retention"
+          },
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsFeature"
+            },
+            "type": "array",
+            "title": "Features"
+          },
+          "last_active_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Active Day"
+          },
+          "days_since_active": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Since Active"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "days",
+          "since",
+          "until",
+          "daily",
+          "dau",
+          "wau",
+          "mau",
+          "accounts",
+          "active_users",
+          "new_users",
+          "churn",
+          "retention",
+          "features"
+        ],
+        "title": "AnalyticsMetrics",
+        "description": "Active people, churn, retention and feature use, worked out on this machine from the activity ledger and\nsign-ins (docs/analytics.md#the-numbers)."
+      },
+      "AnalyticsStatus": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "measurement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Id"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "last_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sent At"
+          },
+          "last_sent": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Last Sent",
+            "default": []
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/AnalyticsEvent"
+            },
+            "type": "array",
+            "title": "Events"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "configured",
+          "events"
+        ],
+        "title": "AnalyticsStatus",
+        "description": "Whether usage statistics go to Google Analytics, and how the last send went (docs/analytics.md)."
+      },
+      "AnalyticsTestResult": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Messages",
+            "default": []
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "AnalyticsTestResult"
+      },
       "AnswerCheck": {
         "properties": {
           "claims": {
@@ -28335,7 +28950,14 @@
           },
           "bytes": {
             "type": "integer",
-            "title": "Bytes"
+            "title": "Bytes",
+            "description": "the database's part and the files kept with it"
+          },
+          "files": {
+            "type": "boolean",
+            "title": "Files",
+            "description": "the files under data_dir are kept with it, and put back when it is restored",
+            "default": false
           },
           "taken_at": {
             "type": "string",
@@ -54356,6 +54978,44 @@
         ],
         "title": "SetupAdmin"
       },
+      "SetupAnalyticsView": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "measurement_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Id"
+          },
+          "secret_set": {
+            "type": "boolean",
+            "title": "Secret Set"
+          },
+          "locked": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Locked"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "enabled",
+          "secret_set",
+          "locked"
+        ],
+        "title": "SetupAnalyticsView"
+      },
       "SetupBudget": {
         "properties": {
           "hard_usd": {
@@ -54856,6 +55516,41 @@
               }
             ],
             "title": "Endpoint"
+          },
+          "analytics": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Analytics"
+          },
+          "measurement_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measurement Id"
+          },
+          "api_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Secret"
           }
         },
         "additionalProperties": false,
@@ -54885,13 +55580,17 @@
             },
             "type": "array",
             "title": "Locked"
+          },
+          "analytics": {
+            "$ref": "#/components/schemas/SetupAnalyticsView"
           }
         },
         "additionalProperties": true,
         "type": "object",
         "required": [
           "enabled",
-          "locked"
+          "locked",
+          "analytics"
         ],
         "title": "SetupTelemetryView"
       },
@@ -58535,6 +59234,74 @@
         ],
         "title": "TopicCandidate"
       },
+      "TopicChange": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "merge or delete"
+          },
+          "keep": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keep",
+            "description": "the topic a merge kept"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels",
+            "description": "the topics that went",
+            "default": []
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "undone": {
+            "type": "boolean",
+            "title": "Undone",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "TopicChange"
+      },
       "TopicCreate": {
         "properties": {
           "label": {
@@ -58586,6 +59353,26 @@
           "label"
         ],
         "title": "TopicCreate"
+      },
+      "TopicDeleted": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "undo": {
+            "type": "integer",
+            "title": "Undo",
+            "description": "the change to take back with POST /topics/changes/{undo}/undo"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "undo"
+        ],
+        "title": "TopicDeleted"
       },
       "TopicDetail": {
         "properties": {
@@ -58840,6 +59627,120 @@
           "others"
         ],
         "title": "TopicMerge"
+      },
+      "TopicMerged": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "alt": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alt",
+            "default": []
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "broader": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Broader",
+            "default": []
+          },
+          "narrower": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Narrower",
+            "default": []
+          },
+          "related": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Related",
+            "default": []
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "default": 0
+          },
+          "from_entity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Entity"
+          },
+          "updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated"
+          },
+          "about": {
+            "items": {
+              "$ref": "#/components/schemas/TopicAbout"
+            },
+            "type": "array",
+            "title": "About",
+            "default": []
+          },
+          "undo": {
+            "type": "integer",
+            "title": "Undo",
+            "description": "the change to take back with POST /topics/changes/{undo}/undo"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "undo"
+        ],
+        "title": "TopicMerged"
       },
       "TopicRecordings": {
         "properties": {
@@ -59736,6 +60637,48 @@
           "size"
         ],
         "title": "UploadStart"
+      },
+      "UsageEvent": {
+        "properties": {
+          "at": {
+            "type": "string",
+            "title": "At"
+          },
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "default": {}
+          },
+          "sent": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "at",
+          "day",
+          "name"
+        ],
+        "title": "UsageEvent",
+        "description": "An event Lens counted for a day (docs/analytics.md#events)."
       },
       "UserCreate": {
         "properties": {

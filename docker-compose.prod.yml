@@ -63,6 +63,10 @@ x-backend: &backend
     LENS_TELEMETRY: ${LENS_TELEMETRY:-}
     LENS_TELEMETRY_ENDPOINT: ${LENS_TELEMETRY_ENDPOINT:-}
     LENS_TELEMETRY_HEADERS: ${LENS_TELEMETRY_HEADERS:-}
+    # opt-in usage events to your own Google Analytics 4 property (docs/analytics.md): unset, off unless turned on in Settings
+    LENS_ANALYTICS: ${LENS_ANALYTICS:-}
+    LENS_GA_MEASUREMENT_ID: ${LENS_GA_MEASUREMENT_ID:-}
+    LENS_GA_API_SECRET: ${LENS_GA_API_SECRET:-}
     # Prometheus (docs/prometheus.md): /metrics, off unless LENS_PROMETHEUS=on with a LENS_PROMETHEUS_TOKEN; the
     # monitoring profile below scrapes it and charts it in Grafana at LENS_GRAFANA_URL
     LENS_PROMETHEUS: ${LENS_PROMETHEUS:-}

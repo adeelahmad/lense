@@ -30,6 +30,7 @@ from app.api.v1.routes import graph as graph_routes
 from app.api.v1.routes import namespaces as namespace_routes
 from app.api.v1.routes import notebook as note_routes
 from app.api.v1.routes import recordings as recording_routes
+from app.api.v1.routes import routines as routine_routes
 from app.api.v1.routes import search as search_routes
 from app.api.v1.routes import topics as topic_routes
 from app.domain import (
@@ -55,9 +56,10 @@ from app.domain import entities as ents
 from app.domain import speakers as spk
 from app.domain import topics as topicmod
 from app.domain.store import DB
-from app.schemas.entities import EntityList
+from app.schemas.entities import EntityHide, EntityList, EntityRename, EntityRetype, EntityUpdate
 from app.schemas.notebook import NotePage
 from app.schemas.search import SearchResults
+from app.schemas.topics import TopicMerge, TopicUpdate
 
 R = store.R
 FETCH_CHARS = 100_000  # the most of a transcript fetch returns; get_transcript pages through the rest
@@ -1289,6 +1291,157 @@ def propose_graph_change(ctx: Context, kind: str, a: str, b: str, reason: str | 
         raise ToolError("this token is read-only: ask for a token with the write scope to propose changes")
     body = graph_routes.ChangeAsk(kind=kind, a=a, b=b, reason=reason, apply=apply)
     return graph_routes.propose_graph_change(ctx.request, body, ctx.user, ctx.acl, ctx.db)
+
+
+@tool(
+    "undo_graph_change",
+    "Undo a graph change",
+    "Take back a merge or link made by propose_graph_change (with apply, or once accepted): its id is the change's. "
+    "Needs a token with the write scope and editor access.",
+    Arg("change_id", "integer", "the change (propose_graph_change's id)", required=True),
+    writes=True,
+)
+def undo_graph_change(ctx: Context, change_id: int) -> dict[str, Any]:
+    _writer(ctx, "undo changes")
+    routine_routes.undo_graph_change(change_id, ctx.user, ctx.acl, ctx.db)
+    ctx.request.app.state.graph_cache.clear()
+    return {"undone": change_id}
+
+
+# ---------- editing entities and topics (docs/graph.md, docs/topics.md) ----------
+def _writer(ctx: Context, what: str) -> None:
+    if not ctx.user.can_write:
+        raise ToolError(f"this token is read-only: ask for a token with the write scope to {what}")
+
+
+@tool(
+    "edit_entity",
+    "Edit an entity",
+    "Rename an entity (the old name stays one of the ways it's said), change its type, describe it, set the other ways "
+    "it's said, or hide it (hidden false shows it again). Give only what changes. Renaming to another entity's name is "
+    "refused: merge them with propose_graph_change instead. Needs a token with the write scope and editor access.",
+    Arg("entity_id", "integer", "the entity (from list_entities or the graph's e<id>)", required=True),
+    Arg("new_name", "string", "its new name", max_length=200),
+    Arg("new_type", "string", "its new type: PERSON, ORG, PRODUCT, PLACE, EVENT, WORK, TERM or one of the namespace's own", max_length=40),
+    Arg("description", "string", "what it is, in a sentence or two", max_length=2000),
+    Arg("aliases", "string[]", "the other ways it's said (these replace the ones it has)"),
+    Arg("hidden", "boolean", "hide it from lists and the graph, or show it again"),
+    writes=True,
+)
+def edit_entity(
+    ctx: Context,
+    entity_id: int,
+    new_name: str | None,
+    new_type: str | None,
+    description: str | None,
+    aliases: list[str] | None,
+    hidden: bool | None,
+) -> dict[str, Any]:
+    _writer(ctx, "edit entities")
+    if new_name is None and new_type is None and description is None and aliases is None and hidden is None:
+        raise ToolError("say what changes: new_name, new_type, description, aliases or hidden")
+    args = (ctx.request, ctx.user, ctx.acl, ctx.db)
+    if new_name is not None:
+        entity_routes.rename_entity(entity_id, EntityRename(name=new_name), *args)
+    if new_type is not None:
+        entity_routes.retype_entities(EntityRetype(ids=[entity_id], type=new_type), *args)
+    if description is not None or aliases is not None:
+        body = EntityUpdate(**{k: v for k, v in (("description", description), ("aliases", aliases)) if v is not None})
+        entity_routes.update_entity(entity_id, body, *args)
+    if hidden is not None:
+        entity_routes.hide_entity(entity_id, *args, body=EntityHide(hidden=hidden))
+    d = entity_routes.get_entity(entity_id, ctx.user, ctx.acl, ctx.db)
+    return store.clean(
+        {"entity_id": d.id, "name": d.name, "type": d.type, "description": d.description, "aliases": d.aliases or None, "hidden": d.hidden}
+    )
+
+
+def _topic_out(d: Any) -> dict[str, Any]:
+    return store.clean(
+        {
+            "topic_id": d.id,
+            "label": d.label,
+            "also": d.alt or None,
+            "definition": d.definition,
+            "broader": [{"topic_id": x.id, "label": x.label} for x in d.broader] or None,
+            "related": [{"topic_id": x.id, "label": x.label} for x in d.related] or None,
+        }
+    )
+
+
+@tool(
+    "edit_topic",
+    "Edit a topic",
+    "Rename a topic, set its other labels or its definition, or what it is narrower than (broader_ids) or related to. "
+    "Give only what changes; lists replace the ones it has. Needs a token with the write scope and editor access.",
+    Arg("topic_id", "integer", "the topic (from list_topics or the graph's t<id>)", required=True),
+    Arg("label", "string", "its new label", max_length=200),
+    Arg("also", "string[]", "its other labels: synonyms, abbreviations, spellings"),
+    Arg("definition", "string", "what it covers", max_length=2000),
+    Arg("broader_ids", "integer[]", "the topics it is narrower than", maximum=50),
+    Arg("related_ids", "integer[]", "the topics it is related to", maximum=50),
+    writes=True,
+)
+def edit_topic(
+    ctx: Context,
+    topic_id: int,
+    label: str | None,
+    also: list[str] | None,
+    definition: str | None,
+    broader_ids: list[int] | None,
+    related_ids: list[int] | None,
+) -> dict[str, Any]:
+    _writer(ctx, "edit topics")
+    given = {"label": label, "alt": also, "definition": definition, "broader": broader_ids, "related": related_ids}
+    body = TopicUpdate(**{k: v for k, v in given.items() if v is not None})
+    if not body.model_fields_set:
+        raise ToolError("say what changes: label, also, definition, broader_ids or related_ids")
+    return _topic_out(topic_routes.update_topic(topic_id, body, ctx.request, ctx.user, ctx.acl, ctx.db))
+
+
+@tool(
+    "merge_topics",
+    "Merge topics",
+    "Fold other topics of the same namespace into one: their labels become its other labels and the assets about "
+    "them are about it. undo_id takes it back with undo_topic_change. Needs a token with the write scope and editor "
+    "access.",
+    Arg("keep_id", "integer", "the topic that stays", required=True),
+    Arg("other_ids", "integer[]", "the topics merged into it", required=True, maximum=50),
+    writes=True,
+)
+def merge_topics(ctx: Context, keep_id: int, other_ids: list[int]) -> dict[str, Any]:
+    _writer(ctx, "merge topics")
+    d = topic_routes.merge_topics(TopicMerge(keep=keep_id, others=other_ids), ctx.request, ctx.user, ctx.acl, ctx.db)
+    return {**_topic_out(d), "recordings": d.recordings, "undo_id": d.undo}
+
+
+@tool(
+    "delete_topic",
+    "Delete a topic",
+    "Delete a topic: its narrower topics move up to its broader ones and assets stop being about it. undo_id takes "
+    "it back with undo_topic_change. Needs a token with the write scope and editor access.",
+    Arg("topic_id", "integer", "the topic", required=True),
+    writes=True,
+)
+def delete_topic(ctx: Context, topic_id: int) -> dict[str, Any]:
+    _writer(ctx, "delete topics")
+    out = topic_routes.delete_topic(topic_id, ctx.request, ctx.user, ctx.acl, ctx.db)
+    return {"deleted": topic_id, "undo_id": out.undo}
+
+
+@tool(
+    "undo_topic_change",
+    "Undo a topic merge or delete",
+    "Take back a merge_topics or delete_topic (by its undo_id): the topics come back with their labels, assets and "
+    "pages. Refused when another topic has taken one of their labels since. Needs a token with the write scope and "
+    "editor access.",
+    Arg("undo_id", "integer", "what merge_topics or delete_topic gave back", required=True),
+    writes=True,
+)
+def undo_topic_change(ctx: Context, undo_id: int) -> dict[str, Any]:
+    _writer(ctx, "undo changes")
+    topic_routes.undo_topic_change(undo_id, ctx.request, ctx.user, ctx.acl, ctx.db)
+    return {"undone": undo_id}
 
 
 # ---------- notes (docs/notes.md) ----------

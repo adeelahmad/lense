@@ -173,7 +173,10 @@ export function BackupsPanel() {
                     {absolute(b.taken_at)}
                   </Td>
                   <Td className="whitespace-nowrap text-fg-secondary">{KIND_LABEL[b.label] ?? b.label}</Td>
-                  <Td className="tabular whitespace-nowrap text-fg-secondary">{bytes(b.bytes)}</Td>
+                  <Td className="tabular whitespace-nowrap text-fg-secondary">
+                    {bytes(b.bytes)}
+                    {b.files ? "" : " · database only"}
+                  </Td>
                   <Td className="whitespace-nowrap text-right">
                     {confirm?.name === b.name ? (
                       <span className="inline-flex items-center gap-1.5">
@@ -306,8 +309,8 @@ export function BackupsPanel() {
         </div>
       )}
       <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-        Backups hold the database. Back up the data folder too, for uploads and the files Lens makes, and keep
-        secret.key apart from the backups: it opens the credentials and file keys they hold.
+        Backups hold the database and the files Lens keeps (uploads, media, pages and the rest), and a restore puts both
+        back. Keep secret.key apart from the backups: it opens the credentials and file keys they hold.
       </p>
     </section>
   );

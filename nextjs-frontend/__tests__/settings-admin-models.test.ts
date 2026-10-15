@@ -41,6 +41,11 @@ jest.mock("next-auth/react", () => ({
 const spec = (id: string) => FIELDS.find((f) => fieldId(f) === id)!;
 
 describe("settings fields", () => {
+  it("reads back an unset Laya server as unset, so the AI assistant doesn't open with a change", () => {
+    const f = spec("decisions.laya_url");
+    expect(parse(f, toUi(f, null))).toEqual({ value: null });
+  });
+
   it("shows and parses values like the backend stores them", () => {
     expect(toUi(spec("server.session_hours"), 168)).toBe("7");
     expect(parse(spec("server.session_hours"), "7")).toEqual({ value: 168 });

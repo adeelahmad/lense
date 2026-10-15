@@ -24,6 +24,7 @@ import threading
 
 from . import (
     activity,
+    analytics,
     backups,
     budgets,
     fedora,
@@ -602,6 +603,11 @@ def run_due(db, cfg, log=print, now=None):
     stamp = _iso(now)
     sweep(db, now)
     activity.tidy(db, cfg)  # the activity ledger past activity.keep_days, once an hour
+    try:
+        analytics.tick(db, cfg, now)  # once a day, while Google Analytics is on (docs/analytics.md)
+    except Exception as e:  # noqa: BLE001 - the schedule carries on
+        if log:
+            log(f"analytics: {type(e).__name__}: {e}")
     try:
         budgets.sweep(db, cfg, every=budgets.SWEEP_SECONDS)  # budgets that crossed warn_at or their cap: warned once
     except Exception as e:  # noqa: BLE001 - the schedule carries on

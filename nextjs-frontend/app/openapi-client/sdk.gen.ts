@@ -42,6 +42,8 @@ import type {
   AddVaultPasskeyResponses,
   AllS3KeysData,
   AllS3KeysResponses,
+  AnalyticsStatusData,
+  AnalyticsStatusResponses,
   AnswerActionData,
   AnswerActionErrors,
   AnswerActionResponses,
@@ -927,6 +929,9 @@ import type {
   ListTemplatesResponses,
   ListTokensData,
   ListTokensResponses,
+  ListTopicChangesData,
+  ListTopicChangesErrors,
+  ListTopicChangesResponses,
   ListTopicsData,
   ListTopicsErrors,
   ListTopicsResponses,
@@ -1374,6 +1379,8 @@ import type {
   TelegramStatusResponses,
   TelemetryStatusData,
   TelemetryStatusResponses,
+  TestAnalyticsData,
+  TestAnalyticsResponses,
   TestBridgeData,
   TestBridgeResponses,
   TestConversionNodeData,
@@ -1446,6 +1453,9 @@ import type {
   UndoSpeakerMergeData,
   UndoSpeakerMergeErrors,
   UndoSpeakerMergeResponses,
+  UndoTopicChangeData,
+  UndoTopicChangeErrors,
+  UndoTopicChangeResponses,
   UnlinkEntityData,
   UnlinkEntityErrors,
   UnlinkEntityResponses,
@@ -1580,6 +1590,12 @@ import type {
   UpdateWorkflowResponses,
   UploadLimitsData,
   UploadLimitsResponses,
+  UsageEventsData,
+  UsageEventsErrors,
+  UsageEventsResponses,
+  UsageMetricsData,
+  UsageMetricsErrors,
+  UsageMetricsResponses,
   VaultOptionsData,
   VaultOptionsErrors,
   VaultOptionsResponses,
@@ -3077,6 +3093,64 @@ export class Admin {
   }
 
   /**
+   * Analytics Status
+   *
+   * Whether usage statistics go to Google Analytics, which events, and how the last send went. Off by default.
+   */
+  public static analyticsStatus<ThrowOnError extends boolean = false>(
+    options?: Options<AnalyticsStatusData, ThrowOnError>,
+  ): RequestResult<AnalyticsStatusResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<AnalyticsStatusResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/analytics/status",
+      ...options,
+    });
+  }
+
+  /**
+   * Test Analytics
+   *
+   * Send one lens_test event to Google Analytics' validation server (checked there, not recorded), on or off.
+   */
+  public static testAnalytics<ThrowOnError extends boolean = false>(
+    options?: Options<TestAnalyticsData, ThrowOnError>,
+  ): RequestResult<TestAnalyticsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).post<TestAnalyticsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/settings/analytics/test",
+      ...options,
+    });
+  }
+
+  /**
+   * Usage Metrics
+   *
+   * Daily, weekly and monthly active people, churn, retention by sign-up week and feature use over the last `days`
+   * days, worked out here from the activity ledger and sign-ins; nothing is sent anywhere.
+   */
+  public static usageMetrics<ThrowOnError extends boolean = false>(
+    options?: Options<UsageMetricsData, ThrowOnError>,
+  ): RequestResult<UsageMetricsResponses, UsageMetricsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<UsageMetricsResponses, UsageMetricsErrors, ThrowOnError>({
+      url: "/api/v1/admin/analytics",
+      ...options,
+    });
+  }
+
+  /**
+   * Usage Events
+   *
+   * The events Lens counted each day (install, daily active, feature used, upgrade, inactive...), newest first, and
+   * whether each went to Google Analytics. Kept here whether or not Google Analytics is on.
+   */
+  public static usageEvents<ThrowOnError extends boolean = false>(
+    options?: Options<UsageEventsData, ThrowOnError>,
+  ): RequestResult<UsageEventsResponses, UsageEventsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<UsageEventsResponses, UsageEventsErrors, ThrowOnError>({
+      url: "/api/v1/admin/analytics/events",
+      ...options,
+    });
+  }
+
+  /**
    * Log Status
    *
    * The API process's log level, its log file, and how sending to syslog is going (off by default).
@@ -3765,7 +3839,8 @@ export class Setup {
   /**
    * Save Telemetry
    *
-   * Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector). Off unless chosen.
+   * Opt in to telemetry: traces and metrics sent only to this endpoint (an OTLP collector), and usage statistics
+   * to your own Google Analytics property when `analytics` is true. Each is off unless chosen.
    */
   public static saveTelemetry<ThrowOnError extends boolean = false>(
     options: Options<SaveTelemetryData, ThrowOnError>,
@@ -6697,7 +6772,8 @@ export class Topics {
   /**
    * Delete Topic
    *
-   * Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows again.
+   * Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows
+   * again. `undo` takes it back (POST /topics/changes/{undo}/undo).
    */
   public static deleteTopic<ThrowOnError extends boolean = false>(
     options: Options<DeleteTopicData, ThrowOnError>,
@@ -6794,7 +6870,8 @@ export class Topics {
   /**
    * Merge Topics
    *
-   * Fold topics into one: their labels become its other labels and their assets are about it.
+   * Fold topics into one: their labels become its other labels and their assets are about it. `undo` takes it
+   * back (POST /topics/changes/{undo}/undo).
    */
   public static mergeTopics<ThrowOnError extends boolean = false>(
     options: Options<MergeTopicsData, ThrowOnError>,
@@ -6806,6 +6883,35 @@ export class Topics {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Topic Changes
+   *
+   * The namespace's latest topic merges and deletes, newest first, each with whether it was undone.
+   */
+  public static listTopicChanges<ThrowOnError extends boolean = false>(
+    options: Options<ListTopicChangesData, ThrowOnError>,
+  ): RequestResult<ListTopicChangesResponses, ListTopicChangesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListTopicChangesResponses, ListTopicChangesErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/topics/changes",
+      ...options,
+    });
+  }
+
+  /**
+   * Undo Topic Change
+   *
+   * Take back a merge or a delete: the topics come back with their labels, assets and pages. What changed
+   * since stays. Refused (400) when another topic has taken one of their labels meanwhile.
+   */
+  public static undoTopicChange<ThrowOnError extends boolean = false>(
+    options: Options<UndoTopicChangeData, ThrowOnError>,
+  ): RequestResult<UndoTopicChangeResponses, UndoTopicChangeErrors, ThrowOnError> {
+    return (options.client ?? client).post<UndoTopicChangeResponses, UndoTopicChangeErrors, ThrowOnError>({
+      url: "/api/v1/topics/changes/{cid}/undo",
+      ...options,
     });
   }
 

@@ -161,7 +161,7 @@ export function EpisodePage({ id }: { id: number }) {
       {ep.status === "script_only" && (
         <Banner tone="warning" title="No voices yet.">
           Text to speech isn’t set up, so there’s a script but no audio.{" "}
-          <Link href="/settings/ai" className="font-semibold text-fg-accent hover:underline">
+          <Link href="/settings/ai?field=voice.tts_provider" className="font-semibold text-fg-accent hover:underline">
             Set it up in Settings
           </Link>
           , then remake it.

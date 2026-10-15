@@ -52,6 +52,7 @@
         "workers and DB peers",
         "host control inbox and the monitoring scrape token",
         "admin machine setup requests",
+        "entity and topic curation tools",
         "microsandbox program requests"
       ],
       "touches": [
@@ -518,6 +519,15 @@
       "caller_must_enforce": "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again",
       "provenance": "documented",
       "source": "docs/updates.md \"Setting the machine up again\""
+    },
+    {
+      "entry_point": "entity and topic curation tools",
+      "parameter": "MCP edit_entity, edit_topic, merge_topics, delete_topic, undo_topic_change, undo_graph_change; assistant propose_topic_change: entity and topic ids, names, labels, definitions",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited",
+      "provenance": "documented",
+      "source": "docs/mcp.md \"curate entities and topics as an editor does\""
     },
     {
       "entry_point": "microsandbox program requests",

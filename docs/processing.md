@@ -111,7 +111,16 @@ People, organisations, products, places, events, works and topics are extracted 
 numbers are extracted too, but hidden unless asked for.
 
 The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab)
-and opens each in a side panel where editors rename, retype, describe and hide it.
+and opens each in a side panel where editors rename, retype, describe, merge and hide it.
+
+- **Merge from the side panel:** **Merge** opens a find box; type a name and press Enter, and the entity picked is
+  merged into the open one at once. Its **Maybe the same** list offers likely doubles (same letters, an acronym, a near
+  spelling) with **Merge** and **Not the same**. Renaming an entity to a name another entity has offers to merge them.
+- **Merge or retype many:** editors tick rows (or the whole page) and the bar at the bottom merges them into one (the
+  one on the fixed list, else the most mentioned; the arrow picks another) or gives them all one type.
+- Every merge and bulk type change happens at once and has **Undo** on its notice, so nothing asks to confirm.
+- **From a recording:** in a recording's **Entities** tab, the pencil next to an entity opens the same side panel, so
+  editors rename, retype, hide or merge it without leaving the recording.
 
 - **Index** (`GET /api/v1/entities`):
   - Search forgives misspellings and covers aliases.

@@ -100,7 +100,8 @@ class Backup(ResponseModel):
     name: str
     label: str = Field(description="manual, or before-upgrade")
     kind: Literal["export", "folder"] = Field(description="export: a SurrealDB export (.surql.gz); folder: an embedded database's copy")
-    bytes: int
+    bytes: int = Field(description="the database's part and the files kept with it")
+    files: bool = Field(False, description="the files under data_dir are kept with it, and put back when it is restored")
     taken_at: str
 
 

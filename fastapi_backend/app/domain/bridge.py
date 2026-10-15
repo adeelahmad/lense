@@ -363,9 +363,10 @@ def _answer(db, cfg, base, account, cid, q, files, act_on, outside):
 
 
 # ---------- approving in the room ----------
-# what can be approved by a reply in the room: changes to the graph (history keeps them, and they can be undone) and
-# new namespaces; settings, imports, batch runs, extensions and forgetting are approved in the web app
-ROOM_SAFE = {"propose_entity_change", "create_namespace"}
+# what can be approved by a reply in the room: changes to the entities and topics (history keeps them, and merges and
+# deletes can be undone) and new namespaces; settings, imports, batch runs, extensions and forgetting are approved in
+# the web app
+ROOM_SAFE = {"propose_entity_change", "propose_topic_change", "create_namespace"}
 YES_RX = re.compile(r"^(?:yes|y|yep|approve|approved|ok|okay|do it|go ahead)(?:\s+#?(\d+|all))?\s*[.!]*$", re.I)
 NO_RX = re.compile(r"^(?:no|n|nope|decline|cancel|don't)(?:\s+#?(\d+|all))?\s*[.!]*$", re.I)
 

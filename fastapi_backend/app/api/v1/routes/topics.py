@@ -15,10 +15,13 @@ from app.schemas.common import Ok
 from app.schemas.topics import (
     RecordingTopic,
     TopicCandidate,
+    TopicChange,
     TopicCreate,
+    TopicDeleted,
     TopicDetail,
     TopicList,
     TopicMerge,
+    TopicMerged,
     TopicRecordings,
     TopicSkip,
     TopicUpdate,
@@ -129,26 +132,51 @@ def update_topic(tid: int, body: TopicUpdate, request: Request, user: Writer, ac
 
 
 @router.delete("/topics/{tid}")
-def delete_topic(tid: int, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
-    """Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows again."""
+def delete_topic(tid: int, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDeleted:
+    """Delete it: its narrower topics move up, assets stop being about it, and an entity it was made from shows
+    again. `undo` takes it back (POST /topics/changes/{undo}/undo)."""
     _topic_space(db, acl, tid, "curate")
     with domain_errors():
-        eid = topics.delete(db, tid)
+        eid, cid = topics.delete(db, tid, user=user.email)
     auth.audit(db, user.as_audit(), "topic.delete", f"topic:{tid}", {"entity": eid} if eid else None)
     _changed(request)
-    return Ok()
+    return TopicDeleted(undo=cid)
 
 
 @router.post("/topics/merge")
-def merge_topics(body: TopicMerge, request: Request, user: Writer, acl: Acl, db: Db) -> TopicDetail:
-    """Fold topics into one: their labels become its other labels and their assets are about it."""
+def merge_topics(body: TopicMerge, request: Request, user: Writer, acl: Acl, db: Db) -> TopicMerged:
+    """Fold topics into one: their labels become its other labels and their assets are about it. `undo` takes it
+    back (POST /topics/changes/{undo}/undo)."""
     for t in [body.keep, *body.others]:
         _topic_space(db, acl, t, "curate")
     with domain_errors():
-        topics.merge(db, body.keep, body.others, user=user.email)
+        cid = topics.merge(db, body.keep, body.others, user=user.email)
     auth.audit(db, user.as_audit(), "topic.merge", f"topic:{body.keep}", {"others": body.others})
     _changed(request)
-    return _detail(db, acl, body.keep)
+    return TopicMerged(**_detail(db, acl, body.keep).model_dump(), undo=cid)
+
+
+@router.get("/namespaces/{name}/topics/changes")
+def list_topic_changes(name: str, user: CurrentUser, acl: Acl, db: Db, limit: int = 50) -> list[TopicChange]:
+    """The namespace's latest topic merges and deletes, newest first, each with whether it was undone."""
+    sid = acl.nsid(name)
+    acl.need(sid, "viewer")
+    return [TopicChange(**c) for c in topics.changes(db, sid, min(max(limit, 1), 200))]
+
+
+@router.post("/topics/changes/{cid}/undo")
+def undo_topic_change(cid: int, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
+    """Take back a merge or a delete: the topics come back with their labels, assets and pages. What changed
+    since stays. Refused (400) when another topic has taken one of their labels meanwhile."""
+    row = db.one("SELECT space FROM $r", r=R("topic_change", int(cid)))
+    if not row:
+        raise HTTPException(404, "not found")
+    acl.need(row["space"], "curate")
+    with domain_errors():
+        out = topics.undo(db, cid, user=user.email)
+    auth.audit(db, user.as_audit(), f"topic.{out['kind']}.undo", f"topic_change:{cid}", {"topics": out["topics"]})
+    _changed(request)
+    return Ok()
 
 
 @router.post("/topics/{tid}/recordings")

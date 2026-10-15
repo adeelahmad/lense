@@ -14,13 +14,16 @@ assistant and MCP tools for topics.
 **Topics** in the navigation shows a namespace's vocabulary as a tree: top topics first, each opening onto its
 narrower ones (a topic under two broader topics shows under both). Search finds topics by any of their labels. Pick
 a topic to edit it in a drawer: its labels, definition, broader and related topics, its narrower topics, and the
-assets about it, where suggested ones can be accepted or removed. The drawer also merges topics and deletes one.
-Editors add topics at the top or under another with **+**.
+assets about it, where suggested ones can be accepted or removed. **Merge** in the drawer opens a find box: type
+part of a label and pick (or press Enter) to merge that topic into this one at once. **Delete** deletes it at once.
+Both say what they did with **Undo** on the message, so there is no confirm step. Editors add topics at the top or
+under another with **+**.
 
 An asset's **Entities** tab starts with its topics: editors add one from the vocabulary, take one off, or accept
 or dismiss a suggestion. An entity of type Term has **Make a topic** in its drawer. On the graph canvas topics are
 green tags, with About, Narrower and Related edges; ask the graph (for example `MATCH (t:Topic) RETURN t`) or open an
-asset's children to bring them in.
+asset's children to bring them in. Editors edit a topic from the graph (**Edit…** on a node's menu, or **Edit**
+in its panel) and merge one into another with **Merge into another…** and a click on the one to keep.
 
 ## A topic
 
@@ -66,11 +69,16 @@ assets join it.
 Deleting a topic moves its narrower topics up to its broader ones. Merging topics makes the others' labels the kept
 topic's other labels and brings their assets over.
 
+Either can be undone: the topics come back with their ids, labels, definitions, recordings and note pages, the
+broader and related lists they were taken out of are put back, and a topic made from an entity hides that entity
+again. Whatever changed since stays. Undo is refused when another topic has taken one of their labels meanwhile:
+rename that one first.
+
 ## Rights
 
 Reading needs a role in the namespace; changing the vocabulary or which assets are about a topic needs the editor
 role there. Every change is in the audit log (`topic.create`, `topic.update`, `topic.delete`, `topic.merge`,
-`topic.tag`, `topic.untag`, `topic.from_entity`).
+`topic.tag`, `topic.untag`, `topic.from_entity`, `topic.merge.undo`, `topic.delete.undo`).
 
 ## The API
 
@@ -80,8 +88,10 @@ role there. Every change is in the audit log (`topic.create`, `topic.update`, `t
 | `GET /api/v1/topics/{id}` | A topic with its broader, narrower and related topics and the assets about it. |
 | `POST /api/v1/namespaces/{name}/topics` | Add a topic `{label, alt, definition, broader, related}`. |
 | `PATCH /api/v1/topics/{id}` | Change any of those; an empty definition clears it. |
-| `DELETE /api/v1/topics/{id}` | Delete it. |
-| `POST /api/v1/topics/merge` `{keep, others}` | Merge topics into one. |
+| `DELETE /api/v1/topics/{id}` | Delete it; the answer's `undo` takes it back. |
+| `POST /api/v1/topics/merge` `{keep, others}` | Merge topics into one; the answer's `undo` takes it back. |
+| `GET /api/v1/namespaces/{name}/topics/changes` | The latest merges and deletes, newest first, each with whether it was undone. |
+| `POST /api/v1/topics/changes/{id}/undo` | Take a merge or a delete back. |
 | `POST /api/v1/topics/{id}/recordings` `{recordings, remove}` | Say assets are about it, or aren't. |
 | `GET /api/v1/resources/{id}/topics` | The topics an asset is about, and those suggested. |
 | `POST /api/v1/entities/{id}/topic` | Make a TERM entity a topic. |
@@ -108,7 +118,8 @@ In RDF ([Linked data](rdf.md)) a topic is `/id/topic/<id>`, a `skos:Concept` in 
 
 - Vocabularies shared by several namespaces, and imported schemes (LCSH, Wikidata) linked with `skos:exactMatch`.
 - Entities as authority records: variant names and external identifiers.
-- History and undo for topic merges and deletes.
+- A page listing the latest topic merges and deletes, to undo one after its message has gone.
+- Picking several topics on the Topics page to merge them in one go.
 
 ## Notes, the assistant and agents
 
@@ -120,3 +131,8 @@ The assistant in Chat finds topics (`find_topics`), reads one with its assets (`
 editors, suggests a topic for assets (`suggest_topic`). The MCP server has the same as `list_topics`, `get_topic`
 and `suggest_topic` (with a write-scope token). Suggestions from either wait for someone to accept them, with
 `assistant` as their source; what people accepted or dismissed stays as it is.
+
+Asked to tidy the vocabulary, the assistant proposes merging, renaming, describing or deleting a topic
+(`propose_topic_change`), which happens only when the person approves it, in Chat or with a yes in a chat room. With
+a write-scope token, agents edit, merge and delete topics over MCP (`edit_topic`, `merge_topics`, `delete_topic`) and
+take a merge or delete back with `undo_topic_change`.

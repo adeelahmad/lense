@@ -110,6 +110,7 @@ nav:
       - Telemetry: telemetry.md
       - Logging: logging.md
       - Prometheus: prometheus.md
+      - Usage analytics: analytics.md
   - Build:
       - Architecture: architecture.md
       - Web app: frontend.md

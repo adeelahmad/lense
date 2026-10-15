@@ -661,6 +661,24 @@ DEFAULTS = {
         "syslog_verify": True,
         "syslog_app_name": "lens",
     },
+    # usage analytics (docs/analytics.md): the numbers are worked out locally from the activity ledger; Google Analytics
+    # is off unless an admin turns it on with a GA4 measurement id and a Measurement Protocol API secret (sealed)
+    "analytics": {
+        "enabled": False,
+        "measurement_id": None,
+        "api_secret": None,
+        "region": "global",
+        "events": [
+            "lens_install",
+            "lens_setup_done",
+            "lens_daily_active",
+            "lens_feature_used",
+            "lens_upgrade",
+            "lens_inactive",
+            "lens_return",
+        ],
+        "inactive_days": 30,
+    },
     # new releases (docs/updates.md): check asks GitHub for repo's latest release every check_hours, for the web app's
     # banner; auto_install installs one as soon as it's seen, through the machine's upgrade agent (install.sh sets it up)
     # email: tell admins by email when a new release is seen (once per release; needs Settings › Email). Namespaces'
@@ -1124,6 +1142,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS topic_about_rec ON topic_about FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS topic_about_topic ON topic_about FIELDS topic",
     "DEFINE INDEX IF NOT EXISTS topic_about_space ON topic_about FIELDS space",
+    # merges and deletes of topics, kept so they can be undone (app/domain/topics.py)
+    "DEFINE TABLE IF NOT EXISTS topic_change SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS topic_change_space ON topic_change FIELDS space",
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",

@@ -41,11 +41,13 @@ SECTIONS = (
     "mailbox",
     "matterbridge",
     "telemetry",
+    "analytics",
     "sensors",
     "shares",
 )
-# sensors and shares open ports on the network; files moves where new files go
-ALWAYS_ASK = {"telemetry", "sensors", "shares", "files"}
+# telemetry and analytics send data elsewhere; sensors and shares open ports on the network; files moves where new
+# files go
+ALWAYS_ASK = {"telemetry", "analytics", "sensors", "shares", "files"}
 ASK_TOOLS = {"invite_person", "change_person"}  # who gets in always waits for the admin's approval
 
 ADMIN_TOOLS = [
@@ -194,6 +196,7 @@ def status(db, cfg, base):
         "max_upload_mb": view["storage"]["max_upload_mb"],
         "jobs": q,
         "telemetry_on": view["telemetry"]["enabled"],
+        "google_analytics_on": view["telemetry"]["analytics"]["enabled"],
         # engines and models the workers are still fetching for themselves, or couldn't (Settings → Components)
         "components_not_ready": fetching,
     }

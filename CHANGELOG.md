@@ -4,6 +4,51 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
+
+- **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
+  with "I ran out of steps before finishing". Now it's asked to answer from what it found, with the tools off, and says
+  what it didn't get to check; a reply with nothing in it is asked again the same way. It also knows its step budget up
+  front, so it looks things up in fewer rounds, and the same lookup twice in one answer points it at the result it
+  already has instead of running it again ([The assistant's tools](docs/assistant.md#the-assistants-tools)).
+- **Backups hold Lens's files too.** Each backup now also keeps the files under `data_dir` (uploads, objects, media,
+  frames, renditions, web pages, reports, exports, podcasts, certificates), and restoring one puts them back. Files
+  that haven't changed since the previous backup are hard links, so a backup takes only the room of what changed; the
+  first one takes as much room as the files. Downloads and copies on a storage connection carry them as well. Older
+  backups show *database only* ([Backups](docs/database.md#backups)).
+- **Analytics.** A new Analytics page (admins) shows active people per day, week and month, stickiness, churn rate,
+  retention by sign-up week and feature use, worked out on the server from the activity ledger and sign-ins. Each day
+  Lens also keeps a few counted events (install, daily active, feature used, upgrade, inactive, return). They can
+  optionally go to your own Google Analytics 4 property too; that is off by default and is set in Settings → Usage
+  analytics or the setup wizard ([Usage analytics](docs/analytics.md)).
+- **Merge entities in fewer clicks, and undo instead of confirm.** On the Entities page, tick rows and the bar at the
+  bottom merges them into one (the one on the fixed list, else the most mentioned) or gives them one type. An entity's
+  side panel has **Merge**, a find box where Enter merges the entity picked into it, and **Maybe the same**, its likely
+  doubles with **Merge** and **Not the same**. Renaming an entity to another's name offers to merge them. Merges, type
+  changes and hiding say what happened with **Undo** ([Entities](docs/processing.md#entities-and-the-graph-explorer)).
+- **Edit and merge from the graph.** In the graph explorer, an entity's or topic's panel has **Edit**, which opens the
+  same editor as its own page, and an entity's has **Merge** and **Maybe the same**. The node menu has **Edit…** and
+  **Merge into another…**, which merges the node into the one clicked next (entities and speakers of one namespace;
+  entities of two namespaces are linked as the same thing), each with **Undo** ([The graph](docs/graph.md)).
+- **Undo topic merges and deletes.** Merging or deleting a topic happens at once, with **Undo** on its notice instead
+  of a confirm step: the topics come back with their labels, recordings, broader and related topics and pages. A
+  topic's drawer has a find box to merge another topic in, and topics merge on the graph canvas too. The API answers
+  a merge or delete with an `undo` id (`POST /api/v1/topics/changes/{id}/undo`) and lists recent ones
+  ([Topics](docs/topics.md)).
+- **Edit entities from a recording.** In a recording's **Entities** tab, the pencil next to an entity opens its side
+  panel, so editors rename, retype, hide or merge it without leaving the recording
+  ([Entities](docs/processing.md#entities-and-the-graph-explorer)).
+- **Agents edit and merge entities and topics.** The MCP server has `edit_entity`, `edit_topic`, `merge_topics`,
+  `delete_topic`, `undo_topic_change` and `undo_graph_change` (with a write-scope token and editor access), and the
+  assistant proposes topic merges, renames, definitions and deletes for the person to approve
+  (`propose_topic_change`) ([MCP](docs/mcp.md), [Topics](docs/topics.md)).
+
+### Features
+
+- **settings:** group the sections and find a setting by name ([#390](https://github.com/adeelahmad/lense/pull/390))
+- **settings:** fold the options most people leave as they are ([#392](https://github.com/adeelahmad/lense/pull/392))
+- **nav:** name the navigation's groups ([#394](https://github.com/adeelahmad/lense/pull/394))
+
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 
 - **Evidence PDFs hold everything Lens found.** After each resource's own file come pages of what Lens knows about

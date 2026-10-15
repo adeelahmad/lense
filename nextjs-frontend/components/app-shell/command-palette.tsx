@@ -2,12 +2,13 @@
 
 import * as D from "@radix-ui/react-dialog";
 import { useQuery } from "@tanstack/react-query";
-import { CornerDownLeft, FileAudio, Search, Zap } from "lucide-react";
+import { CornerDownLeft, FileAudio, Search, Settings, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Resources } from "@/app/openapi-client";
 import { navFor } from "@/components/app-shell/nav-config";
+import { findSettings, hitHref, settingHref } from "@/components/settings/find";
 import { data, useApiClient } from "@/lib/api/browser";
 import { tc } from "@/lib/format";
 import { useArchive } from "@/lib/hooks/session";
@@ -21,7 +22,7 @@ type Item = {
   icon: React.ReactNode;
 };
 
-/** ⌘K: jump to a recording or a page; ">" limits results to actions. */
+/** ⌘K: jump to a recording, a page or a setting; ">" limits results to actions. */
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -105,7 +106,22 @@ export function CommandPalette() {
             icon: <FileAudio className="size-4" />,
           }))
       : [];
-    return [...recordings, ...pages, ...actions];
+    // Settings by name, or by a field in them (the LLM's timeout): a field opens its section on it
+    const settings: Item[] = t
+      ? findSettings(t, admin)
+          .flatMap((h) =>
+            h.byField
+              ? h.fields.map((f) => ({
+                  label: f.label,
+                  meta: `Settings › ${h.label}`,
+                  href: settingHref(h.section, f),
+                }))
+              : [{ label: h.label, meta: `Settings · ${h.group}`, href: hitHref(h) }],
+          )
+          .slice(0, 6)
+          .map((x) => ({ group: "Settings", icon: <Settings className="size-4" />, ...x }))
+      : [];
+    return [...recordings, ...pages, ...settings, ...actions];
   }, [q, recs.data, admin, can]);
 
   useEffect(() => setSel(0), [q]);
@@ -167,7 +183,7 @@ export function CommandPalette() {
                 aria-expanded
                 aria-controls="palette-list"
                 aria-activedescendant={items[sel] ? `palette-${sel}` : undefined}
-                placeholder="Search assets and pages, or > for actions"
+                placeholder="Search assets, pages and settings, or > for actions"
                 className="h-14 flex-1 bg-transparent text-[16px] text-fg outline-hidden placeholder:text-fg-muted"
               />
               <kbd className="rounded-xs border border-border px-1.5 text-[11px] text-fg-muted">esc</kbd>

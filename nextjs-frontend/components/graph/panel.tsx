@@ -1,12 +1,14 @@
 "use client";
 
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Loader2, Pause, Play, Search as SearchIcon, X } from "lucide-react";
+import { GitMerge, Loader2, Pause, Pencil, Play, Search as SearchIcon, X } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { Entities, Search } from "@/app/openapi-client";
 import { nameTone } from "@/components/chat/citation";
 import { shortTitle } from "@/components/chat/cite";
+import { MaybeSame, MergeInto } from "@/components/entities/curate";
 import {
   connections,
   nodeHref,
@@ -166,23 +168,38 @@ export function nodeBasis(n: Pick<GraphNode, "kind" | "refs" | "label">): Simila
   return null;
 }
 
-/** The node panel: what it is, where it's mentioned (playable), what it's connected to, and what you can do with it. */
+/** An entity or topic to open in its editor (the same drawer as on its own page). */
+export type EditTarget = { kind: "entity" | "topic"; id: number; ns: string };
+
+/** What a node opens in an editor: an entity or topic of one namespace whose editor role you have. A global node
+ * joining entities of several namespaces has one per namespace, so it opens none by itself. */
+export function editTarget(n: GraphNode, can: (role: "editor", ns: string) => boolean): EditTarget | null {
+  if ((n.kind !== "entity" && n.kind !== "topic") || n.refs.length !== 1 || n.ns.length !== 1) return null;
+  return can("editor", n.ns[0]) ? { kind: n.kind, id: n.refs[0], ns: n.ns[0] } : null;
+}
+
+/** The node panel: what it is, where it's mentioned (playable), what it's connected to, and what you can do with it:
+ * editors edit an entity or topic and merge another entity into it here. */
 export function NodePanel({
   node,
   nodes,
   edges,
   onSelect,
   onClose,
+  onEdit,
 }: {
   node: GraphNode;
   nodes: GraphNode[];
   edges: GraphEdge[];
   onSelect: (id: string) => void;
   onClose: () => void;
+  onEdit?: (t: EditTarget) => void;
 }) {
   if (STRUCTURE_KINDS.has(node.kind))
-    return <StructurePanel node={node} nodes={nodes} edges={edges} onSelect={onSelect} onClose={onClose} />;
-  return <ThingPanel node={node} nodes={nodes} edges={edges} onSelect={onSelect} onClose={onClose} />;
+    return (
+      <StructurePanel node={node} nodes={nodes} edges={edges} onSelect={onSelect} onClose={onClose} onEdit={onEdit} />
+    );
+  return <ThingPanel node={node} nodes={nodes} edges={edges} onSelect={onSelect} onClose={onClose} onEdit={onEdit} />;
 }
 
 /** A recording, collection or namespace found by exploring: what it is, a link to its page, and its links here. */
@@ -192,16 +209,20 @@ function StructurePanel({
   edges,
   onSelect,
   onClose,
+  onEdit,
 }: {
   node: GraphNode;
   nodes: GraphNode[];
   edges: GraphEdge[];
   onSelect: (id: string) => void;
   onClose: () => void;
+  onEdit?: (t: EditTarget) => void;
 }) {
+  const { can } = useArchive();
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const links = connections(edges, node.id);
   const href = nodeHref(node);
+  const edit = onEdit ? editTarget(node, can) : null;
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2.5">
@@ -215,11 +236,18 @@ function StructurePanel({
         {typeLabel(node)}
         {node.ns.length > 0 && ` · ${node.ns.join(", ")}`}
       </p>
-      {href && (
-        <div>
-          <Button asChild size="xs" variant="secondary">
-            <Link href={href}>Open</Link>
-          </Button>
+      {(href || edit) && (
+        <div className="flex flex-wrap gap-1.5">
+          {edit && (
+            <Button size="xs" variant="secondary" icon={<Pencil />} onClick={() => onEdit?.(edit)}>
+              Edit
+            </Button>
+          )}
+          {href && (
+            <Button asChild size="xs" variant={edit ? "ghost" : "secondary"}>
+              <Link href={href}>Open</Link>
+            </Button>
+          )}
         </div>
       )}
       <p className="m-0 text-[12.5px] text-fg-secondary">
@@ -254,15 +282,20 @@ function ThingPanel({
   edges,
   onSelect,
   onClose,
+  onEdit,
 }: {
   node: GraphNode;
   nodes: GraphNode[];
   edges: GraphEdge[];
   onSelect: (id: string) => void;
   onClose: () => void;
+  onEdit?: (t: EditTarget) => void;
 }) {
   const client = useApiClient();
   const { can } = useArchive();
+  const [merging, setMerging] = useState(false);
+  useEffect(() => setMerging(false), [node.id]);
+  const edit = onEdit ? editTarget(node, can) : null;
   const player = useInlinePlayer();
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const links = connections(edges, node.id);
@@ -284,6 +317,13 @@ function ThingPanel({
     ? `/batches/new?speaker=${node.refs[0]}&ns=${encodeURIComponent(node.ns[0] ?? "")}`
     : `/batches/new?entity=${node.refs.join(",")}&label=${encodeURIComponent(node.label)}`;
   const runCount = isSpeaker ? (node.recordings ?? 0) : recs;
+  // a global node joining several namespaces' entities: each opens on its own
+  const parts =
+    onEdit && !isSpeaker && node.refs.length > 1
+      ? details
+          .map((d) => d.data)
+          .filter((d): d is NonNullable<typeof d> => Boolean(d?.namespace) && can("editor", d!.namespace!))
+      : [];
 
   return (
     <div className="flex flex-col gap-3">
@@ -326,7 +366,38 @@ function ThingPanel({
             `Run on ${runCount}`
           )}
         </Button>
+        {edit && (
+          <>
+            <Button size="xs" variant="ghost" icon={<Pencil />} onClick={() => onEdit?.(edit)}>
+              Edit
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              icon={<GitMerge />}
+              aria-pressed={merging}
+              onClick={() => setMerging((m) => !m)}
+            >
+              Merge
+            </Button>
+          </>
+        )}
+        {parts.map((d) => (
+          <Button
+            key={d.id}
+            size="xs"
+            variant="ghost"
+            icon={<Pencil />}
+            onClick={() => onEdit?.({ kind: "entity", id: d.id, ns: d.namespace! })}
+          >
+            Edit in {d.namespace}
+          </Button>
+        ))}
       </div>
+      {edit && (
+        <MergeInto keep={{ id: edit.id, name: node.label }} ns={edit.ns} open={merging} onOpenChange={setMerging} />
+      )}
+      {edit && <MaybeSame entity={{ id: edit.id, name: node.label }} canEdit />}
       <h3 className="pt-1 text-[12px] font-bold text-fg-secondary">{isSpeaker ? "Assets" : "Mentions"}</h3>
       {isSpeaker ? <SpeakerRecordings n={node} player={player} /> : <EntityMentions n={node} player={player} />}
       <InlinePlayerBar player={player} />

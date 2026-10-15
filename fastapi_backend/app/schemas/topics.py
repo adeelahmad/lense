@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from app.schemas.common import RequestModel, ResponseModel
+from app.schemas.common import Ok, RequestModel, ResponseModel
 
 
 class TopicRef(ResponseModel):
@@ -75,6 +75,24 @@ class TopicUpdate(RequestModel):
 class TopicMerge(RequestModel):
     keep: int
     others: list[int] = Field(min_length=1)
+
+
+class TopicMerged(TopicDetail):
+    undo: int = Field(description="the change to take back with POST /topics/changes/{undo}/undo")
+
+
+class TopicDeleted(Ok):
+    undo: int = Field(description="the change to take back with POST /topics/changes/{undo}/undo")
+
+
+class TopicChange(ResponseModel):
+    id: int
+    kind: str = Field(description="merge or delete")
+    keep: int | None = Field(None, description="the topic a merge kept")
+    labels: list[str] = Field([], description="the topics that went")
+    by: str | None = None
+    at: str | None = None
+    undone: bool = False
 
 
 class TopicRecordings(RequestModel):

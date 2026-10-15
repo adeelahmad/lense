@@ -11,6 +11,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
     models = ["fake", "fake-large"]  # what GET /models lists
     tool_script = []  # assistant messages to return, in order, when a request offers tools (or functions of the request)
     reject_tools = False  # behave like a server whose model can't call tools
+    ignore_tool_choice = False  # behave like a server that calls tools even when asked not to (tool_choice "none")
     blind = False  # behave like a server whose model can't see images
     names = None  # namespace names suggested for a question (auto_scope.py)
     decision = None  # the answer to a decision (decide.py) when no decision model is set up; else the first option
@@ -45,6 +46,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return
             msg = Handler.tool_script.pop(0) if Handler.tool_script else {"content": "Nothing more to add."}
             msg = msg(body) if callable(msg) else msg
+            if body.get("tool_choice") == "none" and not Handler.ignore_tool_choice:
+                msg = {"content": msg.get("content")}
             return self._json(
                 {"choices": [{"message": {"role": "assistant", "content": msg.get("content"), "tool_calls": msg.get("tool_calls")}}]}
             )

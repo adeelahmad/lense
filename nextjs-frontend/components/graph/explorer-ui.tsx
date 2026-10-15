@@ -6,8 +6,10 @@ import {
   ArrowUpToLine,
   EyeOff,
   GitFork,
+  GitMerge,
   Loader2,
   Network,
+  Pencil,
   Route,
   RotateCcw,
   Share2,
@@ -31,7 +33,8 @@ const ICONS: Record<Relation, typeof Network> = {
   neighbours: Share2,
 };
 
-/** A node's menu (right-click, long press, or M on the keyboard), opened at a point on the canvas. */
+/** A node's menu (right-click, long press, or M on the keyboard), opened at a point on the canvas. Editors also edit
+ * an entity or topic from it, and start merging an entity into another one picked next. */
 export function NodeMenu({
   node,
   at,
@@ -39,6 +42,8 @@ export function NodeMenu({
   byId,
   onClose,
   onSelect,
+  onEdit,
+  onMerge,
 }: {
   node: GraphNode | null;
   at: { x: number; y: number } | null;
@@ -46,6 +51,10 @@ export function NodeMenu({
   byId: Map<string, GraphNode>;
   onClose: () => void;
   onSelect: (id: string) => void;
+  /** Open this node in its editor; absent when it can't be edited here. */
+  onEdit?: () => void;
+  /** Merge this node into the one picked next; absent when it can't be merged. */
+  onMerge?: () => void;
 }) {
   const start = ex.pathStart ? byId.get(ex.pathStart) : null;
   const href = node ? nodeHref(node) : null;
@@ -98,6 +107,16 @@ export function NodeMenu({
             Rings around this
           </MenuItem>
           <MenuSeparator />
+          {onEdit && (
+            <MenuItem icon={<Pencil />} onSelect={onEdit}>
+              Edit…
+            </MenuItem>
+          )}
+          {onMerge && (
+            <MenuItem icon={<GitMerge />} onSelect={onMerge}>
+              Merge into another…
+            </MenuItem>
+          )}
           <MenuItem onSelect={() => onSelect(node.id)}>Show details</MenuItem>
           {href && (
             <MenuItem asChild>
@@ -122,6 +141,8 @@ export function ExplorerBar({
   version,
   asOf,
   onNow,
+  mergeFrom,
+  onMergeCancel,
 }: {
   ex: Explorer;
   byId: Map<string, GraphNode>;
@@ -130,6 +151,9 @@ export function ExplorerBar({
   /** the version shown, when it isn't now */
   asOf?: string | null;
   onNow?: () => void;
+  /** the node being merged into the one picked next */
+  mergeFrom?: string | null;
+  onMergeCancel?: () => void;
 }) {
   const options = LAYOUTS.filter((l) => l.key !== "route" || ex.route.length > 1);
   const label = (id: string) => byId.get(id)?.label ?? id;
@@ -189,6 +213,11 @@ export function ExplorerBar({
       {ex.pathStart && (
         <Chip onClear={() => ex.setPathStart(null)} label="Cancel">
           Paths from {label(ex.pathStart)}: now pick where to
+        </Chip>
+      )}
+      {mergeFrom && onMergeCancel && (
+        <Chip onClear={onMergeCancel} label="Cancel the merge">
+          Merge {label(mergeFrom)} into: now pick the one to keep
         </Chip>
       )}
       {ex.route.length > 0 && (

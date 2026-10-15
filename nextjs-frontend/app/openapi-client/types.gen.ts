@@ -289,6 +289,240 @@ export type ActivityTotals = {
 };
 
 /**
+ * AnalyticsChurn
+ */
+export type AnalyticsChurn = {
+  /**
+   * Previous Active
+   */
+  previous_active: number;
+  /**
+   * Retained
+   */
+  retained: number;
+  /**
+   * Churned
+   */
+  churned: number;
+  /**
+   * Rate
+   */
+  rate?: number | null;
+  /**
+   * Returning
+   */
+  returning: number;
+  [key: string]: unknown;
+};
+
+/**
+ * AnalyticsCohort
+ */
+export type AnalyticsCohort = {
+  /**
+   * Week
+   */
+  week: string;
+  /**
+   * Users
+   */
+  users: number;
+  /**
+   * Retention
+   */
+  retention: Array<number | null>;
+  [key: string]: unknown;
+};
+
+/**
+ * AnalyticsDay
+ */
+export type AnalyticsDay = {
+  /**
+   * Day
+   */
+  day: string;
+  /**
+   * Active Users
+   */
+  active_users: number;
+  /**
+   * Actions
+   */
+  actions: number;
+  [key: string]: unknown;
+};
+
+/**
+ * AnalyticsEvent
+ */
+export type AnalyticsEvent = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Description
+   */
+  description: string;
+  /**
+   * On
+   */
+  on: boolean;
+  [key: string]: unknown;
+};
+
+/**
+ * AnalyticsFeature
+ */
+export type AnalyticsFeature = {
+  /**
+   * Feature
+   */
+  feature: string;
+  /**
+   * Actions
+   */
+  actions: number;
+  /**
+   * Users
+   */
+  users: number;
+  [key: string]: unknown;
+};
+
+/**
+ * AnalyticsMetrics
+ *
+ * Active people, churn, retention and feature use, worked out on this machine from the activity ledger and
+ * sign-ins (docs/analytics.md#the-numbers).
+ */
+export type AnalyticsMetrics = {
+  /**
+   * Days
+   */
+  days: number;
+  /**
+   * Since
+   */
+  since: string;
+  /**
+   * Until
+   */
+  until: string;
+  /**
+   * Daily
+   */
+  daily: Array<AnalyticsDay>;
+  /**
+   * Dau
+   */
+  dau: number;
+  /**
+   * Wau
+   */
+  wau: number;
+  /**
+   * Mau
+   */
+  mau: number;
+  /**
+   * Stickiness
+   */
+  stickiness?: number | null;
+  /**
+   * Accounts
+   */
+  accounts: number;
+  /**
+   * Active Users
+   */
+  active_users: number;
+  /**
+   * New Users
+   */
+  new_users: number;
+  churn: AnalyticsChurn;
+  /**
+   * Retention
+   */
+  retention: Array<AnalyticsCohort>;
+  /**
+   * Features
+   */
+  features: Array<AnalyticsFeature>;
+  /**
+   * Last Active Day
+   */
+  last_active_day?: string | null;
+  /**
+   * Days Since Active
+   */
+  days_since_active?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * AnalyticsStatus
+ *
+ * Whether usage statistics go to Google Analytics, and how the last send went (docs/analytics.md).
+ */
+export type AnalyticsStatus = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Configured
+   */
+  configured: boolean;
+  /**
+   * Measurement Id
+   */
+  measurement_id?: string | null;
+  /**
+   * Client Id
+   */
+  client_id?: string | null;
+  /**
+   * Last Sent At
+   */
+  last_sent_at?: string | null;
+  /**
+   * Last Sent
+   */
+  last_sent?: Array<string>;
+  /**
+   * Last Error
+   */
+  last_error?: string | null;
+  /**
+   * Events
+   */
+  events: Array<AnalyticsEvent>;
+  [key: string]: unknown;
+};
+
+/**
+ * AnalyticsTestResult
+ */
+export type AnalyticsTestResult = {
+  /**
+   * Ok
+   */
+  ok: boolean;
+  /**
+   * Error
+   */
+  error?: string | null;
+  /**
+   * Messages
+   */
+  messages?: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * AnswerCheck
  */
 export type AnswerCheck = {
@@ -705,8 +939,16 @@ export type Backup = {
   kind: "export" | "folder";
   /**
    * Bytes
+   *
+   * the database's part and the files kept with it
    */
   bytes: number;
+  /**
+   * Files
+   *
+   * the files under data_dir are kept with it, and put back when it is restored
+   */
+  files?: boolean;
   /**
    * Taken At
    */
@@ -15730,6 +15972,29 @@ export type SetupAdmin = {
 };
 
 /**
+ * SetupAnalyticsView
+ */
+export type SetupAnalyticsView = {
+  /**
+   * Enabled
+   */
+  enabled: boolean;
+  /**
+   * Measurement Id
+   */
+  measurement_id?: string | null;
+  /**
+   * Secret Set
+   */
+  secret_set: boolean;
+  /**
+   * Locked
+   */
+  locked: Array<string>;
+  [key: string]: unknown;
+};
+
+/**
  * SetupBudget
  */
 export type SetupBudget = {
@@ -16007,6 +16272,18 @@ export type SetupTelemetry = {
    * Endpoint
    */
   endpoint?: string | null;
+  /**
+   * Analytics
+   */
+  analytics?: boolean | null;
+  /**
+   * Measurement Id
+   */
+  measurement_id?: string | null;
+  /**
+   * Api Secret
+   */
+  api_secret?: string | null;
 };
 
 /**
@@ -16025,6 +16302,7 @@ export type SetupTelemetryView = {
    * Locked
    */
   locked: Array<string>;
+  analytics: SetupAnalyticsView;
   [key: string]: unknown;
 };
 
@@ -18196,6 +18474,47 @@ export type TopicCandidate = {
 };
 
 /**
+ * TopicChange
+ */
+export type TopicChange = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Kind
+   *
+   * merge or delete
+   */
+  kind: string;
+  /**
+   * Keep
+   *
+   * the topic a merge kept
+   */
+  keep?: number | null;
+  /**
+   * Labels
+   *
+   * the topics that went
+   */
+  labels?: Array<string>;
+  /**
+   * By
+   */
+  by?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  /**
+   * Undone
+   */
+  undone?: boolean;
+  [key: string]: unknown;
+};
+
+/**
  * TopicCreate
  */
 export type TopicCreate = {
@@ -18219,6 +18538,23 @@ export type TopicCreate = {
    * Related
    */
   related?: Array<number>;
+};
+
+/**
+ * TopicDeleted
+ */
+export type TopicDeleted = {
+  /**
+   * Ok
+   */
+  ok?: boolean;
+  /**
+   * Undo
+   *
+   * the change to take back with POST /topics/changes/{undo}/undo
+   */
+  undo: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -18362,6 +18698,67 @@ export type TopicMerge = {
    * Others
    */
   others: Array<number>;
+};
+
+/**
+ * TopicMerged
+ */
+export type TopicMerged = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Namespace
+   */
+  namespace?: string | null;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Alt
+   */
+  alt?: Array<string>;
+  /**
+   * Definition
+   */
+  definition?: string | null;
+  /**
+   * Broader
+   */
+  broader?: Array<TopicRef>;
+  /**
+   * Narrower
+   */
+  narrower?: Array<TopicRef>;
+  /**
+   * Related
+   */
+  related?: Array<TopicRef>;
+  /**
+   * Recordings
+   */
+  recordings?: number;
+  /**
+   * From Entity
+   */
+  from_entity?: number | null;
+  /**
+   * Updated
+   */
+  updated?: string | null;
+  /**
+   * About
+   */
+  about?: Array<TopicAbout>;
+  /**
+   * Undo
+   *
+   * the change to take back with POST /topics/changes/{undo}/undo
+   */
+  undo: number;
+  [key: string]: unknown;
 };
 
 /**
@@ -18887,6 +19284,37 @@ export type UploadStart = {
    * keep it out of the archive once it's here (state `held`), to attach to a chat message: the assistant puts it in a namespace (no `namespace` needed)
    */
   hold?: boolean;
+};
+
+/**
+ * UsageEvent
+ *
+ * An event Lens counted for a day (docs/analytics.md#events).
+ */
+export type UsageEvent = {
+  /**
+   * At
+   */
+  at: string;
+  /**
+   * Day
+   */
+  day: string;
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown;
+  };
+  /**
+   * Sent
+   */
+  sent?: boolean | null;
+  [key: string]: unknown;
 };
 
 /**
@@ -22284,6 +22712,100 @@ export type TestTelemetryResponses = {
 
 export type TestTelemetryResponse = TestTelemetryResponses[keyof TestTelemetryResponses];
 
+export type AnalyticsStatusData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/analytics/status";
+};
+
+export type AnalyticsStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsStatus;
+};
+
+export type AnalyticsStatusResponse = AnalyticsStatusResponses[keyof AnalyticsStatusResponses];
+
+export type TestAnalyticsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/analytics/test";
+};
+
+export type TestAnalyticsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsTestResult;
+};
+
+export type TestAnalyticsResponse = TestAnalyticsResponses[keyof TestAnalyticsResponses];
+
+export type UsageMetricsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Days
+     */
+    days?: number;
+  };
+  url: "/api/v1/admin/analytics";
+};
+
+export type UsageMetricsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UsageMetricsError = UsageMetricsErrors[keyof UsageMetricsErrors];
+
+export type UsageMetricsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AnalyticsMetrics;
+};
+
+export type UsageMetricsResponse = UsageMetricsResponses[keyof UsageMetricsResponses];
+
+export type UsageEventsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/admin/analytics/events";
+};
+
+export type UsageEventsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UsageEventsError = UsageEventsErrors[keyof UsageEventsErrors];
+
+export type UsageEventsResponses = {
+  /**
+   * Response Admin-Usage Events
+   *
+   * Successful Response
+   */
+  200: Array<UsageEvent>;
+};
+
+export type UsageEventsResponse = UsageEventsResponses[keyof UsageEventsResponses];
+
 export type LogStatusData = {
   body?: never;
   path?: never;
@@ -22688,7 +23210,7 @@ export type BackupFileError = BackupFileErrors[keyof BackupFileErrors];
 
 export type BackupFileResponses = {
   /**
-   * the backup (an embedded one as a .tar.gz)
+   * the backup: an export with no files as it is, anything else as a .tar.gz
    */
   200: Blob | File;
 };
@@ -29254,7 +29776,7 @@ export type DeleteTopicResponses = {
   /**
    * Successful Response
    */
-  200: Ok;
+  200: TopicDeleted;
 };
 
 export type DeleteTopicResponse = DeleteTopicResponses[keyof DeleteTopicResponses];
@@ -29436,10 +29958,77 @@ export type MergeTopicsResponses = {
   /**
    * Successful Response
    */
-  200: TopicDetail;
+  200: TopicMerged;
 };
 
 export type MergeTopicsResponse = MergeTopicsResponses[keyof MergeTopicsResponses];
+
+export type ListTopicChangesData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: {
+    /**
+     * Limit
+     */
+    limit?: number;
+  };
+  url: "/api/v1/namespaces/{name}/topics/changes";
+};
+
+export type ListTopicChangesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListTopicChangesError = ListTopicChangesErrors[keyof ListTopicChangesErrors];
+
+export type ListTopicChangesResponses = {
+  /**
+   * Response Topics-List Topic Changes
+   *
+   * Successful Response
+   */
+  200: Array<TopicChange>;
+};
+
+export type ListTopicChangesResponse = ListTopicChangesResponses[keyof ListTopicChangesResponses];
+
+export type UndoTopicChangeData = {
+  body?: never;
+  path: {
+    /**
+     * Cid
+     */
+    cid: number;
+  };
+  query?: never;
+  url: "/api/v1/topics/changes/{cid}/undo";
+};
+
+export type UndoTopicChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UndoTopicChangeError = UndoTopicChangeErrors[keyof UndoTopicChangeErrors];
+
+export type UndoTopicChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type UndoTopicChangeResponse = UndoTopicChangeResponses[keyof UndoTopicChangeResponses];
 
 export type TagRecordingsData = {
   body: TopicRecordings;

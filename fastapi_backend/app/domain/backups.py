@@ -8,8 +8,8 @@ an embedded folder is swapped for the copy, with the database closed meanwhile. 
 put back if importing fails. A backup from an older Lens is brought up to date afterwards (its schema, then the named
 steps), and every process reloads its settings.
 
-Backups hold the database only: files Lens keeps under data_dir, and secret.key (keep that apart from the backups,
-docs/encryption.md), are backed up with the data folder.
+Each backup also keeps the files under data_dir (uploads, objects, media and the rest; datafiles.py), and a restore puts
+them back too. secret.key isn't in them: keep it apart from the backups (docs/encryption.md).
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ import shutil
 import threading
 import time
 
-from . import migrations, schedule, store
+from . import datafiles, migrations, schedule, store
 from .store import R
 
 log = logging.getLogger("lens")
@@ -64,8 +64,9 @@ def listing(db):
             if not m:
                 continue
             at = dt.datetime.strptime(m["stamp"], "%Y%m%d-%H%M%S").replace(tzinfo=dt.timezone.utc)
+            files = datafiles.path(db.data_dir, p.name)
             try:
-                size = _size(p)
+                size = _size(p) + (_size(files) if files else 0)
             except OSError:
                 continue
             out.append(
@@ -74,6 +75,7 @@ def listing(db):
                     "label": m["label"],
                     "kind": "folder" if m["kind"] == "surrealkv" else "export",
                     "bytes": size,
+                    "files": files is not None,
                     "taken_at": at.isoformat(timespec="seconds"),
                 }
             )
@@ -101,6 +103,7 @@ def take(db):
 def delete(db, name):
     p = path(db, name)
     shutil.rmtree(p) if p.is_dir() else p.unlink()
+    datafiles.drop(db.data_dir, name)
 
 
 def in_progress(db):
@@ -114,6 +117,7 @@ def prune(db, label, keep):
     for old in [b for b in listing(db) if b["label"] == label][keep:]:
         with contextlib.suppress(OSError, ValueError):
             delete(db, old["name"])
+    datafiles.tidy(db.data_dir, [b["name"] for b in listing(db)] + in_progress(db))
 
 
 def _take(db, label):
@@ -148,12 +152,26 @@ def restore(db, cfg, name):
     safety = _take(db, "before-restore") if migrations._has_data(db) else None
     if safety:
         prune(db, "before-restore", RESTORE_KEEP)
-    if db.embedded:
-        _swap(db, src)
-    else:
-        _import(db, src, safety and path(db, safety["name"]))
+    live = _db_path(db)
+    files = datafiles.restore(db.data_dir, name, live)  # first: a failure here leaves everything as it was
+    try:
+        if db.embedded:
+            _swap(db, src)
+        else:
+            _import(db, src, safety and path(db, safety["name"]))
+    except Exception:
+        if files and safety:  # the database was put back, so its files go back too
+            try:
+                datafiles.restore(db.data_dir, safety["name"], live)
+            except Exception:  # noqa: BLE001
+                log.exception("putting the files back after a failed restore failed too; restore %s", safety["name"])
+        raise
     _after(db, cfg, seq_was)
     return safety
+
+
+def _db_path(db):
+    return db.url.partition("://")[2] if db.embedded else None
 
 
 def _swap(db, src):
@@ -331,7 +349,7 @@ def run_due(db, cfg, log=None, now=None):
 
 # ---------- copies on a storage connection ----------
 # Every new backup (taken by hand or on the schedule) is also copied to backups.connection, under backups.folder, as
-# <name>.lensbk: the export (or the embedded folder as a .tar.gz), encrypted with a key derived from secret.key. Not with
+# <name>.lensbk: the export (or the embedded folder, and the files kept with it, as a .tar.gz), encrypted with a key derived from secret.key. Not with
 # a namespace's key: those are kept in the database, and a backup must open when the database is gone. So keep
 # secret.key (or ARCHIVE_SECRET_KEY) somewhere other than the connection, or the copies can't be read.
 SEALED = ".lensbk"
@@ -399,15 +417,27 @@ def remote(cfg):
     return {"store": "connection", "connection": int(b["connection"]), "folder": b.get("folder") or "lens-backups", "crypt": False}
 
 
-def _package(src: pathlib.Path, out: pathlib.Path):
-    """A backup as one file: the export as it is, an embedded folder as a .tar.gz."""
+def parts(db, name):
+    """What the backup `name` is made of, as (path, its name in a .tar.gz): the database, and the files kept with it
+    under <name>.files/."""
+    src = path(db, name)
+    out = [(src, src.name)]
+    if files := datafiles.path(db.data_dir, name):
+        out.append((files, f"{name}{datafiles.FOLDER}"))
+    return out
+
+
+def _package(db, name, out: pathlib.Path):
+    """A backup as one file: an export with no files as it is, anything else as a .tar.gz."""
     import tarfile
 
-    if not src.is_dir():
-        shutil.copyfile(src, out)
+    got = parts(db, name)
+    if len(got) == 1 and not got[0][0].is_dir():
+        shutil.copyfile(got[0][0], out)
         return
     with tarfile.open(out, "w:gz") as tar:
-        tar.add(src, arcname=src.name)
+        for p, arcname in got:
+            tar.add(p, arcname=arcname)
 
 
 def send(db, cfg, name):
@@ -417,11 +447,11 @@ def send(db, cfg, name):
     where = remote(cfg)
     if where is None:
         raise BackupError("choose a storage connection for backups first")
-    src = path(db, name)
+    path(db, name)
     tmp = folder(db) / f".send-{time.time_ns()}"
     sealed = tmp.with_name(tmp.name + SEALED)
     try:
-        _package(src, tmp)
+        _package(db, name, tmp)
         seal(cfg, tmp, sealed)
         blobs._send(db, cfg, where, name + SEALED, sealed)
     finally:
@@ -529,12 +559,21 @@ def fetch(db, cfg, name):
             raise ValueError("no such backup on the connection") from None
         unseal(cfg, sealed, plain)
         part = dst.with_name(dst.name + ".fetching")
-        if name.endswith(".surrealkv"):
+        if tarfile.is_tarfile(plain):
             out = d / f".untar-{time.time_ns()}"
-            with tarfile.open(plain, "r:gz") as tar:
-                tar.extractall(out, filter="data")
-            (out / name).rename(part)
-            shutil.rmtree(out, ignore_errors=True)
+            try:
+                with tarfile.open(plain, "r:gz") as tar:
+                    tar.extractall(out, filter="data")
+                if not (out / name).exists():
+                    raise BackupError("this copy doesn't hold the backup it is named after")
+                files = out / f"{name}{datafiles.FOLDER}"
+                if files.is_dir():
+                    datafiles.drop(db.data_dir, name)
+                    datafiles.folder(db.data_dir).mkdir(parents=True, exist_ok=True)
+                    files.rename(datafiles.folder(db.data_dir) / name)
+                (out / name).rename(part)
+            finally:
+                shutil.rmtree(out, ignore_errors=True)
         else:
             plain.rename(part)
         part.rename(dst)

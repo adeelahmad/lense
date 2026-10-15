@@ -22,6 +22,14 @@ to itself and has one. On a computer the Find in graph box has the focus, so typ
 - **Node menu**: right-click a node (long-press on touch, or select it and press M) for its parents, children, all
   ancestors, all descendants and neighbours, paths to another node (pick it next), a BFS, DFS or radial layout from
   it, adding it to a route, its details and its page, or hiding it. What is found joins the canvas and lights up.
+- **Edit and merge** (editors of the node's namespace): an entity's or topic's panel has **Edit**, which opens the
+  same editor as its own page (name, type, description, other names; a topic's labels, definition, broader and related
+  topics), and an entity's has **Merge**, a find box where Enter merges the entity picked into it, and **Maybe the
+  same**, its likely doubles. From the node menu, **Edit…** does the same and **Merge into another…** merges the node
+  into the one you pick next: entities of one namespace are merged, entities of two namespaces are linked as the same
+  thing, and speakers and topics of one namespace are merged. Each happens at once with **Undo** on its notice. A node that joins
+  entities of several namespaces (all shared) offers **Edit in** each namespace. Looking at an earlier version, the
+  graph is read-only.
 - **Route**: add stops from the node menu; the route follows the shortest path between each pair of stops, laid out
   left to right.
 - **Ask**: the bar at the bottom takes a question in plain words or Cypher (anything starting with `MATCH`). The

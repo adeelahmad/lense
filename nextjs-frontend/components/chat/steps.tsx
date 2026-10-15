@@ -35,6 +35,7 @@ const ICON: Record<string, LucideIcon> = {
   speaker_stats: AudioLines,
   run_template: Play,
   propose_entity_change: PencilLine,
+  propose_topic_change: PencilLine,
 };
 
 type Kind = "done" | "failed" | "waiting";
