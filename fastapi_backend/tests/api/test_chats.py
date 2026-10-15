@@ -363,17 +363,14 @@ def test_every_answer_ends_in_words_not_tool_calls(app, db, cfg, folder, new_cli
     s = Assist(app, db, cfg, folder, new_client)
     c, h = s.cl["editor"]
 
-    def search(i):
+    def tool(i, name, args):
         return {
             "content": "",
-            "tool_calls": [
-                {
-                    "id": f"s{i}",
-                    "type": "function",
-                    "function": {"name": "search_transcripts", "arguments": json.dumps({"query": "capsid"})},
-                }
-            ],
+            "tool_calls": [{"id": f"s{i}", "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}],
         }
+
+    def search(i, query=None):  # a different search each round, unless the query is given
+        return tool(i, "search_transcripts", {"query": query or ("capsid" if i == 0 else f"capsid {i}")})
 
     def ask(q):
         cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
@@ -410,11 +407,21 @@ def test_every_answer_ends_in_words_not_tool_calls(app, db, cfg, folder, new_cli
     assert len(ev["step"]) == 1 and ev["token"][0]["text"] == "Found it [1]."
     assert llm.seen[-1]["tool_choice"] == "none"
 
-    # and a model that never says anything still leaves an answer that says so
+    # the same read twice in one answer isn't run again: the model is pointed at the result it already has
+    llm.tool_script = [search(0), search(1, "capsid"), {"content": "Capsid [1]."}]
+    cid, ev = ask("capsid?")
+    assert len(ev["step"]) == 1 and ev["token"][0]["text"] == "Capsid [1]."
+    assert llm.seen[-1]["messages"][-1] == {"role": "tool", "tool_call_id": "s1", "content": json.dumps({"note": chat.AGAIN})}
+    # unless something that may change what it reads ran in between
+    llm.tool_script = [search(0), tool(1, "find_notes", {"query": "capsid"}), search(2, "capsid"), {"content": "Capsid [1]."}]
+    cid, ev = ask("capsid?")
+    assert [x["tool"] for x in ev["step"]] == ["search_transcripts", "find_notes", "search_transcripts"]
+
+    # and a model that says nothing even when asked again with the tools off gets the plain-text ask
     llm.ignore_tool_choice = True
     llm.tool_script = [search(0), {"content": ""}, {"content": ""}]
     cid, ev = ask("capsid?")
-    assert ev["token"][0]["text"] == "OK"  # the plain-text ask answered
+    assert ev["token"][0]["text"] == "OK"
 
 
 def test_streamed_answers_without_thinking_or_cut_off(monkeypatch):

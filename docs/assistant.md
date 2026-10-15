@@ -99,7 +99,8 @@ When the configured model supports function calling, chat becomes an agent.
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
   asked once more to answer from what it found, with the tools off, and to say what it didn't get to check. A server
   that calls tools anyway gets the conversation again as plain text, without tools. That last ask is one more model
-  call, logged in the activity ledger like the others.
+  call, logged in the activity ledger like the others. The same archive read twice in one answer (same tool, same
+  arguments) isn't run again: the model is pointed at the result it already has.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
 - **Approvals:** running a template on recordings, changing entities (merging, renaming, retyping, describing one

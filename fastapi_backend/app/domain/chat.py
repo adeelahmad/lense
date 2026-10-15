@@ -602,6 +602,27 @@ SETUP_SYSTEM = (
 )
 
 
+# tools that read the archive and give the same result when called again with the same arguments, within one answer
+SAME_AGAIN = {
+    "search_transcripts",
+    "find_similar",
+    "list_recordings",
+    "read_transcript",
+    "recording_outputs",
+    "find_entities",
+    "entity_mentions",
+    "entity_timeline",
+    "find_topics",
+    "topic_recordings",
+    "graph_neighbours",
+    "speaker_stats",
+    "graph_schema",
+    "graph_query",
+    "graph_related",
+    "graph_paths",
+}
+AGAIN = "You made this same call earlier in this answer, and its result is above: use it rather than calling it again."
+
 FINISH = (
     "Don't call any more tools now: answer the question from what you found above, citing it, and say in a sentence "
     "what you didn't get to check."
@@ -658,7 +679,7 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
     )
     msgs = [{"role": "system", "content": system}] + past_turns(history, summary=summary, cfg=cfg)
     msgs.append({"role": "user", "content": question})
-    tools, looked = toolbox.specs(), False
+    tools, looked, made = toolbox.specs(), False, set()
     for _ in range(max_steps):
         msg = llm.chat_message(cfg, msgs, tools=tools, model=model)
         if not msg["tool_calls"]:
@@ -678,9 +699,16 @@ def tool_answer(cfg, toolbox, question, history=(), max_steps=6, model=None, set
                     args = {}
             if not isinstance(args, dict):
                 args = {}
+            name = fn.get("name", "")
+            key = (name, json.dumps(args, sort_keys=True, default=str))
+            if key in made:  # the same read again (a step spent, nothing new learned): it's pointed at the result it has
+                msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": json.dumps({"note": AGAIN})})
+                continue
+            # anything that may change what a read returns (a note written, a setting changed) makes every read new again
+            made = made | {key} if name in SAME_AGAIN else set()
             # as the model reads it: what the tool read from the archive, the web or another server marked as data
-            result, summary = toolbox.call(fn.get("name", ""), args, model=True)
-            yield "step", {"tool": fn.get("name"), "args": args, "summary": summary}
+            result, summary = toolbox.call(name, args, model=True)
+            yield "step", {"tool": name, "args": args, "summary": summary}
             msgs.append({"role": "tool", "tool_call_id": c.get("id"), "content": result})
     text = _finish(cfg, msgs, tools, model) or "I couldn't put an answer together from what I found. Try again, or ask something narrower."
     yield ("answer" if looked else "direct"), text
