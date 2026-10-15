@@ -313,6 +313,9 @@ def effective(db, base, reveal=True):
             continue
         allowed = EDITABLE[sec]
         cfg[sec] = store._merge(cfg[sec], {k: v for k, v in _data(row).items() if allowed is None or k in allowed})
+        if sec == "documents":  # the web app adds networks to the server's own (archive.yaml, LENS_WEB_NETWORKS)
+            server = (base.get("documents") or {}).get("web_networks") or []
+            cfg[sec]["web_networks"] = list(dict.fromkeys([*server, *(cfg[sec].get("web_networks") or [])]))
         for k, sealed in (row.get("sealed") or {}).items():
             if not reveal:
                 cfg[sec][k] = {"secret": True, "set": True}
@@ -606,6 +609,13 @@ def _check(section, key, value, default):
 # where clouds answer with the server's own credentials (169.254.169.254). archive.yaml or LENS_WEB_NETWORKS, on the
 # server, can still list them.
 SERVER_ONLY_NETWORKS = [ipaddress.ip_network(n) for n in ("0.0.0.0/8", "127.0.0.0/8", "169.254.0.0/16", "::/127", "fe80::/10")]
+
+
+def _network(value):
+    try:
+        return str(ipaddress.ip_network(str(value).strip(), strict=False))
+    except ValueError:
+        return str(value)
 
 
 def _web_networks(value):
@@ -1398,6 +1408,10 @@ def save(db, base, section, changes, user=None):
         if k not in defaults:
             raise ValueError(f"unknown setting {section}.{k}")
         before = data.get(k, (base.get(section) or {}).get(k))
+        if (section, k) == ("documents", "web_networks") and isinstance(v, list):
+            # the server's own networks are shown with the rest and stay whatever the web app sends: keep only the others
+            server = {_network(x) for x in (base.get("documents") or {}).get("web_networks") or []}
+            v = [x for x in v if _network(x) not in server]
         data[k] = _check(section, k, v, defaults[k])
         new_headers = isinstance((changes or {}).get("headers"), str)  # the mask echoed back is no new value
         if (section, k) == ("telemetry", "endpoint") and not new_headers and _origin(before) != _origin(data[k]):

@@ -11,6 +11,7 @@ import threading
 import time
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.domain import convert, jobs, netguard, store, webcapture
 from tests import fake_chromium, fake_llm, fake_programs
@@ -144,6 +145,28 @@ def test_an_admin_allows_a_private_network_in_settings(app, client, db):
         r = client.put("/api/v1/settings/documents", json={"web_networks": bad}, headers=h)
         assert r.status_code == 400 and why in r.json()["detail"], (bad, r.text)
     assert app.state.settings.current()["documents"]["web_networks"] == ["192.168.1.0/24", "fd00::/8"]
+
+
+def test_the_servers_own_networks_stay_whatever_the_web_app_saves(cfg, db):
+    """Networks archive.yaml or LENS_WEB_NETWORKS list show in Settings with the rest, and the web app only adds to
+    them: one it can't allow (loopback) saves when it is echoed back, and leaving one out doesn't drop it."""
+    from app.main import create_app
+
+    cfg["documents"]["web_networks"] = ["127.0.0.0/8", "10.0.0.0/8"]
+    client = TestClient(create_app(cfg, db, background=False), base_url="http://127.0.0.1")
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    h = login(client, "root@x.io", "root password 1")
+
+    def shown():
+        return client.get("/api/v1/settings", headers=h).json()["documents"]["values"]["web_networks"]
+
+    assert shown() == ["127.0.0.0/8", "10.0.0.0/8"]
+    r = client.put("/api/v1/settings/documents", json={"web_networks": ["127.0.0.0/8", "10.0.0.0/8", "192.168.1.0/24"]}, headers=h)
+    assert r.status_code == 200, r.text
+    assert shown() == ["127.0.0.0/8", "10.0.0.0/8", "192.168.1.0/24"]
+    r = client.put("/api/v1/settings/documents", json={"web_networks": []}, headers=h)
+    assert r.status_code == 200, r.text
+    assert shown() == ["127.0.0.0/8", "10.0.0.0/8"]
 
 
 def test_file_names():

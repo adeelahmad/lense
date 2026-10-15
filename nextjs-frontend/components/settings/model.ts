@@ -3100,7 +3100,7 @@ export const FIELDS: FieldSpec[] = [
     label: "Private networks Lens may fetch from",
     kind: "lines",
     mono: true,
-    hint: "One per line, like 192.168.1.0/24: web pages, calendar feeds and videos there can be imported. Public addresses always can",
+    hint: "One per line, like 192.168.1.0/24: web pages, calendar feeds and videos there can be imported. Public addresses always can, and networks set on the server stay",
   },
   // IIIF & metadata
   {
