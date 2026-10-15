@@ -51,6 +51,13 @@ describe("signing in with an outside account", () => {
     expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
   });
 
+  it("marks GitHub with its own logo and other providers with a sign-in icon", () => {
+    render(<ExternalSignIn providers={[GOOGLE, GITHUB]} />);
+    const icon = (name: string) => screen.getByRole("button", { name }).querySelector("svg");
+    expect(icon("Continue with GitHub")).toHaveAttribute("fill", "currentColor");
+    expect(icon("Continue with Google")).toHaveClass("lucide-log-in");
+  });
+
   it("shows nothing without providers", () => {
     const { container } = render(<ExternalSignIn providers={[]} />);
     expect(container).toBeEmptyDOMElement();
