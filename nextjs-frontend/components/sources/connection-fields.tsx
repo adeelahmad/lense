@@ -1,5 +1,9 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
+import { Sources } from "@/app/openapi-client";
 import {
   DRIVE_SCOPES,
   FIELD_LABEL,
@@ -17,7 +21,9 @@ import {
 import { TokenPaste } from "@/components/sources/token-paste";
 import { Button } from "@/components/ui/button";
 import { Field, Input, SecretField, Select, Textarea } from "@/components/ui/field";
+import { CodeBlock } from "@/components/ui/states";
 import { Segmented } from "@/components/ui/tabs";
+import { data, useApiClient } from "@/lib/api/browser";
 
 /** SO2 step 2: the details for one type of connection, from the backend's field list, with type-specific widgets. */
 export function ConnectionFields({
@@ -30,6 +36,8 @@ export function ConnectionFields({
   isSet,
   onSignIn,
   signingIn,
+  onConnectGoogle,
+  connectingGoogle,
 }: {
   type: SourceType;
   spec: BackendSpec;
@@ -42,7 +50,20 @@ export function ConnectionFields({
   /** Sign in again through rclone; shown while a saved connection can also just be saved. */
   onSignIn?: () => void;
   signingIn?: boolean;
+  /** Connect with Google (Google Calendar): save the connection and go to Google's consent screen, through this OAuth
+   * client when one is given, else the one Lens has. */
+  onConnectGoogle?: (client: { client_id?: string; client_secret?: string }) => void;
+  connectingGoogle?: boolean;
 }) {
+  const api = useApiClient();
+  const [ownClient, setOwnClient] = useState(false);
+  const [oauthClient, setOauthClient] = useState({ client_id: "", client_secret: "" });
+  const googleClient = useQuery({
+    queryKey: ["google-client"],
+    queryFn: () => data(Sources.googleClient({ client: api })),
+    enabled: type === "gcal",
+    staleTime: 60_000,
+  });
   const editing = saved;
   const p = form.params;
   const set = (k: string, v: string) => onChange({ ...form, params: { ...p, [k]: v } });
@@ -210,6 +231,124 @@ export function ConnectionFields({
       </Field>
     );
   };
+
+  /** Google Calendar as a Google account: Connect with Google (Google's consent screen), or an authorized user JSON
+   * pasted under the fold. */
+  const googleAccount = (() => {
+    const g = googleClient.data;
+    const connected = editing && isSet("token") && form.secrets.token === undefined;
+    const needClient = Boolean(g) && (g?.origin == null || ownClient);
+    const pasted = form.secrets.token ?? "";
+    return (
+      <div className="flex flex-col gap-3">
+        {connected && (
+          <p className="rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
+            {p.account ? (
+              <>
+                Connected as <strong className="font-semibold text-fg">{p.account}</strong>.
+              </>
+            ) : (
+              "A Google account is connected."
+            )}
+          </p>
+        )}
+        {needClient && g && (
+          <>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field label="OAuth client ID">
+                {({ id }) => (
+                  <Input
+                    id={id}
+                    mono
+                    autoComplete="off"
+                    placeholder="…apps.googleusercontent.com"
+                    value={oauthClient.client_id}
+                    onChange={(e) => setOauthClient({ ...oauthClient, client_id: e.target.value })}
+                  />
+                )}
+              </Field>
+              <Field label="Client secret">
+                {({ id }) => (
+                  <Input
+                    id={id}
+                    type="password"
+                    autoComplete="off"
+                    value={oauthClient.client_secret}
+                    onChange={(e) => setOauthClient({ ...oauthClient, client_secret: e.target.value })}
+                  />
+                )}
+              </Field>
+            </div>
+            <div className="flex flex-col gap-1.5 text-[12.5px] leading-normal text-fg-secondary">
+              <span>
+                In Google Cloud › APIs &amp; Services: enable the Google Calendar API, then under Credentials create an
+                OAuth client ID (a web application) with this authorized redirect URI. Lens keeps the client with the
+                connection.
+              </span>
+              <CodeBlock inline text={g.redirect_uri} label="redirect URI" />
+            </div>
+          </>
+        )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <Button
+            variant={connected ? "secondary" : "primary"}
+            disabled={
+              !g ||
+              connectingGoogle ||
+              (needClient && !(oauthClient.client_id.trim() && oauthClient.client_secret.trim()))
+            }
+            onClick={() =>
+              onConnectGoogle?.(
+                needClient
+                  ? { client_id: oauthClient.client_id.trim(), client_secret: oauthClient.client_secret.trim() }
+                  : {},
+              )
+            }
+          >
+            {connectingGoogle ? "Opening Google…" : connected ? "Connect again" : "Connect with Google"}
+          </Button>
+          {g?.origin && !ownClient && (
+            <span className="text-[12px] text-fg-muted">
+              Through {g.origin === "sign-in" ? "Google sign-in’s" : "an earlier connection’s"} OAuth client ·{" "}
+              <Button size="xs" variant="link" onClick={() => setOwnClient(true)}>
+                use another
+              </Button>
+            </span>
+          )}
+        </div>
+        {errors.token && !pasted.trim() && (
+          <p role="alert" className="text-[12.5px] text-red-dark">
+            {errors.token}
+          </p>
+        )}
+        <details open={Boolean(pasted) || undefined} className="text-[13px]">
+          <summary className="cursor-pointer font-semibold text-fg-secondary">Or paste an authorized user JSON</summary>
+          <div className="mt-2">
+            <Field
+              hint="client_id, client_secret and refresh_token of an OAuth client of yours with the calendar.readonly scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving"
+              error={pasted.trim() ? errors.token : undefined}
+            >
+              {({ id, describedBy, invalid }) => (
+                <Textarea
+                  id={id}
+                  aria-label="Authorized user JSON"
+                  aria-describedby={describedBy}
+                  invalid={invalid}
+                  mono
+                  rows={3}
+                  className="min-h-[64px] text-[12px]"
+                  placeholder='{"client_id": "…", "client_secret": "…", "refresh_token": "…"}'
+                  value={pasted}
+                  onChange={(e) => setSecret("token", e.target.value || undefined)}
+                  spellCheck={false}
+                />
+              )}
+            </Field>
+          </div>
+        </details>
+      </div>
+    );
+  })();
 
   switch (type) {
     case "s3":
@@ -406,34 +545,8 @@ export function ConnectionFields({
                 hint: "Workspace only: read this user’s calendars (needs domain-wide delegation)",
               })}
             </>
-          ) : editing && isSet("token") && form.secrets.token === undefined ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
-              <span className="flex-1">A Google account is connected (never shown again).</span>
-              <Button size="sm" variant="secondary" onClick={() => setSecret("token", "")}>
-                Replace
-              </Button>
-            </div>
           ) : (
-            <Field
-              label="Google account"
-              hint="The authorized user JSON (client_id, client_secret, refresh_token) of an OAuth client of yours with the calendar.readonly scope, as gcloud auth application-default login --client-id-file writes it. Never shown again after saving"
-              error={errors.token}
-            >
-              {({ id, describedBy, invalid }) => (
-                <Textarea
-                  id={id}
-                  aria-describedby={describedBy}
-                  invalid={invalid}
-                  mono
-                  rows={3}
-                  className="min-h-[64px] text-[12px]"
-                  placeholder='{"client_id": "…", "client_secret": "…", "refresh_token": "…"}'
-                  value={form.secrets.token ?? ""}
-                  onChange={(e) => setSecret("token", e.target.value || undefined)}
-                  spellCheck={false}
-                />
-              )}
-            </Field>
+            googleAccount
           )}
           {text("calendars", {
             mono: true,

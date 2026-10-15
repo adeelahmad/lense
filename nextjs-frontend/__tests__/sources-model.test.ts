@@ -216,7 +216,7 @@ describe("connections", () => {
   it("signs Google Calendar in as a Google account or a service account", () => {
     const GCAL: BackendSpec = {
       label: "Google Calendar",
-      fields: { calendars: "", impersonate: "", days_back: "365" },
+      fields: { calendars: "", impersonate: "", days_back: "365", account: "" },
       secrets: ["token", "service_account_credentials"],
     };
     const account = '{"type":"authorized_user","client_id":"c","client_secret":"s","refresh_token":"r","quota":"x"}';
@@ -239,7 +239,7 @@ describe("connections", () => {
     ).toHaveProperty("days_back");
     // an account replaces a saved key, and a key file replaces a connected account
     expect(buildPayload(GCAL, connected, "gcal")).toEqual({
-      params: { calendars: "", impersonate: "", days_back: "365" },
+      params: { calendars: "", impersonate: "", days_back: "365", account: "" },
       secrets: {
         token: '{"client_id":"c","client_secret":"s","refresh_token":"r"}',
         service_account_credentials: null,
@@ -253,10 +253,19 @@ describe("connections", () => {
     const sa = { ...blank, driveAuth: "service_account" as const, secrets: { service_account_credentials: key } };
     expect(validateForm("gcal", GCAL, sa, false)).toEqual({});
     expect(buildPayload(GCAL, sa, "gcal").secrets).toEqual({ service_account_credentials: key, token: null });
+    // a key file also forgets which account was connected
+    const was = { ...sa, params: { ...sa.params, account: "mara@harbour.example" } };
+    expect(buildPayload(GCAL, was, "gcal").params.account).toBe("");
+    expect(buildPayload(GCAL, { ...was, driveAuth: "token" as const, secrets: {} }, "gcal").params.account).toBe(
+      "mara@harbour.example",
+    );
 
     expect(sourceSubtitle({ type: "gcal", params: { calendars: "" } })).toBe("Google Calendar · every calendar");
     expect(sourceSubtitle({ type: "gcal", params: { calendars: "a@x, b@x", impersonate: "mara@x.io" } })).toBe(
       "Google Calendar · as mara@x.io · 2 calendars",
+    );
+    expect(sourceSubtitle({ type: "gcal", params: { calendars: "", account: "mara@x.io" } })).toBe(
+      "Google Calendar · as mara@x.io · every calendar",
     );
     expect(suggestName("gcal", blank.params)).toBe("Google Calendar");
   });

@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:d3193ecc711e3a6ac0f3e585772435769774c0240260b56518f0ed4c496c6c14"
+prose_version: "threat-model.md@sha256:c0a32c183aa8ecb4bef71b1b989e66483bc7dad3ea0639b42710d6f1aabda69c"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -341,6 +341,16 @@ entry_points:
         obligation_id: admin-creates-sources
         caller_must_enforce: "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters"
         provenance: {kind: documented, source: 'docs/processing.md "The token endpoint is always Google''s own"'}
+  - id: "Connect with Google"
+    component: outbound
+    parameters:
+      - name: "OAuth client id and secret; on the way back state, code and the email in Google's id token"
+        attacker_controllable: true
+        x-condition: "client: admins only; state and code: anyone who can send the admin a link"
+        control_kinds: [data, x-credential, x-collaborator-data]
+        obligation_id: admin-creates-sources
+        caller_must_enforce: "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the read-only scope was granted; returns only to the starting web origin"
+        provenance: {kind: documented, source: 'docs/processing.md "the consent itself is a person''s"'}
   - id: "POST /imports/web, extension http tools, notification targets"
     component: outbound
     parameters:

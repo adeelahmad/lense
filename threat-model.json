@@ -68,6 +68,7 @@
       "entry_points": [
         "watched folders, storage sources, IMAP, Gmail, iCal",
         "Google Calendar sources",
+        "Connect with Google",
         "POST /imports/web, extension http tools, notification targets",
         "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)",
         "replies from remote servers",
@@ -413,6 +414,15 @@
       "caller_must_enforce": "admin creates sources; read-only calendar.readonly scope; Google's own token endpoint and API address (a key file's token_uri is ignored); event text escaped into its .ics without control characters",
       "provenance": "documented",
       "source": "docs/processing.md \"The token endpoint is always Google's own\""
+    },
+    {
+      "entry_point": "Connect with Google",
+      "parameter": "OAuth client id and secret; on the way back state, code and the email in Google's id token",
+      "attacker_controllable": "yes",
+      "component": "outbound",
+      "caller_must_enforce": "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the read-only scope was granted; returns only to the starting web origin",
+      "provenance": "documented",
+      "source": "docs/processing.md \"the consent itself is a person's\""
     },
     {
       "entry_point": "POST /imports/web, extension http tools, notification targets",

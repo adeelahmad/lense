@@ -162,7 +162,8 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
       const chosen = str(p.calendars)
         .split(/[,\s]+/)
         .filter(Boolean).length;
-      const who = str(p.impersonate) ? ` · as ${str(p.impersonate)}` : "";
+      const as = str(p.impersonate) || str(p.account);
+      const who = as ? ` · as ${as}` : "";
       return `Google Calendar${who} · ${chosen ? plural(chosen, "calendar") : "every calendar"}`;
     }
     default:
@@ -573,7 +574,7 @@ export function validateForm(
     if (form.driveAuth === "token") {
       const t = parseGoogleAccount(form.secrets.token ?? "");
       if (t.ok === false) e.token = t.error;
-      else if (t.ok === null && !secret("token")) e.token = "Paste the Google account’s authorized user JSON.";
+      else if (t.ok === null && !secret("token")) e.token = "Connect a Google account first.";
     }
     if (form.params.days_back && !/^\d{1,5}$/.test(form.params.days_back.trim()))
       e.days_back = "A number of days, or empty for every event.";
@@ -614,10 +615,14 @@ export function buildPayload(
   if (type === "gcal") {
     const t = parseGoogleAccount(form.secrets.token ?? "");
     if (form.driveAuth === "service_account") {
-      if (secrets.service_account_credentials) secrets.token = null; // a key file signs in before the account would
+      if (secrets.service_account_credentials) {
+        secrets.token = null; // a key file signs in before the account would
+        params.account = "";
+      }
     } else if (t.ok) {
       secrets.token = t.json;
       secrets.service_account_credentials = null;
+      params.account = ""; // a pasted account doesn't say whose it is
     }
   } else if (type === "drive" && form.driveAuth === "service_account") {
     if (secrets.service_account_credentials) secrets.token = null; // rclone would sign in as the account anyway

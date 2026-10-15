@@ -20300,6 +20300,88 @@
         }
       }
     },
+    "/api/v1/sources/google-client": {
+      "get": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Google Client",
+        "description": "The OAuth client a Google account would be connected through (never its secret), and the redirect URI it needs.",
+        "operationId": "google_client",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleClient"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sources/{sid}/google": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Connect Google",
+        "description": "Connect a Google account to a Google source (Google Calendar): open the returned address in this browser, consent\nthere, and Google sends you back to the Sources page with the account connected. Its refresh token is kept sealed on\nthe source. Without a client here, the Google sign-in provider's (Settings \u203a Sign-in) or an earlier connection's is\nused. Only from the web app: the consent comes back to the browser that asked (an agent saves an authorized user\nJSON it already has as the source's `token` instead). Audited as `source.google_connect`.",
+        "operationId": "connect_google",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GoogleConnect"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleConnectStart"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sources/{sid}/browse": {
       "get": {
         "tags": [
@@ -38603,6 +38685,96 @@
           "email"
         ],
         "title": "ForgotPasswordRequest"
+      },
+      "GoogleClient": {
+        "properties": {
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "sign-in",
+                  "connection"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin",
+            "description": "where the OAuth client for connecting a Google account comes from: the Google sign-in provider, an earlier Google connection, or none (enter one to connect)"
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "redirect_uri": {
+            "type": "string",
+            "title": "Redirect Uri",
+            "description": "the address to add to the OAuth client's authorized redirect URIs"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "origin",
+          "redirect_uri"
+        ],
+        "title": "GoogleClient"
+      },
+      "GoogleConnect": {
+        "properties": {
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id",
+            "description": "an OAuth client of your own (else the one Lens has)"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Secret"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GoogleConnect"
+      },
+      "GoogleConnectStart": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "Google's consent page; open it in this browser"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "GoogleConnectStart"
       },
       "Gpu": {
         "properties": {
