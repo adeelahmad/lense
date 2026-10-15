@@ -85,12 +85,6 @@ describe("coming back from the provider", () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/account?connected=Google"));
   });
 
-  it("goes back to Sources after signing a mailbox in to Google", async () => {
-    at("#connected=mara%40harbour.example&next=%2Fsources%3Fsource%3D5");
-    render(<ExternalSigninReturn />);
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/sources?source=5&connected=mara%40harbour.example"));
-  });
-
   it("only ever goes to a page of this site", () => {
     expect(safeNext("//evil.example")).toBe("/");
     expect(safeNext("https://evil.example")).toBe("/");

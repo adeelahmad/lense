@@ -50,10 +50,10 @@ TYPES = {
     },
     "gmail": {
         "label": "Gmail or Google Workspace",
-        # user: the mailbox's address (filled in by signing in with Google; the person a service account acts as)
+        # user: the mailbox's address (the person a service account acts as)
         "fields": {"user": "", "via": "api"},
-        "secrets": ["token", "service_account_credentials"],  # signs in as a person (OAuth), or as a service account
-        "google": True,  # signs in through google_auth.py (as a person: POST /sources/{id}/google)
+        "secrets": ["token", "service_account_credentials"],  # a Google account (OAuth), or a service account
+        "google": True,  # signs in through google_auth.py
     },
     "ical": {
         "label": "Calendar feed (iCal)",
@@ -149,7 +149,7 @@ def _imap(cfg, src):
     p = _params(src)
     if src["type"] == "gmail":
         if not p.get("user"):
-            raise RuntimeError("enter the mailbox's address, or sign in with Google")
+            raise RuntimeError("enter the mailbox's address (its user)")
         with connect(*GMAIL_IMAP, p["user"], None, token=_api().token(cfg, src)) as conn:
             yield conn
         return

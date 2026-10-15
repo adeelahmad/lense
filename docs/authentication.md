@@ -75,9 +75,6 @@ has a "Continue with ..." button for each provider that's turned on.
   accounts have no password and no roles until someone adds them.
 * **Profile and sign-in › Connected accounts** connects one while signed in and disconnects one (not your only way in:
   with no passkey and no password it stays). With a connected account, your last passkey can go.
-* **Gmail sources sign in with it too.** The Google provider's client also signs Gmail and Google Workspace sources in
-  to Google ([Gmail and Google Workspace](processing.md#gmail-and-google-workspace)), through the same redirect URI,
-  so nothing else is registered at Google; it works for that while signing in to Lens with Google is turned off.
 * **How it's checked.** The code flow with PKCE, a `state` used once within ten minutes, and a cookie set on the
   browser that started it, so a sign-in someone else started can't be finished in your browser. The code is swapped
   for the profile at the provider's token and userinfo endpoints (server to server). The callback ends on the web

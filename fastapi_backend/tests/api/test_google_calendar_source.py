@@ -247,14 +247,14 @@ def test_a_connected_google_account(google, client, db, cfg, admin):
     health = sources.test(db, cfg, sid)
     assert health["ok"] and "rate limiting" in health["limited"]
     google.throttle = False
-    # access revoked: sign in again
+    # access revoked: connect again
     del google.users["refresh-1"]
     google_auth._TOKENS.clear()
     health = sources.test(db, cfg, sid)
-    assert not health["ok"] and "sign in with Google again" in health["error"]
+    assert not health["ok"] and "Connect the Google account again" in health["error"]
     # without a way to sign in, it says so before calling Google
     r = client.post("/api/v1/sources", headers=admin, json={"type": "gcal"})
-    assert "sign in with Google, or upload a service account key" in r.json()["health"]["error"]
+    assert "connect a Google account, or upload a service account key" in r.json()["health"]["error"]
 
 
 def test_an_event_as_icalendar():

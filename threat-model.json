@@ -32,7 +32,6 @@
         "/auth/refresh, /auth/ticket, /auth/signin-link/*, /auth/password/*, WebAuthn flows",
         "/oauth/register, /authorize, /token, /revoke",
         "/auth/external/{key}/*",
-        "/sources/{id}/google and the Google callback in flow mode source",
         "/mcp"
       ],
       "touches": [
@@ -296,15 +295,6 @@
       "caller_must_enforce": "admin chooses providers",
       "provenance": "documented",
       "source": "docs/authentication.md \"when the provider vouches for the email\""
-    },
-    {
-      "entry_point": "/sources/{id}/google and the Google callback in flow mode source",
-      "parameter": "state, code, the Google refresh token it brings",
-      "attacker_controllable": "yes",
-      "component": "identity",
-      "caller_must_enforce": "none — P-ONCE (tied to the browser, used once, finished only for an account still admin)",
-      "provenance": "documented",
-      "source": "domain/google_auth.py docstring \"sealed like a password\""
     },
     {
       "entry_point": "/mcp",

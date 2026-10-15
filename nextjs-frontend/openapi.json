@@ -19505,49 +19505,6 @@
         }
       }
     },
-    "/api/v1/sources/{sid}/google": {
-      "post": {
-        "tags": [
-          "sources"
-        ],
-        "summary": "Sign In To Google",
-        "description": "Sign a Google source (Gmail, Google Calendar) in to Google as a person: open the returned address in this\nbrowser. Google asks them to let Lens read what the source reads, then sends them back to Sources. Uses the Google\nclient set up in Settings \u203a Sign-in. Audited as `source.google` when it's done.",
-        "operationId": "sign_in_to_google",
-        "parameters": [
-          {
-            "name": "sid",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Sid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExternalRedirect"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/sources/{sid}/browse": {
       "get": {
         "tags": [
@@ -28964,7 +28921,7 @@
           "google": {
             "type": "boolean",
             "title": "Google",
-            "description": "signs in to Google: a service account key, or a person through POST /sources/{id}/google",
+            "description": "signs in to Google: with a service account key, or as a Google account (its authorized user JSON as `token`)",
             "default": false
           }
         },

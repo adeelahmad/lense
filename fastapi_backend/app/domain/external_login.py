@@ -224,12 +224,10 @@ def _discover(issuer):
     return doc
 
 
-def start(db, cfg, key, origin, mode="login", account=None, next_path="/", source=None, scope=None, extra=None):
-    """The provider's sign-in page to send the browser to, and the browser secret to keep in a cookie. Mode "source"
-    signs a source in to the provider instead of a person in to Lens (google_auth.py): it asks for the source's
-    `scope` with `extra` parameters, and works while signing in with the provider is turned off."""
+def start(db, cfg, key, origin, mode="login", account=None, next_path="/"):
+    """The provider's sign-in page to send the browser to, and the browser secret to keep in a cookie."""
     row = provider(db, key)
-    if not row.get("enabled") and mode != "source":
+    if not row.get("enabled"):
         raise ExternalLoginError(f"signing in with {row.get('label') or LABELS[row['kind']]} is turned off")
     ep = _endpoints(row)
     state, verifier, browser = secrets.token_urlsafe(24), secrets.token_urlsafe(48), secrets.token_urlsafe(24)
@@ -248,8 +246,6 @@ def start(db, cfg, key, origin, mode="login", account=None, next_path="/", sourc
                 "origin": origin.rstrip("/"),
                 "mode": mode,
                 "account": account,
-                "source": source,
-                "scope": scope,
                 "next": _safe_next(next_path),
                 "expires_at": _later(FLOW_MINUTES * 60),
             }
@@ -259,7 +255,7 @@ def start(db, cfg, key, origin, mode="login", account=None, next_path="/", sourc
         "response_type": "code",
         "client_id": row["client_id"],
         "redirect_uri": redirect_uri,
-        "scope": scope or ep["scope"],
+        "scope": ep["scope"],
         "state": state,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
@@ -268,7 +264,6 @@ def start(db, cfg, key, origin, mode="login", account=None, next_path="/", sourc
         q["nonce"] = secrets.token_urlsafe(16)
     if row["kind"] == "google":
         q["prompt"] = "select_account"
-    q.update(extra or {})
     sep = "&" if "?" in ep["authorize"] else "?"
     return ep["authorize"] + sep + urllib.parse.urlencode(q), browser
 

@@ -23,7 +23,7 @@ class Backend(ResponseModel):
     oauth: str | None = Field(default=None, description="the command that produces the token, for OAuth backends")
     google: bool = Field(
         default=False,
-        description="signs in to Google: a service account key, or a person through POST /sources/{id}/google",
+        description="signs in to Google: with a service account key, or as a Google account (its authorized user JSON as `token`)",
     )
 
 

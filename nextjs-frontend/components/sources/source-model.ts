@@ -155,7 +155,7 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
     case "imap":
       return `IMAP · ${str(p.user) ? `${str(p.user)}@` : ""}${str(p.host) || "no host"}${str(p.port) ? `:${str(p.port)}` : ""}`;
     case "gmail":
-      return `Gmail · ${str(p.user) || "not signed in"} · ${str(p.via) === "imap" ? "IMAP" : "API"}`;
+      return `Gmail · ${str(p.user) || "no address"} · ${str(p.via) === "imap" ? "IMAP" : "API"}`;
     case "ical":
       return "Calendar feed · address kept secret";
     case "gcal": {

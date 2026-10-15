@@ -917,7 +917,7 @@ export type Backend = {
   /**
    * Google
    *
-   * signs in to Google: a service account key, or a person through POST /sources/{id}/google
+   * signs in to Google: with a service account key, or as a Google account (its authorized user JSON as `token`)
    */
   google?: boolean;
   [key: string]: unknown;
@@ -32503,36 +32503,6 @@ export type TestSourceResponses = {
 };
 
 export type TestSourceResponse = TestSourceResponses[keyof TestSourceResponses];
-
-export type SignInToGoogleData = {
-  body?: never;
-  path: {
-    /**
-     * Sid
-     */
-    sid: number;
-  };
-  query?: never;
-  url: "/api/v1/sources/{sid}/google";
-};
-
-export type SignInToGoogleErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError;
-};
-
-export type SignInToGoogleError = SignInToGoogleErrors[keyof SignInToGoogleErrors];
-
-export type SignInToGoogleResponses = {
-  /**
-   * Successful Response
-   */
-  200: ExternalRedirect;
-};
-
-export type SignInToGoogleResponse = SignInToGoogleResponses[keyof SignInToGoogleResponses];
 
 export type BrowseSourceData = {
   body?: never;

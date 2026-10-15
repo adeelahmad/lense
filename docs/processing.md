@@ -352,11 +352,8 @@ importing chosen ones and watching work as above.
   of its own, as Google keeps it; working-location entries ("Home", "Office") are left out. It signs in one of two ways,
   each kept encrypted like a password and never shown again:
 
-    - **Google account** (`token`): signed in with Google from a signed-in browser
-      (`POST /api/v1/sources/{id}/google`), through the Google client of Settings › Sign-in, as
-      [Gmail sources](#gmail-and-google-workspace) are (turn on the Calendar API in its project); or the "authorized
-      user" JSON (`client_id`, `client_secret`, `refresh_token`) of an OAuth client of your own Google Cloud project,
-      with the Calendar API turned on there. `gcloud auth
+    - **Google account** (`token`): the "authorized user" JSON (`client_id`, `client_secret`, `refresh_token`) of an
+      OAuth client of your own Google Cloud project, with the Calendar API turned on there. `gcloud auth
       application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/calendar.readonly,https://www.googleapis.com/auth/cloud-platform`
       writes one (to `application_default_credentials.json` in gcloud's folder).
     - **Service account** (`service_account_credentials`, its .json key file). On its own it reads the calendars shared
@@ -379,22 +376,17 @@ A Gmail or Google Workspace mailbox (type `gmail`) is read through Google's Gmai
 or over IMAP (`via: imap`). For a personal Gmail account, an email (IMAP) connection with an app password works too,
 with nothing to set up at Google. A Gmail source signs in one of two ways:
 
-- **Sign in with Google.** Signing in sends you to Google, which asks you to let Lens read your mail, then brings
-  you back to Sources (`POST /api/v1/sources/{id}/google` starts it, from a signed-in browser; a button for it in the
-  connection dialog is in progress). Lens keeps the refresh token Google gives, encrypted like a password, and the address you signed
-  in with. It uses the Google client set up for signing in to Lens (Settings › Sign-in, its client id and secret, and
-  its redirect URI; signing in to Lens with Google can stay off), so nothing else is registered at Google. In Google
-  Cloud, turn on the Gmail API in that client's project and add the Gmail scope to its consent screen. Google reviews
-  apps that read Gmail before people outside your Workspace domain can use them without a warning: an app in testing
-  works for its test users, whose sign-ins Google ends after seven days (sign in again), and an unreviewed app in
-  production shows a warning page people can click through. Unticking the mail permission on Google's page leaves the
-  source unconnected, and says so.
+- **Google account** (`token`): the "authorized user" JSON (`client_id`, `client_secret`, `refresh_token`) of an
+  OAuth client of your own Google Cloud project, with the Gmail API turned on there, kept encrypted like a password.
+  `gcloud auth application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/gmail.readonly,https://www.googleapis.com/auth/cloud-platform`
+  writes one (with `https://mail.google.com/` instead to read over IMAP); an agent can give one it already has. Enter
+  the account's address as `user` to read over IMAP. Google reviews apps that read Gmail before people outside your
+  Workspace domain can use them without a warning: an app in testing works for its test users, whose sign-ins Google
+  ends after seven days. Connecting the account from the connection dialog, with no JSON to make, is in progress.
 - **A service account** (Google Workspace). Upload the service account's JSON key and enter the address of the person
   whose mail Lens reads; nobody signs in. A Workspace admin lets the account's client id use
   `https://www.googleapis.com/auth/gmail.readonly` (or `https://mail.google.com/` to read over IMAP) under Admin
   console › Security › API controls › Domain-wide delegation. One source reads one person's mailbox.
-- An agent can give a source a token it already has instead: the `token` secret as JSON with `refresh_token`,
-  `client_id` and `client_secret`.
 
 Labels are the folders: the inbox, sent, starred, important, the inbox's categories (Primary, Social, Promotions,
 Updates, Forums) and your own labels. A message is a file `<label id>/<message id>.eml`, read as Gmail keeps it, so it

@@ -11,11 +11,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   delegation. Calls to Google show in the activity ledger
   ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
 - **Gmail and Google Workspace as a sensor.** A new kind of email source reads a Gmail or Google Workspace mailbox
-  through Google's Gmail API (read only) or over IMAP. It signs in with Google as a person, through the Google client
-  already set up for signing in to Lens, or as a Workspace service account with domain-wide delegation, so nobody has
-  to sign in. Labels are its folders, and a watch follows Gmail's history: it reads only what arrived, and one that
-  leaves what's there reads nothing old. Google Calendar connections can sign in with Google the same way. The
-  connection dialog's Sign in with Google button is in progress; until it lands, start it through the API
+  through Google's Gmail API (read only) or over IMAP. It signs in as a Google account (its authorized user JSON, as
+  for Google Calendar), or as a Workspace service account with domain-wide delegation, so nobody has to sign in.
+  Labels are its folders, and a watch follows Gmail's history: it reads only what arrived, and one that leaves what's
+  there reads nothing old. Connecting the account from the connection dialog is in progress
   ([Gmail and Google Workspace](docs/processing.md#gmail-and-google-workspace)).
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
