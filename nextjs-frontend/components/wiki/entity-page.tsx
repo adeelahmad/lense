@@ -82,7 +82,7 @@ function Loading() {
 }
 
 /** One entity's page: what it is, the notes people and the assistant keep on it (the BlockSuite editor), where it's
- * said, the recordings, entities and people it comes up with, and what's like it. */
+ * said, the assets, entities and people it comes up with, and what's like it. */
 export function EntityPage({ id }: { id: number }) {
   const client = useApiClient();
   const router = useRouter();
@@ -192,7 +192,7 @@ export function EntityPage({ id }: { id: number }) {
                     href={recordingHref(m.recording_id, m.t0 ?? undefined)}
                     className="text-[12.5px] font-semibold text-fg-secondary hover:text-fg-accent hover:underline"
                   >
-                    {m.title ?? `Recording ${m.recording_id}`}
+                    {m.title ?? `Asset ${m.recording_id}`}
                     {m.time ? ` · ${m.time}` : ""}
                     {m.speaker ? ` · ${m.speaker}` : ""}
                   </Link>
@@ -218,7 +218,7 @@ export function EntityPage({ id }: { id: number }) {
           <dl className="m-0 grid grid-cols-2 gap-2">
             {[
               ["Mentions", count(d.mentions ?? 0)],
-              ["Recordings", count(d.recordings ?? 0)],
+              ["Assets", count(d.recordings ?? 0)],
               ["First said", d.first ? shortDate(d.first) : "—"],
               ["Last said", d.last ? shortDate(d.last) : "—"],
             ].map(([k, v]) => (
@@ -228,11 +228,11 @@ export function EntityPage({ id }: { id: number }) {
               </div>
             ))}
           </dl>
-          <Side title="Recordings">
+          <Side title="Assets">
             {con?.recordings.map((r) => (
               <li key={r.id}>
                 <Link href={recordingHref(r.id)} className="text-fg-accent hover:underline">
-                  {r.title ?? `Recording ${r.id}`}
+                  {r.title ?? `Asset ${r.id}`}
                 </Link>{" "}
                 <span className="text-fg-muted">· {count(r.mentions)}</span>
               </li>

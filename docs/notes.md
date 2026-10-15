@@ -37,7 +37,7 @@ Every entity (a person, organisation, product, place, event, work or term) has a
 the way a wiki names pages: spaces become underscores and the rest stays as written, so Ada Lovelace in namespace
 `work` is at `/wiki/work/Ada_Lovelace`. Nothing is stored for the address: it is the name. The page shows what the
 entity is (its type, the other ways it's said and its description), the notes people and the assistant keep on it in
-the BlockSuite editor below, every line that says it with a link to that moment, the recordings and the people it comes
+the BlockSuite editor below, every line that says it with a link to that moment, the assets and the people it comes
 up with most, the entities it's mentioned together with (each a link to its own page), the same entity in other
 namespaces, and similar content. **Edit** opens the panel that changes it, as on the Entities page; renaming it moves
 the page to the new name.
@@ -150,7 +150,7 @@ co-editing rather than inside Lens.
 
 ## Refine later
 
-Wiki addresses for topics, recordings, collections and speakers, and a namespace's wiki index page; two entities whose
+Wiki addresses for topics, assets, collections and speakers, and a namespace's wiki index page; two entities whose
 names differ only by `_` and a space share an address (the one with spaces wins).
 
 Pages for people who see only some collections of a namespace; differences between versions; live co-editing through
