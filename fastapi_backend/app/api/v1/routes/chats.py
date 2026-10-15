@@ -422,4 +422,5 @@ def decide_approval(aid: int, body: ApprovalDecision, user: Writer, acl: Acl, db
     except (ValueError, PermissionError, KeyError) as e:
         raise HTTPException(400, str(e)) from None
     auth.audit(db, user.as_audit(), "assistant.approval", f"approval:{aid}", {"decision": body.decision, **out})
+    request.app.state.graph_cache.clear()  # an approved entity or topic change shows in the graph at once
     return out

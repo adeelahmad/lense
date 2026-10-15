@@ -131,3 +131,8 @@ The assistant in Chat finds topics (`find_topics`), reads one with its recording
 editors, suggests a topic for recordings (`suggest_topic`). The MCP server has the same as `list_topics`, `get_topic`
 and `suggest_topic` (with a write-scope token). Suggestions from either wait for someone to accept them, with
 `assistant` as their source; what people accepted or dismissed stays as it is.
+
+Asked to tidy the vocabulary, the assistant proposes merging, renaming, describing or deleting a topic
+(`propose_topic_change`), which happens only when the person approves it, in Chat or with a yes in a chat room. With
+a write-scope token, agents edit, merge and delete topics over MCP (`edit_topic`, `merge_topics`, `delete_topic`) and
+take a merge or delete back with `undo_topic_change`.

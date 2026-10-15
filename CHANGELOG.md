@@ -31,6 +31,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Edit entities from a recording.** In a recording's **Entities** tab, the pencil next to an entity opens its side
   panel, so editors rename, retype, hide or merge it without leaving the recording
   ([Entities](docs/processing.md#entities-and-the-graph-explorer)).
+- **Agents edit and merge entities and topics.** The MCP server has `edit_entity`, `edit_topic`, `merge_topics`,
+  `delete_topic`, `undo_topic_change` and `undo_graph_change` (with a write-scope token and editor access), and the
+  assistant proposes topic merges, renames, definitions and deletes for the person to approve
+  (`propose_topic_change`) ([MCP](docs/mcp.md), [Topics](docs/topics.md)).
 
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 

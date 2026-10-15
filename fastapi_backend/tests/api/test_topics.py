@@ -3,11 +3,13 @@ undoing merges and deletes, and topics in the property graph and in RDF."""
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from rdflib import Graph, URIRef
 from rdflib.namespace import SKOS
 
-from app.domain import analyze, notebook, store, topics
+from app.domain import ai_tools, analyze, notebook, store, topics
 from app.domain.store import R
 from tests.api.test_entities import Env
 
@@ -163,6 +165,36 @@ def test_undo_deleting_a_topic_made_from_an_entity(env):
     assert c.get(f"/api/v1/entities/{aws}", headers=vi).json()["hidden"] is True
     hist = c.get("/api/v1/graph/history", headers=vi, params={"entity": aws}).json()["versions"]
     assert (hist[0]["op"], hist[0]["why"]) == ("entity.hide", f"topic {t['id']} is back")
+
+
+def test_the_assistant_proposes_topic_changes(env):
+    db, cfg = env.db, env.cfg
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    keep = topics.create(db, pods, "Funding")
+    grants = topics.create(db, pods, "Grants")
+    elsewhere = topics.create(db, calls, "Budgets")
+    me = {"id": 1, "email": "ed@x.io"}
+    box = ai_tools.Toolbox(db, cfg, me, {pods, calls}, {calls}, None, None)
+    assert box.call("propose_topic_change", {"action": "delete", "topic_id": grants})[1].endswith("needs editor access to the namespace")
+    box = ai_tools.Toolbox(db, cfg, me, {pods}, {pods}, None, None)
+    assert box.call("propose_topic_change", {"action": "rename", "topic_id": keep})[1] == "propose_topic_change: rename needs new_label"
+    assert box.call("propose_topic_change", {"action": "delete", "topic_id": elsewhere})[1].endswith(f"no topic {elsewhere} in scope")
+    merge = {"action": "merge", "topic_id": keep, "merge_ids": [elsewhere]}
+    assert box.call("propose_topic_change", merge)[1].endswith("other topics of the same namespace")
+    # nothing changes until the person says yes; a merge says how to undo it
+    out = json.loads(box.call("propose_topic_change", {**merge, "merge_ids": [grants]})[0])
+    assert out["summary"] == "Merge Grants into the topic Funding" and db.one("SELECT id FROM $r", r=R("topic", grants))
+    done = ai_tools.approve(db, cfg, out["approval"], me, {pods})
+    assert done["status"] == "done" and not db.one("SELECT id FROM $r", r=R("topic", grants))
+    topics.undo(db, done["undo"])
+    assert topics.detail(db, grants, {pods})["label"] == "Grants"
+    out = json.loads(box.call("propose_topic_change", {"action": "describe", "topic_id": keep, "definition": "Money for work."})[0])
+    ai_tools.approve(db, cfg, out["approval"], me, {pods})
+    assert topics.detail(db, keep, {pods})["definition"] == "Money for work."
+    out = json.loads(box.call("propose_topic_change", {"action": "rename", "topic_id": keep, "new_label": "Funds"})[0])
+    assert out["summary"] == "Rename the topic Funding to Funds"
+    assert ai_tools.approve(db, cfg, out["approval"], me, {calls}, decision="decline") == {"status": "declined"}
+    assert topics.detail(db, keep, {pods})["label"] == "Funding"
 
 
 def test_topics_in_the_graph_and_rdf(env):

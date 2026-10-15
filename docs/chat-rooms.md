@@ -114,7 +114,7 @@ That's all. Without an account given, it answers as the admin who turned it on.
   proposes (running work, changing settings) wait for approval in the web app, as in Chat; its answer says so and
   links to the conversation, through the Cloudflare tunnel while one is up (Settings › Remote access), so the link
   opens away from home too.
-- **Approving in the room.** Reversible changes (merging, renaming or retyping entities, new namespaces) can be
+- **Approving in the room.** Reversible changes (merging, renaming or retyping entities, changing topics, new namespaces) can be
   approved right there: the answer says "Reply “yes” to do it", and "yes" (or "no") does it (or declines it). With
   several waiting, "yes all" or "yes 12". Only the chat usernames listed may talk to Lens and approve, so it needs
   that list; **Approving in the room: only in the web app** turns it off. Settings, imports, batch runs, extensions
