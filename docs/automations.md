@@ -23,9 +23,10 @@ merged is called built.
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
+| Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
-| Storing and running automations, schedules and timers, joins, the other actions, approvals, variables, the studio | planned |
+| Storing and running automations, schedules and timers, joins, approvals, variables, the studio | planned |
 
 ## Contract
 
@@ -311,6 +312,9 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | `run_workflow` | runs a recording `workflow` (its published `version`, or the one named) on an `asset` as a job | lens | `{job, workflow, version, asset}` |
 | `run_pipeline` | processes an `asset` again with a `pipeline` (or the one its namespace uses), keeping its outputs | lens | `{job, pipeline, asset}` |
 | `run_routine` | asks the scheduler to run a `routine` now (`propose_only` to only propose its changes) | lens, so it asks | `{routine, requested, propose_only}` |
+| `set_field` | sets one of an `asset`'s custom fields (`field`: its id or label) to `value` (empty clears it) | lens | `{asset, field, label, value, changed}` |
+| `add_to_collection` | moves an `asset` into a `collection` of its namespace | lens | `{asset, collection, name, moved, newly_see}` |
+| `write_note` | writes `text` (Markdown) `on` a notebook `page` (with a `title`, `about` a thing, in a `namespace`) or on an `asset` (`shared` or not) | self for a private note on an asset, else lens | `{on, page or note, added, url}` |
 
 #### Telling a person
 
@@ -374,6 +378,23 @@ on the job's id. `run_routine` asks the scheduler to start a routine's run withi
 does: routines are an admin's, the routine must work only in the automation's namespaces, a run over one of its budgets
 is refused, and it always asks first. The run's id shows in the routine's runs.
 
+#### Changing assets and writing notes
+
+`set_field` and `add_to_collection` take an `asset` like the Run actions and need the automation's person to be able
+to edit assets in that namespace. A field's change goes in the asset's metadata history as by "automation: <name>", so
+it can be reverted like any edit, and both are in the audit log. Moving an asset into a collection also shows it to the
+people given a role on that collection: when that would let someone see it who can't now, the action never does it
+on its own (it fails, naming them) and moves it only once you approved it.
+
+`write_note` writes a notebook page in the namespace of what it is `about` (an asset, entity, topic, collection or
+speaker, which has one page each: a second note about it goes at that page's end, its history keeping the rest), or
+the one named, or the automation's only namespace; the page is written by the automation. `on: asset` writes a note on
+the asset instead, as yours: a private one (the default) only you see, so it runs at once, while a `shared` one
+everyone who reads the asset sees.
+
+Calendar events aren't written: Lens signs in to Google Calendar read-only, and writing needs a new consent. Meanwhile
+the agent can draft an event as a note.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -402,3 +423,6 @@ is refused, and it always asks first. The run's id shows in the routine's runs.
   networks allowed for automations apart from notifications.
 - Running Lens work: a routine run's id passed on (today the scheduler starts it later); waiting for the job and passing
   on its outputs; roles on collections counting for `process`; running a pipeline on every asset a join collected.
+- Changing assets: asking first instead of failing when a move would show an asset to new people (risk that reads the
+  database); fields on collections and files; tags; roles on collections counting for `edit`.
+- Writing calendar events (a new Google consent, so it changes existing installs).
