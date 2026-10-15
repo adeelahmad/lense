@@ -16,7 +16,7 @@ import numpy as np
 
 from collections import Counter
 
-from . import ingest, store
+from . import components, ingest, store
 
 GENERIC = re.compile(r"^(?:SPEAKER_?\d+|spk_?\d+|S\d+|CH\d+|Speaker \d+|unknown)$", re.I)
 _CACHE = {}
@@ -131,7 +131,7 @@ def pyannote_turns(cfg, path):
             from pyannote.audio import Pipeline
         except ImportError as e:
             raise RuntimeError("uv sync --extra pyannote") from e
-        tok = os.environ.get(d["pyannote"].get("token_env") or "HF_TOKEN")
+        tok = os.environ.get(d["pyannote"].get("token_env") or "HF_TOKEN") or components.hf_token(cfg)
         try:
             pipe = Pipeline.from_pretrained(d["pyannote"]["model"], token=tok)
         except TypeError:

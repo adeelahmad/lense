@@ -375,7 +375,7 @@ function ShownOnceDialog({ created, onClose }: { created: Created | null; onClos
               onClick={copy}
               className={cn(
                 "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill px-3 text-[12.5px] font-bold",
-                copied ? "bg-green text-white" : "text-[var(--term-blue)] hover:bg-white/10",
+                copied ? "bg-green text-white" : "text-(--term-blue) hover:bg-white/10",
               )}
             >
               {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}

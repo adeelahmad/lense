@@ -58,7 +58,7 @@ export function SimilarRow({ item, compact, onOpen }: { item: SimilarItem; compa
   return (
     <li className={cn("flex flex-col gap-1.5", compact ? "py-2" : "py-3")}>
       <div className="flex min-w-0 items-baseline gap-2">
-        <MediaIcon kind={item.media_kind} className="translate-y-[1px] text-fg-muted" />
+        <MediaIcon kind={item.media_kind} className="translate-y-px text-fg-muted" />
         <Link
           href={`/resources/${item.recording_id}`}
           onClick={onOpen}
@@ -87,7 +87,7 @@ export function SimilarRow({ item, compact, onOpen }: { item: SimilarItem; compa
                 <Snippet
                   html={c.snippet}
                   className={cn(
-                    "min-w-0 flex-1 font-serif leading-[1.45] text-fg [text-wrap:pretty]",
+                    "min-w-0 flex-1 font-serif leading-[1.45] text-fg text-pretty",
                     compact ? "line-clamp-2 text-[13px]" : "line-clamp-3 text-[14px]",
                   )}
                 />

@@ -335,7 +335,7 @@ export function AuditPage() {
                                 )}
                               </dd>
                               <dt className="font-bold">Details</dt>
-                              <dd className="break-words">{detail || "No details recorded"}</dd>
+                              <dd className="wrap-break-word">{detail || "No details recorded"}</dd>
                               <dt className="font-bold">When</dt>
                               <dd className="tabular">{absolute(e.at)}</dd>
                               <dt className="font-bold">Who</dt>

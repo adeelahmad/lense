@@ -37,7 +37,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed bottom-4 left-4 z-[300] flex flex-col gap-2">
+      <div aria-live="polite" className="pointer-events-none fixed bottom-4 left-4 z-300 flex flex-col gap-2">
         {items.map((t) => {
           const [g, c] = GLYPH[t.tone ?? "intent"];
           return (
@@ -51,12 +51,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="font-bold">{t.title}</div>
-                {t.body && <div className="text-[13px] text-[var(--term-muted)]">{t.body}</div>}
+                {t.body && <div className="text-[13px] text-(--term-muted)">{t.body}</div>}
               </div>
               {t.action && (
                 <button
                   type="button"
-                  className="shrink-0 font-bold text-[var(--term-blue)] hover:underline"
+                  className="shrink-0 font-bold text-(--term-blue) hover:underline"
                   onClick={() => {
                     t.action?.onClick();
                     dismiss(t.id);

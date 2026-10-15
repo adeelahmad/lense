@@ -23,10 +23,12 @@ from __future__ import annotations
 
 import base64
 import binascii
+import ipaddress
 import json
 import logging
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
@@ -60,6 +62,47 @@ def mark_fresh(db, cfg=None):
         empty = not db.values("SELECT VALUE id FROM recording LIMIT 1")
         if cfg is not None and empty and not db.one("SELECT id FROM $r", r=R("app_setting", "encryption")):
             settings.save(db, cfg, "encryption", {"files": True}, user="setup")
+
+
+def local_model(base_url):
+    """Whether a model server is on this machine or its network (free to call), not a paid cloud provider: a name
+    without a dot (a container next to Lens, localhost), a private or loopback address, or a .local, .internal, .lan
+    or .home.arpa name. The web app's isLocalModel (setup-wizard.tsx) says the same."""
+    host = (urllib.parse.urlsplit(base_url or "").hostname or "").strip("[]")
+    if not host:
+        return False
+    if "." not in host and ":" not in host:
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return host.endswith((".local", ".internal", ".lan", ".home.arpa"))
+    return ip.is_private or ip.is_loopback or ip.is_unspecified
+
+
+def todo(db, cfg, shown=None):
+    """What the wizard still has to ask, in order: only what has no answer yet and no default. The model provider,
+    while there is none (then the budget too, if the one chosen is paid); the overall budget, for a paid model with
+    none, unless the web installer set that model (it asks for the budget with it). Everything else (the first
+    namespace, storage, apps signing in, telemetry) has a default and stays in Settings, so it isn't asked."""
+    shown = shown or settings.effective(db, cfg, reveal=False)
+    llm = shown["llm"]
+    if not (llm.get("base_url") and llm.get("model")):
+        return ["llm"]
+    seeded = db.one("SELECT sections FROM $r", r=R(*SEEDED)) or {}
+    if not local_model(llm["base_url"]) and not budgets.get(db, budgets.ALL) and "llm" not in (seeded.get("sections") or []):
+        return ["budget"]
+    return []
+
+
+def finish_if_ready(db, cfg):
+    """Finish the wizard on its own when there is nothing left to ask (todo), as after the web installer: the first
+    admin then goes straight to Lens. Returns whether it did."""
+    if not pending(db) or todo(db, cfg):
+        return False
+    finish(db, "setup")
+    log.info("Setup has nothing left to ask (the model is set), so the setup wizard won't open; everything is in Settings")
+    return True
 
 
 def finish(db, user=None, skipped=False):
@@ -167,6 +210,7 @@ def view(db, cfg):
     admin = env_admin()
     return {
         "pending": pending(db),
+        "todo": todo(db, cfg, shown),
         "admin": {"from_env": bool(admin)},
         "namespace": {
             "existing": names,

@@ -249,7 +249,7 @@ function PatternsTab({ sid }: { sid: number }) {
               {rows.map((p) => (
                 <Tr key={p.id}>
                   <Td className="max-w-[560px]">
-                    <div className="break-words font-mono text-[12.5px] text-fg">{p.template}</div>
+                    <div className="wrap-break-word font-mono text-[12.5px] text-fg">{p.template}</div>
                     {p.example && p.example !== p.template && (
                       <div
                         className="mt-0.5 line-clamp-1 break-all font-mono text-[11.5px] text-fg-muted"

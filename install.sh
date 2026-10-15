@@ -11,10 +11,10 @@
 #   LENS_DIR       where Lens goes (default: ~/lens)
 #   LENS_REF       the branch or tag to run (default: main)
 #   LENS_PORT      the web app's port (default: 3000, or the next free one)
-#   LENS_PUBLIC    1: reachable from other machines on the network, 0: this machine only (default: 1 on a server
-#                  without a desktop, else 0)
+#   LENS_PUBLIC    1: reachable from other machines on the network, 0: this machine only (default: as the last run
+#                  left it, else 1 on a server without a desktop, else 0). Also in Settings › Access & embedding
 #   LENS_TARGET    full (reads Office files, web pages and emails too) or lean (smaller) (default: as the last run
-#                  left it, else full)
+#                  left it, else full). Also in Settings › Components
 #   LENS_BACKEND   docker or microsandbox (one microVM, no Docker: docs/microsandbox.md). Asked on a first install
 #                  when microsandbox can run here (Linux with KVM, or a Mac with Apple silicon); default: docker
 #   LENS_DNS_FALLBACK  in a microsandbox: the public resolvers it looks names up with when this machine's don't

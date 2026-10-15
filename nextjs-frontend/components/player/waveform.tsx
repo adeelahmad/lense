@@ -203,7 +203,7 @@ export function Waveform({
         {showPlayhead && (
           <div
             aria-hidden
-            className="pointer-events-none absolute -bottom-[3px] -top-[3px] right-0"
+            className="pointer-events-none absolute bottom-[-3px] top-[-3px] right-0"
             style={{ left: labelW }}
           >
             <span

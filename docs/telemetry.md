@@ -18,7 +18,7 @@ Any of these:
 - **Settings → Telemetry**: turn on **Send telemetry** and set the **OTLP endpoint**. **Send a test span** checks the
   address and headers first, even while it is off. The section shows whether it is on, where it sends, and how the
   last exports went.
-- **The setup wizard** asks on a fresh install (its last step); it is off unless you choose on.
+- **The setup wizard**'s Telemetry step, a click away on a fresh install (it isn't asked: off is its default).
 - **.env**, for the API and every worker:
 
   ```sh

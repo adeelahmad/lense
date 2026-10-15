@@ -309,14 +309,14 @@ export function ReprocessMenu({ disabled, reason }: { disabled: boolean; reason:
   if (off)
     return (
       <Button variant="secondary" size="sm" icon={<RefreshCw />} disabled disabledReason={why}>
-        Reprocess <ChevronDown className="!size-3.5" />
+        Reprocess <ChevronDown className="size-3.5!" />
       </Button>
     );
   return (
     <Menu>
       <MenuTrigger asChild>
         <Button variant="secondary" size="sm" icon={<RefreshCw />}>
-          Reprocess <ChevronDown className="!size-3.5" />
+          Reprocess <ChevronDown className="size-3.5!" />
         </Button>
       </MenuTrigger>
       <MenuContent className="min-w-[260px]">

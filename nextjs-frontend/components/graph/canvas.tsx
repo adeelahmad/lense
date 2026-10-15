@@ -371,7 +371,7 @@ export function GraphCanvas({
             );
         }}
         onBlur={() => setFocused(false)}
-        className="absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue"
+        className="absolute inset-0 outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue"
       >
         <svg
           width={size.w}

@@ -244,7 +244,6 @@ def bootstrap(cfg):
         "soffice": d.get("soffice") or (shutil.which("soffice") or shutil.which("libreoffice") or "not installed"),
         "chromium": d.get("chromium") or (chromium(cfg) or "not installed"),
         "anytopdf": anytopdf.binary(cfg) or "not installed",
-        "web_networks": [str(n) for n in d.get("web_networks") or []],
     }
 
 

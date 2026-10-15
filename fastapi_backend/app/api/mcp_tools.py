@@ -49,6 +49,7 @@ from app.domain import (
     sources,
     store,
     untrusted,
+    updates,
 )
 from app.domain import entities as ents
 from app.domain import speakers as spk
@@ -1738,3 +1739,49 @@ def set_monitoring(ctx: Context, on: bool) -> dict[str, Any]:
         raise ToolError(str(e)) from None
     auth.audit(ctx.db, ctx.user.as_audit(), "lens.monitoring", None, {"on": bool(on), "via": "mcp"})
     return got
+
+
+# ---------- how install.sh set this machine up: reachable on the network, and the edition (admins) ----------
+@tool(
+    "install_settings",
+    "How Lens is installed",
+    "Whether other machines on the network reach the web app (public true) or only this one, and the edition (target: "
+    "full, with LibreOffice and Chromium to read Office files, web pages and emails, or lean); null where Lens doesn't "
+    "know. Also whether this machine's upgrade agent can change them (agent), the install line to run on the machine "
+    "for each choice when it can't (manual), and how the last change went (reconfigure). Admins only.",
+)
+def install_settings(ctx: Context) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change how Lens is installed")
+    return updates.install_view(ctx.db, ctx.cfg) | {
+        "settings": f"{ctx.web}/settings/access",
+        "edition_settings": f"{ctx.web}/settings/components",
+    }
+
+
+@tool(
+    "set_install_settings",
+    "Change how Lens is installed",
+    "Make the web app reachable from other machines on the network (public true) or this machine only (false), or "
+    "change the edition (target full or lean). This machine's upgrade agent runs the install again for the version "
+    "running, and Lens restarts, away while it does (longer for a new edition with Docker, which builds it); "
+    "install_settings follows along. What is so already is left alone. Making it reachable from the network lets "
+    "anyone there reach the sign-in page. Admins only, with a token that has the write scope.",
+    Arg("public", "boolean", "reachable from other machines on the network (true) or this machine only (false)"),
+    Arg("target", "string", "the edition: full or lean", enum=updates.TARGETS),
+    writes=True,
+)
+def set_install_settings(ctx: Context, public: bool | None = None, target: str | None = None) -> dict[str, Any]:
+    if not ctx.user.admin:
+        raise ToolError("only admins see or change how Lens is installed")
+    if not ctx.user.can_write:
+        raise ToolError("this token is read-only: ask for a token with the write scope to change how Lens is installed")
+    if public is None and target is None:
+        raise ToolError("say what to change: public, target or both")
+    try:
+        asked = updates.change_install(ctx.db, ctx.cfg, public, target, by=ctx.user.email)
+    except updates.UpdateError as e:
+        raise ToolError(str(e)) from None
+    if asked:
+        auth.audit(ctx.db, ctx.user.as_audit(), "lens.install", None, asked | {"via": "mcp"})
+    return updates.install_view(ctx.db, ctx.cfg) | {"changing": asked}

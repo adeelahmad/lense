@@ -183,6 +183,8 @@ def status(db, cfg, base):
     return {
         "missing": missing,
         "setup_wizard_pending": view["pending"],
+        # what the wizard still asks: llm (the model provider), budget (for a paid model)
+        "setup_todo": view["todo"],
         "model_provider": {k: v for k, v in view["llm"]["values"].items() if k != "api_key"}
         | {"api_key_set": bool((view["llm"]["values"].get("api_key") or {}).get("set")), "locked_by_env": view["llm"]["locked"]},
         "namespaces": sorted(names.values()),

@@ -26,7 +26,7 @@ export function LibraryTabs<T extends string>({
     <div
       role="tablist"
       aria-label="Library views"
-      className="flex overflow-x-auto border-b border-border [scrollbar-width:none]"
+      className="flex overflow-x-auto border-b border-border scrollbar-none"
     >
       {items.map((it) => {
         const on = it.value === value;

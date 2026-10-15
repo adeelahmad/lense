@@ -115,7 +115,7 @@ function SetupForm({
                 checked={mode === m.value}
                 disabled={!can}
                 onChange={() => setMode(m.value)}
-                className="mt-0.5 accent-[var(--aladdin-blue)]"
+                className="mt-0.5 accent-(--aladdin-blue)"
               />
               <span className="flex flex-col gap-0.5">
                 <span className="text-[14px] font-bold text-fg">{m.label}</span>

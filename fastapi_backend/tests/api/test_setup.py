@@ -309,3 +309,56 @@ def test_log_prints_a_setup_link(fresh, caplog, monkeypatch):
     with caplog.at_level("WARNING", logger="lens"):
         fresh()
     assert "with setup code: a b&c (or open http://localhost:3000/setup?code=a+b%26c, which fills it in)" in caplog.text
+
+
+def test_the_wizard_asks_only_what_has_no_answer(fresh):
+    """The model provider while there is none, then the budget for a paid one; the rest has defaults (todo)."""
+    app, client = fresh()
+    code = app.state.archive.setup_code
+    r = client.post("/api/v1/auth/setup", json={"code": code, "email": "ada@x.io", "password": "admin password 1"})
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+    assert client.get("/api/v1/setup", headers=h).json()["todo"] == ["llm"]
+    client.put("/api/v1/setup/llm", json={"base_url": "http://ollama:11434/v1", "model": "llama3"}, headers=h)
+    assert client.get("/api/v1/setup", headers=h).json()["todo"] == []  # a model on this network costs nothing
+    client.put("/api/v1/setup/llm", json={"base_url": "https://api.openai.com/v1", "model": "gpt-x", "api_key": "sk"}, headers=h)
+    assert client.get("/api/v1/setup", headers=h).json()["todo"] == ["budget"]
+    client.put("/api/v1/setup/budget", json={"hard_usd": 25}, headers=h)
+    assert client.get("/api/v1/setup", headers=h).json()["todo"] == []
+    assert client.get("/api/v1/auth/status").json()["wizard_pending"] is True  # until finished (or the next start)
+
+
+def test_the_installers_model_leaves_nothing_to_ask(fresh, monkeypatch, caplog):
+    """With the web installer's model (and its budget question asked there), the wizard finishes at startup: the first
+    admin goes straight to Lens, which has the default namespace."""
+    monkeypatch.setenv("LENS_SETUP_SETTINGS", '{"llm": {"base_url": "https://api.openai.com/v1", "model": "gpt-x"}}')
+    with caplog.at_level("INFO", logger="lens"):
+        app, client = fresh()
+    assert client.get("/api/v1/auth/status").json() == {"setup_required": True, "wizard_pending": False, "passwords": False}
+    assert "the setup wizard won't open" in caplog.text
+    assert sorted(store.space_names(app.state.db).values()) == ["archive"]
+
+
+def test_a_paid_model_from_the_environment_still_asks_for_a_budget(fresh, monkeypatch):
+    from app.domain import setup
+
+    monkeypatch.setenv("LENS_LLM_BASE_URL", "https://api.openai.com/v1")
+    monkeypatch.setenv("LENS_LLM_MODEL", "gpt-x")
+    app, client = fresh()
+    assert client.get("/api/v1/auth/status").json()["wizard_pending"] is True
+    assert setup.todo(app.state.db, app.state.archive.base) == ["budget"]
+
+
+def test_tells_a_model_on_this_network_from_a_cloud_provider():
+    from app.domain import setup
+
+    for u in (
+        "http://localhost:11434/v1",
+        "http://host.docker.internal:1234/v1",
+        "http://ollama:11434/v1",
+        "http://192.168.1.5:8080/v1",
+        "http://[::1]:11434",
+        "http://nas.lan/v1",
+    ):
+        assert setup.local_model(u), u
+    for u in ("https://api.openai.com/v1", "https://openrouter.ai/api/v1", "", None, "http://8.8.8.8/v1"):
+        assert not setup.local_model(u), u

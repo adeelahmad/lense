@@ -49,6 +49,7 @@ const CLOUD = [
 
 const VIEW = (over: Partial<SetupView> = {}): SetupView => ({
   pending: true,
+  todo: ["llm"],
   admin: { from_env: false },
   namespace: { existing: [], locked: false },
   llm: { values: { base_url: null, model: null, api_key: { secret: true, set: false } }, locked: [] },
@@ -150,17 +151,17 @@ describe("SetupWizard", () => {
     );
   });
 
-  it("walks through namespace, model provider, storage, apps and telemetry, then finishes", async () => {
+  it("asks for the model provider and finishes, with the rest a click away", async () => {
     m(Setup.getSetup).mockImplementation(() => ok(VIEW()));
     m(Setup.saveNamespace).mockImplementation(() => ok({ ok: true }));
     m(Setup.saveLlm).mockImplementation(() => ok({ ok: true }));
     m(Admin.testLlm).mockImplementation(() => ok({ ok: true, reply: "OK", ms: 120, model: "llama3" }));
     m(Setup.saveStorage).mockImplementation(() => ok({ ok: true }));
-    m(Setup.saveTelemetry).mockImplementation(() => ok({ ok: true }));
-    m(Setup.saveOauth).mockImplementation(() => ok({ ok: true }));
     m(Setup.finish).mockImplementation(() => ok({ ok: true }));
     wrap(<SetupWizard />);
 
+    // the first namespace has a default: not asked, but there to choose
+    fireEvent.click(await screen.findByRole("button", { name: /Namespace/ }));
     const name = await screen.findByLabelText("Name");
     fireEvent.change(name, { target: { value: "Bad Name" } });
     expect(screen.getByRole("button", { name: "Create and continue" })).toBeDisabled();
@@ -172,10 +173,18 @@ describe("SetupWizard", () => {
       ),
     );
 
+    // so is storage: back to the model provider afterwards
+    fireEvent.click(await screen.findByRole("button", { name: /Storage/ }));
+    fireEvent.change(await screen.findByLabelText(/Largest upload/), { target: { value: "2048" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(Setup.saveStorage).toHaveBeenCalled());
+    expect(m(Setup.saveStorage).mock.calls[0][0].body).toEqual({ max_upload_mb: 2048, folder: null, namespace: null });
+
     fireEvent.change(await screen.findByLabelText("Base URL"), { target: { value: "http://localhost:11434/v1" } });
     fireEvent.change(screen.getByLabelText("Model"), { target: { value: "llama3" } });
     fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
     expect(await screen.findByText(/llama3 answered “OK”/)).toBeInTheDocument();
+    expect(Setup.finish).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
     await waitFor(() => expect(m(Setup.saveLlm).mock.calls.length).toBe(2));
     expect(m(Setup.saveLlm).mock.calls[1][0].body).toEqual({
@@ -184,36 +193,54 @@ describe("SetupWizard", () => {
       api_key: null,
     });
 
-    // a model on this machine costs nothing: no budget step
-    expect(await screen.findByLabelText(/Largest upload/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Budget/ })).not.toBeInTheDocument();
-
-    fireEvent.change(await screen.findByLabelText(/Largest upload/), { target: { value: "2048" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
-    await waitFor(() => expect(Setup.saveStorage).toHaveBeenCalled());
-    expect(m(Setup.saveStorage).mock.calls[0][0].body).toEqual({ max_upload_mb: 2048, folder: null, namespace: null });
-
-    // apps signing in is optional: skipping keeps it as it is
-    expect(await screen.findByText("Apps and AI assistants")).toBeInTheDocument();
-    expect(screen.getByLabelText("MCP server address")).toHaveValue("http://localhost/mcp");
-    fireEvent.click(screen.getByRole("button", { name: "Skip this step" }));
-    expect(Setup.saveOauth).not.toHaveBeenCalled();
-
-    // telemetry is off unless chosen: finishing with it off sends nothing anywhere
-    expect(await screen.findByText(/off unless you turn it on/)).toBeInTheDocument();
-    expect(screen.queryByLabelText("OTLP endpoint")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Save and finish" }));
+    // a model on this machine costs nothing: no budget step, and nothing else to ask
     await waitFor(() =>
       expect(Setup.finish).toHaveBeenCalledWith(expect.objectContaining({ body: { skipped: false } })),
     );
-    expect(m(Setup.saveTelemetry).mock.calls[0][0].body).toEqual({
-      enabled: false,
-      endpoint: null,
-      analytics: false,
-      measurement_id: null,
-      api_secret: null,
-    });
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(screen.queryByRole("button", { name: /Budget/ })).not.toBeInTheDocument();
+  });
+
+  it("finishes on its own when there is nothing left to ask", async () => {
+    m(Setup.getSetup).mockImplementation(() =>
+      ok(
+        VIEW({
+          todo: [],
+          llm: {
+            values: { base_url: "http://x/v1", model: "qwen3:8b", api_key: { secret: true, set: false } },
+            locked: [],
+          },
+        }),
+      ),
+    );
+    m(Setup.finish).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    await waitFor(() =>
+      expect(Setup.finish).toHaveBeenCalledWith(expect.objectContaining({ body: { skipped: false } })),
+    );
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    expect(screen.queryByLabelText("Base URL")).not.toBeInTheDocument();
+  });
+
+  it("asks only for the budget when a paid model is set already", async () => {
+    m(Setup.getSetup).mockImplementation(() =>
+      ok(
+        VIEW({
+          todo: ["budget"],
+          llm: {
+            values: { base_url: "https://api.openai.com/v1", model: "gpt-x", api_key: { secret: true, set: true } },
+            locked: ["base_url", "model", "api_key"],
+          },
+        }),
+      ),
+    );
+    m(Setup.saveBudget).mockImplementation(() => ok(["budget"]));
+    m(Setup.finish).mockImplementation(() => ok({ ok: true }));
+    wrap(<SetupWizard />);
+    fireEvent.change(await screen.findByLabelText("Hard limit"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(Setup.saveBudget).toHaveBeenCalled());
+    await waitFor(() => expect(Setup.finish).toHaveBeenCalled());
   });
 
   it("asks for a budget after a cloud model: one scale for the hard limit, with the model's price", async () => {
@@ -230,6 +257,7 @@ describe("SetupWizard", () => {
     );
     m(Setup.saveLlm).mockImplementation(() => ok({ ok: true }));
     m(Setup.saveBudget).mockImplementation(() => ok(["budget"]));
+    m(Setup.finish).mockImplementation(() => ok({ ok: true }));
     wrap(<SetupWizard />);
     fireEvent.click(await screen.findByRole("button", { name: "Save and continue" }));
 
@@ -251,7 +279,9 @@ describe("SetupWizard", () => {
       price_out: 15,
     });
 
-    expect(await screen.findByLabelText(/Largest upload/)).toBeInTheDocument();
+    // and that's all there is to ask
+    await waitFor(() => expect(Setup.finish).toHaveBeenCalled());
+    expect(screen.queryByLabelText(/Largest upload/)).not.toBeInTheDocument();
   });
 
   it("opts in to telemetry with an endpoint, after a test span", async () => {
@@ -264,7 +294,7 @@ describe("SetupWizard", () => {
     fireEvent.click(
       within(await screen.findByRole("radiogroup", { name: "Send telemetry" })).getByRole("radio", { name: "On" }),
     );
-    const save = screen.getByRole("button", { name: "Save and finish" });
+    const save = screen.getByRole("button", { name: "Save and continue" });
     expect(save).toBeDisabled(); // on needs somewhere to send to
     fireEvent.change(screen.getByLabelText("OTLP endpoint"), { target: { value: "localhost:4318" } });
     expect(save).toBeDisabled();
@@ -273,7 +303,7 @@ describe("SetupWizard", () => {
     expect(await screen.findByText(/took a test span in 12 ms/)).toBeInTheDocument();
     expect(m(Setup.saveTelemetry).mock.calls[0][0].body).toEqual({ enabled: false, endpoint: "http://localhost:4318" });
     fireEvent.click(save);
-    await waitFor(() => expect(Setup.finish).toHaveBeenCalled());
+    await waitFor(() => expect(m(Setup.saveTelemetry).mock.calls.length).toBe(2));
     expect(m(Setup.saveTelemetry).mock.calls[1][0].body).toEqual({
       enabled: true,
       endpoint: "http://localhost:4318",
@@ -281,6 +311,9 @@ describe("SetupWizard", () => {
       measurement_id: null,
       api_secret: null,
     });
+    // back to what's still to ask: the model provider
+    expect(await screen.findByLabelText("Base URL")).toBeInTheDocument();
+    expect(Setup.finish).not.toHaveBeenCalled();
   });
 
   it("opts in to Google Analytics with a measurement id and secret", async () => {
@@ -291,14 +324,14 @@ describe("SetupWizard", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Telemetry/ }));
     const group = await screen.findByRole("radiogroup", { name: "Share usage statistics with Google Analytics" });
     fireEvent.click(within(group).getByRole("radio", { name: "On" }));
-    const save = screen.getByRole("button", { name: "Save and finish" });
+    const save = screen.getByRole("button", { name: "Save and continue" });
     expect(save).toBeDisabled(); // on needs an id and a secret
     fireEvent.change(screen.getByLabelText("Measurement id"), { target: { value: "UA-1" } });
     fireEvent.change(screen.getByLabelText("Measurement Protocol API secret"), { target: { value: "s3cret" } });
     expect(save).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Measurement id"), { target: { value: "G-TEST1234" } });
     fireEvent.click(save);
-    await waitFor(() => expect(Setup.finish).toHaveBeenCalled());
+    await waitFor(() => expect(m(Setup.saveTelemetry).mock.calls.length).toBe(1));
     expect(m(Setup.saveTelemetry).mock.calls[0][0].body).toEqual({
       enabled: false,
       endpoint: null,
@@ -321,7 +354,7 @@ describe("SetupWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
     await waitFor(() => expect(Setup.saveOauth).toHaveBeenCalled());
     expect(m(Setup.saveOauth).mock.calls[0][0].body).toEqual({ enabled: true, access_minutes: 30, refresh_days: 14 });
-    // on to telemetry; back to apps and off: nothing else to choose
+    // back to the model provider; to apps again and off: nothing else to choose
     fireEvent.click(await screen.findByRole("button", { name: /Apps and AI/ }));
     fireEvent.click(await screen.findByRole("radio", { name: "Off" }));
     expect(screen.queryByLabelText("MCP server address")).not.toBeInTheDocument();

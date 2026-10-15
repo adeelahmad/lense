@@ -29,7 +29,7 @@ export function RecordingSkeleton() {
         <div className="flex min-w-0 flex-col">
           <div className="flex flex-col gap-3 border-b border-border px-6 py-4">
             <div className="flex items-center gap-3">
-              <Skeleton className="size-[38px] !rounded-full" />
+              <Skeleton className="size-[38px] rounded-full!" />
               <Skeleton className="h-3.5 w-28" />
             </div>
             <Skeleton className="h-16 w-full" />

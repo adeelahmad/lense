@@ -216,7 +216,7 @@ function SkeletonLines({ still }: { still?: boolean }) {
   return (
     <div className="flex flex-col gap-2" aria-hidden>
       {[90, 76, 84].map((w) => (
-        <Skeleton key={w} className={still ? "h-2.5 !animate-none" : "h-2.5"} style={{ width: `${w}%` }} />
+        <Skeleton key={w} className={still ? "h-2.5 animate-none!" : "h-2.5"} style={{ width: `${w}%` }} />
       ))}
     </div>
   );
@@ -265,7 +265,7 @@ function SummaryBlock({
       {doc.tldr && (
         <div className="flex flex-col gap-1.5">
           <Label as="h3">TL;DR</Label>
-          <p className="m-0 font-serif text-[15.5px] leading-[1.55] text-fg [text-wrap:pretty]">{doc.tldr}</p>
+          <p className="m-0 font-serif text-[15.5px] leading-[1.55] text-fg text-pretty">{doc.tldr}</p>
         </div>
       )}
       {doc.sections.map((s) => (
@@ -280,7 +280,7 @@ function SummaryBlock({
                 <span aria-hidden className="text-center text-[12px] font-bold leading-[19px] text-fg-muted">
                   {s.glyph}
                 </span>
-                <span className="[text-wrap:pretty]">
+                <span className="text-pretty">
                   {it.text}
                   {it.who && (
                     <span className="ml-1.5 inline-flex items-center gap-1 text-[11.5px] font-semibold leading-none text-fg-secondary">

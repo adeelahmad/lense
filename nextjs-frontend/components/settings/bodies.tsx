@@ -10,6 +10,7 @@ import type { HttpsStatus, MatterbridgeStatus } from "@/app/openapi-client/types
 import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
+import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -351,13 +352,16 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "components":
       return (
         <>
+          <EditionChoice />
           <F ctx={ctx} id="components.auto" />
+          <F ctx={ctx} id="components.hf_token" />
           <ComponentsStatus ctx={ctx} />
         </>
       );
     case "access":
       return (
         <>
+          <NetworkReach />
           <F ctx={ctx} id="server.allowed_hosts" />
           <F ctx={ctx} id="server.embed_frame_ancestors" />
           <F ctx={ctx} id="server.trusted_proxies" />
@@ -481,6 +485,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="documents.convert_seconds" />
           <F ctx={ctx} id="documents.attachment_resources" />
           <F ctx={ctx} id="documents.video_urls" />
+          <F ctx={ctx} id="documents.web_networks" />
           <F ctx={ctx} id="documents.converter" />
           <F ctx={ctx} id="documents.anytopdf_url" />
           <F ctx={ctx} id="documents.anytopdf_token" />
@@ -2369,7 +2374,7 @@ function RunMatterbridge({ ctx, status }: { ctx: BodyCtx; status: MatterbridgeSt
           few seconds.
           <pre
             aria-label="WhatsApp QR code"
-            className="mt-2 w-fit bg-white p-2 font-mono text-[9px] leading-[1] text-black"
+            className="mt-2 w-fit bg-white p-2 font-mono text-[9px] leading-none text-black"
           >
             {status.whatsapp_qr}
           </pre>
@@ -2993,10 +2998,6 @@ function Startup({ view }: { view: SettingsView }) {
     ["rclone", b.rclone ?? "—"],
     ["LibreOffice", b.soffice ?? "—"],
     ["Chromium", b.chromium ?? "—"],
-    [
-      "Web capture",
-      b.web_networks?.length ? `public addresses and ${b.web_networks.join(" · ")}` : "public addresses only",
-    ],
     ["YOLOX model", b.yolox_model ?? "—"],
     ["Watchable folders", b.local_roots?.length ? b.local_roots.join(" · ") : "none: local folders can’t be watched"],
   ];

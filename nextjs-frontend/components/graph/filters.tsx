@@ -215,7 +215,7 @@ export function GraphFilters({
           max={Math.max(2, maxWeight)}
           value={minWeight}
           onChange={(e) => onMinWeight(Number(e.target.value))}
-          className="w-full accent-[var(--aladdin-blue)]"
+          className="w-full accent-(--aladdin-blue)"
         />
         <span className="text-[12px] leading-snug text-fg-muted">
           Showing {count(shown)} of {count(total)} nodes

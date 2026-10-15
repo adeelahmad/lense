@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.8.1"
+    "version": "0.9.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -4187,6 +4187,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/install": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Install",
+        "description": "How install.sh set this machine up: whether other machines on the network reach the web app, and the edition\n(full or lean); what can change them here, and how the last change went.",
+        "operationId": "get_install",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Set Install",
+        "description": "Make the web app reachable from other machines on the network (public) or this machine only, or change the\nedition (target: full, with LibreOffice and Chromium, or lean): this machine's upgrade agent runs install.sh again\nfor the version running with LENS_PUBLIC and LENS_TARGET, and Lens restarts; GET /admin/install follows along.\nWhat is so already is left alone, and with nothing left to change nothing restarts (200). Without an agent, 409\nsays the line to run on the machine instead (`manual` has each one).",
+        "operationId": "set_install",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallStatus"
                 }
               }
             }
@@ -39503,6 +39565,139 @@
         ],
         "title": "IndexQueued"
       },
+      "InstallChange": {
+        "properties": {
+          "public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public",
+            "description": "reachable from other machines on the network (true) or this machine only (false)"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "lean"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "the edition: full or lean"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "InstallChange"
+      },
+      "InstallLines": {
+        "properties": {
+          "public": {
+            "type": "string",
+            "title": "Public",
+            "description": "the install line that makes the web app reachable from other machines (LENS_PUBLIC=1)"
+          },
+          "private": {
+            "type": "string",
+            "title": "Private",
+            "description": "the install line that keeps it to this machine (LENS_PUBLIC=0)"
+          },
+          "full": {
+            "type": "string",
+            "title": "Full",
+            "description": "the install line for the full edition (LENS_TARGET=full)"
+          },
+          "lean": {
+            "type": "string",
+            "title": "Lean",
+            "description": "the install line for the lean edition (LENS_TARGET=lean)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "public",
+          "private",
+          "full",
+          "lean"
+        ],
+        "title": "InstallLines"
+      },
+      "InstallStatus": {
+        "properties": {
+          "public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public",
+            "description": "the web app is reachable from other machines on the network (LENS_BIND), or from this one only; none: Lens wasn't started by install.sh or docker-compose.prod.yml, so it doesn't know"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "lean"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "the edition (LENS_TARGET): full has LibreOffice and Chromium, to read Office files, web pages and emails; lean doesn't. None: not known here"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what changes them on this machine (systemd, launchd); none: run a `manual` line there"
+          },
+          "manual": {
+            "$ref": "#/components/schemas/InstallLines",
+            "description": "the line to run on the machine Lens runs on for each choice, when there's no agent"
+          },
+          "reconfigure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpgradeRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the last run that changed either (as in /admin/updates)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "manual"
+        ],
+        "title": "InstallStatus"
+      },
       "IpGroup": {
         "properties": {
           "id": {
@@ -55298,6 +55493,18 @@
             "type": "boolean",
             "title": "Pending"
           },
+          "todo": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "llm",
+                "budget"
+              ]
+            },
+            "type": "array",
+            "title": "Todo",
+            "default": []
+          },
           "admin": {
             "$ref": "#/components/schemas/SetupAdmin"
           },
@@ -59681,6 +59888,34 @@
             ],
             "title": "Https",
             "description": "the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)"
+          },
+          "public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public",
+            "description": "the web app made reachable from other machines on the network (true) or this one only (false) by this run"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "lean"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "the edition this run changed to"
           },
           "state": {
             "type": "string",

@@ -9,10 +9,10 @@ import { cn } from "@/lib/utils";
 
 const TONE: Record<LogTone, string> = {
   out: "text-term-muted",
-  info: "text-[var(--term-blue)]",
-  ok: "text-[var(--term-green)]",
-  fail: "text-[var(--term-red)]",
-  gate: "text-[var(--term-gold)]",
+  info: "text-(--term-blue)",
+  ok: "text-(--term-green)",
+  fail: "text-(--term-red)",
+  gate: "text-(--term-gold)",
 };
 
 /** Download lines as a text file (the full log the server keeps). */
@@ -97,10 +97,10 @@ export function LogViewer({
             const el = e.currentTarget;
             follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
           }}
-          className="max-h-[420px] min-h-[120px] overflow-auto px-4 py-3 focus-visible:outline-offset-[-2px]"
+          className="max-h-[420px] min-h-[120px] overflow-auto px-4 py-3 focus-visible:-outline-offset-2"
         >
           {lines.length ? (
-            <pre className="m-0 whitespace-pre-wrap break-words font-mono">
+            <pre className="m-0 whitespace-pre-wrap wrap-break-word font-mono">
               {lines.map((l, i) => (
                 <div key={i} className={TONE[i === 0 && l.tone === "out" ? "info" : l.tone]}>
                   {l.time && <span className="text-term-muted">{l.time} </span>}

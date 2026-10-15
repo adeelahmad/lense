@@ -1,6 +1,6 @@
 {
-  "surveyed": "2026-10-14T15:46:32.131Z",
-  "commit": "",
+  "surveyed": "2026-10-15T00:52:08.738Z",
+  "commit": "93bbfbe6f96099678673e62cb5897db1901ff413",
   "viewport": "Pixel 7, 412x839, touch",
   "device": "phone",
   "journeys": [
@@ -47,7 +47,7 @@
         }
       ],
       "id": "install",
-      "ms": 3223,
+      "ms": 1590,
       "ok": true
     },
     {
@@ -85,14 +85,14 @@
         }
       ],
       "id": "first-admin",
-      "ms": 632,
+      "ms": 470,
       "ok": true
     },
     {
       "module": "Setup",
       "feature": "First-run setup wizard, every step with its defaults",
-      "note": "The namespaces come from the install's configuration, so the wizard opens on the model provider. Finish with defaults (one click) skips the remaining steps.",
-      "clicks": 4,
+      "note": "It asks only what has no default: the model provider, filled in from the local model found (and a budget for a cloud one). The survey's Lens started before its stand-in installer, so the model isn't set yet; after the real web installer, which sets it, the wizard doesn't open. The namespace, storage, apps and telemetry keep their defaults.",
+      "clicks": 1,
       "keys": 0,
       "prompts": 0,
       "swipes": 0,
@@ -104,34 +104,10 @@
           "clicks": 1,
           "keys": 0,
           "prompts": 0
-        },
-        {
-          "page": "/welcome",
-          "kind": "tap",
-          "what": "Save and continue (Storage)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/welcome",
-          "kind": "tap",
-          "what": "Save and continue (Apps and AI assistants)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
-        },
-        {
-          "page": "/welcome",
-          "kind": "tap",
-          "what": "Save and finish (Telemetry)",
-          "clicks": 1,
-          "keys": 0,
-          "prompts": 0
         }
       ],
       "id": "setup-wizard",
-      "ms": 1299,
+      "ms": 410,
       "ok": true
     },
     {
@@ -161,7 +137,7 @@
         }
       ],
       "id": "first-question",
-      "ms": 1264,
+      "ms": 1089,
       "ok": true
     },
     {
@@ -208,7 +184,7 @@
         }
       ],
       "id": "import-paste",
-      "ms": 4576,
+      "ms": 4392,
       "ok": true
     },
     {
@@ -246,7 +222,7 @@
         }
       ],
       "id": "library-open",
-      "ms": 3179,
+      "ms": 3028,
       "ok": true
     },
     {
@@ -292,7 +268,7 @@
         }
       ],
       "id": "search-word",
-      "ms": 3717,
+      "ms": 3605,
       "ok": true
     },
     {
@@ -330,7 +306,7 @@
         }
       ],
       "id": "jump-to",
-      "ms": 2482,
+      "ms": 2365,
       "ok": true
     },
     {
@@ -384,7 +360,7 @@
         }
       ],
       "id": "chat-ask",
-      "ms": 6427,
+      "ms": 6073,
       "ok": true
     },
     {
@@ -446,7 +422,7 @@
         }
       ],
       "id": "note-create",
-      "ms": 3777,
+      "ms": 3403,
       "ok": true
     },
     {
@@ -500,7 +476,7 @@
         }
       ],
       "id": "topic-add",
-      "ms": 3786,
+      "ms": 3606,
       "ok": true
     },
     {
@@ -546,7 +522,7 @@
         }
       ],
       "id": "pipeline-create",
-      "ms": 3010,
+      "ms": 2909,
       "ok": true
     },
     {
@@ -592,7 +568,7 @@
         }
       ],
       "id": "routine-create",
-      "ms": 3090,
+      "ms": 2958,
       "ok": true
     },
     {
@@ -638,7 +614,7 @@
         }
       ],
       "id": "extension-add",
-      "ms": 3199,
+      "ms": 3082,
       "ok": true
     },
     {
@@ -684,7 +660,7 @@
         }
       ],
       "id": "sensor-webhook",
-      "ms": 3173,
+      "ms": 3020,
       "ok": true
     },
     {
@@ -747,7 +723,7 @@
         }
       ],
       "id": "settings-change",
-      "ms": 4435,
+      "ms": 4214,
       "ok": true
     },
     {
@@ -817,7 +793,7 @@
         }
       ],
       "id": "person-add",
-      "ms": 3819,
+      "ms": 3601,
       "ok": true
     },
     {
@@ -855,7 +831,7 @@
         }
       ],
       "id": "api-token",
-      "ms": 3379,
+      "ms": 3232,
       "ok": true
     },
     {
@@ -893,7 +869,7 @@
         }
       ],
       "id": "namespace-switch",
-      "ms": 2882,
+      "ms": 2754,
       "ok": true
     },
     {
@@ -939,7 +915,7 @@
         }
       ],
       "id": "agent-connect",
-      "ms": 3309,
+      "ms": 3109,
       "ok": true
     },
     {
@@ -977,7 +953,7 @@
         }
       ],
       "id": "import-file",
-      "ms": 3405,
+      "ms": 3730,
       "ok": true
     },
     {
@@ -1031,7 +1007,7 @@
         }
       ],
       "id": "source-folder",
-      "ms": 4530,
+      "ms": 4469,
       "ok": true
     },
     {
@@ -1077,7 +1053,7 @@
         }
       ],
       "id": "entity-find",
-      "ms": 12189,
+      "ms": 11839,
       "ok": true
     },
     {
@@ -1131,7 +1107,7 @@
         }
       ],
       "id": "graph-find",
-      "ms": 4917,
+      "ms": 4686,
       "ok": true
     },
     {
@@ -1193,7 +1169,7 @@
         }
       ],
       "id": "podcast-create",
-      "ms": 4201,
+      "ms": 3951,
       "ok": true
     },
     {
@@ -1247,7 +1223,7 @@
         }
       ],
       "id": "report-pdf",
-      "ms": 4047,
+      "ms": 3869,
       "ok": true
     },
     {
@@ -1301,7 +1277,7 @@
         }
       ],
       "id": "workflow-create",
-      "ms": 3774,
+      "ms": 3548,
       "ok": true
     },
     {
@@ -1355,7 +1331,7 @@
         }
       ],
       "id": "template-create",
-      "ms": 3710,
+      "ms": 3483,
       "ok": true
     },
     {
@@ -1417,7 +1393,7 @@
         }
       ],
       "id": "namespace-create",
-      "ms": 3562,
+      "ms": 3333,
       "ok": true
     },
     {
@@ -1479,7 +1455,7 @@
         }
       ],
       "id": "speaker-rename",
-      "ms": 4464,
+      "ms": 4242,
       "ok": true
     },
     {
@@ -1549,7 +1525,7 @@
         }
       ],
       "id": "cloud-model",
-      "ms": 4658,
+      "ms": 3735,
       "ok": true
     }
   ],
@@ -1714,7 +1690,7 @@
       "page": "/settings/speech-providers",
       "label": "Settings › Speech providers",
       "reach": 3,
-      "controls": 22
+      "controls": 30
     },
     {
       "page": "/settings/voice-ids",
@@ -1765,10 +1741,16 @@
       "controls": 19
     },
     {
+      "page": "/settings/nsfw",
+      "label": "Settings › NSFW",
+      "reach": 3,
+      "controls": 5
+    },
+    {
       "page": "/settings/workers",
       "label": "Settings › Workers",
       "reach": 3,
-      "controls": 18
+      "controls": 19
     },
     {
       "page": "/settings/sign-in",
@@ -1786,7 +1768,7 @@
       "page": "/settings/components",
       "label": "Settings › Components",
       "reach": 3,
-      "controls": 1
+      "controls": 3
     },
     {
       "page": "/settings/access",
@@ -1799,6 +1781,12 @@
       "label": "Settings › Remote access",
       "reach": 3,
       "controls": 4
+    },
+    {
+      "page": "/settings/https",
+      "label": "Settings › HTTPS",
+      "reach": 3,
+      "controls": 18
     },
     {
       "page": "/settings/mail",
@@ -1900,7 +1888,7 @@
       "page": "/settings/documents",
       "label": "Settings › Documents",
       "reach": 3,
-      "controls": 10
+      "controls": 12
     },
     {
       "page": "/settings/tokens",
@@ -1924,25 +1912,31 @@
       "page": "/admin/people",
       "label": "Admin",
       "reach": 2,
-      "controls": 12
+      "controls": 13
+    },
+    {
+      "page": "/admin/roles",
+      "label": "Admin › Roles",
+      "reach": 3,
+      "controls": 6
     },
     {
       "page": "/admin/namespaces",
       "label": "Admin › Namespaces",
       "reach": 3,
-      "controls": 8
+      "controls": 9
     },
     {
       "page": "/admin/audit",
       "label": "Admin › Audit log",
       "reach": 3,
-      "controls": 35
+      "controls": 36
     },
     {
       "page": "/admin/health",
       "label": "Admin › System health",
       "reach": 3,
-      "controls": 11
+      "controls": 12
     },
     {
       "page": "/notes/:id",

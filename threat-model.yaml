@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:870fccb52070eff68ed08439f449cbdfb8a979e24533b8a82093d0848d6a4172"
+prose_version: "threat-model.md@sha256:16e8f3084a18a5cc02c60dbf6ec3d75ea8ae614933ed4c72f0c2297eb26ff063"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -441,12 +441,12 @@ entry_points:
   - id: "host control inbox and the monitoring scrape token"
     component: authz
     parameters:
-      - name: "inbox/upgrade request: release ref, or action=services with monitoring=on|off"
+      - name: "inbox/upgrade request: release ref (empty: the version running) with https=0|1, public=0|1 and target=full|lean, or action=services with monitoring=on|off"
         attacker_controllable: true
         x-condition: "writable by the containers and local users"
         control_kinds: [x-env-config]
         obligation_id: agent-allow-list
-        caller_must_enforce: "the agent installs only a release tag or the install's branch, and only toggles the monitoring profile"
+        caller_must_enforce: "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the monitoring profile; a writer can at most restart Lens with those choices or open it to the network"
         provenance: {kind: documented, source: "docs/updates.md"}
       - name: "/metrics scrape token, .lens-control/prometheus-token"
         attacker_controllable: true
@@ -455,6 +455,16 @@ entry_points:
         obligation_id: metrics-token
         caller_must_enforce: "token compared in constant time; metrics carry no personal content"
         provenance: {kind: documented, source: "docs/prometheus.md Privacy"}
+  - id: "admin machine setup requests"
+    component: authz
+    parameters:
+      - name: "PUT /api/v1/admin/install {public, target}, POST /api/v1/settings/https/ports {open}, MCP set_install_settings"
+        attacker_controllable: false
+        x-condition: "admin only (MCP: with the write scope)"
+        control_kinds: [x-env-config]
+        obligation_id: admin-is-trusted
+        caller_must_enforce: "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again"
+        provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:
@@ -1106,6 +1116,21 @@ build_flags:
     affects_properties:
       - {property_id: P-CHILD-SECRETS, effect: preserves}
     provenance: {kind: documented, source: 'docs/https.md "Off by default"'}
+  - name: "Reachable from the network: install.sh LENS_PUBLIC (kept as LENS_BIND), also from Settings › Access & embedding, PUT /api/v1/admin/install or MCP set_install_settings"
+    default: "1 (0.0.0.0) on a server without a desktop, else 0 (127.0.0.1)"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "publishes the web app's port to the network over plain HTTP, with the sensor, file-share and Grafana ports unless LENS_SENSOR_BIND or LENS_SHARE_BIND say otherwise; admins can open it without a shell through the host upgrade agent (audited as lens.install); supported on a trusted LAN only until HTTPS is set up"
+    affects_properties:
+      - {property_id: P-HARDENED, effect: narrows}
+    provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
+  - name: "Edition: install.sh LENS_TARGET, also from Settings › Components or PUT /api/v1/admin/install"
+    default: "full"
+    security_relevant: true
+    maintainer_stance: supported
+    x-scope: "full ships LibreOffice and Chromium (Ingest's child processes); lean leaves them out"
+    affects_properties: []
+    provenance: {kind: documented, source: 'docs/updates.md "Setting the machine up again"'}
   - name: "tunnel.mode, local_llm.enabled, telemetry"
     default: "off"
     security_relevant: true
@@ -1332,7 +1357,7 @@ properties_claimed:
     x-tier-question: Q37
     conditions: "in the compose files the database, API and Fedora ports bind to 127.0.0.1, containers run non-root with no-new-privileges, and the web app sends nosniff, a referrer policy, a permissions policy and a frame policy (HSTS through Cloudflare); in docker-compose.prod.yml the DB password is random and the web app listens on this machine unless LENS_BIND is set"
     violation_symptoms: [x-missing-hardening]
-    x-voided-by: "LENS_BIND=0.0.0.0 (docker-compose.prod.yml:111); dev web port (docker-compose.yml:95, §1.3)"
+    x-voided-by: "LENS_BIND=0.0.0.0 (docker-compose.prod.yml:153), which an admin can also ask for from Settings (PUT /api/v1/admin/install); dev web port (docker-compose.yml:95, §1.3)"
     provenance: {kind: documented, source: 'docs/deployment.md "What''s hardened already"'}
   - id: P-SECRETS
     kind: confidentiality

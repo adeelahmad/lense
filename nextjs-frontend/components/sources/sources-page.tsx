@@ -41,7 +41,7 @@ function HealthText({ source }: { source: Source }) {
       <span aria-hidden className="font-extrabold">
         {g}
       </span>
-      <span className="min-w-0 break-words">{h.text}</span>
+      <span className="min-w-0 wrap-break-word">{h.text}</span>
     </span>
   );
 }

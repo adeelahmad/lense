@@ -516,6 +516,8 @@ import type {
   GetGraphResponses,
   GetHealthData,
   GetHealthResponses,
+  GetInstallData,
+  GetInstallResponses,
   GetJobData,
   GetJobErrors,
   GetJobLogData,
@@ -1298,6 +1300,9 @@ import type {
   SetCollectionMemberData,
   SetCollectionMemberErrors,
   SetCollectionMemberResponses,
+  SetInstallData,
+  SetInstallErrors,
+  SetInstallResponses,
   SetMemberData,
   SetMemberErrors,
   SetMemberResponses,
@@ -3429,6 +3434,43 @@ export class Updates {
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Install
+   *
+   * How install.sh set this machine up: whether other machines on the network reach the web app, and the edition
+   * (full or lean); what can change them here, and how the last change went.
+   */
+  public static getInstall<ThrowOnError extends boolean = false>(
+    options?: Options<GetInstallData, ThrowOnError>,
+  ): RequestResult<GetInstallResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetInstallResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/install",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Install
+   *
+   * Make the web app reachable from other machines on the network (public) or this machine only, or change the
+   * edition (target: full, with LibreOffice and Chromium, or lean): this machine's upgrade agent runs install.sh again
+   * for the version running with LENS_PUBLIC and LENS_TARGET, and Lens restarts; GET /admin/install follows along.
+   * What is so already is left alone, and with nothing left to change nothing restarts (200). Without an agent, 409
+   * says the line to run on the machine instead (`manual` has each one).
+   */
+  public static setInstall<ThrowOnError extends boolean = false>(
+    options: Options<SetInstallData, ThrowOnError>,
+  ): RequestResult<SetInstallResponses, SetInstallErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetInstallResponses, SetInstallErrors, ThrowOnError>({
+      url: "/api/v1/admin/install",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
       },
     });
   }

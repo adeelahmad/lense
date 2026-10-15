@@ -93,7 +93,7 @@ export function PasteTab({
           placeholder={
             "Interviewer: Thanks for making time after a night shift.\nP09: It’s fine — this is the only hour I’m properly awake."
           }
-          className="min-h-[280px] w-full flex-1 resize-y rounded-sm border border-border bg-background px-3.5 py-3 font-mono text-[13px] leading-[1.6] text-fg outline-none placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] md:min-h-[420px]"
+          className="min-h-[280px] w-full flex-1 resize-y rounded-sm border border-border bg-background px-3.5 py-3 font-mono text-[13px] leading-[1.6] text-fg outline-hidden placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] md:min-h-[420px]"
         />
         <span className="text-[12px] leading-snug text-fg-muted">
           Markdown, plain text with “Name:” labels, SRT, VTT or JSON are detected automatically.

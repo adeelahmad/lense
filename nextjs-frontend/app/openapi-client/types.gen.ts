@@ -7115,6 +7115,88 @@ export type IndexQueued = {
 };
 
 /**
+ * InstallChange
+ */
+export type InstallChange = {
+  /**
+   * Public
+   *
+   * reachable from other machines on the network (true) or this machine only (false)
+   */
+  public?: boolean | null;
+  /**
+   * Target
+   *
+   * the edition: full or lean
+   */
+  target?: "full" | "lean" | null;
+};
+
+/**
+ * InstallLines
+ */
+export type InstallLines = {
+  /**
+   * Public
+   *
+   * the install line that makes the web app reachable from other machines (LENS_PUBLIC=1)
+   */
+  public: string;
+  /**
+   * Private
+   *
+   * the install line that keeps it to this machine (LENS_PUBLIC=0)
+   */
+  private: string;
+  /**
+   * Full
+   *
+   * the install line for the full edition (LENS_TARGET=full)
+   */
+  full: string;
+  /**
+   * Lean
+   *
+   * the install line for the lean edition (LENS_TARGET=lean)
+   */
+  lean: string;
+  [key: string]: unknown;
+};
+
+/**
+ * InstallStatus
+ */
+export type InstallStatus = {
+  /**
+   * Public
+   *
+   * the web app is reachable from other machines on the network (LENS_BIND), or from this one only; none: Lens wasn't started by install.sh or docker-compose.prod.yml, so it doesn't know
+   */
+  public?: boolean | null;
+  /**
+   * Target
+   *
+   * the edition (LENS_TARGET): full has LibreOffice and Chromium, to read Office files, web pages and emails; lean doesn't. None: not known here
+   */
+  target?: "full" | "lean" | null;
+  /**
+   * Agent
+   *
+   * what changes them on this machine (systemd, launchd); none: run a `manual` line there
+   */
+  agent?: string | null;
+  /**
+   * the line to run on the machine Lens runs on for each choice, when there's no agent
+   */
+  manual: InstallLines;
+  /**
+   * the last run that changed either (as in /admin/updates)
+   */
+  reconfigure?: UpgradeRun | null;
+  [key: string]: unknown;
+};
+
+/**
  * IpGroup
  *
  * Address ranges whose visitors see all of some of the namespace's recordings without signing in (docs/access.md).
@@ -16224,6 +16306,10 @@ export type SetupView = {
    * Pending
    */
   pending: boolean;
+  /**
+   * Todo
+   */
+  todo?: Array<"llm" | "budget">;
   admin: SetupAdmin;
   namespace: SetupNamespaceView;
   llm: SetupLlmView;
@@ -18827,6 +18913,18 @@ export type UpgradeRun = {
    * the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)
    */
   https?: boolean | null;
+  /**
+   * Public
+   *
+   * the web app made reachable from other machines on the network (true) or this one only (false) by this run
+   */
+  public?: boolean | null;
+  /**
+   * Target
+   *
+   * the edition this run changed to
+   */
+  target?: "full" | "lean" | null;
   /**
    * State
    *
@@ -23051,6 +23149,47 @@ export type StartUpgradeResponses = {
 };
 
 export type StartUpgradeResponse = StartUpgradeResponses[keyof StartUpgradeResponses];
+
+export type GetInstallData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/install";
+};
+
+export type GetInstallResponses = {
+  /**
+   * Successful Response
+   */
+  200: InstallStatus;
+};
+
+export type GetInstallResponse = GetInstallResponses[keyof GetInstallResponses];
+
+export type SetInstallData = {
+  body: InstallChange;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/install";
+};
+
+export type SetInstallErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetInstallError = SetInstallErrors[keyof SetInstallErrors];
+
+export type SetInstallResponses = {
+  /**
+   * Successful Response
+   */
+  202: InstallStatus;
+};
+
+export type SetInstallResponse = SetInstallResponses[keyof SetInstallResponses];
 
 export type GetMonitoringData = {
   body?: never;
