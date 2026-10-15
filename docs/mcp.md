@@ -57,6 +57,9 @@ app was given for a namespace's server opens that server and nothing else: not a
 the API. A token for Lens or for `/mcp` (and an API token) works on every namespace's own server, seeing only that
 namespace there.
 
+For an app that speaks OpenAI's API rather than MCP, the namespace can also answer
+[chat completions](api.md#chat-completions-for-any-app), turned on in the same place (Connect apps).
+
 ## Tools
 
 | Tool | |
@@ -90,8 +93,8 @@ namespace there.
 | `nsfw_settings` | how [NSFW classification](nsfw.md) works in a namespace: on or off, the threshold, how flagged resources show, and how many are classified, flagged and not classified yet |
 | `set_nsfw` | turn NSFW classification on or off, set its threshold and display, for a namespace (owners) or the archive (admins), and optionally classify what's there. Needs a write-scope token |
 | `mark_nsfw` | mark a resource NSFW or not by hand, or hand it back to the model's score. Needs a write-scope token and editor access |
-| `namespace_integrations` | whether a namespace has [its own MCP server](#one-namespaces-mcp-server) on, and its address |
-| `set_namespace_integrations` | turn a namespace's own MCP server on or off. Owners, with a write-scope token |
+| `namespace_integrations` | whether a namespace has [its own MCP server](#one-namespaces-mcp-server) and [chat completions](api.md#chat-completions-for-any-app) on, their addresses, and the tools offered there |
+| `set_namespace_integrations` | turn a namespace's own MCP server or chat completions on or off, and pick the read tools its chat completions may use. Owners, with a write-scope token |
 | `list_files` | a folder of [the graph as files](file-tree.md): your namespaces, then their collections, topics (nested by narrower topics) and entities, each holding its assets' files |
 | `read_file` | a text file of that tree (an asset's `.txt` text or `.json` metadata), a page at a time; other files' download link |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
@@ -117,7 +120,7 @@ which records an undoable change (proposed by default), `undo_graph_change`, `ed
 `merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
 app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), `set_namespace_integrations`, which turns a namespace's own MCP server on or off (owners), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring` and
+editors), `set_namespace_integrations`, which turns a namespace's own MCP server or chat completions on or off (owners), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring` and
 `set_install_settings`, which have the machine change how Lens runs (admins).
 Importing stays in the web app and the API.
 

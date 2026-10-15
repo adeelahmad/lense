@@ -271,6 +271,10 @@ PATCH  /api/v1/namespaces/{name}/collections/{cid}
 DELETE /api/v1/namespaces/{name}/collections/{cid}
 GET    /api/v1/namespaces/{name}/collections/{cid}/members
 PUT    /api/v1/namespaces/{name}/collections/{cid}/members
+GET    /api/v1/namespaces/{name}/integrations
+PATCH  /api/v1/namespaces/{name}/integrations
+GET    /api/v1/namespaces/{name}/models
+POST   /api/v1/namespaces/{name}/chat/completions
 ```
 
 `GET /namespaces` lists the namespaces you have a role in, with their counts and your `role`, and those you see only
@@ -311,6 +315,61 @@ the archive) and the archive's settings (`archive`), and how many resources are 
 also queues the `nsfw` step for its videos, documents and images not classified yet, answering how many runs were
 `queued`. Audited as `namespace.nsfw`. `POST …/nsfw/classify` queues them on its own (editors) and answers the `jobs`.
 Both are a 409 where classification is off in the namespace.
+
+`/namespaces/{name}/integrations` says whether the namespace's [own MCP server](mcp.md#one-namespaces-mcp-server)
+(`mcp`, at `mcp_url`) and its [chat completions](#chat-completions-for-any-app) (`chat`, at `chat_url`) are on, the
+read tools the model may use there (`tools`) and the ones it may be offered (`tool_choices`), for anyone who can read
+the namespace. `PATCH` with any of `{mcp, chat, tools}` changes them (owners); what isn't sent stays. A tool that
+isn't one of `tool_choices` is a 400. Audited as `namespace.integrations`.
+
+### Chat completions for any app
+
+A namespace can answer OpenAI's chat completions API, so any app that speaks it (a chat app, an automation tool, a
+library's OpenAI client) gets answers from the configured model, grounded in that namespace and citing it. Give the app:
+
+- **Base URL**: `https://lens.example.org/api/v1/namespaces/<namespace>` (the app adds `/chat/completions`);
+- **API key**: a Lens [API token](authentication.md) (`la_…`; read-only is enough) or an app's OAuth token;
+- **Model**: `lens`, the configured model. One of the models people may pick in Lens's chat works too
+  (`GET …/models` lists them); any other name answers with the configured model.
+
+```bash
+curl https://lens.example.org/api/v1/namespaces/family/chat/completions \
+  -H "Authorization: Bearer la_…" -H "Content-Type: application/json" \
+  -d '{"model": "lens", "messages": [{"role": "user", "content": "When is the dentist?"}]}'
+```
+
+Each request is answered like a question in Lens's chat, from that namespace alone, with what the token's person can
+read there:
+
+- the last message is the question (a `user` message), the `user` and `assistant` messages before it the
+  conversation, and `system` (or `developer`) messages the app's own instructions, which the model reads after Lens's
+  rules. Pictures and files in a message are left out;
+- the namespace's excerpts that best answer it are found and the model answers from them, citing each claim as `[n]`.
+  With no model set up, the best excerpts come back on their own;
+- when the namespace's owners picked tools, the model may first look things up with them, in the namespace. They are
+  the assistant's tools that only read (`tool_choices`). A model that can't call tools answers from the excerpts and
+  says so in `lens.notice`;
+- when the namespace's [own assistant](assistant.md#a-namespaces-own-assistant) is on, its name and instructions answer.
+
+What it cites comes back three ways, so any app can show it: `[n]` in the text with a **Sources** list of links after
+it (left out when the request has a `response_format`), `citations` (the link for `[n]` is the n-th), and
+`lens.sources` (`n`, `recording_id`, `title`, `time`, `speaker`, `url`, `cited`). `lens.steps` lists the tools the
+model used. With `"stream": true` the answer comes as OpenAI's `chat.completion.chunk` events, ending with
+`data: [DONE]`; the last chunk before it carries `finish_reason: "stop"`, `citations` and `lens`. While the tools run,
+the stream sends SSE comments, so nothing in between closes it.
+
+It is off until an owner of the namespace turns it on: **Admin → Namespaces →** the namespace **→ Connect apps**,
+which also copies the base URL and picks the tools, or `PATCH /namespaces/{name}/integrations` with `{"chat": true}`,
+or an agent's `set_namespace_integrations`. Errors come in OpenAI's shape (`{"error": {"message", "type", "code"}}`):
+401 `invalid_api_key` without a token, 422 for a body that isn't a request (FastAPI's shape), 404 `not_found` for a
+namespace the token's person can't read (or that doesn't exist), 403 `endpoint_off` while it's off, 400
+`invalid_messages` with nothing to answer, 429 `insufficient_quota` when the namespace's [budget](budgets.md) or
+Lens's overall one is used up, 502 `upstream_error` when the model server fails.
+
+It only reads. Model calls go through the activity ledger and count for the namespace (`space:<id>`), so its budget
+covers them. Not yet: the app's own `tools` (they are ignored), `max_tokens`, enforcing a `response_format`, token
+counts in `usage`, streaming the tools' answer piece by piece (it comes in one chunk), and what the namespace's
+assistant remembers.
 
 ### Collections of a namespace
 

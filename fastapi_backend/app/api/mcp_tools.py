@@ -1761,15 +1761,19 @@ def _integrations(ctx: Context, namespace: str, sid: int) -> dict[str, Any]:
         "namespace": namespace,
         **integrations.profile(ctx.db, sid),
         "mcp_url": f"{ctx.web}/mcp/{namespace}",
+        "chat_url": f"{ctx.web}/api/v1/namespaces/{namespace}",
+        "tool_choices": [{"name": n, "description": d} for n, d in integrations.tool_choices()],
         "settings": f"{ctx.web}/admin/namespaces/{namespace}#connect-apps",
     }
 
 
 @tool(
     "namespace_integrations",
-    "A namespace's own MCP server",
+    "A namespace's own MCP server and chat completions",
     "Whether a namespace has its own MCP server on (mcp), seeing that namespace alone, and its address (mcp_url) to "
-    "give an agent that should see nothing else. Off unless the namespace's owner turns it on.",
+    "give an agent that should see nothing else; whether its OpenAI-style chat completions are on (chat), answered "
+    "from that namespace alone and citing it, with the base URL to give an app (chat_url), and the read tools the "
+    "model may use there (tools, from tool_choices). Each is off unless the namespace's owner turns it on.",
     Arg("namespace", "string", "the namespace (see list_namespaces)", required=True),
 )
 def namespace_integrations(ctx: Context, namespace: str) -> dict[str, Any]:
@@ -1778,20 +1782,34 @@ def namespace_integrations(ctx: Context, namespace: str) -> dict[str, Any]:
 
 @tool(
     "set_namespace_integrations",
-    "Turn a namespace's own MCP server on or off",
-    "Turn on (mcp true) or off a namespace's own MCP server, which sees that namespace alone: agents connected to it "
-    "read only that namespace, with the roles of the person who signs them in. Owners of the namespace, with a token "
-    "that has the write scope.",
+    "Turn a namespace's own MCP server or chat completions on or off",
+    "Turn on or off a namespace's own MCP server (mcp) or its OpenAI-style chat completions (chat), and pick the read "
+    'tools the model may use there (tools, from namespace_integrations\' tool_choices; ["none"] for none). Each sees that '
+    "namespace alone, with the roles of the person who signs the app in. What isn't given stays as it is. Owners of "
+    "the namespace, with a token that has the write scope.",
     Arg("namespace", "string", "the namespace", required=True),
-    Arg("mcp", "boolean", "on or off", required=True),
+    Arg("mcp", "boolean", "its own MCP server on or off"),
+    Arg("chat", "boolean", "its chat completions on or off"),
+    Arg(
+        "tools",
+        "string[]",
+        'the read tools its chat completions may use, or ["none"]',
+        enum=(*(n for n, _ in integrations.tool_choices()), "none"),
+    ),
     writes=True,
 )
-def set_namespace_integrations(ctx: Context, namespace: str, mcp: bool) -> dict[str, Any]:
+def set_namespace_integrations(
+    ctx: Context, namespace: str, mcp: bool | None, chat: bool | None, tools: list[str] | None
+) -> dict[str, Any]:
     if not ctx.user.can_write:
         raise ToolError("this token is read-only: ask for a token with the write scope to change this")
+    if mcp is None and chat is None and tools is None:
+        raise ToolError("give mcp, chat or tools to change")
     sid = ctx.acl.namespace(namespace, "manage")
-    integrations.save(ctx.db, sid, mcp, ctx.user.email)
-    auth.audit(ctx.db, ctx.user.as_audit(), "namespace.integrations", namespace, {"mcp": mcp, "via": "mcp"})
+    tools = None if tools is None else [t for t in tools if t != "none"]
+    integrations.save(ctx.db, sid, mcp=mcp, chat=chat, tools=tools, user=ctx.user.email)
+    changed = store.clean({"mcp": mcp, "chat": chat, "tools": tools})
+    auth.audit(ctx.db, ctx.user.as_audit(), "namespace.integrations", namespace, {**changed, "via": "mcp"})
     return _integrations(ctx, namespace, sid)
 
 

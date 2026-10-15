@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:d4b4de082eb743e6dabfa0c671c660189b49a31ac1d394946a9b8ad134876bf1"
+prose_version: "threat-model.md@sha256:03600976ceb6965dd3d8312d0efab441e0d524e24ea3abe8ad0fac69a66eafbd"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1434,7 +1434,7 @@ properties_claimed:
     components: [assistant, authz]
     tier: security-critical
     x-tier-detail: "security-critical (scope); correctness-only (caps)"
-    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads"
+    conditions: "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered"
     violation_symptoms: [info-leak, hang]
     x-voided-by: "admins read everything; an admin setup conversation adds server tools and the act flag (domain/ai_tools.py:287-289); ai.extensions: false turns extensions off"
     provenance: {kind: documented, source: 'docs/assistant.md "limited to what the person can read"'}
