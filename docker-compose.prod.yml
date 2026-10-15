@@ -87,6 +87,8 @@ x-backend: &backend
   volumes:
     - archive-data:/data
     - ./.lens-control:/control
+    # Lens's docs, which the assistant and agents answer questions about Lens from (lens_help, docs/assistant.md)
+    - ./docs:/docs:ro
     - ${AUDIO_DIR:-./local-audio}:/audio:ro
     - matterbridge-data:/matterbridge
     - mcp-key:/mcp-key:ro

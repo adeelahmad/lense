@@ -57,7 +57,11 @@ class ChatSummary(ResponseModel):
 
 class Passage(ResponseModel):
     n: int
-    recording_id: int
+    recording_id: int | None = Field(None, description="the recording it's from; none for Lens's docs and this server's facts (url)")
+    url: str | None = Field(None, description="where it is when it isn't a recording's: a page of Lens's docs, or this server")
+    source: str | None = Field(
+        None, description="what it is, such as said, screen or memory; docs for Lens's docs and server for this server's facts"
+    )
     title: str | None = None
     namespace: str | None = None
     recorded_at: str | None = None

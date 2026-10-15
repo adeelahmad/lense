@@ -42,6 +42,7 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 
 | Tool | |
 |---|---|
+| `lens_help` | Lens itself rather than the archive: the sections of Lens's docs that match a question (or one page read whole), each with its link, and this server's own facts: version, addresses (web app, MCP, API), what is turned on and your access ([Questions about Lens itself](assistant.md#questions-about-lens-itself)) |
 | `search` | moments where words are said, shown on screen or written, best first: the recording, speaker, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, speaker or recording |
 | `find_similar` | the recordings, documents and images most like a text, a recording, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
 | `list_namespaces` | the namespaces you can read, with their recordings, hours, speakers and your role |

@@ -451,16 +451,19 @@ def reply_text(cfg, text, approvals, cid, db=None):
 
 
 def sources(db, cfg, cid):
-    """The excerpts the conversation's last answer cites, a line each with its link into the web app, for a channel
-    that shows them under the answer (Channel.sources); "" when it cites none."""
+    """The excerpts the conversation's last answer cites, a line each with its link into the web app (or Lens's docs),
+    for a channel that shows them under the answer (Channel.sources); "" when it cites none."""
     from app.email import app_url
 
     row = db.one("SELECT id, passages FROM chat_message WHERE chat = $c AND role = 'assistant' ORDER BY id DESC LIMIT 1", c=cid) or {}
-    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and p.get("recording_id")]
+    used = [p for p in row.get("passages") or [] if isinstance(p, dict) and p.get("used") and (p.get("recording_id") or p.get("url"))]
     if not used:
         return ""
     base, lines = app_url(cfg, db), []
     for p in used:
+        if not p.get("recording_id"):  # Lens's docs, or this server (lens_help)
+            lines.append(f"[{p['n']}] {p.get('title') or 'Lens'}: {p['url']}")
+            continue
         at = f"?page={p['page'] + 1}" if p.get("page") is not None else f"?t={int((p.get('t0') or 0) // 1000)}"
         where = ", ".join(str(x) for x in (p.get("title") or "Untitled", p.get("time")) if x)
         lines.append(f"[{p['n']}] {where}: {base}/resources/{p['recording_id']}{at}")

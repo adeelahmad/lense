@@ -452,6 +452,7 @@ export const LAYERS: Opt[] = [
 
 /** The chat assistant's tools (app/domain/ai_tools.py), with whether they change anything. */
 export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
+  { name: "lens_help", label: "Answer questions about Lens from its docs and this server", acts: false },
   { name: "search_transcripts", label: "Search transcripts", acts: false },
   {
     name: "list_recordings",

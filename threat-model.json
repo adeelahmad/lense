@@ -53,6 +53,7 @@
         "host control inbox and the monitoring scrape token",
         "admin machine setup requests",
         "entity and topic curation tools",
+        "lens help tool",
         "microsandbox program requests"
       ],
       "touches": [
@@ -528,6 +529,15 @@
       "caller_must_enforce": "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited",
       "provenance": "documented",
       "source": "docs/mcp.md \"curate entities and topics as an editor does\""
+    },
+    {
+      "entry_point": "lens help tool",
+      "parameter": "assistant and MCP lens_help: a question's words, a docs page's name",
+      "attacker_controllable": "yes",
+      "component": "authz",
+      "caller_must_enforce": "none — it only reads: docs from a fixed folder (a page picked by name from the indexed ones, never opened by path) in an in-memory index; this server's facts carry no keys, tokens or model server addresses, and the settings pages only for admins",
+      "provenance": "documented",
+      "source": "docs/assistant.md \"Questions about Lens itself\""
     },
     {
       "entry_point": "microsandbox program requests",

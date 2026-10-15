@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:f430a4e9bedcf37ca6a5f5e2e782a3e72a9ac674b6dc78ebc91fc152af9e92a4"
+prose_version: "threat-model.md@sha256:1c8d1b4ecbf829da7b3e69cdbf6015cad28187a45bbb9db9146d66a5631f7156"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -474,6 +474,15 @@ entry_points:
         control_kinds: [data, x-prompt-injection]
         caller_must_enforce: "none — the curate permission in each namespace touched and a write-capable principal (the web app's own route functions); the assistant's changes wait for the person's approval; merges and deletes are kept to undo, and audited"
         provenance: {kind: documented, source: 'docs/mcp.md "curate entities and topics as an editor does"'}
+  - id: "lens help tool"
+    component: authz
+    parameters:
+      - name: "assistant and MCP lens_help: a question's words, a docs page's name"
+        attacker_controllable: true
+        x-condition: "any signed-in person or agent with a read token; indirectly through content the model reads"
+        control_kinds: [data, x-prompt-injection]
+        caller_must_enforce: "none — it only reads: docs from a fixed folder (a page picked by name from the indexed ones, never opened by path) in an in-memory index; this server's facts carry no keys, tokens or model server addresses, and the settings pages only for admins"
+        provenance: {kind: documented, source: 'docs/assistant.md "Questions about Lens itself"'}
   - id: "microsandbox program requests"
     component: authz
     parameters:

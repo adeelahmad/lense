@@ -21,6 +21,7 @@ from . import (
     graph_model,
     entity_setup,
     graph_history,
+    manual,
     notebook,
     ns_assistant,
     ops_tools,
@@ -42,6 +43,17 @@ log = logging.getLogger("lens")
 _I = {"type": "integer"}
 _S = {"type": "string"}
 TOOLS = [
+    (
+        "lens_help",
+        "Lens itself rather than the archive: what it does and how (setting it up, its settings, the assistant, chat "
+        "rooms and channels, connecting apps and agents, the API, MCP, sharing, backups, costs...), from Lens's docs, "
+        "with this server's own facts: its addresses (the web app, the MCP address, the API), version, what is turned on "
+        "and the person's access. query: what to look up, in a few words; page: one page of the docs to read whole (the "
+        "contents list them). Cite what it gives with its [n].",
+        {"query": _S, "page": _S},
+        [],
+        False,
+    ),
     (
         "search_transcripts",
         "Search what was said (and text shown on screen in videos) across the recordings in scope.",
@@ -341,10 +353,10 @@ def builtin_names():
     return {t[0] for t in every} | {"use_skill"}
 
 
-# tools whose results the model may take as Lens's own word: the server's state and settings, the skills the person
-# chose, what the graph holds, and what the built-in tools that change things report (ids, what waits for approval).
+# tools whose results the model may take as Lens's own word: the server's state and settings, its docs, the skills the
+# person chose, what the graph holds, and what the built-in tools that change things report (ids, what waits for approval).
 # What every other tool gives back is third-party text, marked as data (untrusted.py).
-OWN_RESULTS = {"server_status", "find_model_servers", "read_settings", "file_storage", "graph_schema", "use_skill"} | {
+OWN_RESULTS = {"server_status", "find_model_servers", "read_settings", "file_storage", "graph_schema", "use_skill", "lens_help"} | {
     t[0] for t in TOOLS + ops_tools.ADMIN_TOOLS + ops_tools.FILE_TOOLS + AUTHOR_TOOLS + MEMORY_TOOLS if t[4]
 }
 
@@ -367,7 +379,7 @@ class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
     channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
-    then use."""
+    then use. `web`: the web app's address the person is using, for lens_help (else where Lens says it is: app_url)."""
 
     def __init__(
         self,
@@ -385,8 +397,9 @@ class Toolbox(ops_tools.OpsTools):
         outside=(),
         browser=None,
         act_on=(),
+        web=None,
     ):
-        self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.db, self.cfg, self.user, self.chat, self.said, self.web = db, cfg, user, chat_id, said, web
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
         # ask first, even where they'd act at once (wary)
@@ -395,6 +408,7 @@ class Toolbox(ops_tools.OpsTools):
         self.base, self.admin, self.act, self.act_on = base or cfg, admin, act, set(act_on or ())
         self.scope = scope or {}
         self.readable, self.editable = set(readable), set(editable)
+        self.access = (set(readable), set(editable))  # the person's, whatever this conversation is about (lens_help)
         names = store.space_names(db)
         if self.scope.get("namespaces"):
             self.readable = {s for s in self.readable if names.get(s) in self.scope["namespaces"]}
@@ -496,14 +510,17 @@ class Toolbox(ops_tools.OpsTools):
             if n not in off
         ]
 
-    def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None):
+    def ref(self, rid, t0, text, speaker=None, title=None, source="said", page=None, url=None):
+        """Number a passage for the answer to cite: a moment of a recording (`rid`), or a page elsewhere (`url`, with
+        no recording: Lens's docs, this server's facts)."""
         self.refs.append(
             store.clean(
                 {
                     "n": len(self.refs) + 1,
                     "recording_id": rid,
+                    "url": url,
                     "t0": t0,
-                    "time": store.tc(t0) if page is None else f"p. {page + 1}",
+                    "time": None if url else store.tc(t0) if page is None else f"p. {page + 1}",
                     "page": page,
                     "speaker": speaker,
                     "title": title,
@@ -768,6 +785,20 @@ class Toolbox(ops_tools.OpsTools):
         return json.dumps(out, ensure_ascii=False, default=str)[:12000], summary
 
     # ---- read tools ----
+    def t_lens_help(self, query=None, page=None):
+        from app.email import app_url
+
+        web = (self.web or app_url(self.cfg, self.db)).rstrip("/")
+        out = manual.answer(self.db, self.cfg, web, self.admin, *self.access, query, page)
+        here = out["this_server"]
+        fact = f"This Lens server (version {here['version']}) is at {web}; its MCP address is {here['addresses']['mcp']}."
+        out["this_server"] = {"ref": self.ref(None, None, fact, title="This Lens server", source="server", url=web), **here}
+        found = out["docs"].get("sections") or []
+        for x in found:
+            x["ref"] = self.ref(None, None, x["text"], title=f"Lens docs: {x['title']}", source="docs", url=x["url"])
+        what = f"“{query}”" if query else f"the {page} page" if page else "this server"
+        return out, f"Looked up {what} in Lens's docs: {len(found)} section(s)" if query or page else "Read this server's facts"
+
     def t_search_transcripts(self, query, namespace=None, limit=8):
         # within the conversation's scope in the search itself, so out-of-scope matches don't crowd out the rest
         res = searchmod.search(

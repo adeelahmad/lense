@@ -19,6 +19,7 @@ from starlette.concurrency import run_in_threadpool
 from app.api.deps import Access, Acl, Cfg, CurrentUser, Db, Principal, Writer
 from app.api.media import sign_urls
 from app.api.v1.routes.collections import own_collection
+from app.api.v1.routes.oauth import web_app_base
 from app.domain import ai_tools, auth, auto_scope, browser, chat, llm, store, uploads
 from app.domain.store import DB
 from app.schemas.chats import (
@@ -113,7 +114,7 @@ def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
     """A conversation with its messages. Citations follow your current access: ones you can no longer read are left out."""
     c = _own_chat(db, cid, user)
     msgs, ok = chat.history(db, cid), set(acl.roles)
-    ids = {p["recording_id"] for m in msgs for p in m.get("passages") or []}
+    ids = {p["recording_id"] for m in msgs for p in m.get("passages") or [] if p.get("recording_id") is not None}
     visible = (
         {
             r["id"]
@@ -124,7 +125,8 @@ def get_chat(cid: int, user: CurrentUser, acl: Acl, db: Db) -> Chat:
         else set()
     )
     for m in msgs:
-        m["passages"] = [p for p in m.get("passages") or [] if p["recording_id"] in visible]
+        # a recording's moments while it's still readable; Lens's docs and this server's facts (lens_help) always
+        m["passages"] = [p for p in m.get("passages") or [] if p.get("recording_id") in visible or p.get("recording_id") is None]
     return Chat.model_validate(sign_urls({**c, "messages": msgs}, full=True))
 
 
@@ -291,6 +293,7 @@ async def send_message(cid: int, body: MessageCreate, user: Writer, acl: Acl, db
                 # what it read before any tool ran: the page it was asked from, and earlier answers' excerpts and tools
                 outside=(["page"] if page else []) + ai_tools.read_before(past, summary),
                 browser=body.browser,
+                web=web_app_base(request),  # the address the person uses, for lens_help's MCP and API addresses
             )
             try:
                 answer = ""

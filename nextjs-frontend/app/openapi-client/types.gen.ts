@@ -11191,8 +11191,22 @@ export type Passage = {
   n: number;
   /**
    * Recording Id
+   *
+   * the recording it's from; none for Lens's docs and this server's facts (url)
    */
-  recording_id: number;
+  recording_id?: number | null;
+  /**
+   * Url
+   *
+   * where it is when it isn't a recording's: a page of Lens's docs, or this server
+   */
+  url?: string | null;
+  /**
+   * Source
+   *
+   * what it is, such as said, screen or memory; docs for Lens's docs and server for this server's facts
+   */
+  source?: string | null;
   /**
    * Title
    */

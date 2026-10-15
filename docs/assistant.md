@@ -122,6 +122,29 @@ When the configured model supports function calling, chat becomes an agent.
 - **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
   and type in that browser and download files into the conversation, on sites you allow, asking before anything that
   sends, deletes or buys. See [The assistant in your browser](browser-assistant.md).
+- **Lens itself:** questions about Lens rather than the archive go to `lens_help` ([below](#questions-about-lens-itself)).
+
+### Questions about Lens itself
+
+Ask the assistant about Lens, not only about the archive: "what's the MCP address?", "how do I connect Claude?",
+"how do I back up?", "is Telegram on?". It answers with the `lens_help` tool, from two things, and cites both:
+
+- **This server:** its version and addresses (the web app as you're using it, the MCP address, the API, the API tokens
+  page, the remote access and HTTPS addresses when they're on), whether apps can sign in with OAuth, the chat model,
+  what is turned on (the model provider, search by meaning, chat rooms, Telegram, Slack, email, remote access, HTTPS,
+  sensors, file shares, encryption, backups, update checks, telemetry, analytics...), and your own access: admin or
+  not, and the namespaces you read and edit. Admins also get the settings page of each. Nothing secret: no keys,
+  tokens or model server addresses. Cited as "This Lens server", linking to the web app.
+- **Lens's docs:** these pages, cut at their headings and found by words (SQLite FTS5 with English stemming, in
+  memory, built on first use and again when a page changes; no model and no network). A question gets the four
+  sections that match best; `page` reads one page whole. Every answer also carries the docs' contents, each page by
+  its title. Each section is cited as "Docs · MCP server › Connecting" and opens that heading on GitHub.
+
+The docs are read from `LENS_DOCS_DIR`, else the `docs/` folder next to the code: the Docker Compose files mount the
+install's own `docs/` read-only at `/docs`, so the assistant reads the docs of the version you run (Cloudron's image
+has them too). Without them, the assistant still has this server's facts and the link to the docs online. Agents get
+the same tool over [MCP](mcp.md), and the [chat rooms](chat-rooms.md) list its sources with their links.
+`ai.disabled_tools: [lens_help]` turns it off.
 
 ## Third-party content and prompt injection
 

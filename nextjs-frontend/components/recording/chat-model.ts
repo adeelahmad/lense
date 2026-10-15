@@ -5,7 +5,10 @@
 
 export type Passage = {
   n: number;
-  recording_id: number;
+  /** None for a page that isn't a recording: Lens's docs or this server (lens_help), at `url`. */
+  recording_id?: number | null;
+  url?: string | null;
+  source?: string | null;
   t0?: number | null;
   /** When it was said ("12:34"), or for a document its page ("p. 3"). */
   time?: string | null;

@@ -39,14 +39,43 @@ export function shortTitle(title: string | null | undefined, max = 24): string {
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
-/** When a passage starts, as "14:29" (tools send `time`; retrieval sends both). */
-export function passageTime(p: Pick<Passage, "t0" | "time">): string {
+/**
+ * A passage that isn't a recording's moment but a page somewhere else (`url`): a section of Lens's docs, or this Lens
+ * server's own facts, both from the lens_help tool.
+ */
+export function isPage(p: Pick<Passage, "url">): boolean {
+  return Boolean(p.url);
+}
+
+/** The docs' address (anything else with a `url` is this server): opened in a new tab. */
+export function isDocs(p: Pick<Passage, "url" | "source">): boolean {
+  return isPage(p) && p.source === "docs";
+}
+
+/**
+ * A passage's name: a recording's short title, or for a page of the docs its section ("Lens docs: MCP server ›
+ * Connecting" → "MCP server › Connecting", or its last heading when that's too long).
+ */
+export function passageTitle(p: Pick<Passage, "title" | "url">, max = 24): string {
+  if (!isPage(p)) return shortTitle(p.title, max);
+  let t = (p.title ?? "Lens").replace(/^Lens docs:\s*/, "").trim();
+  if (t.length > max) t = t.split(" › ").pop() ?? t;
+  return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
+}
+
+/** When a passage starts, as "14:29" (tools send `time`; retrieval sends both); nothing for a page. */
+export function passageTime(p: Pick<Passage, "t0" | "time" | "url">): string {
+  if (isPage(p)) return "";
   if (p.time) return p.time;
   return tc(typeof p.t0 === "number" ? p.t0 : 0);
 }
 
-/** "Ep. 12 · 14:29 · Host B": recording · time · speaker. */
-export function citeLabel(p: Pick<Passage, "title" | "t0" | "time" | "speaker">, withSpeaker = true): string {
+/** "Ep. 12 · 14:29 · Host B": recording · time · speaker; "Docs · MCP server › Connecting" for Lens's docs. */
+export function citeLabel(
+  p: Pick<Passage, "title" | "t0" | "time" | "speaker" | "url" | "source">,
+  withSpeaker = true,
+): string {
+  if (isPage(p)) return [isDocs(p) ? "Docs" : null, passageTitle(p, withSpeaker ? 36 : 24)].filter(Boolean).join(" · ");
   return [shortTitle(p.title), passageTime(p), withSpeaker ? p.speaker : null].filter(Boolean).join(" · ");
 }
 
@@ -65,17 +94,28 @@ export function passageLines(p: Pick<Passage, "text" | "speaker">): QuoteLine[] 
   });
 }
 
-/** The line a citation points at: the one said by the passage's speaker, else the first. */
-export function quoteOf(p: Pick<Passage, "text" | "speaker">): QuoteLine {
+/** The line a citation points at: the one said by the passage's speaker, else the first (a page's first line). */
+export function quoteOf(p: Pick<Passage, "text" | "speaker" | "url">): QuoteLine {
+  if (isPage(p)) {
+    const first = (p.text ?? "").split(/\n+/).find((l) => l.trim()) ?? "";
+    return { speaker: null, text: first.length > 240 ? `${first.slice(0, 239).trimEnd()}…` : first };
+  }
   const lines = passageLines(p);
   return (
     lines.find((l) => p.speaker && l.speaker === p.speaker) ?? lines[0] ?? { speaker: p.speaker ?? null, text: "" }
   );
 }
 
-/** Link to the cited moment. */
-export function passageHref(p: Pick<Passage, "recording_id" | "t0">): string {
-  return recordingHref(p.recording_id, typeof p.t0 === "number" ? p.t0 : 0);
+/** Link to the cited moment, or to the page a passage is from. */
+export function passageHref(p: Pick<Passage, "recording_id" | "t0" | "url">): string {
+  if (p.url) return p.url;
+  return recordingHref(p.recording_id ?? 0, typeof p.t0 === "number" ? p.t0 : 0);
+}
+
+/** What a click on a citation does, said in its label and tooltip. */
+export function passageAction(p: Pick<Passage, "url" | "source">): string {
+  if (isDocs(p)) return "Opens Lens’s docs there";
+  return isPage(p) ? "Opens this Lens server" : "Opens the recording there";
 }
 
 /** The backend's canned answers when no language model is configured. */

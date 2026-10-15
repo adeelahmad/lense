@@ -1,10 +1,18 @@
 "use client";
 
-import { Play } from "lucide-react";
+import { ExternalLink, Play } from "lucide-react";
 import Link from "next/link";
 
 import type { Passage } from "@/app/openapi-client/types.gen";
-import { citeLabel, passageHref, passageTime, quoteOf, shortTitle } from "@/components/chat/cite";
+import {
+  citeLabel,
+  isPage,
+  passageAction,
+  passageHref,
+  passageTime,
+  passageTitle,
+  quoteOf,
+} from "@/components/chat/cite";
 import { nameTone } from "@/components/chat/citation";
 import { BottomSheet } from "@/components/chat/sheet";
 import { Button } from "@/components/ui/button";
@@ -18,6 +26,7 @@ function SourceCard({ p, active, onHover }: { p: Passage; active: boolean; onHov
     <li>
       <Link
         href={passageHref(p)}
+        {...(isPage(p) ? { target: "_blank", rel: "noopener noreferrer" } : {})}
         onMouseEnter={() => onHover?.(p.n)}
         onMouseLeave={() => onHover?.(null)}
         aria-label={`Source ${p.n}: ${citeLabel(p)}${cited ? "" : ", not cited"}`}
@@ -29,7 +38,7 @@ function SourceCard({ p, active, onHover }: { p: Passage; active: boolean; onHov
       >
         <span className="flex items-center gap-1.5 text-[12px] font-semibold leading-tight text-fg">
           <span className="tabular shrink-0 text-fg-muted">{p.n}</span>
-          <span className="min-w-0 flex-1 truncate">{shortTitle(p.title, 36)}</span>
+          <span className="min-w-0 flex-1 truncate">{passageTitle(p, 36)}</span>
           <span className="tabular text-fg-secondary">{passageTime(p)}</span>
         </span>
         {(quote.speaker ?? p.speaker) && (
@@ -105,7 +114,7 @@ export function SourcesPanel({
   );
 }
 
-/** Phone: a tapped citation, with Play opening the recording there. */
+/** Phone: a tapped citation, with Play opening the recording there (or a button opening the docs' page). */
 export function CitationSheet({ passage, onClose }: { passage: Passage | null; onClose: () => void }) {
   const quote = passage ? quoteOf(passage) : null;
   return (
@@ -115,13 +124,21 @@ export function CitationSheet({ passage, onClose }: { passage: Passage | null; o
           <span className="text-[15px] font-bold text-fg">{citeLabel(passage)}</span>
           <span className="font-serif text-[17px] leading-normal text-fg">“{quote.text}”</span>
           <Button asChild variant="primary" size="lg" className="w-full">
-            <Link href={passageHref(passage)}>
-              <Play /> Play from {passageTime(passage)}
-            </Link>
+            {isPage(passage) ? (
+              <a href={passageHref(passage)} target="_blank" rel="noopener noreferrer">
+                <ExternalLink /> {passageAction(passage)}
+              </a>
+            ) : (
+              <Link href={passageHref(passage)}>
+                <Play /> Play from {passageTime(passage)}
+              </Link>
+            )}
           </Button>
-          <p className="m-0 text-center text-[12.5px] text-fg-secondary">
-            Tap a citation to preview it; Play opens the recording.
-          </p>
+          {!isPage(passage) && (
+            <p className="m-0 text-center text-[12.5px] text-fg-secondary">
+              Tap a citation to preview it; Play opens the recording.
+            </p>
+          )}
         </>
       )}
     </BottomSheet>

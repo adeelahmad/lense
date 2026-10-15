@@ -41,6 +41,7 @@ from app.domain import (
     filetree,
     graph_history,
     library,
+    manual,
     monitoring,
     notebook,
     nsfw,
@@ -199,6 +200,7 @@ class Tool:
     args: tuple[Arg, ...]
     run: Callable[..., dict[str, Any]] = field(compare=False)
     writes: bool = False  # asks for a change: needs a write-scope token, and says so in its annotations
+    own: bool = False  # gives Lens's own text (its docs), not what others said or wrote: not checked for instructions
 
     def definition(self) -> dict[str, Any]:
         return {
@@ -225,10 +227,10 @@ TOOLS: dict[str, Tool] = {}
 
 
 def tool(
-    name: str, title: str, description: str, *args: Arg, writes: bool = False
+    name: str, title: str, description: str, *args: Arg, writes: bool = False, own: bool = False
 ) -> Callable[[Callable[..., dict[str, Any]]], Callable[..., dict[str, Any]]]:
     def register(fn: Callable[..., dict[str, Any]]) -> Callable[..., dict[str, Any]]:
-        TOOLS[name] = Tool(name, title, description, args, fn, writes)
+        TOOLS[name] = Tool(name, title, description, args, fn, writes, own)
         return fn
 
     return register
@@ -278,7 +280,7 @@ def call(ctx: Context, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         values = {a.name: a.parse(arguments.get(a.name)) for a in t.args}
         with graph_history.acting(via="mcp", tool=name):
             out = t.run(ctx, **values)
-            why = untrusted.flags(json.dumps(out, ensure_ascii=False, default=str), ctx.cfg)
+            why = [] if t.own else untrusted.flags(json.dumps(out, ensure_ascii=False, default=str), ctx.cfg)
             if why:  # for admins to see what an agent was handed
                 auth.audit(ctx.db, ctx.user.as_audit(), "mcp.injection_flagged", f"tool:{name}", {"why": why})
             return _text(out, why=why)
@@ -1938,3 +1940,19 @@ def set_install_settings(ctx: Context, public: bool | None = None, target: str |
     if asked:
         auth.audit(ctx.db, ctx.user.as_audit(), "lens.install", None, asked | {"via": "mcp"})
     return updates.install_view(ctx.db, ctx.cfg) | {"changing": asked}
+
+
+# ---------- Lens itself: its docs and this server ----------
+@tool(
+    "lens_help",
+    "Lens's docs and this server",
+    "How Lens works and what it can do (setting it up, its settings, the assistant, chat rooms, connecting apps and "
+    "agents, the API, MCP, sharing, backups, costs...), from its documentation: the sections that match query, or one "
+    "page read whole, each with a link to cite, and the docs' contents. Also this server's own facts: its version and "
+    "addresses (web app, MCP, API), what is turned on, and your access.",
+    Arg("query", "string", "what to look up, in a few words", max_length=300),
+    Arg("page", "string", "one page of the docs to read whole, by its name in the contents, like mcp", max_length=80),
+    own=True,
+)
+def lens_help(ctx: Context, query: str | None = None, page: str | None = None) -> dict[str, Any]:
+    return manual.answer(ctx.db, ctx.cfg, ctx.web, ctx.user.admin, set(ctx.acl.roles), set(ctx.acl.editable()), query, page)

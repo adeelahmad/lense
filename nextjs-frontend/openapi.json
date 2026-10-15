@@ -46624,8 +46624,40 @@
             "title": "N"
           },
           "recording_id": {
-            "type": "integer",
-            "title": "Recording Id"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recording Id",
+            "description": "the recording it's from; none for Lens's docs and this server's facts (url)"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "where it is when it isn't a recording's: a page of Lens's docs, or this server"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "what it is, such as said, screen or memory; docs for Lens's docs and server for this server's facts"
           },
           "title": {
             "anyOf": [
@@ -46730,7 +46762,6 @@
         "type": "object",
         "required": [
           "n",
-          "recording_id",
           "text"
         ],
         "title": "Passage"

@@ -47,6 +47,8 @@ RUN UV_PROJECT_ENVIRONMENT=/app/code/venv UV_PYTHON_DOWNLOADS=never UV_COMPILE_B
     uv sync --frozen --no-dev --extra whisper --no-install-project --python /usr/bin/python3.12 \
       $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done)
 COPY fastapi_backend/ ./
+# Lens's docs, next to the backend, which the assistant answers questions about Lens from (lens_help)
+COPY docs/ /app/code/docs/
 RUN UV_PROJECT_ENVIRONMENT=/app/code/venv UV_PYTHON_DOWNLOADS=never UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy \
     uv sync --frozen --no-dev --extra whisper --python /usr/bin/python3.12 \
       $(for e in $EXTRAS; do printf -- '--extra %s ' "$e"; done) \
