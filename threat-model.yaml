@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:44475d4514f343e65a581b45ce853b957961abe7f49de464f7da9972569857cb"
+prose_version: "threat-model.md@sha256:2e578665b1ae8a2b7603b4a07cd5c17a1a4eb028655d371c5f1bce26ecc1a81c"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 204, maintainer: 46, inferred: 91, assumption: 8}
@@ -1870,6 +1870,7 @@ known_misuses:
   - {id: km-wide-web-networks, components: [outbound], pattern: "Wide LENS_WEB_NETWORKS", x-why-unsafe: "Editors, and iCal feed redirects, can then reach those networks", safer_alternative: "List single hosts", x-provenance-basis: "§1.6 web_networks row; §1.13 private networks row", provenance: {kind: documented, source: 'docs/configuration.md "loopback and cloud metadata addresses stay out"'}}
   - {id: km-push-token-in-url, components: [optional], pattern: "Webhook push token in a URL that proxies log", x-why-unsafe: "The token is a credential in the path", safer_alternative: "Use the header form", x-provenance-basis: "§1.13 row 'Keep logs that record request paths private'", provenance: {kind: documented, source: 'docs/sensors.md "Ways in"'}}
   - {id: km-hosted-model-sensitive, components: [assistant], pattern: "Pointing the assistant at a hosted model for sensitive archives", x-why-unsafe: "Assets' text leaves the machine", safer_alternative: "Use a local model server", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
+  - {id: km-hosted-decision-model-sensitive, components: [assistant], pattern: "A hosted decision model (Jev) for sensitive archives", x-why-unsafe: "Routine choices send it excerpts, notes and the lines that name what analysis can't type", safer_alternative: "Use Laya, or set Settings › Analysis › Names the rules can't type to Leave them terms", x-provenance-basis: "§1.13 row 'Pick model and speech servers you trust'", provenance: {kind: maintainer, date: "2026-10"}}
 
 # ---------------------------------------------------------------- §1.15
 known_non_findings:

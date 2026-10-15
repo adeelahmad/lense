@@ -46,6 +46,7 @@ speakers:                           # voice IDs, scoped to a namespace
 
 analysis:
   entities: rules                   # rules | spacy (pip install spacy + a model)
+  typing: auto                      # names the rules leave terms: auto (the decision model, when set up) | model (else the LLM) | rules
   spacy_model: en_core_web_sm
   gazetteer: []                     # ["Dyno Therapeutics | ORG", "CoBench"]
 

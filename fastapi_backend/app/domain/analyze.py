@@ -446,6 +446,30 @@ def one_type(seg_ents):
     return [[(n, best.get(ent_key(n), t)) for n, t in es] for es in seg_ents]
 
 
+def model_types(db, cfg, nid, segs, seg_ents):
+    """The terms of a recording that aren't entities yet, given the type a model is sure of (name_types.ask). A short
+    form of a longer name said here ("Johnson" of "Sarah Johnson") takes that name's type later, so it isn't asked."""
+    if not name_types.asking(cfg):
+        return seg_ents
+    terms = {}
+    for es in seg_ents:
+        for n, t in es:
+            k = ent_key(n)
+            if k and t == "TERM":
+                terms.setdefault(k, n)
+    keys = {ent_key(n) for es in seg_ents for n, _ in es}
+    terms = {k: n for k, n in terms.items() if not any(L.endswith(" " + k) for L in keys)}
+    if terms:
+        have = set(db.values("SELECT VALUE key FROM entity WHERE space = $s AND key IN $k", s=nid, k=sorted(terms)))
+        have |= set(db.values("SELECT VALUE key FROM entity_alias WHERE space = $s AND key IN $k", s=nid, k=sorted(terms)))
+        terms = {k: n for k, n in terms.items() if k not in have}
+    if not terms:
+        return seg_ents
+    texts = [s["text"] for s in segs]
+    typed = name_types.ask(cfg, {k: (n, name_types.said_in(n, texts)) for k, n in terms.items()})
+    return [[(n, typed.get(ent_key(n), t) if t == "TERM" else t) for n, t in es] for es in seg_ents] if typed else seg_ents
+
+
 def analyze_recording(db, cfg, rid, seg_ents=None, say=None):
     """Entities, keywords, sections and talk statistics. `seg_ents` (per line, [(name, type)]) replaces the extractor:
     a workflow's save entities node passes what its nodes found."""
@@ -486,6 +510,8 @@ def analyze_recording(db, cfg, rid, seg_ents=None, say=None):
             have = {ent_key(n) for n, _ in es}
             es.extend(h for h in hints if ent_key(h[0]) not in have)
     seg_ents = one_type(seg_ents)
+    if given is None and not listed:  # names the rules can't tell: a model may (Settings › Analysis)
+        seg_ents = model_types(db, cfg, nid, segs, seg_ents)
     if setup["types"] and not listed:  # the namespace (or collection) keeps only some types
         seg_ents = [[(n, t) for n, t in es if entity_setup.keeps(setup, t)] for es in seg_ents]
     surface = {t: c.most_common(1)[0][0] for t, c in ts.items()}

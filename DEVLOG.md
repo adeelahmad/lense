@@ -34,8 +34,12 @@ organisations and products, holidays), the words a name starts or ends with, rol
 verbs of saying after it and the namespace's named speakers; a recording gives each name one type. Upgrade step
 `entity-types` retypes old analysis-made Terms, skipping types people or agents set (graph history and audit log).
 
-Refine later: the decision model (Jev or Laya) for the names the rules leave as Terms, in analysis and as an action
-on existing Terms (next PR); place, name and brand lists for more languages and regions (Custom vocabulary in
+Then the decision model: `analysis.typing` (`auto` by default: Jev or Laya when set up, never the language model;
+`model` lets the language model answer; `rules` none) asks about a recording's new Terms in one `decide.choose_all`
+call, with two lines each, and keeps answers above `decisions.act_above`.
+
+Refine later: an action that asks the model about existing Terms (API, MCP, a button on the Entities page; next PR);
+offer the namespace's own types to the model too; ask about names in the hybrid mode's new entities; place, name and brand lists for more languages and regions (Custom vocabulary in
 Settings covers one install's own names); type existing entities again when a later recording gives better evidence
 (needs a marker for types people set, kept out of the versioned rows); "Google Cloud"-like names (a known company,
 then a word) as products.

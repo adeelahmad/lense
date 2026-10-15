@@ -171,6 +171,21 @@ reads each name and the words around it (`app/domain/name_types.py`):
   topic, or retyped on the Entities page (one at a time or ticked together). Names listed in Settings › Analysis ›
   Custom vocabulary (`Name | TYPE`) always get the type given there.
 
+**Names the rules can't type.** When a [decision model](assistant.md#routine-choices) is set up (Jev with its key, or
+Laya), analysis asks it what each new Term of a recording is, with the first two lines it's said in, and keeps the type
+when it is sure (`decisions.act_above`, 0.8). Names that are already entities aren't asked again, and the short form of
+a longer name in the same recording ("Johnson" of "Sarah Johnson") takes that name's type. The names of a recording go
+in one call (up to 20 a call and 40 a recording; Laya, which reads less, one at a time). Each call is in Activity and
+counts toward budgets, and none is made once the budget's hard limit is reached. Settings › Analysis › **Names the rules
+can't type** (`analysis.typing`) chooses:
+
+- `auto` (the default): the decision model when one is set up, else nothing; the language model is never asked.
+- `model`: the decision model, else the language model, in one call per recording too.
+- `rules`: no model; the names stay Terms.
+
+A name the model isn't sure of stays a Term, and so do all of them when it can't be reached. Names a workflow's nodes
+typed, and names mapped onto a fixed list ([Entity setup](#entity-setup)), aren't asked.
+
 A name gets one type per recording, the one most of its lines give it, so "Lee" after "Dr Lee" is a person too. "And"
 no longer joins two names into one ("Kenya and Nigeria" are two places). The given names are mostly the US Census
 Bureau's frequent first names of 1990 (public domain); the other lists are written for Lens. With
