@@ -32,6 +32,7 @@
         "/auth/refresh, /auth/ticket, /auth/signin-link/*, /auth/password/*, WebAuthn flows",
         "/oauth/register, /authorize, /token, /revoke",
         "/auth/external/{key}/*",
+        "POST /sources/signin, /auth/external/google/callback (connecting a source)",
         "/mcp"
       ],
       "touches": [
@@ -295,6 +296,15 @@
       "caller_must_enforce": "admin chooses providers",
       "provenance": "documented",
       "source": "docs/authentication.md \"when the provider vouches for the email\""
+    },
+    {
+      "entry_point": "POST /sources/signin, /auth/external/google/callback (connecting a source)",
+      "parameter": "type, params, next, state, code, Google's tokens",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "the admin or agent hands the link only to the account's owner, who consents at Google",
+      "provenance": "documented",
+      "source": "docs/processing.md \"so an agent can hand it to its person\""
     },
     {
       "entry_point": "/mcp",

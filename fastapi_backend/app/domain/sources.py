@@ -2,9 +2,10 @@
 
 A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, or a folder on
 this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP), a calendar feed (iCal) or
-Google Calendar, whose messages and events are shown as files (feeds.py). A watch maps a folder on a source to a
-namespace: new audio, video, documents (PDFs) and images become resources queued for the whole pipeline, their files
-staying on the source; new transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
+Google Calendar, whose messages and events are shown as files (feeds.py). Google Drive can also be connected by signing in
+with Google in the browser, through the Google app set up in Settings › Sign-in (source_oauth.py). A watch maps a folder
+on a source to a namespace: new audio, video, documents (PDFs) and images become resources queued for the whole
+pipeline, their files staying on the source; new transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
 messages to other namespaces, or skip them (mail_routes.py). Credentials are stored encrypted and handed to rclone in a private
 temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
@@ -22,7 +23,7 @@ import shutil
 import subprocess
 import tempfile
 
-from . import convert, deletion, feeds, google_auth, ingest, jobs, mail_routes, settings, store
+from . import convert, deletion, external_login, feeds, google_auth, ingest, jobs, mail_routes, settings, store
 
 R = store.R
 BACKENDS = {
@@ -114,9 +115,14 @@ def obscure(cfg, value):
 
 
 def get(db, sid):
-    row = db.one("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM $r", r=R("storage_source", sid))
+    row = db.one("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at, oauth FROM $r", r=R("storage_source", sid))
     if not row or row["type"] not in BACKENDS:  # a stream sensor (sensors.py) shares the table, but isn't a source
         raise KeyError(sid)
+    if (row.get("oauth") or {}).get("provider"):  # signed in through an app set up here: rclone refreshes with that app
+        try:
+            row["app"] = external_login.provider(db, row["oauth"]["provider"])
+        except KeyError:
+            pass  # the app was removed: the token stops refreshing, and the connection asks to sign in again
     return row
 
 
@@ -130,6 +136,10 @@ def _config(cfg, src):
         if k in spec["secrets"]:
             v = settings.unseal(cfg, sealed, f"source:{src['id']}:{k}")
             lines.append(f"{k} = {_one_line(obscure(cfg, v) if k in OBSCURED else v)}")
+    app = src.get("app")
+    if app and app.get("client_id") and app.get("client_secret"):  # Google refreshes a token only for the app it gave it to
+        lines.append(f"client_id = {_one_line(app['client_id'])}")
+        lines.append(f"client_secret = {_one_line(external_login.client_secret(cfg, app))}")
     return name, "\n".join(lines) + "\n"
 
 
@@ -387,6 +397,9 @@ def update(db, cfg, sid, name=None, params=None, secret_values=None):
         d=store.clean({"name": name, "params": {**(src.get("params") or {}), **(params or {})} if params else None}),
     )
     db.q("UPDATE $r SET sealed = $s", r=R("storage_source", sid), s=sealed)  # SET, not MERGE: a MERGE can't drop a removed secret
+    sv = secret_values or {}
+    if "token" in sv or sv.get("service_account_credentials"):  # a pasted token or a key: no longer signed in here
+        db.q("UPDATE $r SET oauth = NONE", r=R("storage_source", sid))
 
 
 def remove(db, sid):
@@ -399,6 +412,15 @@ def remove(db, sid):
     )
 
 
+def _signed_in(oauth):
+    """Who a connection signed in as in the browser (source_oauth.py): {provider, email, at}; None for pasted tokens
+    and keys."""
+    if not (oauth or {}).get("provider"):
+        return None
+    kind = oauth["provider"] if oauth["provider"] in external_login.LABELS else "oidc"
+    return {"provider": external_login.LABELS[kind], "email": oauth.get("email"), "at": oauth.get("at")}
+
+
 def view(src):
     spec = BACKENDS[src["type"]]
     return {
@@ -409,6 +431,7 @@ def view(src):
         "params": src.get("params") or {},
         "secrets": {k: {"secret": True, "set": k in (src.get("sealed") or {})} for k in spec["secrets"]},
         "oauth": spec.get("oauth"),
+        "signed_in": _signed_in(src.get("oauth")),
         "health": src.get("health"),
         "created_at": src.get("created_at"),
     }
@@ -420,7 +443,9 @@ def list_sources(db):
         counts[w["source"]] = counts.get(w["source"], 0) + 1
     return [
         {**view(s), "watches": counts.get(s["id"], 0)}
-        for s in db.rows("SELECT record::id(id) AS id, name, type, params, sealed, health, created_at FROM storage_source ORDER BY id")
+        for s in db.rows(
+            "SELECT record::id(id) AS id, name, type, params, sealed, health, created_at, oauth FROM storage_source ORDER BY id"
+        )
         if s["type"] in BACKENDS
     ]
 

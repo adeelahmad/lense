@@ -14,6 +14,7 @@ import {
   imapHost,
   parseServiceAccountKey,
 } from "@/components/sources/source-model";
+import { GoogleAppSetup } from "@/components/sources/google-app-setup";
 import { TokenPaste } from "@/components/sources/token-paste";
 import { Button } from "@/components/ui/button";
 import { Field, Input, SecretField, Select, Textarea } from "@/components/ui/field";
@@ -35,6 +36,9 @@ export function ConnectionFields({
   saved,
   isSet,
   replaceToken,
+  signedIn,
+  onSignIn,
+  signingIn,
 }: {
   type: SourceType;
   spec: BackendSpec;
@@ -45,6 +49,11 @@ export function ConnectionFields({
   saved: boolean;
   isSet: (key: string) => boolean;
   replaceToken?: boolean;
+  /** Signed in with Google here, as this address ("" when Google didn't say); null when not. */
+  signedIn?: string | null;
+  /** Sign in (again) with Google in the browser; shown while a saved connection can also just be saved. */
+  onSignIn?: () => void;
+  signingIn?: boolean;
 }) {
   const [pasting, setPasting] = useState(Boolean(replaceToken));
   const editing = saved;
@@ -216,6 +225,45 @@ export function ConnectionFields({
       return token;
     case "drive": {
       const serviceAccount = serviceAccountKey("Share the folders Lens should read with that address.");
+      const google = spec.signin;
+      const link = (label: string, paste: boolean) => (
+        <button
+          type="button"
+          className="self-start text-[12.5px] text-fg-secondary underline underline-offset-2 hover:text-fg"
+          onClick={() => onChange({ ...form, drivePaste: paste })}
+        >
+          {label}
+        </button>
+      );
+      // a Google account signs in with Google here (through the admin's Google app), or pastes rclone's token
+      const googleAccount =
+        form.drivePaste || !google ? (
+          <div className="flex flex-col gap-2">
+            {token}
+            {google && link("Sign in with Google instead", false)}
+          </div>
+        ) : google.ready ? (
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
+              <span className="flex-1">
+                {signedIn != null
+                  ? `Signed in with Google${signedIn ? ` as ${signedIn}` : ""}. Sign in again to use another account.`
+                  : "You sign in with Google in a small window. Lens keeps the token encrypted and renews it."}
+              </span>
+              {signedIn != null && onSignIn && (
+                <Button size="sm" variant="secondary" onClick={onSignIn} disabled={signingIn}>
+                  {signingIn ? "Waiting for Google…" : "Sign in again"}
+                </Button>
+              )}
+            </div>
+            {link("Paste a token from rclone instead", true)}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <GoogleAppSetup signin={google} />
+            {link("Or paste a token from rclone", true)}
+          </div>
+        );
       return (
         <div className="flex flex-col gap-3">
           <Segmented
@@ -227,7 +275,7 @@ export function ConnectionFields({
               { value: "service_account", label: "Service account" },
             ]}
           />
-          {form.driveAuth === "service_account" ? serviceAccount : token}
+          {form.driveAuth === "service_account" ? serviceAccount : googleAccount}
           {select("scope", DRIVE_SCOPES)}
           {text("root_folder_id", {
             mono: true,

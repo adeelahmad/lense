@@ -21,6 +21,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   shows only Projects, Areas, Resources or Archive, and each note says which notes it's inside. Jump to (⌘K) finds notes
   as well. `GET /api/v1/notes/search`; `find_notes` gives agents the words around each match
   ([Finding notes](docs/notes.md#finding-notes)).
+- **Connect Google Drive by signing in with Google.** Sensors › Add connection › Google Drive › Google account now
+  has **Sign in with Google**: Google's page opens in a small window, and the connection is made, tested and named
+  after the account, ready to pick a folder whose files Lens imports. Nothing to run or paste. It uses your own
+  Google app, the one people can sign in to Lens with; set it up once in the dialog (client ID and secret, with the
+  redirect URI shown) or in Settings › Sign-in, and signing in to Lens with Google can stay off. Agents get the same
+  link from `POST /api/v1/sources/signin` to hand to their person. Pasting a token from rclone and service accounts
+  work as before ([Storage sources](docs/processing.md#storage-sources)).
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 

@@ -5,10 +5,11 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 
-from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db
-from app.domain import auth, sources, store
+from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, web_origin
+from app.api.v1.routes.external import flow_cookie
+from app.domain import auth, source_oauth, sources, store
 from app.domain.store import DB
 from app.schemas.admin import Started
 from app.schemas.common import Created, Ok
@@ -21,6 +22,8 @@ from app.schemas.sources import (
     SourceCreate,
     SourceCreated,
     SourceHealth,
+    SourceSignIn,
+    SourceSignInLink,
     SourceUpdate,
     SourceUpdated,
     Watch,
@@ -47,10 +50,13 @@ def _watch(db: DB, wid: int) -> None:
 
 
 @router.get("/sources/backends")
-def list_backends(user: CurrentUser) -> dict[str, Backend]:
-    """The kinds of storage a source can be, with their settings and secrets."""
+def list_backends(user: CurrentUser, db: Db) -> dict[str, Backend]:
+    """The kinds of storage a source can be, with their settings and secrets, and how each signs in in the browser."""
     keys = {"label", "fields", "secrets", "oauth"}
-    return {k: Backend.model_validate({f: x for f, x in v.items() if f in keys}) for k, v in sources.BACKENDS.items()}
+    return {
+        k: Backend.model_validate({**{f: x for f, x in v.items() if f in keys}, "signin": source_oauth.signin(db, k)})
+        for k, v in sources.BACKENDS.items()
+    }
 
 
 @router.get("/sources")
@@ -78,6 +84,39 @@ def update_source(sid: int, body: SourceUpdate, user: AdminWriter, db: Db, cfg: 
         raise HTTPException(400, str(e)) from None
     auth.audit(db, user.as_audit(), "source.update", f"storage_source:{sid}")
     return SourceUpdated(health=sources.test(db, cfg, sid))
+
+
+@router.post("/sources/signin")
+def start_signin(body: SourceSignIn, user: AdminWriter, request: Request, response: Response, db: Db, cfg: Cfg) -> SourceSignInLink:
+    """Connect Google Drive by signing in with Google (through the Google app in Settings › Sign-in), or sign a
+    connection in again (`source`): open the returned address in a browser. The provider sends it back to the web app
+    page `next`, with ?connected=<id> (tested; next, watch one of its folders) or ?connect_error=<why>. Started from
+    the web app it's tied to that browser; from an API token or app it isn't, so an agent can hand the link to its
+    person. Either way it works once, within ten minutes. Audited as `source.signin` when it finishes."""
+    if body.source is None and body.type is None:
+        raise HTTPException(400, "say which type of connection to make, or which connection to sign in again")
+    origin, bound = web_origin(request), user.via == "access"
+    try:
+        url, browser = source_oauth.start(
+            db,
+            cfg,
+            origin,
+            body.type,
+            body.params,
+            body.name,
+            body.source,
+            account=user.id,
+            by=user.email,
+            bound=bound,
+            next_path=body.next,
+        )
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    if browser:
+        flow_cookie(response, origin, browser)
+    return SourceSignInLink(url=url, bound=bool(browser))
 
 
 @router.delete("/sources/{sid}")

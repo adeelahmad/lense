@@ -16,11 +16,19 @@ KINDS_HELP = (
 )
 
 
+class SignInInfo(ResponseModel):
+    kind: str = Field(description="the kind of sign-in provider whose app it signs in through (google)")
+    label: str
+    ready: bool = Field(description="that app is set up (Settings › Sign-in), so POST /sources/signin works")
+    callback_path: str = Field(description="the address, on this site, to register with the service as the app's redirect URI")
+
+
 class Backend(ResponseModel):
     label: str
     fields: dict[str, str] = Field(description="parameters and their defaults")
     secrets: list[str]
     oauth: str | None = Field(default=None, description="the command that produces the token, for OAuth backends")
+    signin: SignInInfo | None = Field(default=None, description="signing in in the browser instead of pasting a token")
 
 
 class SourceHealth(ResponseModel):
@@ -35,6 +43,12 @@ class SecretFlag(ResponseModel):
     set: bool
 
 
+class SignedIn(ResponseModel):
+    provider: str = Field(description="the service it signed in with (Google)")
+    email: str | None = Field(default=None, description="the account it signed in as")
+    at: str | None = None
+
+
 class Source(ResponseModel):
     id: int
     name: str
@@ -43,6 +57,7 @@ class Source(ResponseModel):
     params: dict[str, Any]
     secrets: dict[str, SecretFlag]
     oauth: str | None = None
+    signed_in: SignedIn | None = Field(default=None, description="signed in in the browser (POST /sources/signin), as whom")
     health: SourceHealth | None = None
     created_at: str | None = None
     watches: int = 0
@@ -59,6 +74,19 @@ class SourceUpdate(RequestModel):
     name: str | None = None
     params: dict[str, Any] | None = None
     secrets: dict[str, str | None] | None = Field(default=None, description="null or empty removes a secret")
+
+
+class SourceSignIn(RequestModel):
+    type: SourceType | None = Field(default=None, description="the kind of connection to make (drive); leave out with `source`")
+    source: int | None = Field(default=None, description="a connection to sign in again, instead of making a new one")
+    name: str | None = Field(default=None, description="the new connection's name; by default the service and the account")
+    params: dict[str, Any] | None = Field(default=None, description="its options, as for POST /sources (scope, root_folder_id...)")
+    next: str = Field(default="/connected", description="the web app's page to come back to (by default one that only says how it went)")
+
+
+class SourceSignInLink(ResponseModel):
+    url: str = Field(description="the service's sign-in page: open it in a browser; it works once, within ten minutes")
+    bound: bool = Field(description="tied to this browser (a cookie came with it); else the link alone finishes it")
 
 
 class SourceCreated(Created):

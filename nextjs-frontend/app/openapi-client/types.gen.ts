@@ -914,6 +914,10 @@ export type Backend = {
    * the command that produces the token, for OAuth backends
    */
   oauth?: string | null;
+  /**
+   * signing in in the browser instead of pasting a token
+   */
+  signin?: SignInInfo | null;
   [key: string]: unknown;
 };
 
@@ -16578,6 +16582,58 @@ export type SharedContext = {
 };
 
 /**
+ * SignInInfo
+ */
+export type SignInInfo = {
+  /**
+   * Kind
+   *
+   * the kind of sign-in provider whose app it signs in through (google)
+   */
+  kind: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Ready
+   *
+   * that app is set up (Settings › Sign-in), so POST /sources/signin works
+   */
+  ready: boolean;
+  /**
+   * Callback Path
+   *
+   * the address, on this site, to register with the service as the app's redirect URI
+   */
+  callback_path: string;
+  [key: string]: unknown;
+};
+
+/**
+ * SignedIn
+ */
+export type SignedIn = {
+  /**
+   * Provider
+   *
+   * the service it signed in with (Google)
+   */
+  provider: string;
+  /**
+   * Email
+   *
+   * the account it signed in as
+   */
+  email?: string | null;
+  /**
+   * At
+   */
+  at?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * SigninLink
  */
 export type SigninLink = {
@@ -17016,6 +17072,10 @@ export type Source = {
    * Oauth
    */
   oauth?: string | null;
+  /**
+   * signed in in the browser (POST /sources/signin), as whom
+   */
+  signed_in?: SignedIn | null;
   health?: SourceHealth | null;
   /**
    * Created At
@@ -17170,6 +17230,64 @@ export type SourceImportResult = {
    * Detail
    */
   detail?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * SourceSignIn
+ */
+export type SourceSignIn = {
+  /**
+   * Type
+   *
+   * the kind of connection to make (drive); leave out with `source`
+   */
+  type?:
+    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical" | "gcal" | null;
+  /**
+   * Source
+   *
+   * a connection to sign in again, instead of making a new one
+   */
+  source?: number | null;
+  /**
+   * Name
+   *
+   * the new connection's name; by default the service and the account
+   */
+  name?: string | null;
+  /**
+   * Params
+   *
+   * its options, as for POST /sources (scope, root_folder_id...)
+   */
+  params?: {
+    [key: string]: unknown;
+  } | null;
+  /**
+   * Next
+   *
+   * the web app's page to come back to (by default one that only says how it went)
+   */
+  next?: string;
+};
+
+/**
+ * SourceSignInLink
+ */
+export type SourceSignInLink = {
+  /**
+   * Url
+   *
+   * the service's sign-in page: open it in a browser; it works once, within ten minutes
+   */
+  url: string;
+  /**
+   * Bound
+   *
+   * tied to this browser (a cookie came with it); else the link alone finishes it
+   */
+  bound: boolean;
   [key: string]: unknown;
 };
 
@@ -32589,6 +32707,31 @@ export type UpdateSourceResponses = {
 };
 
 export type UpdateSourceResponse = UpdateSourceResponses[keyof UpdateSourceResponses];
+
+export type StartSigninData = {
+  body: SourceSignIn;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sources/signin";
+};
+
+export type StartSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartSigninError = StartSigninErrors[keyof StartSigninErrors];
+
+export type StartSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: SourceSignInLink;
+};
+
+export type StartSigninResponse = StartSigninResponses[keyof StartSigninResponses];
 
 export type TestSourceData = {
   body?: never;

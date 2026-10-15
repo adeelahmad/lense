@@ -88,6 +88,7 @@ export function SignInProviders() {
                 </div>
                 <div className="text-[12px] text-fg-muted">
                   {p.people === 1 ? "1 person connected" : `${p.people} people connected`}
+                  {p.kind === "google" && " · also connects Google Drive"}
                 </div>
               </div>
               <Switch

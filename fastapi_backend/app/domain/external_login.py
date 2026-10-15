@@ -190,6 +190,11 @@ def callback_path(key):
     return f"/api/v1/auth/external/{key}/callback"
 
 
+def client_secret(cfg, row):
+    """A provider's client secret, unsealed, for its token endpoint."""
+    return settings.unseal(cfg, row["client_secret"], _context(row["key"]))
+
+
 # ---------- signing in ----------
 def _endpoints(row):
     kind = row["kind"]
@@ -246,7 +251,7 @@ def start(db, cfg, key, origin, mode="login", account=None, next_path="/"):
                 "origin": origin.rstrip("/"),
                 "mode": mode,
                 "account": account,
-                "next": _safe_next(next_path),
+                "next": safe_next(next_path),
                 "expires_at": _later(FLOW_MINUTES * 60),
             }
         ),
@@ -268,7 +273,7 @@ def start(db, cfg, key, origin, mode="login", account=None, next_path="/"):
     return ep["authorize"] + sep + urllib.parse.urlencode(q), browser
 
 
-def _safe_next(path):
+def safe_next(path):
     """A path on this site. Browsers drop tabs and line breaks from a URL ("/\\t/evil.example" is "//evil.example")."""
     path = path or "/"
     ok = path.startswith("/") and not path.startswith("//") and "\\" not in path and not re.search(r"[\x00-\x1f\x7f]", path)
@@ -276,11 +281,15 @@ def _safe_next(path):
 
 
 def claim(db, state, browser):
-    """The flow a callback answers, used up. ExternalLoginError when it's gone, expired, or started in another browser."""
+    """The flow a callback answers, used up. ExternalLoginError when it's gone, expired, or started in another browser.
+    A flow an agent started through the API for its person to open (connecting a source, source_oauth.py) isn't tied
+    to a browser: its link alone finishes it, once."""
     rows = db.rows("DELETE $r RETURN BEFORE", r=R("external_flow", auth.sha(state))) if state else []
     row = rows[0] if rows else None
     if not row or (row.get("expires_at") or "") < store.now():
         raise ExternalLoginError("that sign-in took too long or was already used; try again")
+    if row.get("unbound") and row.get("mode") == "source":
+        return row
     if not browser or auth.sha(browser) != row.get("browser"):
         raise ExternalLoginError("that sign-in was started in another browser; start it again here")
     return row
@@ -289,7 +298,7 @@ def claim(db, state, browser):
 def _profile(row, cfg, flow, code):
     """{sub, email, trusted, name} from the provider, for the code it sent back."""
     ep = _endpoints(row)
-    secret = settings.unseal(cfg, row["client_secret"], _context(row["key"]))
+    secret = client_secret(cfg, row)
     try:
         r = httpx.post(
             ep["token"],

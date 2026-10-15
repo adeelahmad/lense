@@ -180,6 +180,29 @@ describe("connections", () => {
     };
     expect(emptyForm(DRIVE, saved).driveAuth).toBe("service_account");
   });
+  it("signs Google Drive in with Google when the Google app is set up, and keeps a pasted token as pasted", () => {
+    const DRIVE: BackendSpec = {
+      label: "Google Drive",
+      fields: { scope: "drive.readonly", root_folder_id: "" },
+      secrets: ["token", "service_account_credentials"],
+      oauth: "rclone authorize drive",
+      signin: { kind: "google", label: "Google", ready: true, callback_path: "/api/v1/auth/external/google/callback" },
+    };
+    // signing in with Google: no token to paste
+    expect(validateForm("drive", DRIVE, emptyForm(DRIVE), false)).toEqual({});
+    expect(Object.keys(validateForm("drive", DRIVE, { ...emptyForm(DRIVE), drivePaste: true }, false))).toEqual([
+      "token",
+    ]);
+    const token = { secret: true, set: true };
+    const none = { secret: true, set: false };
+    const pasted = { name: "d", params: {}, secrets: { token, service_account_credentials: none } };
+    expect(emptyForm(DRIVE, pasted).drivePaste).toBe(true);
+    const signedIn = { ...pasted, signed_in: { provider: "Google", email: "ada@gmail.com" } };
+    expect(emptyForm(DRIVE, signedIn).drivePaste).toBe(false);
+    expect(sourceSubtitle({ ...signedIn, type: "drive", params: { scope: "drive", root_folder_id: "1x" } })).toBe(
+      "Drive · ada@gmail.com · full access · one folder",
+    );
+  });
   it("takes email accounts and calendar feeds", () => {
     const IMAP: BackendSpec = {
       label: "Email (IMAP)",

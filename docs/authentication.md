@@ -83,6 +83,10 @@ has a "Continue with ..." button for each provider that's turned on.
 Removing a provider disconnects the accounts connected through it. Audited as `login_provider.add`, `.change`,
 `.remove`, `external.connect` and `external.disconnect`; sign-ins as `login` with `external:<name>`.
 
+The Google app also connects Google Drive (Sensors › Add connection › Google Drive › Sign in with Google): the same
+client id, secret and redirect URI, with Drive's scope asked for, so it works with signing in to Lens turned off
+([Storage sources](processing.md#storage-sources)).
+
 ## The web app: NextAuth with API tokens
 
 ```

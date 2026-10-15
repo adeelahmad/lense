@@ -3,7 +3,16 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
 /** Pages reachable without a session: signing in, and the pages for visitors (docs/access.md). */
-const PUBLIC_PATHS = ["/login", "/setup", "/password-recovery", "/signin-link", "/external-signin", "/explore"];
+// /connected only says whether a connection signed in (a link an agent sent may be opened where nobody is signed in).
+const PUBLIC_PATHS = [
+  "/login",
+  "/setup",
+  "/password-recovery",
+  "/signin-link",
+  "/external-signin",
+  "/connected",
+  "/explore",
+];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

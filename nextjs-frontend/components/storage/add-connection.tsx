@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { Sources } from "@/app/openapi-client";
 import { ConnectionDialog } from "@/components/sources/connection-dialog";
+import { useSignInReturn } from "@/components/sources/signin";
 import type { BackendSpec } from "@/components/sources/source-model";
 import { Button } from "@/components/ui/button";
 import { data, useApiClient } from "@/lib/api/browser";
@@ -20,6 +21,8 @@ export function AddConnection({
 }) {
   const client = useApiClient();
   const [open, setOpen] = useState(false);
+  // back from signing in with Google with the whole page (popups blocked): use the connection it made
+  useSignInReturn((got) => got.connected && onAdded(got.connected));
   const backends = useQuery({
     queryKey: ["source-backends"],
     queryFn: () => data(Sources.listBackends({ client })),

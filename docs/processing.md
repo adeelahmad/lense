@@ -302,6 +302,21 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
   to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
   `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.
+- **Google Drive signs in with Google** in the web app, with nothing to paste: choose Google account, then Sign in
+  with Google. A small window opens Google's consent page; when Google sends it back, the connection is made, tested
+  and named after the account (Google Drive · you@gmail.com), and the dialog goes on to pick a folder to watch. It
+  uses your own Google app, the one people can sign in to Lens with (Settings › Sign-in): set it up once, in the
+  dialog or there, with signing in to Lens left off if you like. In Google Cloud console › APIs & Services, enable
+  the Google Drive API; create an OAuth client ID (Web application) whose redirect URI is the address the dialog
+  shows (`<your Lens address>/api/v1/auth/external/google/callback`, the same as sign-in's); and publish the app on
+  the OAuth consent screen, or Google ends its sign-ins after 7 days. Google accepts `https://` redirect addresses
+  and `http://localhost`. The token is kept encrypted, and rclone renews it with that app's client id and secret.
+  A connection whose sign-in ran out shows Sign in again. Without a Google app, paste a token from rclone as before.
+- Agents connect Drive the same way: `POST /api/v1/sources/signin` with `{"type": "drive", "params": {...}}` (or
+  `{"source": <id>}` to sign one in again) answers `{url}`. From the web app the link is tied to that browser; from
+  an API token or app it isn't, so an agent can hand it to its person, who opens it once within ten minutes and ends
+  on a page saying it's connected (`/connected`). Then `POST /api/v1/watches` imports its files. Code that calls
+  Google itself gets a fresh access token from `source_oauth.fresh_token`. Audited as `source.signin`.
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.

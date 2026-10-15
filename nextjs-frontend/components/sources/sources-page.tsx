@@ -11,6 +11,7 @@ import { SensorsTabs } from "@/components/sensors/parts";
 import { ConnectionDialog } from "@/components/sources/connection-dialog";
 import { DeleteConnectionDialog } from "@/components/sources/delete-connection";
 import { FolderBrowser } from "@/components/sources/folder-browser";
+import { signIn, useSignInReturn } from "@/components/sources/signin";
 import { TypeTile } from "@/components/sources/source-icons";
 import { healthOf, sourceSubtitle, suggestName, type BackendSpec } from "@/components/sources/source-model";
 import { WatchCard } from "@/components/sources/watch-card";
@@ -104,6 +105,38 @@ export function SourcesPage() {
     };
   }, [pipelines.data]);
 
+  // Signed in with Google (from the dialog with popups blocked, or a link an agent sent): on to its folders
+  const connected = (id: number) =>
+    void sources.refetch().then((r) => {
+      const made = ((r.data ?? []) as Source[]).find((x) => x.id === id);
+      if (!made) return;
+      toast({ tone: "green", title: "Connected", body: made.name });
+      setSelected(id);
+      if (!((watches.data ?? []) as Watch[]).some((w) => w.source === id)) setBrowsing(made);
+    });
+  useSignInReturn(
+    (got) =>
+      got.connected
+        ? connected(got.connected)
+        : toast({ tone: "red", title: "Couldn’t connect", body: got.error ?? "Signing in didn’t finish." }),
+    admin,
+  );
+  // Sign in again: Google's window has to open in the click itself, so this isn't a mutation (those start a tick later)
+  const [againId, setAgainId] = useState<number | null>(null);
+  const signInAgain = (s: Source) => {
+    setAgainId(s.id);
+    signIn(client, { source: s.id })
+      .then((got) => {
+        if (got.error && got.error !== "cancelled") toast({ tone: "red", title: "Couldn’t sign in", body: got.error });
+        else if (got.connected) toast({ tone: "green", title: "Signed in again", body: s.name });
+      })
+      .catch((e: Error) => toast({ tone: "red", title: "Couldn’t sign in", body: e.message }))
+      .finally(() => {
+        setAgainId(null);
+        void qc.invalidateQueries({ queryKey: ["sources"] });
+      });
+  };
+
   const test = useMutation({
     mutationFn: (s: Source) => data(Sources.testSource({ client, path: { sid: s.id } })),
     onSuccess: (h, s) => {
@@ -164,12 +197,19 @@ export function SourcesPage() {
   const actions = (s: Source) => {
     const bad = s.health && !s.health.ok;
     const oauth = Boolean(s.oauth);
+    const signedIn = Boolean(s.signed_in);
     return (
       <div className="flex shrink-0 items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
         {bad && oauth && /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? "") ? (
-          <Button size="sm" variant="secondary" onClick={() => setEditing({ source: s, replaceToken: true })}>
-            Paste new token
-          </Button>
+          signedIn ? (
+            <Button size="sm" variant="secondary" onClick={() => signInAgain(s)} disabled={againId === s.id}>
+              {againId === s.id ? "Waiting for Google…" : "Sign in again"}
+            </Button>
+          ) : (
+            <Button size="sm" variant="secondary" onClick={() => setEditing({ source: s, replaceToken: true })}>
+              Paste new token
+            </Button>
+          )
         ) : bad || !s.health ? (
           <Button
             size="sm"
@@ -194,8 +234,12 @@ export function SourcesPage() {
             <MenuItem onSelect={() => setBrowsing(s)}>Browse folders</MenuItem>
             <MenuItem onSelect={() => test.mutate(s)}>Test now</MenuItem>
             <MenuItem onSelect={() => setEditing({ source: s })}>Edit connection</MenuItem>
-            {oauth && (
-              <MenuItem onSelect={() => setEditing({ source: s, replaceToken: true })}>Paste new token</MenuItem>
+            {signedIn ? (
+              <MenuItem onSelect={() => signInAgain(s)}>Sign in again</MenuItem>
+            ) : (
+              oauth && (
+                <MenuItem onSelect={() => setEditing({ source: s, replaceToken: true })}>Paste new token</MenuItem>
+              )
             )}
             <MenuSeparator />
             <MenuItem danger onSelect={() => setDeleting(s)}>

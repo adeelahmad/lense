@@ -19398,7 +19398,7 @@
           "sources"
         ],
         "summary": "List Backends",
-        "description": "The kinds of storage a source can be, with their settings and secrets.",
+        "description": "The kinds of storage a source can be, with their settings and secrets, and how each signs in in the browser.",
         "operationId": "list_backends",
         "responses": {
           "200": {
@@ -19559,6 +19559,48 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sources/signin": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Start Signin",
+        "description": "Connect Google Drive by signing in with Google (through the Google app in Settings \u203a Sign-in), or sign a\nconnection in again (`source`): open the returned address in a browser. The provider sends it back to the web app\npage `next`, with ?connected=<id> (tested; next, watch one of its folders) or ?connect_error=<why>. Started from\nthe web app it's tied to that browser; from an API token or app it isn't, so an agent can hand the link to its\nperson. Either way it works once, within ten minutes. Audited as `source.signin` when it finishes.",
+        "operationId": "start_signin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceSignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceSignInLink"
                 }
               }
             }
@@ -29030,6 +29072,17 @@
             ],
             "title": "Oauth",
             "description": "the command that produces the token, for OAuth backends"
+          },
+          "signin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignInInfo"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "signing in in the browser instead of pasting a token"
           }
         },
         "additionalProperties": true,
@@ -56164,6 +56217,76 @@
         "title": "SharedContext",
         "description": "What a question shared from the page it was asked on. The page's text itself isn't kept."
       },
+      "SignInInfo": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "the kind of sign-in provider whose app it signs in through (google)"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "description": "that app is set up (Settings \u203a Sign-in), so POST /sources/signin works"
+          },
+          "callback_path": {
+            "type": "string",
+            "title": "Callback Path",
+            "description": "the address, on this site, to register with the service as the app's redirect URI"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "kind",
+          "label",
+          "ready",
+          "callback_path"
+        ],
+        "title": "SignInInfo"
+      },
+      "SignedIn": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "the service it signed in with (Google)"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email",
+            "description": "the account it signed in as"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "title": "SignedIn"
+      },
       "SigninLink": {
         "properties": {
           "url": {
@@ -56848,6 +56971,17 @@
             ],
             "title": "Oauth"
           },
+          "signed_in": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SignedIn"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "signed in in the browser (POST /sources/signin), as whom"
+          },
           "health": {
             "anyOf": [
               {
@@ -57168,6 +57302,102 @@
           "status"
         ],
         "title": "SourceImportResult"
+      },
+      "SourceSignIn": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "s3",
+                  "dropbox",
+                  "drive",
+                  "onedrive",
+                  "sftp",
+                  "smb",
+                  "webdav",
+                  "local",
+                  "imap",
+                  "ical",
+                  "gcal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "the kind of connection to make (drive); leave out with `source`"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "a connection to sign in again, instead of making a new one"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the new connection's name; by default the service and the account"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params",
+            "description": "its options, as for POST /sources (scope, root_folder_id...)"
+          },
+          "next": {
+            "type": "string",
+            "title": "Next",
+            "description": "the web app's page to come back to (by default one that only says how it went)",
+            "default": "/connected"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SourceSignIn"
+      },
+      "SourceSignInLink": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the service's sign-in page: open it in a browser; it works once, within ten minutes"
+          },
+          "bound": {
+            "type": "boolean",
+            "title": "Bound",
+            "description": "tied to this browser (a cookie came with it); else the link alone finishes it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "url",
+          "bound"
+        ],
+        "title": "SourceSignInLink"
       },
       "SourceUpdate": {
         "properties": {

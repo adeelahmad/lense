@@ -1352,6 +1352,9 @@ import type {
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
+  StartSigninData,
+  StartSigninErrors,
+  StartSigninResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -7935,7 +7938,7 @@ export class Sources {
   /**
    * List Backends
    *
-   * The kinds of storage a source can be, with their settings and secrets.
+   * The kinds of storage a source can be, with their settings and secrets, and how each signs in in the browser.
    */
   public static listBackends<ThrowOnError extends boolean = false>(
     options?: Options<ListBackendsData, ThrowOnError>,
@@ -7998,6 +8001,28 @@ export class Sources {
   ): RequestResult<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Start Signin
+   *
+   * Connect Google Drive by signing in with Google (through the Google app in Settings › Sign-in), or sign a
+   * connection in again (`source`): open the returned address in a browser. The provider sends it back to the web app
+   * page `next`, with ?connected=<id> (tested; next, watch one of its folders) or ?connect_error=<why>. Started from
+   * the web app it's tied to that browser; from an API token or app it isn't, so an agent can hand the link to its
+   * person. Either way it works once, within ten minutes. Audited as `source.signin` when it finishes.
+   */
+  public static startSignin<ThrowOnError extends boolean = false>(
+    options: Options<StartSigninData, ThrowOnError>,
+  ): RequestResult<StartSigninResponses, StartSigninErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartSigninResponses, StartSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/signin",
       ...options,
       headers: {
         "Content-Type": "application/json",

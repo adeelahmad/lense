@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:9a9d789465ffd6df5e5536f945c7ab2deabe634e68d8289ea9e73de4d6b23073"
+prose_version: "threat-model.md@sha256:0480394edc97065e01cf8075964611158a48ea266d8a7d6bb02fb785b066ca69"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -222,6 +222,15 @@ entry_points:
         obligation_id: admin-chooses-providers
         caller_must_enforce: "admin chooses providers"
         provenance: {kind: documented, source: 'docs/authentication.md "when the provider vouches for the email"'}
+  - id: "POST /sources/signin, /auth/external/google/callback (connecting a source)"
+    component: identity
+    parameters:
+      - name: "type, params, next, state, code, Google's tokens"
+        attacker_controllable: true
+        x-condition: "admins start it; one started from an API token isn't tied to a browser, so whoever opens its link within ten minutes connects their Google account to the new connection"
+        control_kinds: [data, x-collaborator-data]
+        caller_must_enforce: "the admin or agent hands the link only to the account's owner, who consents at Google"
+        provenance: {kind: documented, source: 'docs/processing.md "so an agent can hand it to its person"'}
   - id: "/mcp"
     component: identity
     parameters:

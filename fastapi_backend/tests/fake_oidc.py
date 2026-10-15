@@ -1,6 +1,7 @@
 """A tiny OpenID Connect provider for tests (also answers like GitHub's API): discovery, the token endpoint (checks the
-client secret, redirect URI and PKCE verifier) and userinfo. Tests play the browser: they read the state and PKCE
-challenge from the sign-in address Lens hands out and call `issue` for the code the provider would send back."""
+client secret, redirect URI and PKCE verifier; hands out refresh tokens and swaps them) and userinfo. Tests play the
+browser: they read the state and PKCE challenge from the sign-in address Lens hands out and call `issue` for the code
+the provider would send back."""
 
 from __future__ import annotations
 
@@ -18,6 +19,8 @@ class Provider:
         self.client_id, self.client_secret = client_id, client_secret
         self.codes: dict[str, dict] = {}
         self.tokens: dict[str, dict] = {}
+        self.refresh: dict[str, dict] = {}  # refresh tokens it gave out, and whose they are
+        self.posts: list[dict] = []  # every form sent to the token endpoint
         self.emails: list[dict] = []  # GitHub's /user/emails
         self.auto: dict | None = None  # for a browser: GET /authorize signs in as this profile straight away
         provider = self
@@ -61,17 +64,25 @@ class Provider:
 
             def do_POST(self):
                 form = dict(urllib.parse.parse_qsl(self.rfile.read(int(self.headers["Content-Length"])).decode()))
+                provider.posts.append(form)
                 c = provider.codes.pop(form.get("code"), None)
                 if form.get("client_id") != provider.client_id or form.get("client_secret") != provider.client_secret:
                     return self._json({"error": "invalid_client", "error_description": "bad client credentials"}, 401)
+                if form.get("grant_type") == "refresh_token":
+                    who = provider.refresh.get(form.get("refresh_token") or "")
+                    if who is None:
+                        return self._json({"error": "invalid_grant", "error_description": "Token has been expired or revoked."}, 400)
+                    token = secrets.token_urlsafe(16)
+                    provider.tokens[token] = who
+                    return self._json({"access_token": token, "token_type": "Bearer", "expires_in": 3599})
                 if not c or form.get("redirect_uri") != c["redirect_uri"]:
                     return self._json({"error": "invalid_grant"}, 400)
                 verifier = form.get("code_verifier") or ""
                 if base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=") != c["challenge"]:
                     return self._json({"error": "invalid_grant", "error_description": "PKCE check failed"}, 400)
-                token = secrets.token_urlsafe(16)
-                provider.tokens[token] = c["profile"]
-                return self._json({"access_token": token, "token_type": "Bearer"})
+                token, refresh = secrets.token_urlsafe(16), secrets.token_urlsafe(16)
+                provider.tokens[token] = provider.refresh[refresh] = c["profile"]
+                return self._json({"access_token": token, "token_type": "Bearer", "expires_in": 3599, "refresh_token": refresh})
 
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"

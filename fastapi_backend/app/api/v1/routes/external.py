@@ -5,6 +5,10 @@ The browser asks for the provider's page through the web app (so Lens knows the 
 cookie tying the sign-in to this browser. The provider sends it back to the callback, which ends on the web app's
 /external-signin page with a one-time ticket in the URL fragment; the web app's server swaps it for a session at
 POST /auth/ticket, as for passkeys.
+
+Connecting a storage source by signing in (source_oauth.py, POST /sources/signin) comes back through the same callback,
+so the app registered with the provider needs no second address; it ends on the web app's page it started from, with
+?connected=<id> or ?connect_error=<why>.
 """
 
 from __future__ import annotations
@@ -15,7 +19,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
 from app.api.deps import AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors, web_origin
-from app.domain import auth, external_login, passkeys
+from app.domain import auth, external_login, passkeys, source_oauth
 from app.schemas.auth import (
     ExternalIdentity,
     ExternalProvider,
@@ -30,7 +34,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 COOKIE = "lens_external"
 
 
-def _cookie(response: Response, origin: str, value: str) -> None:
+def flow_cookie(response: Response, origin: str, value: str) -> None:
+    """The cookie that ties a round trip through a provider to the browser that started it."""
     response.set_cookie(
         COOKIE,
         value,
@@ -50,7 +55,7 @@ def _redirect(response: Response, request: Request, db: Db, cfg: Cfg, key: str, 
         raise HTTPException(404, "no such sign-in provider") from None
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
-    _cookie(response, origin, browser)
+    flow_cookie(response, origin, browser)
     return ExternalRedirect(url=url)
 
 
@@ -96,6 +101,8 @@ def external_callback(
         flow = external_login.claim(db, state, request.cookies.get(COOKIE))
     except ValueError as e:
         return _back(web_origin(request), error=str(e), next="/login")
+    if flow.get("mode") == "source":
+        return _source_back(db, cfg, flow, code, error, error_description)
     origin, connect = flow["origin"], flow.get("mode") == "connect"
     away = "/account" if connect else "/login"
     if error or not code:
@@ -112,6 +119,27 @@ def external_callback(
         auth.audit(db, u, "external.connect", f"account:{u['id']}", [key])
         return _back(origin, connected=label, next="/account")
     return _back(origin, ticket=passkeys.issue_ticket(db, u["id"], f"external:{key}"), next=flow.get("next") or "/")
+
+
+def _source_back(db: Db, cfg: Cfg, flow: dict, code: str, error: str, error_description: str) -> RedirectResponse:
+    """A source signed in (or not): back to the page it started from, with ?connected=<id> or ?connect_error=<why>."""
+    if error or not code:
+        why = "you cancelled" if error == "access_denied" else (error_description or error or "no code came back")
+        q = {"connect_error": f"signing in didn't finish: {why}"}
+    else:
+        try:
+            sid = source_oauth.finish(db, cfg, flow, code)
+        except ValueError as e:
+            q = {"connect_error": str(e)}
+        else:
+            q = {"connected": str(sid)}
+            auth.audit(
+                db, {"id": flow.get("account"), "email": (flow.get("source") or {}).get("by")}, "source.signin", f"storage_source:{sid}"
+            )
+    page = flow.get("next") or "/sources"
+    r = RedirectResponse(f"{flow['origin']}{page}{'&' if '?' in page else '?'}{urllib.parse.urlencode(q)}", status_code=303)
+    r.delete_cookie(COOKIE, path="/api/v1/auth/external")
+    return r
 
 
 # ---------- your outside accounts ----------

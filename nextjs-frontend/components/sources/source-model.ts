@@ -2,7 +2,7 @@
  * Storage connections and watched folders as the Sources screens show them: labels, one-line summaries, health in
  * the backend's own words, the rclone token paste check, and what a watched folder's settings mean in words.
  */
-import type { Source, Watch, WatchPreview } from "@/app/openapi-client/types.gen";
+import type { SignInInfo, Source, Watch, WatchPreview } from "@/app/openapi-client/types.gen";
 import { plural } from "@/lib/format";
 
 export type SourceType = Source["type"];
@@ -130,8 +130,8 @@ export function imapHost(email: string): string {
 
 const str = (v: unknown) => (v == null ? "" : String(v)).trim();
 
-/** "S3 · AWS eu-central-1", "SFTP · recorder@calls-gw:22", "Drive · read only"... */
-export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
+/** "S3 · AWS eu-central-1", "SFTP · recorder@calls-gw:22", "Drive · ada@gmail.com · read only"... */
+export function sourceSubtitle(s: Pick<Source, "type" | "params"> & { signed_in?: Source["signed_in"] }): string {
   const p = (s.params ?? {}) as Record<string, unknown>;
   switch (s.type) {
     case "s3": {
@@ -141,7 +141,14 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
     case "dropbox":
       return "Dropbox · token";
     case "drive":
-      return `Drive · ${str(p.scope) === "drive" ? "full access" : "read only"}${str(p.root_folder_id) ? " · one folder" : ""}`;
+      return [
+        "Drive",
+        str(s.signed_in?.email),
+        str(p.scope) === "drive" ? "full access" : "read only",
+        str(p.root_folder_id) ? "one folder" : "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
     case "onedrive":
       return `OneDrive · token${str(p.drive_type) ? ` · ${str(p.drive_type)}` : ""}`;
     case "sftp":
@@ -416,6 +423,8 @@ export type BackendSpec = {
   fields: Record<string, string>;
   secrets: string[];
   oauth?: string | null;
+  /** Signs in in the browser (Google Drive, through the Google app in Settings › Sign-in), instead of a pasted token. */
+  signin?: SignInInfo | null;
 };
 
 export type ConnForm = {
@@ -430,6 +439,8 @@ export type ConnForm = {
   /** Google Drive and Google Calendar sign in as a Google account (a token), or as a service account (its JSON key
    * file). */
   driveAuth: "token" | "service_account";
+  /** A Google account's token pasted from `rclone authorize`, rather than signing in with Google here. */
+  drivePaste: boolean;
 };
 
 export type ServiceAccountKey = { ok: true; email: string } | { ok: false; error: string };
@@ -475,7 +486,10 @@ export function parseServiceAccountKey(text: string): ServiceAccountKey {
   return { ok: true, email: o.client_email };
 }
 
-export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "params" | "secrets"> | null): ConnForm {
+export function emptyForm(
+  spec: BackendSpec,
+  source?: (Pick<Source, "name" | "params" | "secrets"> & { signed_in?: Source["signed_in"] }) | null,
+): ConnForm {
   const params: Record<string, string> = {};
   for (const [k, def] of Object.entries(spec.fields))
     params[k] = str((source?.params as Record<string, unknown> | undefined)?.[k] ?? def);
@@ -488,6 +502,8 @@ export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "par
     tokenText: "",
     driveAuth:
       source?.secrets?.service_account_credentials?.set && !source?.secrets?.token?.set ? "service_account" : "token",
+    // a token that wasn't signed in here came from rclone: keep showing it that way
+    drivePaste: Boolean(source?.secrets?.token?.set && !source?.signed_in),
   };
 }
 
@@ -523,7 +539,8 @@ export function validateForm(
     if (key?.ok === false) e.service_account_credentials = key.error;
     else if (!secret("service_account_credentials"))
       e.service_account_credentials = "Choose the service account’s JSON key file.";
-  } else if (spec.oauth) {
+  } else if (spec.oauth && !(type === "drive" && !form.drivePaste)) {
+    // (a Google account signs in with Google instead: nothing to check here)
     const t = parseRcloneToken(form.tokenText);
     if (t.ok === false) e.token = t.error;
     else if (t.ok === null && !(editing && isSet("token"))) e.token = "Paste the token rclone printed.";

@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Sources } from "@/app/openapi-client";
 import type { Source, SourceHealth } from "@/app/openapi-client/types.gen";
 import { ConnectionFields } from "@/components/sources/connection-fields";
+import { signIn } from "@/components/sources/signin";
 import { TYPE_ICON } from "@/components/sources/source-icons";
 import {
   TYPE_NAME,
@@ -53,7 +54,8 @@ function StepTrail({ step, editing }: { step: Step; editing: boolean }) {
 
 /** SO2: add a connection (choose type → details → test, named there), or edit one (details → test). A type with
  * nothing to fill in (a folder on this machine) is added, tested and named at once: the test step only shows if it
- * fails. */
+ * fails. Google Drive signs in with Google in a small window instead of testing a pasted token: the connection is
+ * made (and tested) when Google sends that window back, and the dialog goes on to the test step. */
 export function ConnectionDialog({
   open,
   onOpenChange,
@@ -84,8 +86,12 @@ export function ConnectionDialog({
   const [createdName, setCreatedName] = useState("");
   const [result, setResult] = useState<{
     health: SourceHealth;
-    ms: number;
+    ms: number | null;
   } | null>(null);
+  /** Signed in with Google here, as this address ("" when Google didn't say); null when not. */
+  const [signedInAs, setSignedInAs] = useState<string | null>(null);
+  /** Waiting for the Google window; aborting it cancels. */
+  const [waiting, setWaiting] = useState<AbortController | null>(null);
   /** Secrets saved during this dialog (the source prop doesn't know about them yet). */
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
   const spec = backends[type];
@@ -111,7 +117,10 @@ export function ConnectionDialog({
     setCreatedId(source?.id ?? null);
     setResult(null);
     setSavedKeys(new Set());
+    setSignedInAs(source?.signed_in ? (source.signed_in.email ?? "") : null);
+    setWaiting(null);
   }, [open]);
+  useEffect(() => () => waiting?.abort(), [waiting]);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["sources"] });
@@ -212,6 +221,45 @@ export function ConnectionDialog({
       onOpenChange(false);
     },
   });
+
+  // Google Drive with a Google account signs in with Google, unless a token is pasted or it's already signed in and
+  // only its options change
+  const viaGoogle = type === "drive" && form.driveAuth === "token" && !form.drivePaste && Boolean(spec?.signin);
+  const needSignIn = viaGoogle && !(saved && isSet("token") && signedInAs != null);
+
+  const startSignIn = async () => {
+    const e = validateForm(type, spec, form, saved, isSet);
+    setErrors(e);
+    if (Object.keys(e).length) return;
+    const ctl = new AbortController();
+    setWaiting(ctl);
+    try {
+      const { params } = buildPayload(spec, form, type);
+      const got = await signIn(
+        client,
+        createdId != null ? { source: createdId, params } : { type, params, name: form.name.trim() || null },
+        ctl.signal,
+      );
+      if (got.error) {
+        if (got.error !== "cancelled") setErrors({ _: got.error });
+        return;
+      }
+      const id = got.connected!;
+      const made = (await data(Sources.listSources({ client }))).find((s) => s.id === id);
+      setCreatedId(id);
+      setCreatedName(made?.name ?? "");
+      setSignedInAs(made?.signed_in ? (made.signed_in.email ?? "") : "");
+      setSavedKeys((prev) => new Set([...prev, "token", "-service_account_credentials"]));
+      setForm((f) => ({ ...f, secrets: {}, tokenText: "", name: editing ? f.name : (made?.name ?? f.name) }));
+      setResult({ health: made?.health ?? { ok: false, error: "Not tested yet" }, ms: null });
+      setStep("test");
+      refresh();
+    } catch (err) {
+      setErrors({ _: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setWaiting(null);
+    }
+  };
 
   const goTest = () => {
     const e = validateForm(type, spec, form, saved, isSet);
@@ -316,6 +364,9 @@ export function ConnectionDialog({
             saved={saved}
             isSet={isSet}
             replaceToken={replaceToken}
+            signedIn={signedInAs}
+            onSignIn={() => void startSignIn()}
+            signingIn={Boolean(waiting)}
           />
         ) : null}
         {errors._ && (
@@ -335,12 +386,23 @@ export function ConnectionDialog({
             Back
           </Button>
         )}
-        <Button variant="ghost" onClick={() => onOpenChange(false)}>
+        <Button variant="ghost" onClick={() => (waiting ? waiting.abort() : onOpenChange(false))}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={goTest}>
-          {editing ? "Save and test" : "Test connection"}
-        </Button>
+        {needSignIn ? (
+          <Button
+            variant="primary"
+            onClick={() => void startSignIn()}
+            disabled={!spec?.signin?.ready || Boolean(waiting)}
+            disabledReason={waiting ? "Finish signing in in the Google window" : "Add your Google app above first"}
+          >
+            {waiting ? "Waiting for Google…" : `Sign in with ${spec?.signin?.label ?? "Google"}`}
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={goTest} disabled={Boolean(waiting)}>
+            {editing ? "Save and test" : "Test connection"}
+          </Button>
+        )}
       </>
     );
   } else if (step === "test") {
@@ -364,7 +426,7 @@ export function ConnectionDialog({
                 ? "Listed the top folder"
                 : "Couldn’t list the top folder"}
           </span>
-          <span className="tabular text-[12px] text-fg-muted">{result ? `${result.ms} ms` : ""}</span>
+          <span className="tabular text-[12px] text-fg-muted">{result?.ms != null ? `${result.ms} ms` : ""}</span>
         </div>
         {result && !ok && (
           <div className="flex gap-2 rounded-[10px] border border-red-border bg-red-surface px-3 py-2.5 text-[13px] leading-normal">
