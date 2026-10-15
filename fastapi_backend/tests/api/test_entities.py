@@ -146,3 +146,45 @@ def test_describe_and_filter_by_collection(env, db):
     assert inside["Dyno Therapeutics"] == 1  # counted over its recordings only (5 in the namespace)
     assert "Northwind Labs" in inside and "Amazon Web Services" in inside
     assert c.get("/api/v1/entities", params={"collection": 999999}, headers=vi).status_code == 404
+
+
+def test_wiki_addresses(env):
+    """Every entity has a page named by its name, /wiki/<ns>/<Name_As_Written>; any case, old names and merged names
+    find it too, and say which address to show."""
+    c, h, ed = env.c, env.h["viewer"], env.h["editor"]
+    dyno = env.eid("Dyno Therapeutics")
+    assert c.get(f"/api/v1/entities/{dyno}", headers=h).json()["page"] == "/wiki/pods/Dyno_Therapeutics"
+
+    def find(address, ns="pods", headers=h):
+        return c.get(f"/api/v1/wiki/{ns}/{address}", headers=headers)
+
+    assert find("Dyno_Therapeutics").json() == {
+        "kind": "entity",
+        "id": dyno,
+        "namespace": "pods",
+        "title": "Dyno Therapeutics",
+        "path": "/wiki/pods/Dyno_Therapeutics",
+        "canonical": True,
+    }
+    for other in ("dyno_therapeutics", "Dyno%20Therapeutics", "DYNO__therapeutics"):  # the same name, written otherwise
+        got = find(other).json()
+        assert (got["id"], got["canonical"], got["path"]) == (dyno, False, "/wiki/pods/Dyno_Therapeutics"), other
+    assert find("Nobody_Here").status_code == 404
+    assert find("Dyno_Therapeutics", ns="calls").status_code == 404  # calls isn't readable
+    assert find("Dyno_Therapeutics", ns="nowhere").status_code == 404
+    assert c.get("/api/v1/wiki/pods/Dyno_Therapeutics").status_code == 401
+
+    # a rename keeps the old address working, pointing to the new one; so does the name of one merged in
+    assert c.post(f"/api/v1/entities/{dyno}/rename", headers=ed, json={"name": "Dyno Bio"}).status_code == 200
+    got = find("Dyno_Therapeutics").json()
+    assert (got["id"], got["canonical"], got["path"]) == (dyno, False, "/wiki/pods/Dyno_Bio")
+    keep, other = env.eid("Northwind Labs"), env.eid("North Wind Labs")
+    assert c.post("/api/v1/entities/merge", headers=ed, json={"keep": keep, "others": [other]}).status_code == 200
+    got = find("North_Wind_Labs").json()
+    assert (got["id"], got["canonical"], got["path"]) == (keep, False, "/wiki/pods/Northwind_Labs")
+
+    # a name with / or ? in it is escaped in the address, and found from it
+    made = c.post("/api/v1/namespaces/pods/entities", headers=ed, json={"name": "AC/DC?", "type": "ORG"}).json()
+    assert made["page"] == "/wiki/pods/AC%2FDC%3F"
+    got = find("AC%2FDC%3F").json()
+    assert (got["id"], got["canonical"]) == (made["id"], True)

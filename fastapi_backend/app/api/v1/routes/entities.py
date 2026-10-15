@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from app.api.deps import Access, Acl, CurrentUser, Db, Writer, domain_errors
-from app.domain import auth, entity_map, entity_setup, graph_history, hierarchy, jobs
+from app.domain import auth, entity_map, entity_setup, graph_history, hierarchy, jobs, wiki
 from app.domain import entities as ents
 from app.domain.store import DB, R
 from app.schemas.common import Ok
@@ -31,6 +31,7 @@ from app.schemas.entities import (
     MentionList,
     MentionMove,
     MentionMoved,
+    WikiPage,
 )
 
 router = APIRouter(tags=["entities"])
@@ -201,6 +202,19 @@ def get_entity(eid: int, user: CurrentUser, acl: Acl, db: Db) -> EntityDetail:
     _entity_space(db, acl, eid)
     with domain_errors():
         return EntityDetail.model_validate(ents.detail(db, eid, set(acl.roles)))
+
+
+@router.get("/wiki/{ns}/{address:path}")
+def find_wiki_page(ns: str, address: str, user: CurrentUser, acl: Acl, db: Db) -> WikiPage:
+    """The page /wiki/<ns>/<address> names: the entity called that (spaces as underscores, any case), or the one a name
+    it had before a rename or a merge now belongs to. When `canonical` is false, show `path` instead."""
+    sid = acl.namespace(ns)
+    hit = wiki.find(db, sid, address)
+    if not hit:
+        raise HTTPException(404, "not found")
+    eid, canonical = hit
+    name = db.one("SELECT VALUE name FROM $r", r=R("entity", eid))
+    return WikiPage(kind="entity", id=eid, namespace=ns, title=name, path=wiki.path(ns, name), canonical=canonical)
 
 
 @router.get("/entities/{eid}/mentions")

@@ -368,15 +368,17 @@ export function ConnectionFields({
           {select("scope", DRIVE_SCOPES)}
           {text("root_folder_id", {
             mono: true,
-            label: "Root folder ID",
+            label: "Root folder",
             optional: true,
-            hint: "From the folder’s URL; limits the connection to that folder",
+            placeholder: "Folder link or ID",
+            hint: "Paste the folder’s link from Drive; the connection only sees that folder",
           })}
           {form.driveAuth === "service_account" && (
             <div className="grid grid-cols-2 gap-2.5">
               {text("team_drive", {
                 mono: true,
                 optional: true,
+                placeholder: "Shared drive link or ID",
                 hint: "Read a shared drive the account is a member of",
               })}
               {text("impersonate", {

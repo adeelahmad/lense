@@ -439,6 +439,9 @@ import type {
   FindSimilarData,
   FindSimilarErrors,
   FindSimilarResponses,
+  FindWikiPageData,
+  FindWikiPageErrors,
+  FindWikiPageResponses,
   FinishData,
   FinishErrors,
   FinishResponses,
@@ -6503,6 +6506,21 @@ export class Entities {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Find Wiki Page
+   *
+   * The page /wiki/<ns>/<address> names: the entity called that (spaces as underscores, any case), or the one a name
+   * it had before a rename or a merge now belongs to. When `canonical` is false, show `path` instead.
+   */
+  public static findWikiPage<ThrowOnError extends boolean = false>(
+    options: Options<FindWikiPageData, ThrowOnError>,
+  ): RequestResult<FindWikiPageResponses, FindWikiPageErrors, ThrowOnError> {
+    return (options.client ?? client).get<FindWikiPageResponses, FindWikiPageErrors, ThrowOnError>({
+      url: "/api/v1/wiki/{ns}/{address}",
+      ...options,
     });
   }
 
