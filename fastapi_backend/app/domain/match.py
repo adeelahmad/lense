@@ -523,7 +523,7 @@ class State:
         if not self.dry:
             if row is None:
                 make_room(self.db, self.automation)
-            t = store.now()
+            t = _stamp()
             self.db.q(
                 "UPSERT $r SET automation = $a, kind = 'last', alias = $al, key = $k, last = $v, at = $t, expires_at = $x",
                 r=ref,
@@ -548,6 +548,11 @@ def state_of(env):
 def state_ref(automation, kind, alias, key):
     """The automation_state row of one automation's kind of state (last, join, decide) for a trigger and key."""
     return R("automation_state", hashlib.sha1(f"{automation}|{kind}|{alias}|{key}".encode()).hexdigest())
+
+
+def _stamp():
+    """When a state row was last written, to the microsecond: the oldest go first when an automation keeps too many."""
+    return dt.datetime.now(dt.timezone.utc).isoformat(timespec="microseconds")
 
 
 def _later(seconds):
