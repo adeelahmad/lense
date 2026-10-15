@@ -132,8 +132,10 @@ After changing the engine or stemming, run `lens reindex` (or Settings → Searc
 Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
 /embeddings`), so search can find moments by meaning ([how it works](processing.md#search-by-meaning)). By default it
 asks the LLM provider's server (`llm.base_url`, with its key) for `nomic-embed-text`, a small model that runs offline
-in Ollama (`ollama pull nomic-embed-text`); set `embeddings.base_url` to use another server, such as Ollama next to
-LM Studio, or llama.cpp's `llama-server --embeddings`. Without a server, search goes by the words as before.
+in Ollama. When that server is Ollama, Lens pulls the model on it the first time it's needed
+([Components](components.md)), so there is nothing to run; set `embeddings.base_url` to use another server, such as
+Ollama next to LM Studio, or llama.cpp's `llama-server --embeddings`. Without a server, search goes by the words as
+before.
 
 ```yaml
 embeddings:
