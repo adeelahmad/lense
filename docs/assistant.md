@@ -105,6 +105,11 @@ When the configured model supports function calling, chat becomes an agent.
   `decline_approval` declines one; after it has read text from outside Lens (the approvals' own summaries count),
   declining waits for the person's yes. It can't approve: that is the person's pick. An automation's agent doesn't
   get `decline_approval`.
+- **Automations:** `automations` lists the person's automations, or one in full with its latest runs, or one run;
+  `test_automation` tries a saved one or a draft on an activity or a kind's sample, keeping nothing. People who edit a
+  namespace also get `save_automation`, which saves one at once, switched off, and `run_automation`. Switching one on
+  (`save_automation` with `enabled`) and running one now wait for the person's approval; switching one off acts at once
+  ([Automations](automations.md#agents)).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
   `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
