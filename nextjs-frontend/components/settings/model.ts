@@ -1594,6 +1594,13 @@ export const FIELDS: FieldSpec[] = [
     hint: "Off: engines and models are fetched the first time a recording needs them",
   },
   { section: "components", key: "also", label: "Also fetch", kind: "checks" },
+  {
+    section: "components",
+    key: "hf_token",
+    label: "Hugging Face token",
+    kind: "secret",
+    hint: "For gated models, such as pyannote’s speaker diarization; a read-only token is enough",
+  },
   // Voice
   {
     section: "voice",

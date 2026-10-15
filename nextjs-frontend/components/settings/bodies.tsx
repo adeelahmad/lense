@@ -352,6 +352,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return (
         <>
           <F ctx={ctx} id="components.auto" />
+          <F ctx={ctx} id="components.hf_token" />
           <ComponentsStatus ctx={ctx} />
         </>
       );
