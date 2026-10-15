@@ -122,20 +122,20 @@ def access_page(site, nonce, account=None, csrf="", origin="", error="", done=Fa
     elif account:
         body = (
             f"<h1>Sign in to {esc(site)}</h1><p>You're signed in as {esc(account.get('name') or account['email'])}. "
-            f"Continue to let the viewer at {esc(origin or 'another site')} play recordings you have access to.</p>"
+            f"Continue to let the viewer at {esc(origin or 'another site')} open assets you have access to.</p>"
             f'<form method="post"><input type="hidden" name="continue" value="1"><input type="hidden" name="csrf" value="{esc(csrf)}">'
             f'<input type="hidden" name="origin" value="{esc(origin)}"><button type="submit">Continue</button></form>'
         )
     elif not passwords:  # auth.passwords off: this page has no passkey sign-in yet, so there is nothing to submit
         body = (
-            f"<h1>Sign in to {esc(site)}</h1><p>The viewer at {esc(origin or 'another site')} wants to play recordings that need an account.</p>"
+            f"<h1>Sign in to {esc(site)}</h1><p>The viewer at {esc(origin or 'another site')} wants to open assets that need an account.</p>"
             + (f'<p class="err">{esc(error)}</p>' if error else "")
             + f"<p>{esc(site)} signs people in with a passkey only, and this page can't use passkeys yet, so this viewer "
             "can only play what is open to everyone.</p>"
         )
     else:
         body = (
-            f"<h1>Sign in to {esc(site)}</h1><p>The viewer at {esc(origin or 'another site')} wants to play recordings that need an account.</p>"
+            f"<h1>Sign in to {esc(site)}</h1><p>The viewer at {esc(origin or 'another site')} wants to open assets that need an account.</p>"
             + (f'<p class="err">{esc(error)}</p>' if error else "")
             + f'<form method="post"><input type="hidden" name="origin" value="{esc(origin)}">'
             + (f'<input type="hidden" name="csrf" value="{esc(csrf)}">' if csrf else "")

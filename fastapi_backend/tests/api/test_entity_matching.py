@@ -87,7 +87,7 @@ def test_assistant_manages_entities(db, cfg, folder, llm):
     box.call("propose_entity_change", {"action": "define", "namespace": "pods", "new_name": "Initech", "new_type": "ORG"})
     box.call("propose_entity_change", {"action": "hide", "entity_id": globex})
     assert [a["summary"] for a in box.approvals] == [
-        "Describe Globex as “A prospect” (also said as Globex Corp)",
+        "Describe Globex as “A prospect” (also known as Globex Corp)",
         "Add Initech to the entities of pods",
         "Hide Globex",
     ]

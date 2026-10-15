@@ -24,6 +24,7 @@ from app.schemas.common import Ok
 from app.schemas.notebook import (
     NoteFile,
     NoteHistory,
+    NoteHit,
     NoteHomeSuggestion,
     NoteLinkSuggestion,
     NoteLinkTarget,
@@ -33,9 +34,11 @@ from app.schemas.notebook import (
     NotePageItem,
     NotePageMove,
     NotePageUpdate,
+    NoteSearch,
     NoteTree,
     NoteVersion,
     NoteVersionItem,
+    Place,
 )
 
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -110,17 +113,39 @@ def create_page(body: NotePageCreate, user: Writer, acl: Acl, db: Db) -> NotePag
 def link_targets(
     ns: str, user: CurrentUser, acl: Acl, db: Db, q: str = "", sign: str = "@", limit: int = Query(20, ge=1, le=50)
 ) -> list[NoteLinkTarget]:
-    """What a mention can link to, best matches first: `#` for topics; `@` for pages, recordings, people and other
-    entities, collections and speakers."""
+    """What a mention can link to, best matches first: `#` for topics; `@` for pages, assets, named people and other
+    entities, collections and people."""
     sid = acl.namespace(ns)
     if sign not in ("@", "#"):
         raise HTTPException(400, "sign is @ or #")
     return [NoteLinkTarget(**t) for t in notebook.search_targets(db, sid, q, sign, limit)]
 
 
+@router.get("/search")
+def search_pages(
+    user: CurrentUser,
+    acl: Acl,
+    db: Db,
+    q: str = Query("", max_length=200, description="words in the title, one-line summary or text"),
+    ns: str | None = Query(None, description="only this namespace (default: every one you can read)"),
+    place: Place | None = Query(None, description="only notes filed here"),
+    free: bool = Query(False, description="only free notes, not the pages of things"),
+    limit: int = Query(50, ge=1, le=200),
+) -> NoteSearch:
+    """Pages found by their words, those with them in the title first, then the latest changed, each with the words
+    around the match: what the Notes page and Jump to show, and what the assistant's find_notes reads."""
+    names = store.space_names(db)
+    spaces = [acl.namespace(ns)] if ns else (list(names) if user.admin else acl.spaces())
+    total, hits = notebook.find(db, spaces, q, place, limit, free=free)
+    return NoteSearch(
+        total=total,
+        pages=[NoteHit(**{k: v for k, v in h.items() if k != "space"}, namespace=names.get(h["space"], "")) for h in hits],
+    )
+
+
 @router.get("/about/{kind}/{key}")
 def page_about(kind: str, key: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage | NotePageDraft:
-    """The page of a recording, entity, topic, collection or speaker: its page, or a draft while nobody has written one."""
+    """The page of an asset, entity, topic, collection or person: its page, or a draft while nobody has written one."""
     thing = f"{kind}:{key}"
     with domain_errors():
         notebook._about(thing)

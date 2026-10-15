@@ -46,7 +46,7 @@ def list_jobs(
     limit: int = Query(100, ge=1, le=2000),
 ) -> JobList:
     """Recent jobs, newest first, with counts by status and by namespace (of the jobs in `namespace` and `batch`, of
-    any status), plus the latest job's step and log (for the progress bar). With `recording`, that recording's runs,
+    any status), plus the latest job's step and log (for the progress bar). With `recording`, that asset's runs,
     also for someone who sees it through a role on its collection (then the counts are of those runs only)."""
     statuses = status.split(",") if status else None
     rec = acl.recording(recording) if recording is not None and not namespace else None
@@ -85,7 +85,7 @@ def _job(db: DB, acl: Access, jid: int, role: str = "viewer") -> dict[str, Any]:
 @router.get("/jobs/{jid}")
 def get_job(jid: int, acl: Acl, user: CurrentUser, db: Db) -> Job:
     """One run: its steps and how each went (`step_runs`), the pipeline it runs, its last log lines, and how long its
-    steps usually take on this recording (`estimates`, `eta_seconds`)."""
+    steps usually take on this asset (`estimates`, `eta_seconds`)."""
     j = _job(db, acl, jid)
     est = jobs.estimates(db, j)
     return Job.model_validate({**j, "estimates": est, "eta_seconds": jobs.eta(j, est)})
@@ -161,7 +161,7 @@ def retry_job(jid: int, acl: Acl, user: Writer, db: Db) -> Ok:
 
 @router.post("/jobs")
 def create_jobs(body: JobsCreate, acl: Acl, user: Writer, db: Db) -> JobsQueued:
-    """Queue recordings (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace."""
+    """Queue assets (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace."""
     out: list[int] = []
     for rid in body.recordings:
         acl.recording(rid, "process")

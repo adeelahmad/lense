@@ -58,7 +58,7 @@ what their person may read.
 
 Everything below is built and merged. Work that is still in a pull request is listed under [In progress](#in-progress).
 
-- **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, read transcripts and notes, cite exact
+- **Connect your agents.** Lens is an MCP server (`/mcp`): agents search, read assets' text and notes, cite exact
   moments, find similar content, explore the graph with Cypher or SPARQL or browse it as folders and files, suggest
   topics and graph changes, write notes and make podcasts. They sign in with OAuth and see only what their person may
   read; the account menu copies the MCP address in one click. The same folders and files can be mounted read-only over
@@ -94,17 +94,17 @@ Everything below is built and merged. Work that is still in a pull request is li
   assistant, which can also use that browser on the sites you allow (open, read, click, type), asking before anything
   that sends, deletes, buys or posts. ([Web clipper](docs/web-clipper.md),
   [the assistant in your browser](docs/browser-assistant.md))
-- **Understand it.** Transcription and speaker recognition (long recordings go to a speech provider in pieces that
+- **Understand it.** Transcription, people recognised by voice (long recordings go to a speech provider in pieces that
   fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
   server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher
-  or SPARQL, and see as it was at any version. Find what is most like a passage, a resource, a topic or an entity, in
+  or SPARQL, and see as it was at any version. Find what is most like a passage, an asset, a topic or an entity, in
   a Similar tab on every resource or by selecting text anywhere, and, with anytopdf, photos by what they show.
   ([Graph](docs/graph.md), [similar content](docs/processing.md#similar-content),
   [graph history](docs/graph-history.md), [topics](docs/topics.md), [video](docs/video.md),
   [NSFW classification](docs/nsfw.md), [long recordings](docs/speech-providers.md#long-recordings))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
-  source, read aloud in two voices. Keep notes beside every recording, entity and topic, written by you or the
-  assistant, and export a resource or a collection as an evidence PDF with everything Lens found about it, or the
+  source, read aloud in two voices. Keep notes beside every asset, entity and topic, written by you or the
+  assistant, and export an asset or a collection as an evidence PDF with everything Lens found about it, or the
   parts you pick. ([Podcasts](docs/podcasts.md),
   [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and

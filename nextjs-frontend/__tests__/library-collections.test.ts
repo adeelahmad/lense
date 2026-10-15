@@ -74,14 +74,14 @@ describe("collections", () => {
   it("says why one can't be deleted", () => {
     expect(whyNoDelete(tree[0])).toMatch(/default collection/);
     expect(whyNoDelete(tree[1])).toBe("It holds 2 collections: move or delete them first");
-    expect(whyNoDelete(tree[4])).toBe("It holds 2 recordings: move them to another collection first");
+    expect(whyNoDelete(tree[4])).toBe("It holds 2 assets: move them to another collection first");
     expect(whyNoDelete({ default: false, children: 0, recordings: 0 })).toBeNull();
   });
 
   it("says what one holds", () => {
-    expect(holds(tree[1])).toBe("1 recording · 5 inside");
-    expect(holds(tree[4])).toBe("2 recordings");
-    expect(holds({ recordings: 0, total: 0 })).toBe("0 recordings");
+    expect(holds(tree[1])).toBe("1 asset · 5 inside");
+    expect(holds(tree[4])).toBe("2 assets");
+    expect(holds({ recordings: 0, total: 0 })).toBe("0 assets");
   });
 
   it("offers them indented, the default marked", () => {

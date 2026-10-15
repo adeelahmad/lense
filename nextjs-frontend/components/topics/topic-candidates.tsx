@@ -54,7 +54,7 @@ export function TopicCandidates({ ns, onAdded }: { ns: string; onAdded: (id: num
         Suggested by summaries
       </Label>
       <p className="m-0 text-[12.5px] text-fg-muted">
-        What recordings are about that no topic covers yet. Add one and its recordings get it as a suggestion to accept.
+        What assets are about that no topic covers yet. Add one and its assets get it as a suggestion to accept.
       </p>
       <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
         {items.map((c) => (
@@ -71,7 +71,7 @@ export function TopicCandidates({ ns, onAdded }: { ns: string; onAdded: (id: num
             >
               <Plus className="size-3" aria-hidden />
               {c.label}
-              <span className="tabular font-normal text-fg-muted">{plural(c.recordings, "recording")}</span>
+              <span className="tabular font-normal text-fg-muted">{plural(c.recordings, "asset")}</span>
             </button>
             <button
               type="button"

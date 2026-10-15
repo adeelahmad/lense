@@ -681,23 +681,46 @@ def labels(db, targets):
     return out
 
 
-def find(db, spaces, query="", place=None, limit=10):
+SNIPPET = 160
+
+
+def snippet(text, query, size=SNIPPET):
+    """The words around the first place the text has the query, on one line, with … where it was cut; None without."""
+    text, q = " ".join(str(text or "").split()), " ".join(str(query or "").split())
+    at = text.casefold().find(q.casefold()) if q else -1
+    if at < 0:
+        return None
+    start = max(0, at - size // 3)
+    if start:
+        cut = text.find(" ", start)
+        start = cut + 1 if 0 <= cut < at else start
+    end = min(len(text), start + size)
+    if end < len(text):
+        cut = text.rfind(" ", at + len(q), end)
+        end = cut if cut > 0 else end
+    return ("…" if start else "") + text[start:end] + ("…" if end < len(text) else "")
+
+
+def find(db, spaces, query="", place=None, limit=10, free=False):
     """Pages in these namespaces whose title, summary or text has the words, those with them in the title first, then
-    the latest changed. Returns (how many matched, the first `limit` without their bodies)."""
+    the latest changed; only free notes with `free`. Returns (how many matched, the first `limit` without their bodies,
+    each with the words around the match in its text as `snippet`)."""
     q = " ".join(str(query or "").split()).casefold()
     rows = db.rows(
-        "SELECT record::id(id) AS id, space, title, summary, place, about, updated_at, text FROM note_page WHERE space IN $s",
+        "SELECT record::id(id) AS id, space, title, summary, place, parent, about, author, updated_at, text FROM note_page "
+        "WHERE space IN $s",
         s=list(spaces),
     )
     hits = [
         r
         for r in rows
         if (not place or r.get("place") == place)
+        and (not free or not r.get("about"))
         and (not q or any(q in str(r.get(k) or "").casefold() for k in ("title", "summary", "text")))
     ]
     hits.sort(key=lambda r: r.get("updated_at") or "", reverse=True)
     hits.sort(key=lambda r: q not in str(r["title"]).casefold())
-    return len(hits), [{k: v for k, v in r.items() if k != "text"} for r in hits[:limit]]
+    return len(hits), [{**{k: v for k, v in r.items() if k != "text"}, "snippet": snippet(r.get("text"), q)} for r in hits[:limit]]
 
 
 def search_targets(db, sid, q="", sign="@", limit=20):

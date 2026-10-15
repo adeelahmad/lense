@@ -153,7 +153,7 @@ Reports, skipping or closing the card all count as seen; **Welcome tour** in the
 type a question and press Enter to send it to the assistant ([Chat](assistant.md)). With only one namespace, it is
 picked for you everywhere.
 
-Put audio under `./local-audio/podcasts` and `./local-audio/interviews` (or set `AUDIO_DIR`), or import transcripts
+Put audio under `./local-audio/podcasts` and `./local-audio/interviews` (or set `AUDIO_DIR`), or import documents and transcripts
 from the web app. Namespaces and folders are configured in `fastapi_backend/docker/archive.yaml`.
 
 ## Without Docker

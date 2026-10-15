@@ -33,7 +33,7 @@ def _signed(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 @router.get("/home")
 def get_public_home(acl: Acl, db: Db) -> PublicHome:
-    """The home page: featured public recordings, for everyone, and the collections this visitor sees anything in."""
+    """The home page: featured public assets, for everyone, and the collections this visitor sees anything in."""
     d = public.home(db, acl.who())
     _signed(d["featured"])
     _signed(d["shared"])
@@ -48,7 +48,7 @@ def get_public_collection(
     limit: int = Query(48, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> PublicCollection:
-    """A collection's page: its description and the recordings this visitor sees, newest first. Visitors see the public
+    """A collection's page: its description and the assets this visitor sees, newest first. Visitors see the public
     ones; signed-in people also see restricted ones, locked; members see all of them. A collection with nothing for
     this visitor answers 404, as a missing one does."""
     sid = acl.nsid(name)
@@ -66,9 +66,9 @@ def search_public(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ) -> PublicSearch:
-    """Search what this visitor may see: titles of the recordings they see listed, and the lines of the transcripts
-    they may read. Title matches come first. Restricted recordings (for signed-in people) and public ones with the
-    transcript closed match on their title only."""
+    """Search what this visitor may see: titles of the assets they see listed, and the lines of the text of those
+    they may read. Title matches come first. Restricted assets (for signed-in people) and public ones with the
+    text closed match on their title only."""
     d = public.search(db, q, acl.who(), limit, offset)
     _signed(d["items"])
     return PublicSearch.model_validate(d)
@@ -76,11 +76,11 @@ def search_public(
 
 @router.get("/recordings/{rid}")
 def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecording:
-    """A recording's public page: what this visitor may see of it, and nothing more.
+    """An asset's public page: what this visitor may see of it, and nothing more.
 
-    Anyone sees a public recording's page, description and open parts; a signed-in person sees a restricted one's title
-    with a lock; people with a role in its namespace, given permission on the recording, or on the network of an IP
-    group that opens it, see all of it. Everything else answers 404, as a recording that doesn't exist would."""
+    Anyone sees a public asset's page, description and open parts; a signed-in person sees a restricted one's title
+    with a lock; people with a role in its namespace, given permission on the asset, or on the network of an IP
+    group that opens it, see all of it. Everything else answers 404, as an asset that doesn't exist would."""
     rec = db.one("SELECT space FROM $r", r=R("recording", rid))
     if not rec:
         raise HTTPException(404, "not found")
@@ -109,9 +109,9 @@ def get_public_recording(rid: int, acl: Acl, db: Db, cfg: Cfg) -> PublicRecordin
 
 @router.post("/recordings/{rid}/request")
 def request_access(rid: int, body: PublicRequestCreate, acl: Acl, user: Writer, db: Db, cfg: Cfg, tasks: BackgroundTasks) -> PublicRequest:
-    """Ask for access to a recording (signed in, without permission): its closed parts, or a restricted one. Asking
+    """Ask for access to an asset (signed in, without permission): its closed parts, or a restricted one. Asking
     again replaces the earlier request. The namespace's owners hear of it by email when mail is set up; they approve
-    (which gives permission) or decline in the recording's access settings."""
+    (which gives permission) or decline in the asset's access settings."""
     rec = db.one("SELECT space, title FROM $r", r=R("recording", rid))
     if not rec:
         raise HTTPException(404, "not found")

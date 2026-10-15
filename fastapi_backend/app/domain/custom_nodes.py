@@ -101,7 +101,7 @@ def _check_body(db, graph, params, self_id=None):
     types, inner = _types(db, graph or {})
     scopes = [s for s, kit in workflows.KITS.items() if types <= set(kit.all_types) and all(s in sc for sc in inner)]
     if not scopes:
-        raise ValueError("a custom node's nodes all work on recordings, or all on the graph, not both")
+        raise ValueError("a custom node's nodes all work on assets, or all on the graph, not both")
     filled = {p["name"]: p["default"] for p in params}
     kit = workflows.KITS[scopes[0]]
     flow.check_graph(db, flow.substitute(graph, filled), kit, "custom")

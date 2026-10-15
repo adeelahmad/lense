@@ -44,7 +44,7 @@ function PrefixHint({
               <button
                 type="button"
                 className={LINK}
-                title={`Said ${plural(w.count, "time")} in ${plural(w.recordings, "recording")}`}
+                title={`Found ${plural(w.count, "time")} in ${plural(w.recordings, "asset")}`}
                 onClick={() => onSearch(replacePrefix(q, word, w.word))}
               >
                 {w.word}
@@ -113,7 +113,7 @@ export function NoResults({
       node: (
         <>
           The filter <b>namespace: {filters.namespace}</b> limits this
-          {nsRecordings != null ? ` to ${plural(nsRecordings, "recording")}` : ""}.{" "}
+          {nsRecordings != null ? ` to ${plural(nsRecordings, "asset")}` : ""}.{" "}
           <button type="button" className={LINK} onClick={() => onClearFilter("namespace")}>
             Search all namespaces
           </button>
@@ -126,7 +126,7 @@ export function NoResults({
       key: "spk",
       node: (
         <>
-          The filter <b>speaker: {labels.speaker ?? filters.speaker}</b> keeps only what they said.{" "}
+          The filter <b>speaker: {labels.speaker ?? filters.speaker}</b> keeps only their lines.{" "}
           <button type="button" className={LINK} onClick={() => onClearFilter("speaker")}>
             Search everyone
           </button>
@@ -152,9 +152,9 @@ export function NoResults({
       key: "rec",
       node: (
         <>
-          The filter <b>recording: {labels.recording ?? filters.recording}</b> looks in one recording.{" "}
+          The filter <b>recording: {labels.recording ?? filters.recording}</b> looks in one asset.{" "}
           <button type="button" className={LINK} onClick={() => onClearFilter("recording")}>
-            Search every recording
+            Search every asset
           </button>
           .
         </>

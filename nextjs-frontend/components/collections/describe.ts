@@ -27,11 +27,11 @@ export function describeCollection(
   if (f.namespaces?.length) parts.push(`namespace ${f.namespaces.join(", ")}`);
   if (f.q) parts.push(`“${f.q}”`);
   if (f.speakers?.length)
-    parts.push(`speaker ${f.speakers.map((id) => names.speakers?.get(id) ?? `#${id}`).join(", ")}`);
+    parts.push(`person ${f.speakers.map((id) => names.speakers?.get(id) ?? `#${id}`).join(", ")}`);
   if (f.entities?.length)
     parts.push(`entity ${f.entities.map((id) => names.entities?.get(id) ?? `#${id}`).join(", ")}`);
   if (f.from || f.to) parts.push([f.from, f.to].filter(Boolean).join(" – "));
-  if (f.media) parts.push(f.media);
+  if (f.media) parts.push(f.media === "transcript" ? "text only" : f.media);
   if (f.status) parts.push(`status ${f.status}`);
   parts.push("updates");
   if (c.account !== me) parts.push("shared with you");
