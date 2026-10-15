@@ -74,6 +74,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   language model, logged in the activity ledger; with `apply`, an editor's sure answer sets the content type, suggests
   the topic or adds the tag (`POST /classify`, the MCP and assistant tool `classify`;
   [Classifying](docs/processing.md#classifying)).
+- **Classify in workflows.** A Classify node on the workflow canvas picks one of your labels, a content type or a topic
+  for the asset (or for what came in) and passes on the choice, how sure and every label ranked, for a Condition
+  or Switch to branch on; set to act, a sure answer sets the content type, suggests the topic or adds the tag
+  ([Workflows and the canvas](docs/processing.md#workflows-and-the-canvas)).
 
 ## 0.13.0 <small>October 16, 2026</small> {id="0.13.0"}
 

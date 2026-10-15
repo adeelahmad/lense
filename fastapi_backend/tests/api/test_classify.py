@@ -173,3 +173,56 @@ def test_agents_classify(client, db, cfg, env, jev):
     assert summary == "Classified as science (70% sure)" and got["sure"] is False
     with pytest.raises(ValueError, match="isn't available"):
         box.t_classify(recording_id=env["call"], labels=["a", "b"])
+
+
+def test_a_workflow_classifies(client, db, cfg, env, jev):
+    from app.domain import workflows
+
+    ep2 = env["ep2"]
+
+    def node(nid, t, **config):
+        return {"id": nid, "type": t, "config": config}
+
+    def graph(*nodes):
+        return {"nodes": [node("in", "input"), *nodes], "edges": [{"source": a["id"], "target": b["id"]} for a, b in zip(
+            [node("in", "input"), *nodes], nodes, strict=False
+        )]}  # fmt: skip
+
+    # what it passes on goes on to the next node; one that acts on a sure answer keeps something by itself
+    desk = node("c", "classify", labels=["security: exploits and attacks", "health"], question="Which desk?")
+    wid = workflows.create(db, "Desk", graph(desk, node("o", "output", key="desk")))
+    jev.answer = {"type": "choice", "choice": "security", "confidence": 0.9, "probabilities": {"security": 0.9, "health": 0.1}}
+    said = []
+    workflows.run(db, cfg, ep2, wid, say=said.append)
+    out = db.one("SELECT * FROM $o", o=R("output", f"{ep2}-desk"))["value"]
+    assert (out["choice"], out["sure"], out["by"]) == ("security", True, "jev") and [x["label"] for x in out["ranked"]] == [
+        "security",
+        "health",
+    ]
+    assert "Which desk?" == jev.seen[-1][1]["questions"]["q"]["instructions"] and any("security (90% sure)" in s for s in said)
+    acts = node("c", "classify", vocabulary="topic", apply=True)
+    wid = workflows.create(db, "Topics", graph(acts))
+    jev.answer = {"type": "choice", "choice": "Gene therapy", "confidence": 0.9, "probabilities": {"Gene therapy": 0.9}}
+    # a try keeps nothing
+    tried = workflows.try_graph(db, cfg, graph(acts), rid=ep2)
+    assert tried["error"] is None and any("would act on it" in s for s in tried["log"])
+    assert not [t for t in topics.of_recording(db, ep2) if t["source"] == "classify"]
+    workflows.run(db, cfg, ep2, wid)
+    assert [(t["label"], t["status"]) for t in topics.of_recording(db, ep2) if t["source"] == "classify"] == [("Gene therapy", "suggested")]
+    # what came in, as text
+    text = node("c", "classify", labels=["question", "statement"], of="input")
+    tried = workflows.try_graph(
+        db, cfg, graph(node("t", "template", template="Is it on Friday?"), text, node("o", "output", key="k")), rid=ep2
+    )
+    assert tried["error"] is None and "Is it on" in json.loads(jev.seen[-1][1]["state"])["text"]
+    # checked when saved
+    for bad, why in (
+        (node("c", "classify"), "give labels"),
+        (node("c", "classify", labels=["one"]), "at least two"),
+        (node("c", "classify", vocabulary="colour"), "content_type or topic"),
+        (node("c", "classify", vocabulary="topic", of="input", apply=True), "only the asset"),
+    ):
+        with pytest.raises(ValueError, match=why):
+            workflows.create(db, "Bad", graph(bad, node("o", "output", key="k")))
+    with pytest.raises(ValueError, match="keeps nothing"):
+        workflows.create(db, "Keeps nothing", graph(node("c", "classify", vocabulary="topic")))
