@@ -113,8 +113,8 @@ When the configured model supports function calling, chat becomes an agent.
   bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
   `import_files`, it picks the namespace when you don't name one, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
-- **Your browser** (in progress): asked from the Lens extension's side panel, the assistant can open, read, click and
-  type in that browser and download files into the conversation, on sites you allow, asking before anything that
+- **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
+  and type in that browser and download files into the conversation, on sites you allow, asking before anything that
   sends, deletes or buys. See [The assistant in your browser](browser-assistant.md).
 
 ## Third-party content and prompt injection
