@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **microsandbox runs on Debian 13 too.** Its sandbox now starts from `python:3.12-slim-trixie`, like the backend
+  image, so a local model runs there on a Mac with Apple silicon. The packages kept from the earlier Debian are
+  cleared on the next start ([microsandbox](docs/microsandbox.md#how-it-runs)).
 - **A local model's server asks for its key again.** llama.cpp's current builds read the server's API key from a
   differently named variable, so the server Lens started for a local model answered without one (to other containers
   on the same Docker network, not from outside the machine). Lens now sets both names, and stops the server, saying
