@@ -228,7 +228,7 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await jumpTo(ctx);
-      await meter.type(page.getByRole("combobox", { name: /Search recordings and pages/ }), "welcome", "part of its title");
+      await meter.type(page.getByRole("combobox", { name: /^Search recordings/ }), "welcome", "part of its title");
       await page.getByRole("option", { name: /Welcome back/ }).first().waitFor();
       await meter.press("Enter", "Enter to open");
       await page.waitForURL(/\/(recordings|resources)\//);

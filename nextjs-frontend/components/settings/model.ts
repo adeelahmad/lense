@@ -301,7 +301,7 @@ export const SECTIONS: SectionSpec[] = [
   },
   {
     id: "updates",
-    label: "Updates and backups",
+    label: "Updates",
     backend: ["updates"],
     description:
       "New Lens releases: Lens checks for one once a day, backs up and installs it when you say so, and goes back if it doesn't start.",
