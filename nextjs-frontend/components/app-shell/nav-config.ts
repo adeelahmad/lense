@@ -31,38 +31,42 @@ export type NavItem = {
   membersOnly?: boolean;
   /** A count shown next to the label (library size, speakers to review in Settings). */
   countKey?: "recordings" | "reviews";
-  /** Draw a divider after this item. */
-  divider?: boolean;
+  /** The group it's in, named above its first item; the first group (what people use every day) has no name. */
+  group: NavGroup;
 };
 
-/** Primary navigation, in the design's order (Nav.dc.html). */
+export type NavGroup = "" | "Explore" | "Automate" | "Manage";
+
+/** Primary navigation, in the design's order (Nav.dc.html), in groups: what people use every day, what Lens found in
+ * it, what runs by itself, and running Lens. */
 export const NAV: NavItem[] = [
-  { label: "Home", href: "/", icon: House },
+  { label: "Home", href: "/", icon: House, group: "" },
   {
     label: "Library",
     href: "/library",
     icon: LibraryBig,
     countKey: "recordings",
+    group: "",
   },
-  { label: "Search", href: "/search", icon: Search },
-  { label: "Chat", href: "/chat", icon: MessagesSquare },
-  { label: "Notes", href: "/notes", icon: NotebookPen },
-  { label: "Entities", href: "/entities", icon: Shapes },
-  { label: "Topics", href: "/topics", icon: Tags },
-  { label: "Graph", href: "/graph", icon: Waypoints },
-  { label: "Podcasts", href: "/podcasts", icon: Podcast },
-  { label: "Reports", href: "/reports", icon: ChartNoAxesColumn },
-  { label: "Costs", href: "/costs", icon: Wallet, divider: true },
-  { label: "Pipelines", href: "/pipelines", icon: Workflow },
-  { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true },
-  { label: "Extensions", href: "/extensions", icon: Blocks },
+  { label: "Search", href: "/search", icon: Search, group: "" },
+  { label: "Chat", href: "/chat", icon: MessagesSquare, group: "" },
+  { label: "Notes", href: "/notes", icon: NotebookPen, group: "" },
+  { label: "Entities", href: "/entities", icon: Shapes, group: "Explore" },
+  { label: "Topics", href: "/topics", icon: Tags, group: "Explore" },
+  { label: "Graph", href: "/graph", icon: Waypoints, group: "Explore" },
+  { label: "Podcasts", href: "/podcasts", icon: Podcast, group: "Explore" },
+  { label: "Reports", href: "/reports", icon: ChartNoAxesColumn, group: "Explore" },
+  { label: "Pipelines", href: "/pipelines", icon: Workflow, group: "Automate" },
+  { label: "Routines", href: "/routines", icon: CalendarClock, adminOnly: true, group: "Automate" },
+  { label: "Extensions", href: "/extensions", icon: Blocks, group: "Automate" },
   // Admins see every source as a sensor; members see the watched folders feeding their namespaces.
-  { label: "Sensors", href: "/sensors", icon: RadioTower, adminOnly: true },
-  { label: "Sources", href: "/sources", icon: HardDriveDownload, membersOnly: true },
-  { label: "Analytics", href: "/analytics", icon: ChartLine, adminOnly: true },
+  { label: "Sensors", href: "/sensors", icon: RadioTower, adminOnly: true, group: "Automate" },
+  { label: "Sources", href: "/sources", icon: HardDriveDownload, membersOnly: true, group: "Automate" },
+  { label: "Costs", href: "/costs", icon: Wallet, group: "Manage" },
+  { label: "Analytics", href: "/analytics", icon: ChartLine, adminOnly: true, group: "Manage" },
   // Everyone has Settings: members find Speakers there, admins the archive's settings too.
-  { label: "Settings", href: "/settings", icon: Settings, countKey: "reviews" },
-  { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
+  { label: "Settings", href: "/settings", icon: Settings, countKey: "reviews", group: "Manage" },
+  { label: "Admin", href: "/admin", icon: Shield, adminOnly: true, group: "Manage" },
 ];
 
 export function navFor(admin: boolean): NavItem[] {
