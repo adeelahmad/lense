@@ -5,18 +5,34 @@ import "@testing-library/jest-dom";
 import { Sources } from "@/app/openapi-client";
 import { ConnectionDialog } from "@/components/sources/connection-dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { navigate } from "@/lib/navigate";
 
 jest.mock("@/app/openapi-client", () => ({
-  Sources: { createSource: jest.fn(), updateSource: jest.fn(), testSource: jest.fn(), deleteSource: jest.fn() },
+  Sources: {
+    createSource: jest.fn(),
+    updateSource: jest.fn(),
+    testSource: jest.fn(),
+    deleteSource: jest.fn(),
+    googleClient: jest.fn(),
+    connectGoogle: jest.fn(),
+  },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));
 jest.mock("@/components/ui/toast", () => ({ useToast: () => jest.fn() }));
+jest.mock("@/lib/navigate", () => ({ navigate: { assign: jest.fn(), replace: jest.fn() } }));
 
 const ok = (data: unknown) => Promise.resolve({ data, response: { ok: true, status: 200 } });
 const BACKENDS = {
   local: { label: "This machine", fields: {}, secrets: [] },
   smb: { label: "SMB", fields: { host: "", user: "", port: "", domain: "" }, secrets: ["pass"] },
+  gcal: {
+    label: "Google Calendar",
+    fields: { calendars: "", impersonate: "", days_back: "365", account: "" },
+    secrets: ["token", "service_account_credentials"],
+  },
 };
+const CALLBACK = "https://lens.example/api/v1/auth/external/google/callback";
+const CONSENT = "https://accounts.google.com/o/oauth2/v2/auth?client_id=c";
 
 function show(onSaved: (id: number) => void) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -92,6 +108,58 @@ describe("adding a connection", () => {
     expect((Sources.updateSource as jest.Mock).mock.calls[0][0]).toMatchObject({
       path: { sid: 7 },
       body: { name: "Scans" },
+    });
+  });
+});
+
+describe("connecting a Google account", () => {
+  beforeEach(() => {
+    (Sources.createSource as jest.Mock)
+      .mockReset()
+      .mockImplementation(() =>
+        ok({ id: 7, health: { ok: false, error: "connect a Google account, or upload a service account key, first" } }),
+      );
+    (Sources.connectGoogle as jest.Mock).mockReset().mockImplementation(() => ok({ url: CONSENT }));
+    (navigate.assign as jest.Mock).mockReset();
+  });
+
+  it("saves the connection and goes to Google's consent screen in one click", async () => {
+    (Sources.googleClient as jest.Mock).mockImplementation(() =>
+      ok({ origin: "sign-in", client_id: "c", redirect_uri: CALLBACK }),
+    );
+    show(jest.fn());
+    fireEvent.click(screen.getByRole("radio", { name: /Google Calendar/ }));
+    expect(await screen.findByText(/Through Google sign-in’s OAuth client/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("OAuth client ID")).toBeNull(); // nothing to fill in: Lens has a client
+    fireEvent.change(screen.getByLabelText(/Calendars/), { target: { value: "team@group.calendar.google.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Connect with Google" }));
+    await waitFor(() => expect(navigate.assign).toHaveBeenCalledWith(CONSENT));
+    expect((Sources.createSource as jest.Mock).mock.calls[0][0].body).toEqual({
+      type: "gcal",
+      name: "Google Calendar",
+      params: { calendars: "team@group.calendar.google.com", impersonate: "", days_back: "365", account: "" },
+      secrets: {},
+    });
+    expect((Sources.connectGoogle as jest.Mock).mock.calls[0][0]).toMatchObject({ path: { sid: 7 }, body: {} });
+  });
+
+  it("asks for an OAuth client, and shows the redirect URI to register, only when Lens has none", async () => {
+    (Sources.googleClient as jest.Mock).mockImplementation(() =>
+      ok({ origin: null, client_id: null, redirect_uri: CALLBACK }),
+    );
+    show(jest.fn());
+    fireEvent.click(screen.getByRole("radio", { name: /Google Calendar/ }));
+    const id = await screen.findByLabelText("OAuth client ID");
+    expect(screen.getByText(CALLBACK)).toBeInTheDocument();
+    const connect = screen.getByRole("button", { name: "Connect with Google" });
+    expect(connect).toBeDisabled();
+    fireEvent.change(id, { target: { value: " 123.apps.googleusercontent.com " } });
+    fireEvent.change(screen.getByLabelText("Client secret"), { target: { value: "shh" } });
+    fireEvent.click(connect);
+    await waitFor(() => expect(navigate.assign).toHaveBeenCalledWith(CONSENT));
+    expect((Sources.connectGoogle as jest.Mock).mock.calls[0][0].body).toEqual({
+      client_id: "123.apps.googleusercontent.com",
+      client_secret: "shh",
     });
   });
 });

@@ -64,7 +64,9 @@ OpenID Connect provider (Authentik, Keycloak, Okta, ...; give its issuer address
 `/.well-known/openid-configuration` there). Each needs a client id and secret from the provider, and the redirect URI
 the dialog shows: `<the web app's address>/api/v1/auth/external/<name>/callback`, registered for every address people
 open Lens at. The secret is kept encrypted (like other settings secrets) and never shown again. The sign-in page then
-has a "Continue with ..." button for each provider that's turned on.
+has a "Continue with ..." button for each provider that's turned on. Google's client also connects Google accounts to
+Google Calendar sources (Connect with Google, [Google Calendar](processing.md#email-imap-calendar-feeds-ical-and-google-calendar)),
+through the same redirect URI.
 
 * **Who it signs in.** An outside account that's connected signs in its Lens account. One that isn't yet is connected
   to the account with the same email, when the provider vouches for the email: Google and OpenID Connect providers say

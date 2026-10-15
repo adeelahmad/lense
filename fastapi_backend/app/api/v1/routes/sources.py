@@ -5,16 +5,20 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 
-from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db
-from app.domain import auth, sources, store
+from app.api.deps import Acl, AdminReader, AdminWriter, Cfg, CurrentUser, Db, web_origin
+from app.api.v1.routes.external import _cookie
+from app.domain import auth, google_auth, sources, store
 from app.domain.store import DB
 from app.schemas.admin import Started
 from app.schemas.common import Created, Ok
 from app.schemas.sources import (
     Backend,
     BrowseEntry,
+    GoogleClient,
+    GoogleConnect,
+    GoogleConnectStart,
     RoutedMessage,
     RoutePreviewRequest,
     Source,
@@ -92,6 +96,37 @@ def delete_source(sid: int, user: AdminWriter, db: Db) -> Ok:
 def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
     _source(db, sid)
     return sources.test(db, cfg, sid)
+
+
+@router.get("/sources/google-client")
+def google_client(user: AdminReader, request: Request, db: Db, cfg: Cfg) -> GoogleClient:
+    """The OAuth client a Google account would be connected through (never its secret), and the redirect URI it needs."""
+    try:
+        c = google_auth.client(db, cfg)
+    except ValueError:
+        c = {"origin": None, "client_id": None}
+    return GoogleClient(origin=c["origin"], client_id=c["client_id"], redirect_uri=web_origin(request) + google_auth.CALLBACK)
+
+
+@router.post("/sources/{sid}/google/connect")
+def connect_google(
+    sid: int, body: GoogleConnect, user: AdminWriter, request: Request, response: Response, db: Db, cfg: Cfg
+) -> GoogleConnectStart:
+    """Connect a Google account to a Google source (Google Calendar): open the returned address in this browser, consent
+    there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept sealed on
+    the source. Without a client here, the Google sign-in provider's (Settings › Sign-in) or an earlier connection's is
+    used. Audited as `source.google_connect`."""
+    try:
+        src = sources.get(db, sid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    origin = web_origin(request)
+    try:
+        url, browser = google_auth.connect_start(db, cfg, src, origin, (body.client_id, body.client_secret), user.as_audit())
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    _cookie(response, origin, browser)
+    return GoogleConnectStart(url=url)
 
 
 @router.get("/sources/{sid}/browse")

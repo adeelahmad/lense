@@ -5770,6 +5770,58 @@ export type ForgotPasswordRequest = {
 };
 
 /**
+ * GoogleClient
+ */
+export type GoogleClient = {
+  /**
+   * Origin
+   *
+   * where the OAuth client for connecting a Google account comes from: the Google sign-in provider, an earlier Google connection, or none (enter one to connect)
+   */
+  origin: "sign-in" | "connection" | null;
+  /**
+   * Client Id
+   */
+  client_id?: string | null;
+  /**
+   * Redirect Uri
+   *
+   * the address to add to the OAuth client's authorized redirect URIs
+   */
+  redirect_uri: string;
+  [key: string]: unknown;
+};
+
+/**
+ * GoogleConnect
+ */
+export type GoogleConnect = {
+  /**
+   * Client Id
+   *
+   * an OAuth client of your own (else the one Lens has)
+   */
+  client_id?: string | null;
+  /**
+   * Client Secret
+   */
+  client_secret?: string | null;
+};
+
+/**
+ * GoogleConnectStart
+ */
+export type GoogleConnectStart = {
+  /**
+   * Url
+   *
+   * Google's consent page; open it in this browser
+   */
+  url: string;
+  [key: string]: unknown;
+};
+
+/**
  * Gpu
  */
 export type Gpu = {
@@ -32495,6 +32547,52 @@ export type TestSourceResponses = {
 };
 
 export type TestSourceResponse = TestSourceResponses[keyof TestSourceResponses];
+
+export type GoogleClientData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sources/google-client";
+};
+
+export type GoogleClientResponses = {
+  /**
+   * Successful Response
+   */
+  200: GoogleClient;
+};
+
+export type GoogleClientResponse = GoogleClientResponses[keyof GoogleClientResponses];
+
+export type ConnectGoogleData = {
+  body: GoogleConnect;
+  path: {
+    /**
+     * Sid
+     */
+    sid: number;
+  };
+  query?: never;
+  url: "/api/v1/sources/{sid}/google/connect";
+};
+
+export type ConnectGoogleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ConnectGoogleError = ConnectGoogleErrors[keyof ConnectGoogleErrors];
+
+export type ConnectGoogleResponses = {
+  /**
+   * Successful Response
+   */
+  200: GoogleConnectStart;
+};
+
+export type ConnectGoogleResponse = ConnectGoogleResponses[keyof ConnectGoogleResponses];
 
 export type BrowseSourceData = {
   body?: never;

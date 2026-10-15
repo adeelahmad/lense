@@ -10,6 +10,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   account, which reads the calendars shared with it or, in Google Workspace, a user's calendars through domain-wide
   delegation. Calls to Google show in the activity ledger
   ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+- **Connect with Google.** A Google Calendar connection signs in to a Google account from a button now: Google's consent
+  screen asks for read-only calendar access and sends you back to Sources with the account connected and its calendars
+  open. It uses the Google sign-in provider's OAuth client, an earlier connection's, or one entered in the form, which
+  also shows the redirect URI to register. A connection whose sign-in stopped working has **Connect Google account**
+  on its row; pasting the authorized user JSON still works
+  ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 

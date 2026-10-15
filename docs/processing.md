@@ -351,8 +351,19 @@ importing chosen ones and watching work as above.
   of its own, as Google keeps it; working-location entries ("Home", "Office") are left out. It signs in one of two ways,
   each kept encrypted like a password and never shown again:
 
-    - **Google account** (`token`): the "authorized user" JSON (`client_id`, `client_secret`, `refresh_token`) of an
-      OAuth client of your own Google Cloud project, with the Calendar API turned on there. `gcloud auth
+    - **Google account** (`token`): **Connect with Google** in the connection form saves the connection and opens
+      Google's consent screen in this browser. Once you allow read-only calendar access, Google sends you back to
+      Sources with the account connected (its address shows on the connection) and its calendars open, to pick one to
+      watch. It goes through an OAuth client of a Google Cloud project with the Calendar API turned on: the Google
+      sign-in provider's (Settings › Sign-in) when there is one, else an earlier Google connection's, else one you
+      enter in the form: a web application client whose authorized redirect URIs include
+      `<your Lens address>/api/v1/auth/external/google/callback` (the address Google sign-in uses too; the form shows
+      it). While the client's OAuth consent screen is in Testing, Google ends its refresh tokens after 7 days and warns
+      that the app isn't verified; publish it to keep the connection. A connection whose sign-in stopped working shows
+      **Connect Google account** on its row. An agent starts the same flow
+      (`POST /api/v1/sources/{id}/google/connect` returns the consent address), but the consent itself is a person's,
+      in the browser that asked. What is kept is the "authorized user" JSON (`client_id`, `client_secret`,
+      `refresh_token`), which can also be pasted instead (Or paste an authorized user JSON): `gcloud auth
       application-default login --client-id-file=client.json --scopes=https://www.googleapis.com/auth/calendar.readonly,https://www.googleapis.com/auth/cloud-platform`
       writes one (to `application_default_credentials.json` in gcloud's folder).
     - **Service account** (`service_account_credentials`, its .json key file). On its own it reads the calendars shared

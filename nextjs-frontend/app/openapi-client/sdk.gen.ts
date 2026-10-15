@@ -123,6 +123,9 @@ import type {
   CombineBatchResponses,
   ConnectData,
   ConnectErrors,
+  ConnectGoogleData,
+  ConnectGoogleErrors,
+  ConnectGoogleResponses,
   ConnectResponses,
   ConsentData,
   ConsentErrors,
@@ -633,6 +636,8 @@ import type {
   GetWorkflowData,
   GetWorkflowErrors,
   GetWorkflowResponses,
+  GoogleClientData,
+  GoogleClientResponses,
   GraphAsOfData,
   GraphAsOfErrors,
   GraphAsOfResponses,
@@ -7996,6 +8001,41 @@ export class Sources {
     return (options.client ?? client).post<TestSourceResponses, TestSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}/test",
       ...options,
+    });
+  }
+
+  /**
+   * Google Client
+   *
+   * The OAuth client a Google account would be connected through (never its secret), and the redirect URI it needs.
+   */
+  public static googleClient<ThrowOnError extends boolean = false>(
+    options?: Options<GoogleClientData, ThrowOnError>,
+  ): RequestResult<GoogleClientResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GoogleClientResponses, unknown, ThrowOnError>({
+      url: "/api/v1/sources/google-client",
+      ...options,
+    });
+  }
+
+  /**
+   * Connect Google
+   *
+   * Connect a Google account to a Google source (Google Calendar): open the returned address in this browser, consent
+   * there, and Google sends you back to the Sources page with the account connected. Its refresh token is kept sealed on
+   * the source. Without a client here, the Google sign-in provider's (Settings › Sign-in) or an earlier connection's is
+   * used. Audited as `source.google_connect`.
+   */
+  public static connectGoogle<ThrowOnError extends boolean = false>(
+    options: Options<ConnectGoogleData, ThrowOnError>,
+  ): RequestResult<ConnectGoogleResponses, ConnectGoogleErrors, ThrowOnError> {
+    return (options.client ?? client).post<ConnectGoogleResponses, ConnectGoogleErrors, ThrowOnError>({
+      url: "/api/v1/sources/{sid}/google/connect",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     });
   }
 

@@ -69,6 +69,24 @@ class SourceUpdated(Ok):
     health: SourceHealth
 
 
+class GoogleClient(ResponseModel):
+    origin: Literal["sign-in", "connection"] | None = Field(
+        description="where the OAuth client for connecting a Google account comes from: the Google sign-in provider, "
+        "an earlier Google connection, or none (enter one to connect)"
+    )
+    client_id: str | None = None
+    redirect_uri: str = Field(description="the address to add to the OAuth client's authorized redirect URIs")
+
+
+class GoogleConnect(RequestModel):
+    client_id: str | None = Field(default=None, max_length=300, description="an OAuth client of your own (else the one Lens has)")
+    client_secret: str | None = Field(default=None, max_length=300)
+
+
+class GoogleConnectStart(ResponseModel):
+    url: str = Field(description="Google's consent page; open it in this browser")
+
+
 class ImportedAs(ResponseModel):
     recording: int
     namespace: str
