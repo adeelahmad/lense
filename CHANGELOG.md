@@ -4,6 +4,14 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Installing an update from the web app works again in a microsandbox.** *Back up and install* stopped at the
+  backup with `Permission denied: '/data/.lens/apt/lock'`, and so did every backup there, because backups had started
+  keeping everything under `/data`, including the Lens the microsandbox runs (`.lens`). Backups now keep only Lens's
+  own files: hidden folders at the top of `data_dir`, and SurrealDB's own folder (the backup's export already holds the
+  database), are left out, and a file Lens can't read is left out with a warning instead of stopping the backup. When
+  backing up stops an upgrade, Settings now marks *Back up the database* as the step that failed
+  ([Backups](docs/database.md#backups)).
+
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop

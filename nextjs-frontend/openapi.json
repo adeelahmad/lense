@@ -60245,6 +60245,7 @@
               {
                 "type": "string",
                 "enum": [
+                  "backup",
                   "download",
                   "build",
                   "start",
@@ -60256,7 +60257,7 @@
               }
             ],
             "title": "Step",
-            "description": "while running: what the agent is on (the backup comes before)"
+            "description": "while running: what the agent is on (the backup comes before); backup: backing up failed"
           },
           "restore": {
             "anyOf": [

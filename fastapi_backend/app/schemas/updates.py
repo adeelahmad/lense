@@ -29,8 +29,8 @@ class UpgradeRun(ResponseModel):
     state: Literal["backing-up", "queued", "running", "rolling-back", "done", "failed", "rolled-back"] = Field(
         description="rolling-back / rolled-back: the new version didn't start, so the agent went back to the one before"
     )
-    step: Literal["download", "build", "start", "check"] | None = Field(
-        None, description="while running: what the agent is on (the backup comes before)"
+    step: Literal["backup", "download", "build", "start", "check"] | None = Field(
+        None, description="while running: what the agent is on (the backup comes before); backup: backing up failed"
     )
     restore: str | None = Field(None, description="after a rollback: whether the backup was put back, and why")
     by: str | None = None
