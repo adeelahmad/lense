@@ -8,7 +8,7 @@ from pydantic import Field
 
 from app.schemas.common import Created, Ok, RequestModel, ResponseModel
 
-SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "ical"]
+SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "ical", "gcal"]
 WatchKinds = Literal["audio", "transcripts", "both", "documents", "all"]
 KINDS_HELP = (
     "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and "
