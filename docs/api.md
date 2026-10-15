@@ -629,6 +629,9 @@ deleted.
 GET    /api/v1/notes
 POST   /api/v1/notes
 GET    /api/v1/notes/search
+GET    /api/v1/notes/deleted
+POST   /api/v1/notes/deleted/{pid}/restore
+DELETE /api/v1/notes/deleted/{pid}
 GET    /api/v1/notes/{pid}
 PATCH  /api/v1/notes/{pid}
 DELETE /api/v1/notes/{pid}
@@ -644,7 +647,9 @@ DELETE /api/v1/notes/{pid}/files
 
 Note pages ([Notes](notes.md)), apart from the notes on an asset above. `GET /notes?ns=` is a namespace's page tree
 (`all=true` adds the pages of things). `search?q=` finds pages by the words in their title, summary or text, title
-matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `move` puts a free note inside `parent` before `before`, `history` lists what the
+matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `DELETE /notes/{pid}`
+moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
+`DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a free note inside `parent` before `before`, `history` lists what the
 page was before each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.

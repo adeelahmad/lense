@@ -12,6 +12,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   API tokens. Anything acting as you (an agent, a script) can push to `POST /api/v1/hooks/import?namespace=` with
   your own token too, and `GET` there says where a token's pushes go ([Web clipper](docs/web-clipper.md#setting-it-up),
   [API](docs/api.md#import-webhooks)).
+- **Delete a note with Undo.** Deleting a note no longer asks first: the notice has Undo, which puts it back where it
+  was. Deleted notes wait in Recently deleted, at the bottom of the Notes page, for 30 days with their files and
+  history, to put back with one click or delete for good; then they go on their own
+  ([Deleting and putting back](docs/notes.md#deleting-and-putting-back)).
 - **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
   `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
   what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,

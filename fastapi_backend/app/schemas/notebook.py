@@ -111,6 +111,15 @@ class NoteHit(ResponseModel):
     snippet: str | None = Field(None, description="the words around the match in its text, when the text has it")
 
 
+class NoteDeleted(ResponseModel):
+    id: int
+    title: str
+    about: str | None = Field(None, description='what it was the page of, like "recording:12"; null for a free note')
+    namespace: str
+    deleted_at: str
+    deleted_by: str | None = Field(None, description="who deleted it (their email)")
+
+
 class NoteSearch(ResponseModel):
     total: int = Field(description="how many pages match; `pages` has the first `limit`")
     pages: list[NoteHit]
