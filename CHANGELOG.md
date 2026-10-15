@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
+
 - **Installing an update from the web app works again in a microsandbox.** *Back up and install* stopped at the
   backup with `Permission denied: '/data/.lens/apt/lock'`, and so did every backup there, because backups had started
   keeping everything under `/data`, including the Lens the microsandbox runs (`.lens`). Backups now keep only Lens's
