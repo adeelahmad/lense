@@ -4,6 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Google Calendar as a sensor.** Add a Google Calendar connection on the Sources page (or `POST /api/v1/sources`
+  with type `gcal`): each calendar is a folder and each event becomes text, as an iCal feed's do, read-only through
+  Google's Calendar API. It signs in as a Google account (an OAuth client's authorized user JSON) or as a service
+  account, which reads the calendars shared with it or, in Google Workspace, a user's calendars through domain-wide
+  delegation. Calls to Google show in the activity ledger
+  ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+
+## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
+
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
   with "I ran out of steps before finishing". Now it's asked to answer from what it found, with the tools off, and says
   what it didn't get to check; a reply with nothing in it is asked again the same way. It also knows its step budget up
@@ -40,6 +49,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `delete_topic`, `undo_topic_change` and `undo_graph_change` (with a write-scope token and editor access), and the
   assistant proposes topic merges, renames, definitions and deletes for the person to approve
   (`propose_topic_change`) ([MCP](docs/mcp.md), [Topics](docs/topics.md)).
+
+### Features
+
+- **settings:** group the sections and find a setting by name ([#390](https://github.com/adeelahmad/lense/pull/390))
+- **settings:** fold the options most people leave as they are ([#392](https://github.com/adeelahmad/lense/pull/392))
+- **nav:** name the navigation's groups ([#394](https://github.com/adeelahmad/lense/pull/394))
 
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 
@@ -828,7 +843,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       `POST …/{tid}/secret` and `GET …/{tid}/deliveries` (docs/api.md).
 - **Email and calendars as sources.** Sources can now be an email account (IMAP) or a calendar feed (iCal), next to
   S3, Drive, SFTP and the rest. Browse them, import chosen messages or events, or watch them like a folder
-  (docs/processing.md#email-imap-and-calendar-feeds-ical).
+  (docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar).
     - IMAP: mailboxes are folders and messages are `.eml` files named by their subjects. Each message becomes an
       email document, titled by its subject and dated when it was sent, and its attachments are kept and become
       resources of their own. Watching the whole account skips the bin, junk, drafts and Gmail's All Mail, Starred

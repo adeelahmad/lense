@@ -45,7 +45,9 @@ export function Nav({
         <Brand collapsed={collapsed} />
       </div>
       {top}
-      {navFor(admin).map((it) => {
+      {navFor(admin).map((it, i, all) => {
+        // a group's name goes above its first item; collapsed to icons, a line does
+        const opens = it.group && it.group !== all[i - 1]?.group;
         const on = isActive(pathname, it.href);
         const n = it.countKey ? counts[it.countKey] : undefined;
         const link = (
@@ -54,7 +56,7 @@ export function Nav({
             onClick={onNavigate}
             aria-current={on ? "page" : undefined}
             className={cn(
-              "flex h-[34px] items-center gap-[11px] whitespace-nowrap rounded-sm px-2.5 text-[14px] transition-colors duration-fast",
+              "flex h-8 items-center gap-[11px] whitespace-nowrap rounded-sm px-2.5 text-[14px] transition-colors duration-fast",
               on ? "bg-blue-surface font-bold text-fg-accent" : "font-medium text-fg-strong hover:bg-surface-neutral",
               collapsed && "justify-center px-0",
             )}
@@ -72,6 +74,14 @@ export function Nav({
         );
         return (
           <div key={it.href}>
+            {opens &&
+              (collapsed ? (
+                <div className="mx-1.5 my-2 h-px bg-border" />
+              ) : (
+                <div className="px-2.5 pb-1 pt-2.5 text-[11px] font-bold uppercase leading-none tracking-wide text-fg-muted">
+                  {it.group}
+                </div>
+              ))}
             {collapsed ? (
               <Tooltip content={it.label} side="right">
                 {link}
@@ -79,7 +89,6 @@ export function Nav({
             ) : (
               link
             )}
-            {it.divider && <div className="mx-1.5 my-2 h-px bg-border" />}
           </div>
         );
       })}
