@@ -420,7 +420,7 @@
       "parameter": "OAuth client id and secret; on the way back state, code and the email in Google's id token",
       "attacker_controllable": "yes",
       "component": "outbound",
-      "caller_must_enforce": "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the source's scope was granted (read only, but all of Gmail over IMAP); returns only to the starting web origin",
+      "caller_must_enforce": "admin only, from the web app (API tokens refused), still an admin on return; single-use hashed state bound to the starting browser (cookie), 10 minutes, PKCE S256; client secret sealed on the flow, refresh token on the source; kept only when the source's scope was granted (read only, but all of Gmail over IMAP, all of Drive for Drive set to full access); Drive keeps its client's secret sealed too; returns only to the starting web origin",
       "provenance": "documented",
       "source": "docs/processing.md \"the consent itself is a person's\""
     },

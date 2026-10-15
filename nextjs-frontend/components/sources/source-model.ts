@@ -155,7 +155,7 @@ export function sourceSubtitle(s: Pick<Source, "type" | "params">): string {
     case "dropbox":
       return "Dropbox · token";
     case "drive":
-      return `Drive · ${str(p.scope) === "drive" ? "full access" : "read only"}${str(p.root_folder_id) ? " · one folder" : ""}`;
+      return `Drive${str(p.account) ? ` · as ${str(p.account)}` : ""} · ${str(p.scope) === "drive" ? "full access" : "read only"}${str(p.root_folder_id) ? " · one folder" : ""}`;
     case "onedrive":
       return `OneDrive · token${str(p.drive_type) ? ` · ${str(p.drive_type)}` : ""}`;
     case "sftp":
@@ -447,12 +447,13 @@ export type ConnForm = {
   /** Google Drive, Google Calendar and Gmail sign in as a Google account (a token), or as a service account (its JSON
    * key file). */
   driveAuth: "token" | "service_account";
-  /** How an OAuth connection (Dropbox, Google Drive, OneDrive) gets its token: signing in through rclone on the
-   * server, or pasting what `rclone authorize` printed on another computer. */
+  /** How an OAuth connection (Dropbox, Google Drive, OneDrive) gets its token: Connect with Google through Lens's
+   * Google OAuth client (Drive), signing in through rclone on the server, or pasting what `rclone authorize` printed
+   * on another computer. */
   signInWith: SignInWith;
 };
 
-export type SignInWith = "rclone" | "paste";
+export type SignInWith = "google" | "rclone" | "paste";
 
 /** Whose sign-in page an OAuth connection opens. */
 export const SIGNIN_SERVICE: Partial<Record<SourceType, string>> = {
@@ -520,7 +521,8 @@ export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "par
     tokenText: "",
     driveAuth:
       source?.secrets?.service_account_credentials?.set && !source?.secrets?.token?.set ? "service_account" : "token",
-    signInWith: "rclone",
+    // a Drive connected with Google keeps its OAuth client; any other token is rclone's
+    signInWith: str((source?.params as Record<string, unknown> | undefined)?.client_id) ? "google" : "rclone",
   };
 }
 
@@ -557,6 +559,8 @@ export function validateForm(
     if (key?.ok === false) e.service_account_credentials = key.error;
     else if (!secret("service_account_credentials"))
       e.service_account_credentials = "Choose the service account’s JSON key file.";
+  } else if (spec.oauth && form.signInWith === "google") {
+    if (!(editing && isSet("token"))) e.token = "Connect a Google account first.";
   } else if (spec.oauth && form.signInWith === "paste") {
     // (signing in makes the token instead: nothing to check here)
     const t = parseRcloneToken(form.tokenText);

@@ -126,8 +126,8 @@ export function SourcesPage() {
     router.replace(pathname);
   }, [adding, admin, backends.data, router, pathname]);
 
-  // Back from Google's consent screen (Connect with Google): the account's calendars open next to pick one to watch, or
-  // the connection opens again with what went wrong
+  // Back from Google's consent screen (Connect with Google): the account's calendars (or Drive's folders) open next to
+  // pick one to watch, or the connection opens again with what went wrong
   const fromGoogle = params.get("google") === "connected" ? "connected" : params.has("google_error") ? "error" : null;
   const askedGoogle = useRef(false);
   useEffect(() => {
@@ -202,7 +202,11 @@ export function SourcesPage() {
     const oauth = Boolean(s.oauth);
     return (
       <div className="flex shrink-0 items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-        {bad && (s.type === "gcal" || s.type === "gmail") && /Google account/.test(s.health?.error ?? "") ? (
+        {bad &&
+        (((s.type === "gcal" || s.type === "gmail") && /Google account/.test(s.health?.error ?? "")) ||
+          (s.type === "drive" &&
+            Boolean((s.params as Record<string, unknown> | null)?.client_id) &&
+            /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? ""))) ? (
           <Button
             size="sm"
             variant="secondary"

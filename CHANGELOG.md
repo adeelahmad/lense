@@ -39,6 +39,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   also shows the redirect URI to register. A connection whose sign-in stopped working has **Connect Google account**
   on its row; pasting the authorized user JSON still works
   ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+- **Google Drive connects with Google too.** When Lens has a Google client (Google sign-in's, or an earlier
+  connection's), a Drive connection signs in with **Connect with Google** in one click and shows the account it is
+  connected as; Read only asks Google for read-only Drive access. With no client it signs in through rclone, as before,
+  or through a Google app of your own ([Google Drive](docs/processing.md#storage-sources)).
 - **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
   `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
   what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,
