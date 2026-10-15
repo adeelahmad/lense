@@ -1452,8 +1452,8 @@ def _note_url(ctx: Context, pid: int) -> str:
     "Find notes",
     "Notes in the namespaces you can read: free notes and the pages of recordings, entities, topics, collections and "
     "speakers, found by words in their title, one-line summary or text (title matches first, then the latest). Each "
-    "has its id, one-line summary, where it is filed (PARA: project, area, resource, archive), what it is the page of, "
-    "and a url.",
+    "has its id, one-line summary, the words around the match in its text, where it is filed (PARA: project, area, "
+    "resource, archive), the note it is inside, what it is the page of, and a url.",
     Arg("query", "string", "words to look for", max_length=200),
     Arg("namespace", "string", "only this namespace"),
     Arg("place", "string", "only notes filed here", enum=notebook.PLACES),
@@ -1474,6 +1474,8 @@ def find_notes(ctx: Context, query: str | None, namespace: str | None, place: st
                     "place": r.get("place"),
                     "page_of": r.get("about"),
                     "namespace": names.get(r["space"]),
+                    "inside": r.get("parent"),
+                    "snippet": r.get("snippet"),
                     "updated": r.get("updated_at"),
                     "url": _note_url(ctx, r["id"]),
                 }

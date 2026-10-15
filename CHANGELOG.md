@@ -16,6 +16,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   account, which reads the calendars shared with it or, in Google Workspace, a user's calendars through domain-wide
   delegation. Calls to Google show in the activity ledger
   ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+- **Find a note.** The Notes page has a search box that finds notes by the words in their title, summary or text (the
+  pages of recordings and entities too), with the words around each match marked, and Enter opens the first. A filter
+  shows only Projects, Areas, Resources or Archive, and each note says which notes it's inside. Jump to (⌘K) finds notes
+  as well. `GET /api/v1/notes/search`; `find_notes` gives agents the words around each match
+  ([Finding notes](docs/notes.md#finding-notes)).
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 
