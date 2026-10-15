@@ -35981,6 +35981,30 @@
             ],
             "title": "Date",
             "description": "when it was sent (ISO 8601)"
+          },
+          "attachments": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attachments",
+            "description": "how many files it carried"
+          },
+          "snippet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snippet",
+            "description": "the start of its text, at most 300 characters"
           }
         },
         "additionalProperties": true,

@@ -4267,6 +4267,18 @@ export type EmailInfo = {
    * when it was sent (ISO 8601)
    */
   date?: string | null;
+  /**
+   * Attachments
+   *
+   * how many files it carried
+   */
+  attachments?: number | null;
+  /**
+   * Snippet
+   *
+   * the start of its text, at most 300 characters
+   */
+  snippet?: string | null;
   [key: string]: unknown;
 };
 
