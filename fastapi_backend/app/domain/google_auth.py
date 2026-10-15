@@ -1,5 +1,5 @@
-"""Signing in to Google's APIs for a source (Google Calendar, gcal.py; other Google sources can use it too), and calling
-them.
+"""Signing in to Google's APIs for a source (Google Calendar, gcal.py; Gmail, gmail.py; other Google sources can use it
+too), and calling them.
 
 A source signs in one of two ways, each kept sealed like a password:
 
@@ -32,6 +32,12 @@ import jwt
 from . import activity
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
+# what each scope lets Lens do, in the words Google's consent page uses for its tick box
+CAN = {
+    "https://www.googleapis.com/auth/gmail.readonly": "View your email messages and settings",
+    "https://mail.google.com/": "Read, compose, send and permanently delete all your email from Gmail",
+    "https://www.googleapis.com/auth/calendar.readonly": "See and download any calendar you can access using your Google Calendar",
+}
 TIMEOUT = 30
 _TOKENS: dict[str, tuple[float, str]] = {}  # who and for what -> (when it ends, monotonic; the access token)
 # what Google says when it throttles (403 with these reasons, or 429): the account works, it's only slowed down
@@ -116,20 +122,29 @@ def _cache_key(creds, scopes):
     return hashlib.sha256(f"{who_}|{' '.join(sorted(scopes))}".encode()).hexdigest()
 
 
-def _refused(r, creds):
+def _refused(r, creds, scopes=()):
     try:
         body = r.json()
     except ValueError:
         body = {}
     err = body.get("error") if isinstance(body, dict) else None
     said = (body.get("error_description") if isinstance(body, dict) else None) or err or f"HTTP {r.status_code}"
-    if creds["kind"] == "service_account" and err == "unauthorized_client" and creds["subject"]:
-        return GoogleError(
-            f"Google refused to let {creds['key']['client_email']} act as {creds['subject']}: {said}. A Workspace admin "
-            "gives it domain-wide delegation for these scopes (Admin console › Security › API controls)"
-        )
+    if creds["kind"] == "service_account" and creds["subject"]:
+        k = creds["key"]
+        if err == "unauthorized_client":
+            return GoogleError(
+                f"Google refused to let {k['client_email']} act as {creds['subject']}: a Workspace admin gives client id "
+                f"{k.get('client_id') or '(in the key file)'} domain-wide delegation for {','.join(scopes) or 'its scopes'} "
+                "(Admin console › Security › API controls)"
+            )
+        if err == "invalid_grant" and "email" in said.lower():
+            return GoogleError(f"{k['client_email']} can't act as {creds['subject']}: use the address of someone in your Workspace domain")
     if creds["kind"] == "authorized_user" and err == "invalid_grant":
         return GoogleError(f"Google refused the connected account: {said}. Connect the Google account again")
+    if creds["kind"] == "authorized_user" and err in ("invalid_client", "unauthorized_client"):
+        return GoogleError(
+            f"Google doesn't know the client the Google account was connected with: {said}. Connect the Google account again"
+        )
     return GoogleError(f"Google refused to sign in: {said}")
 
 
@@ -165,12 +180,18 @@ def access_token(cfg, creds, scopes, fresh=False):
         except httpx.HTTPError as e:
             raise GoogleError(f"couldn't reach Google to sign in: {e}") from None
         if r.status_code >= 400:
-            raise _refused(r, creds)
+            raise _refused(r, creds, scopes)
         try:
             body = r.json()
             token, lasts = body["access_token"], int(body.get("expires_in") or 3600)
         except (ValueError, KeyError, TypeError):
             raise GoogleError("Google's sign-in answered without an access token") from None
+        granted = str(body.get("scope") or "").split()
+        missing = [s for s in scopes if granted and s not in granted]
+        if creds["kind"] == "authorized_user" and missing:  # signed in for one way of reading, then switched to another
+            raise GoogleError(
+                f"the connected Google account doesn't allow “{CAN.get(missing[0], missing[0])}”: connect the Google account again"
+            )
     _TOKENS[key] = (time.monotonic() + max(lasts - 60, 30), token)
     return token
 

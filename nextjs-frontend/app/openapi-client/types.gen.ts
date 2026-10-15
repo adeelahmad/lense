@@ -914,6 +914,12 @@ export type Backend = {
    * the command that produces the token, for OAuth backends
    */
   oauth?: string | null;
+  /**
+   * Google
+   *
+   * signs in to Google: with a service account key, or as a Google account (its authorized user JSON as `token`)
+   */
+  google?: boolean;
   [key: string]: unknown;
 };
 
@@ -17047,7 +17053,8 @@ export type Source = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical" | "gcal";
+  type:
+    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
   /**
    * Label
    */
@@ -17091,7 +17098,8 @@ export type SourceCreate = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical" | "gcal";
+  type:
+    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
   /**
    * Params
    */
@@ -19183,9 +19191,9 @@ export type UpgradeRun = {
   /**
    * Step
    *
-   * while running: what the agent is on (the backup comes before)
+   * while running: what the agent is on (the backup comes before); backup: backing up failed
    */
-  step?: "download" | "build" | "start" | "check" | null;
+  step?: "backup" | "download" | "build" | "start" | "check" | null;
   /**
    * Restore
    *

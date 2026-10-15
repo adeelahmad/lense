@@ -1,4 +1,5 @@
-"""An IMAP server for tests that speaks just enough IMAP4rev1 over a plain socket for imaplib: LOGIN, LIST, EXAMINE
+"""An IMAP server for tests that speaks just enough IMAP4rev1 over a plain socket for imaplib: LOGIN (or AUTHENTICATE
+XOAUTH2 with `token`, as Gmail signs in with an OAuth access token; a function checks one), LIST, EXAMINE
 and SELECT, UID FETCH (sizes, dates, header fields and whole messages, as literals), UID STORE and LOGOUT. It keeps
 every command it was sent (`commands`), so a test can check nothing was changed or marked read.
 
@@ -9,6 +10,7 @@ flags} set by UID STORE; `uidnext` False leaves UIDNEXT out of SELECT's answer, 
 
 from __future__ import annotations
 
+import base64
 import email
 import re
 import socketserver
@@ -20,9 +22,9 @@ class Server(socketserver.ThreadingTCPServer):
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, mailboxes, user="lens", password="mail password 1", flags=None):
+    def __init__(self, mailboxes, user="lens", password="mail password 1", flags=None, token=None):
         super().__init__(("127.0.0.1", 0), Handler)
-        self.mailboxes, self.user, self.password, self.flags = mailboxes, user, password, flags or {}
+        self.mailboxes, self.user, self.password, self.flags, self.token = mailboxes, user, password, flags or {}, token
         self.commands, self.validity, self.stored, self.uidnext = [], {}, {}, True
 
     @property
@@ -64,6 +66,16 @@ class Handler(socketserver.StreamRequestHandler):
                     self.send(f"{tag} OK signed in\r\n")
                 else:
                     self.send(f"{tag} NO [AUTHENTICATIONFAILED] Invalid credentials\r\n")
+            elif cmd == "AUTHENTICATE" and args.upper() == "XOAUTH2":
+                self.send("+ \r\n")
+                said = base64.b64decode(self.rfile.readline().strip()).decode()
+                user, _, rest = said.removeprefix("user=").partition("\x01auth=Bearer ")
+                token = rest.removesuffix("\x01\x01")
+                if user == srv.user and srv.token and (srv.token(token) if callable(srv.token) else token == srv.token):
+                    signed_in = True
+                    self.send(f"{tag} OK signed in\r\n")
+                else:
+                    self.send(f"{tag} NO [AUTHENTICATIONFAILED] Invalid credentials (Failure)\r\n")
             elif cmd == "LOGOUT":
                 self.send(f"* BYE\r\n{tag} OK bye\r\n")
                 return

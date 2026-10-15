@@ -37,7 +37,7 @@ const STEPS = [
 /** Where each step is, from the run's state and the step the machine says it is on. */
 export function steps(run: UpgradeRun): StepState[] {
   const at =
-    run.state === "backing-up"
+    run.state === "backing-up" || run.step === "backup"
       ? 0
       : run.state === "queued"
         ? 1

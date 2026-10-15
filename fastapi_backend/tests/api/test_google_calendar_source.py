@@ -131,6 +131,7 @@ def test_a_shared_calendar_read_as_a_service_account(google, client, db, cfg, ad
         "fields": {"calendars": "", "impersonate": "", "days_back": "365", "account": ""},
         "secrets": ["token", "service_account_credentials"],
         "oauth": None,
+        "google": True,
     }
     # on its own, a service account has no calendars: it's told what to do
     body = {"name": "team", "type": "gcal", "secrets": {"service_account_credentials": json.dumps(key)}}
