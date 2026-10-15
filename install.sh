@@ -78,14 +78,12 @@ kvm_ok() {
   { [ -r /dev/kvm ] && [ -w /dev/kvm ]; } ||
     { have sg && [ "$(stat -c %G /dev/kvm 2>/dev/null)" = kvm ] && in_kvm "$(id -un)"; }
 }
-# Starts Lens's sandbox: with the kvm group (through sg) until the next sign-in gives it to this user's processes
+# Starts Lens's sandbox, with the kvm group when msb needs it (below)
 run_sandbox() {
-  if [ "$os" = Linux ] && have sg && ! in_kvm && in_kvm "$(id -un)"; then
-    sg kvm -c ./.lens-sandbox >/dev/null
-  else
-    ./.lens-sandbox >/dev/null
-  fi
+  if [ -n "$kvm_sg" ]; then sg kvm -c ./.lens-sandbox >/dev/null; else ./.lens-sandbox >/dev/null; fi
 }
+# A word for sh -c, in single quotes
+quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 # has_db VOLUME: whether a microsandbox volume may hold a Lens database. Only one it can see has none counts as without:
 # empty, or with run.sh's tools (.lens) and no database (surreal/lens.db) next to them. One it can't look into (not
 # where microsandbox keeps them by default) counts as with.
@@ -242,6 +240,19 @@ if [ "$os" = Linux ] && ! kvm_ok; then
   fi
   have setfacl && $(sudo_ok) setfacl -m "u:$(id -un):rw" /dev/kvm 2>/dev/null || true
   kvm_ok || fail "Can't use /dev/kvm. Sign out and in again (or run: msb doctor), then run this again."
+fi
+MSB="$(command -v msb)"
+# Until the next sign-in gives this user's processes the kvm group, msb runs with it, through sg (which takes one
+# command line, so each word is quoted into it): msb can't start or stop a sandbox without KVM, and the access setfacl
+# gave lasts only until udev resets it, which a VM starting or stopping does.
+kvm_sg=""
+if [ "$os" = Linux ] && have sg && ! in_kvm && in_kvm "$(id -un)"; then
+  kvm_sg=1
+  msb() {
+    line="exec $(quote "$MSB")"
+    for a in "$@"; do line="$line $(quote "$a")"; done
+    sg kvm -c "$line"
+  }
 fi
 else
 # --- Docker -------------------------------------------------------------------------------------------------------
@@ -492,7 +503,7 @@ if [ "$BACKEND" = microsandbox ]; then
     {
       echo "#!/bin/sh"
       echo "# Starts Lens in its microsandbox (written by install.sh)"
-      printf 'exec %s' "'$(command -v msb)'"
+      printf 'exec %s' "'$MSB'"
       for a in "$@"; do printf " '%s'" "$a"; done
       echo
     } >.lens-sandbox
@@ -526,7 +537,7 @@ if [ "$BACKEND" = microsandbox ]; then
     unit=/etc/systemd/system/lens-microsandbox.service
     printf '%s\n' "[Unit]" "Description=Lens (microsandbox)" "After=network-online.target" "Wants=network-online.target" "" \
       "[Service]" "Type=oneshot" "RemainAfterExit=yes" "User=$(id -un)" "ExecStart=$PWD/.lens-sandbox" \
-      "ExecStop=$(command -v msb) stop lens" "" "[Install]" "WantedBy=multi-user.target" |
+      "ExecStop=$MSB stop lens" "" "[Install]" "WantedBy=multi-user.target" |
       $(sudo_ok) tee "$unit" >/dev/null && $(sudo_ok) systemctl enable lens-microsandbox.service >/dev/null 2>&1 || true
   elif [ "$os" = Darwin ]; then
     plist="$HOME/Library/LaunchAgents/dev.lens.microsandbox.plist"

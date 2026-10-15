@@ -175,6 +175,7 @@ jobs:
       - name: Install (as a user would, piped into sh)
         run: |
           sh < install.sh | tee install.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' install.log | head -1 > setup-url
           test -s setup-url || { echo "install.sh didn't hand over a setup address"; exit 1; }
           echo "Setup address: $(sed 's/code=.*/code=…/' setup-url)"
@@ -255,6 +256,7 @@ jobs:
       - name: Install (as a user would, piped into sh)
         run: |
           sh < install.sh | tee install.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' install.log | head -1 > setup-url
           test -s setup-url || { echo "install.sh didn't hand over a setup address"; exit 1; }
           grep -q 'Installing microsandbox' install.log || { echo "install.sh didn't install microsandbox"; exit 1; }
@@ -281,6 +283,7 @@ jobs:
           grep -q '  Building Lens' install.log || { echo "install.sh didn't show the sandbox's progress"; exit 1; }
           before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           LENS_BACKEND='' sh < install.sh | tee again.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
           test "$(stat -c %a "$LENS_DIR/.env")" = 600 || { echo "the second run left .env readable to others"; exit 1; }
@@ -336,6 +339,7 @@ jobs:
           msb volume create lens-data-2
           rm -rf "$LENS_DIR"
           sh < install.sh | tee fresh.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           grep -q 'Starting Lens on a microsandbox volume of its own, lens-data-2' fresh.log
           grep -q '^LENS_VOLUME=lens-data-2$' "$LENS_DIR/.env" || { echo "the new install didn't start on a volume of its own"; exit 1; }
           msb volume ls -q | grep -qx lens-data || { echo "the earlier install's volume is gone"; exit 1; }
@@ -359,6 +363,7 @@ jobs:
           done
           before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           LENS_BACKEND='' sh < install.sh | tee moved.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           grep -q "Another install's database" moved.log || { echo "the sandbox didn't say the keys don't open the database"; exit 1; }
           grep -q 'Starting Lens on a microsandbox volume of its own, lens-data-3' moved.log
           grep -q '^LENS_VOLUME=lens-data-3$' "$LENS_DIR/.env" || { echo "the install didn't move to a volume of its own"; exit 1; }
@@ -372,6 +377,7 @@ jobs:
           curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
           # running the line again stays on it
           LENS_BACKEND='' sh < install.sh | tee stay.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           if grep -q 'volume of its own' stay.log; then echo "it moved again"; exit 1; fi
           grep -q '^LENS_VOLUME=lens-data-3$' "$LENS_DIR/.env"
           curl -fsS -o /dev/null "$url"
