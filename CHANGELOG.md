@@ -4,6 +4,13 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Find anything by who, what and when.** Agents and the API can find resources by the faces seen in them, the
+  voices heard, the entities they mention, the topics they're about, their kind and content type, when they were made
+  (a day, a month or a year), tags, language, objects seen, emotions heard, length and words said, together or alone,
+  naming people and things instead of looking up ids. Each result says why it matched, with moments to cite
+  (`POST /find`, the MCP tool `find`, the assistant's `find_resources`; [Finding by any
+  attribute](docs/processing.md#finding-by-any-attribute)). The Library list takes faces, entities, topics, content
+  types and emotions as filters too.
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
   with "I ran out of steps before finishing". Now it's asked to answer from what it found, with the tools off, and says
   what it didn't get to check; a reply with nothing in it is asked again the same way. It also knows its step budget up

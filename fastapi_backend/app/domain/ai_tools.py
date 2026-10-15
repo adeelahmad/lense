@@ -17,6 +17,7 @@ from . import (
     entities,
     extensions,
     entity_map,
+    find as findmod,
     graph_ask,
     graph_model,
     entity_setup,
@@ -41,6 +42,7 @@ R = store.R
 log = logging.getLogger("lens")
 _I = {"type": "integer"}
 _S = {"type": "string"}
+_LIST = {"type": "array", "items": {"type": ["string", "integer"]}}
 TOOLS = [
     (
         "search_transcripts",
@@ -62,6 +64,35 @@ TOOLS = [
         "list_recordings",
         "List recordings in scope, newest first, optionally by namespace, dates (YYYY-MM-DD), speaker, entity or media.",
         {"namespace": _S, "from": _S, "to": _S, "speaker_id": _I, "entity_id": _I, "media": _S, "limit": _I},
+        [],
+        False,
+    ),
+    (
+        "find_resources",
+        "Find recordings, videos, documents and images in scope by any attribute: who is seen in them (faces) or heard "
+        "(speakers), entities they mention, topics they're about, their type (audio, video, transcript, document, image), "
+        "content type (podcast, interview, scan, photo, email …), dates (a day, month or year), tags, language, objects "
+        "seen, emotions heard, length, and words said in them (text). Faces, speakers, entities and topics take ids or "
+        "names. Each result says why it matched, with numbered moments to cite.",
+        {
+            "text": _S,
+            "faces": _LIST,
+            "speakers": _LIST,
+            "entities": _LIST,
+            "topics": _LIST,
+            "types": _LIST,
+            "content_types": _LIST,
+            "date_from": _S,
+            "date_to": _S,
+            "min_duration": {"type": "number"},
+            "max_duration": {"type": "number"},
+            "tags": _LIST,
+            "languages": _LIST,
+            "objects": _LIST,
+            "emotions": _LIST,
+            "namespace": _S,
+            "limit": _I,
+        },
         [],
         False,
     ),
@@ -869,6 +900,41 @@ class Toolbox(ops_tools.OpsTools):
             for r in sorted(rows, key=lambda r: r.get("recorded_at") or "", reverse=True)
         ]
         return {"total": len(ids), "recordings": out}, f"Listed {len(ids)} recording(s)"
+
+    def t_find_resources(self, namespace=None, limit=10, **spec):
+        spaces = sorted(self.readable)
+        if namespace:
+            spaces = [s for s in spaces if store.space_names(self.db).get(s) == namespace]
+            if not spaces:
+                raise ValueError(f"namespace {namespace} isn't available in this conversation")
+        res = findmod.find(self.db, self.cfg, spaces, None, spec, limit=min(int(limit or 10), 25), ids=self.allowed)
+        out = []
+        for x in res["items"]:
+            why = []
+            for w in x["why"]:
+                moments = []
+                for m in w.get("moments") or []:
+                    text = m.get("text") or f"{w['name']} ({w['by']})"
+                    n = self.ref(
+                        x["id"], m.get("t0") or 0, text, m.get("speaker"), x.get("title"), m.get("source") or "said", m.get("page")
+                    )
+                    where = {"page": m["page"] + 1} if m.get("page") is not None else {"time": store.tc(m.get("t0"))}
+                    moments.append(store.clean({"ref": n, **where, "text": m.get("text")}))
+                why.append(store.clean({"by": w["by"], "name": w.get("name"), "count": w.get("count"), "moments": moments or None}))
+            out.append(
+                store.clean(
+                    {
+                        "recording_id": x["id"],
+                        "title": x.get("title"),
+                        "date": (x.get("recorded_at") or "")[:10] or None,
+                        "type": x.get("media_kind"),
+                        "namespace": x.get("namespace"),
+                        "speakers": x.get("speakers") or None,
+                        "why": why,
+                    }
+                )
+            )
+        return {"total": res["total"], "resolved": res["resolved"] or None, "results": out}, f"Found {res['total']} resource(s)"
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
         cap = self.cfg["ai"].get("max_transcript_reads") or 20

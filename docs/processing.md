@@ -256,6 +256,38 @@ In the web app:
 * a topic's and an entity's drawer, and a resource, topic or entity selected on the graph canvas, list similar
   content too.
 
+### Finding by any attribute
+
+The API (`POST /find`), the assistant (`find_resources`) and the MCP server (`find`) find resources by what is known
+about them, one filter for all three:
+
+* who is **seen** in them (`faces`: face identities, [Video](video.md)) and **heard** (`speakers`: voices);
+* the **entities** they mention and the **topics** they were accepted as about (a topic brings its narrower topics);
+* their **kind** (`types`: audio, video, transcript, document, image) and **content type** (`content_types`: podcast,
+  interview, scan, photo, email … [Content types](#content-types));
+* **when** they were made (`date_from`, `date_to`: a day, a month or a year, so `2025` is the whole year) and how
+  long they are;
+* their tags, language, the kinds of object seen in them, the emotions heard, their status, collection and where they
+  came from;
+* and words said or written in them (`text`, matched as a search is, by meaning too when that is set up).
+
+Filters combine with AND, the values of one filter with OR. Faces, speakers, entities and topics take an id or a name:
+a name matches every face, speaker, entity (or one of the other ways it's said) or topic label called that in the
+namespaces you can read, ignoring case, and `resolved` says what it matched. A name that matches nothing is an error
+that lists the closest names, so an agent can correct itself.
+
+Each resource found says **why** it matched, with up to three moments per reason to cite: where the words are, when the
+face is on screen (or the pages it's on), the speaker's first lines, the lines that mention the entity, and the topics,
+content type, kinds of object and emotions that matched. With `text`, the resource whose moment matches best comes
+first; otherwise the newest. Nothing here calls a model, apart from `text` searching by meaning when it is set up
+(one embedding request, logged in the activity ledger).
+
+The Library list (`GET /resources`) takes the same attributes as ids: `face`, `entity`, `topic` (as it is, without its
+narrower topics), `content_type` and `emotion`, besides its other filters ([API](api.md#resources)).
+
+Planned, not built yet: these filters in the Library's filter bar and in saved collections, finding by what a photo
+shows (`GET /search/photos`) inside the same filter, and ranking by more than the best matching moment.
+
 ## Background work
 
 Imports, pipeline runs and folder scans return at once and run as jobs stored in SurrealDB. The server runs

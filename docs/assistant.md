@@ -92,8 +92,10 @@ engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `PO
 When the configured model supports function calling, chat becomes an agent.
 
 - **What it can look things up with:** transcripts (including on-screen text), recordings, transcript passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, speakers, and content similar to a text,
-  a recording, a topic or an entity (`find_similar`).
+  outputs, entities and their mentions and timelines, the knowledge graph, speakers, content similar to a text,
+  a recording, a topic or an entity (`find_similar`), and resources by any attribute: faces seen, speakers heard,
+  entities, topics, kind, content type, dates and the rest, each with the moments that show why it matched
+  (`find_resources`, [Finding by any attribute](processing.md#finding-by-any-attribute)).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
   `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is

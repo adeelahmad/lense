@@ -44,6 +44,7 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 |---|---|
 | `search` | moments where words are said, shown on screen or written, best first: the recording, speaker, time, the matching text (matches in **bold**) and a link to that moment. Words, `"phrases"`, `OR`; by namespace, speaker or recording |
 | `find_similar` | the recordings, documents and images most like a text, a recording, a topic or an entity: why each is alike (meaning, key words, topics, entities in common) and the moments that show it, with links |
+| `find` | resources by any attribute: faces seen, speakers heard, entities, topics, kind, content type, dates (a day, month or year), tags, language, objects, emotions, length, collection and words said; ids or names. Each says why it matched, with moments and links to cite ([Finding by any attribute](processing.md#finding-by-any-attribute)) |
 | `list_namespaces` | the namespaces you can read, with their recordings, hours, speakers and your role |
 | `list_recordings` | recordings, newest first, by namespace, title words, dates, speaker, tag or kind, and whether they're flagged NSFW (`sensitive`) |
 | `list_speakers` | the speakers of your namespaces, the ones who talk most first |
