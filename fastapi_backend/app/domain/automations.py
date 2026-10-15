@@ -20,13 +20,33 @@ join that needs one is refused as coming soon.
 
 from __future__ import annotations
 
-from . import actions_web, auth, automation_spec, keyring, store, workflows
+import contextlib
+import datetime as dt
+import threading
+import time
+
+from . import (
+    actions_web,
+    auth,
+    automation_nodes,
+    automation_spec,
+    budgets,
+    events,
+    flow,
+    graph_history,
+    keyring,
+    match,
+    store,
+    telemetry,
+    workflows,
+)
+from . import activity as activity_mod
 from .automation_nodes import provided
 
 R = store.R
 FIELDS = (
     "record::id(id) AS id, name, description, enabled, enabled_at, spaces, run_as, triggers, join, condition, workflow, "
-    "version, policy, limits, created_by, created_at, updated_at, last_run_at, last_status, counters, removed_at"
+    "version, policy, limits, created_by, created_at, updated_at, last_run_at, last_status, last_run, counters, removed_at"
 )
 LIMITS = {"cooldown": "0s", "max_per_hour": 60}
 MAX_PER_HOUR = 3600
@@ -410,3 +430,786 @@ def manages(row, editable_spaces, admin=False):
     if admin:
         return True
     return row.get("spaces") is not None and set(row["spaces"]) <= set(editable_spaces)
+
+
+# ---------- running ----------
+CONSUMER = "automations"  # the stream follower's name (events.follow)
+STREAM = ("event", "relative", "webhook")  # triggers the stream feeds
+DEFAULTS = {"enabled": True, "max_depth": 3, "max_runs_per_minute": 60, "keep_runs_days": 30}
+LOG_MAX = 500
+KEEP_LAST = 20  # runs each automation keeps however old they are
+REMOVED_DAYS = 30  # a deleted automation is kept this long, to restore, then removed with its runs
+SWEEP_SECONDS = 3600
+FINISHED = ("done", "partly", "failed", "waiting")
+RUN_FIELDS = (
+    "record::id(id) AS id, automation, name, version, trigger, trigger_on, event, event_ids, status, by, started_at, finished_at, "
+    "counts, cost_usd, tokens, cost_estimate, error, why, hold, cause_depth, space, dry"
+)
+INTENT_FIELDS = "key, action, params, effect, risk, untrusted, spaces, run_as, node, automation, run, when, status, path, result, error, created_at, updated_at"
+_swept = {"at": 0.0}
+
+
+def section(cfg):
+    """Settings → Automations (store.DEFAULTS["automations"])."""
+    return {**DEFAULTS, **((cfg or {}).get("automations") or {})}
+
+
+def _now():
+    return dt.datetime.now(dt.timezone.utc)
+
+
+def _iso(t):
+    return t.astimezone(dt.timezone.utc).isoformat(timespec="seconds")
+
+
+def refs(row):
+    """What an automation's runs count for, for its budgets: it, its workflow and its namespaces."""
+    out = [f"automation:{row['id']}"] if row.get("id") is not None else []
+    if row.get("workflow") is not None:
+        out.append(f"workflow:{int(row['workflow'])}")
+    return out + [f"space:{s}" for s in row.get("spaces") or []]
+
+
+def _lost(db, row, account):
+    """Why the automation's person may no longer act where it works, or None."""
+    if not account:
+        return "the person it acts for has no account any more"
+    who = account.get("name") or account.get("email")
+    if row.get("spaces") is None:
+        return None if account.get("admin") else f"{who} is no longer an admin, and it works in every namespace"
+    can = editable(db, account)
+    gone = [s for s in row["spaces"] if s not in can]
+    if gone:
+        return f"{who} can no longer edit namespace {store.space_names(db).get(gone[0]) or gone[0]}"
+    return None
+
+
+def _count(db, key, now):
+    """One more in a counter row (made at its first count); the count."""
+    got = db.one("UPSERT $r SET n += 1, at = $t RETURN AFTER", r=R("automation_limit", key), t=_iso(now))
+    return int((got or {}).get("n") or 0)
+
+
+def _limited(db, cfg, row, now):
+    """Why this run would go over a limit (and so doesn't happen), or None: the automation's cooldown, its runs this
+    hour, then every automation's runs this minute."""
+    lim = {**LIMITS, **(row.get("limits") or {})}
+    cool = automation_spec.check_duration(lim["cooldown"], what="the cooldown")
+    if cool:
+        got = db.q(
+            "UPDATE $r SET fired_at = $t WHERE fired_at = NONE OR fired_at <= $c RETURN AFTER",
+            r=R("automation", row["id"]),
+            t=_iso(now),
+            c=_iso(now - dt.timedelta(seconds=cool)),
+        )
+        if not got:
+            return f"it waits {lim['cooldown']} between runs"
+    if _count(db, f"a{row['id']}-{now:%Y%m%d%H}", now) > int(lim["max_per_hour"]):
+        return f"it ran {lim['max_per_hour']} times this hour, the most it may"
+    most = int(section(cfg)["max_runs_per_minute"])
+    if _count(db, f"all-{now:%Y%m%d%H%M}", now) > most:
+        return f"automations ran {most} times this minute, the most they may (Settings → Automations)"
+    return None
+
+
+def _over(db, row, why, now):
+    """Count a run that went over a limit, and say so in the stream at most once an hour per automation."""
+    db.q("UPDATE $r SET counters.limited += 1", r=R("automation", row["id"]))
+    try:
+        events.emit(
+            db,
+            "automation.limited",
+            actor=dict(events.LENS),
+            obj={"type": "Application", "id": f"lens:automation/{row['id']}", "name": row["name"], "why": why},
+            space=(row.get("spaces") or [None])[0],
+            summary=f"{row['name']} is over its limit: {why}",
+            key=f"limited-{row['id']}-{now:%Y%m%d%H}",
+        )
+    except Exception:  # noqa: BLE001 - saying so is best effort; the count is kept
+        pass
+
+
+def _held(db, cfg, row, alias, activity, evs, by, now):
+    """A run over a budget (budgets.py) is held for the person's pick, or skipped, as a run row that says why; one
+    held run waits per automation, and later ones add to it. The run, or None when it may go ahead."""
+    try:
+        verdict = budgets.check(db, cfg, refs(row), now)
+    except Exception:  # noqa: BLE001 - a budget that can't be read doesn't stop the work
+        return None
+    if verdict["go"]:
+        return None
+    held = verdict["action"] != "skip"
+    status = "held" if held else "skipped"
+    waiting = db.values("SELECT VALUE record::id(id) FROM automation_run WHERE automation = $a AND status = 'held'", a=row["id"])
+    if held and waiting:
+        db.q("UPDATE $r SET hold.missed += 1, hold.why = $w", r=R("automation_run", waiting[0]), w=verdict["why"])
+        return {"run": waiting[0], "status": "held", "why": verdict["why"]}
+    run_id = db.next_id("automation_run")
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("automation_run", run_id),
+        d=store.clean(
+            {
+                "automation": row["id"],
+                "name": row["name"],
+                "trigger": alias,
+                "event": (activity or {}).get("id"),
+                "event_ids": _ids(evs),
+                "status": status,
+                "by": by,
+                "started_at": _iso(now),
+                "finished_at": None if held else _iso(now),
+                "why": verdict["why"],
+                "hold": {
+                    "why": verdict["why"],
+                    "resource": verdict["resource"],
+                    "action": verdict["action"],
+                    "missed": 0,
+                    "activity": activity,
+                    "events": evs,
+                },
+            }
+        ),
+    )
+    db.q("UPDATE $r SET last_status = $s, last_run = $i", r=R("automation", row["id"]), s=status, i=run_id)
+    activity_mod.record(
+        "run",
+        f"automation.{status}",
+        [f"automation:{row['id']}", f"automation_run:{run_id}"],
+        cfg,
+        db,
+        ok=held,
+        error=None if held else "OverBudget",
+        detail={"budget": verdict["resource"], "trigger": alias},
+    )
+    return {"run": run_id, "status": status, "why": verdict["why"]}
+
+
+def _ids(evs):
+    out = []
+    for v in (evs or {}).values():
+        for a in v if isinstance(v, list) else [v]:
+            if isinstance(a, dict) and isinstance(a.get("id"), str):
+                out.append(a["id"])
+    return list(dict.fromkeys(out))
+
+
+def _keep_intent(db, intent, extra):
+    t = store.now()
+    row = store.clean(
+        {**intent, "path": extra.get("path"), "result": extra.get("result"), "error": extra.get("error"), "created_at": t, "updated_at": t}
+    )
+    db.q("UPSERT $r CONTENT $d", r=R("automation_intent", intent["key"]), d=row)
+
+
+def _hand_off(db, cfg, intent, depth=1, event=None):
+    """A waiting intent goes to the approvals inbox, a scheduled one to timers (docs/automations.md, Approvals and
+    Actions that wait); what to keep with it: its approval, or its timer and time. Without those modules they stay
+    waiting and scheduled on the run."""
+    if intent["status"] == "scheduled":
+        later = provided("timers", "later")
+        if later is not None:
+            return later(db, intent, depth=depth)
+    elif intent["status"] == "waiting":
+        ask = provided("approvals", "ask")
+        if ask is not None:
+            return {"approval": ask(db, cfg, intent, event=event)}
+    return None
+
+
+def _status(counts, error):
+    if counts.get("failed") or error:
+        return "partly" if counts.get("done") else "failed"
+    if counts.get("waiting") or counts.get("scheduled"):
+        return "waiting"
+    return "done"
+
+
+def _counts(intents):
+    out = dict.fromkeys(("done", "waiting", "scheduled", "failed"), 0)
+    for i in intents:
+        s = i.get("status")
+        if s in out:
+            out[s] += 1
+    return out
+
+
+def fire(db, cfg, automation_id, alias, activity, events=None, dry=False, by=None, over_budget=False):
+    """Run an automation for one trigger (`alias`) and the activity that fired it (`events`: each trigger's activity,
+    by its name, for a join), the one way every trigger starts a run: the stream, the clock, timers, joins, webhooks
+    and run now. The run's id, or None when nothing ran (it's off, over a limit, or its If was false)."""
+    return run(db, cfg, automation_id, alias, activity, events, dry=dry, by=by, over_budget=over_budget)["run"]
+
+
+def run(db, cfg, aid, alias, activity, evs=None, dry=False, by=None, over_budget=False, row=None, graph=None, now=None):
+    """`fire`, saying what happened: {run, status, why, trace, log, intents, error, steps}. With `dry`, nothing is
+    kept, sent or counted, and each action says what it would do. `row` and `graph` run a draft that isn't saved."""
+    now = now or _now()
+    sec = section(cfg)
+    out = {"run": None, "status": None, "why": None, "trace": {}, "log": [], "intents": [], "error": None, "steps": 0}
+    if row is None:
+        try:
+            row = _row(db, aid)
+        except KeyError:
+            return {**out, "status": "missing", "why": "there's no such automation"}
+    if not dry and not sec["enabled"]:
+        return {**out, "status": "off", "why": "automations are switched off (Settings → Automations)"}
+    trig = next((t for t in row["triggers"] if t["as"] == alias), None) or {"as": alias or "manual", "on": "manual"}
+    activity = activity if isinstance(activity, dict) else {}
+    evs = dict(evs) if evs else {trig["as"]: activity}
+    account = _account(db, row.get("run_as"))
+    lost = _lost(db, row, account)
+    if lost:
+        if dry or row.get("id") is None:
+            return {**out, "status": "failed", "why": lost}
+        return {**out, **_failed(db, cfg, row, trig["as"], activity, evs, by, now, lost)}
+    cause = (activity.get("lens") or {}).get("cause") or {}
+    depth = int(cause.get("depth") or 0) + 1
+    if graph is None:
+        w = workflows.get(db, row["workflow"], row.get("version"))
+        graph, version = w["graph"], w["version"]
+    else:
+        version = None
+    run_id = None if dry else db.next_id("automation_run")
+    person = auth.public(account)
+    auto = {"id": row.get("id"), "name": row["name"], "version": version, "spaces": row.get("spaces")}
+    trigger = {"as": trig["as"], "on": trig["on"], "timezone": trig.get("timezone")}
+    ctx = automation_nodes.context(db, cfg, auto, {"id": run_id, "dry": dry}, trigger, activity, evs, person)
+    # the If first: a run it stops uses up no limit, holds no budget and makes no row
+    if row.get("condition") and not match.test(row["condition"], ctx):
+        if not dry:
+            db.q("UPDATE $r SET counters.skipped += 1", r=R("automation", row["id"]))
+        return {**out, "status": "skipped", "why": "its If was false"}
+    if not dry:
+        why = _limited(db, cfg, row, now)
+        if why:
+            _over(db, row, why, now)
+            return {**out, "status": "limited", "why": why}
+        if not over_budget:
+            held = _held(db, cfg, row, trig["as"], activity, evs, by, now)
+            if held:
+                return {**out, **held}
+    lines: list[str] = []
+
+    def say(msg):
+        lines.append(f"{store.now()[11:19]} {msg}")
+        del lines[:-LOG_MAX]
+
+    space = (ctx.get("namespace") or {}).get("id")
+    if not dry:
+        db.q(
+            "CREATE $r CONTENT $d",
+            r=R("automation_run", run_id),
+            d=store.clean(
+                {
+                    "automation": row["id"],
+                    "name": row["name"],
+                    "version": version,
+                    "trigger": trig["as"],
+                    "trigger_on": trig["on"],
+                    "event": activity.get("id"),
+                    "event_ids": _ids(evs),
+                    "cause_depth": depth,
+                    "cause": {"automation": row["id"], "run": run_id, "depth": depth},
+                    "status": "running",
+                    "by": by,
+                    "space": space,
+                    "started_at": _iso(now),
+                }
+            ),
+        )
+    box = automation_nodes.Intents(
+        db,
+        cfg,
+        user=person,
+        policy=row.get("policy"),
+        automation=row.get("id"),
+        run=run_id,
+        spaces=row.get("spaces"),
+        dry=dry,
+        keep=lambda i, x: _keep_intent(db, i, x),
+        hand_off=lambda i: _hand_off(db, cfg, i, depth, activity or None),
+    )
+    who = f"automation:{row['id']}" if row.get("id") is not None else None
+    r = flow.Run(
+        db, cfg, workflows.KITS["event"], ctx, say, dry=dry, user=who, origin={"automation": row.get("id"), "run": run_id}, intents=box
+    )
+    run_refs = [x for x in (who, f"automation_run:{run_id}" if run_id else None) if x]
+    error = None
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(activity_mod.scope(db, *run_refs, cfg=cfg))
+        stack.enter_context(
+            telemetry.span("automation", {"lens.automation.id": str(row.get("id")), "lens.automation.trigger": trig["as"], "lens.dry": dry})
+        )
+        if not dry:
+            stack.enter_context(events.caused_by({"automation": row["id"], "run": run_id, "depth": depth}))
+            stack.enter_context(graph_history.acting(actor=who, via=who, automation=row["id"], automation_run=run_id))
+        try:
+            flow.run_graph(r, graph)
+        except Exception as e:  # noqa: BLE001 - recorded on the run, on the node that failed
+            error = str(e)[:500] or type(e).__name__
+            say(f"failed: {error}")
+    counts = _counts(box.items)
+    status = _status(counts, error)
+    trace = automation_nodes.finish(r.trace, box)
+    got = {**out, "run": run_id, "status": status, "trace": trace, "log": lines, "intents": box.items, "error": error, "steps": r.steps}
+    if dry:
+        return got
+    usd, tokens, rough = activity_mod.run_total(db, f"automation_run:{run_id}")
+    t = store.now()
+    db.q(
+        "UPDATE $r MERGE $d",
+        r=R("automation_run", run_id),
+        d=store.clean(
+            {
+                "status": status,
+                "finished_at": t,
+                "counts": counts,
+                "trace": trace,
+                "log": lines,
+                "error": error,
+                "cost_usd": usd,
+                "tokens": tokens,
+                "cost_estimate": rough or None,
+                "steps": r.steps,
+            }
+        ),
+    )
+    db.q(
+        "UPDATE $r SET last_run_at = $t, last_status = $s, last_run = $i, counters.runs += 1",
+        r=R("automation", row["id"]),
+        t=t,
+        s=status,
+        i=run_id,
+    )
+    activity_mod.record(
+        "run",
+        f"automation.{status}",
+        run_refs,
+        cfg,
+        db,
+        cost_usd=usd,
+        tokens_in=tokens,
+        ok=status != "failed",
+        detail=store.clean({"trigger": trig["as"], "estimate": rough or None, **counts}),
+    )
+    telemetry.record("lens.automation.runs", 1, {"lens.outcome": status})
+    events.wake()
+    return got
+
+
+def _failed(db, cfg, row, alias, activity, evs, by, now, why):
+    """A run that can't happen because its person lost access: failed, saying why, and the automation switched off."""
+    run_id = db.next_id("automation_run")
+    t = _iso(now)
+    db.q(
+        "CREATE $r CONTENT $d",
+        r=R("automation_run", run_id),
+        d=store.clean(
+            {
+                "automation": row["id"],
+                "name": row["name"],
+                "trigger": alias,
+                "event": activity.get("id"),
+                "event_ids": _ids(evs),
+                "status": "failed",
+                "by": by,
+                "started_at": t,
+                "finished_at": t,
+                "error": f"{why}, so it was switched off",
+                "counts": _counts([]),
+            }
+        ),
+    )
+    _set(db, row["id"], {"enabled": False, "last_run_at": t, "last_status": "failed", "last_run": run_id, "updated_at": t})
+    _arm(db, cfg, row["id"])
+    activity_mod.record(
+        "run", "automation.failed", [f"automation:{row['id']}", f"automation_run:{run_id}"], cfg, db, ok=False, error="NoAccess"
+    )
+    return {"run": run_id, "status": "failed", "why": why}
+
+
+def update_intent(db, run_id, key, status, result=None):
+    """What became of an intent that waited (an approval decided it, its time came): its status and what it gave
+    back. The run's status follows: done, partly or failed once nothing waits."""
+    if status not in automation_spec.STATUSES:
+        raise ValueError(f"an intent's status is one of {', '.join(automation_spec.STATUSES)}")
+    row = db.one("SELECT run, status FROM $r", r=R("automation_intent", str(key)))
+    if not row or row.get("run") != int(run_id):
+        raise KeyError(key)
+    sets = {"status": status, "updated_at": store.now(), **({"result": result} if result is not None else {})}
+    db.q("UPDATE $r MERGE $d", r=R("automation_intent", str(key)), d=sets)
+    _settle(db, int(run_id))
+
+
+def _settle(db, run_id):
+    run_row = db.one("SELECT automation, status, error FROM $r", r=R("automation_run", run_id))
+    if not run_row or run_row.get("status") not in FINISHED:
+        return
+    counts = _counts(db.rows("SELECT status FROM automation_intent WHERE run = $r", r=run_id))
+    status = _status(counts, run_row.get("error"))
+    db.q("UPDATE $r SET counts = $c, status = $s", r=R("automation_run", run_id), c=counts, s=status)
+    db.q("UPDATE $r SET last_status = $s WHERE last_run = $i", r=R("automation", run_row["automation"]), s=status, i=run_id)
+
+
+def decide_held(db, cfg, run_id, run_it=True, by=None):
+    """The person's pick for a run held over budget: run it now (once, whatever its budgets say) or skip it."""
+    row = db.one("SELECT automation, trigger, status, hold FROM $r", r=R("automation_run", int(run_id)))
+    if not row:
+        raise KeyError(run_id)
+    if row["status"] != "held":
+        raise ValueError(f"this run isn't waiting on a budget (it's {row['status']})")
+    t = store.now()
+    db.q(
+        "UPDATE $r SET status = $s, finished_at = $t, hold.decided = $d WHERE status = 'held'",
+        r=R("automation_run", int(run_id)),
+        s="released" if run_it else "skipped",
+        t=t,
+        d={"run": run_it, "by": by, "at": t},
+    )
+    if run_it:
+        hold = row.get("hold") or {}
+        return fire(db, cfg, row["automation"], row.get("trigger"), hold.get("activity"), hold.get("events"), by=by, over_budget=True)
+    return None
+
+
+# ---------- following the stream ----------
+def _stream_index(db, rows):
+    """{kind: [(automation, trigger)]} for the triggers the stream feeds."""
+    index: dict = {}
+    for a in rows:
+        for t in a["triggers"]:
+            if t["on"] in ("event", "relative"):
+                try:
+                    kinds = events.expand(t.get("kinds") or [])
+                except ValueError:
+                    continue
+            elif t["on"] == "webhook":
+                kinds = {"webhook.received"} & {k["name"] for k in events.kinds()}
+            else:
+                continue
+            for k in kinds or ():
+                index.setdefault(k, []).append((a, t))
+    return index
+
+
+def _enabled(db):
+    return [
+        view(db, r)
+        for r in db.rows(f"SELECT {FIELDS} FROM automation WHERE enabled = true ORDER BY id")
+        if not r.get("removed_at") and any(t["on"] in STREAM for t in r.get("triggers") or [])
+    ]
+
+
+def _viewer(db, account):
+    if account.get("admin"):
+        return events.viewer(account["id"], None, admin=True)
+    return events.viewer(account["id"], set(auth.roles(db, account)))
+
+
+def _after(t, since):
+    try:
+        return events._parse(t) >= events._parse(since)
+    except (TypeError, ValueError):
+        return False
+
+
+def _route(db, cfg, a, t, act, who, sec):
+    """One activity against one trigger: the guards, a claim so it's handled once, then on to its run (or a join, or
+    a timer). How many runs it started."""
+    if not a.get("enabled_at") or not _after(act.get("published"), a["enabled_at"]):
+        return 0
+    actor = act.get("actor") or {}
+    if str(actor.get("id") or "").startswith("lens:automation/") and not t.get("from_automations"):
+        return 0
+    cause = (act.get("lens") or {}).get("cause") or {}
+    if int(cause.get("depth") or 0) >= int(sec["max_depth"]):
+        return 0
+    if a.get("spaces") is not None and not any(s in a["spaces"] for s in events.spaces_of(act)):
+        return 0
+    if who is None or not events.visible(act, who):
+        return 0
+    if t["on"] == "webhook" and (act.get("object") or {}).get("hook") != t.get("hook"):
+        return 0
+    if t.get("where") and not match.test(t["where"], act):
+        return 0
+    if not events.claim(db, CONSUMER, f"{a['id']}|{t['as']}|{act['id']}"):
+        return 0
+    if t["on"] == "relative":
+        rel = provided("timers", "relative")
+        if rel is not None:
+            rel(db, a, t["as"], act, t["field"], t.get("offset") or "0s")
+        return 0
+    if a["join"]["mode"] != "any":
+        step = provided("match", "join_step")
+        done = step(db, cfg, a, t["as"], act) if step is not None else []
+        return sum(1 for c in done if fire(db, cfg, a["id"], t["as"], c.get("event") or act, c.get("events")) is not None)
+    return 1 if fire(db, cfg, a["id"], t["as"], act, {t["as"]: act}) is not None else 0
+
+
+def dispatch(db, cfg, log=None):
+    """One look at the stream for every switched-on automation that a stream trigger feeds: each new activity runs
+    each automation it matches, once. With none (or automations off), the follower only moves to now, so nothing
+    that happened meanwhile replays when one is switched on. How many runs it started."""
+    sec = section(cfg)
+    rows = _enabled(db) if sec["enabled"] else []
+    if not rows:
+        events.idle(db, CONSUMER)
+        return 0
+    index = _stream_index(db, rows)
+    if not index:
+        events.idle(db, CONSUMER)
+        return 0
+    spaces = None if any(a.get("spaces") is None for a in rows) else {s for a in rows for s in a["spaces"]}
+    acts, commit = events.follow(db, cfg, CONSUMER, kinds=sorted(index), spaces=spaces)
+    viewers: dict = {}
+    started = 0
+    for act in acts:
+        for a, t in index.get(act.get("kind"), []):
+            try:
+                if a["run_as"] not in viewers:
+                    account = _account(db, a["run_as"])
+                    viewers[a["run_as"]] = _viewer(db, account) if account else None
+                started += _route(db, cfg, a, t, act, viewers[a["run_as"]], sec)
+            except Exception as e:  # noqa: BLE001 - one automation failing never stops the others
+                if log:
+                    log(f"automation {a['id']} ({t['as']}) on {act.get('id')}: {type(e).__name__}: {e}")
+    commit()
+    return started
+
+
+def start(db, cfg_fn, stop, log=None):
+    """The automations thread, until `stop` is set: a look at the stream every events.poll_seconds, and at once when
+    something is emitted or an automation is saved (events.wake); and the tidy, once an hour. Run where the
+    notifier and routines run (the API's background work and `lens worker`); claims keep two processes from running
+    one activity twice."""
+
+    def loop():
+        while not stop.is_set():
+            g = events.generation()
+            cfg = cfg_fn()
+            try:
+                dispatch(db, cfg, log)
+                tidy(db, cfg)
+            except Exception as e:  # noqa: BLE001 - keep following
+                if log:
+                    log(f"automations: {type(e).__name__}: {e}")
+            events.wait(events.poll_seconds(cfg), stop, since=g)
+
+    th = threading.Thread(target=loop, daemon=True, name="automations")
+    th.start()
+    return th
+
+
+def tidy(db, cfg, now=None):
+    """Runs past automations.keep_runs_days (each automation keeps its last KEEP_LAST whatever their age), automations
+    deleted REMOVED_DAYS ago with their runs, and spent limit counters; at most once an hour per process. The
+    cut-off for runs, or None when it didn't look."""
+    t = time.monotonic()
+    if now is None and _swept["at"] and t - _swept["at"] < SWEEP_SECONDS:
+        return None
+    _swept["at"] = t
+    now = now or _now()
+    cut = _iso(now - dt.timedelta(days=int(section(cfg)["keep_runs_days"] or 30)))
+    gone = _iso(now - dt.timedelta(days=REMOVED_DAYS))
+    for a in db.rows("SELECT record::id(id) AS id, removed_at, workflow FROM automation"):
+        if a.get("removed_at") and a["removed_at"] <= gone:
+            _purge(db, a)
+            continue
+        keep = [
+            r["n"]
+            for r in db.rows(
+                "SELECT id, record::id(id) AS n FROM automation_run WHERE automation = $a ORDER BY id DESC LIMIT $k", a=a["id"], k=KEEP_LAST
+            )
+        ]
+        old = db.values(
+            "SELECT VALUE record::id(id) FROM automation_run WHERE automation = $a AND started_at < $c "
+            "AND record::id(id) NOT IN $k AND status != 'held'",
+            a=a["id"],
+            c=cut,
+            k=keep,
+        )
+        if old:
+            db.q("DELETE automation_intent WHERE run IN $o", o=old)
+            db.q("DELETE automation_run WHERE id IN $o", o=[R("automation_run", i) for i in old])
+    db.q("DELETE automation_limit WHERE at < $c", c=_iso(now - dt.timedelta(hours=2)))
+    return cut
+
+
+def _purge(db, a):
+    cancel = provided("timers", "cancel_for")
+    if cancel is not None:
+        cancel(db, a["id"])
+    revoke = provided("automation_hooks", "revoke")
+    row = db.one("SELECT triggers FROM $r", r=R("automation", a["id"])) or {}
+    for t in row.get("triggers") or []:
+        if t.get("on") == "webhook" and t.get("hook") is not None and revoke is not None:
+            revoke(db, t["hook"])
+    db.q("DELETE automation_intent WHERE automation = $a", a=a["id"])
+    db.q("DELETE automation_run WHERE automation = $a", a=a["id"])
+    db.q("DELETE $r", r=R("automation", a["id"]))
+    wid = a.get("workflow")
+    if wid is not None and not db.values("SELECT VALUE id FROM automation WHERE workflow = $w", w=wid):
+        db.q("DELETE workflow_version WHERE workflow = $w", w=wid)
+        db.q("DELETE $r", r=R("workflow", wid))
+
+
+# ---------- runs ----------
+def runs(db, aid, before=None, limit=20):
+    """An automation's runs, newest first: `before` a run id for the page after."""
+    p = {"a": int(aid), "n": max(1, min(int(limit), 100))}
+    where = "automation = $a"
+    if before is not None:
+        where += " AND id < $b"
+        p["b"] = R("automation_run", int(before))
+    return [_run_row(r) for r in db.rows(f"SELECT {RUN_FIELDS} FROM automation_run WHERE {where} ORDER BY id DESC LIMIT $n", **p)]
+
+
+def _run_row(r):
+    """A run as lists show it: a held or skipped run has no counts, trace or log yet."""
+    r["counts"] = r.get("counts") or _counts([])
+    r["event_ids"] = r.get("event_ids") or []
+    return r
+
+
+def get_run(db, run_id):
+    """One run with its trace, log and intents (KeyError when there's none)."""
+    row = db.one(f"SELECT {RUN_FIELDS}, trace, log FROM $r", r=R("automation_run", int(run_id)))
+    if not row:
+        raise KeyError(run_id)
+    row = _run_row(row)
+    row["trace"], row["log"] = row.get("trace") or {}, row.get("log") or []
+    row["intents"] = db.rows(f"SELECT {INTENT_FIELDS} FROM automation_intent WHERE run = $r ORDER BY created_at, key", r=int(run_id))
+    return row
+
+
+def caused(db, activity_id, limit=50):
+    """The runs an activity started (it was their event, or one of a join's)."""
+    return [
+        _run_row(r)
+        for r in db.rows(
+            f"SELECT {RUN_FIELDS} FROM automation_run WHERE event_ids CONTAINS $e ORDER BY id DESC LIMIT $n",
+            e=str(activity_id),
+            n=int(limit),
+        )
+    ]
+
+
+def upcoming(db, aid, n=10):
+    """When it runs next, from its schedules and timers, once timers are built; [] until then."""
+    row = _row(db, aid)
+    fn = provided("timers", "upcoming")
+    return list(fn(db, view(db, row), n)) if fn is not None else []
+
+
+def sample(kinds):
+    """A sample activity of the first kind that has one, to try an automation on."""
+    for k in kinds:
+        try:
+            got = events.kind_info(k)["sample"]
+        except KeyError:
+            continue
+        if got:
+            return got
+    return None
+
+
+def test(db, cfg, aid=None, draft=None, activity=None, alias=None, user=None):
+    """A dry run of a saved automation (`aid`) or a draft (the body a save takes) on an activity, or its first
+    trigger's kind's sample: what its If said, and what each action would do. Keeps, sends and counts nothing."""
+    graph = None
+    if draft is not None:
+        account = _account(db, (user or {}).get("id"))
+        if not account:
+            raise ValueError("an automation acts for a person; sign in")
+        fields, graph = _check(db, dict(draft), None, account)
+        if graph is None:
+            graph = workflows.get(db, fields["workflow"], fields.get("version"))["graph"]
+        row = {"id": None, "run_as": account["id"], "policy": {}, **fields}
+    else:
+        row = _row(db, aid)
+    trig = next((t for t in row["triggers"] if t["as"] == alias), None) if alias else None
+    trig = trig or next((t for t in row["triggers"] if t.get("kinds")), None) or row["triggers"][0]
+    if activity is None:
+        activity = sample(trig.get("kinds") or ["asset.added"])
+        if activity is None:
+            raise ValueError("there's no sample to try it on; give an activity")
+    return run(db, cfg, row.get("id"), trig["as"], activity, dry=True, row=row, graph=graph)
+
+
+def latest(db, cfg, row, account):
+    """The newest activity its triggers listen for that its person may see, to run it now on; None when there's none."""
+    kinds = sorted({k for t in row["triggers"] for k in t.get("kinds") or []})
+    if not kinds or not account:
+        return None
+    flt = {"kinds": kinds, **({"spaces": row["spaces"]} if row.get("spaces") is not None else {})}
+    got = events.page(db, cfg, _viewer(db, account), flt=flt, limit=1)["items"]
+    return got[0] if got else None
+
+
+def manual(row, account):
+    """What a run started by hand sees as its event when no activity starts it."""
+    who = account.get("name") or account.get("email")
+    return {
+        "id": None,
+        "kind": None,
+        "type": "Create",
+        "published": events.stamp(_now()),
+        "actor": {"type": "Person", "id": f"lens:account/{account['id']}", "name": who},
+        "object": {"type": "Application", "id": f"lens:automation/{row['id']}", "name": row["name"]},
+        "summary": f"{who} ran {row['name']} by hand",
+        "space": (row.get("spaces") or [None])[0],
+        "tag": [],
+        "lens": {"source": "manual", "pos": [None, None], "untrusted": [], "cause": None},
+    }
+
+
+def run_now(db, cfg, aid, user, activity=None, alias=None):
+    """Run it now for `user` (who must manage it): on an activity, else the newest one its triggers listen for, else
+    as started by hand. Limits and budgets apply as to any run. {run, status, why}."""
+    row = _row(db, aid)
+    account = _account(db, (user or {}).get("id"))
+    if not account:
+        raise ValueError("sign in to run an automation")
+    owner = _account(db, row.get("run_as"))
+    if activity is not None and row.get("spaces") is not None and not set(events.spaces_of(activity)) & set(row["spaces"]):
+        raise ValueError("that activity isn't in a namespace it works in")
+    if activity is not None and owner and not events.visible(activity, _viewer(db, owner)):
+        raise ValueError("the person it acts for can't see that activity, so it can't run on it")
+    if activity is None:
+        activity = latest(db, cfg, row, owner)
+    if activity is None:
+        trig = next((t for t in row["triggers"] if t["on"] == "manual"), None)
+        if trig is None and any(t.get("kinds") for t in row["triggers"]):
+            raise ValueError("nothing it listens for has happened yet; give an activity to run it on")
+        activity, alias = manual(row, account), (trig or {}).get("as") or alias
+    if alias is None:
+        kind = activity.get("kind")
+        alias = next(
+            (t["as"] for t in row["triggers"] if kind and kind in (events.expand(t.get("kinds") or []) or set())),
+            row["triggers"][0]["as"],
+        )
+    got = run(db, cfg, aid, alias, activity, by=account["email"])
+    return {"run": got["run"], "status": got["status"], "why": got["why"]}
+
+
+def extras(db, rows):
+    """What lists show next to each automation: its intents waiting for a pick or a time, and what it cost this
+    month (an estimate when some calls had no price)."""
+    if not rows:
+        return rows
+    ids = [r["id"] for r in rows]
+    waiting: dict = {}
+    for i in db.rows(
+        "SELECT automation, count() AS n FROM automation_intent WHERE automation IN $a AND status IN ['waiting', 'scheduled'] "
+        "GROUP BY automation",
+        a=ids,
+    ):
+        waiting[i["automation"]] = i["n"]
+    month = _now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    costs = activity_mod.costs(db, [f"automation:{i}" for i in ids], _iso(month))
+    for r in rows:
+        c = costs.get(f"automation:{r['id']}") or {}
+        r["waiting"] = int(waiting.get(r["id"]) or 0)
+        r["cost_month"] = {"cost_usd": c.get("cost_usd") or 0.0, "estimate": bool(c.get("estimate"))}
+    return rows

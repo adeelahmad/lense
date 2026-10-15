@@ -32,7 +32,7 @@ merged is called built.
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Changing assets and writing notes: the `set_field`, `add_to_collection` and `write_note` actions | built |
-| Settings → Automations: how often followers look, how long the event log is kept, and how late a timer may fire | built |
+| Settings → Automations: whether automations run, their limits, how long runs are kept and how late a timer may fire; how often followers look and how long the event log is kept | built |
 | A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
 | The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)), set when an automation is saved | built |
@@ -44,7 +44,8 @@ merged is called built.
 | Agents' approval tools: `approvals` and `decline_approval` over MCP and in the assistant, and no way for an agent to approve | built |
 | The Approvals page (`/approvals`), its badge in the top bar and nav, and Home's Needs attention row | built |
 | Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
-| Running automations, joins, the studio | planned |
+| Running automations: following the stream, limits, budgets, runs as `automation.ran`, trying and running now, the API (`app/domain/automations.py`) | built |
+| Joins, the studio | planned |
 
 ## Contract
 
@@ -269,6 +270,11 @@ A kind belongs to the source named in its `source`, and a source may list more i
   nothing and gives the first id, so a retry never doubles an activity. Inside `with events.caused_by({"automation":
   4, "run": 51, "depth": 1}):` what is emitted carries that cause. It is read by `(logged_at, id)` and paged by
   `published`, and its rows are kept for `events.keep_days` (30; Settings → Automations).
+- `automations` (`app/domain/events_automations.py`) reads `automation_run` by `finished_at`, the id breaking ties,
+  as `automation.ran`: a run that ran its graph (done, partly, failed or waiting), with the automation as its actor
+  (`Application`, `lens:automation/<id>`), the run and what its actions did as its object, and what started it as its
+  `lens.cause` when that was another automation's run. An automation over a limit is logged as `automation.limited`,
+  at most once an hour each.
 
 ### Following the stream
 
@@ -340,8 +346,8 @@ tree, `path` (when given) is the part of the value the tree tests. Graphs saved 
 
 ### Automations: triggers and joins
 
-Built as shapes with checks (`app/domain/automation_spec.py`), and saved ([Saving automations](#saving-automations));
-running them is planned. Each check gives a cleaned copy, or a ValueError naming the first problem.
+Built as shapes with checks (`app/domain/automation_spec.py`), saved ([Saving automations](#saving-automations)) and
+run ([Running automations](#running-automations)) for triggers on `event` and `manual` and the join `any`. Each check gives a cleaned copy, or a ValueError naming the first problem.
 
 ```json
 {"name": "School emails", "enabled": true, "spaces": [3], "run_as": 1,
@@ -537,9 +543,9 @@ whatever the run read. The approvals are the person's (`GET /api/v1/approvals`),
 (`{automation, run, node}`); the output lists their ids, so a later node can tell you what waits.
 
 `ask_agent` saves the exchange as one of your conversations, titled "<automation>: <what happened>", with the
-activity's page as what it was asked from, so you can open it, approve what it proposed there and carry on. Model calls
-count in the activity ledger under the run, and stop once a budget they count for (the namespace's, or everything's)
-is used up.
+activity's page as what it was asked from, so you can open it, approve what it proposed there and carry on. Model
+calls count in the activity ledger under the run, and stop once a budget they count for (the automation's, its
+namespaces', or everything's) is used up.
 
 Params marked `"format": "prompt"` in an action's schema (`ask_model`'s `prompt`, `ask_agent`'s `instructions`) are
 prompts: they are rendered with `variables.prompt` ([Variables and templates](#prompts)), which marks as data
@@ -709,7 +715,8 @@ def _(db, cfg, payload): ...                              # payload + late (true
 
 ### Schedule, at and relative triggers
 
-Built as timers; automations set them once they are stored. Each trigger checks as
+Built as timers: saving an automation sets them, and when they fire they start a run
+([Running automations](#running-automations)). Each trigger checks as
 [Automations: triggers and joins](#automations-triggers-and-joins) says.
 
 ```python
@@ -742,7 +749,7 @@ timers.clock_state(db, automation)           # each schedule and at trigger: wai
 
 ### Actions that wait
 
-Built as timers; the automation's run hands them over once automations are stored. An action node with a `delay`
+Built as timers; the automation's run hands them over. An action node with a `delay`
 (`2h`) or a `when` (a time, or a template giving one) makes an intent with that time and status `scheduled`, and
 `timers.later(db, intent)` keeps it as the timer `intent-<intent key>` (its run and node, like `intent-51-n7`), giving
 back `{timer, at}` to keep with the intent. The run's page shows it as "scheduled for 18:22".
@@ -759,8 +766,8 @@ was when the run made the intent:
 
 A routine one is carried out through `actions.perform` as the automation (its person's permissions as they are then),
 inside its run's cause (what it makes carries `lens.cause`, for the loop guard) and its ledger scope
-(`automation:<id>`, `automation_run:<run>`). One that should ask becomes an approval (`approvals.ask`, once approvals
-are built; until then it waits, saying why). The run hears of each step through `automations.update_intent`: done
+(`automation:<id>`, `automation_run:<run>`). One that should ask becomes an approval
+([`approvals.ask`](#approvals)). The run hears of each step through `automations.update_intent`: done
 with what it gave back, failed with why, waiting, or expired when the automation was switched off or removed first,
 the timer was cancelled, or Lens was off past the catch-up window.
 
@@ -925,7 +932,7 @@ Agents have the `automation_variables` and `preview_template` MCP tools.
 
 ## Saving automations
 
-Built (`app/domain/automations.py`, `POST /api/v1/automations`); running them is planned. An automation acts for the
+Built (`app/domain/automations.py`, `POST /api/v1/automations`). An automation acts for the
 person who made it (`run_as`), with their permissions, in namespaces they can edit:
 
 ```json
@@ -951,14 +958,15 @@ person who made it (`run_as`), with their permissions, in namespaces they can ed
   the graph, the namespaces, `limits` (`cooldown`, like `10m`, default `0s`; `max_per_hour`, 1 to 3600, default 60)
   and the policy. Joins other than `any` are refused as coming soon until joins are built. Saving sets the timers of
   its `schedule` and `at` triggers ([Schedule, at and relative triggers](#schedule-at-and-relative-triggers)), and
-  switching it off or deleting it calls them off; they start runs once running automations is built.
+  switching it off or deleting it calls them off.
 - **Webhook triggers** get their address when the automation is saved ([Webhook trigger](#webhook-trigger)): the
   answer's `hooks` gives each new one's `url` and signing `secret`, shown this once, and the trigger keeps the hook's
   id. Saving it again keeps its address; a webhook trigger dropped (or changed to another kind) loses it at once.
 - **Switching** (`POST /automations/{id}/enable {"on": true}`) records when it was last switched on (`enabled_at`):
-  running it (planned) reacts only to what happens after that, so switching one on never replays old activity. New
-  automations are on unless `enabled: false`.
-- **Deleting** switches it off and hides it; `POST /automations/{id}/restore` brings it back, switched off.
+  it reacts only to what happens after that, so switching one on never replays old activity. New automations are on
+  unless `enabled: false`.
+- **Deleting** switches it off and hides it; `POST /automations/{id}/restore` brings it back, switched off. After 30
+  days a deleted automation is removed for good, with its runs and its workflow (unless another automation runs it).
 - **The policy** (`{action node id: ask or auto}`): a node whose action reaches outside Lens or other
   people, or changes something in Lens other than the event's own object, asks first. Only the person,
   signed in to the web app, lets a node run on its own (`POST /automations/{id}/policy {"node": "a", "value":
@@ -970,6 +978,64 @@ person who made it (`run_as`), with their permissions, in namespaces they can ed
 `GET /api/v1/automations/actions` lists what an action node can do: each action's params (a JSON Schema), its effect
 and what it gives back.
 
+## Running automations
+
+Built (`app/domain/automations.py`). A thread named `automations` runs where the notifier and routines do (the API's
+background work and `lens worker`). It follows the stream ([Following the stream](#following-the-stream)) for the
+kinds that switched-on automations' triggers listen for, every `events.poll_seconds` and at once when something is
+emitted or an automation is saved. With no automation switched on (or automations switched off in Settings), it only
+moves its place to now, so nothing replays when one is switched on.
+
+Each new activity is checked against each trigger that listens for its kind (a webhook trigger listens for
+`webhook.received` calls to its own hook), and skipped when:
+
+- it happened before the automation was last switched on (`enabled_at`);
+- an automation made it, unless the trigger says `from_automations`;
+- it is the end of a chain of automations setting each other off as long as `automations.max_depth` (3);
+- it isn't in one of the automation's namespaces, or the automation's person may not see it;
+- the trigger's `where` doesn't match it.
+
+Then it is claimed (for the automation, trigger and activity together), so it runs each automation once, even with the
+API and a worker both following. **`automations.fire(db, cfg, automation_id, alias, activity, events=None, dry=False)`**
+is the one way every trigger starts a run (the stream with its webhook calls, run now, and later the clock, timers and
+joins); it gives the run's id, or none when nothing ran. A run goes:
+
+1. **Its person**: if the person it acts for lost their account, their admin role (for one that works everywhere) or
+   the right to edit one of its namespaces, the run fails saying so, and the automation is switched off.
+2. **The If**, on the [run context](#run-context). When it is false the run stops there: it counts in
+   `counters.skipped`, uses up no limit and makes no run and no activity.
+3. **Limits**: the automation's `cooldown` (the wait between runs) and `max_per_hour`, then every automation's runs
+   together this minute (`automations.max_runs_per_minute`, 60). Over one, nothing runs: it counts in
+   `counters.limited` and says so in the stream (`automation.limited`) at most once an hour.
+4. **Budgets** on the automation, its workflow and its namespaces ([Budgets](budgets.md)): over one, the run is held
+   for your pick (status `held`, one at a time; later ones add to its `hold.missed`) or skipped, as its budget says.
+5. **The graph** runs as its person, counted for `automation:<id>` and its run in the [activity ledger](activity.md):
+   graph changes are marked as made by the automation, and activities it makes carry the run as their cause.
+   Routine actions are done; ones that ask first wait for the person's pick and ones with a time wait for it (until
+   approvals and timers are built, they stay waiting).
+6. **It finishes** `done`, `partly` (some actions failed), `failed` or `waiting` (actions wait), with its cost and
+   tokens, what each node did (`trace`), its log (at most 500 lines) and an `automation.<status>` row in the activity
+   ledger; and it appears in the stream as `automation.ran`. When a waiting action is decided or its time comes, its
+   status changes (`automations.update_intent`) and the run's follows.
+
+Runs are kept for `automations.keep_runs_days` (30); each automation keeps its last 20 however old they are, and a
+held run until you pick.
+
+**Over the API** (`/api/v1/automations`; admins see every automation, anyone else the ones in namespaces they edit):
+
+- `GET /automations` lists them with their counters, last run, actions waiting and cost this month.
+- `GET /automations/{id}/runs?before=<run>` pages its runs, newest first; `GET /automations/runs/{run}` gives one with
+  its trace, log and what its actions did (`intents`); `GET /automations/runs?activity=<id>` the runs an activity
+  started.
+- `POST /automations/{id}/test` tries a saved one, and `POST /automations/test {"draft": {...}}` one you haven't saved,
+  on an activity (`"activity": "<id>"`) or a kind's sample (`"kind"`, default its first trigger's): whether its If
+  passes and what each action would do. Nothing is kept, sent or counted, and limits and budgets aren't checked.
+- `POST /automations/{id}/run` runs it now, on an activity you name (in its namespaces, one its person can see), else
+  the newest one its triggers listen for, else as started by hand. Limits, budgets and asking first apply.
+- `POST /automations/runs/{run}/decide {"run": true}` runs a held run now, once, whatever its budgets say;
+  `{"run": false}` skips it.
+- `GET /automations/{id}/upcoming` lists when it runs next (empty until schedules are built).
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -978,7 +1044,6 @@ and what it gives back.
 - A `?format=as2` JSON-LD view and per-actor outboxes for ActivityPub; SurrealDB `DEFINE EVENT` for Update verbs that
   no row records; pushing instead of polling.
 - People given only some collections of a namespace see that namespace's activities about those collections.
-- Name an automation actor by its automation's name once automations are stored.
 - A timeline page filtered to one child of `asset.added` (only emails, say) reads every new asset and keeps those of
   that kind, up to five source pages; narrow it in the query (path, `remote`, `web`) if that proves slow.
 - Moves of Google Calendar and iCal events only: events in a calendar file on storage are read as new files. An
@@ -1011,7 +1076,7 @@ and what it gives back.
   uses it; matching on variables in triggers and the If (M5).
 - The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
   happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
-  proposals from the chat app it told you in; count the automation's own budget once budgets take `automation:<id>`.
+  proposals from the chat app it told you in.
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
@@ -1045,3 +1110,8 @@ and what it gives back.
   card for many alike ("approve all 12"); trying a failed one again; expiring an automation's approvals when it is
   removed; on the page, keys for decline and edit, live updates instead of reading again each minute, and the
   assistant's proposals shown with their estimates.
+- Limits count in fixed hours and minutes; a sliding window would spread a burst at the turn of the hour.
+- Tell the person when a run is held over budget or an automation goes over a limit (today it shows in its runs, its
+  last status and the stream).
+- Automations that listen for every kind (or hundreds of automations): an index of triggers by kind and `where`, so a
+  look reads each activity once whatever the number of automations.

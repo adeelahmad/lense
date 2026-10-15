@@ -1020,6 +1020,44 @@ def _activity_setting(key, value):
     raise ValueError(f"unknown setting activity.{key}")
 
 
+CATCH_UP_MAX = 7 * 86400
+
+
+def _automations_setting(key, value):
+    """How automations run (docs/automations.md, Limits); catch_up is a duration like 1h, from 0s (a timer missed
+    while Lens was off is missed) to 7d (docs/automations.md, Time); approval_days, how long an automation's action
+    waits for the person's pick, 1 to 365 days (docs/automations.md, Approvals)."""
+    if key == "approval_days":
+        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
+            raise ValueError("automations.approval_days is a whole number of days from 1 to 365")
+        return value
+    if key == "catch_up":
+        from . import automation_spec
+
+        try:
+            n = automation_spec.check_duration(value, what="automations.catch_up")
+        except ValueError:
+            n = -1
+        if not 0 <= n <= CATCH_UP_MAX:
+            raise ValueError("automations.catch_up is a duration from 0s to 7d, like 1h")
+        return value.strip()
+    if key == "enabled":
+        if not isinstance(value, bool):
+            raise ValueError("automations.enabled is true or false")
+        return value
+    limits = {
+        "max_depth": (1, 10, "a whole number of automations"),
+        "max_runs_per_minute": (1, 6000, "a whole number of runs"),
+        "keep_runs_days": (1, 3650, "a whole number of days"),
+    }
+    if key not in limits:
+        raise ValueError(f"unknown setting automations.{key}")
+    lo, hi, what = limits[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"automations.{key} is {what} from {lo} to {hi}")
+    return value
+
+
 def _events_setting(key, value):
     """The stream of activities automations follow (docs/automations.md)."""
     limits = {"keep_days": (1, 3650, "a whole number of days"), "poll_seconds": (1, 3600, "a whole number of seconds")}
@@ -1029,29 +1067,6 @@ def _events_setting(key, value):
     if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
         raise ValueError(f"events.{key} is {what} from {lo} to {hi}")
     return value
-
-
-CATCH_UP_MAX = 7 * 86400
-
-
-def _automations_setting(key, value):
-    """Automations (docs/automations.md): approval_days, how long an automation's action waits for the person's pick,
-    1 to 365 days; catch_up, a duration like 1h, from 0s (a timer missed while Lens was off is missed) to 7d."""
-    from . import automation_spec
-
-    if key == "approval_days":
-        if not (isinstance(value, int) and not isinstance(value, bool) and 1 <= value <= 365):
-            raise ValueError("automations.approval_days is a whole number of days from 1 to 365")
-        return value
-    if key != "catch_up":
-        raise ValueError(f"unknown setting automations.{key}")
-    try:
-        n = automation_spec.check_duration(value, what="automations.catch_up")
-    except ValueError:
-        n = -1
-    if not 0 <= n <= CATCH_UP_MAX:
-        raise ValueError("automations.catch_up is a duration from 0s to 7d, like 1h")
-    return value.strip()
 
 
 def _backup_setting(key, value):

@@ -45,6 +45,11 @@ class Automation(ResponseModel):
     created_at: str | None = None
     updated_at: str | None = None
     removed_at: str | None = Field(None, description="when it was deleted (restore brings it back)")
+    waiting: int | None = Field(None, description="in lists: its actions waiting for your pick or for their time")
+    cost_month: dict[str, Any] | None = Field(
+        None, description="in lists: what it cost this month {cost_usd, estimate (true when some calls had no price)}"
+    )
+    next_at: str | None = Field(None, description="in lists: when it runs next, from its schedules (coming soon)")
 
 
 class AutomationCatalog(ResponseModel):
@@ -117,3 +122,87 @@ class ActionInfo(ResponseModel):
         "first unless you let it run on its own; depends: worked out from its params"
     )
     output: dict[str, Any] | None = Field(None, description="a JSON Schema of what it gives back, for later nodes (steps.<node id>)")
+
+
+class AutomationRun(ResponseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    automation: int
+    name: str | None = None
+    version: int | None = Field(None, description="the workflow version it ran")
+    trigger: str | None = Field(None, description="the trigger (its `as`) that started it")
+    trigger_on: str | None = None
+    event: str | None = Field(None, description="the activity that started it (an id)")
+    event_ids: list[str] = Field(default_factory=list, description="every activity it ran on (a join's are several)")
+    status: str = Field(
+        description="running, done, partly (some actions failed), failed, waiting (actions wait for your pick or their "
+        "time), held (over a budget: decide), released or skipped (your pick on a held run)"
+    )
+    by: str | None = Field(None, description="who started it by hand")
+    started_at: str | None = None
+    finished_at: str | None = None
+    counts: dict[str, int] = Field(default_factory=dict, description="its actions: {done, waiting, scheduled, failed}")
+    cost_usd: float | None = None
+    tokens: int | None = None
+    cost_estimate: bool | None = Field(None, description="true when some calls had no price, so the cost is a floor")
+    error: str | None = None
+    why: str | None = Field(None, description="why it was held")
+    hold: dict[str, Any] | None = Field(None, description="a held run: the budget it is over and how many runs it missed")
+    cause_depth: int | None = Field(None, description="how many automations' runs led to this one")
+    space: int | None = None
+    dry: bool | None = None
+
+
+class AutomationRunDetail(AutomationRun):
+    trace: dict[str, Any] = Field(default_factory=dict, description="by node id: what each node took in and passed on")
+    log: list[str] = Field(default_factory=list)
+    intents: list[dict[str, Any]] = Field(
+        default_factory=list, description="what its actions did, asked or wait to do: action, params, effect, risk, status, result"
+    )
+
+
+class AutomationRuns(ResponseModel):
+    runs: list[AutomationRun]
+    next: int | None = Field(None, description="for the page after: pass it as `before`")
+
+
+class AutomationRunNow(RequestModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    activity: str | None = Field(None, description="an activity's id to run it on (GET /api/v1/activities)")
+    as_: str | None = Field(None, alias="as", description="which trigger it runs as (its `as`); default: the first that fits")
+
+
+class AutomationTry(AutomationRunNow):
+    kind: str | None = Field(None, description="else a kind of activity, to run it on that kind's sample")
+
+
+class AutomationDraftTry(AutomationTry):
+    draft: AutomationCreate = Field(description="the automation as you would save it")
+
+
+class AutomationTried(ResponseModel):
+    model_config = ConfigDict(extra="allow")
+
+    status: str | None = Field(
+        None,
+        description="done, waiting, partly or failed as it would end; skipped when its If is false (limits and "
+        "budgets aren't checked: a try costs no run)",
+    )
+    why: str | None = None
+    trace: dict[str, Any] = Field(default_factory=dict)
+    log: list[str] = Field(default_factory=list)
+    intents: list[dict[str, Any]] = Field(default_factory=list, description="what each action would do (nothing is done)")
+    error: str | None = None
+    steps: int = 0
+
+
+class AutomationStarted(ResponseModel):
+    run: int | None = Field(None, description="the run's id (GET /automations/runs/{run}); none when nothing ran")
+    status: str | None = None
+    why: str | None = Field(None, description="why it didn't run, or was held")
+
+
+class AutomationUpcoming(ResponseModel):
+    times: list[Any] = Field(default_factory=list, description="when it runs next, from its schedules and timers (coming soon)")

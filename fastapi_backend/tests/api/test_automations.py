@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from app.domain import automations, keyring, store, workflows
+from app.domain import activity, auth, automations, budgets, ingest, keyring, store, workflows
 from tests.helpers import login, make_user, without
 
 URL = "/api/v1/automations"
@@ -257,3 +257,85 @@ def test_schedules_and_webhooks_are_armed_once_their_modules_are_there(client, d
     assert calls[-1] == ("cancel", aid)
     two = [*NEW, {"as": "now", "on": "manual"}]
     assert client.post(URL, headers=hr, json=body(triggers=two, join={"mode": "all", "within": "1h"})).status_code == 200
+
+
+def test_runs_are_started_listed_and_read_by_who_manages_them(client, db, cfg, env):
+    he, hv, hr = env["he"], env["hv"], env["hr"]
+    aid = client.post(URL, headers=he, json=body()).json()["id"]
+    rec = ingest.import_text(db, cfg, "pods", "Sam: Hello.", title="Courier")
+    one = f"create-recording-{rec}"
+    # run now on an activity, and with none: the newest one its triggers listen for
+    r = client.post(f"{URL}/{aid}/run", headers=he, json={"activity": one})
+    assert r.status_code == 200, r.text
+    first = r.json()
+    assert first["status"] == "done" and first["run"]
+    again = client.post(f"{URL}/{aid}/run", headers=he).json()
+    assert again["status"] == "done" and again["run"] != first["run"]
+    page = client.get(f"{URL}/{aid}/runs", headers=he, params={"limit": 1}).json()
+    assert [x["id"] for x in page["runs"]] == [again["run"]] and page["next"] == again["run"]
+    rest = client.get(f"{URL}/{aid}/runs", headers=he, params={"before": page["next"]}).json()
+    assert [x["id"] for x in rest["runs"]] == [first["run"]] and rest["next"] is None
+    run = client.get(f"{URL}/runs/{first['run']}", headers=he).json()
+    assert run["event"] == one and run["by"] == "ed@x.io" and run["counts"]["done"] == 1
+    assert run["intents"][0]["result"]["line"] == "New: Courier" and run["trace"]["a"]["status"] == "done" and run["log"]
+    assert {x["id"] for x in client.get(f"{URL}/runs", headers=he, params={"activity": one}).json()} == {first["run"], again["run"]}
+    # lists show what waits and what it cost this month
+    [listed] = client.get(URL, headers=he).json()["automations"]
+    assert listed["waiting"] == 0 and listed["cost_month"] == {"cost_usd": 0.0, "estimate": False} and listed["last_run"] == again["run"]
+    # an admin sees them; someone who doesn't manage it sees nothing
+    assert client.get(f"{URL}/runs/{first['run']}", headers=hr).status_code == 200
+    assert client.get(f"{URL}/runs/{first['run']}", headers=hv).status_code == 404
+    assert client.get(f"{URL}/runs", headers=hv, params={"activity": one}).json() == []
+    assert client.post(f"{URL}/{aid}/run", headers=hv).status_code == 404
+    assert client.get(f"{URL}/{aid}/upcoming", headers=he).json() == {"times": []}
+    # nor on an activity outside its namespaces, or one its person can't see
+    calls = ingest.import_text(db, cfg, "calls", "Sam: Hi.", title="Call")
+    r = client.post(f"{URL}/{aid}/run", headers=hr, json={"activity": f"create-recording-{calls}"})
+    assert r.status_code == 400 and "isn't in a namespace it works in" in r.json()["detail"]
+    other = ingest.import_text(db, cfg, "other", "Sam: Hi.", title="Other")
+    root = client.post(URL, headers=hr, json=body(name="Root")).json()["id"]
+    db.q("UPDATE $r SET run_as = $a", r=store.R("automation", root), a=auth.find_account(db, "ed@x.io")["id"])
+    r = client.post(f"{URL}/{root}/run", headers=hr, json={"activity": f"create-recording-{other}"})
+    assert r.status_code == 400 and "can't see that activity" in r.json()["detail"]
+    assert client.post(f"{URL}/{aid}/run", headers=he, json={"activity": "create-recording-999"}).status_code == 404
+
+
+def test_automations_are_tried_saved_or_as_a_draft(client, db, env, monkeypatch):
+    without(monkeypatch, "timers")
+    he = env["he"]
+    aid = client.post(URL, headers=he, json=body()).json()["id"]
+    # on its first trigger's kind's sample, keeping nothing
+    t = client.post(f"{URL}/{aid}/test", headers=he).json()
+    assert t["status"] == "done" and t["intents"][0]["status"] == "done" and t["intents"][0]["result"]["line"].startswith("New: ")
+    assert db.rows("SELECT id FROM automation_run") == [] and client.get(f"{URL}/{aid}", headers=he).json()["counters"]["runs"] == 0
+    # a draft, with an If that's false on this sample
+    draft = body(**{"if": {"all": [{"path": "event.object.name", "op": "equals", "value": "nothing like it"}]}})
+    t = client.post(f"{URL}/test", headers=he, json={"draft": draft, "kind": "asset.added"})
+    assert t.status_code == 200, t.text
+    t = t.json()
+    assert t["status"] == "skipped" and t["intents"] == []
+    t = client.post(f"{URL}/test", headers=he, json={"draft": body()}).json()
+    assert t["status"] == "done" and t["intents"][0]["action"] == "log_line"
+    assert problem(client, he, {"draft": body(), "kind": "no.such"}, f"{URL}/test").startswith("no kind no.such")
+    assert "coming soon" in problem(
+        client, he, {"draft": body(triggers=[{"as": "t", "on": "schedule", "cron": "0 7 * * *"}])}, f"{URL}/test"
+    )
+    assert client.post(f"{URL}/test", headers=he, json={"draft": body(), "activity": "create-recording-999"}).status_code == 404
+    assert db.rows("SELECT id FROM automation") and len(db.rows("SELECT id FROM automation")) == 1
+
+
+def test_a_run_held_over_budget_waits_for_the_persons_pick(client, db, cfg, env):
+    he = env["he"]
+    aid = client.post(URL, headers=he, json=body()).json()["id"]
+    activity.record("out", "model.chat", [f"automation:{aid}"], db=db, model="m", cost_usd=0.6)
+    budgets.put(db, f"automation:{aid}", usd=0.5)
+    assert "nothing it listens for has happened yet" in problem(client, he, None, f"{URL}/{aid}/run")
+    rec = ingest.import_text(db, cfg, "pods", "Sam: Hello.", title="Courier")
+    held = client.post(f"{URL}/{aid}/run", headers=he, json={"activity": f"create-recording-{rec}"}).json()
+    assert held["status"] == "held" and "$0.6 of $0.5 this month" in held["why"]
+    assert client.post(f"{URL}/runs/{held['run']}/decide", headers=env["hv"], json={"run": True}).status_code == 404
+    got = client.post(f"{URL}/runs/{held['run']}/decide", headers=he, json={"run": True}).json()
+    assert got["run"] != held["run"] and got["status"] == "done"
+    assert client.get(f"{URL}/runs/{held['run']}", headers=he).json()["status"] == "released"
+    r = client.post(f"{URL}/runs/{held['run']}/decide", headers=he, json={"run": False})
+    assert r.status_code == 400 and "isn't waiting on a budget" in r.json()["detail"]

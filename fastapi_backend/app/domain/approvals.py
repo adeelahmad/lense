@@ -83,7 +83,8 @@ def _event_of(db, cfg, intent):
     if intent.get("run") is None:
         return None
     try:
-        ids = (db.one("SELECT events FROM $r", r=R("automation_run", int(intent["run"]))) or {}).get("events") or []
+        row = db.one("SELECT event, event_ids FROM $r", r=R("automation_run", int(intent["run"]))) or {}
+        ids = row.get("event_ids") or ([row["event"]] if row.get("event") else [])
     except Exception:  # noqa: BLE001 - runs aren't stored yet
         return None
     if not ids:

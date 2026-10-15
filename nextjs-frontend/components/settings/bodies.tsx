@@ -472,6 +472,13 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "automations":
       return (
         <>
+          <F ctx={ctx} id="automations.enabled" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="automations.max_depth" />
+            <F ctx={ctx} id="automations.max_runs_per_minute" />
+            <F ctx={ctx} id="automations.keep_runs_days" />
+          </div>
+          <Sub>The stream of activities</Sub>
           <div className="grid gap-3 sm:grid-cols-2">
             <F ctx={ctx} id="events.poll_seconds" />
             <F ctx={ctx} id="events.keep_days" />
@@ -479,7 +486,8 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
             <F ctx={ctx} id="automations.catch_up" />
           </div>
           <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-            Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities.
+            Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities, and
+            manage automations over /api/v1/automations.
           </p>
         </>
       );

@@ -273,6 +273,9 @@ import type {
   DecideApprovalData,
   DecideApprovalErrors,
   DecideApprovalResponses,
+  DecideHeldRun2Data,
+  DecideHeldRun2Errors,
+  DecideHeldRun2Responses,
   DecideHeldRunData,
   DecideHeldRunErrors,
   DecideHeldRunResponses,
@@ -653,6 +656,9 @@ import type {
   GetRoutineData,
   GetRoutineErrors,
   GetRoutineResponses,
+  GetRun2Data,
+  GetRun2Errors,
+  GetRun2Responses,
   GetRunData,
   GetRunErrors,
   GetRunResponses,
@@ -964,6 +970,9 @@ import type {
   ListRolesResponses,
   ListRoutinesData,
   ListRoutinesResponses,
+  ListRuns2Data,
+  ListRuns2Errors,
+  ListRuns2Responses,
   ListRunsData,
   ListRunsErrors,
   ListRunsResponses,
@@ -1320,6 +1329,9 @@ import type {
   RotateNotifySecretData,
   RotateNotifySecretErrors,
   RotateNotifySecretResponses,
+  RunAutomationData,
+  RunAutomationErrors,
+  RunAutomationResponses,
   RunData,
   RunErrors,
   RunPipelineData,
@@ -1329,6 +1341,9 @@ import type {
   RunRoutineData,
   RunRoutineErrors,
   RunRoutineResponses,
+  RunsCausedData,
+  RunsCausedErrors,
+  RunsCausedResponses,
   RunWorkflowData,
   RunWorkflowErrors,
   RunWorkflowResponses,
@@ -1483,12 +1498,18 @@ import type {
   TelemetryStatusResponses,
   TestAnalyticsData,
   TestAnalyticsResponses,
+  TestAutomationData,
+  TestAutomationErrors,
+  TestAutomationResponses,
   TestBridgeData,
   TestBridgeResponses,
   TestConversionNodeData,
   TestConversionNodeResponses,
   TestDecisionsData,
   TestDecisionsResponses,
+  TestDraftData,
+  TestDraftErrors,
+  TestDraftResponses,
   TestEmbeddingsData,
   TestEmbeddingsResponses,
   TestExtensionData,
@@ -1576,6 +1597,9 @@ import type {
   UnsealVaultData,
   UnsealVaultErrors,
   UnsealVaultResponses,
+  UpcomingData,
+  UpcomingErrors,
+  UpcomingResponses,
   UpdateAssistantMemoryData,
   UpdateAssistantMemoryErrors,
   UpdateAssistantMemoryResponses,
@@ -4111,6 +4135,137 @@ export class Automations {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Runs Caused
+   *
+   * What an activity caused: the runs of your automations it started (it was their event, or one of a join's).
+   */
+  public static runsCaused<ThrowOnError extends boolean = false>(
+    options: Options<RunsCausedData, ThrowOnError>,
+  ): RequestResult<RunsCausedResponses, RunsCausedErrors, ThrowOnError> {
+    return (options.client ?? client).get<RunsCausedResponses, RunsCausedErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Run
+   *
+   * One run: what each node did (trace), its log, and what its actions did, asked or wait to do (intents).
+   */
+  public static getRun<ThrowOnError extends boolean = false>(
+    options: Options<GetRunData, ThrowOnError>,
+  ): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs/{run}",
+      ...options,
+    });
+  }
+
+  /**
+   * Decide Held Run
+   *
+   * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
+   */
+  public static decideHeldRun<ThrowOnError extends boolean = false>(
+    options: Options<DecideHeldRunData, ThrowOnError>,
+  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+      url: "/api/v1/automations/runs/{run}/decide",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Draft
+   *
+   * Try an automation before you save it: a dry run on an activity, or on a kind's sample (default: its first
+   * trigger's kind). Says whether its If passes and what each action would do; keeps, sends and counts nothing.
+   */
+  public static testDraft<ThrowOnError extends boolean = false>(
+    options: Options<TestDraftData, ThrowOnError>,
+  ): RequestResult<TestDraftResponses, TestDraftErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestDraftResponses, TestDraftErrors, ThrowOnError>({
+      url: "/api/v1/automations/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Test Automation
+   *
+   * Try a saved automation: a dry run on an activity, or on a kind's sample (default: its first trigger's kind).
+   * Keeps, sends and counts nothing.
+   */
+  public static testAutomation<ThrowOnError extends boolean = false>(
+    options: Options<TestAutomationData, ThrowOnError>,
+  ): RequestResult<TestAutomationResponses, TestAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<TestAutomationResponses, TestAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/test",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Run Automation
+   *
+   * Run it now: on an activity, else the newest one its triggers listen for, else as started by hand. It acts as it
+   * would on its own: limits and budgets apply, and actions that ask first wait for your pick.
+   */
+  public static runAutomation<ThrowOnError extends boolean = false>(
+    options: Options<RunAutomationData, ThrowOnError>,
+  ): RequestResult<RunAutomationResponses, RunAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<RunAutomationResponses, RunAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/run",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Runs
+   *
+   * Its runs, newest first; `next` pages on.
+   */
+  public static listRuns<ThrowOnError extends boolean = false>(
+    options: Options<ListRunsData, ThrowOnError>,
+  ): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/runs",
+      ...options,
+    });
+  }
+
+  /**
+   * Upcoming
+   *
+   * When it runs next, from its schedules and timers (coming soon: empty until schedules are built).
+   */
+  public static upcoming<ThrowOnError extends boolean = false>(
+    options: Options<UpcomingData, ThrowOnError>,
+  ): RequestResult<UpcomingResponses, UpcomingErrors, ThrowOnError> {
+    return (options.client ?? client).get<UpcomingResponses, UpcomingErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/upcoming",
+      ...options,
     });
   }
 }
@@ -10622,9 +10777,9 @@ export class Routines {
    * Pick for a run held over a budget: run it now, once, whatever its budgets say, or skip it.
    */
   public static decideHeldRun<ThrowOnError extends boolean = false>(
-    options: Options<DecideHeldRunData, ThrowOnError>,
-  ): RequestResult<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError> {
-    return (options.client ?? client).post<DecideHeldRunResponses, DecideHeldRunErrors, ThrowOnError>({
+    options: Options<DecideHeldRun2Data, ThrowOnError>,
+  ): RequestResult<DecideHeldRun2Responses, DecideHeldRun2Errors, ThrowOnError> {
+    return (options.client ?? client).post<DecideHeldRun2Responses, DecideHeldRun2Errors, ThrowOnError>({
       url: "/api/v1/routines/runs/{run_id}/decide",
       ...options,
       headers: {
@@ -10638,9 +10793,9 @@ export class Routines {
    * List Runs
    */
   public static listRuns<ThrowOnError extends boolean = false>(
-    options: Options<ListRunsData, ThrowOnError>,
-  ): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> {
-    return (options.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({
+    options: Options<ListRuns2Data, ThrowOnError>,
+  ): RequestResult<ListRuns2Responses, ListRuns2Errors, ThrowOnError> {
+    return (options.client ?? client).get<ListRuns2Responses, ListRuns2Errors, ThrowOnError>({
       url: "/api/v1/routines/{rid}/runs",
       ...options,
     });
@@ -10650,9 +10805,9 @@ export class Routines {
    * Get Run
    */
   public static getRun<ThrowOnError extends boolean = false>(
-    options: Options<GetRunData, ThrowOnError>,
-  ): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> {
-    return (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({
+    options: Options<GetRun2Data, ThrowOnError>,
+  ): RequestResult<GetRun2Responses, GetRun2Errors, ThrowOnError> {
+    return (options.client ?? client).get<GetRun2Responses, GetRun2Errors, ThrowOnError>({
       url: "/api/v1/routine-runs/{run_id}",
       ...options,
     });
