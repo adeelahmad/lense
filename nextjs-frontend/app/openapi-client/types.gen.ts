@@ -9836,6 +9836,41 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteDeleted
+ */
+export type NoteDeleted = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * About
+   *
+   * what it was the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Deleted At
+   */
+  deleted_at: string;
+  /**
+   * Deleted By
+   *
+   * who deleted it (their email)
+   */
+  deleted_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteFile
  */
 export type NoteFile = {
@@ -26914,6 +26949,100 @@ export type SearchPagesResponses = {
 };
 
 export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
+
+export type DeletedPagesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * only this namespace (default: every one you can read)
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/notes/deleted";
+};
+
+export type DeletedPagesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletedPagesError = DeletedPagesErrors[keyof DeletedPagesErrors];
+
+export type DeletedPagesResponses = {
+  /**
+   * Response Notes-Deleted Pages
+   *
+   * Successful Response
+   */
+  200: Array<NoteDeleted>;
+};
+
+export type DeletedPagesResponse = DeletedPagesResponses[keyof DeletedPagesResponses];
+
+export type RestoreDeletedData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/deleted/{pid}/restore";
+};
+
+export type RestoreDeletedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreDeletedError = RestoreDeletedErrors[keyof RestoreDeletedErrors];
+
+export type RestoreDeletedResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type RestoreDeletedResponse = RestoreDeletedResponses[keyof RestoreDeletedResponses];
+
+export type PurgeDeletedData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/deleted/{pid}";
+};
+
+export type PurgeDeletedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PurgeDeletedError = PurgeDeletedErrors[keyof PurgeDeletedErrors];
+
+export type PurgeDeletedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type PurgeDeletedResponse = PurgeDeletedResponses[keyof PurgeDeletedResponses];
 
 export type PageAboutData = {
   body?: never;

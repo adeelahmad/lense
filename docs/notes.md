@@ -90,7 +90,8 @@ Images, attachments and other files dropped or pasted into a page are kept where
 WebDAV), encrypted with the namespace's key before they leave the machine. The editor names each by the SHA-256 of its
 bytes, so the same file is kept once per page, and the server checks the name matches the bytes. Anyone who reads the
 page reads its files; editors add them (`PUT /api/v1/notes/{id}/blobs?key=…`, up to `server.max_upload_mb`). Images
-and PDFs show in place; anything a browser could run (HTML, SVG) only downloads. Deleting the page deletes its files.
+and PDFs show in place; anything a browser could run (HTML, SVG) only downloads. A deleted page keeps its files while it
+can be put back; deleting it for good deletes them.
 The assistant sees a page's files (names, types, sizes) when it reads it.
 
 ## Filing (PARA)
@@ -120,6 +121,19 @@ Before each change to a page's title, summary or text, Lens keeps what the page 
 refining it, or someone else always starts a new one. **History** on a page lists them, newest first, with who changed
 it; pick one to read it, and editors can restore it. Restoring keeps the page as it was too, so it can be undone.
 `GET /api/v1/notes/{id}/history`, `GET .../history/{version}` and `POST .../history/{version}/restore`.
+
+## Deleting and putting back
+
+**Delete** on a page deletes it at once, with no question first: the notice has **Undo**, which puts it back and opens
+it. The notes inside it move up a level, and links to it show without a name while it's gone. A deleted page waits in
+**Recently deleted**, at the bottom of the Notes page, for 30 days with its files and history: **Put back** returns it
+where it was, with the notes that were inside it (those nobody moved since), and **Delete now** (clicked twice) deletes
+it for good. After 30 days it goes for good on its own, with its files and history. A thing's page comes back as its
+page, or as a free note at the top when the thing is gone or has a new page by now.
+
+`DELETE /api/v1/notes/{pid}` deletes; `GET /api/v1/notes/deleted?ns=` lists recently deleted pages,
+`POST /api/v1/notes/deleted/{pid}/restore` puts one back and `DELETE /api/v1/notes/deleted/{pid}` deletes one for good
+(editors). The assistant never deletes notes.
 
 ## Finding notes
 

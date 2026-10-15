@@ -353,8 +353,10 @@ def test_page_history(client, env, db, cfg, llm):
     notebook.refine_due(db, cfg)
     h2 = client.get(f"/api/v1/notes/{p['id']}/history", headers=he).json()["versions"]
     assert h2[0]["author"] == "assistant" and h2[0]["by"] is None and len(h2) == len(h) + 1
-    # deleting the page drops its history
+    # deleting the page keeps its history while it can be put back; deleting it for good drops it
     client.delete(f"/api/v1/notes/{p['id']}", headers=he)
+    assert db.rows("SELECT id FROM note_version WHERE page = $p", p=p["id"])
+    client.delete(f"/api/v1/notes/deleted/{p['id']}", headers=he)
     assert not db.rows("SELECT id FROM note_version WHERE page = $p", p=p["id"])
 
 
@@ -461,9 +463,76 @@ def test_page_files(client, env, db, cfg, folder):
     # kept where Settings → Storage says: here, data_dir/objects
     kept = list((folder / "data" / "objects" / "notes").rglob("*"))
     assert len([k for k in kept if k.is_file()]) == 2
-    # removing one, then the page, removes what was kept
+    # removing one removes what was kept; deleting the page keeps its files until it's deleted for good
     assert client.delete(f"/api/v1/notes/{p['id']}/files", params={"key": KS}, headers=he).status_code == 200
     assert client.get(url, params={"key": KS}, headers=hv).status_code == 404
     assert client.delete(f"/api/v1/notes/{p['id']}", headers=he).status_code == 200
+    assert len([k for k in (folder / "data" / "objects" / "notes").rglob("*") if k.is_file()]) == 1
+    assert client.post(f"/api/v1/notes/deleted/{p['id']}/restore", headers=he).status_code == 200
+    assert client.get(url, params={"key": KP}, headers=hv).content == png  # back with the page
+    assert client.delete(f"/api/v1/notes/{p['id']}", headers=he).status_code == 200
+    assert client.delete(f"/api/v1/notes/deleted/{p['id']}", headers=hv).status_code == 403
+    assert client.delete(f"/api/v1/notes/deleted/{p['id']}", headers=he).status_code == 200
     assert not [k for k in (folder / "data" / "objects" / "notes").rglob("*") if k.is_file()]
     assert not db.rows("SELECT id FROM note_file")
+
+
+def test_recently_deleted(client, env, db, cfg):
+    he, hv, hx = env["he"], env["hv"], env["hx"]
+    plans = _new(client, he, title="Plans", place="project", body="See @[Ideas](page:999).")
+    hiring = _new(client, he, title="Hiring", parent=plans["id"])
+    budget = _new(client, he, title="Budget", parent=plans["id"], body=f"For @[Plans](page:{plans['id']}).")
+    client.patch(f"/api/v1/notes/{plans['id']}", headers=he, json={"body": "Version two."})
+    # deleting moves what's inside up a level, and the page into recently deleted
+    assert client.delete(f"/api/v1/notes/{plans['id']}", headers=he).status_code == 200
+    assert client.get(f"/api/v1/notes/{plans['id']}", headers=hv).status_code == 404
+    tree = client.get("/api/v1/notes?ns=pods", headers=hv).json()["pages"]
+    assert sorted((p["title"], p["parent"]) for p in tree) == [("Budget", None), ("Hiring", None)]
+    assert client.get("/api/v1/notes/search?q=version", headers=hv).json()["total"] == 0
+    gone = client.get("/api/v1/notes/deleted?ns=pods", headers=hv).json()
+    assert [(d["id"], d["title"], d["namespace"], d["deleted_by"]) for d in gone] == [(plans["id"], "Plans", "pods", "ed@x.io")]
+    assert client.get("/api/v1/notes/deleted", headers=hx).json() == []
+    assert client.get("/api/v1/notes/deleted?ns=pods", headers=hx).status_code == 404
+    # a link to it shows without a name while it's gone
+    links = client.get(f"/api/v1/notes/{budget['id']}", headers=hv).json()["links"]
+    assert links[0]["target"] == f"page:{plans['id']}" and links[0]["name"] is None
+    # viewers can't put it back; editors can, where it was, with what was inside it, its links and history
+    assert client.post(f"/api/v1/notes/deleted/{plans['id']}/restore", headers=hv).status_code == 403
+    r = client.post(f"/api/v1/notes/deleted/{plans['id']}/restore", headers=he)
+    assert r.status_code == 200, r.text
+    back = r.json()
+    assert (back["id"], back["title"], back["place"], back["body"]) == (plans["id"], "Plans", "project", "Version two.")
+    tree = client.get("/api/v1/notes?ns=pods", headers=hv).json()["pages"]
+    assert sorted((p["title"], p["parent"]) for p in tree) == [("Budget", plans["id"]), ("Hiring", plans["id"]), ("Plans", None)]
+    assert [b["page"] for b in back["backlinks"]] == [budget["id"]]
+    assert client.get(f"/api/v1/notes/{plans['id']}/history", headers=hv).json()["versions"]
+    assert client.get("/api/v1/notes/deleted?ns=pods", headers=hv).json() == []
+    assert client.post(f"/api/v1/notes/deleted/{plans['id']}/restore", headers=he).status_code == 404
+    # a page that moved out meanwhile stays where it is
+    assert client.delete(f"/api/v1/notes/{plans['id']}", headers=he).status_code == 200
+    client.post(f"/api/v1/notes/{hiring['id']}/move", headers=he, json={"parent": budget["id"]})
+    client.post(f"/api/v1/notes/deleted/{plans['id']}/restore", headers=he)
+    tree = {p["title"]: p["parent"] for p in client.get("/api/v1/notes?ns=pods", headers=hv).json()["pages"]}
+    assert tree == {"Plans": None, "Budget": plans["id"], "Hiring": budget["id"]}
+    # a thing's page comes back as its page, unless the thing has a new one by now: then as a free note
+    a = env["a"]
+    about = _new(client, he, title="Episode", about=f"recording:{a}", body="First take")
+    client.delete(f"/api/v1/notes/{about['id']}", headers=he)
+    assert client.get(f"/api/v1/notes/about/recording/{a}", headers=hv).json()["id"] is None
+    again = _new(client, he, title="Episode", about=f"recording:{a}", body="Second take")
+    back = client.post(f"/api/v1/notes/deleted/{about['id']}/restore", headers=he).json()
+    assert back["about"] is None and back["body"] == "First take"
+    assert client.get(f"/api/v1/notes/about/recording/{a}", headers=hv).json()["id"] == again["id"]
+    client.delete(f"/api/v1/notes/{again['id']}", headers=he)
+    assert client.post(f"/api/v1/notes/deleted/{again['id']}/restore", headers=he).json()["about"] == f"recording:{a}"
+
+
+def test_deleted_pages_go_after_a_while(client, env, db, cfg):
+    he = env["he"]
+    old, new = _new(client, he, title="Old"), _new(client, he, title="New")
+    client.delete(f"/api/v1/notes/{old['id']}", headers=he)
+    client.delete(f"/api/v1/notes/{new['id']}", headers=he)
+    db.q("UPDATE $r SET deleted_at = '2000-01-01T00:00:00+00:00'", r=R("note_trash", old["id"]))
+    assert notebook.purge_due(db, cfg) == 1
+    assert [d["title"] for d in client.get("/api/v1/notes/deleted?ns=pods", headers=he).json()] == ["New"]
+    assert not db.rows("SELECT id FROM note_version WHERE page = $p", p=old["id"])
