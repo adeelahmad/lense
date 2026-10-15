@@ -9,9 +9,11 @@ import {
   FIELD_LABEL,
   IMAP_SECURITY,
   S3_PROVIDERS,
+  SIGNIN_SERVICE,
   WEBDAV_VENDORS,
   type BackendSpec,
   type ConnForm,
+  type SignInWith,
   type SourceType,
   imapHost,
   parseServiceAccountKey,
@@ -23,12 +25,6 @@ import { CodeBlock } from "@/components/ui/states";
 import { Segmented } from "@/components/ui/tabs";
 import { data, useApiClient } from "@/lib/api/browser";
 
-const SERVICE: Partial<Record<SourceType, string>> = {
-  dropbox: "Dropbox",
-  drive: "Google",
-  onedrive: "Microsoft",
-};
-
 /** SO2 step 2: the details for one type of connection, from the backend's field list, with type-specific widgets. */
 export function ConnectionFields({
   type,
@@ -38,7 +34,8 @@ export function ConnectionFields({
   errors,
   saved,
   isSet,
-  replaceToken,
+  onSignIn,
+  signingIn,
   onConnectGoogle,
   connectingGoogle,
 }: {
@@ -50,14 +47,15 @@ export function ConnectionFields({
   /** The connection exists (editing it, or created earlier in the dialog): saved secrets show as set / replace / clear. */
   saved: boolean;
   isSet: (key: string) => boolean;
-  replaceToken?: boolean;
+  /** Sign in again through rclone; shown while a saved connection can also just be saved. */
+  onSignIn?: () => void;
+  signingIn?: boolean;
   /** Connect with Google (Google Calendar): save the connection and go to Google's consent screen, through this OAuth
    * client when one is given, else the one Lens has. */
   onConnectGoogle?: (client: { client_id?: string; client_secret?: string }) => void;
   connectingGoogle?: boolean;
 }) {
   const api = useApiClient();
-  const [pasting, setPasting] = useState(Boolean(replaceToken));
   const [ownClient, setOwnClient] = useState(false);
   const [oauthClient, setOauthClient] = useState({ client_id: "", client_secret: "" });
   const googleClient = useQuery({
@@ -155,31 +153,51 @@ export function ConnectionFields({
     </Field>
   );
 
-  const token = spec.oauth ? (
-    editing && isSet("token") && !pasting ? (
+  const service = SIGNIN_SERVICE[type] ?? "your account";
+  const how = (label: string, to: SignInWith) => (
+    <button
+      type="button"
+      className="self-start text-[12.5px] text-fg-secondary underline underline-offset-2 hover:text-fg"
+      onClick={() => onChange({ ...form, signInWith: to })}
+    >
+      {label}
+    </button>
+  );
+  const saving = editing && isSet("token");
+  // an OAuth connection signs in through rclone on the server (the footer's button), or pastes rclone's token
+  const token = !spec.oauth ? null : form.signInWith === "paste" ? (
+    <div className="flex flex-col gap-2">
+      <TokenPaste
+        command={spec.oauth}
+        service={service}
+        value={form.tokenText}
+        onChange={(v) => onChange({ ...form, tokenText: v })}
+        replacing={editing}
+      />
+      {errors.token && form.tokenText.trim() === "" && (
+        <p role="alert" className="text-[12.5px] text-red-dark">
+          {errors.token}
+        </p>
+      )}
+      {how(`Sign in with ${service} instead`, "rclone")}
+    </div>
+  ) : (
+    <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2 rounded-sm border border-border bg-surface px-3.5 py-2.5 text-[13px] text-fg-secondary">
-        <span className="flex-1">A token is saved (never shown again). rclone refreshes it while it can.</span>
-        <Button size="sm" variant="secondary" onClick={() => setPasting(true)}>
-          Paste new token
-        </Button>
-      </div>
-    ) : (
-      <div className="flex flex-col gap-1">
-        <TokenPaste
-          command={spec.oauth}
-          service={SERVICE[type] ?? "your account"}
-          value={form.tokenText}
-          onChange={(v) => onChange({ ...form, tokenText: v })}
-          replacing={editing}
-        />
-        {errors.token && form.tokenText.trim() === "" && (
-          <p role="alert" className="text-[12.5px] text-red-dark">
-            {errors.token}
-          </p>
+        <span className="flex-1">
+          {saving
+            ? "A token is saved (never shown again). rclone renews it while it can; sign in again if it stops."
+            : `You sign in to ${service} in a new tab. Lens connects through rclone on its server, so ${service} asks you to allow rclone.`}
+        </span>
+        {saving && onSignIn && (
+          <Button size="sm" variant="secondary" onClick={onSignIn} disabled={signingIn}>
+            {signingIn ? `Waiting for ${service}…` : "Sign in again"}
+          </Button>
         )}
       </div>
-    )
-  ) : null;
+      {how("Paste a token from rclone instead", "paste")}
+    </div>
+  );
 
   /** A Google service account's .json key file (Google Drive, Google Calendar). */
   const serviceAccountKey = (share: string) => {
@@ -399,7 +417,7 @@ export function ConnectionFields({
             {text("drive_id", {
               mono: true,
               optional: true,
-              hint: "rclone config shows it",
+              hint: "Filled in when you sign in",
             })}
             {text("drive_type", {
               optional: true,

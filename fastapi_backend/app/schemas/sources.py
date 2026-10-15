@@ -65,6 +65,34 @@ class SourceUpdate(RequestModel):
     secrets: dict[str, str | None] | None = Field(default=None, description="null or empty removes a secret")
 
 
+class RcloneSignInStart(RequestModel):
+    type: SourceType | None = Field(
+        default=None, description="the kind of connection to make (drive, dropbox, onedrive); leave out with `source`"
+    )
+    source: int | None = Field(default=None, description="a connection to sign in again, instead of making a new one")
+    name: str | None = Field(default=None, description="the new connection's name; by default the service's")
+    params: dict[str, Any] | None = Field(default=None, description="its options, as for POST /sources (scope, root_folder_id...)")
+
+
+class RcloneSignIn(ResponseModel):
+    id: str = Field(description="this sign-in, to finish or cancel")
+    url: str = Field(description="the service's sign-in page, to open in a browser (it asks to allow rclone); once, within ten minutes")
+    port: int = Field(description="where the service sends the browser back afterwards: http://127.0.0.1:<port>/?state=…&code=…")
+    expires_at: str
+
+
+class RcloneSignInFinish(RequestModel):
+    address: str | None = Field(
+        default=None,
+        description="the address the browser ended on after signing in (http://127.0.0.1:53682/?state=…&code=…); leave "
+        "out to only look whether rclone already got it (a browser on the machine Lens runs on reaches it itself)",
+    )
+
+
+class RcloneSignInState(ResponseModel):
+    connected: int | None = Field(default=None, description="the connection, made or signed in again, and tested; none while it waits")
+
+
 class SourceCreated(Created):
     health: SourceHealth
 

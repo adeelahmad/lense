@@ -120,7 +120,11 @@ describe("connections", () => {
     expect(validateForm("s3", S3, ok, false)).toEqual({});
     // Editing: a saved secret counts.
     expect(validateForm("s3", S3, { ...ok, secrets: {} }, true, (k) => k === "secret_access_key")).toEqual({});
-    expect(validateForm("dropbox", DROPBOX, emptyForm(DROPBOX), false)).toHaveProperty("token");
+    // Dropbox signs in through rclone on the server; a pasted token is checked
+    expect(validateForm("dropbox", DROPBOX, emptyForm(DROPBOX), false)).toEqual({});
+    expect(validateForm("dropbox", DROPBOX, { ...emptyForm(DROPBOX), signInWith: "paste" }, false)).toHaveProperty(
+      "token",
+    );
   });
   it("sends every parameter and only the secrets that change", () => {
     const f = {
@@ -156,6 +160,8 @@ describe("connections", () => {
     expect(parseServiceAccountKey("nope").ok).toBe(false);
     expect(parseServiceAccountKey('{"access_token":"a"}').ok).toBe(false);
 
+    // a Google account signs in through rclone on the server: nothing to paste
+    expect(validateForm("drive", DRIVE, emptyForm(DRIVE), false)).toEqual({});
     const sa = { ...emptyForm(DRIVE), driveAuth: "service_account" as const };
     expect(Object.keys(validateForm("drive", DRIVE, sa, false))).toEqual(["service_account_credentials"]);
     const withKey = { ...sa, secrets: { service_account_credentials: key } };

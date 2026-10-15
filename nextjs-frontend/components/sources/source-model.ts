@@ -435,6 +435,18 @@ export type ConnForm = {
   /** Google Drive and Google Calendar sign in as a Google account (a token), or as a service account (its JSON key
    * file). */
   driveAuth: "token" | "service_account";
+  /** How an OAuth connection (Dropbox, Google Drive, OneDrive) gets its token: signing in through rclone on the
+   * server, or pasting what `rclone authorize` printed on another computer. */
+  signInWith: SignInWith;
+};
+
+export type SignInWith = "rclone" | "paste";
+
+/** Whose sign-in page an OAuth connection opens. */
+export const SIGNIN_SERVICE: Partial<Record<SourceType, string>> = {
+  dropbox: "Dropbox",
+  drive: "Google",
+  onedrive: "Microsoft",
 };
 
 export type ServiceAccountKey = { ok: true; email: string } | { ok: false; error: string };
@@ -493,6 +505,7 @@ export function emptyForm(spec: BackendSpec, source?: Pick<Source, "name" | "par
     tokenText: "",
     driveAuth:
       source?.secrets?.service_account_credentials?.set && !source?.secrets?.token?.set ? "service_account" : "token",
+    signInWith: "rclone",
   };
 }
 
@@ -528,7 +541,8 @@ export function validateForm(
     if (key?.ok === false) e.service_account_credentials = key.error;
     else if (!secret("service_account_credentials"))
       e.service_account_credentials = "Choose the service account’s JSON key file.";
-  } else if (spec.oauth) {
+  } else if (spec.oauth && form.signInWith === "paste") {
+    // (signing in makes the token instead: nothing to check here)
     const t = parseRcloneToken(form.tokenText);
     if (t.ok === false) e.token = t.error;
     else if (t.ok === null && !(editing && isSet("token"))) e.token = "Paste the token rclone printed.";
