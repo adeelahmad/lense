@@ -109,6 +109,42 @@ export function useMergeEntities() {
   return { merge, pending };
 }
 
+/** Say entities of two namespaces are the same thing (they stay two; the graph joins them), with Undo on the toast. */
+export function useLinkEntities() {
+  const client = useApiClient();
+  const toast = useToast();
+  const refresh = useEntityRefresh();
+  return useCallback(
+    async (a: EntityPick, b: EntityPick): Promise<boolean> => {
+      try {
+        await data(Entities.linkEntity({ client, path: { eid: a.id }, body: { with: b.id } }));
+        refresh();
+        toast({
+          title: `Linked ${a.name} and ${b.name}`,
+          body: "They’re in different namespaces, so they stay two entities that the graph shows as the same thing.",
+          tone: "green",
+          duration: 10000,
+          action: {
+            label: "Undo",
+            onClick: () =>
+              void data(Entities.unlinkEntity({ client, path: { eid: a.id, other: b.id } }))
+                .then(() => {
+                  refresh();
+                  toast({ title: "Link undone", tone: "green" });
+                })
+                .catch((err) => toast({ title: "Couldn’t undo the link", body: why(err), tone: "red" })),
+          },
+        });
+        return true;
+      } catch (err) {
+        toast({ title: "Couldn’t link them", body: why(err), tone: "red" });
+        return false;
+      }
+    },
+    [client, refresh, toast],
+  );
+}
+
 type Found = { id: number; name: string; type_label?: string; mentions?: number; builtin?: string | null };
 
 /** Find an entity of a namespace by typing: the most mentioned first, arrow keys move, Enter picks, Escape leaves. */

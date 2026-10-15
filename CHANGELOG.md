@@ -14,6 +14,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   side panel has **Merge**, a find box where Enter merges the entity picked into it, and **Maybe the same**, its likely
   doubles with **Merge** and **Not the same**. Renaming an entity to another's name offers to merge them. Merges, type
   changes and hiding say what happened with **Undo** ([Entities](docs/processing.md#entities-and-the-graph-explorer)).
+- **Edit and merge from the graph.** In the graph explorer, an entity's or topic's panel has **Edit**, which opens the
+  same editor as its own page, and an entity's has **Merge** and **Maybe the same**. The node menu has **Edit…** and
+  **Merge into another…**, which merges the node into the one clicked next (entities and speakers of one namespace;
+  entities of two namespaces are linked as the same thing), each with **Undo** ([The graph](docs/graph.md)).
 
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 
