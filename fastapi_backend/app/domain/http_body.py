@@ -1,7 +1,8 @@
 """Request bodies as the file shares receive them (s3.py, webdav.py): streamed to a file, never held in memory, as
 Content-Length bytes, HTTP/1.1 chunked transfer coding, or S3's aws-chunked coding (STREAMING-… payloads, whose
 chunk signatures are checked when they're signed). Each body is checked against what the client said about it:
-its length, the SHA-256 it signed, its Content-MD5, and an x-amz-checksum-crc32 or -sha256.
+its length, the SHA-256 it signed, its Content-MD5, and an x-amz-checksum-crc32 or -sha256. A body refused part way
+is read and dropped for a moment before the connection closes (Lingering), so the client reads the answer.
 """
 
 from __future__ import annotations
@@ -9,12 +10,16 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import http.server
+import socket
+import time
 import zlib
 from collections.abc import Iterator
 
 PIECE = 1 << 16
 LINE_MAX = 8192
 EMPTY_SHA256 = hashlib.sha256(b"").hexdigest()
+LINGER_SECONDS = 2.0
 
 
 class BodyError(ValueError):
@@ -186,3 +191,26 @@ def drain(rfile, headers: dict[str, str], most: int = 1 << 20) -> bool:
         return False
     rfile.read(n)
     return True
+
+
+class Lingering(http.server.BaseHTTPRequestHandler):
+    """A request handler that, as it closes a connection, first reads and drops what the client is still sending (a
+    body it refused before reading it all) for up to LINGER_SECONDS. Closing with that unread would reset the
+    connection, and the client, still sending, would never read the answer (RFC 9112, 9.6)."""
+
+    def finish(self):
+        super().finish()
+        if self.close_connection:
+            linger(self.connection)
+
+
+def linger(sock, seconds: float = LINGER_SECONDS) -> None:
+    try:
+        sock.shutdown(socket.SHUT_WR)
+        end = time.monotonic() + seconds
+        while (left := end - time.monotonic()) > 0:
+            sock.settimeout(left)
+            if not sock.recv(PIECE):
+                return
+    except OSError:  # the client went away, or kept sending past the moment
+        pass

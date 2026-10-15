@@ -16,7 +16,6 @@ import base64
 import datetime as dt
 import email.utils
 import errno
-import http.server
 import re
 import secrets
 import urllib.parse
@@ -76,7 +75,7 @@ def multistatus(tree, parts, depth):
     return ('<?xml version="1.0" encoding="utf-8"?>\n<D:multistatus xmlns:D="DAV:">' + "".join(out) + "</D:multistatus>").encode()
 
 
-class Handler(http.server.BaseHTTPRequestHandler):
+class Handler(http_body.Lingering):
     server_version = "Lens"
     protocol_version = "HTTP/1.1"
     server: Any  # shares.Server

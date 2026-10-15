@@ -23,7 +23,6 @@ import email.utils
 import errno
 import hashlib
 import hmac
-import http.server
 import json
 import os
 import re
@@ -408,7 +407,7 @@ def list_objects(tree, bucket, q):
 
 
 # ---------- the server ----------
-class Handler(http.server.BaseHTTPRequestHandler):
+class Handler(http_body.Lingering):
     server_version = "Lens"
     protocol_version = "HTTP/1.1"
     server: Any  # shares.Server

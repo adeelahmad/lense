@@ -141,8 +141,11 @@ def test_what_may_not_be_added_is_refused(db, cfg, env):
     assert _ask(env, "PUT /pods/big.pdf", {"X-Expected-Entity-Length": str(2 << 20), "Transfer-Encoding": "chunked"}).startswith(
         b"HTTP/1.1 413"
     )
-    # and a chunked body that turns out larger than it said, once it has arrived
-    assert _call(env, "PUT", "/pods/big.pdf", {"X-Expected-Entity-Length": "10"}, PDF + b"\0" * (1 << 20), chunked=True)[0] == 413
+    # and a chunked body that turns out larger than it said, once it has arrived; the client, still sending the rest,
+    # reads the answer (the server drops what follows rather than reset the connection)
+    big = PDF + b"\0" * (4 << 20)
+    assert _call(env, "PUT", "/pods/big.pdf", {"X-Expected-Entity-Length": "10"}, big, chunked=True)[0] == 413
+    assert _call(env, "PUT", "/pods/big.pdf", {"Content-Length": str(len(big))}, big)[0] == 413
     assert _ask(env, "PUT /pods/x.pdf", {"Content-Length": "5", "Expect": "100-continue"}).startswith(b"HTTP/1.1 100")
     assert not db.values("SELECT VALUE id FROM recording WHERE source = 'document'")
 
