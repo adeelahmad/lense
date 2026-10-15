@@ -109,7 +109,7 @@ Start from `fastapi_backend/archive.example.yaml`, which documents every key. Th
 Admins can change, in Settings: transcription, speaker separation, speech providers, voice IDs, analysis, the LLM
 provider and key, a local model, the AI assistant, search (word search and search by meaning), reports and graph,
 video, OCR, faces and objects, [NSFW classification](nsfw.md), workers, sign-in, components (and the edition, full or
-lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, transcript
+lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
 telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
@@ -141,7 +141,7 @@ After changing the engine or stemming, run `lens reindex` (or Settings → Searc
 
 ## Search by meaning
 
-Passages of transcripts, pages and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
+Passages of assets' text and descriptions are embedded by an OpenAI-compatible embeddings server (`POST
 /embeddings`), so search can find moments by meaning ([how it works](processing.md#search-by-meaning)). By default it
 asks the LLM provider's server (`llm.base_url`, with its key) for `nomic-embed-text`, a small model that runs offline
 in Ollama. When that server is Ollama, Lens pulls the model on it the first time it's needed
@@ -168,7 +168,7 @@ embeddings:
 | `embeddings.timeout` | 60 | seconds per request (a search waits at most 15) |
 | `embeddings.query_prefix` / `document_prefix` | null | what searches and passages start with; null: what the model wants (`search_query: ` and `search_document: ` for nomic-embed-text, an instruction for mxbai and bge, `query: ` / `passage: ` for e5) |
 
-Changing the model drops the stored vectors (another model's can't be compared) until recordings are indexed again. When the server fails to index (it's down, or
+Changing the model drops the stored vectors (another model's can't be compared) until assets are indexed again. When the server fails to index (it's down, or
 doesn't have the model), indexing jobs skip for ten minutes rather than each waiting on it, and the hourly routine
 waits too; **Test** in Settings → Search, **Index now**, or `lens embed` try again at once.
 
@@ -230,7 +230,7 @@ uploaded in the web app (Import → Upload) go up in pieces
 
 Pieces are written straight to `data_dir/uploads/.partial`, never held in memory; finished files are kept in
 `data_dir/uploads/<namespace>/`, so give `data_dir` room for them (an upload is refused when it would leave less than
-512 MB free). Transcript files have their own limit, `server.max_upload_mb` (Settings → Access & embedding), which
+512 MB free). Text and transcript imports have their own limit, `server.max_upload_mb` (Settings → Access & embedding), which
 also caps a resource's supplementary files ([API](api.md#files)), kept in `data_dir/files/<resource>/`; watched
 folders have none.
 
@@ -247,8 +247,8 @@ OpenDocument and RTF by LibreOffice; text, Markdown, saved web pages (HTML) and 
 makes of them, or by LibreOffice where there's no Chromium. Outlook `.msg` emails also need the `msg` extra
 (`pip install -e ".[msg]"`; extract-msg is GPL-3.0). The `lens:full` Docker image has LibreOffice and Chromium
 ([Deployment](deployment.md)), and a [microsandbox](microsandbox.md#libreoffice-and-chromium)'s full edition installs
-each the first time it's needed; without them, PDFs and images are read as before, and files that can be transcripts
-(Word, text, Markdown) are imported as transcripts. Settings → Documents:
+each the first time it's needed; without them, PDFs and images are read as before, and files that can be read as plain
+text (Word, text, Markdown) are imported as text. Settings → Documents:
 
 | Setting | Default | |
 |---|---|---|
@@ -347,7 +347,7 @@ faces and the face-id plugin describes them with Lens's SFace file. Lens reads e
 index of that run, then deletes it with the rest of the run.
 
 **Places and dates.** With `analysis.anytopdf` on (Settings › Analysis › Find places and dates with anytopdf; off by
-default), analysis asks anytopdf, run here with no network and no plugins, what a recording's text and a photo hold:
+default), analysis asks anytopdf, run here with no network and no plugins, what a document's text and a photo hold:
 
 - the places its text names, from anytopdf's offline gazetteer (GeoNames, CC BY 4.0), and the dates and times it
   gives, with their ISO value when the text pins one down ("3 March 2026", not "next Friday");
@@ -376,7 +376,7 @@ made of a document is `data_dir/renditions/<resource>.pdf`; both go when the res
 ## Text on screen and scans (OCR)
 
 The OCR engine of `video.ocr_engine` reads text on a video's sampled frames (the ocr step) and on a document's pages
-without text and on images (when they're transcribed, [above](#documents-and-images)):
+without text and on images (when they're read, [above](#documents-and-images)):
 
 * `auto`, the default: Apple Vision on a Mac worker, else Tesseract, else RapidOCR, whichever is there first.
 * `tesseract`: Tesseract (in the Docker images), in the languages of `video.ocr_languages`.

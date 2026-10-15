@@ -28,12 +28,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const token = session && !session.error ? session.accessToken : undefined;
   const client = createApiClient(token, (await headers()).get("x-forwarded-for"));
   const { data } = await Public.getPublicRecording({ client, path: { rid } }).catch(() => ({ data: undefined }));
-  if (!data || data.view === "locked") return { title: data?.title ?? "Recording", robots: { index: false } };
+  if (!data || data.view === "locked") return { title: data?.title ?? "Asset", robots: { index: false } };
   const summary = first((data.description as Meta | null)?.summary) || undefined;
   return {
-    title: data.title ?? "Recording",
+    title: data.title ?? "Asset",
     description: summary,
-    openGraph: { title: data.title ?? "Recording", description: summary, type: "website" },
+    openGraph: { title: data.title ?? "Asset", description: summary, type: "website" },
     // only public recordings belong in search engines
     robots: data.access === "public" ? undefined : { index: false },
   };

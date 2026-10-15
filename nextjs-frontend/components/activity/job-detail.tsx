@@ -198,7 +198,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
 
   const rerun = useMutation({
     mutationFn: async (pid: number | null) => {
-      if (!job?.recording) throw new Error("This run has no recording");
+      if (!job?.recording) throw new Error("This run has no asset");
       const r =
         pid == null
           ? await data(
@@ -402,7 +402,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
         </nav>
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="min-w-0 text-[22px] font-bold leading-tight text-fg">
-            {title ?? `Recording ${job.recording ?? ""}`}
+            {title ?? `Asset ${job.recording ?? ""}`}
           </h1>
           <StatusChip status={job.status} />
           <span className="flex-1" />
@@ -429,7 +429,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
               variant="secondary"
               disabled
               disabledReason={
-                !allowed ? needRole("editor", ns) : active ? "Wait for this run to finish" : "This run has no recording"
+                !allowed ? needRole("editor", ns) : active ? "Wait for this run to finish" : "This run has no asset"
               }
             >
               Re-run with another version <ChevronDown />
@@ -442,7 +442,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
                 </Button>
               </MenuTrigger>
               <MenuContent align="end" className="w-[280px]">
-                <MenuLabel>Run on this recording</MenuLabel>
+                <MenuLabel>Run on this asset</MenuLabel>
                 <MenuItem onSelect={() => rerun.mutate(null)}>
                   {ns ? `${ns}’s default pipeline` : "Namespace default"}
                 </MenuItem>
@@ -479,7 +479,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
           {ns && <span>{ns}</span>}
           {job.recording != null && (
             <Link href={`/resources/${job.recording}`} className="font-semibold text-fg-accent hover:underline">
-              Open recording →
+              Open asset →
             </Link>
           )}
         </div>
@@ -570,7 +570,7 @@ export function JobDetail({ jobId }: { jobId: number }) {
               <Dl
                 rows={[
                   [
-                    "Recording",
+                    "Asset",
                     job.recording != null ? (
                       <Link href={`/resources/${job.recording}`} className="hover:underline">
                         {title ?? `#${job.recording}`}
@@ -664,10 +664,10 @@ export function JobDetail({ jobId }: { jobId: number }) {
                   saved on the{" "}
                   {job.recording != null ? (
                     <Link href={`/resources/${job.recording}`} className="font-semibold text-fg-accent hover:underline">
-                      recording
+                      asset
                     </Link>
                   ) : (
-                    "recording"
+                    "asset"
                   )}
                   .
                 </p>

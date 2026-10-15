@@ -378,7 +378,7 @@ def link_speaker(db, fid, speaker):
     if speaker is not None:
         s = db.one("SELECT space FROM $r", r=R("speaker", int(speaker)))
         if not f or not s or s["space"] != f["space"]:
-            raise ValueError("the speaker must be in the same namespace")
+            raise ValueError("the person must be in the same namespace")
     db.q("UPDATE $r SET speaker = $s", r=R("face", fid), s=speaker)
     db.q("DELETE face_suggestion WHERE kind = 'speaker' AND face = $f", f=fid)
 

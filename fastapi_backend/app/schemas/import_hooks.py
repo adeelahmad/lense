@@ -48,16 +48,16 @@ class HookPush(RequestModel):
     """What a JSON push carries: a web address or text (send a file as the raw body, or as multipart form files)."""
 
     url: HttpUrl | None = Field(None, description="a web page or PDF to keep as a document")
-    text: str | None = Field(None, max_length=5_000_000, description="text to import as a transcript, as pasted text is")
+    text: str | None = Field(None, max_length=5_000_000, description="text to import, as pasted text is")
     title: str | None = Field(None, max_length=200)
 
 
 class HookItem(ResponseModel):
     kind: Literal["file", "url", "text"]
     name: str = Field(description="the file's name, the address, or the text's title")
-    recording: int = Field(description="the recording or resource it became")
+    recording: int = Field(description="the asset or resource it became")
     job: int | None = Field(None, description="the job that runs its pipeline")
-    duplicate: bool = Field(False, description="the namespace had this file already; it's that recording")
+    duplicate: bool = Field(False, description="the namespace had this file already; it's that asset")
 
 
 class HookPushed(ResponseModel):

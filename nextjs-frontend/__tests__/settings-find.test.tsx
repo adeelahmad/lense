@@ -50,7 +50,7 @@ describe("settings groups", () => {
     expect(screen.getByText("AI and search")).toBeInTheDocument();
     expect(screen.getByText("System")).toBeInTheDocument();
     const links = screen.getAllByRole("link").map((a) => a.textContent);
-    expect(links.indexOf("LLM provider")).toBe(links.indexOf("Speakers") + 1);
+    expect(links.indexOf("LLM provider")).toBe(links.indexOf("People") + 1);
     expect(links).toHaveLength(SECTIONS.length + 1);
   });
 });
@@ -74,7 +74,7 @@ describe("finding a setting", () => {
     expect(hits.some((h) => h.section === "transcription" && h.fields.some((f) => f.key === "engine"))).toBe(true);
   });
 
-  it("finds only Speakers for people who aren't admins", () => {
+  it("finds only People for people who aren't admins", () => {
     expect(findSettings("speak", false).map((h) => h.section)).toEqual(["speakers"]);
     expect(findSettings("telegram", false)).toEqual([]);
   });

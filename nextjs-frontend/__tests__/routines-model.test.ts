@@ -48,17 +48,17 @@ describe("routine actions", () => {
   it("says what a routine does in plain words", () => {
     expect(actionText({ type: "sync", watches: [1] }, names)).toBe("Sync Dropbox: /Inbox");
     expect(actionText({ type: "pipeline", pipeline: 7 }, names)).toBe(
-      "Run Interviews on new recordings (since the last run)",
+      "Run Interviews on new assets (since the last run)",
     );
     expect(actionText({ type: "workflow", workflow: 4, recordings: "all" }, names)).toBe(
-      "Run Meeting notes on all recordings",
+      "Run Meeting notes on all assets",
     );
     // the seeded "Index for search by meaning" routine: steps of its own, on what isn't indexed yet
     expect(actionText({ type: "pipeline", steps: ["embed"], recordings: "unindexed" }, names)).toBe(
-      "Run the embed step on recordings not yet searchable by meaning",
+      "Run the embed step on assets not yet searchable by meaning",
     );
     expect(routineText(actions, names)).toBe(
-      "Sync every watched folder, then run each namespace’s pipeline on recordings not processed yet, " +
+      "Sync every watched folder, then run each namespace’s pipeline on assets not processed yet, " +
         "then organise the graph with Organise the entity graph (propose only)",
     );
     expect(touchesGraph(actions, names)).toBe(true);
@@ -99,7 +99,7 @@ describe("routine actions", () => {
       }),
     ).toBe("Organise v2: 1 applied · 4 proposed");
     expect(resultText({ type: "pipeline", status: "done", result: { recordings: 3, queued: 3, errors: 0 } })).toBe(
-      "3 of 3 recordings queued",
+      "3 of 3 assets queued",
     );
     expect(resultText({ type: "sync", status: "error", error: "boom" })).toBe("boom");
     expect(took("2026-10-01T03:00:00Z", "2026-10-01T03:00:42Z")).toBe("42 s");

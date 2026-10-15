@@ -195,7 +195,7 @@ def iiif_collection_search(name: str, request: Request, user: OptionalUser, db: 
 
 @router.get("/iiif/collection/{name}/{cid}")
 def iiif_subcollection(name: str, cid: int, request: Request, user: OptionalUser, db: Db, cfg: Cfg) -> JSONResponse:
-    """One of a namespace's collections: the collections inside it and its recordings the requester sees."""
+    """One of a namespace's collections: the collections inside it and its assets the requester sees."""
     sid = _nsid(db, name)
     try:
         doc = iiif.subcollection(db, cfg, sid, cid, base_url(request, cfg), _readable(request, db, user), _granted(request, db, user))
@@ -301,8 +301,8 @@ def iiif_probe(rid: int, what: str, request: Request, db: Db, cfg: Cfg) -> JSONR
                 loc = {"id": f"{base}/iiif/{rid}/files/{fid}?{sig}", "type": iiif.file_type(f), "format": filemod.served_type(f)}
         return result(302, loc)
     if acct:
-        return result(403, heading="No access", note="Your account doesn't have access to this recording.")
-    return result(401, heading="Sign in to listen", note="This recording needs an account with access to its collection.")
+        return result(403, heading="No access", note="Your account doesn't have access to this asset.")
+    return result(401, heading="Sign in to view", note="This asset needs an account with access to its collection.")
 
 
 @router.get("/iiif/auth/access")

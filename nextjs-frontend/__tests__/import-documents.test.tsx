@@ -26,7 +26,7 @@ describe("importing a PDF", () => {
     expect(screen.getByRole("radiogroup", { name: "Import as" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Document" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByText("Its pages, to look at and search.")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("radio", { name: "Transcript" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Text" }));
     expect(onKind).toHaveBeenCalledWith("transcript");
   });
 
@@ -34,8 +34,8 @@ describe("importing a PDF", () => {
     const pdf = item("harbour.pdf", "transcript");
     expect(pdf.status).toBe("reading");
     const { container, rerender } = render(<ImportAs it={pdf} onKind={() => {}} />);
-    expect(screen.getByRole("radio", { name: "Transcript" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText("Only its text, as a transcript without media.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Text" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("Only its text, without media.")).toBeInTheDocument();
     rerender(<ImportAs it={item("notes.docx", "document")} onKind={() => {}} />);
     expect(screen.getByRole("radio", { name: "Document" })).toHaveAttribute("aria-checked", "true");
     // where the server can't make a document of it, it's a transcript, and why is said
@@ -43,7 +43,7 @@ describe("importing a PDF", () => {
     rerender(<ImportAs it={item("notes.docx", "transcript")} onKind={() => {}} limits={noOffice} />);
     expect(screen.queryByRole("radio")).toBeNull();
     expect(container).toHaveTextContent(
-      "Imported as a transcript: this server can’t keep word documents as documents. Reading it needs LibreOffice on the server (the lens:full image) or a Tika server.",
+      "Imported as text: this server can’t keep word documents as documents. Reading it needs LibreOffice on the server (the lens:full image) or a Tika server.",
     );
     rerender(<ImportAs it={item("deck.pptx", "document")} onKind={() => {}} />);
     expect(container).toBeEmptyDOMElement(); // a presentation is a document only

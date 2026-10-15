@@ -37,7 +37,7 @@ class CollectionBase(ResponseModel):
     filter: Filter | None = None
     shared: bool = False
     updated_at: str | None = None
-    count: int = Field(description="recordings in it you can read")
+    count: int = Field(description="assets in it you can read")
 
 
 class Collection(CollectionBase):

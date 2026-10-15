@@ -69,7 +69,7 @@ export function DeleteConnectionDialog({
               and its <b className="text-fg">{plural(n, "watched folder")}</b>
             </>
           ) : null}
-          . Recordings already imported stay
+          . Assets already imported stay
           {namespaces.length ? ` in ${namespaces.join(", ")}` : ""}. Files in {STORAGE_NOUN[source.type]} aren’t
           touched.
         </>

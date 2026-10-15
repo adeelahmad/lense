@@ -90,19 +90,19 @@ check that the timestamp is recent too, to refuse replays.
 | `job.failed` | a run failed (the step it failed at is in `text`) | the same, with `error` |
 | `job.cancelled` | a run was cancelled | the same |
 | `batch.finished` | a batch run finished, or its sample did; each namespace it ran in gets its own counts | `batch`, `label`, `status`, `counts`, `sample` |
-| `recording.added` | a recording, document, image or web page was added, however it came | `recording`, `title`, `source`, `created_at` |
+| `recording.added` | an asset (a recording, document, image or web page) was added, however it came | `recording`, `title`, `source`, `created_at` |
 | `lens.release` | a new Lens release is out, once per release ([Updates](updates.md)) | `tag`, `name`, `current`, `published_at`, `notes_url` |
 
 New targets get `job.failed` and `batch.finished`. A batch run's own runs aren't sent one by one: the batch run is,
 when it finishes. More than five things added to a namespace at once (a watched folder's new files, an import) are one
 message (`data.recordings`, `data.count`).
 
-`text` is the message chat targets get, and `url` links to the run, batch run or recording in the web app.
+`text` is the message chat targets get, and `url` links to the run, batch run or asset in the web app.
 
 ## How it's sent
 
 A notifier runs in every process that does background work: the API server with inline workers, and each
-`lens worker`. Every few seconds it reads what changed (runs that ended, recordings added) and queues it for the
+`lens worker`. Every few seconds it reads what changed (runs that ended, assets added) and queues it for the
 targets that want it. Each event is claimed once across all of them, so several workers don't send it twice, and a
 message that doesn't get through is tried again: after 30 seconds, then four times longer each time, up to six
 hours, until `notifications.max_attempts`. A target that refuses a message (a 4xx other than 408, 425 and 429) isn't

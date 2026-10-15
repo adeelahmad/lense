@@ -54,7 +54,7 @@ export function useCollectionActions(ns: string | null) {
       const b = v.body;
       toast({
         title: b.default
-          ? `New recordings go to “${c.name}” now`
+          ? `New assets go to “${c.name}” now`
           : "parent" in b
             ? `Moved “${c.name}”`
             : b.name
@@ -80,11 +80,11 @@ export function useCollectionActions(ns: string | null) {
     onSuccess: (r, v) => {
       void refresh();
       toast({
-        title: r.moved ? `Moved ${plural(r.moved, "recording")} to “${v.name}”` : `Already in “${v.name}”`,
+        title: r.moved ? `Moved ${plural(r.moved, "asset")} to “${v.name}”` : `Already in “${v.name}”`,
         tone: "green",
       });
     },
-    onError: fail("Couldn’t move the recordings"),
+    onError: fail("Couldn’t move the assets"),
   });
   return { create, update, remove, place };
 }

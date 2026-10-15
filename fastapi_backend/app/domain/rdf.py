@@ -452,7 +452,7 @@ def vocabulary(base):
     g.add((URIRef(str(v)[:-1]), RDF.type, OWL.Ontology))
     g.add((URIRef(str(v)[:-1]), DCTERMS.title, Literal("Lens vocabulary", lang="en")))
     for cls, label in (
-        (v.Item, "A resource in the archive: a recording, a video, a document, an image or a transcript."),
+        (v.Item, "An asset in the archive: an audio recording, a video, a document, an image or a text."),
         (v.Collection, "A collection of items inside a namespace."),
         (v.Namespace, "A namespace: a separate archive, with its own collections, people, entities and settings."),
         (v.Entity, "A named thing found in, or defined for, a namespace."),

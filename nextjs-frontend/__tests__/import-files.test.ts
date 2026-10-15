@@ -133,7 +133,7 @@ describe("speaker mapping text", () => {
   });
 
   it("rejects what the API can't carry and warns about unknown labels", () => {
-    expect(parseMapping("SPEAKER_00 Host A", labels).errors[0]).toMatch(/label = speaker/);
+    expect(parseMapping("SPEAKER_00 Host A", labels).errors[0]).toMatch(/label = name/);
     expect(parseMapping("= Host A", labels).errors[0]).toMatch(/label before/);
     expect(parseMapping("SPEAKER_00 = Smith, Jane", labels).errors[0]).toMatch(/can’t contain/);
     expect(parseMapping("SPEAKER_00 = A\nSPEAKER_00 = B", labels).errors[0]).toMatch(/mapped twice/);

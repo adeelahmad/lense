@@ -58,7 +58,7 @@ def list_recording_metadata_history(rid: int, user: CurrentUser, acl: Acl, db: D
 
 @router.post("/metadata/edits/{eid}/revert")
 def revert_metadata_edit(eid: int, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
-    """Put a recording's (editors) or namespace's (owners) metadata back to how it was before this edit."""
+    """Put an asset's (editors) or namespace's (owners) metadata back to how it was before this edit."""
     e = db.one("SELECT target, before FROM $r", r=R("meta_edit", eid))
     if not e:
         raise HTTPException(404, "not found")
@@ -78,7 +78,7 @@ def revert_metadata_edit(eid: int, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> 
 @router.get("/namespaces/{name}/metadata")
 def get_namespace_metadata(name: str, user: CurrentUser, acl: Acl, db: Db) -> NamespaceMetadata:
     """The namespace's description and metadata profile, for anyone who sees some of it (the profile says how its
-    recordings are catalogued)."""
+    assets are catalogued)."""
     acl.scope(name)
     return NamespaceMetadata.model_validate(md.namespace(db, acl.nsid(name)))
 
@@ -95,7 +95,7 @@ def update_namespace_metadata(name: str, body: NamespaceMetadataUpdate, user: Wr
 
 @router.post("/metadata/bulk")
 def bulk_update_metadata(body: MetadataBulk, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> MetadataBulkResult:
-    """Set or clear fields on many recordings. `dry_run` (the default) reports what would change."""
+    """Set or clear fields on many assets. `dry_run` (the default) reports what would change."""
     rids = list(body.recordings)
     if body.namespace:
         sid = acl.namespace(body.namespace, "edit")

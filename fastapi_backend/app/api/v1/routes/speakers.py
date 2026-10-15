@@ -1,5 +1,5 @@
-"""Speakers (voices) per namespace: naming, merging (and undoing it), linking the same person across namespaces (and
-unlinking), and saying two voices aren't the same person."""
+"""People (recognised by voice and face) per namespace: naming, merging (and undoing it), linking the same person across
+namespaces (and unlinking), and saying two people aren't the same person."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def speaker_space(db: DB, sid: int) -> int:
 
 
 def _cross(db: DB, cfg: dict[str, Any], nid: int, readable: set[int]) -> list[dict[str, Any]]:
-    """Likely the same voice: this namespace's speakers and those of other shared namespaces the person can read."""
+    """Likely the same person: this namespace's people and those of other shared namespaces the user can read."""
     shared = {i: n for i, n in graph.scope_namespaces(db, "global", readable)}
     if cfg["speakers"].get("cross_namespace") != "suggest" or nid not in shared:
         return []
@@ -68,8 +68,8 @@ def _cross(db: DB, cfg: dict[str, Any], nid: int, readable: set[int]) -> list[di
 
 @router.get("/speakers")
 def list_speakers(ns: str, acl: Acl, user: CurrentUser, db: Db, cfg: Cfg) -> SpeakerDirectory:
-    """A namespace's speakers, its recent merges (undoable; who merged and how many recordings moved), links to speakers
-    in other namespaces, and voices in other shared namespaces that are likely the same person (`cross`)."""
+    """A namespace's people, its recent merges (undoable; who merged and how many assets moved), links to people
+    in other namespaces, and people in other shared namespaces who are likely the same person (`cross`)."""
     nid = acl.namespace(ns)
     merges = db.rows(
         "SELECT record::id(id) AS id, from_id, into_id, at, undone, snapshot.speaker.label AS from_label, "
@@ -129,7 +129,7 @@ def rename_speaker(sid: int, body: SpeakerRename, request: Request, acl: Acl, us
 
 @router.post("/speakers/{sid}/merge")
 def merge_speaker(sid: int, body: SpeakerMergeRequest, request: Request, acl: Acl, user: Writer, db: Db) -> SpeakerMerged:
-    """Fold this speaker into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo."""
+    """Fold this person into ``into`` (same namespace). Undo with POST /merges/{merge_id}/undo."""
     acl.need(speaker_space(db, sid), "curate")
     try:
         mid = spk.merge(db, sid, body.into, by=user.email)
@@ -157,7 +157,7 @@ def undo_speaker_merge(mid: int, request: Request, acl: Acl, user: Writer, db: D
 
 @router.post("/speakers/{sid}/link")
 def link_speaker(sid: int, body: SpeakerLinkRequest, request: Request, acl: Acl, user: Writer, db: Db) -> Ok:
-    """Mark this speaker and one in another namespace as the same person (you need editor access to both)."""
+    """Mark this person and one in another namespace as the same person (you need editor access to both)."""
     acl.need(speaker_space(db, sid), "curate")
     acl.need(speaker_space(db, body.with_), "curate")
     try:

@@ -14,7 +14,7 @@ class JobPipeline(ResponseModel):
 
 
 class StepOutput(ResponseModel):
-    key: str = Field(description="saved as outputs.<key> on the recording")
+    key: str = Field(description="saved as outputs.<key> on the asset")
     template: int | None = None
     version: int | None = Field(None, description="the template version it was made with")
     model: str | None = None
@@ -43,7 +43,7 @@ class Job(ResponseModel):
     next_step: str | None = None
     status: str
     error: str | None = None
-    title: str | None = Field(None, description="the recording's title")
+    title: str | None = Field(None, description="the asset's title")
     progress: float | None = None
     worker: str | None = None
     attempts: int | None = None
@@ -70,7 +70,7 @@ class Job(ResponseModel):
     )
     estimates: list[float | None] | None = Field(
         None,
-        description="GET /jobs/{jid}: how long each step usually takes on this recording, in seconds, from recent runs "
+        description="GET /jobs/{jid}: how long each step usually takes on this asset, in seconds, from recent runs "
         "(null for a step with none)",
     )
     eta_seconds: float | None = Field(
@@ -109,7 +109,7 @@ class JobsQueued(Ok):
 
 
 class StepQueued(Ok):
-    queued: int | str = Field(description='how many recordings were queued, or "scanning"')
+    queued: int | str = Field(description='how many assets were queued, or "scanning"')
 
 
 class ComponentState(ResponseModel):

@@ -80,7 +80,7 @@ export function monthBars(
 /** Why the totals and the Library's count can differ: recordings without a date. */
 export function undatedNote(undated: number | null | undefined, range: ReportRange): string | null {
   if (!undated) return null;
-  const n = undated === 1 ? "1 recording has" : `${undated} recordings have`;
+  const n = undated === 1 ? "1 asset has" : `${undated} assets have`;
   return range === "all"
     ? `${n} no date: counted above, but in no month.`
     : `${n} no date, so ${undated === 1 ? "it isn’t" : "they aren’t"} in any date range.`;
