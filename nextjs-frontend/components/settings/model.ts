@@ -488,6 +488,11 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     label: "Propose entity merges, renames, type changes, descriptions and new entities",
     acts: true,
   },
+  {
+    name: "propose_topic_change",
+    label: "Propose topic merges, renames, definitions and deletes",
+    acts: true,
+  },
   { name: "import_files", label: "Import files sent in a conversation", acts: true },
   { name: "import_urls", label: "Capture web pages from addresses or a list of links", acts: true },
   { name: "server_status", label: "Check what the server has set up (admins)", acts: false },

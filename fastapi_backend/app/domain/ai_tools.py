@@ -246,6 +246,22 @@ TOOLS = [
         ["action"],
         True,
     ),
+    (
+        "propose_topic_change",
+        "Propose a change to the topics, which needs the person's approval: merge other topics into a topic (their "
+        "labels become its other labels, their recordings are about it), rename it, describe it (a definition and its "
+        "other labels), or delete it. Merges and deletes can be undone afterwards.",
+        {
+            "action": {"type": "string", "enum": ["merge", "rename", "describe", "delete"]},
+            "topic_id": _I,
+            "merge_ids": {"type": "array", "items": _I},
+            "new_label": _S,
+            "definition": _S,
+            "other_labels": {"type": "array", "items": _S},
+        },
+        ["action", "topic_id"],
+        True,
+    ),
 ]
 
 
@@ -1268,6 +1284,47 @@ class Toolbox(ops_tools.OpsTools):
         }[action]
         return self._approval("propose_entity_change", {**args, "entity_id": e["id"]}, what)
 
+    def t_propose_topic_change(self, action, topic_id, merge_ids=None, new_label=None, definition=None, other_labels=None):
+        needs = {
+            "merge": ("merge_ids", merge_ids),
+            "rename": ("new_label", new_label),
+            "describe": ("definition or other_labels", definition is not None or other_labels is not None),
+            "delete": ("topic_id", True),
+        }
+        if action not in needs:
+            raise ValueError("action is one of " + ", ".join(needs))
+        if not needs[action][1]:
+            raise ValueError(f"{action} needs {needs[action][0]}")
+        t = self.db.one("SELECT record::id(id) AS id, space, label FROM $r", r=R("topic", int(topic_id)))
+        if not t or t["space"] not in self.readable:
+            raise ValueError(f"no topic {topic_id} in scope")
+        if t["space"] not in self.editable:
+            raise ValueError("changing topics needs editor access to the namespace")
+        others = []
+        if action == "merge":
+            ids = [int(i) for i in dict.fromkeys(merge_ids) if int(i) != t["id"]]
+            rows = self.db.rows("SELECT record::id(id) AS id, space, label FROM topic WHERE id IN $ids", ids=[R("topic", i) for i in ids])
+            if not ids or len(rows) != len(ids) or any(o["space"] != t["space"] for o in rows):
+                raise ValueError("merge_ids are other topics of the same namespace")
+            others = [o["label"] for o in rows]
+        args = {
+            "action": action,
+            "topic_id": t["id"],
+            "merge_ids": merge_ids,
+            "new_label": new_label,
+            "definition": definition,
+            "other_labels": other_labels,
+        }
+        what = {
+            "merge": f"Merge {', '.join(others)} into the topic {t['label']}",
+            "rename": f"Rename the topic {t['label']} to {new_label}",
+            "describe": f"Describe the topic {t['label']}"
+            + (f" as “{definition}”" if definition else "")
+            + (f" (also {', '.join(other_labels)})" if other_labels else ""),
+            "delete": f"Delete the topic {t['label']}",
+        }[action]
+        return self._approval("propose_topic_change", store.clean(args), what)
+
     def cited(self, text):
         import re
 
@@ -1328,6 +1385,8 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             confirm=f"RUN {len(ids)}",
         )
         result = {"batch": bid}
+    elif a["tool"] == "propose_topic_change":
+        result = _topic_change(db, args, user, editable)
     elif args["action"] == "define":
         sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
         if sid not in editable:
@@ -1357,6 +1416,25 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
             entities.retype(db, [eid], args.get("new_type"))
             result = {"type": args.get("new_type")}
     return result
+
+
+def _topic_change(db, args, user, editable):
+    """An approved change to the topics; a merge or delete says how to undo it."""
+    tid = int(args["topic_id"])
+    if (db.one("SELECT space FROM $r", r=R("topic", tid)) or {}).get("space") not in editable:
+        raise PermissionError("you can't change topics in that namespace")
+    act, by = args["action"], user["email"]
+    if act == "merge":
+        cid = topics.merge(db, tid, args.get("merge_ids") or [], user=by)
+        return {"topic": tid, "undo": cid}
+    if act == "delete":
+        _, cid = topics.delete(db, tid, user=by)
+        return {"deleted": tid, "undo": cid}
+    if act == "rename":
+        topics.update(db, tid, label=args["new_label"], user=by)
+    else:
+        topics.update(db, tid, alt=args.get("other_labels"), definition=args.get("definition"), user=by)
+    return {"topic": tid}
 
 
 def run_extension(db, cfg, args, user, admin, readable, toolbox=None):

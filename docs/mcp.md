@@ -78,6 +78,12 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
 | `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
+| `undo_graph_change` | take back a merge or link `propose_graph_change` made. Needs a write-scope token and editor access |
+| `edit_entity` | rename an entity, change its type, describe it, set the other ways it's said, or hide or show it. Needs a write-scope token and editor access |
+| `edit_topic` | rename a topic, set its other labels, definition, broader and related topics. Needs a write-scope token and editor access |
+| `merge_topics` | fold topics into one; its `undo_id` takes it back. Needs a write-scope token and editor access |
+| `delete_topic` | delete a topic; its `undo_id` takes it back. Needs a write-scope token and editor access |
+| `undo_topic_change` | take back `merge_topics` or `delete_topic` by its `undo_id` ([Topics](topics.md#a-topic)). Needs a write-scope token and editor access |
 
 Results are JSON (as `structuredContent`, and the same as text). Links open the recording's page in the web app at
 that moment (`/resources/<id>?t=<seconds>`), on the address the client used. Mistakes the agent can fix (a wrong
@@ -86,11 +92,13 @@ person's to read answers "not found", as the API does. `search` and `fetch` foll
 expect (`results` with `id`, `title`, `url`; `fetch` by that `id`).
 
 Every tool reads, except `suggest_topic`, which adds suggestions people accept or dismiss, `propose_graph_change`,
-which records an undoable change (proposed by default), `write_note`, which adds a note, `create_podcast`, which
+which records an undoable change (proposed by default), `undo_graph_change`, `edit_entity`, `edit_topic`,
+`merge_topics`, `delete_topic` and `undo_topic_change`, which curate entities and topics as an editor does in the web
+app (merges and deletes can be undone), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
 editors), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring` and
 `set_install_settings`, which have the machine change how Lens runs (admins).
-Importing, editing and curating stay in the web app and the API.
+Importing stays in the web app and the API.
 
 ### What the archive says is data
 
