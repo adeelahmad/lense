@@ -39,7 +39,7 @@ from fastapi.responses import JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from app.api import mcp_tools
-from app.api.deps import Access, Db, Principal, optional_user, within
+from app.api.deps import Access, Db, Principal, optional_user, signed_out, within
 from app.api.v1.routes.oauth import MCP, public_base, web_app_base
 from app.config import settings
 from app.domain import __version__, integrations, store
@@ -302,8 +302,8 @@ async def _serve(request: Request, db: Db, ns: str | None = None) -> Response:
     if accept and not any(t in accept for t in ("application/json", "application/*", "*/*")):
         return Response(status_code=406)  # every answer here is JSON
     user = await run_in_threadpool(optional_user, request, db)  # the database blocks
-    if not user:
-        raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
+    if not user:  # (or a key or app given one namespace's servers alone, used elsewhere: deps.serves)
+        raise signed_out(request)
     if not _audience_ok(request, user.resource, ns):
         # a token an app was given for another server (RFC 8707) isn't one to use here; the app asks again for this one
         raise HTTPException(401, "this token was given for another server", headers={"WWW-Authenticate": "Bearer"})

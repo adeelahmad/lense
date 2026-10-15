@@ -145,6 +145,12 @@ For scripts and integrations: `POST /api/v1/tokens` (while signed in) returns `l
 (`/api/v1/admin/tokens`); both are audited as `token.revoke`. The web app names a new token after its scope ("Read only
 token") unless you type a name, and the pencil in the list renames it (`PATCH /api/v1/tokens/{token_id}`).
 
+A token can also be made for **one namespace** (`namespace` on `POST /api/v1/tokens`, or **Opens** in the web app,
+which Admin → Namespaces → the namespace → Connect apps fills in). It opens that namespace's own
+[MCP server](mcp.md#one-namespaces-mcp-server) and [chat completions](api.md#chat-completions-for-any-app), with your
+role there, and nothing else: anywhere else in Lens it is refused (401), so an app given it can't read your other
+namespaces or make keys. It stops opening anything if you lose your role there or the namespace is deleted.
+
 ```bash
 curl -H "Authorization: Bearer la_…" https://lens.example.org/api/v1/resources
 ```

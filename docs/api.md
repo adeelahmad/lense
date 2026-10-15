@@ -68,7 +68,9 @@ GET    /api/v1/admin/tokens
 DELETE /api/v1/admin/tokens/{token_id}
 ```
 
-`POST /tokens {name, scope, days?}` makes an API key (while signed in). `days` defaults to `tokens.default_days`; more
+`POST /tokens {name, scope, days?, namespace?}` makes an API key (while signed in); with `namespace` (one you can read)
+it opens that namespace's own MCP server and chat completions alone, and the list shows it as `namespace`
+([API tokens](authentication.md#api-tokens)). `days` defaults to `tokens.default_days`; more
 than `tokens.max_days`, or `0` (never expires) when `tokens.never_expire` is off, is a 400. `GET /tokens/limits` says
 `{default_days, max_days, never_expire}`. `PATCH /tokens/{token_id} {name}` renames one of your keys (audited as
 `token.rename`). `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
@@ -328,7 +330,8 @@ A namespace can answer OpenAI's chat completions API, so any app that speaks it 
 library's OpenAI client) gets answers from the configured model, grounded in that namespace and citing it. Give the app:
 
 - **Base URL**: `https://lens.example.org/api/v1/namespaces/<namespace>` (the app adds `/chat/completions`);
-- **API key**: a Lens [API token](authentication.md) (`la_…`; read-only is enough) or an app's OAuth token;
+- **API key**: a Lens [API token](authentication.md#api-tokens) (`la_…`; read-only is enough), best one made for
+  this namespace alone (Connect apps links to it), or an app's OAuth token;
 - **Model**: `lens`, the configured model. One of the models people may pick in Lens's chat works too
   (`GET …/models` lists them); any other name answers with the configured model.
 
@@ -695,6 +698,8 @@ GET    /api/v1/notes/{pid}
 PATCH  /api/v1/notes/{pid}
 DELETE /api/v1/notes/{pid}
 POST   /api/v1/notes/{pid}/move
+PUT    /api/v1/notes/{pid}/pin
+DELETE /api/v1/notes/{pid}/pin
 GET    /api/v1/notes/{pid}/history
 GET    /api/v1/notes/{pid}/history/{vid}
 POST   /api/v1/notes/{pid}/history/{vid}/restore
@@ -708,8 +713,10 @@ Note pages ([Notes](notes.md)), apart from the notes on an asset above. `GET /no
 (`all=true` adds the pages of things). `search?q=` finds pages by the words in their title, summary or text, title
 matches first, each with the words around the match ([Finding notes](notes.md#finding-notes)). `DELETE /notes/{pid}`
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
-`DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a free note inside `parent` before `before`, `history` lists what the
-page was before each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
+`DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
+free note inside `parent` before `before`. `PUT …/pin` pins a page for you (`pinned` on each page says whether you
+did) and `DELETE …/pin` unpins it ([Pinned notes](notes.md#pinned-notes)). `history` lists what the page was before
+each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.
 

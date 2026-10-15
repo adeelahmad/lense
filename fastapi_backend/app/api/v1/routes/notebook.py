@@ -58,6 +58,12 @@ def _backlinks(acl: Access, db: DB, sid: int, targets: list[str]) -> list[dict[s
     return notebook.backlinks(db, sid, targets) if targets else []
 
 
+def _mine(p: dict[str, Any], user: Principal) -> dict[str, Any]:
+    """The page's fields as this person sees them: whether they pinned it, not who else did."""
+    out = {k: v for k, v in p.items() if k not in ("space", "created_by", "updated_by", "pinned_by")}
+    return {**out, "pinned": user.id in (p.get("pinned_by") or [])}
+
+
 def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> NotePage:
     names = store.space_names(db)
     links = notebook.links(db, p["id"])
@@ -71,7 +77,7 @@ def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> NotePage:
     writer = db.one("SELECT email FROM $r", r=store.R("account", p["created_by"])) if p.get("created_by") else None
     targets = [f"page:{p['id']}"] + ([p["about"]] if p.get("about") else [])
     return NotePage(
-        **{k: v for k, v in p.items() if k not in ("space", "created_by", "updated_by")},
+        **_mine(p, user),
         namespace=names.get(p["space"], ""),
         created_by=(writer or {}).get("email"),
         links=out_links,
@@ -84,7 +90,7 @@ def _out(acl: Access, db: DB, p: dict[str, Any], user: Principal) -> NotePage:
 def list_pages(ns: str, user: CurrentUser, acl: Acl, db: Db, everything: bool = Query(False, alias="all")) -> NoteTree:
     """The namespace's free notes for the tree (no bodies), in order; `all=true` adds the pages of things."""
     sid = acl.namespace(ns)
-    return NoteTree(namespace=ns, pages=[NotePageItem(**p) for p in notebook.tree(db, sid, everything)])
+    return NoteTree(namespace=ns, pages=[NotePageItem(**_mine(p, user)) for p in notebook.tree(db, sid, everything)])
 
 
 @router.post("")
@@ -296,6 +302,24 @@ def move_page(pid: int, body: NotePageMove, user: Writer, acl: Acl, db: Db) -> N
     _page(acl, db, pid, "editor")
     with domain_errors():
         notebook.move(db, pid, body.parent, body.before)
+    return _out(acl, db, notebook.get(db, pid), user)
+
+
+@router.put("/{pid}/pin")
+def pin_page(pid: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage:
+    """Pin the page for you: it shows first on your Notes page and in your tree. Pins are each person's own; anyone
+    who can read the page can pin it."""
+    _page(acl, db, pid)
+    with domain_errors():
+        notebook.pin(db, pid, user.id)
+    return _out(acl, db, notebook.get(db, pid), user)
+
+
+@router.delete("/{pid}/pin")
+def unpin_page(pid: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage:
+    """Unpin the page for you."""
+    _page(acl, db, pid)
+    notebook.pin(db, pid, user.id, on=False)
     return _out(acl, db, notebook.get(db, pid), user)
 
 

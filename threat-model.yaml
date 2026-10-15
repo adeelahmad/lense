@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:5c9c629cdbd9de9d06eeca7f14cadb4ecf6336d173c36d2a5a8dca5f2234812a"
+prose_version: "threat-model.md@sha256:c0a32c183aa8ecb4bef71b1b989e66483bc7dad3ea0639b42710d6f1aabda69c"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1245,7 +1245,7 @@ properties_claimed:
     kind: integrity
     components: [authz]
     tier: security-critical
-    conditions: "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions"
+    conditions: "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions; an API key made for one namespace authenticates only on that namespace's own MCP server and chat completions, with its maker's role there"
     violation_symptoms: [integrity-bypass]
     x-voided-by: "session tokens can write; API and app tokens need write scope (api/deps.py:59-60); admins own everything (domain/auth.py:357); collection admin is owner of its assets (api/deps.py:183); admin's app token keeps namespace roles (api/deps.py:96) but not admin routes (api/deps.py:124-125)"
     provenance: {kind: documented, source: 'SECURITY.md "doing more than your role allows"'}

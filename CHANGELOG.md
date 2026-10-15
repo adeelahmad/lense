@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Pin notes.** A note's ⋯ menu in the tree has Pin: pinned notes show at the top of the tree and first on the
+  Notes page, for the person who pinned them only ([Pinned notes](docs/notes.md#pinned-notes)).
 - **Notes tree menu.** Each note in the tree in the left navigation has a ⋯ menu to add a note inside, rename it in
   place, move it (find the note to put it in by name, or move it to the top) and delete it with Undo, so nothing needs
   dragging and it works on a phone. The navigation links and the tree now scroll together, so a long tree has room
@@ -37,6 +39,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `lens.sources`, streamed or not. Its owners pick the read tools the model may use there (none by default: one search,
   one model call). Calls count for the namespace's budget. Off by default; turned on under Admin → Namespaces → the
   namespace → Connect apps ([Chat completions for any app](docs/api.md#chat-completions-for-any-app)).
+- **API keys for one namespace.** A new API key can be made for one namespace (Opens, on the API tokens page, which
+  Connect apps fills in). It works on that namespace's own MCP server and chat completions, with your role there, and is
+  refused everywhere else in Lens, so an app given it sees nothing more ([API tokens](docs/authentication.md#api-tokens)).
 
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 

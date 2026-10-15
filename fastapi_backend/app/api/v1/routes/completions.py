@@ -52,7 +52,8 @@ def _open(request: Request, db: Db, name: str) -> tuple[Principal, int]:
     """Who asks, and the namespace they ask about, when its chat completions are on and theirs to read."""
     user = optional_user(request, db)
     if not user:
-        raise Refused(401, "give a Lens token as the API key (Authorization: Bearer …)", "invalid_api_key")
+        why = getattr(request.state, "refused", None)  # a key or app given another namespace's servers alone
+        raise Refused(401, why or "give a Lens API key as the key (Authorization: Bearer …)", "invalid_api_key")
     try:
         sid = store.ns_id(db, name, create=False)
     except KeyError:

@@ -107,6 +107,7 @@ export function ConnectAppsSection({ ns, isOwner }: { ns: string; isOwner: boole
     onError: (e) => toast({ title: "Couldn’t change it", body: (e as Error).message, tone: "red" }),
   });
   const owners = needRole("owner", ns);
+  const keyFor = `/account/tokens?new=1&namespace=${encodeURIComponent(ns)}`;
   const pick = (name: string, v: boolean) =>
     save.mutate({ tools: v ? [...tools, name] : tools.filter((t) => t !== name) });
 
@@ -154,7 +155,18 @@ export function ConnectAppsSection({ ns, isOwner }: { ns: string; isOwner: boole
             {on && (
               <>
                 <CodeBlock inline text={mcp} label="MCP address" className="self-start" />
-                <p className="text-[12.5px] leading-[1.45] text-fg-secondary">{connectHint(signIn.data)}</p>
+                <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+                  {connectHint(signIn.data)}
+                  {signIn.data === false && (
+                    <>
+                      {" "}
+                      <Link href={keyFor} className="text-blue underline-offset-2 hover:underline">
+                        Make one that opens {ns} alone
+                      </Link>
+                      .
+                    </>
+                  )}
+                </p>
               </>
             )}
           </div>
@@ -175,9 +187,9 @@ export function ConnectAppsSection({ ns, isOwner }: { ns: string; isOwner: boole
               <>
                 <CodeBlock inline text={chatUrl} label="Base URL" className="self-start" />
                 <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
-                  Give the app this base URL, the model <code>lens</code>, and an{" "}
-                  <Link href="/account/tokens" className="text-blue underline-offset-2 hover:underline">
-                    API key
+                  Give the app this base URL, the model <code>lens</code>, and{" "}
+                  <Link href={keyFor} className="text-blue underline-offset-2 hover:underline">
+                    an API key that opens {ns} alone
                   </Link>{" "}
                   as its key. Answers cite their sources as [n], with links after them.
                 </p>

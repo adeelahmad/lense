@@ -1071,6 +1071,9 @@ import type {
   PasskeySetupOptionsErrors,
   PasskeySetupOptionsResponses,
   PasskeySetupResponses,
+  PinPageData,
+  PinPageErrors,
+  PinPageResponses,
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
@@ -1503,6 +1506,9 @@ import type {
   UnlockVaultData,
   UnlockVaultErrors,
   UnlockVaultResponses,
+  UnpinPageData,
+  UnpinPageErrors,
+  UnpinPageResponses,
   UnsealVaultData,
   UnsealVaultErrors,
   UnsealVaultResponses,
@@ -2270,7 +2276,9 @@ export class Tokens {
    * Create Token
    *
    * A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default
-   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400.
+   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400. With a
+   * `namespace` you can read, it opens that namespace's own MCP server and chat completions alone (docs/api.md, "Chat
+   * completions for any app"), with your role there; anywhere else it is refused (401).
    */
   public static createToken<ThrowOnError extends boolean = false>(
     options: Options<CreateTokenData, ThrowOnError>,
@@ -5437,6 +5445,35 @@ export class Notes {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Unpin Page
+   *
+   * Unpin the page for you.
+   */
+  public static unpinPage<ThrowOnError extends boolean = false>(
+    options: Options<UnpinPageData, ThrowOnError>,
+  ): RequestResult<UnpinPageResponses, UnpinPageErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UnpinPageResponses, UnpinPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/pin",
+      ...options,
+    });
+  }
+
+  /**
+   * Pin Page
+   *
+   * Pin the page for you: it shows first on your Notes page and in your tree. Pins are each person's own; anyone
+   * who can read the page can pin it.
+   */
+  public static pinPage<ThrowOnError extends boolean = false>(
+    options: Options<PinPageData, ThrowOnError>,
+  ): RequestResult<PinPageResponses, PinPageErrors, ThrowOnError> {
+    return (options.client ?? client).put<PinPageResponses, PinPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/pin",
+      ...options,
     });
   }
 

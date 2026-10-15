@@ -32,6 +32,7 @@ class NotePageItem(ResponseModel):
     about: str | None = Field(None, description='what this is the page of, like "recording:12"; null for a free note')
     author: Literal["person", "assistant"] = Field("person", description="who wrote it")
     view: Literal["page", "edgeless"] | None = Field(None, description="how the editor shows it (default: page)")
+    pinned: bool = Field(False, description="you pinned it: it shows first on your Notes page and in your tree")
     created_at: str | None = None
     updated_at: str | None = None
 

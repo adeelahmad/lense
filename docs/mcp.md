@@ -55,7 +55,8 @@ Signing in works as above, from the namespace's own metadata
 (`/.well-known/oauth-protected-resource/mcp/<namespace>`, which names `…/mcp/<namespace>` as the resource). A token an
 app was given for a namespace's server opens that server and nothing else: not another namespace's, not `/mcp`, not
 the API. A token for Lens or for `/mcp` (and an API token) works on every namespace's own server, seeing only that
-namespace there.
+namespace there. An [API token made for one namespace](authentication.md#api-tokens) works on that namespace's server
+(and its chat completions) alone.
 
 For an app that speaks OpenAI's API rather than MCP, the namespace can also answer
 [chat completions](api.md#chat-completions-for-any-app), turned on in the same place (Connect apps).
