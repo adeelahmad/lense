@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
+import http.client
+import http.server
 import pathlib
 import re
+import threading
 import wave
 
 import numpy as np
@@ -216,3 +220,51 @@ def unmark(text):
 def marked(text, source):
     """`text` as the model reads it, marked as data from `source`, with its code written as X (unmark)."""
     return f'<untrusted-X source="{source}">\n{text}\n</untrusted-X>'
+
+
+@contextlib.contextmanager
+def web_relay(port, prefix, forwarded_for=None):
+    """What the web app does for a file share (nextjs-frontend/lens-shares.js): relays requests to the server on `port`
+    as they came (path and Host), saying in X-Forwarded-Prefix that it's at `prefix`, and passing X-Forwarded-For.
+    Yields the relay's port."""
+
+    class Relay(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *a):
+            pass
+
+        def relay(self):
+            n = int(self.headers.get("content-length") or 0)
+            body = self.rfile.read(n) if n else None
+            headers = {k: v for k, v in self.headers.items() if k.lower() != "connection"}
+            headers["X-Forwarded-Prefix"] = prefix
+            if forwarded_for:
+                headers["X-Forwarded-For"] = forwarded_for
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+            c.request(self.command, self.path, body=body, headers=headers)
+            r = c.getresponse()
+            data = r.read()
+            self.send_response(r.status)
+            for k, v in r.getheaders():
+                if k.lower() not in ("connection", "transfer-encoding") and (k.lower() != "content-length" or self.command == "HEAD"):
+                    self.send_header(k, v)
+            if self.command != "HEAD":
+                self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(data)
+            c.close()
+
+        def __getattr__(self, name):
+            if name.startswith("do_"):
+                return self.relay
+            raise AttributeError(name)
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Relay)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        yield srv.server_address[1]
+    finally:
+        srv.shutdown()
+        srv.server_close()

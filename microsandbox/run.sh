@@ -126,7 +126,7 @@ if [ "$(cat "$OPT/build-id" 2>/dev/null)" != "$build_id" ]; then
   rm -rf "$OPT/web" && mkdir -p "$OPT/web/.next"
   cp -a "$OPT/web-src/.next/standalone/." "$OPT/web/"
   cp -a "$OPT/web-src/.next/static" "$OPT/web/.next/static"
-  cp -a "$OPT/web-src/public" "$OPT/web-src/lens-server.js" "$OPT/web/"
+  cp -a "$OPT/web-src/public" "$OPT/web-src/lens-server.js" "$OPT/web-src/lens-shares.js" "$OPT/web/"
   rm -rf "$OPT/web-src"
   chown -R lens:lens "$OPT/web"
   echo "$build_id" >"$OPT/build-id"

@@ -12,7 +12,7 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from app.domain import hierarchy, s3, shares, store, topics
-from tests.helpers import login, make_user, seed
+from tests.helpers import login, make_user, seed, web_relay
 
 
 @pytest.fixture
@@ -34,10 +34,10 @@ def _key(client, h, **body):
     return r.json()
 
 
-def _s3(port, kid, secret):
+def _s3(port, kid, secret, path=""):
     return botocore.session.get_session().create_client(
         "s3",
-        endpoint_url=f"http://127.0.0.1:{port}",
+        endpoint_url=f"http://127.0.0.1:{port}{path}",
         region_name="us-east-1",
         aws_access_key_id=kid,
         aws_secret_access_key=secret,
@@ -118,13 +118,45 @@ def test_what_s3_refuses(client, env):
     assert e.value.code == 403
 
 
+def test_at_the_web_apps_address_once_an_admin_allows_it(client, cfg, env):
+    """The web app relays S3 at /s3 (nextjs-frontend/lens-shares.js), so remote access reaches it: clients sign that
+    path, and it's turned away until an admin turns on shares.remote."""
+    k = _key(client, env["hv"])
+    with web_relay(env["port"], "/s3") as port:
+        c = _s3(port, k["id"], k["secret"], "/s3")
+        assert _code(lambda: c.list_buckets()) == "AccessDenied"
+        cfg["shares"] = {**(cfg.get("shares") or {}), "remote": True}
+        assert [b["Name"] for b in c.list_buckets()["Buckets"]] == ["pods"]
+        talks = c.list_objects_v2(Bucket="pods", Prefix="Collections/Talks/", Delimiter="/")
+        assert "Collections/Talks/ep2 [2].txt" in [o["Key"] for o in talks["Contents"]]
+        own = (env["folder"] / "ep1.txt").read_bytes()
+        got = c.get_object(Bucket="pods", Key="Collections/General/ep1 [1].original.txt", Range="bytes=2-5")
+        assert got["Body"].read() == own[2:6]
+        assert c.head_object(Bucket="pods", Key="Collections/General/ep1 [1].original.txt")["ContentLength"] == len(own)
+        link = c.generate_presigned_url("get_object", Params={"Bucket": "pods", "Key": "Collections/General/ep1 [1].original.txt"})
+        assert "/s3/pods/" in link and urllib.request.urlopen(link).read() == own
+        assert _code(lambda: _s3(port, k["id"], "wrong", "/s3").list_buckets()) == "SignatureDoesNotMatch"
+        assert _code(lambda: c.put_object(Bucket="pods", Key="x.txt", Body=b"hi")) == "AccessDenied"
+    # at its own port, as before
+    assert [b["Name"] for b in _s3(env["port"], k["id"], k["secret"]).list_buckets()["Buckets"]] == ["pods"]
+
+
+def test_admins_open_them_at_the_web_apps_address(client, db, env):
+    make_user(db, "ad@x.io", "admin password 1", admin=True)
+    ha = login(client, "ad@x.io", "admin password 1")
+    assert client.put("/api/v1/settings/shares", json={"remote": "yes"}, headers=ha).status_code == 400
+    assert client.put("/api/v1/settings/shares", json={"remote": True}, headers=env["hv"]).status_code == 403
+    assert client.put("/api/v1/settings/shares", json={"remote": True}, headers=ha).status_code == 200
+    assert client.get("/api/v1/shares/s3", headers=env["hv"]).json()["remote"] is True
+
+
 def test_keys_are_made_while_signed_in(client, db, env):
     r = client.post("/api/v1/tokens", headers=env["hv"], json={"name": "script", "scope": "write", "days": 10})
     token = {"Authorization": f"Bearer {r.json()['token']}"}
     assert client.post("/api/v1/shares/s3/keys", headers=token, json={}).status_code == 403
     k = _key(client, env["hv"], name="nas")
     st = client.get("/api/v1/shares/s3", headers=env["hv"]).json()
-    assert st["enabled"] is False and st["port"] == 9555 and st["webdav"]["port"] == 9556
+    assert st["enabled"] is False and st["port"] == 9555 and st["webdav"]["port"] == 9556 and st["remote"] is False
     assert [(x["id"], x["name"]) for x in st["keys"]] == [(k["id"], "nas")] and "secret" not in st["keys"][0]
     sealed = db.one("SELECT sealed FROM $r", r=store.R("file_key", k["id"]))["sealed"]
     assert k["secret"] not in sealed  # kept sealed
