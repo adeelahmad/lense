@@ -9,6 +9,7 @@ import { AccessRequests, Resources, Sources, Speakers, Tokens } from "@/app/open
 import { buildAttention, greeting, type AttentionItem } from "@/components/home/attention";
 import { QuickImport } from "@/components/home/quick-import";
 import { rememberView, useRecentViews, type ViewedKind } from "@/components/home/recently-viewed";
+import { LatestCard } from "@/components/timeline/latest-card";
 import { useRecordingActions } from "@/components/library/actions";
 import { elapsed, isActiveJob, latestJobs, statusView, stepLabel, totalDuration } from "@/components/library/model";
 import { Badge } from "@/components/ui/badge";
@@ -387,6 +388,8 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
 
       <div className="flex min-w-0 flex-col gap-5">
         <QuickImport />
+
+        <LatestCard />
 
         <section aria-labelledby="processing" className="flex flex-col gap-2.5 rounded-lg border border-border p-4">
           <SectionLabel id="processing">Processing now{running.length ? ` · ${running.length}` : ""}</SectionLabel>

@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 
 import { Nav } from "@/components/app-shell/nav";
+import { isActive, navFor } from "@/components/app-shell/nav-config";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("next/navigation", () => ({ usePathname: () => "/settings/llm" }));
@@ -17,7 +18,8 @@ const nav = (collapsed: boolean) =>
 test("names each group above its first item", () => {
   nav(false);
   const text = screen.getByRole("navigation", { name: "Primary" }).textContent ?? "";
-  expect(text.indexOf("Explore")).toBeLessThan(text.indexOf("Entities"));
+  expect(text.indexOf("Explore")).toBeLessThan(text.indexOf("Timeline"));
+  expect(text.indexOf("Timeline")).toBeLessThan(text.indexOf("Entities"));
   expect(text.indexOf("Notes")).toBeLessThan(text.indexOf("Explore"));
   expect(text.indexOf("Automate")).toBeLessThan(text.indexOf("Pipelines"));
   expect(text.indexOf("Manage")).toBeLessThan(text.indexOf("Costs"));
@@ -28,4 +30,12 @@ test("collapsed to icons, the groups are lines rather than names", () => {
   nav(true);
   expect(screen.queryByText("Explore")).not.toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Entities" })).toBeInTheDocument();
+});
+
+test("the timeline is under Explore for everyone", () => {
+  for (const admin of [true, false]) {
+    const t = navFor(admin).find((i) => i.href === "/timeline");
+    expect(t?.group).toBe("Explore");
+  }
+  expect(isActive("/timeline", "/timeline")).toBe(true);
 });

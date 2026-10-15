@@ -112,12 +112,13 @@ def test_the_catalog_knows_each_kind_its_parents_and_fields():
     events.kind(
         "test_mail.flagged", label="Flagged", source="recordings", as_type="Create", object_type="Document", parent="test_mail.received"
     )
-    assert events.descendants("asset.added") == {"asset.added", "test_mail.received", "test_mail.flagged"}
+    assert events.descendants("test_mail.received") == {"test_mail.received", "test_mail.flagged"}
+    assert {"asset.added", "email.received", "test_mail.received", "test_mail.flagged"} <= events.descendants("asset.added")
     assert events.expand(["test_mail.received"]) == {"test_mail.received", "test_mail.flagged"} and events.expand(None) is None
     with pytest.raises(ValueError, match="no kind test_nope.x"):
         events.expand(["test_nope.x"])
     info = events.kind_info("asset.added")
-    assert info["children"] == ["test_mail.received"] and info["source"] == "recordings" and info["type"] == "Create"
+    assert "test_mail.received" in info["children"] and info["source"] == "recordings" and info["type"] == "Create"
     assert info["untrusted"] == ["object.name"] and info["sample"]["kind"] == "asset.added"
     # a child's schema has every activity's fields, its parents' and its own
     assert events.field_at("test_mail.flagged", "object.subject")["title"] == "Subject"
@@ -332,6 +333,7 @@ def test_recordings_are_asset_added_by_whoever_added_them(db, cfg, feed):
         "name": "Parents' evening",
         "url": "/resources/" + ids["up"].split("-")[-1],
         "media": "audio",
+        "content_type": "audio",  # its content type as Lens recognises it, when nobody chose one
     }
     assert up["type"] == "Create" and up["kind"] == "asset.added" and up["lens"]["untrusted"] == ["object.name"]
     for a in (up, share, auto):

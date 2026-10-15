@@ -12,17 +12,20 @@ merged is called built.
 | Match trees: one condition language for triggers, an automation's If and workflow nodes | built |
 | Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
 | New assets as `asset.added` (the `recordings` source) | built |
-| More kinds: emails, files, calendar events, jobs, deletions, comments, notes, graph changes, sensors, chat | planned |
+| New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
+| More kinds: jobs, deletions, calendar moves, comments, notes, graph changes, sensors, chat | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
+| Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
 | The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
 | The decide node (the decision model picks a branch) | planned |
-| Storing and running automations, schedules and timers, joins, the other actions, approvals, variables, the timeline page, the studio | planned |
+| The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
+| Storing and running automations, schedules and timers, joins, the other actions, approvals, variables, the studio | planned |
 
 ## Contract
 
@@ -76,9 +79,32 @@ registered), and whether it is `noisy` (left out of the timeline unless named). 
 then its own), `events.descendants(name)` the kind and every kind under it, and `events.field_at(kind, path)` the
 schema of one field, whose `title` names it in words (`match.describe(tree, kind)` says "the title contains “call”").
 
-| Kind | Parent | Source | Object |
-| --- | --- | --- | --- |
-| `asset.added` | | `recordings` | `{type: Audio, Video, Image or Document, id: lens:recording/<id>, name: its title, url: /resources/<id>, media: audio, video, image, document or transcript, content_type}` |
+Every kind's object has `type`, `id`, `name` and `url`; the table lists what each adds. Its fields' titles, a sample
+and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event_kinds` over MCP).
+
+| Kind | Parent | Source | Object | Example summary |
+| --- | --- | --- | --- | --- |
+| `asset.added` | | `recordings` | `{type: Audio, Video, Image or Document, id: lens:recording/<id>, name: its title, url: /resources/<id>, media: audio, video, image, document or transcript, content_type}` | Lens added “Scan 12” |
+| `email.received` | `asset.added` | `recordings` | `from`, `to`, `cc` (addresses), `subject`, `list`, `mailbox`, `date` (sent), `snippet` (the start of its text), `attachments` (how many) | Work mail received “School trip on Friday” from office@stmarys.org |
+| `calendar_event.added` | `asset.added` | `recordings` | `startTime`, `endTime`, `location`, `organizer`, `attendees` (addresses), `calendar` | Family calendar added the event “Parents' evening” on 2026-10-20 |
+| `file.added` | `asset.added` | `recordings` | `path` (in its source), `mediaType`, `size` (bytes), `duration` (seconds) | Office share added “Minutes” |
+| `upload.added` | `asset.added` | `recordings` | `path` (the file's name), `mediaType`, `size`, `duration` | Sam uploaded “Call with the school” |
+| `web_page.saved` | `asset.added` | `recordings` | `href` (the page's address), `site` | Sam saved “Museum opening hours” from museum.example.org |
+| `import.received` | `asset.added` | `recordings` | `via`: hook (an import hook), paste (pasted text) or file (a file read as text) | Phone shortcut imported “Shopping list” |
+
+A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
+from, never by reading its file: an email (content type email, or from an IMAP or Gmail mailbox), a calendar event
+(content type calendar_event, or from an iCal feed or Google Calendar), an import hook's, one saved from the web
+(webcapture.py, mediaurl.py), a file from a storage source or Drive, an upload, an import (pasted text, a transcript
+imported), else `asset.added`. A file an email or archive held, made a resource of its own, stays `asset.added`: the
+email is what arrived. A trigger on `asset.added` matches every one of them.
+
+Fields come from what the row keeps, so reading them costs nothing on the ingest path. A message's addressing is
+kept as it is listed (`recording.mail`: who sent it to whom, its subject, list, mailbox, and Gmail's snippet), an
+event's times, place and people as it is imported (`recording.event`), and an email's attachments and the start of
+its text once it has been read (`recording.email`). Emails and events imported before these were kept have only the
+fields their rows had. Outside text (titles, subjects, addresses, snippets, places, file names, page addresses) is
+listed in `lens.untrusted`.
 
 ### Sources and the event log
 
@@ -96,9 +122,13 @@ so nothing is stored twice:
 A kind belongs to the source named in its `source`, and a source may list more in `kinds`. Two are built:
 
 - `recordings` (`app/domain/events_content.py`) reads `recording` by `created_at`, the id breaking ties, as
-  `asset.added`. The actor is whoever added it: an automation (its first job was queued by `automation:<id>`), the
-  storage source a watched file came from (`Service`, `lens:source/<id>`), the person whose upload it was (`Person`,
-  `lens:account/<id>`), or Lens (a folder scan).
+  `asset.added` and its children (Kinds, above). The actor is whoever added it: an automation (its first job was
+  queued by `automation:<id>`), the storage source or mailbox it came from (`Service`, `lens:source/<id>`), an import
+  hook (`Service`, `lens:import_hook/<id>`), the person whose upload, clip or import it was (`Person`,
+  `lens:account/<id>`, or `lens:email/<address>` for someone who isn't an account), a sensor's digest (`Service`,
+  `lens:sensor/<id>`), or Lens (a folder scan). `events_content.actors(db, labels)` names them the way Lens writes
+  them down (an account id, an email, `watch:<id>`, `routine:<id>`, `import_hook:<id>`, `automation:<id>`, ...),
+  in a few queries for a whole page, and keeps names for 30 seconds.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
@@ -263,6 +293,7 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | `ask_model` | asks the model a `prompt` (with your own `system` instructions and `model` if you like); with `json_schema` (a JSON Schema of type object) the reply is that object | read | `{text}`, or the object the schema describes |
 | `call_tool` | calls one of the assistant's tools (`tool`, with `args`) as the automation | read: a change becomes an approval | `{tool, result, summary, approvals}` |
 | `ask_agent` | hands what happened (`about`, by default the event) to the agent with your `instructions`, limited to some `tools` if you like, for up to `max_steps` rounds (6, at most 12) | read: changes become approvals | `{answer, chat, approvals, steps}` |
+| `http_request` | sends a `method` (GET, POST or PUT) to a `url`, with `headers` and a `body` (text, or an object sent as JSON) | out | `{status, ok, body, json, content_type, truncated, method, url, headers}`: the answer, as outside text |
 
 #### Telling a person
 
@@ -299,6 +330,22 @@ prompts: they are rendered with `actions.render_prompt(text, ctx, cfg)`, which m
 the run read from outside Lens before the model sees it: each activity's `lens.untrusted` fields (an email's subject
 and body) and everything earlier steps passed on (a model's reply, a web page). Your own words in the prompt stay as
 written. `ask_agent` passes the activity it is about the same way.
+
+#### Calling a web address
+
+`http_request` reaches public addresses only, or networks an admin allowed for notifications (Settings →
+Notifications), connecting to the address it checked and following no redirect (a 3xx is passed on as it is). It takes
+10 seconds at most, sends a body of up to 64 KB, and passes on the status and the first 64 KB of the answer (`json`
+too when the answer is JSON and whole). The answer is outside text: a later prompt reads it marked as data. It always
+reaches outside Lens, so it asks first unless you set its node to run on its own; each call goes in the activity
+ledger (`automation.http`, with the method, host and status).
+
+Credentials go in headers. A header whose name says it carries one (`Authorization`, cookies, API keys, tokens,
+secrets, passwords, signatures) is never shown: what the action describes and passes on says `••••`. When an automation
+is saved, `actions_web.seal_headers(db, cfg, space, automation, url, headers)` seals those values with the namespace's
+key ([Encryption](encryption.md)), bound to the automation and to the scheme, host and port of its address, so a
+sealed value can't be copied into another automation or sent to another host; it is opened only to send. A locked
+vault stops the request until it is unlocked.
 
 ### The event workflow scope
 
@@ -346,6 +393,11 @@ back. Text from outside Lens (`lens.untrusted` on the activity) that reaches an 
   no row records; pushing instead of polling.
 - People given only some collections of a namespace see that namespace's activities about those collections.
 - Name an automation actor by its automation's name once automations are stored.
+- A timeline page filtered to one child of `asset.added` (only emails, say) reads every new asset and keeps those of
+  that kind, up to five source pages; narrow it in the query (path, `remote`, `web`) if that proves slow.
+- Folder scans of a namespace's own folders as `file.added`; uploaded `.ics` files with their event's fields; a
+  snippet for IMAP messages before they are read (it needs the message body).
+- Per-recipient threading of email conversations; entity tags on new assets once extraction runs at ingest.
 - Telling a person: buttons on chat approvals (Telegram inline keyboards, Slack Block Kit); email as a `notify`
   channel; web push; private chats through Matterbridge (it can't tell them from rooms); with several people let in,
   "me" is whoever last wrote privately, until each chat user has a Lens account of their own; telling which links in a
@@ -355,3 +407,6 @@ back. Text from outside Lens (`lens.untrusted` on the activity) that reaches an 
 - The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
   happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
   proposals from the chat app it told you in; count the automation's own budget once budgets take `automation:<id>`.
+- Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
+  DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
+  networks allowed for automations apart from notifications.

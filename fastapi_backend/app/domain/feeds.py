@@ -305,7 +305,8 @@ def _addresses(h, *names):
 
 def _addressing(h, subject, mailbox):
     """What routing rules (mail_routes.py) look at: who sent it, who it was for (To, Cc, and the address a shared
-    inbox received it at), its subject, mailing list and mailbox."""
+    inbox received it at), its subject, mailing list and mailbox; and who was copied in (Cc) on its own, for the
+    timeline."""
     try:
         listed = str(h.get("list-id") or "").strip()
     except (ValueError, TypeError):
@@ -313,6 +314,7 @@ def _addressing(h, subject, mailbox):
     return {
         "from": _addresses(h, "from"),
         "to": _addresses(h, "to", "cc", "delivered-to", "x-original-to"),
+        "cc": _addresses(h, "cc"),
         "subject": subject,
         "list": listed,
         "mailbox": mailbox,
