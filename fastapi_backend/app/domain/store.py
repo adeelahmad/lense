@@ -1142,6 +1142,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS topic_about_rec ON topic_about FIELDS recording",
     "DEFINE INDEX IF NOT EXISTS topic_about_topic ON topic_about FIELDS topic",
     "DEFINE INDEX IF NOT EXISTS topic_about_space ON topic_about FIELDS space",
+    # merges and deletes of topics, kept so they can be undone (app/domain/topics.py)
+    "DEFINE TABLE IF NOT EXISTS topic_change SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS topic_change_space ON topic_change FIELDS space",
     # Note: on 2.x, CONTAINS against an indexed field also returns nothing; use string::contains() there.
     # settings, people and access
     "DEFINE TABLE IF NOT EXISTS app_setting SCHEMALESS",

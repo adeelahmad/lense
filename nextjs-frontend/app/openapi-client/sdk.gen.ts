@@ -929,6 +929,9 @@ import type {
   ListTemplatesResponses,
   ListTokensData,
   ListTokensResponses,
+  ListTopicChangesData,
+  ListTopicChangesErrors,
+  ListTopicChangesResponses,
   ListTopicsData,
   ListTopicsErrors,
   ListTopicsResponses,
@@ -1450,6 +1453,9 @@ import type {
   UndoSpeakerMergeData,
   UndoSpeakerMergeErrors,
   UndoSpeakerMergeResponses,
+  UndoTopicChangeData,
+  UndoTopicChangeErrors,
+  UndoTopicChangeResponses,
   UnlinkEntityData,
   UnlinkEntityErrors,
   UnlinkEntityResponses,
@@ -6765,7 +6771,8 @@ export class Topics {
   /**
    * Delete Topic
    *
-   * Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows again.
+   * Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows
+   * again. `undo` takes it back (POST /topics/changes/{undo}/undo).
    */
   public static deleteTopic<ThrowOnError extends boolean = false>(
     options: Options<DeleteTopicData, ThrowOnError>,
@@ -6862,7 +6869,8 @@ export class Topics {
   /**
    * Merge Topics
    *
-   * Fold topics into one: their labels become its other labels and their recordings are about it.
+   * Fold topics into one: their labels become its other labels and their recordings are about it. `undo` takes it
+   * back (POST /topics/changes/{undo}/undo).
    */
   public static mergeTopics<ThrowOnError extends boolean = false>(
     options: Options<MergeTopicsData, ThrowOnError>,
@@ -6874,6 +6882,35 @@ export class Topics {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * List Topic Changes
+   *
+   * The namespace's latest topic merges and deletes, newest first, each with whether it was undone.
+   */
+  public static listTopicChanges<ThrowOnError extends boolean = false>(
+    options: Options<ListTopicChangesData, ThrowOnError>,
+  ): RequestResult<ListTopicChangesResponses, ListTopicChangesErrors, ThrowOnError> {
+    return (options.client ?? client).get<ListTopicChangesResponses, ListTopicChangesErrors, ThrowOnError>({
+      url: "/api/v1/namespaces/{name}/topics/changes",
+      ...options,
+    });
+  }
+
+  /**
+   * Undo Topic Change
+   *
+   * Take back a merge or a delete: the topics come back with their labels, recordings and pages. What changed
+   * since stays. Refused (400) when another topic has taken one of their labels meanwhile.
+   */
+  public static undoTopicChange<ThrowOnError extends boolean = false>(
+    options: Options<UndoTopicChangeData, ThrowOnError>,
+  ): RequestResult<UndoTopicChangeResponses, UndoTopicChangeErrors, ThrowOnError> {
+    return (options.client ?? client).post<UndoTopicChangeResponses, UndoTopicChangeErrors, ThrowOnError>({
+      url: "/api/v1/topics/changes/{cid}/undo",
+      ...options,
     });
   }
 

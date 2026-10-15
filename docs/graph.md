@@ -27,7 +27,7 @@ to itself and has one. On a computer the Find in graph box has the focus, so typ
   topics), and an entity's has **Merge**, a find box where Enter merges the entity picked into it, and **Maybe the
   same**, its likely doubles. From the node menu, **Edit…** does the same and **Merge into another…** merges the node
   into the one you pick next: entities of one namespace are merged, entities of two namespaces are linked as the same
-  thing, and speakers of one namespace are merged. Each happens at once with **Undo** on its notice. A node that joins
+  thing, and speakers and topics of one namespace are merged. Each happens at once with **Undo** on its notice. A node that joins
   entities of several namespaces (all shared) offers **Edit in** each namespace. Looking at an earlier version, the
   graph is read-only.
 - **Route**: add stops from the node menu; the route follows the shortest path between each pair of stops, laid out

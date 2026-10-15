@@ -15134,7 +15134,7 @@
           "topics"
         ],
         "summary": "Delete Topic",
-        "description": "Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows again.",
+        "description": "Delete it: its narrower topics move up, recordings stop being about it, and an entity it was made from shows\nagain. `undo` takes it back (POST /topics/changes/{undo}/undo).",
         "operationId": "delete_topic",
         "parameters": [
           {
@@ -15153,7 +15153,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Ok"
+                  "$ref": "#/components/schemas/TopicDeleted"
                 }
               }
             }
@@ -15340,7 +15340,7 @@
           "topics"
         ],
         "summary": "Merge Topics",
-        "description": "Fold topics into one: their labels become its other labels and their recordings are about it.",
+        "description": "Fold topics into one: their labels become its other labels and their recordings are about it. `undo` takes it\nback (POST /topics/changes/{undo}/undo).",
         "operationId": "merge_topics",
         "requestBody": {
           "content": {
@@ -15358,7 +15358,107 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TopicDetail"
+                  "$ref": "#/components/schemas/TopicMerged"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/namespaces/{name}/topics/changes": {
+      "get": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "List Topic Changes",
+        "description": "The namespace's latest topic merges and deletes, newest first, each with whether it was undone.",
+        "operationId": "list_topic_changes",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopicChange"
+                  },
+                  "title": "Response Topics-List Topic Changes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/topics/changes/{cid}/undo": {
+      "post": {
+        "tags": [
+          "topics"
+        ],
+        "summary": "Undo Topic Change",
+        "description": "Take back a merge or a delete: the topics come back with their labels, recordings and pages. What changed\nsince stays. Refused (400) when another topic has taken one of their labels meanwhile.",
+        "operationId": "undo_topic_change",
+        "parameters": [
+          {
+            "name": "cid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Cid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -59134,6 +59234,74 @@
         ],
         "title": "TopicCandidate"
       },
+      "TopicChange": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "description": "merge or delete"
+          },
+          "keep": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keep",
+            "description": "the topic a merge kept"
+          },
+          "labels": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Labels",
+            "description": "the topics that went",
+            "default": []
+          },
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "By"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "undone": {
+            "type": "boolean",
+            "title": "Undone",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "title": "TopicChange"
+      },
       "TopicCreate": {
         "properties": {
           "label": {
@@ -59185,6 +59353,26 @@
           "label"
         ],
         "title": "TopicCreate"
+      },
+      "TopicDeleted": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "undo": {
+            "type": "integer",
+            "title": "Undo",
+            "description": "the change to take back with POST /topics/changes/{undo}/undo"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "undo"
+        ],
+        "title": "TopicDeleted"
       },
       "TopicDetail": {
         "properties": {
@@ -59439,6 +59627,120 @@
           "others"
         ],
         "title": "TopicMerge"
+      },
+      "TopicMerged": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "alt": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Alt",
+            "default": []
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition"
+          },
+          "broader": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Broader",
+            "default": []
+          },
+          "narrower": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Narrower",
+            "default": []
+          },
+          "related": {
+            "items": {
+              "$ref": "#/components/schemas/TopicRef"
+            },
+            "type": "array",
+            "title": "Related",
+            "default": []
+          },
+          "recordings": {
+            "type": "integer",
+            "title": "Recordings",
+            "default": 0
+          },
+          "from_entity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Entity"
+          },
+          "updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated"
+          },
+          "about": {
+            "items": {
+              "$ref": "#/components/schemas/TopicAbout"
+            },
+            "type": "array",
+            "title": "About",
+            "default": []
+          },
+          "undo": {
+            "type": "integer",
+            "title": "Undo",
+            "description": "the change to take back with POST /topics/changes/{undo}/undo"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "undo"
+        ],
+        "title": "TopicMerged"
       },
       "TopicRecordings": {
         "properties": {

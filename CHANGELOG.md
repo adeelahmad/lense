@@ -23,6 +23,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   same editor as its own page, and an entity's has **Merge** and **Maybe the same**. The node menu has **Edit…** and
   **Merge into another…**, which merges the node into the one clicked next (entities and speakers of one namespace;
   entities of two namespaces are linked as the same thing), each with **Undo** ([The graph](docs/graph.md)).
+- **Undo topic merges and deletes.** Merging or deleting a topic happens at once, with **Undo** on its notice instead
+  of a confirm step: the topics come back with their labels, recordings, broader and related topics and pages. A
+  topic's drawer has a find box to merge another topic in, and topics merge on the graph canvas too. The API answers
+  a merge or delete with an `undo` id (`POST /api/v1/topics/changes/{id}/undo`) and lists recent ones
+  ([Topics](docs/topics.md)).
 
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 

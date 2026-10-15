@@ -1,16 +1,16 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { GitMerge, Loader2, X } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { GitMerge, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Entities } from "@/app/openapi-client";
 import { Button } from "@/components/ui/button";
+import { FindBox } from "@/components/ui/find-box";
 import { Skeleton } from "@/components/ui/states";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { count, plural } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 /**
  * Entity curation wherever entities show (the Entities page and its drawer, the graph, a recording): merging with an
@@ -168,18 +168,12 @@ export function EntityFind({
   busy?: boolean;
 }) {
   const client = useApiClient();
-  const listId = useId();
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [active, setActive] = useState(0);
-  const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 200);
     return () => clearTimeout(t);
   }, [q]);
-  useEffect(() => {
-    if (autoFocus) input.current?.focus();
-  }, [autoFocus]);
   const found = useQuery({
     queryKey: ["entity-find", ns, debounced],
     queryFn: () =>
@@ -193,90 +187,28 @@ export function EntityFind({
   });
   const items = ((found.data?.items ?? []) as unknown as Found[])
     .filter((e) => !e.builtin && !exclude.includes(e.id))
-    .slice(0, 8);
-  useEffect(() => setActive(0), [debounced]);
-  const pick = (e: Found | undefined) => {
-    if (!e || busy) return;
-    onPick({ id: e.id, name: e.name });
-    setQ("");
-  };
-  // Enter before the list caught up with what was typed picks from the list for that text, not the one still showing
-  const [want, setWant] = useState(false);
-  const waiting = found.isFetching || debounced !== q.trim();
-  useEffect(() => {
-    if (!want || waiting) return;
-    setWant(false);
-    pick(items[active]);
-  });
+    .slice(0, 8)
+    .map((e) => ({
+      id: e.id,
+      name: e.name,
+      meta: `${e.type_label ?? "Entity"} · ${plural(e.mentions ?? 0, "mention")}`,
+    }));
   return (
-    <div className="flex flex-col gap-1">
-      <div className="relative">
-        <input
-          ref={input}
-          role="combobox"
-          aria-label={label}
-          aria-expanded={items.length > 0}
-          aria-controls={listId}
-          aria-activedescendant={items[active] ? `${listId}-${items[active].id}` : undefined}
-          aria-autocomplete="list"
-          value={q}
-          placeholder={placeholder}
-          disabled={busy}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              setActive((a) => Math.min(items.length - 1, a + 1));
-            } else if (e.key === "ArrowUp") {
-              e.preventDefault();
-              setActive((a) => Math.max(0, a - 1));
-            } else if (e.key === "Enter") {
-              e.preventDefault();
-              if (!waiting) pick(items[active]);
-              else {
-                setDebounced(q.trim());
-                setWant(true);
-              }
-            } else if (e.key === "Escape" && onCancel) {
-              e.preventDefault();
-              e.stopPropagation();
-              onCancel();
-            }
-          }}
-          className="h-9 w-full rounded-sm border border-border bg-background px-3 pr-9 text-[14px] text-fg outline-hidden placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
-        />
-        {(busy || found.isFetching) && (
-          <Loader2 aria-hidden className="absolute right-3 top-2.5 size-4 animate-spin text-fg-muted" />
-        )}
-      </div>
-      <ul id={listId} role="listbox" aria-label={label} className="m-0 flex list-none flex-col p-0">
-        {items.map((e, i) => (
-          <li
-            key={e.id}
-            id={`${listId}-${e.id}`}
-            role="option"
-            aria-selected={i === active}
-            onMouseEnter={() => setActive(i)}
-            onMouseDown={(ev) => ev.preventDefault()}
-            onClick={() => pick(e)}
-            className={cn(
-              "flex h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-[13px]",
-              i === active ? "bg-hl" : "hover:bg-surface-neutral",
-            )}
-          >
-            <span className="min-w-0 flex-1 truncate font-semibold text-fg">{e.name}</span>
-            <span className="shrink-0 text-[12px] text-fg-muted">
-              {e.type_label ?? "Entity"} · {plural(e.mentions ?? 0, "mention")}
-            </span>
-          </li>
-        ))}
-        {found.data && !items.length && (
-          <li className="px-2 py-1.5 text-[12.5px] text-fg-muted">
-            {debounced ? `Nothing in ${ns} is called “${debounced}”.` : "No other entities here."}
-          </li>
-        )}
-      </ul>
-    </div>
+    <FindBox
+      q={q}
+      onQ={setQ}
+      items={items}
+      loading={found.isFetching || debounced !== q.trim()}
+      empty={
+        found.data ? (debounced ? `Nothing in ${ns} is called “${debounced}”.` : "No other entities here.") : undefined
+      }
+      onPick={(e) => onPick({ id: e.id, name: e.name })}
+      onCancel={onCancel}
+      placeholder={placeholder}
+      label={label}
+      autoFocus={autoFocus}
+      busy={busy}
+    />
   );
 }
 
