@@ -132,7 +132,7 @@ def graph_rollback(request: Request, body: RollbackAsk, user: Writer, acl: Acl, 
     if editable is not None and not editable:
         raise HTTPException(403, "rolling back needs editor access to a namespace")
     if body.namespace:
-        spaces: set[int] | None = {acl.namespace(body.namespace, "editor")}
+        spaces: set[int] | None = {acl.namespace(body.namespace, "curate")}
     else:
         spaces = editable
     try:

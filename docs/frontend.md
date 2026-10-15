@@ -43,6 +43,9 @@ four-colour loop (Transcribe blue, Diarize red, Analyze green, Summarize and Rep
 * **Tokens** live in `app/styles/tokens.css` and are mapped into Tailwind (`bg-surface`, `text-fg-secondary`,
   `border-blue-border`, `spk-1…8`, `emo-*`, `rounded-pill`, `shadow-2`...). Don't hard-code colours: the dark theme
   switches by variables (`[data-theme=dark]`, or the system preference).
+* **Tailwind 4** is configured in CSS: the `@theme` block in `app/globals.css` maps the tokens, and there is no
+  `tailwind.config.js`. Its utilities stay outside cascade layers there, so a class still beats the notes editor's
+  global element styles (BlockSuite adds rules such as `input { font-size: 12px }` to the page).
 * **Type:** DM Sans for the UI (13–14 px), Source Serif 4 for an asset's text (`.transcript-text`, 17.5/1.6), JetBrains
   Mono for paths and code. All three are self-hosted in `public/fonts`.
 * **Primitives** (`components/ui`): Button (pill; `disabledReason` explains a disabled action), IconButton, Badge,

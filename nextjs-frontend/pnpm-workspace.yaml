@@ -4,8 +4,8 @@ onlyBuiltDependencies:
   - sharp
 # Security floors for transitive dependencies (GitHub Dependabot alerts).
 # Each one stays inside the major version its parent asks for, except where only a newer major has the fix:
-# file-type 21 (BlockSuite asks for 19), katex 0.18 (BlockSuite asks for 0.16) and postcss-selector-parser 7
-# (Tailwind 3 asks for 6). Each keeps the API its parent calls; the tests and build check it.
+# file-type 21 (BlockSuite asks for 19) and katex 0.18 (BlockSuite asks for 0.16). Each keeps the API its parent
+# calls; the tests and build check it.
 overrides:
   "@babel/core@^7": ^7.29.7
   "@babel/helpers@^7": ^7.29.7
@@ -31,7 +31,6 @@ overrides:
   minimatch@^9: ^9.0.9
   picomatch@^2: ^2.3.2
   picomatch@^4: ^4.0.7
-  postcss-selector-parser@^6: ^7.1.6
   ws@^8: ^8.22.0
   yaml@^2: ^2.9.1
   # BlockSuite 0.19.5 (the notes editor) was built against these; later icon releases dropped names it imports.

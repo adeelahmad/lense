@@ -75,6 +75,8 @@ front of the web app also needs `TRUST_PROXY_HEADERS=true` ([Authentication](aut
 | `read_file` | a text file of that tree (an asset's `.txt` text or `.json` metadata), a page at a time; other files' download link |
 | `file_storage` | where Lens keeps its own files (notes' images and attachments) and the connections it could use; `check` tests it. Admins only |
 | `set_file_storage` | keep new files on this machine or a storage connection (folder, rclone crypt); checked before it's saved. Admins only, with a write-scope token |
+| `install_settings` | whether other devices on the network reach Lens and its edition (full or lean), whether the machine's upgrade agent can change them, and the install line to run when it can't. Admins only |
+| `set_install_settings` | open Lens to the network or keep it to this machine, or change the edition: the machine sets itself up again and Lens restarts ([Updates](updates.md#setting-the-machine-up-again)). Admins only, with a write-scope token |
 | `propose_graph_change` | ask for two entities to be merged or linked; it waits in Proposed changes unless `apply` makes it at once (it can be undone). Needs a write-scope token and editor access |
 
 Results are JSON (as `structuredContent`, and the same as text). Links open the asset's page in the web app at
@@ -86,7 +88,8 @@ expect (`results` with `id`, `title`, `url`; `fetch` by that `id`).
 Every tool reads, except `suggest_topic`, which adds suggestions people accept or dismiss, `propose_graph_change`,
 which records an undoable change (proposed by default), `write_note`, which adds a note, `create_podcast`, which
 queues an episode, `set_nsfw` and `mark_nsfw`, which change [NSFW classification](nsfw.md) (owners or admins, and
-editors), and `set_file_storage`, which changes where new files are kept (admins).
+editors), `set_file_storage`, which changes where new files are kept (admins), and `set_monitoring` and
+`set_install_settings`, which have the machine change how Lens runs (admins).
 Importing, editing and curating stay in the web app and the API.
 
 ### What the archive says is data

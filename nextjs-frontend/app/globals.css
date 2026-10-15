@@ -1,9 +1,159 @@
 @import "./styles/fonts.css";
 @import "./styles/tokens.css";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind 4 puts utilities in a cascade layer, where any unlayered rule beats them. The note editor (BlockSuite)
+   injects unlayered global rules such as `input { font-size: 12px }`, so utilities stay unlayered here, as in Tailwind 3,
+   and a class still wins over a bare element rule. */
+@layer theme, base, components;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --font-sans: DM Sans, ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-mono: JetBrains Mono, ui-monospace, Menlo, monospace;
+
+  --color-background: var(--background);
+
+  --color-surface: var(--surface);
+  --color-surface-neutral: var(--surface-neutral);
+
+  --color-border: var(--border);
+
+  --color-fg: var(--text-primary);
+  --color-fg-strong: var(--text-strong);
+  --color-fg-secondary: var(--text-secondary);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-accent: var(--accent-text);
+  --color-fg-on-color: var(--text-on-color);
+
+  --color-blue: var(--aladdin-blue);
+  --color-blue-dark: var(--blue-dark);
+  --color-blue-surface: var(--intent-surface);
+  --color-blue-border: var(--intent-border);
+
+  --color-red: var(--aladdin-red);
+  --color-red-dark: var(--red-dark);
+  --color-red-surface: var(--red-surface);
+  --color-red-border: var(--red-border);
+
+  --color-green: var(--aladdin-green);
+  --color-green-dark: var(--green-dark);
+  --color-green-surface: var(--green-surface);
+  --color-green-border: var(--green-border);
+
+  --color-gold: var(--aladdin-gold);
+  --color-gold-dark: var(--gold-dark);
+  --color-gold-surface: var(--gate-surface);
+  --color-gold-border: var(--gate-border);
+
+  --color-hl: var(--hl);
+  --color-hl-word: var(--hl-word);
+
+  --color-spk-1: var(--spk-1);
+  --color-spk-2: var(--spk-2);
+  --color-spk-3: var(--spk-3);
+  --color-spk-4: var(--spk-4);
+  --color-spk-5: var(--spk-5);
+  --color-spk-6: var(--spk-6);
+  --color-spk-7: var(--spk-7);
+  --color-spk-8: var(--spk-8);
+
+  --color-emo-neutral: var(--emo-neutral);
+  --color-emo-happy: var(--emo-happy);
+  --color-emo-amused: var(--emo-amused);
+  --color-emo-surprise: var(--emo-surprise);
+  --color-emo-sad: var(--emo-sad);
+  --color-emo-angry: var(--emo-angry);
+  --color-emo-fear: var(--emo-fear);
+  --color-emo-disgust: var(--emo-disgust);
+
+  --color-term-bg: var(--term-bg);
+  --color-term-fg: var(--term-fg);
+  --color-term-muted: var(--term-muted);
+
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  --shadow-1: var(--shadow-1);
+  --shadow-2: var(--shadow-2);
+  --shadow-3: var(--shadow-3);
+  --shadow-ring: var(--ring-focus);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  --transition-duration-fast: 120ms;
+  --transition-duration-base: 200ms;
+  --transition-duration-slow: 320ms;
+
+  --animate-slide-in-right: slide-in-right 200ms cubic-bezier(0.2, 0, 0, 1);
+  --animate-fade-in: fade-in 120ms cubic-bezier(0.2, 0, 0, 1);
+
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+@utility phone-actions {
+  /* A form's main buttons on a phone: the row sticks to the bottom of the screen rather than waiting below the fold,
+     and leaves room on the right for the floating Ask button. The call site stretches it to its card's edges. */
+  @media (max-width: 639px) {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background: var(--background);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    padding-bottom: 12px;
+    body:has([data-ask-button]) & {
+      padding-right: 80px;
+    }
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility label-caps {
+  font: 700 11px/1 var(--font-sans);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@utility transcript-text {
+  font: var(--type-transcript);
+}
+
+@utility skeleton {
+  background: linear-gradient(90deg, var(--surface-neutral) 25%, var(--surface) 50%, var(--surface-neutral) 75%);
+  background-size: 200% 100%;
+  animation: skeleton 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
 
 @layer base {
   html {
@@ -17,8 +167,19 @@
   }
   *,
   ::before,
-  ::after {
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
     border-color: var(--border);
+  }
+  /* What Tailwind 3's preflight did and 4's doesn't: buttons show a hand, placeholders a light grey */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-gray-400);
   }
   :focus-visible {
     outline: 2px solid var(--aladdin-blue);
@@ -38,50 +199,11 @@
   }
 }
 
-@layer components {
-  /* A form's main buttons on a phone: the row sticks to the bottom of the screen rather than waiting below the fold,
-     and leaves room on the right for the floating Ask button. The call site stretches it to its card's edges. */
-  @media (max-width: 639px) {
-    .phone-actions {
-      position: sticky;
-      bottom: 0;
-      z-index: 10;
-      background: var(--background);
-      border-top: 1px solid var(--border);
-      padding-top: 12px;
-      padding-bottom: 12px;
-    }
-    body:has([data-ask-button]) .phone-actions {
-      padding-right: 80px;
-    }
+@keyframes skeleton {
+  from {
+    background-position: 200% 0;
   }
-}
-
-@layer utilities {
-  .tabular {
-    font-variant-numeric: tabular-nums;
-  }
-  .label-caps {
-    font: 700 11px/1 var(--font-sans);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--text-muted);
-  }
-  .transcript-text {
-    font: var(--type-transcript);
-  }
-  .skeleton {
-    background: linear-gradient(90deg, var(--surface-neutral) 25%, var(--surface) 50%, var(--surface-neutral) 75%);
-    background-size: 200% 100%;
-    animation: skeleton 1.4s ease-in-out infinite;
-    border-radius: 6px;
-  }
-  @keyframes skeleton {
-    from {
-      background-position: 200% 0;
-    }
-    to {
-      background-position: -200% 0;
-    }
+  to {
+    background-position: -200% 0;
   }
 }

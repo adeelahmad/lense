@@ -258,7 +258,7 @@ function TranscriptInner({ compact, slim, className }: { compact?: boolean; slim
         onTouchMove={stopFollow}
         onKeyDown={(e) => ["PageUp", "PageDown", "Home", "End"].includes(e.key) && stopFollow()}
         className={cn(
-          "min-h-0 flex-1 overflow-y-auto outline-none",
+          "min-h-0 flex-1 overflow-y-auto outline-hidden",
           compact ? "px-[18px] pb-4 pt-1" : slim ? "pb-10 pl-2 pr-[18px] pt-1" : "pb-10 pl-4 pr-6 pt-1",
         )}
         aria-label="Transcript"

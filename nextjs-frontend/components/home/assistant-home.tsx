@@ -78,7 +78,7 @@ export function AssistantHome({ switcher }: { switcher?: ReactNode }) {
       <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col items-center justify-center gap-7 pb-[10vh] pt-8">
         <div className="flex flex-col items-center gap-3">
           <LensMark size={48} />
-          <h1 className="text-center text-[30px] font-extrabold leading-[1.15] tracking-[-.025em] text-fg md:text-[36px]">
+          <h1 className="text-center text-[30px] font-extrabold leading-[1.15] tracking-tight text-fg md:text-[36px]">
             {now ? `${greeting(now)}${first ? `, ${first}` : ""}` : "Welcome back"}
           </h1>
         </div>
@@ -96,7 +96,7 @@ export function AssistantHome({ switcher }: { switcher?: ReactNode }) {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) ask();
             }}
-            className="min-w-0 flex-1 bg-transparent text-[16px] text-fg outline-none placeholder:text-fg-muted"
+            className="min-w-0 flex-1 bg-transparent text-[16px] text-fg outline-hidden placeholder:text-fg-muted"
           />
         </label>
 

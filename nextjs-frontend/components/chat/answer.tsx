@@ -265,7 +265,7 @@ export function Answer(p: AnswerProps) {
         </StateCard>
       ) : (
         !blank && (
-          <div className="font-serif text-[16.5px] leading-[1.6] text-fg [text-wrap:pretty]">
+          <div className="font-serif text-[16.5px] leading-[1.6] text-fg text-pretty">
             <RichText
               text={p.text}
               unsupported={unsupported}
@@ -298,7 +298,7 @@ export function Answer(p: AnswerProps) {
           <Button
             size="sm"
             variant="ghost"
-            icon={<Square className="!size-3" />}
+            icon={<Square className="size-3!" />}
             onClick={p.onStop}
             disabled={p.stopping}
             disabledReason="Stopping after the step it’s on"

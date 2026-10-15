@@ -350,3 +350,51 @@ def test_the_agent_sets_up_the_version_running_with_the_ports(tmp_path):
     assert ran == "ref=main https=0"
     ran, _ = run("id=a3\nref=\nhttps=yes; rm -rf /\n")  # nothing but 0 or 1
     assert ran == "ref=main https=0"
+
+
+def _ca_pem():
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(x509.NameOID.COMMON_NAME, "Family CA")])
+    now = dt.datetime.now(dt.UTC)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1)
+        .not_valid_before(now)
+        .not_valid_after(now + dt.timedelta(days=30))
+        .sign(key, hashes.SHA256())
+    )
+    return cert.public_bytes(serialization.Encoding.PEM).decode()
+
+
+def test_strict_sni_client_certificates_and_tls_13(client, db, cfg):
+    cfg["https"] = {**cfg["https"], "enabled": True, "domains": ["lens.example.com"], "origin": "http://frontend:3000"}
+    lens = https.caddy_config(cfg, "/s")["apps"]["http"]["servers"]["lens"]
+    assert "tls_connection_policies" not in lens and "strict_sni_host" not in lens  # off by default: Caddy's own
+    pem = _ca_pem()
+    cfg["https"].update(strict_sni=True, client_auth="required", client_ca=pem, min_tls="1.3")
+    https.check(cfg)
+    lens = https.caddy_config(cfg, "/s")["apps"]["http"]["servers"]["lens"]
+    [policy] = lens["tls_connection_policies"]
+    assert policy["match"] == {"sni": ["lens.example.com"]} and policy["protocol_min"] == "tls1.3"
+    assert policy["client_authentication"]["mode"] == "require_and_verify"
+    assert policy["client_authentication"]["ca"]["trusted_ca_certs"] == https.client_cas(pem)
+    assert lens["strict_sni_host"] is True and lens["routes"][-1]["handle"][0]["status_code"] == 421
+    cfg["https"]["client_auth"] = "optional"
+    assert https.caddy_config(cfg, "/s")["apps"]["http"]["servers"]["lens"]["tls_connection_policies"][0]["client_authentication"][
+        "mode"
+    ] == ("verify_if_given")
+    # set up in the app: a client CA that isn't one is refused
+    cfg["https"] = {**cfg["https"], "enabled": False, "client_auth": "off", "client_ca": "", "strict_sni": False}
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    a = login(client, "root@x.io", "root password 1")
+    for bad in ({"client_auth": "required"}, {"client_ca": "not a certificate"}, {"min_tls": "1.0"}, {"client_auth": "always"}):
+        assert client.put("/api/v1/settings/https", headers=a, json=bad).status_code == 400, bad
+    r = client.put("/api/v1/settings/https", headers=a, json={"strict_sni": True, "client_auth": "required", "client_ca": pem})
+    assert r.status_code == 200, r.text

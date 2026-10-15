@@ -76,6 +76,10 @@ x-backend: &backend
     # upgrading from the web app (docs/updates.md): the folder install.sh's upgrade agent watches, and the install folder
     LENS_CONTROL_DIR: /control
     LENS_HOST_DIR: ${LENS_DIR:-}
+    # how this stack runs, shown (and changed through that agent) in Settings: the edition built above, and where the
+    # web app's port is published (127.0.0.1: this machine only)
+    LENS_TARGET: ${LENS_TARGET:-full}
+    LENS_BIND: ${LENS_BIND:-127.0.0.1}
   volumes:
     - archive-data:/data
     - ./.lens-control:/control

@@ -78,7 +78,7 @@ def create_namespace(body: NamespaceCreate, user: AdminWriter, db: Db, request: 
 def update_namespace(name: str, body: NamespaceUpdate, acl: Acl, user: Writer, db: Db, request: Request) -> Ok:
     """Owners: the graph mode (shared or isolated), the default pipeline (null for the built-in one) and a pipeline per
     content type."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     sent = body.model_fields_set
     if "graph" in sent:
         if body.graph is None:
@@ -188,14 +188,14 @@ def _ip_group_detail(g: dict[str, Any]) -> dict[str, Any]:
 @router.get("/{name}/ip-groups")
 def list_ip_groups(name: str, request: Request, acl: Acl, user: CurrentUser, db: Db) -> IpGroups:
     """The namespace's IP groups (owners), and your address as the server sees it, to check the ranges against."""
-    return _ip_groups(request, db, acl.namespace(name, "owner"))
+    return _ip_groups(request, db, acl.namespace(name, "manage"))
 
 
 @router.post("/{name}/ip-groups")
 def create_ip_group(name: str, body: IpGroupCreate, request: Request, acl: Acl, user: Writer, db: Db) -> IpGroups:
     """Add an IP group (owners): visitors from its addresses see all of every asset in the namespace
     (everything), or of the assets chosen on each. Answers with all of the namespace's groups."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     with domain_errors():
         g = ipgroups.create(db, sid, body.name, body.ranges, body.everything, user.email)
     auth.audit(db, user.as_audit(), "namespace.ip_group.create", f"space:{sid}", _ip_group_detail(g))
@@ -206,7 +206,7 @@ def create_ip_group(name: str, body: IpGroupCreate, request: Request, acl: Acl, 
 def update_ip_group(name: str, gid: int, body: IpGroupUpdate, request: Request, acl: Acl, user: Writer, db: Db) -> IpGroups:
     """Rename an IP group, change its ranges or what it opens (owners). Choosing assets again after opening
     everything brings back the ones chosen before."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     changes = {k: v for k, v in body.model_dump(exclude_unset=True).items() if v is not None}
     if not changes:
         raise HTTPException(400, "send name, ranges or everything")
@@ -221,7 +221,7 @@ def update_ip_group(name: str, gid: int, body: IpGroupUpdate, request: Request, 
 @router.delete("/{name}/ip-groups/{gid}")
 def delete_ip_group(name: str, gid: int, request: Request, acl: Acl, user: Writer, db: Db) -> IpGroups:
     """Delete an IP group (owners): its visitors lose what it opened. Answers with the groups left."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     with domain_errors():
         g = ipgroups.delete(db, gid, sid)
     auth.audit(db, user.as_audit(), "namespace.ip_group.delete", f"space:{sid}", _ip_group_detail(g))

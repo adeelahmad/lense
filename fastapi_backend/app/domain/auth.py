@@ -107,7 +107,9 @@ def public(u):
 
 
 def get_account(db, uid):
-    return db.one("SELECT record::id(id) AS id, email, name, admin, disabled, created_at, last_login_at, pw FROM $r", r=R("account", uid))
+    return db.one(
+        "SELECT record::id(id) AS id, email, name, admin, disabled, created_at, last_login_at, pw, removed_at FROM $r", r=R("account", uid)
+    )
 
 
 def find_account(db, email):
@@ -152,6 +154,58 @@ def update_account(db, uid, name=None, admin=None, disabled=None, password=None)
         db.q("DELETE login_session WHERE account = $a", a=uid)
     if disabled:
         db.q("DELETE signin_link WHERE account = $a", a=uid)
+
+
+def remove_account(db, uid, lose_vaults=False):
+    """Remove someone for good: every way they sign in (sessions, passkeys, sign-in links, connected accounts, API
+    tokens, apps they gave access to), every role and permission they had, and what only they could see (their chats,
+    their own notes, highlights, saved views and collections, unfinished uploads). What they shared stays (notes and
+    views for everyone, comments), under their name: the account is kept as a marker without an email, so their
+    address can be invited again. Refused (ValueError) when their passkeys are the only way into a vault, unless
+    `lose_vaults`."""
+    from . import passkeys
+
+    u = get_account(db, uid)
+    if not u or u.get("removed_at"):
+        raise KeyError(uid)
+    passkeys.remove_all(db, uid, lose_vaults)
+    for g in db.values("SELECT VALUE record::id(id) FROM oauth_grant WHERE account = $a", a=uid):
+        db.run(["DELETE oauth_token WHERE gid = $g", "DELETE $r"], g=g, r=R("oauth_grant", g))
+    chats = db.values("SELECT VALUE record::id(id) FROM chat WHERE account = $a", a=uid)
+    db.run(
+        [
+            "DELETE chat_message WHERE chat IN $chats",
+            "DELETE chat WHERE account = $a",
+            *(
+                f"DELETE {t} WHERE account = $a"
+                for t in (
+                    "membership",
+                    "collection_role",
+                    "permission",
+                    "access_request",
+                    "login_session",
+                    "password_reset",
+                    "signin_link",
+                    "login_ticket",
+                    "external_identity",
+                    "api_token",
+                    "iiif_token",
+                    "iiif_cookie",
+                    "highlight",
+                )
+            ),
+            "DELETE note WHERE account = $a AND (shared ?? false) = false",
+            "DELETE saved_view WHERE account = $a AND (shared ?? false) = false",
+            "DELETE saved_collection WHERE account = $a AND (shared ?? false) = false",
+            "DELETE upload WHERE account = $a AND state = 'receiving'",
+            "UPDATE $r SET email = $gone, admin = false, disabled = true, removed_at = $t, pw = NONE",
+        ],
+        a=uid,
+        chats=chats,
+        r=R("account", uid),
+        gone=f"removed-{uid}@removed.invalid",
+        t=store.now(),
+    )
 
 
 def change_password(db, uid, current, new, keep_sid=None, key=""):
@@ -396,12 +450,24 @@ def drop_token(db, tid):
 
 # ---------- roles ----------
 def roles(db, user):
-    """{space id: role} for this person; admins own everything."""
+    """{space id: role} for this person, as a built-in role (a custom role counts as its rank, roles.py); admins own
+    everything."""
+    from . import roles as rl
+
+    return {sid: rl.rank(perms) for sid, perms in permissions(db, user).items()}
+
+
+def permissions(db, user):
+    """{space id: the permissions this person's role there has}; admins have all of them everywhere."""
+    from . import roles as rl
+
     if not user:
         return {}
     if user.get("admin"):
-        return {sid: "owner" for sid in db.values("SELECT VALUE record::id(id) FROM space")}
-    return {r["space"]: r["role"] for r in db.rows("SELECT space, role FROM membership WHERE account = $a", a=user["id"])}
+        return {sid: rl.ALL for sid in db.values("SELECT VALUE record::id(id) FROM space")}
+    rows = db.rows("SELECT space, role FROM membership WHERE account = $a", a=user["id"])
+    table = rl.table(db) if any(r["role"] not in rl.BUILTIN for r in rows) else rl.BUILTIN
+    return {r["space"]: table[r["role"]] for r in rows if r["role"] in table}
 
 
 def allows(role_map, sid, need="viewer"):
@@ -409,13 +475,16 @@ def allows(role_map, sid, need="viewer"):
 
 
 def set_role(db, uid, sid, role):
+    """Give someone a role in a namespace (built-in or custom), or take it away (None)."""
+    from . import roles as rl
+
     rid = R("membership", f"{uid}-{sid}")
     if role is None:
         db.q("DELETE $r", r=rid)
-    elif role in ROLES:
+    elif rl.exists(db, role):
         db.q("UPSERT $r CONTENT $d", r=rid, d={"account": uid, "space": sid, "role": role})
     else:
-        raise ValueError("role is viewer, editor or owner")
+        raise ValueError(f"there's no role called {role}")
 
 
 def members(db, sid):

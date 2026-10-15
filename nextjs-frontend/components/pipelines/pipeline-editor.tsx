@@ -665,7 +665,7 @@ export function PipelineEditor({ id }: { id?: number }) {
                       setDrag(null);
                     }}
                     className={cn(
-                      "grid cursor-pointer grid-cols-[18px_28px_minmax(0,1fr)_auto] items-start gap-2.5 rounded-md p-3 outline-none transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-blue",
+                      "grid cursor-pointer grid-cols-[18px_28px_minmax(0,1fr)_auto] items-start gap-2.5 rounded-md p-3 outline-hidden transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-blue",
                       on
                         ? "border-2 border-blue bg-blue-surface"
                         : "border border-border bg-background hover:bg-surface",

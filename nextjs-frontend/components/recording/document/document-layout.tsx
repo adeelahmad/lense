@@ -144,9 +144,9 @@ export function useDocView(): DocView {
 }
 
 const MARK: Record<Mark["kind"], string> = {
-  selected: "bg-hl-word mix-blend-multiply outline outline-2 outline-blue",
-  hit: "outline outline-2 outline-gold",
-  "current-hit": "bg-hl-word mix-blend-multiply outline outline-[3px] outline-gold",
+  selected: "bg-hl-word mix-blend-multiply outline-solid outline-2 outline-blue",
+  hit: "outline-solid outline-2 outline-gold",
+  "current-hit": "bg-hl-word mix-blend-multiply outline-solid outline-[3px] outline-gold",
 };
 
 /**
@@ -174,7 +174,7 @@ function PageImage({
   const blur = useBlur();
   if (!page.image)
     return (
-      <div className="mx-auto flex aspect-[3/4] w-full max-w-[560px] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-background p-6 text-center text-[13px] leading-snug text-fg-muted">
+      <div className="mx-auto flex aspect-3/4 w-full max-w-[560px] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-background p-6 text-center text-[13px] leading-snug text-fg-muted">
         <ImageOff className="size-5" aria-hidden />
         <span>{name} couldn&apos;t be drawn on the server. Its text is in the Text panel.</span>
       </div>
@@ -214,10 +214,10 @@ function PageImage({
           key={`o${i}`}
           data-object={thing}
           title={objectName(thing)}
-          className="pointer-events-none absolute rounded-[4px] border-2 border-[var(--aladdin-green)]"
+          className="pointer-events-none absolute rounded-xs border-2 border-(--aladdin-green)"
           style={{ left: `${b[0] * 100}%`, top: `${b[1] * 100}%`, width: `${b[2] * 100}%`, height: `${b[3] * 100}%` }}
         >
-          <span className="absolute -top-[20px] left-[-2px] whitespace-nowrap rounded-[3px] bg-[var(--aladdin-green)] px-1.5 py-px text-[11px] font-bold text-white">
+          <span className="absolute top-[-20px] left-[-2px] whitespace-nowrap rounded-[3px] bg-(--aladdin-green) px-1.5 py-px text-[11px] font-bold text-white">
             {objectName(thing)}
           </span>
         </span>
@@ -238,7 +238,7 @@ function PageFaces({ faces }: { faces: FaceMark[] }) {
         key={i}
         data-face={f.track + 1}
         title={label}
-        className="pointer-events-none absolute rounded-[4px] border-2"
+        className="pointer-events-none absolute rounded-xs border-2"
         style={{
           left: `${f.box[0] * 100}%`,
           top: `${f.box[1] * 100}%`,
@@ -248,7 +248,7 @@ function PageFaces({ faces }: { faces: FaceMark[] }) {
         }}
       >
         <span
-          className="absolute -top-[20px] left-[-2px] whitespace-nowrap rounded-[3px] px-1.5 py-px text-[11px] font-bold text-white"
+          className="absolute top-[-20px] left-[-2px] whitespace-nowrap rounded-[3px] px-1.5 py-px text-[11px] font-bold text-white"
           style={{ background: color(f.track) }}
         >
           {label}
@@ -283,7 +283,7 @@ function PageField({ view, count }: { view: DocView; count: number }) {
             go();
           } else if (e.key === "Escape") setDraft(null);
         }}
-        className="h-7 w-12 rounded-sm border border-border bg-background px-1.5 text-center text-[13px] text-fg outline-none focus:border-blue"
+        className="h-7 w-12 rounded-sm border border-border bg-background px-1.5 text-center text-[13px] text-fg outline-hidden focus:border-blue"
       />
       <span>of {count}</span>
       {model.pages[view.page]?.label && <span className="text-fg-muted">({model.pages[view.page]?.label})</span>}
@@ -518,7 +518,7 @@ function Thumbs({ view }: { view: DocView }) {
                 onClick={() => view.turn(p.idx)}
                 className={cn(
                   "flex w-full flex-col items-center gap-1 rounded-sm p-1.5 transition-colors duration-fast",
-                  on ? "bg-hl outline outline-2 outline-blue" : "hover:bg-surface-neutral",
+                  on ? "bg-hl outline-solid outline-2 outline-blue" : "hover:bg-surface-neutral",
                 )}
               >
                 {p.thumb ? (
@@ -530,7 +530,7 @@ function Thumbs({ view }: { view: DocView }) {
                     className={cn("w-full rounded-[2px] bg-background shadow-1", blur)}
                   />
                 ) : (
-                  <span className="grid aspect-[3/4] w-full place-items-center rounded-[2px] bg-surface-neutral text-fg-muted">
+                  <span className="grid aspect-3/4 w-full place-items-center rounded-[2px] bg-surface-neutral text-fg-muted">
                     <FileText className="size-4" aria-hidden />
                   </span>
                 )}
@@ -715,7 +715,7 @@ export function PageText({ view, follow = true }: { view: DocView; follow?: bool
                     }
                   }}
                   className={cn(
-                    "cursor-pointer rounded-[4px] px-1.5 py-1 font-serif text-[15.5px] leading-[1.6] text-fg outline-none focus-visible:shadow-[0_0_0_2px_var(--aladdin-blue)]",
+                    "cursor-pointer rounded-xs px-1.5 py-1 font-serif text-[15.5px] leading-[1.6] text-fg outline-hidden focus-visible:shadow-[0_0_0_2px_var(--aladdin-blue)]",
                     view.selected === i ? "bg-hl" : editing ? "hover:bg-blue-surface" : "hover:bg-surface-neutral",
                   )}
                 >

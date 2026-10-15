@@ -5,7 +5,8 @@
 There is no public sign-up. The first admin is created with a one-time **setup code** that the API prints in its log
 on first start (or `lens users add you@example.com --admin`, or `LENS_ADMIN_EMAIL` in `.env`). On a fresh install the
 web app then opens a short setup wizard ([Configuration](configuration.md#first-run-setup)). Admins then add people and
-give them roles per namespace: viewer, editor or owner.
+give them roles per namespace: viewer, editor, owner, or a custom role made of permissions
+([Access](access.md#roles-and-permissions)).
 
 ## Signing in: passkeys
 
@@ -16,7 +17,8 @@ no passwords on a fresh install (`auth.passwords` is off), so there is nothing t
   plain `http://` address other than localhost, or an IP address) the code alone makes the admin, still without a
   password; they sign in later with a passkey at the `https://` address, or with a sign-in link.
 * **Everyone else** gets a one-time **sign-in link** from an admin (Members › Send a sign-in link, or
-  `lens users link them@example.com` on the server). Opening it adds a passkey on that device and signs them in; on an
+  `lens users link them@example.com` on the server). When mail is set up (Settings › Email), the web app also emails
+  it to them as an invitation (`POST /api/v1/users/{id}/signin-link?email=true`); either way the admin sees the link. Opening it adds a passkey on that device and signs them in; on an
   address browsers won't use passkeys on, the link alone signs them in. A link lasts three days and works once; making
   another stops the last. The token is in the link's `#fragment`, so it never reaches a server log.
 * **More devices**: Profile and sign-in › Add a passkey. Passkeys synced by a password manager or the device's cloud
@@ -38,6 +40,22 @@ passkeys keeps them on until an admin turns them off, which needs an admin with 
 in). With passwords off, password sign-in, changes and resets answer 403. Passwords are hashed with scrypt and need at
 least 10 characters. Failed sign-ins are throttled per email and address (8 per 15 minutes). Unknown emails take as
 long to reject as wrong passwords; an account without a password matches none.
+
+## Removing someone
+
+An admin can **disable** an account (People › Disable account, with Undo): the person is signed out everywhere and
+nothing else changes. **Remove for good** (People › Remove for good…, `DELETE /api/v1/users/{id}`) can't be undone:
+
+* every way they sign in ends at once: sessions, passkeys, sign-in links, connected accounts, API tokens, apps they
+  gave access to, IIIF tokens;
+* every role they had goes: namespace roles, collection roles, permission on recordings, access requests;
+* what only they could see goes: their chats, their own notes and highlights, saved views and collections only they
+  used, and unfinished uploads;
+* what they shared stays under their name: notes and views for everyone, comments, edits, the audit log.
+
+Their email can then be invited again as a new account, which inherits nothing. Admins can't remove themselves or the
+account Matterbridge answers as (choose another first); when their passkeys are the only way into a vault, removing
+them is refused unless the admin agrees to lose its files (`lose_vaults=true`). Audited as `user.remove`.
 
 ## Signing in with another account: Google, GitHub, Microsoft, OpenID Connect
 
@@ -101,7 +119,8 @@ Sign out ──► POST /api/v1/auth/logout (ends the session on the API too)
 | `POST /api/v1/auth/signin-link/use` | sign in with a sign-in link alone, without adding a passkey |
 | `POST /api/v1/auth/signin-link/lost` | email a sign-in link; answers the same for unknown addresses |
 | `GET` · `POST /api/v1/auth/passkeys` (and `/options`) · `PATCH` · `DELETE /api/v1/auth/passkeys/{id}` | your passkeys: list, add, rename, remove (not the last); audited as `passkey.add` and `passkey.remove` |
-| `POST /api/v1/users/{id}/signin-link` · `DELETE /api/v1/users/{id}/passkeys` | admins: a sign-in link for someone; remove all their passkeys |
+| `POST /api/v1/users/{id}/signin-link` · `DELETE /api/v1/users/{id}/passkeys` | admins: a sign-in link for someone (`?email=true` emails it to them when mail is set up); remove all their passkeys |
+| `DELETE /api/v1/users/{id}` | admins: [remove someone for good](#removing-someone) |
 | `GET /api/v1/auth/external` | the outside accounts people can sign in with (for the sign-in page) |
 | `POST /api/v1/auth/external/{name}/start` · `/connect` | the provider's sign-in page to open (connect: signed in, adds it to your account) |
 | `GET /api/v1/auth/external/{name}/callback` | where the provider comes back; ends on the web app's `/external-signin` |

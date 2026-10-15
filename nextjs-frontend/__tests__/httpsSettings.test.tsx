@@ -55,6 +55,10 @@ const OFF = {
   origin: "",
   https_port: 8443,
   http_port: 8080,
+  strict_sni: false,
+  client_auth: "off",
+  client_ca: "",
+  min_tls: "1.2",
 };
 
 function show(values: Record<string, unknown>) {
@@ -137,6 +141,22 @@ describe("Settings › HTTPS", () => {
       path: { section: "https" },
       body: { challenge: "dns", dns_provider: "cloudflare", dns_credentials: '{"api_token":"cf-secret"}' },
     });
+  });
+
+  it("requires client certificates signed by a CA you paste", async () => {
+    (Admin.httpsStatus as jest.Mock).mockImplementation(() => ok({ ...STATUS, enabled: false }));
+    show(OFF);
+    expect(await screen.findByText("Off.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("CA that signs client certificates")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Client certificates"), { target: { value: "required" } });
+    const pem = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----";
+    fireEvent.change(screen.getByLabelText("CA that signs client certificates"), { target: { value: pem } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(Admin.updateSettings).toHaveBeenCalledTimes(1));
+    expect((Admin.updateSettings as jest.Mock).mock.calls[0][0]).toMatchObject({
+      body: { client_auth: "required", client_ca: pem },
+    });
+    expect(crossErrors({ "https.client_auth": "required", "https.client_ca": "" })["https.client_ca"]).toMatch(/PEM/);
   });
 
   it("checks the domains, the email and the authority's address", () => {

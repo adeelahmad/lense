@@ -253,7 +253,7 @@ function ChatPanel() {
           }}
           placeholder="Ask about this asset…"
           aria-label="Ask about this asset"
-          className="max-h-40 min-h-10 flex-1 resize-none rounded-sm border border-border bg-background px-3 py-2 text-[14px] leading-snug text-fg outline-none placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
+          className="max-h-40 min-h-10 flex-1 resize-none rounded-sm border border-border bg-background px-3 py-2 text-[14px] leading-snug text-fg outline-hidden placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
         />
         {streaming ? (
           <Button

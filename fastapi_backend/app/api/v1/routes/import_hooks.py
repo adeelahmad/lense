@@ -62,7 +62,7 @@ FILE_BODY = {
 @router.get("/namespaces/{name}/import-hooks")
 def list_import_hooks(name: str, acl: Acl, user: CurrentUser, db: Db) -> list[ImportHook]:
     """The namespace's import webhooks (owners). Their tokens aren't shown again, only their last four characters."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     return [ImportHook.model_validate(h) for h in import_hooks.hooks(db, sid)]
 
 
@@ -70,7 +70,7 @@ def list_import_hooks(name: str, acl: Acl, user: CurrentUser, db: Db) -> list[Im
 def create_import_hook(name: str, body: ImportHookCreate, acl: Acl, user: Writer, db: Db) -> ImportHookCreated:
     """Make an import webhook for the namespace (owners). Its token is in the answer and never shown again. Audited as
     `import_hook.create`."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     with domain_errors():
         hook, token = import_hooks.create(db, sid, body.name, body.collection, body.pipeline, user.email)
     auth.audit(db, user.as_audit(), "import_hook.create", f"import_hook:{hook['id']}", {"namespace": name, "name": hook["name"]})
@@ -81,7 +81,7 @@ def create_import_hook(name: str, body: ImportHookCreate, acl: Acl, user: Writer
 def update_import_hook(name: str, hid: int, body: ImportHookUpdate, acl: Acl, user: Writer, db: Db) -> ImportHook:
     """Rename a hook, pause or resume it (`enabled`), or change its collection or pipeline (null for the namespace's
     own) (owners)."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     changes = body.model_dump(exclude_unset=True)
     if changes.get("name") is None:
         changes.pop("name", None)
@@ -103,7 +103,7 @@ def update_import_hook(name: str, hid: int, body: ImportHookUpdate, acl: Acl, us
 @router.post("/namespaces/{name}/import-hooks/{hid}/token")
 def new_import_hook_token(name: str, hid: int, acl: Acl, user: Writer, db: Db) -> ImportHookToken:
     """A new token for the hook (owners); the old one stops working at once."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     with domain_errors():
         token = import_hooks.new_token(db, hid, sid)
     auth.audit(db, user.as_audit(), "import_hook.token", f"import_hook:{hid}")
@@ -113,7 +113,7 @@ def new_import_hook_token(name: str, hid: int, acl: Acl, user: Writer, db: Db) -
 @router.delete("/namespaces/{name}/import-hooks/{hid}")
 def delete_import_hook(name: str, hid: int, acl: Acl, user: Writer, db: Db) -> Ok:
     """Delete a hook (owners): its token stops working. What it imported stays."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     with domain_errors():
         hook = import_hooks.delete(db, hid, sid)
     auth.audit(db, user.as_audit(), "import_hook.delete", f"import_hook:{hid}", {"namespace": name, "name": hook["name"]})

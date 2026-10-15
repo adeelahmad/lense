@@ -23,8 +23,6 @@ export type SettingsView = Record<string, SectionView> & {
     chromium?: string;
     /** The anytopdf program (documents.anytopdf), or "not installed". */
     anytopdf?: string;
-    /** Networks web pages may be captured from besides the public internet (documents.web_networks). */
-    web_networks?: string[];
     /** The YOLOX model the objects step uses, or "not found". */
     yolox_model?: string;
   } & Record<string, unknown>;
@@ -87,6 +85,7 @@ export type SectionId =
   | "slack"
   | "mailbox"
   | "telemetry"
+  | "updates"
   | "logs"
   | "fedora"
   | "sensors"
@@ -221,14 +220,14 @@ export const SECTIONS: SectionSpec[] = [
     label: "Components",
     backend: ["components"],
     description:
-      "The engines and models Lens fetches for itself, sized to each worker’s machine. Steps that need one wait while it arrives.",
+      "The edition, full or lean, and the engines and models Lens fetches for itself, sized to each worker’s machine. Steps that need one wait while it arrives.",
   },
   {
     id: "access",
     label: "Access & embedding",
     backend: ["server"],
     description:
-      "Who can reach the server, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
+      "Who can reach the server, from this machine or the network, how it tells visitors’ addresses, which sites may embed the player, and how long sessions last.",
   },
   {
     id: "remote-access",
@@ -291,6 +290,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telemetry"],
     description:
       "Off unless you turn it on. Traces and metrics from the server and its workers, sent only to an OpenTelemetry collector you run or choose; nothing goes anywhere else.",
+  },
+  {
+    id: "updates",
+    label: "Updates and backups",
+    backend: ["updates"],
+    description:
+      "New Lens releases: Lens checks for one once a day, backs up and installs it when you say so, and goes back if it doesn't start.",
   },
   {
     id: "logs",
@@ -1135,6 +1141,35 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "as installed",
     hint: "Where Caddy reaches the web app from the server. Leave empty unless you moved it.",
   },
+  {
+    section: "https",
+    key: "strict_sni",
+    label: "Answer only for these domains",
+    kind: "switch",
+    hint: "Connections to another name, an IP address or no name at all are refused, and a request must name the domain its connection was made for.",
+  },
+  {
+    section: "https",
+    key: "client_auth",
+    label: "Client certificates",
+    kind: "select",
+    options: [
+      { value: "off", label: "Not asked for" },
+      { value: "optional", label: "Checked when a browser offers one" },
+      { value: "required", label: "Required (mutual TLS)" },
+    ],
+  },
+  { section: "https", key: "client_ca", label: "CA that signs client certificates", kind: "text" },
+  {
+    section: "https",
+    key: "min_tls",
+    label: "Oldest TLS version",
+    kind: "select",
+    options: [
+      { value: "1.2", label: "TLS 1.2" },
+      { value: "1.3", label: "TLS 1.3" },
+    ],
+  },
   { section: "https", key: "https_port", label: "HTTPS port in the container", kind: "int", min: 1, max: 65535 },
   { section: "https", key: "http_port", label: "HTTP port in the container", kind: "int", min: 1, max: 65535 },
   // Chat rooms (Matterbridge)
@@ -1559,6 +1594,13 @@ export const FIELDS: FieldSpec[] = [
     hint: "Off: engines and models are fetched the first time an asset needs them",
   },
   { section: "components", key: "also", label: "Also fetch", kind: "checks" },
+  {
+    section: "components",
+    key: "hf_token",
+    label: "Hugging Face token",
+    kind: "secret",
+    hint: "For gated models, such as pyannote’s speaker diarization; a read-only token is enough",
+  },
   // Voice
   {
     section: "voice",
@@ -2613,6 +2655,36 @@ export const FIELDS: FieldSpec[] = [
     max: 20,
     hint: "A failed send waits 30 seconds, then four times longer each time, up to 6 hours",
   },
+  // Updates (docs/updates.md)
+  {
+    section: "updates",
+    key: "check",
+    label: "Check for new releases",
+    kind: "switch",
+    hint: "Asks GitHub for the latest release once a day; nothing about this install is sent",
+  },
+  {
+    section: "updates",
+    key: "email",
+    label: "Email admins about new releases",
+    kind: "switch",
+    hint: "Once per release, to every admin; needs an email server (Settings → Email)",
+  },
+  {
+    section: "updates",
+    key: "auto_install",
+    label: "Install new releases by themselves",
+    kind: "switch",
+    hint: "Backs up, then installs a new release as soon as it is seen. Off: you choose when",
+  },
+  {
+    section: "updates",
+    key: "check_hours",
+    label: "Check every (hours)",
+    kind: "int",
+    min: 1,
+    max: 720,
+  },
   // Telemetry (opt-in)
   {
     section: "telemetry",
@@ -3029,6 +3101,14 @@ export const FIELDS: FieldSpec[] = [
     kind: "switch",
     hint: "Its title, authors, language and dates, as Dublin Core",
   },
+  {
+    section: "documents",
+    key: "web_networks",
+    label: "Private networks Lens may fetch from",
+    kind: "lines",
+    mono: true,
+    hint: "One per line, like 192.168.1.0/24: web pages, calendar feeds and videos there can be imported. Public addresses always can, and networks set on the server stay",
+  },
   // IIIF & metadata
   {
     section: "iiif",
@@ -3344,6 +3424,9 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
   const badMNet = mNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badMNet) e["smb.allowed_networks"] = `“${badMNet}” isn’t a network like 192.168.1.0/24`;
   else if (mNets && mNets.length === 0) e["smb.allowed_networks"] = "List at least one network";
+  const wNets = values["documents.web_networks"] as string[] | undefined;
+  const badWNet = wNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
+  if (badWNet) e["documents.web_networks"] = `“${badWNet}” isn’t a network like 192.168.1.0/24`;
   const sNets = values["sensors.syslog_networks"] as string[] | undefined;
   const badSNet = sNets?.find((x) => !/^[0-9a-f.:]+(\/\d{1,3})?$/i.test(x));
   if (badSNet) e["sensors.syslog_networks"] = `“${badSNet}” isn’t a network like 192.168.1.0/24`;
@@ -3374,6 +3457,14 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["https.dns_provider"] = "Choose the DNS provider that holds the domain";
   const prop = values["https.propagation"] as string | undefined;
   if (prop && !/^\d+(ms|s|m|h)$/.test(prop)) e["https.propagation"] = "A duration, like 2m";
+  const clientCa = values["https.client_ca"] as string | undefined;
+  if (
+    values["https.client_auth"] &&
+    values["https.client_auth"] !== "off" &&
+    "https.client_ca" in values &&
+    !/-----BEGIN CERTIFICATE-----/.test(clientCa ?? "")
+  )
+    e["https.client_ca"] = "Paste the PEM of the CA that signs client certificates";
   const hOrigin = values["https.origin"] as string | undefined;
   if (hOrigin && !/^http:\/\/[^/\s]+/.test(hOrigin))
     e["https.origin"] = "Use an http:// address, such as http://frontend:3000";

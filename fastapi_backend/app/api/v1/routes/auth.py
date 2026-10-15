@@ -121,6 +121,7 @@ def me(user: CurrentUser, db: Db) -> Me:
     return Me(
         user=UserPublic(**(auth.active_account(db, user.id) or {})),
         roles=roles,
+        permissions={names.get(k, str(k)): sorted(v) for k, v in user.perms.items()},
         partial=partial,
         via=user.via,
         scope=user.scope,

@@ -432,7 +432,7 @@ function ChangeRow({
   return (
     <div className="grid gap-2.5 rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[13px] leading-[1.45] sm:grid-cols-[150px_minmax(0,1fr)]">
       <b>{label}</b>
-      <span className="min-w-0 break-words">
+      <span className="min-w-0 wrap-break-word">
         <span className="text-red-dark line-through">{before}</span> → <b>{after}</b>
         {note && <span className="block text-fg-muted">{note}</span>}
       </span>

@@ -10,6 +10,7 @@ import type { HttpsStatus, MatterbridgeStatus } from "@/app/openapi-client/types
 import { MonitoringSwitch } from "@/components/admin/monitoring-switch";
 import { BackupsPanel } from "@/components/settings/backups-panel";
 import { ComponentsStatus } from "@/components/settings/components-status";
+import { EditionChoice, NetworkReach } from "@/components/settings/install-settings";
 import { LogViewer } from "@/components/settings/log-viewer";
 import { AllTokens } from "@/components/account/all-tokens";
 import { ACCESS } from "@/components/iiif/metadata-model";
@@ -24,6 +25,7 @@ import {
   type ModelProvider,
 } from "@/components/settings/model-providers";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
+import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { VoicePicker } from "@/components/settings/voice-picker";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
@@ -37,7 +39,7 @@ import {
 } from "@/components/settings/model";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Switch } from "@/components/ui/field";
+import { Field, Input, Select, Switch, Textarea } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/states";
 import { data, useApiClient } from "@/lib/api/browser";
 import { useArchive } from "@/lib/hooks/session";
@@ -350,13 +352,16 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
     case "components":
       return (
         <>
+          <EditionChoice />
           <F ctx={ctx} id="components.auto" />
+          <F ctx={ctx} id="components.hf_token" />
           <ComponentsStatus ctx={ctx} />
         </>
       );
     case "access":
       return (
         <>
+          <NetworkReach />
           <F ctx={ctx} id="server.allowed_hosts" />
           <F ctx={ctx} id="server.embed_frame_ancestors" />
           <F ctx={ctx} id="server.trusted_proxies" />
@@ -424,6 +429,20 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <StorageBody ctx={ctx} />;
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
+    case "updates":
+      return (
+        <>
+          <UpdatesPanel />
+          <Sub>Checking</Sub>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="updates.check" />
+            {/* shown once the server has the setting (updates.email, from the release notices) */}
+            {ctx.view.updates?.values && "email" in ctx.view.updates.values && <F ctx={ctx} id="updates.email" />}
+            <F ctx={ctx} id="updates.auto_install" />
+          </div>
+          <F ctx={ctx} id="updates.check_hours" />
+        </>
+      );
     case "logs":
       return <LogsBody ctx={ctx} />;
     case "fedora":
@@ -464,6 +483,7 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           <F ctx={ctx} id="documents.convert_seconds" />
           <F ctx={ctx} id="documents.attachment_resources" />
           <F ctx={ctx} id="documents.video_urls" />
+          <F ctx={ctx} id="documents.web_networks" />
           <F ctx={ctx} id="documents.converter" />
           <F ctx={ctx} id="documents.anytopdf_url" />
           <F ctx={ctx} id="documents.anytopdf_token" />
@@ -1443,6 +1463,8 @@ function HttpsBody({ ctx }: { ctx: BodyCtx }) {
   const provider = ctx.state("https.dns_provider");
   const creds = ctx.state("https.dns_credentials");
   const eab = ctx.state("https.eab_hmac_key");
+  const clientCa = ctx.state("https.client_ca");
+  const clientAuth = (ctx.state("https.client_auth").value as string | undefined) ?? "off";
   const [fields, setFields] = useState<Record<string, string>>({});
   const [other, setOther] = useState(false);
   const status = useQuery({
@@ -1581,6 +1603,36 @@ function HttpsBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       )}
+      <Sub>Who gets in</Sub>
+      <F ctx={ctx} id="https.strict_sni" />
+      <F ctx={ctx} id="https.client_auth" />
+      {clientAuth !== "off" && (
+        <Field
+          label="CA that signs client certificates"
+          error={ctx.state("https.client_ca").error}
+          hint="PEM, one certificate or more. Only browsers and devices with a certificate it signed get in."
+        >
+          {({ id, describedBy, invalid }) => (
+            <Textarea
+              id={id}
+              aria-describedby={describedBy}
+              invalid={invalid}
+              rows={5}
+              className="font-mono text-[12px]"
+              placeholder="-----BEGIN CERTIFICATE-----"
+              value={(clientCa.value as string | undefined) ?? ""}
+              onChange={(e) => clientCa.onChange(e.target.value)}
+            />
+          )}
+        </Field>
+      )}
+      {clientAuth === "required" && (
+        <p className="text-[12.5px] leading-[1.45] text-fg-muted">
+          The web app’s own port (3000) doesn’t ask for a certificate: keep it to this machine (install with
+          LENS_PUBLIC=0) so the only way in from elsewhere is HTTPS.
+        </p>
+      )}
+      <F ctx={ctx} id="https.min_tls" />
       <details className="text-[13px]">
         <summary className="cursor-pointer font-semibold text-fg-secondary">More options</summary>
         <div className="mt-3 flex flex-col gap-4">
@@ -2226,7 +2278,7 @@ function RunMatterbridge({ ctx, status }: { ctx: BodyCtx; status: MatterbridgeSt
           few seconds.
           <pre
             aria-label="WhatsApp QR code"
-            className="mt-2 w-fit bg-white p-2 font-mono text-[9px] leading-[1] text-black"
+            className="mt-2 w-fit bg-white p-2 font-mono text-[9px] leading-none text-black"
           >
             {status.whatsapp_qr}
           </pre>
@@ -2846,10 +2898,6 @@ function Startup({ view }: { view: SettingsView }) {
     ["rclone", b.rclone ?? "—"],
     ["LibreOffice", b.soffice ?? "—"],
     ["Chromium", b.chromium ?? "—"],
-    [
-      "Web capture",
-      b.web_networks?.length ? `public addresses and ${b.web_networks.join(" · ")}` : "public addresses only",
-    ],
     ["YOLOX model", b.yolox_model ?? "—"],
     ["Watchable folders", b.local_roots?.length ? b.local_roots.join(" · ") : "none: local folders can’t be watched"],
   ];

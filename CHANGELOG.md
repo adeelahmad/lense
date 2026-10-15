@@ -4,6 +4,31 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
+
+- **Evidence PDFs hold everything Lens found.** After each resource's own file come pages of what Lens knows about
+  it: its details, metadata and custom fields, tags, topics, the summary and analysis models wrote, its sections,
+  speakers, emotion and sounds (overall, by speaker, and marked on each transcript line, such as "(Happy, Laughter)"),
+  entities, keywords, the faces, objects, descriptions and text on screen seen in it, and the places and dates found
+  in it. Notes, highlights and comments people shared go in when picked. Export › Choose what goes in it… (and the
+  button beside a collection's Evidence PDF) picks the parts, and `include` does the same in the API
+  ([Evidence PDFs](docs/api.md#evidence-pdfs)).
+- **Roles with permissions.** Viewer, editor and owner are now sets of permissions (read, edit, import, process,
+  curate, share, publish, remove, members, manage), and admins make custom roles from them in Admin → Roles, given per
+  namespace like the built-in ones. Existing access is unchanged. Someone who manages members but isn't an admin gives
+  only roles they hold all of ([Access](docs/access.md#roles-and-permissions)).
+- **Invite and remove people.** Making an account in Admin → People now emails the sign-in link as an invitation when
+  mail is set up, and the link is still shown to share yourself. **Remove for good** ends every way someone signs in,
+  takes their roles and their private chats, notes and views, and keeps what they shared under their name; their email
+  can be invited again ([Authentication](docs/authentication.md#removing-someone)). The assistant gets `list_people`,
+  `invite_person` and `change_person`, which always wait for an admin's approval.
+- **Reachable from the network, and the edition, changed in Settings.** Settings › Access & embedding has **Reachable
+  from other devices on this network**, and Settings › Components the edition: Full (LibreOffice and Chromium, to read
+  Office files, web pages and emails) or Lean. Changing either says what will happen and applies with one button: the
+  machine's upgrade agent runs the install again for the version running, and Lens restarts. Before, the install line
+  had to run again with `LENS_PUBLIC` or `LENS_TARGET`; without an agent, Settings shows that line. Agents use
+  `GET`/`PUT /api/v1/admin/install` and the MCP tools `install_settings` and `set_install_settings`
+  ([Updates](docs/updates.md#setting-the-machine-up-again)).
 - **NSFW classification, with a model on your server.** Turn it on in Settings → NSFW for every namespace, or on a
   namespace's page for that one (off by default). The new `nsfw` step scores a video's sampled frames, a document's
   pages or an image with an Apache-2.0 model (fetched on first use, about 105 MB with ONNX Runtime) and flags the
@@ -11,7 +36,6 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   them, left out of the Library, or shown with a label; editors can mark one NSFW or not by hand, and **Classify
   existing** classifies what was there before. Agents use it through the API and MCP (`nsfw_settings`, `set_nsfw`,
   `mark_nsfw`) ([NSFW classification](docs/nsfw.md)).
-
 - **Apache Tika.** Lens can use an Apache Tika server (`--profile tika` in the compose files, or one of your own, set
   in Settings → Documents). Documents nothing here can make into a PDF, such as Word files on a lean server or a
   Raspberry Pi, are read by Tika as text, and every document's own title, authors, language and dates are read as
@@ -54,6 +78,22 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `.mcp.json`, and a plugin's such servers come along when an admin installs it. They run in the MCP runner, an opt-in
   container with none of Lens's data or keys (`COMPOSE_PROFILES=mcp`), start on first use and stop after 15 idle
   minutes ([Assistant](docs/assistant.md#the-mcp-runner)).
+
+### Features
+
+- **updates:** upgrade page with live steps, and roll back when the new version doesn't start ([#262](https://github.com/adeelahmad/lense/pull/262))
+- **setup:** ask only what has no default in the first-run wizard ([#376](https://github.com/adeelahmad/lense/pull/376))
+- **settings:** private networks for web pages and feeds in Settings → Documents ([#378](https://github.com/adeelahmad/lense/pull/378))
+- **settings:** a Hugging Face token in Settings → Components ([#379](https://github.com/adeelahmad/lense/pull/379))
+
+### Fixes
+
+- **install:** install on a computer without Docker or KVM access, and run the line again there ([#368](https://github.com/adeelahmad/lense/pull/368))
+
+### Dependencies
+
+- move to lucide-react 1.x ([#369](https://github.com/adeelahmad/lense/pull/369))
+- move to Tailwind CSS 4 ([#377](https://github.com/adeelahmad/lense/pull/377))
 
 ## 0.8.1 <small>October 12, 2026</small> {id="0.8.1"}
 
@@ -129,7 +169,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   and renews on its own from Let's Encrypt or ZeroSSL (or any ACME authority), proving the domain over HTTP, TLS-ALPN
   or DNS, with Cloudflare, Route 53 and the other caddy-dns providers, so wildcards and machines the internet can't
   reach work too. Set it up in **Settings › HTTPS**, whose **Open the HTTPS ports** has the machine open 443 and 80
-  and restart Lens (or run the install line with `LENS_HTTPS=1`). Off by default ([HTTPS](docs/https.md)).
+  and restart Lens (or run the install line with `LENS_HTTPS=1`). It can answer only for its own domains (strict SNI)
+  and require client certificates (mutual TLS). Off by default ([HTTPS](docs/https.md)).
 
 - **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
   left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or

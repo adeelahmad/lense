@@ -52,7 +52,7 @@ def get_namespace_rdf(
 def import_namespace_rdf(name: str, body: RdfImport, request: Request, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> RdfImportResult:
     """Read Dublin Core descriptions into the namespace's assets (matched by their URI or an identifier). Each change
     is a metadata edit, kept in the asset's history. With dry_run (the default) nothing changes."""
-    sid = acl.namespace(name, "editor")
+    sid = acl.namespace(name, "import")
     try:
         out = rdf_import.run(db, cfg, base_url(request, cfg), sid, body.data, body.format, body.dry_run, user.email)
     except rdf_import.ImportProblem as e:

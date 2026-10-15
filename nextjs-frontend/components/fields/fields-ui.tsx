@@ -136,7 +136,7 @@ function shown(f: FieldDef, v: unknown) {
         <ExternalLink className="size-3 shrink-0" aria-hidden />
       </a>
     );
-  return <span className={text === "—" ? "text-fg-muted" : "whitespace-pre-wrap break-words"}>{text}</span>;
+  return <span className={text === "—" ? "text-fg-muted" : "whitespace-pre-wrap wrap-break-word"}>{text}</span>;
 }
 
 /**

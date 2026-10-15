@@ -85,7 +85,7 @@ def get_podcast(rid: int, acl: Acl, user: CurrentUser, db: Db) -> Podcast:
 def regenerate_podcast(rid: int, acl: Acl, user: Writer, db: Db) -> PodcastJob:
     """Make the episode again from what was asked for, reading its sources afresh (editors). A job already making it
     is returned instead."""
-    _episode(acl, db, rid, "editor")
+    _episode(acl, db, rid, "process")
     jid = podcasts.regenerate(db, rid, by=user.email)
     auth.audit(db, user.as_audit(), "podcast.regenerate", f"recording:{rid}")
     return PodcastJob(job=jid)
@@ -95,7 +95,7 @@ def regenerate_podcast(rid: int, acl: Acl, user: Writer, db: Db) -> PodcastJob:
 def delete_podcast(rid: int, acl: Acl, user: Writer, db: Db, cfg: Cfg, request: Request) -> Ok:
     """Delete an episode with its audio (editors of its namespace, unlike other assets: Lens made it). 409 while a
     job is working on it."""
-    _episode(acl, db, rid, "editor")
+    _episode(acl, db, rid, "edit")
     try:
         gone = deletion.delete(db, cfg, rid, user.email)
     except deletion.Running as e:

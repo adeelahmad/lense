@@ -42,7 +42,7 @@ function MonthBars({ months, color }: { months: { month: string; ms: number }[];
           <span key={m.month} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5">
             <span className="tabular text-[11px] font-medium text-fg-secondary">{m.ms ? hoursShort(m.ms) : ""}</span>
             <span
-              className="w-full rounded-t-[4px]"
+              className="w-full rounded-t-xs"
               style={{
                 height: `${m.ms ? Math.max(3, (m.ms / max) * 85) : 0}%`,
                 background: color,

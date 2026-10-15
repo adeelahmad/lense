@@ -113,8 +113,8 @@ When the configured model supports function calling, chat becomes an agent.
   bookmark export) and `import_urls` captures each page as a document, as `POST /api/v1/import/web/links` does. Like
   `import_files`, it picks the namespace when you don't name one, and waits for your approval.
 - **Keep typing:** what you send while an answer is being written waits its turn and goes next.
-- **Your browser** (in progress): asked from the Lens extension's side panel, the assistant can open, read, click and
-  type in that browser and download files into the conversation, on sites you allow, asking before anything that
+- **Your browser** (Chrome and Edge): asked from the Lens extension's side panel, the assistant can open, read, click
+  and type in that browser and download files into the conversation, on sites you allow, asking before anything that
   sends, deletes or buys. See [The assistant in your browser](browser-assistant.md).
 
 ## Third-party content and prompt injection
@@ -286,11 +286,14 @@ and stops after 15 idle minutes. Installs that don't run on Docker don't have th
 
 Admins also get the server tools: `server_status` (what's set up and what's missing), `find_model_servers`,
 `read_settings` and `change_settings` (the processing and AI sections, not the server's hosts, cookies or tokens) and
-`create_namespace`. In an ordinary conversation their changes are approval cards. In a **setup conversation**
+`create_namespace`, and the people tools: `list_people`, `invite_person` (an account, optionally with a role in one
+namespace; Lens emails the sign-in link when mail is set up) and `change_person` (a role in a namespace, or disabling
+and enabling an account). Removing an account for good stays in the web app and the API. In an ordinary conversation
+their changes are approval cards. In a **setup conversation**
 (`POST /api/v1/chats` with `"kind": "setup"`, or **Finish with the assistant** in the setup wizard once a model is
 connected) the admin has asked the assistant to set the server up, so it makes the changes itself and says what it
 changed. Every change is audited with `assistant` in its detail, and all of them stay changeable in Settings.
-Turning telemetry on or off always asks first, and so does every change once the answer has read text from outside
+Turning telemetry on or off, inviting people and changing their access always ask first, and so does every change once the answer has read text from outside
 Lens ([third-party content](#third-party-content-and-prompt-injection)).
 
 ### Routine choices

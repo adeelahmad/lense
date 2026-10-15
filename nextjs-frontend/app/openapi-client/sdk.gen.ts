@@ -203,6 +203,9 @@ import type {
   CreatePodcastData,
   CreatePodcastErrors,
   CreatePodcastResponses,
+  CreateRoleData,
+  CreateRoleErrors,
+  CreateRoleResponses,
   CreateRoutineData,
   CreateRoutineErrors,
   CreateRoutineResponses,
@@ -343,6 +346,9 @@ import type {
   DeleteRemoteBackupData,
   DeleteRemoteBackupErrors,
   DeleteRemoteBackupResponses,
+  DeleteRoleData,
+  DeleteRoleErrors,
+  DeleteRoleResponses,
   DeleteRoutineData,
   DeleteRoutineErrors,
   DeleteRoutineResponses,
@@ -508,6 +514,8 @@ import type {
   GetGraphResponses,
   GetHealthData,
   GetHealthResponses,
+  GetInstallData,
+  GetInstallResponses,
   GetJobData,
   GetJobErrors,
   GetJobLogData,
@@ -885,6 +893,8 @@ import type {
   ListRecordingsData,
   ListRecordingsErrors,
   ListRecordingsResponses,
+  ListRolesData,
+  ListRolesResponses,
   ListRoutinesData,
   ListRoutinesResponses,
   ListRunsData,
@@ -1129,6 +1139,9 @@ import type {
   RemoveRecordingPermissionData,
   RemoveRecordingPermissionErrors,
   RemoveRecordingPermissionResponses,
+  RemoveUserData,
+  RemoveUserErrors,
+  RemoveUserResponses,
   RemoveVaultPasskeyData,
   RemoveVaultPasskeyErrors,
   RemoveVaultPasskeyResponses,
@@ -1285,6 +1298,9 @@ import type {
   SetCollectionMemberData,
   SetCollectionMemberErrors,
   SetCollectionMemberResponses,
+  SetInstallData,
+  SetInstallErrors,
+  SetInstallResponses,
   SetMemberData,
   SetMemberErrors,
   SetMemberResponses,
@@ -1526,6 +1542,9 @@ import type {
   UpdateRecordingMetadataErrors,
   UpdateRecordingMetadataResponses,
   UpdateRecordingResponses,
+  UpdateRoleData,
+  UpdateRoleErrors,
+  UpdateRoleResponses,
   UpdateRoutineData,
   UpdateRoutineErrors,
   UpdateRoutineResponses,
@@ -2262,7 +2281,8 @@ export class Users {
    * Make Signin Link
    *
    * A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts
-   * three days; making another stops the last one. Share it privately. Audited as `user.signin_link`.
+   * three days; making another stops the last one. Share it privately, or with email=true Lens emails it to them
+   * when mail is set up (`emailed` says whether it did). Audited as `user.signin_link`.
    */
   public static makeSigninLink<ThrowOnError extends boolean = false>(
     options: Options<MakeSigninLinkData, ThrowOnError>,
@@ -2323,6 +2343,23 @@ export class Users {
   }
 
   /**
+   * Remove User
+   *
+   * Remove someone for good (docs/authentication.md#removing-someone): their sign-ins, roles, permissions and
+   * private things go; what they shared stays under their name, and their email can be invited again. Disabling
+   * (PATCH) is the reversible way. Refused (409) for the account Matterbridge answers as, and when their passkeys are
+   * the only way into a vault, unless lose_vaults=true. Audited as `user.remove`.
+   */
+  public static removeUser<ThrowOnError extends boolean = false>(
+    options: Options<RemoveUserData, ThrowOnError>,
+  ): RequestResult<RemoveUserResponses, RemoveUserErrors, ThrowOnError> {
+    return (options.client ?? client).delete<RemoveUserResponses, RemoveUserErrors, ThrowOnError>({
+      url: "/api/v1/users/{uid}",
+      ...options,
+    });
+  }
+
+  /**
    * Update User
    *
    * Rename, promote or demote, disable, or set a new password (which signs the person out everywhere; only where
@@ -2358,13 +2395,80 @@ export class Users {
   /**
    * Set Member
    *
-   * Give someone a role in this namespace, change it, or (role null) remove them. Owners only.
+   * Give someone a role in this namespace (built-in or custom), change it, or (role null) remove them. Needs the
+   * members permission; someone who isn't an admin gives only roles they hold every permission of, and changes only
+   * people whose role they hold every permission of.
    */
   public static setMember<ThrowOnError extends boolean = false>(
     options: Options<SetMemberData, ThrowOnError>,
   ): RequestResult<SetMemberResponses, SetMemberErrors, ThrowOnError> {
     return (options.client ?? client).put<SetMemberResponses, SetMemberErrors, ThrowOnError>({
       url: "/api/v1/namespaces/{name}/members",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Roles
+   *
+   * The permissions a role can have, and every role: viewer, editor and owner, then the custom ones.
+   */
+  public static listRoles<ThrowOnError extends boolean = false>(
+    options?: Options<ListRolesData, ThrowOnError>,
+  ): RequestResult<ListRolesResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListRolesResponses, unknown, ThrowOnError>({
+      url: "/api/v1/roles",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Role
+   *
+   * A custom role (admins), given per namespace like the built-in ones. Audited as `role.create`.
+   */
+  public static createRole<ThrowOnError extends boolean = false>(
+    options: Options<CreateRoleData, ThrowOnError>,
+  ): RequestResult<CreateRoleResponses, CreateRoleErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateRoleResponses, CreateRoleErrors, ThrowOnError>({
+      url: "/api/v1/roles",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Delete Role
+   *
+   * Delete a custom role. Refused (409) while anyone holds it. Audited as `role.delete`.
+   */
+  public static deleteRole<ThrowOnError extends boolean = false>(
+    options: Options<DeleteRoleData, ThrowOnError>,
+  ): RequestResult<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteRoleResponses, DeleteRoleErrors, ThrowOnError>({
+      url: "/api/v1/roles/{name}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Role
+   *
+   * Change a custom role's label, description or permissions; everyone holding it gets the change at once.
+   * Built-in roles can't change. Audited as `role.update`.
+   */
+  public static updateRole<ThrowOnError extends boolean = false>(
+    options: Options<UpdateRoleData, ThrowOnError>,
+  ): RequestResult<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateRoleResponses, UpdateRoleErrors, ThrowOnError>({
+      url: "/api/v1/roles/{name}",
       ...options,
       headers: {
         "Content-Type": "application/json",
@@ -3262,6 +3366,43 @@ export class Updates {
       headers: {
         "Content-Type": "application/json",
         ...options?.headers,
+      },
+    });
+  }
+
+  /**
+   * Get Install
+   *
+   * How install.sh set this machine up: whether other machines on the network reach the web app, and the edition
+   * (full or lean); what can change them here, and how the last change went.
+   */
+  public static getInstall<ThrowOnError extends boolean = false>(
+    options?: Options<GetInstallData, ThrowOnError>,
+  ): RequestResult<GetInstallResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<GetInstallResponses, unknown, ThrowOnError>({
+      url: "/api/v1/admin/install",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Install
+   *
+   * Make the web app reachable from other machines on the network (public) or this machine only, or change the
+   * edition (target: full, with LibreOffice and Chromium, or lean): this machine's upgrade agent runs install.sh again
+   * for the version running with LENS_PUBLIC and LENS_TARGET, and Lens restarts; GET /admin/install follows along.
+   * What is so already is left alone, and with nothing left to change nothing restarts (200). Without an agent, 409
+   * says the line to run on the machine instead (`manual` has each one).
+   */
+  public static setInstall<ThrowOnError extends boolean = false>(
+    options: Options<SetInstallData, ThrowOnError>,
+  ): RequestResult<SetInstallResponses, SetInstallErrors, ThrowOnError> {
+    return (options.client ?? client).put<SetInstallResponses, SetInstallErrors, ThrowOnError>({
+      url: "/api/v1/admin/install",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
       },
     });
   }
@@ -4681,8 +4822,11 @@ export class Resources {
    * Evidence Pdf
    *
    * The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with
-   * their transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't
-   * run here (it's fetched on first use unless Settings › Documents says never to use it).
+   * their transcript, each line marked with its emotion and sound), searchable, then the pages of what Lens found
+   * about it (details, metadata, tags, topics, summary, analysis, sections, speakers, emotion, entities, keywords,
+   * what is seen, places and dates; notes when asked for), then a provenance page with each file's SHA-256 and size.
+   * `include` picks the parts. 503 when anytopdf can't run here (it's fetched on first use unless Settings ›
+   * Documents says never to use it).
    */
   public static evidencePdf<ThrowOnError extends boolean = false>(
     options: Options<EvidencePdfData, ThrowOnError>,
@@ -9045,7 +9189,8 @@ export class Collections {
    * Collection Evidence
    *
    * The collection's assets you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
-   * one's pages, then a provenance page with every file's SHA-256 and size. At most 50 assets.
+   * one's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a
+   * resource's evidence PDF. At most 50 assets.
    */
   public static collectionEvidence<ThrowOnError extends boolean = false>(
     options: Options<CollectionEvidenceData, ThrowOnError>,

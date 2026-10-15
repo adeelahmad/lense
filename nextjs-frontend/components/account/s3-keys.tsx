@@ -132,7 +132,7 @@ function Copyable({ label, text }: { label: string; text: string }) {
     <div className="flex flex-col gap-1.5">
       <span className="text-[13px] font-bold text-fg-strong">{label}</span>
       <div className="flex items-start gap-2 rounded-[10px] bg-term-bg py-2.5 pl-3.5 pr-2 text-term-fg">
-        <pre className="min-w-0 flex-1 select-all whitespace-pre-wrap break-all font-mono text-[12.5px] leading-[1.5]">
+        <pre className="min-w-0 flex-1 select-all whitespace-pre-wrap break-all font-mono text-[12.5px] leading-normal">
           {text}
         </pre>
         <button
@@ -140,7 +140,7 @@ function Copyable({ label, text }: { label: string; text: string }) {
           onClick={copy}
           className={cn(
             "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-pill px-3 text-[12.5px] font-bold",
-            copied ? "bg-green text-white" : "text-[var(--term-blue)] hover:bg-white/10",
+            copied ? "bg-green text-white" : "text-(--term-blue) hover:bg-white/10",
           )}
         >
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}

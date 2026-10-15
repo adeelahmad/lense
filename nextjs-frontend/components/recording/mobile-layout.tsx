@@ -95,7 +95,7 @@ export function MobileLayout() {
       />
       <D.Root open={sheet} onOpenChange={setSheet}>
         <D.Portal>
-          <D.Overlay className="fixed inset-0 z-[100] bg-[var(--scrim)] animate-fade-in" />
+          <D.Overlay className="fixed inset-0 z-100 bg-(--scrim) animate-fade-in" />
           <Sheet tab={tab} setTab={setTab} />
         </D.Portal>
       </D.Root>
@@ -112,7 +112,7 @@ function Sheet({ tab, setTab }: { tab: PanelTab; setTab: (t: PanelTab) => void }
     <D.Content
       aria-describedby={undefined}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-[101] flex flex-col rounded-t-[20px] bg-background shadow-3 outline-none animate-fade-in",
+        "fixed inset-x-0 bottom-0 z-101 flex flex-col rounded-t-[20px] bg-background shadow-3 outline-hidden animate-fade-in",
         full ? "h-[92dvh]" : "h-[min(560px,70dvh)]",
       )}
     >
@@ -155,7 +155,7 @@ function DockedPlayer({ onPanels }: { onPanels: () => void }) {
       <div className="tabular flex items-center gap-1.5">
         <span className="text-[12px] font-semibold leading-none">{tc(time)}</span>
         <span className="flex min-w-0 flex-1 justify-center">
-          <ChapterNow className="!ml-0 text-center text-[12px]" />
+          <ChapterNow className="ml-0! text-center text-[12px]" />
         </span>
         <span className="text-[12px] leading-none text-fg-muted">{tc(duration)}</span>
       </div>

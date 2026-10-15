@@ -166,7 +166,7 @@ export function VolumeControl() {
           value={Math.round((muted ? 0 : volume) * 100)}
           aria-label="Volume"
           onChange={(e) => api.setVolume(Number(e.target.value) / 100)}
-          className="h-1 flex-1 accent-[var(--aladdin-blue)]"
+          className="h-1 flex-1 accent-(--aladdin-blue)"
         />
       </PopoverContent>
     </Popover>

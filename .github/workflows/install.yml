@@ -85,6 +85,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The runner comes with Docker; a new computer doesn't, so the installer has to install it (install.sh: from
+      # get.docker.com) and use it as administrator for this run, as the person isn't in the docker group yet
+      - name: A new computer, without Docker
+        run: |
+          sudo systemctl stop docker.socket docker.service containerd.service 2>/dev/null || true
+          pkgs="$(dpkg-query -W -f '${Package}\n' 2>/dev/null | grep -E '^(docker|moby|containerd|runc)' || true)"
+          [ -z "$pkgs" ] || printf '%s\n' "$pkgs" | xargs sudo apt-get purge -y -q >/dev/null
+          sudo rm -rf /usr/local/bin/docker* /usr/libexec/docker /usr/local/lib/docker /etc/apt/sources.list.d/docker* \
+            /etc/apt/keyrings/docker* /var/lib/docker /var/lib/containerd /etc/docker
+          sudo gpasswd -d "$(id -un)" docker 2>/dev/null || true
+          hash -r
+          if command -v docker; then echo "Docker is still here"; exit 1; fi
+
       - name: Start the installer, as install.sh does on a first install
         run: |
           LENS_INSTALLER_TOKEN=ci-token python3 installer/lens_installer.py --no-browser --port 3990 >installer.log 2>&1 &
@@ -92,7 +105,10 @@ jobs:
           cat installer.log
           # its link sets the cookie that every other call needs
           curl -fsS -c jar -o /dev/null "http://127.0.0.1:3990/?t=ci-token"
-          curl -fsS -b jar http://127.0.0.1:3990/api/system | jq '{os_name, docker, plan, port}'
+          curl -fsS -b jar http://127.0.0.1:3990/api/system >system.json
+          jq '{os_name, docker, plan, port}' system.json
+          # it says what it will install first: Docker, which this computer hasn't got
+          jq -e '.docker.installed == false and (.plan.docker | map(.what) | any(startswith("Docker Engine")))' system.json
 
       - name: Answer it and install
         run: |
@@ -104,7 +120,7 @@ jobs:
           since=0
           while :; do
             p="$(curl -fsS -b jar "http://127.0.0.1:3990/api/progress?since=$since")"
-            echo "$p" | jq -r '.lines[]'
+            echo "$p" | jq -r '.lines[]' | tee -a install.log
             since="$(echo "$p" | jq .next)"
             state="$(echo "$p" | jq -r .state)"
             [ "$state" = running ] || break
@@ -113,6 +129,7 @@ jobs:
           echo "$p" | jq '{state, url, error}'
           [ "$state" = "done" ] || exit 1
           echo "$p" | jq -r .url >setup-url
+          grep -q 'Installing Docker (get.docker.com)' install.log || { echo "install.sh didn't install Docker"; exit 1; }
 
       - name: Lens answers, waits for its first admin, and has the installer's settings
         run: |
@@ -121,7 +138,8 @@ jobs:
           curl -fsS -o /dev/null "$url"
           curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
           cd "$LENS_DIR"
-          docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm, budget"
+          # Docker as administrator: the person isn't in the docker group until they sign in again
+          sudo docker compose -f docker-compose.prod.yml logs backend | grep "Applied the installer's settings: llm, budget"
           # saved in Lens: the key doesn't stay in .env
           ! grep -q '^LENS_SETUP_SETTINGS=' .env
 
@@ -129,15 +147,15 @@ jobs:
         if: failure()
         run: |
           cat installer.log || true
-          cd "$LENS_DIR" && docker compose -f docker-compose.prod.yml ps -a && docker compose -f docker-compose.prod.yml logs --tail 200
+          cd "$LENS_DIR" && sudo docker compose -f docker-compose.prod.yml ps -a && sudo docker compose -f docker-compose.prod.yml logs --tail 200
 
       - name: Stop
         if: always()
         run: |
           curl -fsS -b jar -H 'X-Lens-Installer: 1' -X POST -d '{}' http://127.0.0.1:3990/api/quit || true
-          if [ -d "$LENS_DIR" ]; then
+          if [ -d "$LENS_DIR" ] && command -v docker; then
             cd "$LENS_DIR"
-            docker compose -f docker-compose.prod.yml down -v || true
+            sudo docker compose -f docker-compose.prod.yml down -v || true
           fi
 
   install:
@@ -157,6 +175,7 @@ jobs:
       - name: Install (as a user would, piped into sh)
         run: |
           sh < install.sh | tee install.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' install.log | head -1 > setup-url
           test -s setup-url || { echo "install.sh didn't hand over a setup address"; exit 1; }
           echo "Setup address: $(sed 's/code=.*/code=…/' setup-url)"
@@ -227,18 +246,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: KVM for the runner's user
+      # As on a new computer, KVM is there but this user may not use it yet (it's root's and the kvm group's): install.sh
+      # gives them access itself
+      - name: A new computer, whose user can't use KVM yet
         run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
           ls -l /dev/kvm
+          if [ -r /dev/kvm ] && [ -w /dev/kvm ]; then echo "this runner's user can already use KVM"; exit 1; fi
 
       - name: Install (as a user would, piped into sh)
         run: |
           sh < install.sh | tee install.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           grep -Eo 'http://[^ ]+/setup\?code=[A-Za-z0-9]{12}' install.log | head -1 > setup-url
           test -s setup-url || { echo "install.sh didn't hand over a setup address"; exit 1; }
+          grep -q 'Installing microsandbox' install.log || { echo "install.sh didn't install microsandbox"; exit 1; }
+          grep -q "use KVM (the kvm group)" install.log || { echo "install.sh didn't give this user KVM"; exit 1; }
 
       - name: When this machine's DNS has no address for a name, the sandbox looks it up with public resolvers
         run: |
@@ -261,6 +283,7 @@ jobs:
           grep -q '  Building Lens' install.log || { echo "install.sh didn't show the sandbox's progress"; exit 1; }
           before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           LENS_BACKEND='' sh < install.sh | tee again.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           after="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           test "$before" = "$after" || { echo "the second run changed the secrets"; exit 1; }
           test "$(stat -c %a "$LENS_DIR/.env")" = 600 || { echo "the second run left .env readable to others"; exit 1; }
@@ -316,6 +339,7 @@ jobs:
           msb volume create lens-data-2
           rm -rf "$LENS_DIR"
           sh < install.sh | tee fresh.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           grep -q 'Starting Lens on a microsandbox volume of its own, lens-data-2' fresh.log
           grep -q '^LENS_VOLUME=lens-data-2$' "$LENS_DIR/.env" || { echo "the new install didn't start on a volume of its own"; exit 1; }
           msb volume ls -q | grep -qx lens-data || { echo "the earlier install's volume is gone"; exit 1; }
@@ -339,6 +363,7 @@ jobs:
           done
           before="$(grep -E '^(ACCESS_SECRET_KEY|ARCHIVE_SECRET_KEY|AUTH_SECRET|SURREAL_PASS|LENS_SETUP_CODE)=' "$LENS_DIR/.env" | sha256sum)"
           LENS_BACKEND='' sh < install.sh | tee moved.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           grep -q "Another install's database" moved.log || { echo "the sandbox didn't say the keys don't open the database"; exit 1; }
           grep -q 'Starting Lens on a microsandbox volume of its own, lens-data-3' moved.log
           grep -q '^LENS_VOLUME=lens-data-3$' "$LENS_DIR/.env" || { echo "the install didn't move to a volume of its own"; exit 1; }
@@ -352,6 +377,7 @@ jobs:
           curl -fsS "$base/api/v1/auth/status" | grep -q '"setup_required":true'
           # running the line again stays on it
           LENS_BACKEND='' sh < install.sh | tee stay.log
+          test "${PIPESTATUS[0]}" = 0 || { echo "install.sh failed"; exit 1; }
           if grep -q 'volume of its own' stay.log; then echo "it moved again"; exit 1; fi
           grep -q '^LENS_VOLUME=lens-data-3$' "$LENS_DIR/.env"
           curl -fsS -o /dev/null "$url"

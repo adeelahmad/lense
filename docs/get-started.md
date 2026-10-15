@@ -8,13 +8,14 @@ curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | 
 
 On Linux or a Mac, this installs Docker if it's missing (get.docker.com on Linux; OrbStack with Homebrew on a Mac,
 and Homebrew too if needed), after listing what it will install and asking (only at a terminal; `LENS_YES=1` skips
-the question),
+the question; CI installs on a runner with Docker taken off first, as on a new computer),
 gets Lens into `~/lens`, writes the secrets once, builds and starts the stack, and opens the setup page with the setup
 code already filled in. On a server without a desktop, Lens is reachable from the network and the link uses the
 server's address. Run the same line again to update: the secrets, the database and the archive are kept. Settings go
 before `sh`: `LENS_DIR`, `LENS_PORT`, `LENS_PUBLIC` (`1`: from the network, `0`: this machine only), `LENS_TARGET`
 (`lean` for the smaller image, kept when the line runs again) and `LENS_REF` (a branch or tag) change the defaults;
-the top of `install.sh` lists them. If Lens doesn't answer in time (`LENS_WAIT`, in seconds: 10 minutes with Docker,
+the top of `install.sh` lists them. Whether the network reaches it and the edition can be changed later in Settings
+(Access & embedding, Components), with no terminal ([Updates](updates.md#setting-the-machine-up-again)). If Lens doesn't answer in time (`LENS_WAIT`, in seconds: 10 minutes with Docker,
 30 in a microsandbox), the installer stops waiting and shows the last lines Lens logged and why.
 
 Where it can (Linux with KVM, or a Mac with Apple silicon), a first install asks whether to run Lens in Docker (the
@@ -140,10 +141,11 @@ On first start the API log prints a setup code, and a link that fills it in (`ma
 ```
 No accounts yet. Create the first admin in the web app with setup code: … (or open http://localhost:3000/setup?code=…, which fills it in)
 ```
-Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks for the first
-namespace, the model provider, a [budget](budgets.md#one-budget-for-everything) (for a cloud model), storage, apps and
-AI, and telemetry. Once a model is set, **Finish with defaults** skips the rest; change any of it later in Settings
-([Configuration](configuration.md#first-run-setup) lists the `.env` values that answer it instead).
+Open the link (or the web app, and enter the code) and create the admin account. A short wizard then asks only what
+has no default: the model provider, and a [budget](budgets.md#one-budget-for-everything) for a cloud model. After the
+web installer, which asks for both, it doesn't open at all. The first namespace, storage, apps and AI, and telemetry
+keep their defaults, a click away in the wizard and in Settings ([Configuration](configuration.md#first-run-setup)
+lists the `.env` values that answer it instead).
 
 After the first sign-in, a short welcome card points to the two places most people come back for: the assistant, which
 you can ask straight from the card, and **Reports**, with the charts of what is in the archive. Asking, opening

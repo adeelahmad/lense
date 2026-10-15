@@ -121,7 +121,7 @@ export function SelectionToolbar({ box }: { box: RefObject<HTMLDivElement | null
         aria-label="Selection actions"
         onMouseDown={(e) => e.preventDefault()}
         className={cn(
-          "fixed z-[60] flex -translate-y-[calc(100%+10px)] gap-0.5 whitespace-nowrap rounded-[10px] bg-fg p-1 text-[12.5px] font-semibold text-background shadow-3",
+          "fixed z-60 flex -translate-y-[calc(100%+10px)] gap-0.5 whitespace-nowrap rounded-[10px] bg-fg p-1 text-[12.5px] font-semibold text-background shadow-3",
           // on a phone it spans the screen and wraps its actions; elsewhere it follows the words
           narrow ? "inset-x-2 flex-wrap justify-center" : "-translate-x-1/2",
         )}

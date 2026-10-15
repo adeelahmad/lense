@@ -110,7 +110,7 @@ export function SettingField({
           disabled={disabled}
           columns={Math.min(spec.options?.length ?? 3, 3)}
           size="sm"
-          className="max-sm:!grid-cols-1"
+          className="max-sm:grid-cols-1!"
         />
       ) : spec.kind === "lines" ? (
         <Textarea
@@ -252,7 +252,7 @@ export function SecretSetting({
             value={value ?? ""}
             placeholder={isSet ? "Paste the new key" : placeholder}
             onChange={(e) => onChange(e.target.value || undefined)}
-            className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-fg-muted"
+            className="min-w-0 flex-1 bg-transparent font-mono text-[13px] outline-hidden placeholder:font-sans placeholder:text-fg-muted"
           />
           {isSet && (
             <Button

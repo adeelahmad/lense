@@ -22,10 +22,10 @@ export function BottomSheet({
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-[100] bg-[var(--scrim)] animate-fade-in" />
+        <D.Overlay className="fixed inset-0 z-100 bg-(--scrim) animate-fade-in" />
         <D.Content
           className={cn(
-            "fixed inset-x-0 bottom-0 z-[101] flex max-h-[85vh] flex-col gap-3 overflow-y-auto rounded-t-xl bg-background px-4 pb-6 pt-2.5 shadow-3 animate-fade-in",
+            "fixed inset-x-0 bottom-0 z-101 flex max-h-[85vh] flex-col gap-3 overflow-y-auto rounded-t-xl bg-background px-4 pb-6 pt-2.5 shadow-3 animate-fade-in",
             className,
           )}
         >

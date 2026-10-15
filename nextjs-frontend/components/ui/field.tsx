@@ -18,7 +18,7 @@ import { absolute } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const control =
-  "w-full rounded-sm border border-border bg-background text-[14px] text-fg placeholder:text-fg-muted outline-none transition-[border-color,box-shadow] duration-fast focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] disabled:cursor-not-allowed disabled:bg-surface disabled:text-fg-muted aria-[invalid=true]:border-red aria-[invalid=true]:focus:shadow-[0_0_0_3px_var(--red-surface)]";
+  "w-full rounded-sm border border-border bg-background text-[14px] text-fg placeholder:text-fg-muted outline-hidden transition-[border-color,box-shadow] duration-fast focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] disabled:cursor-not-allowed disabled:bg-surface disabled:text-fg-muted aria-invalid:border-red aria-invalid:focus:shadow-[0_0_0_3px_var(--red-surface)]";
 
 /** Label + control + hint or error, wired together for screen readers. */
 export function Field({

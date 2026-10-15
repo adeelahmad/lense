@@ -34,7 +34,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 
-from . import machine, settings, store
+from . import components, machine, settings, store
 
 R = store.R
 ROW = R("app_service", "local_llm")
@@ -202,9 +202,9 @@ def remove(cfg, ref):
 
 
 # ---------- downloading ----------
-def _open(url, headers=None, timeout=60):
+def _open(url, headers=None, timeout=60, token=None):
+    """`token`: a Hugging Face token, sent to huggingface.co only."""
     req = urllib.request.Request(url, headers={"User-Agent": "lens", **(headers or {})})
-    token = os.environ.get("HF_TOKEN")
     if token and urllib.parse.urlsplit(url).hostname == "huggingface.co":
         req.add_header("Authorization", f"Bearer {token}")
     return urllib.request.urlopen(req, timeout=timeout)
@@ -224,14 +224,14 @@ def download(cfg, m, progress=None, stop=None):
     if m["size"] and m["size"] - have > free:
         raise LocalModelError(f"not enough disk for {m['label']}: needs {m['size'] / GB:.1f} GB, {free / GB:.1f} GB free")
     try:
-        r = _open(url, {"Range": f"bytes={have}-"} if have else None)
+        r = _open(url, {"Range": f"bytes={have}-"} if have else None, token=components.hf_token(cfg))
     except urllib.error.HTTPError as e:
         if e.code == 416:  # the part is already whole
             r = None
         else:
             raise LocalModelError(
                 f"Hugging Face said {e.code} for {m['repo']}/{m['file']}"
-                + (" (a gated model: set HF_TOKEN)" if e.code in (401, 403) else "")
+                + (" (a gated model: add a Hugging Face token in Settings → Components)" if e.code in (401, 403) else "")
             ) from None
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         raise LocalModelError(f"can't reach Hugging Face: {getattr(e, 'reason', e)}") from None

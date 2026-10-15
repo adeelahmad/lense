@@ -116,7 +116,7 @@ export function WatchCard({
           <span aria-hidden className="font-extrabold text-red">
             ✕
           </span>
-          <span className="min-w-0 break-words">
+          <span className="min-w-0 wrap-break-word">
             Last error: <code className="font-mono">{watch.last_error}</code>
           </span>
         </div>

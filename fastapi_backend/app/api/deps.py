@@ -25,6 +25,7 @@ from fastapi import Depends, HTTPException, Request
 from app.core import security
 from app.domain import access as acc
 from app.domain import auth, graph_history, hierarchy, ipgroups, oauth, store
+from app.domain import roles as rl
 from app.domain.store import DB
 
 Config = dict[str, Any]
@@ -51,7 +52,8 @@ class Principal:
     via: Literal["access", "token", "oauth"]  # a signed-in session, an API token, or an app given access (OAuth)
     scope: Literal["read", "write"] = "write"
     sid: str | None = None
-    roles: dict[int, str] = field(default_factory=dict)
+    roles: dict[int, str] = field(default_factory=dict)  # as built-in roles: a custom role counts as its rank
+    perms: dict[int, frozenset[str]] = field(default_factory=dict)  # what each namespace role allows (roles.py)
     collections: dict[int, dict[int, str]] = field(default_factory=dict)  # roles on collections: {space: {collection: role}}
     resource: str | None = None  # an app's token: the server it was given for (RFC 8707), when the app named one
 
@@ -93,7 +95,8 @@ def _resolve(request: Request, db: DB) -> Principal | None:
         if u and claims:
             p = Principal(u["id"], u["email"], u.get("name"), bool(u.get("admin")), "access", "write", claims.sid)
     if p:
-        p.roles = auth.roles(db, {"id": p.id, "admin": p.admin})
+        p.perms = auth.permissions(db, {"id": p.id, "admin": p.admin})
+        p.roles = {sid: rl.rank(perms) for sid, perms in p.perms.items()}
         p.collections = {} if p.admin else hierarchy.roles_of(db, p.id)
     request.state.principal = p
     return p
@@ -162,12 +165,20 @@ class Access:
     def editable(self) -> list[int]:
         return sorted(s for s in self.roles if auth.allows(self.roles, s, "editor"))
 
+    def can(self, sid: int, perm: str) -> bool:
+        """Whether this person's role in namespace `sid` has a permission (roles.py)."""
+        return bool(self.user) and perm in self.user.perms.get(sid, frozenset())  # type: ignore[union-attr]
+
     def need(self, sid: int, role: str = "viewer") -> None:
+        """A role (viewer, editor, owner: at least that rank) or a permission (roles.PERMISSIONS) in namespace `sid`."""
         if not self.user:
             raise HTTPException(401, "sign in first", headers={"WWW-Authenticate": "Bearer"})
         if not auth.allows(self.roles, sid, "viewer"):
             raise HTTPException(404, "not found")
-        if not auth.allows(self.roles, sid, role):
+        if role in rl.PERMISSIONS:
+            if not self.can(sid, role):
+                raise HTTPException(403, f"needs the {role} permission in this namespace")
+        elif not auth.allows(self.roles, sid, role):
             raise HTTPException(403, f"needs {role} access to this namespace")
 
     def collection_role(self, sid: int, cid: int | None) -> str | None:
@@ -193,7 +204,12 @@ class Access:
         have = self.rank_in(sid, cid)
         if not have:
             raise HTTPException(404, "not found")
-        if have < auth.ROLES[role]:
+        if role in rl.PERMISSIONS:
+            # the namespace role's permission, or a collection role ranking as the built-in role that first has it
+            coll = hierarchy.ROLES.get(self.collection_role(sid, cid) or "", 0)
+            if not self.can(sid, role) and coll < auth.ROLES[rl.minimum(role)]:
+                raise HTTPException(403, f"needs the {role} permission for this asset")
+        elif have < auth.ROLES[role]:
             raise HTTPException(403, f"needs {role} access to this asset")
 
     def partial(self) -> dict[int, list[int]]:

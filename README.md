@@ -74,14 +74,18 @@ Everything below is built and merged. Work that is still in a pull request is li
   to. ([Chat](docs/assistant.md), [chat rooms](docs/chat-rooms.md), [email](docs/assistant-email.md),
   [speech providers](docs/speech-providers.md))
 - **Extend the assistant.** Add tools (a prompt, a web request, a graph drawn on the canvas, or sandboxed Python),
-  skills, hooks and remote MCP servers, by code, on the canvas or just by asking. Install skills and plugins from
-  marketplaces in the open plugin format, or from a repository or an archive.
-  ([Extending the assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins))
-- **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks;
-  IMAP mail and iCal calendars; a built-in MQTT broker, syslog and webhook streams; import webhooks for scanners and
-  phone shortcuts. Upload audio, video, PDFs, Office files, photos, JSON and zip or tar archives; capture web pages one
-  at a time, from a link list or a bookmarks file, by API or by asking the assistant; and import videos and podcasts
-  by their address (off by default). ([Sensors](docs/sensors.md), [processing](docs/processing.md),
+  skills, hooks and MCP servers, by code, on the canvas or just by asking. Remote MCP servers connect by address, and
+  ones that run as a program (`npx`, `uvx`) run in a sandboxed container of their own, off until you turn it on.
+  Install skills and plugins from marketplaces in the open plugin format, or from a repository or an archive.
+  ([Extending the assistant](docs/assistant.md#extending-the-assistant-tools-skills-hooks-and-plugins),
+  [the MCP runner](docs/assistant.md#the-mcp-runner))
+- **Bring in everything.** Watched folders on S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV or local disks
+  (a local folder in four clicks); IMAP mail and iCal calendars; a built-in MQTT broker, syslog and webhook streams;
+  import webhooks for scanners and phone shortcuts. Upload audio, video, PDFs, Office files, photos, JSON and zip or
+  tar archives, and, with an Apache Tika server (an opt-in extra), documents nothing else here can read; capture web
+  pages one at a time, from a link list or a bookmarks file, by API or by asking the assistant, from private networks
+  you allow in Settings too; and import videos and podcasts by their address (off by default).
+  ([Sensors](docs/sensors.md), [processing](docs/processing.md), [Apache Tika](docs/configuration.md#apache-tika),
   [import webhooks](docs/api.md#import-webhooks))
 - **Clip from the browser.** The Lens web clipper for Chrome, Edge, Firefox and Safari turns a page, a selection or a
   part you pick into Markdown, lets you look it over, and sends it to a namespace. New releases reach installed copies
@@ -89,14 +93,18 @@ Everything below is built and merged. Work that is still in a pull request is li
   assistant, which can also use that browser on the sites you allow (open, read, click, type), asking before anything
   that sends, deletes, buys or posts. ([Web clipper](docs/web-clipper.md),
   [the assistant in your browser](docs/browser-assistant.md))
-- **Understand it.** Transcription, people recognised by voice (and by face, off by default), text on screen and in scans,
-  entities and topics in a knowledge graph you can explore, query with Cypher or SPARQL, and see as it was at any
-  version. Find what is most like a passage, a resource, a topic or an entity, and, with anytopdf, photos by what
-  they show. ([Graph](docs/graph.md), [similar content](docs/processing.md#similar-content),
-  [graph history](docs/graph-history.md), [topics](docs/topics.md), [video](docs/video.md))
+- **Understand it.** Transcription, people recognised by voice (long recordings go to a speech provider in pieces that
+  fit its limits), text on screen and in scans, faces (off by default), NSFW pictures flagged by a model on your own
+  server (off by default, per namespace), entities and topics in a knowledge graph you can explore, query with Cypher
+  or SPARQL, and see as it was at any version. Find what is most like a passage, an asset, a topic or an entity, in
+  a Similar tab on every resource or by selecting text anywhere, and, with anytopdf, photos by what they show.
+  ([Graph](docs/graph.md), [similar content](docs/processing.md#similar-content),
+  [graph history](docs/graph-history.md), [topics](docs/topics.md), [video](docs/video.md),
+  [NSFW classification](docs/nsfw.md), [long recordings](docs/speech-providers.md#long-recordings))
 - **Learn from it.** Make a two-host podcast episode about what you pick, every claim cited and checked against its
   source, read aloud in two voices. Keep notes beside every asset, entity and topic, written by you or the
-  assistant, and export an asset or a collection as an evidence PDF. ([Podcasts](docs/podcasts.md),
+  assistant, and export an asset or a collection as an evidence PDF with everything Lens found about it, or the
+  parts you pick. ([Podcasts](docs/podcasts.md),
   [notes](docs/notes.md), [evidence PDFs](docs/api.md#evidence-pdfs))
 - **Automate it.** Pipelines and workflows on a canvas, routines on a schedule, batch runs over a collection, and
   notifications to webhooks, Slack, Discord and Matterbridge. ([Processing](docs/processing.md#workflows-and-the-canvas),
@@ -108,23 +116,27 @@ Everything below is built and merged. Work that is still in a pull request is li
   ([Activity and costs](docs/activity.md), [budgets](docs/budgets.md#one-budget-for-everything),
   [the meter](docs/budgets.md#the-meter-and-the-costs-page))
 - **Keep it up to date and backed up.** Lens checks for a new release once a day and tells admins by email or a
-  notification, and upgrades itself through a small agent on the machine, from the API; nothing installs unless an
-  admin says so. Settings › Backups takes, lists, downloads and restores backups, takes them on any schedule, and can
-  copy each one, encrypted, to a storage connection. ([Updates and backups](docs/updates.md),
-  [backups](docs/database.md#backups))
-- **Watch it run.** OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint. Both are off until you
-  turn them on, and send nothing anywhere else. On a Docker install, one switch in the web app (or one API call from
-  an agent) starts Prometheus, node-exporter and Grafana next to Lens, already connected, with the Lens dashboard as
-  Grafana's home. ([Telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md))
+  notification. One click in Settings › Updates (or one API call) upgrades it through a small agent on the machine,
+  showing each step, and rolls back when the new version doesn't start; nothing installs unless an admin says so. The
+  same agent changes whether other devices reach Lens and which edition runs, from Settings. Settings › Backups takes,
+  lists, downloads and restores backups, takes them on any schedule, and can copy each one, encrypted, to a storage
+  connection. ([Updates and backups](docs/updates.md), [backups](docs/database.md#backups))
+- **Watch it run.** Structured logs from every process, read in Settings › Logs and optionally sent to a syslog
+  server. OpenTelemetry traces and metrics, and a Prometheus `/metrics` endpoint, both off until you turn them on, and
+  sending nothing anywhere else. On a Docker install, one switch in the web app (or one API call from an agent) starts
+  Prometheus, node-exporter and Grafana next to Lens, already connected, with the Lens dashboard as Grafana's home.
+  ([Logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md))
 - **Stay private and safe.** Passkeys instead of passwords, encryption at rest with a key per namespace, roles per
-  namespace, and an audit log. Prompt injection meets several layers: what the assistant reads (recordings,
+  namespace (viewer, editor, owner, or custom roles made of permissions), email invitations, removing someone for
+  good, and an audit log. Prompt injection meets several layers: what the assistant reads (recordings,
   documents, web pages, tool results) reaches the model marked as data, not instructions, and text that reads like
   instructions to an AI is flagged (by free patterns, or an optional classifier model that runs on your machine and is
   fetched only when you pick it). Once an answer has read such text, sending anything out, or the browser opening or
   typing what the assistant wrote, waits for your yes. Chat-room answers have links they built themselves broken up,
-  agents over MCP get the archive as data, and what Lens caught goes into the audit log. Serve Lens over HTTPS with
-  certificates from Let's Encrypt or ZeroSSL that renew on their own, or reach it from anywhere through a Cloudflare
-  tunnel with nothing opened on your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
+  agents over MCP get the archive as data, and what Lens caught goes into the audit log. Serve Lens over HTTPS, set
+  up in Settings, with certificates from Let's Encrypt or ZeroSSL that renew on their own, answering only for its own
+  domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
+  Cloudflare tunnel with nothing opened on your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
@@ -133,32 +145,22 @@ Everything below is built and merged. Work that is still in a pull request is li
 
 ## Light by default
 
-Lens runs on a small machine. Heavy parts (local speech models, a local LLM, document conversion, Fedora) stay off or
-download only when you turn them on, and any of them can be swapped for a cloud provider instead. Picking a cloud
-model provider in setup or Settings fills in its address and a model, so only its key is left to paste. Every setting
-lives in the web app. ([Components](docs/components.md), [speech providers](docs/speech-providers.md),
-[local models](docs/local-models.md), [cloud model providers](docs/configuration.md#cloud-model-providers))
+Lens runs on a small machine. Heavy parts (local speech models, a local LLM, document conversion, an Apache Tika
+server, the NSFW model, the MCP runner, Fedora) stay off or download only when you turn them on, and any of them can be
+swapped for a cloud provider instead. Setup asks only what has no default: the model, and a budget for a cloud model.
+Picking a cloud model provider fills in its address and a model, so only its key is left to paste. Every setting lives
+in the web app, which works on a phone too. ([Components](docs/components.md),
+[speech providers](docs/speech-providers.md), [local models](docs/local-models.md),
+[cloud model providers](docs/configuration.md#cloud-model-providers))
 
 ## In progress
 
 These are open pull requests, not yet part of Lens:
 
-- **Assistant safety:** running MCP servers that are programs (stdio) in a sandbox
-  ([#304](https://github.com/adeelahmad/lense/pull/304)).
-- **Search:** a Similar tab, and similar content for text selected anywhere
-  ([#307](https://github.com/adeelahmad/lense/pull/307)); NSFW pictures classified by a local model, per namespace
-  ([#306](https://github.com/adeelahmad/lense/pull/306)).
-- **Sources:** watching a local folder in four clicks ([#341](https://github.com/adeelahmad/lense/pull/341)).
-- **On a phone:** the web app made usable on a phone ([#346](https://github.com/adeelahmad/lense/pull/346)).
-- **Running it:** an upgrade page with live steps that rolls back when the new version doesn't start
-  ([#262](https://github.com/adeelahmad/lense/pull/262)), HTTPS set up in Settings
-  ([#326](https://github.com/adeelahmad/lense/pull/326)), structured logs with a log viewer and syslog output
-  ([#284](https://github.com/adeelahmad/lense/pull/284)), and built-in usage analytics
+- **Usage analytics** built in, with churn and retention, and an optional Google Analytics export
   ([#274](https://github.com/adeelahmad/lense/pull/274)).
-- **People:** email invitations, and removing someone for good ([#286](https://github.com/adeelahmad/lense/pull/286)).
 - **Assets and people** rather than recordings and speakers, unless it is audio
   ([#273](https://github.com/adeelahmad/lense/pull/273)).
-- **Reading documents** with an Apache Tika server ([#292](https://github.com/adeelahmad/lense/pull/292)).
 
 ## Stack
 
@@ -181,16 +183,16 @@ The guides are on the [docs site](https://adeelahmad.github.io/lense/) and in th
   [access](docs/access.md)
 - **Use:** [chat and batch runs](docs/assistant.md), [chat rooms](docs/chat-rooms.md),
   [the assistant by email](docs/assistant-email.md), [podcasts](docs/podcasts.md), [notes](docs/notes.md),
-  [web clipper](docs/web-clipper.md),
-  [the assistant in your browser](docs/browser-assistant.md), [sensors](docs/sensors.md),
-  [processing](docs/processing.md), [video](docs/video.md), [notifications](docs/notifications.md)
+  [web clipper](docs/web-clipper.md), [the assistant in your browser](docs/browser-assistant.md),
+  [sensors](docs/sensors.md), [processing](docs/processing.md), [video](docs/video.md),
+  [NSFW classification](docs/nsfw.md), [notifications](docs/notifications.md)
 - **Knowledge:** [graph and Cypher](docs/graph.md), [graph history](docs/graph-history.md), [topics](docs/topics.md),
   [the graph as files](docs/file-tree.md), [NFS share](docs/file-shares.md), [SMB share](docs/smb.md),
   [linked data (RDF)](docs/rdf.md), [IIIF](docs/iiif.md), [Fedora](docs/fedora.md)
 - **Models and cost:** [local models](docs/local-models.md), [speech providers](docs/speech-providers.md),
   [activity and costs](docs/activity.md), [budgets](docs/budgets.md)
 - **Operate:** [encryption](docs/encryption.md), [storage](docs/storage.md), [database](docs/database.md),
-  [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md)
+  [logging](docs/logging.md), [telemetry](docs/telemetry.md), [Prometheus](docs/prometheus.md)
 - **Build:** [architecture](docs/architecture.md), [web app](docs/frontend.md),
   [technology](docs/technology-selection.md), [API work the design needs](docs/backend-gaps.md),
   [contributing](CONTRIBUTING.md), [agent rules](AGENTS.md)

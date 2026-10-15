@@ -62,6 +62,40 @@ publishes them. Permission doesn't open the workspace: that stays with the names
 
 In the matrix, view and edit permission open the same pages; Lens has one permission for both.
 
+## Roles and permissions
+
+A role in a namespace is a set of **permissions**. Every role reads; the rest are what it may change:
+
+| Permission | Allows | Built-in roles with it |
+|---|---|---|
+| `read` | see, search, listen and chat; write your own notes | viewer, editor, owner |
+| `edit` | edit transcripts, catalogue records, tags, fields, collections, and notes and comments for everyone | editor, owner |
+| `import` | add recordings, documents and images: uploads, imports, RDF | editor, owner |
+| `process` | reprocess, run pipelines, workflows, routines and batches | editor, owner |
+| `curate` | rename and merge speakers, faces, entities and topics; change the graph | editor, owner |
+| `share` | make, list and revoke share links | editor, owner |
+| `publish` | set access, open parts and featured; give permission on recordings; answer access requests | owner |
+| `remove` | delete recordings and move them to another namespace | owner |
+| `members` | give people roles in the namespace | owner |
+| `manage` | namespace settings: metadata profile, notifications, import hooks, IP groups, the assistant, vaults | owner |
+
+**Viewer**, **editor** and **owner** are built in and can't change, so access people already had stays as it was.
+Admins make **custom roles** in Admin → Roles (`POST /api/v1/roles` with a name, a label and permissions) and give
+them per namespace like the built-in ones: in People's role grid, a namespace's members, or
+`PUT /api/v1/namespaces/<name>/members`. A change to a custom role holds for everyone with it at once; a role someone
+holds can't be deleted. Making, changing and deleting roles is audited as `role.create`, `role.update` and
+`role.delete`.
+
+The permissions above are checked as named. A custom role also counts as the largest built-in role whose
+permissions it all has (its **rank**, shown in Admin → Roles), and the checks that still ask for a rank give it
+that much: the notebook, comment threads, collection roles and the pages a namespace's members see. So a custom role
+never does more than its permissions, but may do less than them there until those checks move to permissions too.
+
+Someone with the `members` permission who isn't an admin gives only roles whose permissions they hold all of, and
+changes only people whose role they hold all of: they can't promote themselves or take out an owner. Collection roles
+(below) stay viewer, editor and admin. API tokens and apps keep their read or write scope on top of the role: a
+read-only token can't use a role's write permissions. `GET /api/v1/auth/me` lists your permissions in each namespace.
+
 ## Collection roles
 
 Every asset lives in a collection of its namespace ([API](api.md#collections-of-a-namespace)), and people can be

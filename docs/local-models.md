@@ -29,7 +29,7 @@ The page shows each step (fetching llama.cpp, downloading with a percentage, sta
 lines when something goes wrong. Downloaded models can be deleted there to free the disk.
 
 Any other GGUF chat model on Hugging Face works too: set the model to `hf:<owner>/<repo>/<file>.gguf`. Gated models
-need `HF_TOKEN` in the environment.
+need a Hugging Face token: add it in Settings → Components (`components.hf_token`).
 
 ## Settings
 

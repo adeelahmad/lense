@@ -46,7 +46,7 @@ function Diff({ rows }: { rows: DiffRow[] }) {
             >
               {r.sign === "-" ? "−" : r.sign === " " ? "" : r.sign}
             </span>
-            <span role="cell" className="whitespace-pre-wrap break-words pr-3.5 text-fg">
+            <span role="cell" className="whitespace-pre-wrap wrap-break-word pr-3.5 text-fg">
               {r.text}
             </span>
           </div>

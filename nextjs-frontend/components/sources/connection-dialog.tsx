@@ -371,7 +371,7 @@ export function ConnectionDialog({
             <span aria-hidden className="font-extrabold text-red">
               ✕
             </span>
-            <code className="break-words font-mono text-[12.5px] text-fg">
+            <code className="wrap-break-word font-mono text-[12.5px] text-fg">
               {result.health.error ?? "The test failed"}
             </code>
           </div>

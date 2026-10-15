@@ -134,7 +134,7 @@ def queue_step(step: str, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> StepQueue
 
 @router.post("/jobs/{jid}/cancel")
 def cancel_job(jid: int, acl: Acl, user: Writer, db: Db) -> Ok:
-    _job(db, acl, jid, "editor")
+    _job(db, acl, jid, "process")
     with domain_errors():
         jobs.cancel(db, jid)
     return Ok()
@@ -144,7 +144,7 @@ def cancel_job(jid: int, acl: Acl, user: Writer, db: Db) -> Ok:
 def release_job(jid: int, body: HeldRunDecision, acl: Acl, user: AdminWriter, db: Db) -> Ok:
     """Pick for a job held over a budget (docs/budgets.md): run it now, once, whatever its budgets say, or skip it
     (admins, who set the budgets)."""
-    _job(db, acl, jid, "editor")
+    _job(db, acl, jid, "process")
     with domain_errors():
         jobs.release(db, jid, body.run, user.email)
     auth.audit(db, user.as_audit(), "job.release" if body.run else "job.skip", f"job:{jid}")
@@ -153,7 +153,7 @@ def release_job(jid: int, body: HeldRunDecision, acl: Acl, user: AdminWriter, db
 
 @router.post("/jobs/{jid}/retry")
 def retry_job(jid: int, acl: Acl, user: Writer, db: Db) -> Ok:
-    _job(db, acl, jid, "editor")
+    _job(db, acl, jid, "process")
     with domain_errors():
         jobs.retry(db, jid)
     return Ok()
@@ -164,13 +164,13 @@ def create_jobs(body: JobsCreate, acl: Acl, user: Writer, db: Db) -> JobsQueued:
     """Queue assets (these steps, a pipeline, or their namespace's pipeline) and/or everything pending in a namespace."""
     out: list[int] = []
     for rid in body.recordings:
-        acl.recording(rid, "editor")
+        acl.recording(rid, "process")
         try:
             out.append(jobs.enqueue(db, rid, body.steps or None, by=user.email, pipeline=body.pipeline))
         except (ValueError, KeyError) as e:
             raise HTTPException(400, str(e)) from None
     if body.namespace:
-        sid = acl.namespace(body.namespace, "editor")
+        sid = acl.namespace(body.namespace, "process")
         out += jobs.enqueue_pending(db, sid, by=user.email)
     return JobsQueued(jobs=out)
 

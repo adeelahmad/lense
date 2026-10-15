@@ -81,6 +81,7 @@ def test_clients_are_sent_to_sign_in(client, app, env):
         "mark_nsfw",
         "set_file_storage",
         "set_monitoring",
+        "set_install_settings",
     ]
     assert next(t for t in tools if t["name"] == "search")["inputSchema"]["required"] == ["query"]
     # API tokens and sessions work too
@@ -470,6 +471,33 @@ def test_monitoring_tools(client, db, env, monkeypatch):
     got = tool(client, ha, "monitoring")
     assert (got["on"], got["agent"]) == (False, None) and got["settings"].endswith("/settings/telemetry")
     assert "no upgrade agent" in tool_error(client, ha, "set_monitoring", on=True)
+
+
+def test_install_tools(client, db, env, tmp_path, monkeypatch):
+    monkeypatch.delenv("LENS_CONTROL_DIR", raising=False)
+    monkeypatch.setenv("LENS_BIND", "127.0.0.1")
+    monkeypatch.setenv("LENS_TARGET", "full")
+    assert "only admins" in tool_error(client, env["h"], "install_settings")
+    assert "only admins" in tool_error(client, env["h"], "set_install_settings", public=True)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    ha = login(client, "root@x.io", "root password 1")
+    got = tool(client, ha, "install_settings")
+    assert (got["public"], got["target"], got["agent"]) == (False, "full", None) and got["settings"].endswith("/settings/access")
+    assert got["manual"]["public"].endswith("LENS_PUBLIC=1 sh")
+    err = tool_error(client, ha, "set_install_settings", public=True)
+    assert "no upgrade agent" in err and err.endswith("LENS_PUBLIC=1 sh")  # the line to run instead
+    assert "say what to change" in tool_error(client, ha, "set_install_settings")
+    assert "full, lean" in tool_error(client, ha, "set_install_settings", target="medium")
+
+    d = tmp_path / "control"
+    (d / "inbox").mkdir(parents=True)
+    (d / "agent").write_text("kind=systemd\n")
+    monkeypatch.setenv("LENS_CONTROL_DIR", str(d))
+    assert tool(client, ha, "set_install_settings", public=False)["changing"] == {}  # so already: nothing restarts
+    got = tool(client, ha, "set_install_settings", target="lean")
+    assert got["changing"] == {"target": "lean"} and got["reconfigure"]["target"] == "lean"
+    detail = db.values("SELECT VALUE detail FROM audit_log WHERE action = 'lens.install'")
+    assert detail == [{"target": "lean", "via": "mcp"}]
 
 
 def test_what_the_archive_says_reaches_agents_as_data(client, db, cfg, env):

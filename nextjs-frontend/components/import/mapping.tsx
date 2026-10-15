@@ -77,7 +77,7 @@ export function MappingField({
         aria-invalid={m.errors.length > 0 || undefined}
         aria-describedby={`${id}-notes`}
         className={cn(
-          "w-full resize-y rounded-sm border border-border bg-background px-3.5 py-2.5 font-mono leading-[1.7] text-fg outline-none focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] aria-[invalid=true]:border-red",
+          "w-full resize-y rounded-sm border border-border bg-background px-3.5 py-2.5 font-mono leading-[1.7] text-fg outline-hidden focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] aria-invalid:border-red",
           large ? "text-[15px]" : "text-[13.5px]",
         )}
       />

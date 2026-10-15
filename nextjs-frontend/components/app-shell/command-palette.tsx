@@ -137,9 +137,9 @@ export function CommandPalette() {
       </button>
       <D.Root open={open} onOpenChange={setOpen}>
         <D.Portal>
-          <D.Overlay className="fixed inset-0 z-[100] bg-[var(--scrim)] backdrop-blur-[2px]" />
+          <D.Overlay className="fixed inset-0 z-100 bg-(--scrim) backdrop-blur-[2px]" />
           <D.Content
-            className="fixed left-1/2 top-[12vh] z-[101] w-[calc(100vw-32px)] max-w-[600px] -translate-x-1/2 overflow-hidden rounded-lg bg-background shadow-3"
+            className="fixed left-1/2 top-[12vh] z-101 w-[calc(100vw-32px)] max-w-[600px] -translate-x-1/2 overflow-hidden rounded-lg bg-background shadow-3"
             aria-describedby={undefined}
           >
             <D.Title className="sr-only">Jump to</D.Title>
@@ -168,7 +168,7 @@ export function CommandPalette() {
                 aria-controls="palette-list"
                 aria-activedescendant={items[sel] ? `palette-${sel}` : undefined}
                 placeholder="Search assets and pages, or > for actions"
-                className="h-14 flex-1 bg-transparent text-[16px] text-fg outline-none placeholder:text-fg-muted"
+                className="h-14 flex-1 bg-transparent text-[16px] text-fg outline-hidden placeholder:text-fg-muted"
               />
               <kbd className="rounded-xs border border-border px-1.5 text-[11px] text-fg-muted">esc</kbd>
             </div>

@@ -137,7 +137,7 @@ function PagesCard({
           className="mx-auto block h-auto w-full max-w-[720px] rounded-[2px] border border-border bg-surface"
         />
       ) : (
-        <div className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-surface p-6 text-center text-[13px] text-fg-muted">
+        <div className="flex aspect-3/4 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-surface p-6 text-center text-[13px] text-fg-muted">
           <ImageOff aria-hidden className="size-5" />
           {name} couldn’t be drawn.
         </div>
@@ -160,7 +160,7 @@ function PagesCard({
                 // eslint-disable-next-line @next/next/no-img-element -- a signed link to a page the API drew
                 <img src={x.thumb} alt="" loading="lazy" className="block h-auto w-full" />
               ) : (
-                <span className="grid aspect-[3/4] place-items-center text-[11px] text-fg-muted">
+                <span className="grid aspect-3/4 place-items-center text-[11px] text-fg-muted">
                   {pageName(pages, x.idx)}
                 </span>
               )}
@@ -274,7 +274,7 @@ function DocumentText({ rec, t, page, onPage }: { rec: Rec; t: Text; page: numbe
                   }}
                   className={cn(
                     "whitespace-pre-line rounded-[3px] font-serif text-[15.5px] leading-[1.6] text-fg",
-                    query.trim() && hits[at] === i && "outline outline-2 outline-blue-border",
+                    query.trim() && hits[at] === i && "outline-solid outline-2 outline-blue-border",
                   )}
                 >
                   {markParts(t.segments[i].text, query).map((p, k) =>

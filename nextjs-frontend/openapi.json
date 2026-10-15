@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.8.1"
+    "version": "0.9.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -1561,7 +1561,7 @@
           "users"
         ],
         "summary": "Make Signin Link",
-        "description": "A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts\nthree days; making another stops the last one. Share it privately. Audited as `user.signin_link`.",
+        "description": "A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts\nthree days; making another stops the last one. Share it privately, or with email=true Lens emails it to them\nwhen mail is set up (`emailed` says whether it did). Audited as `user.signin_link`.",
         "operationId": "make_signin_link",
         "parameters": [
           {
@@ -1571,6 +1571,16 @@
             "schema": {
               "type": "integer",
               "title": "Uid"
+            }
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Email"
             }
           }
         ],
@@ -2113,6 +2123,57 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Remove User",
+        "description": "Remove someone for good (docs/authentication.md#removing-someone): their sign-ins, roles, permissions and\nprivate things go; what they shared stays under their name, and their email can be invited again. Disabling\n(PATCH) is the reversible way. Refused (409) for the account Matterbridge answers as, and when their passkeys are\nthe only way into a vault, unless lose_vaults=true. Audited as `user.remove`.",
+        "operationId": "remove_user",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
+            }
+          },
+          {
+            "name": "lose_vaults",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Lose Vaults"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/namespaces/{name}/members": {
@@ -2166,7 +2227,7 @@
           "users"
         ],
         "summary": "Set Member",
-        "description": "Give someone a role in this namespace, change it, or (role null) remove them. Owners only.",
+        "description": "Give someone a role in this namespace (built-in or custom), change it, or (role null) remove them. Needs the\nmembers permission; someone who isn't an admin gives only roles they hold every permission of, and changes only\npeople whose role they hold every permission of.",
         "operationId": "set_member",
         "parameters": [
           {
@@ -2189,6 +2250,162 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles": {
+      "get": {
+        "tags": [
+          "users"
+        ],
+        "summary": "List Roles",
+        "description": "The permissions a role can have, and every role: viewer, editor and owner, then the custom ones.",
+        "operationId": "list_roles",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Roles"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Create Role",
+        "description": "A custom role (admins), given per namespace like the built-in ones. Audited as `role.create`.",
+        "operationId": "create_role",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/{name}": {
+      "patch": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Update Role",
+        "description": "Change a custom role's label, description or permissions; everyone holding it gets the change at once.\nBuilt-in roles can't change. Audited as `role.update`.",
+        "operationId": "update_role",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Delete Role",
+        "description": "Delete a custom role. Refused (409) while anyone holds it. Audited as `role.delete`.",
+        "operationId": "delete_role",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3830,6 +4047,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/install": {
+      "get": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Get Install",
+        "description": "How install.sh set this machine up: whether other machines on the network reach the web app, and the edition\n(full or lean); what can change them here, and how the last change went.",
+        "operationId": "get_install",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "updates"
+        ],
+        "summary": "Set Install",
+        "description": "Make the web app reachable from other machines on the network (public) or this machine only, or change the\nedition (target: full, with LibreOffice and Chromium, or lean): this machine's upgrade agent runs install.sh again\nfor the version running with LENS_PUBLIC and LENS_TARGET, and Lens restarts; GET /admin/install follows along.\nWhat is so already is left alone, and with nothing left to change nothing restarts (200). Without an agent, 409\nsays the line to run on the machine instead (`manual` has each one).",
+        "operationId": "set_install",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstallChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallStatus"
                 }
               }
             }
@@ -8581,7 +8860,7 @@
           "resources"
         ],
         "summary": "Evidence Pdf",
-        "description": "The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with\ntheir transcript), searchable, then a provenance page with the file's SHA-256 and size. 503 when anytopdf can't\nrun here (it's fetched on first use unless Settings \u203a Documents says never to use it).",
+        "description": "The resource as an evidence PDF, made by anytopdf (a download): its own file's pages (audio and video with\ntheir transcript, each line marked with its emotion and sound), searchable, then the pages of what Lens found\nabout it (details, metadata, tags, topics, summary, analysis, sections, speakers, emotion, entities, keywords,\nwhat is seen, places and dates; notes when asked for), then a provenance page with each file's SHA-256 and size.\n`include` picks the parts. 503 when anytopdf can't run here (it's fetched on first use unless Settings \u203a\nDocuments says never to use it).",
         "operationId": "evidence_pdf",
         "parameters": [
           {
@@ -8592,6 +8871,44 @@
               "type": "integer",
               "title": "Rid"
             }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "file",
+                      "details",
+                      "metadata",
+                      "tags",
+                      "topics",
+                      "summary",
+                      "analysis",
+                      "sections",
+                      "speakers",
+                      "emotion",
+                      "entities",
+                      "keywords",
+                      "visual",
+                      "places",
+                      "notes"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it",
+              "title": "Include"
+            },
+            "description": "the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it"
           }
         ],
         "responses": {
@@ -22539,7 +22856,7 @@
           "collections"
         ],
         "summary": "Collection Evidence",
-        "description": "The collection's assets you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each\none's pages, then a provenance page with every file's SHA-256 and size. At most 50 assets.",
+        "description": "The collection's assets you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each\none's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a\nresource's evidence PDF. At most 50 assets.",
         "operationId": "collection_evidence",
         "parameters": [
           {
@@ -22550,6 +22867,44 @@
               "type": "integer",
               "title": "Cid"
             }
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "file",
+                      "details",
+                      "metadata",
+                      "tags",
+                      "topics",
+                      "summary",
+                      "analysis",
+                      "sections",
+                      "speakers",
+                      "emotion",
+                      "entities",
+                      "keywords",
+                      "visual",
+                      "places",
+                      "notes"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it",
+              "title": "Include"
+            },
+            "description": "the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it"
           }
         ],
         "responses": {
@@ -38695,6 +39050,139 @@
         ],
         "title": "IndexQueued"
       },
+      "InstallChange": {
+        "properties": {
+          "public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public",
+            "description": "reachable from other machines on the network (true) or this machine only (false)"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "lean"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "the edition: full or lean"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "InstallChange"
+      },
+      "InstallLines": {
+        "properties": {
+          "public": {
+            "type": "string",
+            "title": "Public",
+            "description": "the install line that makes the web app reachable from other machines (LENS_PUBLIC=1)"
+          },
+          "private": {
+            "type": "string",
+            "title": "Private",
+            "description": "the install line that keeps it to this machine (LENS_PUBLIC=0)"
+          },
+          "full": {
+            "type": "string",
+            "title": "Full",
+            "description": "the install line for the full edition (LENS_TARGET=full)"
+          },
+          "lean": {
+            "type": "string",
+            "title": "Lean",
+            "description": "the install line for the lean edition (LENS_TARGET=lean)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "public",
+          "private",
+          "full",
+          "lean"
+        ],
+        "title": "InstallLines"
+      },
+      "InstallStatus": {
+        "properties": {
+          "public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public",
+            "description": "the web app is reachable from other machines on the network (LENS_BIND), or from this one only; none: Lens wasn't started by install.sh or docker-compose.prod.yml, so it doesn't know"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "lean"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "the edition (LENS_TARGET): full has LibreOffice and Chromium, to read Office files, web pages and emails; lean doesn't. None: not known here"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "what changes them on this machine (systemd, launchd); none: run a `manual` line there"
+          },
+          "manual": {
+            "$ref": "#/components/schemas/InstallLines",
+            "description": "the line to run on the machine Lens runs on for each choice, when there's no agent"
+          },
+          "reconfigure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UpgradeRun"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the last run that changed either (as in /admin/updates)"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "manual"
+        ],
+        "title": "InstallStatus"
+      },
       "IpGroup": {
         "properties": {
           "id": {
@@ -41066,7 +41554,18 @@
             },
             "type": "object",
             "title": "Roles",
-            "description": "namespace name -> role"
+            "description": "namespace name -> role, as a built-in role (a custom role counts as its rank)"
+          },
+          "permissions": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Permissions",
+            "description": "namespace name -> what your role there allows (docs/access.md#roles-and-permissions)"
           },
           "partial": {
             "items": {
@@ -41141,11 +41640,6 @@
           },
           "role": {
             "type": "string",
-            "enum": [
-              "viewer",
-              "editor",
-              "owner"
-            ],
             "title": "Role"
           },
           "email": {
@@ -41207,11 +41701,9 @@
             "anyOf": [
               {
                 "type": "string",
-                "enum": [
-                  "viewer",
-                  "editor",
-                  "owner"
-                ]
+                "maxLength": 40,
+                "minLength": 1,
+                "description": "viewer, editor, owner or a custom role's name"
               },
               {
                 "type": "null"
@@ -50795,6 +51287,193 @@
         ],
         "title": "Reviewed"
       },
+      "RoleCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "2 to 40 lowercase letters, digits, - and _; can't change later"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions",
+            "description": "read is always included"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RoleCreate"
+      },
+      "RoleOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin"
+          },
+          "rank": {
+            "type": "string",
+            "title": "Rank",
+            "description": "the largest built-in role it covers; the checks that ask for a rank give it that much"
+          },
+          "members": {
+            "type": "integer",
+            "title": "Members",
+            "description": "how many people hold it, across namespaces",
+            "default": 0
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "permissions",
+          "builtin",
+          "rank"
+        ],
+        "title": "RoleOut"
+      },
+      "RolePermission": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "first": {
+            "type": "string",
+            "title": "First",
+            "description": "the built-in role that first has it"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "label",
+          "first"
+        ],
+        "title": "RolePermission"
+      },
+      "RoleUpdate": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "permissions": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permissions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RoleUpdate"
+      },
+      "Roles": {
+        "properties": {
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/RolePermission"
+            },
+            "type": "array",
+            "title": "Permissions"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleOut"
+            },
+            "type": "array",
+            "title": "Roles"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "permissions",
+          "roles"
+        ],
+        "title": "Roles"
+      },
       "RollbackAsk": {
         "properties": {
           "to": {
@@ -54222,6 +54901,18 @@
             "type": "boolean",
             "title": "Pending"
           },
+          "todo": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "llm",
+                "budget"
+              ]
+            },
+            "type": "array",
+            "title": "Todo",
+            "default": []
+          },
           "admin": {
             "$ref": "#/components/schemas/SetupAdmin"
           },
@@ -54540,6 +55231,12 @@
           "expires_at": {
             "type": "string",
             "title": "Expires At"
+          },
+          "emailed": {
+            "type": "boolean",
+            "title": "Emailed",
+            "description": "whether Lens emailed it to them (email=true, with mail set up)",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -58600,16 +59297,77 @@
             "title": "Https",
             "description": "the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)"
           },
+          "public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public",
+            "description": "the web app made reachable from other machines on the network (true) or this one only (false) by this run"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "full",
+                  "lean"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "the edition this run changed to"
+          },
           "state": {
             "type": "string",
             "enum": [
               "backing-up",
               "queued",
               "running",
+              "rolling-back",
               "done",
-              "failed"
+              "failed",
+              "rolled-back"
             ],
-            "title": "State"
+            "title": "State",
+            "description": "rolling-back / rolled-back: the new version didn't start, so the agent went back to the one before"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "download",
+                  "build",
+                  "start",
+                  "check"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step",
+            "description": "while running: what the agent is on (the backup comes before)"
+          },
+          "restore": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restore",
+            "description": "after a rollback: whether the backup was put back, and why"
           },
           "by": {
             "anyOf": [
@@ -59202,16 +59960,11 @@
           },
           "roles": {
             "additionalProperties": {
-              "type": "string",
-              "enum": [
-                "viewer",
-                "editor",
-                "owner"
-              ]
+              "type": "string"
             },
             "type": "object",
             "title": "Roles",
-            "description": "namespace name -> role"
+            "description": "namespace name -> role (built-in or custom)"
           },
           "passkeys": {
             "type": "integer",

@@ -333,7 +333,7 @@ export function TemplateEditor({ id }: { id: number }) {
                 title={readOnly ? undefined : "Insert at the cursor"}
                 className="flex flex-col gap-0.5 rounded-[6px] px-2 py-1.5 text-left enabled:hover:bg-surface-neutral disabled:cursor-default"
               >
-                <code className="font-mono text-[11.5px] font-medium leading-snug text-fg-accent [overflow-wrap:anywhere]">{`{{ ${v.key} }}`}</code>
+                <code className="font-mono text-[11.5px] font-medium leading-snug text-fg-accent wrap-anywhere">{`{{ ${v.key} }}`}</code>
                 <span className="text-[11px] leading-snug text-fg-muted">{v.type}</span>
               </button>
             ))}
@@ -362,7 +362,7 @@ export function TemplateEditor({ id }: { id: number }) {
                     <span aria-hidden className="font-extrabold text-red">
                       ✕
                     </span>
-                    <span className="min-w-0 break-words">
+                    <span className="min-w-0 wrap-break-word">
                       {errorBar}
                       {problems.length > 1 ? ` (+${problems.length - 1} more)` : ""}
                     </span>
@@ -460,12 +460,12 @@ export function TemplateEditor({ id }: { id: number }) {
                 <span aria-hidden className="font-extrabold text-red">
                   ✕
                 </span>
-                <span className="min-w-0 break-words">
+                <span className="min-w-0 wrap-break-word">
                   It doesn’t render: <code className="font-mono">{preview.data.error}</code>
                 </span>
               </div>
             ) : result ? (
-              <pre className="m-0 overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-surface p-3 font-mono text-[12px] leading-[1.65] text-fg">
+              <pre className="m-0 overflow-auto whitespace-pre-wrap wrap-break-word rounded-md border border-border bg-surface p-3 font-mono text-[12px] leading-[1.65] text-fg">
                 {JSON.stringify(result.value, null, 2)}
               </pre>
             ) : t.kind === "report" && preview.data?.rendered ? (
@@ -476,7 +476,7 @@ export function TemplateEditor({ id }: { id: number }) {
                 className="min-h-[420px] w-full flex-1 rounded-md border border-border bg-white"
               />
             ) : preview.data?.rendered != null ? (
-              <pre className="m-0 max-h-[60vh] overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-surface p-3 font-mono text-[12px] leading-[1.65] text-fg">
+              <pre className="m-0 max-h-[60vh] overflow-auto whitespace-pre-wrap wrap-break-word rounded-md border border-border bg-surface p-3 font-mono text-[12px] leading-[1.65] text-fg">
                 {preview.data.rendered}
               </pre>
             ) : (

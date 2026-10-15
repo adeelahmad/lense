@@ -376,7 +376,7 @@ function CommentRow({ c, replies }: { c: Comment; replies: number }) {
           </div>
         </form>
       ) : (
-        <p className="whitespace-pre-wrap break-words text-[14px] leading-normal text-fg">{c.text}</p>
+        <p className="whitespace-pre-wrap wrap-break-word text-[14px] leading-normal text-fg">{c.text}</p>
       )}
       {confirm && (
         <div className="flex flex-wrap items-center gap-1.5" role="alert">

@@ -79,7 +79,7 @@ export function WebTab({
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           <div className="flex items-start gap-3 rounded-md border border-border bg-surface p-3.5">
             <Globe aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-secondary" />
-            <p className="text-[13px] leading-[1.5] text-fg-secondary">
+            <p className="text-[13px] leading-normal text-fg-secondary">
               The page is kept as it is now, as a PDF: a link to a PDF as it is, any other page as the server’s browser
               shows it. Its text is read page by page, like any document. Only public pages can be captured.
             </p>

@@ -59,6 +59,8 @@ class Archive:
             log.warning("couldn't bring the full-text index up to date", exc_info=True)
 
     def prepare(self) -> None:
+        # first: after a rollback to this version, the database as it was before the upgrade (docs/updates.md)
+        updates.restore_on_start(self.db, self.base)
         templates.seed(self.db)
         content_types.seed(self.db)
         routines.seed(self.db)
@@ -70,6 +72,7 @@ class Archive:
         if auth.account_count(self.db) == 0:
             setup.mark_fresh(self.db, self.base)  # a fresh install: the web app walks the first admin through setup
         setup.apply_env(self.db, self.base)
+        setup.finish_if_ready(self.db, self.base)  # the installer (or .env) answered everything the wizard asks
         if settings.keep_passwords(self.db, self.base):
             log.info("People here sign in with passwords, so passwords stay on; an admin can turn them off in Settings > Sign-in")
         if auth.account_count(self.db) == 0:

@@ -153,7 +153,7 @@ def get_entity_timeline(user: CurrentUser, acl: Acl, db: Db, ids: str, by: str =
 @router.post("/entities/retype")
 def retype_entities(body: EntityRetype, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
     for i in body.ids:
-        _entity_space(db, acl, i, "editor")
+        _entity_space(db, acl, i, "curate")
     with domain_errors():
         ents.retype(db, body.ids, body.type)
     auth.audit(db, user.as_audit(), "entity.retype", None, {"ids": body.ids, "type": body.type})
@@ -164,7 +164,7 @@ def retype_entities(body: EntityRetype, request: Request, user: Writer, acl: Acl
 @router.post("/entities/merge")
 def merge_entities(body: EntityMerge, request: Request, user: Writer, acl: Acl, db: Db) -> EntityMerged:
     for i in [body.keep, *body.others]:
-        _entity_space(db, acl, i, "editor")
+        _entity_space(db, acl, i, "curate")
     with domain_errors():
         mid = ents.merge(db, body.keep, body.others, user.email)
     auth.audit(db, user.as_audit(), "entity.merge", f"entity:{body.keep}", {"others": body.others})
@@ -177,7 +177,7 @@ def undo_entity_merge(mid: int, request: Request, user: Writer, acl: Acl, db: Db
     m = db.one("SELECT space FROM $r", r=R("entity_merge", mid))
     if not m:
         raise HTTPException(404, "not found")
-    acl.need(m["space"], "editor")
+    acl.need(m["space"], "curate")
     with domain_errors():
         ents.undo_merge(db, mid)
     auth.audit(db, user.as_audit(), "entity.merge.undo", f"entity_merge:{mid}")
@@ -188,8 +188,8 @@ def undo_entity_merge(mid: int, request: Request, user: Writer, acl: Acl, db: Db
 @router.post("/entities/not-same")
 def mark_entities_not_same(body: EntityNotSame, user: Writer, acl: Acl, db: Db) -> Ok:
     """Stop suggesting that these two are the same."""
-    _entity_space(db, acl, body.a, "editor")
-    _entity_space(db, acl, body.b, "editor")
+    _entity_space(db, acl, body.a, "curate")
+    _entity_space(db, acl, body.b, "curate")
     ents.not_same(db, body.a, body.b)
     auth.audit(db, user.as_audit(), "entity.not_same", None, {"a": body.a, "b": body.b})
     return Ok()
@@ -235,7 +235,7 @@ def get_entity_connections(eid: int, user: CurrentUser, acl: Acl, db: Db) -> dic
 @router.post("/entities/{eid}/rename")
 def rename_entity(eid: int, body: EntityRename, request: Request, user: Writer, acl: Acl, db: Db) -> dict[str, Any]:
     """Rename; with `correct`, also fix the lines of text (re-analysing the assets). `dry_run` previews the lines."""
-    _entity_space(db, acl, eid, "editor")
+    _entity_space(db, acl, eid, "curate")
     with domain_errors():
         out = ents.rename(db, eid, body.name, body.keep_alias, body.correct, body.dry_run)
     if not body.dry_run:
@@ -248,7 +248,7 @@ def rename_entity(eid: int, body: EntityRename, request: Request, user: Writer, 
 @router.patch("/entities/{eid}")
 def update_entity(eid: int, body: EntityUpdate, request: Request, user: Writer, acl: Acl, db: Db) -> EntityDetail:
     """Describe the entity (what it is, in your words), say how else it's called, or put it on (or off) the fixed list."""
-    sid = _entity_space(db, acl, eid, "editor")
+    sid = _entity_space(db, acl, eid, "curate")
     changes = body.model_dump(exclude_unset=True)
     with domain_errors():
         if "description" in changes:
@@ -270,7 +270,7 @@ def update_entity(eid: int, body: EntityUpdate, request: Request, user: Writer, 
 @router.delete("/entities/{eid}")
 def delete_entity(eid: int, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
     """Take a defined entity that nothing mentions off the fixed list."""
-    _entity_space(db, acl, eid, "editor")
+    _entity_space(db, acl, eid, "curate")
     with domain_errors():
         ents.remove(db, eid)
     auth.audit(db, user.as_audit(), "entity.delete", f"entity:{eid}", None)
@@ -296,7 +296,7 @@ def define_entity(name: str, body: EntityDefine, request: Request, user: Writer,
 @router.post("/entities/{eid}/hide")
 def hide_entity(eid: int, request: Request, user: Writer, acl: Acl, db: Db, body: EntityHide | None = None) -> Ok:
     body = body or EntityHide()
-    _entity_space(db, acl, eid, "editor")
+    _entity_space(db, acl, eid, "curate")
     with domain_errors():
         ents.hide(db, eid, body.hidden, body.reason)
     action = "entity.hide" if body.hidden else "entity.restore"
@@ -309,8 +309,8 @@ def hide_entity(eid: int, request: Request, user: Writer, acl: Acl, db: Db, body
 def link_entity(eid: int, body: EntityLinkRequest, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
     """Say an entity in another namespace is the same thing (they stay separate; the graph joins them)."""
     other = body.with_
-    _entity_space(db, acl, eid, "editor")
-    _entity_space(db, acl, other, "editor")
+    _entity_space(db, acl, eid, "curate")
+    _entity_space(db, acl, other, "curate")
     with domain_errors():
         ents.link(db, eid, other)
     auth.audit(db, user.as_audit(), "entity.link", f"entity:{eid}", {"with": other})
@@ -320,7 +320,7 @@ def link_entity(eid: int, body: EntityLinkRequest, request: Request, user: Write
 
 @router.delete("/entities/{eid}/link/{other}")
 def unlink_entity(eid: int, other: int, request: Request, user: Writer, acl: Acl, db: Db) -> Ok:
-    _entity_space(db, acl, eid, "editor")
+    _entity_space(db, acl, eid, "curate")
     ents.unlink(db, eid, other)
     auth.audit(db, user.as_audit(), "entity.unlink", f"entity:{eid}", {"with": other})
     _changed(request)
@@ -333,7 +333,7 @@ def move_mention(mention: str, body: MentionMove, request: Request, user: Writer
     m = db.one("SELECT space FROM $r", r=R("mentions", mention))
     if not m:
         raise HTTPException(404, "not found")
-    acl.need(m["space"], "editor")
+    acl.need(m["space"], "curate")
     try:
         tid = ents.move_mention(db, mention, body.target, body.new_name, body.new_type or "TERM", body.remove)
     except (ValueError, KeyError) as e:

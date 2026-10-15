@@ -317,7 +317,7 @@ function NoteRow({ n }: { n: Note }) {
           </div>
         </form>
       ) : (
-        <p className="whitespace-pre-wrap break-words text-[14px] leading-normal text-fg">{n.text}</p>
+        <p className="whitespace-pre-wrap wrap-break-word text-[14px] leading-normal text-fg">{n.text}</p>
       )}
       {confirm && (
         <div className="flex flex-wrap items-center gap-1.5" role="alert">

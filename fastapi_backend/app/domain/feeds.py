@@ -416,8 +416,8 @@ def _download(cfg, src):
         if "public address" in str(e):
             host = urllib.parse.urlsplit(url).hostname
             raise RuntimeError(
-                f"that calendar can't be fetched: {host} is on a private network. An admin can allow that network: "
-                "LENS_WEB_NETWORKS in .env (e.g. 192.168.1.0/24), or documents.web_networks in archive.yaml"
+                f"that calendar can't be fetched: {host} is on a private network. An admin can allow that network in "
+                "Settings → Documents (Private networks Lens may fetch from), e.g. 192.168.1.0/24"
             ) from None
         raise RuntimeError(f"that calendar can't be fetched: {e}") from None
     req = urllib.request.Request(url, headers={"User-Agent": "Lens calendar source", "Accept": "text/calendar, */*;q=0.5"})

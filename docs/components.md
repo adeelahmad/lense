@@ -45,6 +45,7 @@ a web page needs one, and the Components list says so.
 | `components.auto` | `true` | fetch what's needed without asking; off, the workers only report what's missing |
 | `components.ahead` | `false` | fetch everything the settings could need straight away, instead of on first use |
 | `components.also` | `[]` | optional components to fetch too, e.g. `["msg"]` |
+| `components.hf_token` | none | a Hugging Face token, kept encrypted, for gated models: pyannote's speaker diarization, and GGUF models whose page asks you to accept terms. `HF_TOKEN` in the environment wins over it |
 
 **Settings → Components** shows each worker's machine (processors, memory, GPU, free disk), each component and where
 every worker is with it, and the transcription engine that suits the machine. `GET /api/v1/components` returns the

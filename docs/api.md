@@ -120,8 +120,14 @@ server itself is at `/mcp`, outside `/api/v1` ([MCP server](mcp.md)).
 GET    /api/v1/users
 POST   /api/v1/users
 PATCH  /api/v1/users/{uid}
+DELETE /api/v1/users/{uid}                 remove for good (authentication.md#removing-someone)
+POST   /api/v1/users/{uid}/signin-link     ?email=true also emails it
 GET    /api/v1/namespaces/{name}/members
-PUT    /api/v1/namespaces/{name}/members
+PUT    /api/v1/namespaces/{name}/members       {email | account, role}: built-in or custom; null removes
+GET    /api/v1/roles                           the permissions and every role (access.md#roles-and-permissions)
+POST   /api/v1/roles                           admins: {name, label, description, permissions}
+PATCH  /api/v1/roles/{name}                    admins: a custom role's label, description, permissions
+DELETE /api/v1/roles/{name}                    admins: a custom role nobody holds
 ```
 
 ## admin
@@ -559,10 +565,37 @@ Manifest with a Canvas per page ([IIIF](iiif.md)), and its public page shows its
 collection you can read (a list in its own order, a filter's oldest first; 50 at most), as one PDF to hand on, made by
 [anytopdf](configuration.md#anytopdf). Each resource goes in as its own file: a document or an image as it is, a
 captured web page as captured, audio or video with Lens's transcript of it (its speakers' names on each line), and a
-text-only asset as its text. The PDF is searchable PDF/A-3 with its text and chunks embedded, and its last
+text-only asset as its text. After it come the pages of what Lens found about it, a text file of its own
+named `<title> - what Lens found.txt`. The PDF is searchable PDF/A-3 with its text and chunks embedded, and its last
 page is a provenance page giving every file's SHA-256 and size, so whoever gets it can check each part against the
 file it came from. It holds no paths of the server (anytopdf's `share` profile), is made when asked for, and nothing
 of it is kept. Anyone who can read the resources can have it (share links and signed links can't).
+
+`include` picks its parts (repeat it for several, `?include=file&include=summary`); without it, every part but
+`notes` goes in. In the web app, a resource's Export menu has Evidence PDF (the default parts) and Choose what goes in
+it…, and a collection's page has the same beside its Evidence PDF button; the picks are remembered in the browser.
+
+| Part | What goes in |
+| --- | --- |
+| `file` | its own file, as above |
+| `details` | what it is, when it was recorded and added, its length or pages, size, language, words, content type, where it came from, its status and NSFW classification (where that is on); an email's subject, sender, recipients and date; a web page's address and when it was captured; what a document says about itself (Tika) and how its PDF was made |
+| `metadata` | its description as saved over what it says about itself: title, description, date, language, creators, contributors, subjects, identifiers, rights, attribution, provider, related links, access, Dublin Core terms and other statements, and its custom fields |
+| `tags` | its tags |
+| `topics` | the topics it's about: accepted ones, then suggested ones, each saying how it came |
+| `summary` | the summary a model wrote, its key points and follow-ups (each with where it comes from), the people and topics it names, its overall tone and importance |
+| `analysis` | what its pipeline's model steps saved, by key, with the model |
+| `sections` | its sections, with where each starts |
+| `speakers` | who spoke, for how long and what share of the speech, their turns, words and pace, and how each was recognised |
+| `emotion` | the share of the speech time of each emotion, overall and by speaker, and the sounds heard; each transcript line is marked with its emotion and sound, such as "(Happy, Laughter)" (neutral speech isn't marked) |
+| `entities` | the names it mentions by type (people, organisations, places, dates …), each with how often |
+| `keywords` | its keywords |
+| `visual` | its shots, the faces found (and who, when recognised), the objects seen, what a model said each page or shot shows, and the text on screen, with where each is |
+| `places` | the places and dates anytopdf found in it and where a photo was taken (members of its namespace only, as on its page) |
+| `notes` | the highlights, shared notes and comments on it, with who wrote them (names only); never anyone's private notes |
+
+What a model wrote (the summary, analysis and descriptions) says so on its page. A list longer than 1,000 lines (text
+on screen in a long video, say) shows the first 1,000 and says how many more there are. Making these pages calls no
+model: they're read from what Lens already stored.
 
 anytopdf runs as it does for conversions (no network, plugins or config file of its own); if it isn't here it's
 fetched on first use, unless Settings › Documents says never to use it (503). A conversion node takes one file per
@@ -752,7 +785,7 @@ http(s), a user name or password in it, another port, or a host with an address 
 the page makes is checked again by a proxy inside Lens, which resolves each host itself and connects only to the
 address it checked; redirects are followed to http and https addresses only, each checked. Chromium has no other way
 out: it looks up no names itself, reaches no D-Bus, and WebRTC, which a page's script can start, may only go through
-the proxy (never UDP straight to an address). `documents.web_networks` (startup) adds networks that may be reached too, for an
+the proxy (never UDP straight to an address). `documents.web_networks` (Settings → Documents) adds networks that may be reached too, for an
 intranet. Without Chromium on the server it answers 400 (`GET /uploads/limits` → `convert.web`). Audited as
 `import.web`. The PDF is the resource's file (`GET /resources/{rid}/media`), named after the link
 (`annual-report.pdf`) or the page's title (`harbour-news.pdf`).

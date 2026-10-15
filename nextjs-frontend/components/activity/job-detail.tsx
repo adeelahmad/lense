@@ -128,7 +128,7 @@ function Box({
       </span>
       <div className="flex min-w-0 flex-col gap-1 text-[13.5px] leading-normal text-fg-strong">
         <b className="font-bold text-fg">{title}</b>
-        {children && <span className="break-words">{children}</span>}
+        {children && <span className="wrap-break-word">{children}</span>}
       </div>
     </div>
   );
@@ -140,7 +140,7 @@ function Dl({ rows }: { rows: [string, ReactNode][] }) {
       {rows.map(([k, v]) => (
         <div key={k} className="contents">
           <dt className="text-fg-muted">{k}</dt>
-          <dd className="min-w-0 break-words text-fg">{v}</dd>
+          <dd className="min-w-0 wrap-break-word text-fg">{v}</dd>
         </div>
       ))}
     </dl>

@@ -121,7 +121,7 @@ export function MonthBars({ months }: { months: MonthBucket[] }) {
                           >
                             <span
                               className={cn(
-                                "block w-full max-w-[24px] rounded-t-[4px] bg-blue transition-opacity group-hover/bar:opacity-80",
+                                "block w-full max-w-[24px] rounded-t-xs bg-blue transition-opacity group-hover/bar:opacity-80",
                                 !v && "bg-transparent",
                               )}
                               style={{ height: h }}

@@ -253,3 +253,31 @@ def test_admins_see_components_and_ask_for_a_check(client, db, cfg):
     assert client.put("/api/v1/settings/components", headers=h, json={"also": ["ffmpeg"]}).status_code == 400
     hv = login(client, "vi@x.io", "viewer password 1")
     assert client.get("/api/v1/components", headers=hv).status_code == 403
+
+
+def test_a_hugging_face_token_in_settings_downloads_gated_models(app, client, db, monkeypatch):
+    """components.hf_token is kept encrypted, sent to huggingface.co only, and HF_TOKEN in the environment wins."""
+    from app.domain import local_llm
+
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    h = login(client, "root@x.io", "root password 1")
+    assert client.put("/api/v1/settings/components", json={"hf_token": "hf token"}, headers=h).status_code == 400
+    r = client.put("/api/v1/settings/components", json={"hf_token": " hf_abcdefghijklmnop "}, headers=h)
+    assert r.status_code == 200, r.text
+    shown = client.get("/api/v1/settings", headers=h)
+    assert "hf_abcdefghijklmnop" not in shown.text and "hf_abcdefghijklmnop" not in str(db.rows("SELECT * FROM app_setting"))
+    assert shown.json()["components"]["values"]["hf_token"] == {"secret": True, "set": True}
+    cfg = app.state.settings.current()
+    assert components.hf_token(cfg) == "hf_abcdefghijklmnop"
+
+    sent = []
+    monkeypatch.setattr(local_llm.urllib.request, "urlopen", lambda req, timeout: sent.append(req))
+    for url in ("https://huggingface.co/owner/repo/resolve/main/m.gguf", "https://github.com/ggml-org/llama.cpp/releases"):
+        local_llm._open(url, token=components.hf_token(cfg))
+    assert [q.get_header("Authorization") for q in sent] == ["Bearer hf_abcdefghijklmnop", None]
+
+    monkeypatch.setenv("HF_TOKEN", "hf_fromtheenvironment")
+    assert components.hf_token(app.state.settings.current()) == "hf_fromtheenvironment"
+    assert "hf_token" in client.get("/api/v1/settings", headers=h).json()["components"]["locked"]
+    assert client.put("/api/v1/settings/components", json={"hf_token": None}, headers=h).status_code == 200

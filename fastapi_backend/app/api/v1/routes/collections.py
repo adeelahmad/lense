@@ -16,6 +16,7 @@ from app.domain import evidence, recsets, store
 from app.domain.store import DB
 from app.schemas.collections import Collection, CollectionCreate, CollectionDetail, CollectionUpdate
 from app.schemas.common import Created, Ok
+from app.schemas.recordings import EvidencePart
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
@@ -65,14 +66,25 @@ def get_collection(cid: int, user: CurrentUser, acl: Acl, db: Db) -> CollectionD
 
 
 @router.get("/{cid}/evidence.pdf", response_class=Response, responses=evidence_api.PDF)
-def collection_evidence(cid: int, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg) -> Response:
+def collection_evidence(
+    cid: int, user: CurrentUser, acl: Acl, db: Db, cfg: Cfg, include: list[EvidencePart] | None = evidence_api.INCLUDE
+) -> Response:
     """The collection's assets you can read (a list in its order, a filter's oldest first) as one evidence PDF made by anytopdf (a download): each
-    one's pages, then a provenance page with every file's SHA-256 and size. At most 50 assets."""
+    one's pages and what Lens found about it, then a provenance page with every file's SHA-256 and size. `include` picks the parts, as for a
+    resource's evidence PDF. At most 50 assets."""
     col = own_collection(db, cid, user)
     ids = recsets.members(db, col, set(acl.roles))
     if len(ids) > evidence.MAX:
         raise HTTPException(400, f"an evidence PDF holds {evidence.MAX} assets at most; this collection has {len(ids)}")
-    return evidence_api.download(db, cfg, ids if col.get("recordings") is not None else ids[::-1], col["name"])
+    recs = (
+        db.rows(
+            "SELECT record::id(id) AS id, space, collection FROM recording WHERE id IN $ids", ids=[store.R("recording", i) for i in ids]
+        )
+        if ids
+        else []
+    )
+    places = {r["id"] for r in recs if acl.member(r)}
+    return evidence_api.download(db, cfg, ids if col.get("recordings") is not None else ids[::-1], col["name"], include, places)
 
 
 @router.patch("/{cid}")

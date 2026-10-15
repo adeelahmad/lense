@@ -51,6 +51,7 @@
         "/iiif/auth/token, /probe, /logout",
         "workers and DB peers",
         "host control inbox and the monitoring scrape token",
+        "admin machine setup requests",
         "microsandbox program requests"
       ],
       "touches": [
@@ -502,12 +503,21 @@
     },
     {
       "entry_point": "host control inbox and the monitoring scrape token",
-      "parameter": "inbox/upgrade request (release ref, or action=services with monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
+      "parameter": "inbox/upgrade request (release ref, empty for the version running, with https=0|1, public=0|1 and target=full|lean; or action=services with monitoring=on|off); /metrics scrape token and .lens-control/prometheus-token",
       "attacker_controllable": "yes",
       "component": "authz",
-      "caller_must_enforce": "the agent installs only a release tag or the install's branch and only toggles the monitoring profile; the token is compared in constant time and grants metrics only",
+      "caller_must_enforce": "the agent installs only a release tag or the install's branch, changes only the HTTPS ports, the web app's network reach and the edition (other values dropped), and only toggles the monitoring profile, so a writer can at most restart Lens with those choices or open it to the network; the token is compared in constant time and grants metrics only",
       "provenance": "documented",
       "source": "docs/updates.md, docs/prometheus.md"
+    },
+    {
+      "entry_point": "admin machine setup requests",
+      "parameter": "PUT /api/v1/admin/install {public, target}, POST /api/v1/settings/https/ports {open}, MCP set_install_settings",
+      "attacker_controllable": "no",
+      "component": "authz",
+      "caller_must_enforce": "admin is trusted; audited (lens.install, https.ports); reaches the machine only as an inbox request the agent checks again",
+      "provenance": "documented",
+      "source": "docs/updates.md \"Setting the machine up again\""
     },
     {
       "entry_point": "microsandbox program requests",
@@ -771,9 +781,17 @@
       "property": "P-ROLE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and editor or owner; publishing and access changes need owner, through every API path",
+      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions",
       "provenance": "documented",
       "source": "SECURITY.md \"doing more than your role allows\""
+    },
+    {
+      "property": "P-ROLE-GRANT",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "only admins make, change and delete roles; built-in roles never change; a non-admin with the members permission gives only roles whose permissions they hold all of, and changes only people whose role they hold all of",
+      "provenance": "documented",
+      "source": "docs/access.md \"they can't promote themselves or take out an owner\""
     },
     {
       "property": "P-NO-INJECTION",
@@ -806,6 +824,14 @@
       "conditions": "a request is authenticated only if its bearer verifies and the account and session are live; sign-out and disabling take effect at once, for every token kind; revoking an app grant or API token ends its tokens at once",
       "provenance": "documented",
       "source": "docs/authentication.md \"Every request checks that the account is still active\""
+    },
+    {
+      "property": "P-REMOVE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "removing an account ends every way it signs in at once and takes every role, collection role and recording permission; its email can make a new account, which inherits nothing; admins only, never yourself, never the Matterbridge account, never the last passkey into a vault unless the admin agrees to lose its files",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Removing someone\""
     },
     {
       "property": "P-BEARER-ONLY",

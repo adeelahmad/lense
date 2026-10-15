@@ -221,7 +221,11 @@ function Group({ icon: Icon, title, rows }: { icon: LucideIcon; title: string; r
             className="grid grid-cols-[120px_minmax(0,1fr)] gap-2.5 border-t border-border py-1.5 text-[13px] leading-[1.4]"
           >
             <dt className="text-fg-muted">{k}</dt>
-            <dd className={mono ? "m-0 break-words font-mono text-[12px] text-fg" : "tabular m-0 break-words text-fg"}>
+            <dd
+              className={
+                mono ? "m-0 wrap-break-word font-mono text-[12px] text-fg" : "tabular m-0 wrap-break-word text-fg"
+              }
+            >
               {v}
             </dd>
           </div>

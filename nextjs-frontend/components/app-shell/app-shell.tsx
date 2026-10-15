@@ -13,6 +13,7 @@ import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NamespaceSwitcher } from "@/components/app-shell/namespace-switcher";
 import { Nav } from "@/components/app-shell/nav";
 import { Shortcuts } from "@/components/app-shell/shortcuts";
+import { UpdateBanner } from "@/components/app-shell/update-banner";
 import { BudgetMeter } from "@/components/costs/budget-meter";
 import { WelcomeTour } from "@/components/home/welcome-tour";
 import { PageChat } from "@/components/page-chat/page-chat";
@@ -120,7 +121,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     <div className="flex min-h-screen bg-background">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[400] focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:shadow-2"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-400 focus:rounded-sm focus:bg-background focus:px-3 focus:py-2 focus:shadow-2"
       >
         Skip to content
       </a>
@@ -133,8 +134,8 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
         />
       </div>
       {mobileOpen && (
-        <div className="fixed inset-0 z-[120] md:hidden">
-          <div className="absolute inset-0 bg-[var(--scrim)]" onClick={() => setMobileOpen(false)} aria-hidden />
+        <div className="fixed inset-0 z-120 md:hidden">
+          <div className="absolute inset-0 bg-(--scrim)" onClick={() => setMobileOpen(false)} aria-hidden />
           <Nav
             admin={admin || user.admin}
             collapsed={false}
@@ -196,6 +197,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           <AccountMenu name={user.name} email={user.email} />
         </header>
         <main id="main" className="min-w-0 flex-1">
+          <UpdateBanner admin={Boolean(admin || user.admin)} />
           {waiting ? (
             <div className="flex flex-col gap-3 px-4 py-6 md:px-6" aria-busy="true" aria-label="Loading">
               <Skeleton className="h-6 w-48" />

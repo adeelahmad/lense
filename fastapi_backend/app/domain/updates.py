@@ -13,12 +13,18 @@ release (packaging/host/lens-upgrade.sh), the way a person would by hand, and wr
 (upgrade-status, upgrade.log), which the web app shows. With no agent (an install that didn't use install.sh, or a
 machine where it couldn't set one up) the web app shows the one line to run instead.
 
+**Setting the machine up again.** The same agent runs install.sh again for the version running, changing only what
+the request says (reconfigure): the HTTPS ports open or closed (Settings › HTTPS), the web app reachable from other
+machines on the network or from this one only (Settings › Access & embedding), and the edition, full or lean
+(Settings › Components). How the machine runs now is what Lens was started with (installed(): LENS_BIND, LENS_TARGET).
+
 updates.auto_install installs a new release by itself as soon as it is seen; off unless an admin turns it on.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import ipaddress
 import logging
 import os
 import pathlib
@@ -40,7 +46,9 @@ REPO = re.compile(r"^[A-Za-z0-9-]{1,39}/[A-Za-z0-9._-]{1,100}$")
 TICK_SECONDS = 600
 NOTES_MAX = 20_000
 LOG_LINES = 60
-ACTIVE = ("backing-up", "queued", "running")
+ACTIVE = ("backing-up", "queued", "running", "rolling-back")
+STEPS = ("download", "build", "start", "check")  # what the agent reports it is on (after the backup)
+TARGETS = ("full", "lean")  # the editions install.sh builds (LENS_TARGET)
 # How long a request may sit in the inbox before the web app says nobody picked it up
 PICKUP_SECONDS = 120
 
@@ -190,7 +198,9 @@ def run_state(db):
             for k in ("started_at", "finished_at", "version"):
                 if s.get(k):
                     run[k] = s[k]
-            if s.get("state") == "failed":
+            if s.get("step") in STEPS:
+                run["step"] = s["step"]
+            if s.get("state") in ("failed", "rolled-back"):
                 run["error"] = s.get("error") or f"install.sh stopped (exit {s.get('code', '?')}); see the log"
         if run.get("state") in ACTIVE or run.get("id") == s.get("id"):
             run["log"] = _log_tail(d)
@@ -247,15 +257,26 @@ def upgrade(db, cfg, ref=None, by=None, backup=True, wait=False):
     return run_state(db)
 
 
-def reconfigure(db, cfg, https, by=None, wait=False):
-    """Have this machine run install.sh again for the version it runs, with the HTTPS ports opened (https=True) or
-    closed (docs/https.md). Lens restarts; nothing else changes. Returns the run."""
+def reconfigure(db, cfg, https=None, by=None, wait=False, *, public=None, target=None):
+    """Have this machine run install.sh again for the version it runs, changing only what is given: the HTTPS ports
+    opened (https=True) or closed (docs/https.md), the web app reachable from other machines on the network
+    (public=True) or from this one only, and the edition (target: full or lean). Lens restarts; nothing else changes.
+    Returns the run."""
+    if https is None and public is None and target is None:
+        raise UpdateError("nothing to change: give https, public or target")
+    if target is not None and target not in TARGETS:
+        raise UpdateError(f"the edition is full or lean, not {target!r}")
     if not agent():
         raise UpdateError("this machine has no upgrade agent; run the line shown instead")
     run = run_state(db) or {}
     if run.get("state") in ACTIVE and not run.get("error"):
         raise UpdateError("an upgrade is already under way; try again when it's done")
-    run = {"id": secrets.token_hex(8), "ref": "", "https": bool(https), "by": by, "state": "queued", "asked_at": _ts(), "error": None}
+    run = {"id": secrets.token_hex(8), "ref": "", "by": by, "state": "queued", "asked_at": _ts(), "error": None}
+    for k, v in (("https", https), ("public", public)):
+        if v is not None:
+            run[k] = bool(v)
+    if target is not None:
+        run["target"] = target
     _put(db, upgrade=run)
     t = threading.Thread(target=_hand_over, args=(db, run, False), daemon=True, name="reconfigure")
     t.start()
@@ -264,10 +285,72 @@ def reconfigure(db, cfg, https, by=None, wait=False):
     return run_state(db)
 
 
+def manual_reconfigure(cfg, https=None, public=None, target=None):
+    """The install line that sets this machine up again by hand with these changes (LENS_HTTPS, LENS_PUBLIC,
+    LENS_TARGET), on the machine Lens runs on."""
+    if target is not None and target not in TARGETS:  # it goes into a shell line
+        raise UpdateError(f"the edition is full or lean, not {target!r}")
+    given = (("LENS_HTTPS", https), ("LENS_PUBLIC", public), ("LENS_TARGET", target))
+    env = [f"{k}={v if isinstance(v, str) else int(bool(v))}" for k, v in given if v is not None]
+    line = manual(cfg)
+    return f"{line[: -len(' sh')]} {' '.join(env)} sh" if env else line
+
+
 def manual_https(cfg, https):
     """The line that opens (or closes) the HTTPS ports by hand, on the machine Lens runs on."""
-    line = manual(cfg)
-    return f"{line[: -len(' sh')]} LENS_HTTPS={1 if https else 0} sh"
+    return manual_reconfigure(cfg, https=https)
+
+
+# ---------- how install.sh set this machine up: the edition, and who reaches the web app ----------
+def installed():
+    """The edition (LENS_TARGET: full or lean) and whether the web app is reachable from other machines on the network
+    (LENS_BIND: 0.0.0.0, or this machine's address on it; 127.0.0.1 is this machine only), as Lens was started with
+    them: docker-compose.prod.yml passes both from .env, and a microsandbox reads .env itself. None where Lens wasn't
+    told (it wasn't started that way), never a guess."""
+    target = (os.environ.get("LENS_TARGET") or "").strip().lower()
+    bind = (os.environ.get("LENS_BIND") or "").strip().strip("[]")
+    public = None
+    if bind == "localhost":
+        public = False
+    elif bind:
+        try:
+            public = not ipaddress.ip_address(bind).is_loopback
+        except ValueError:
+            pass
+    return {"public": public, "target": target if target in TARGETS else None}
+
+
+def install_view(db, cfg):
+    """installed(), what can change it here (the agent, else the line to run for each choice), and the last run that
+    changed it."""
+    run = run_state(db)
+    return {
+        **installed(),
+        "agent": agent(),
+        "manual": {
+            "public": manual_reconfigure(cfg, public=True),
+            "private": manual_reconfigure(cfg, public=False),
+            "full": manual_reconfigure(cfg, target="full"),
+            "lean": manual_reconfigure(cfg, target="lean"),
+        },
+        "reconfigure": run if run and (run.get("public") is not None or run.get("target") is not None) else None,
+    }
+
+
+def change_install(db, cfg, public=None, target=None, by=None):
+    """Have the machine set itself up again with what differs from how it runs now (public, target): Lens restarts.
+    Returns what was asked for, empty when it's all so already (nothing restarts). UpdateError when it can't: no agent
+    (the message has the line to run instead), or a run under way."""
+    if target is not None and target not in TARGETS:
+        raise UpdateError(f"the edition is full or lean, not {target!r}")
+    now = installed()
+    ask = {k: v for k, v in (("public", public), ("target", target)) if v is not None and v != now[k]}
+    if not ask:
+        return {}
+    if not agent():
+        raise UpdateError(f"this machine has no upgrade agent: run this on it instead: {manual_reconfigure(cfg, **ask)}")
+    reconfigure(db, cfg, by=by, **ask)
+    return ask
 
 
 def _hand_over(db, run, backup):
@@ -279,8 +362,14 @@ def _hand_over(db, run, backup):
                 run["backup"] = dst.name
         inbox = control_dir() / "inbox"
         part = inbox / f".upgrade.{run['id']}"
-        extra = f"https={1 if run['https'] else 0}\n" if run.get("https") is not None else ""
-        part.write_text(f"id={run['id']}\nref={run['ref']}\n{extra}by={run.get('by') or ''}\nat={_ts()}\n", encoding="utf-8")
+        # what this run changes: https=, public= (1 or 0) and target= (full or lean), which the agent checks again
+        extra = "".join(
+            f"{k}={v if isinstance(v, str) else int(bool(v))}\n" for k in ("https", "public", "target") if (v := run.get(k)) is not None
+        )
+        part.write_text(
+            f"id={run['id']}\nref={run['ref']}\n{extra}backup={run.get('backup') or ''}\nby={run.get('by') or ''}\nat={_ts()}\n",
+            encoding="utf-8",
+        )
         part.replace(inbox / "upgrade")
         run.update(state="queued", queued_at=_ts())
     except Exception as e:  # noqa: BLE001 - the admin reads why
@@ -289,6 +378,46 @@ def _hand_over(db, run, backup):
             state="failed", error=f"{'backing up' if run['state'] == 'backing-up' else 'handing the upgrade over'} failed: {e}"[:500]
         )
     _put(db, upgrade=run)
+
+
+# ---------- after a rollback ----------
+def restore_on_start(db, cfg):
+    """Called as Lens starts. When the agent went back to this version after a new one didn't start, it leaves
+    inbox/restore naming the backup taken before the upgrade. If the new version had changed the database (ran steps
+    this version doesn't know, migrations.status "unknown"), that backup is put back; otherwise the database is kept as
+    it is, so nothing written since is lost. One process does it: the first to take the file."""
+    d = control_dir()
+    if not d:
+        return None
+    req, mine = d / "inbox" / "restore", d / "inbox" / f".restore.{os.getpid()}"
+    try:
+        req.replace(mine)
+    except OSError:
+        return None  # none waiting, or another process took it
+    want = _kv(mine)
+    mine.unlink(missing_ok=True)
+    name = want.get("backup") or ""
+    newer_steps = [m["name"] for m in migrations.status(db) if m["state"] == "unknown"]
+    if not newer_steps:
+        said = "the new version hadn't changed the database, so it was kept as it is"
+    else:
+        from . import backups
+
+        try:
+            backups.usable(db, name)
+            backups.restore(db, cfg, name)
+            said = f"the database was put back as it was before the upgrade ({name})"
+            log.warning("rolled back: %s; the new version had run %s", said, ", ".join(newer_steps))
+        except (ValueError, backups.BackupError) as e:
+            said = f"the new version had changed the database ({', '.join(newer_steps)}), but its backup {name!r} can't be used: {e}"[:500]
+            log.error("couldn't restore after the rollback: %s", said)
+        except Exception as e:  # noqa: BLE001 - the admin reads why
+            said = f"restoring {name} failed: {e}"[:500]
+            log.exception("couldn't restore after the rollback")
+    run = dict(_row(db).get("upgrade") or {})
+    if run.get("id") == want.get("id"):
+        _put(db, upgrade={**run, "restore": said})
+    return said
 
 
 # ---------- the background check ----------

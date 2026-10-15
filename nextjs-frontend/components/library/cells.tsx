@@ -133,7 +133,7 @@ export function SpeakersCell({ speakers }: { speakers: string | null | undefined
         {list.slice(0, 4).map((s) => (
           <span
             key={s.name}
-            className="-mr-[5px] box-border size-[18px] rounded-full shadow-[0_0_0_2px_var(--background)]"
+            className="mr-[-5px] box-border size-[18px] rounded-full shadow-[0_0_0_2px_var(--background)]"
             style={
               s.unnamed
                 ? {

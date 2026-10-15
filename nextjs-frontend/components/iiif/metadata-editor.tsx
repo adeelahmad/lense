@@ -324,7 +324,7 @@ export function MetadataEditor({ recordingId, variant = "panel" }: Props) {
       <div className="flex flex-wrap gap-3">
         {list.map((f) => (
           <Button key={f} variant="link" size="xs" className="text-[12px]" onClick={() => applyDerived(f)}>
-            <RotateCcw className="!size-3" /> Use the derived {FIELD_LABEL[f].toLowerCase()}
+            <RotateCcw className="size-3!" /> Use the derived {FIELD_LABEL[f].toLowerCase()}
           </Button>
         ))}
       </div>

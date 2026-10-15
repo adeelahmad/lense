@@ -6881,6 +6881,88 @@ export type IndexQueued = {
 };
 
 /**
+ * InstallChange
+ */
+export type InstallChange = {
+  /**
+   * Public
+   *
+   * reachable from other machines on the network (true) or this machine only (false)
+   */
+  public?: boolean | null;
+  /**
+   * Target
+   *
+   * the edition: full or lean
+   */
+  target?: "full" | "lean" | null;
+};
+
+/**
+ * InstallLines
+ */
+export type InstallLines = {
+  /**
+   * Public
+   *
+   * the install line that makes the web app reachable from other machines (LENS_PUBLIC=1)
+   */
+  public: string;
+  /**
+   * Private
+   *
+   * the install line that keeps it to this machine (LENS_PUBLIC=0)
+   */
+  private: string;
+  /**
+   * Full
+   *
+   * the install line for the full edition (LENS_TARGET=full)
+   */
+  full: string;
+  /**
+   * Lean
+   *
+   * the install line for the lean edition (LENS_TARGET=lean)
+   */
+  lean: string;
+  [key: string]: unknown;
+};
+
+/**
+ * InstallStatus
+ */
+export type InstallStatus = {
+  /**
+   * Public
+   *
+   * the web app is reachable from other machines on the network (LENS_BIND), or from this one only; none: Lens wasn't started by install.sh or docker-compose.prod.yml, so it doesn't know
+   */
+  public?: boolean | null;
+  /**
+   * Target
+   *
+   * the edition (LENS_TARGET): full has LibreOffice and Chromium, to read Office files, web pages and emails; lean doesn't. None: not known here
+   */
+  target?: "full" | "lean" | null;
+  /**
+   * Agent
+   *
+   * what changes them on this machine (systemd, launchd); none: run a `manual` line there
+   */
+  agent?: string | null;
+  /**
+   * the line to run on the machine Lens runs on for each choice, when there's no agent
+   */
+  manual: InstallLines;
+  /**
+   * the last run that changed either (as in /admin/updates)
+   */
+  reconfigure?: UpgradeRun | null;
+  [key: string]: unknown;
+};
+
+/**
  * IpGroup
  *
  * Address ranges whose visitors see all of some of the namespace's assets without signing in (docs/access.md).
@@ -8265,10 +8347,18 @@ export type Me = {
   /**
    * Roles
    *
-   * namespace name -> role
+   * namespace name -> role, as a built-in role (a custom role counts as its rank)
    */
   roles: {
     [key: string]: "viewer" | "editor" | "owner";
+  };
+  /**
+   * Permissions
+   *
+   * namespace name -> what your role there allows (docs/access.md#roles-and-permissions)
+   */
+  permissions?: {
+    [key: string]: Array<string>;
   };
   /**
    * Partial
@@ -8316,7 +8406,7 @@ export type Member = {
   /**
    * Role
    */
-  role: "viewer" | "editor" | "owner";
+  role: string;
   /**
    * Email
    */
@@ -8345,7 +8435,7 @@ export type MemberSet = {
   /**
    * Role
    */
-  role?: "viewer" | "editor" | "owner" | null;
+  role?: string | null;
 };
 
 /**
@@ -13933,6 +14023,125 @@ export type Reviewed = {
 };
 
 /**
+ * RoleCreate
+ */
+export type RoleCreate = {
+  /**
+   * Name
+   *
+   * 2 to 40 lowercase letters, digits, - and _; can't change later
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Permissions
+   *
+   * read is always included
+   */
+  permissions?: Array<string>;
+};
+
+/**
+ * RoleOut
+ */
+export type RoleOut = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string;
+  /**
+   * Permissions
+   */
+  permissions: Array<string>;
+  /**
+   * Builtin
+   */
+  builtin: boolean;
+  /**
+   * Rank
+   *
+   * the largest built-in role it covers; the checks that ask for a rank give it that much
+   */
+  rank: string;
+  /**
+   * Members
+   *
+   * how many people hold it, across namespaces
+   */
+  members?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RolePermission
+ */
+export type RolePermission = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * First
+   *
+   * the built-in role that first has it
+   */
+  first: string;
+  [key: string]: unknown;
+};
+
+/**
+ * RoleUpdate
+ */
+export type RoleUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Permissions
+   */
+  permissions?: Array<string> | null;
+};
+
+/**
+ * Roles
+ */
+export type Roles = {
+  /**
+   * Permissions
+   */
+  permissions: Array<RolePermission>;
+  /**
+   * Roles
+   */
+  roles: Array<RoleOut>;
+  [key: string]: unknown;
+};
+
+/**
  * RollbackAsk
  */
 export type RollbackAsk = {
@@ -15827,6 +16036,10 @@ export type SetupView = {
    * Pending
    */
   pending: boolean;
+  /**
+   * Todo
+   */
+  todo?: Array<"llm" | "budget">;
   admin: SetupAdmin;
   namespace: SetupNamespaceView;
   llm: SetupLlmView;
@@ -16030,6 +16243,12 @@ export type SigninLink = {
    * Expires At
    */
   expires_at: string;
+  /**
+   * Emailed
+   *
+   * whether Lens emailed it to them (email=true, with mail set up)
+   */
+  emailed?: boolean;
   [key: string]: unknown;
 };
 
@@ -18425,9 +18644,35 @@ export type UpgradeRun = {
    */
   https?: boolean | null;
   /**
-   * State
+   * Public
+   *
+   * the web app made reachable from other machines on the network (true) or this one only (false) by this run
    */
-  state: "backing-up" | "queued" | "running" | "done" | "failed";
+  public?: boolean | null;
+  /**
+   * Target
+   *
+   * the edition this run changed to
+   */
+  target?: "full" | "lean" | null;
+  /**
+   * State
+   *
+   * rolling-back / rolled-back: the new version didn't start, so the agent went back to the one before
+   */
+  state: "backing-up" | "queued" | "running" | "rolling-back" | "done" | "failed" | "rolled-back";
+  /**
+   * Step
+   *
+   * while running: what the agent is on (the backup comes before)
+   */
+  step?: "download" | "build" | "start" | "check" | null;
+  /**
+   * Restore
+   *
+   * after a rollback: whether the backup was put back, and why
+   */
+  restore?: string | null;
   /**
    * By
    */
@@ -18762,10 +19007,10 @@ export type UserWithRoles = {
   /**
    * Roles
    *
-   * namespace name -> role
+   * namespace name -> role (built-in or custom)
    */
   roles?: {
-    [key: string]: "viewer" | "editor" | "owner";
+    [key: string]: string;
   };
   /**
    * Passkeys
@@ -20889,7 +21134,12 @@ export type MakeSigninLinkData = {
      */
     uid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Email
+     */
+    email?: boolean;
+  };
   url: "/api/v1/users/{uid}/signin-link";
 };
 
@@ -21203,6 +21453,41 @@ export type CreateUserResponses = {
 
 export type CreateUserResponse = CreateUserResponses[keyof CreateUserResponses];
 
+export type RemoveUserData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: number;
+  };
+  query?: {
+    /**
+     * Lose Vaults
+     */
+    lose_vaults?: boolean;
+  };
+  url: "/api/v1/users/{uid}";
+};
+
+export type RemoveUserErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveUserError = RemoveUserErrors[keyof RemoveUserErrors];
+
+export type RemoveUserResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveUserResponse = RemoveUserResponses[keyof RemoveUserResponses];
+
 export type UpdateUserData = {
   body: UserUpdate;
   path: {
@@ -21294,6 +21579,107 @@ export type SetMemberResponses = {
 };
 
 export type SetMemberResponse = SetMemberResponses[keyof SetMemberResponses];
+
+export type ListRolesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/roles";
+};
+
+export type ListRolesResponses = {
+  /**
+   * Successful Response
+   */
+  200: Roles;
+};
+
+export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
+
+export type CreateRoleData = {
+  body: RoleCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/roles";
+};
+
+export type CreateRoleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
+
+export type CreateRoleResponses = {
+  /**
+   * Successful Response
+   */
+  200: RoleOut;
+};
+
+export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
+
+export type DeleteRoleData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/roles/{name}";
+};
+
+export type DeleteRoleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRoleError = DeleteRoleErrors[keyof DeleteRoleErrors];
+
+export type DeleteRoleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRoleResponse = DeleteRoleResponses[keyof DeleteRoleResponses];
+
+export type UpdateRoleData = {
+  body: RoleUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/roles/{name}";
+};
+
+export type UpdateRoleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
+
+export type UpdateRoleResponses = {
+  /**
+   * Successful Response
+   */
+  200: RoleOut;
+};
+
+export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
 
 export type GetSettingsData = {
   body?: never;
@@ -22368,6 +22754,47 @@ export type StartUpgradeResponses = {
 };
 
 export type StartUpgradeResponse = StartUpgradeResponses[keyof StartUpgradeResponses];
+
+export type GetInstallData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/install";
+};
+
+export type GetInstallResponses = {
+  /**
+   * Successful Response
+   */
+  200: InstallStatus;
+};
+
+export type GetInstallResponse = GetInstallResponses[keyof GetInstallResponses];
+
+export type SetInstallData = {
+  body: InstallChange;
+  path?: never;
+  query?: never;
+  url: "/api/v1/admin/install";
+};
+
+export type SetInstallErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type SetInstallError = SetInstallErrors[keyof SetInstallErrors];
+
+export type SetInstallResponses = {
+  /**
+   * Successful Response
+   */
+  202: InstallStatus;
+};
+
+export type SetInstallResponse = SetInstallResponses[keyof SetInstallResponses];
 
 export type GetMonitoringData = {
   body?: never;
@@ -25192,7 +25619,30 @@ export type EvidencePdfData = {
      */
     rid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Include
+     *
+     * the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it
+     */
+    include?: Array<
+      | "file"
+      | "details"
+      | "metadata"
+      | "tags"
+      | "topics"
+      | "summary"
+      | "analysis"
+      | "sections"
+      | "speakers"
+      | "emotion"
+      | "entities"
+      | "keywords"
+      | "visual"
+      | "places"
+      | "notes"
+    > | null;
+  };
   url: "/api/v1/resources/{rid}/evidence.pdf";
 };
 
@@ -33711,7 +34161,30 @@ export type CollectionEvidenceData = {
      */
     cid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Include
+     *
+     * the parts of the PDF; repeat for several. Without it: every part but notes. file: its own file: a document's pages, an image, or audio and video with Lens's transcript; details: what it is, when it was made and added, its length, language, content type and where it came from; metadata: its description as saved and derived (Dublin Core terms, rights, creators) and its custom fields; tags: its tags; topics: the topics it is about, accepted and suggested; summary: the summary a model wrote: key points, follow-ups, people, overall tone and importance; analysis: what its pipeline's model steps saved; sections: the sections analysis split it into; speakers: who spoke, for how long, and how each was recognised; emotion: the emotion of what was said and the sounds heard, overall and by speaker, marked on each transcript line; entities: the people, organisations, places and other names it mentions; keywords: its keywords; visual: the faces, objects, descriptions and text on screen seen in it; places: the places and dates anytopdf found in it, and where a photo was taken; notes: the notes, highlights and comments people shared on it
+     */
+    include?: Array<
+      | "file"
+      | "details"
+      | "metadata"
+      | "tags"
+      | "topics"
+      | "summary"
+      | "analysis"
+      | "sections"
+      | "speakers"
+      | "emotion"
+      | "entities"
+      | "keywords"
+      | "visual"
+      | "places"
+      | "notes"
+    > | null;
+  };
   url: "/api/v1/collections/{cid}/evidence.pdf";
 };
 

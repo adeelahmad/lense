@@ -1,7 +1,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, FileCheck, FileText, MessagesSquare, Pencil, Play, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  FileCheck,
+  FileText,
+  MessagesSquare,
+  Pencil,
+  Play,
+  SlidersHorizontal,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,10 +19,11 @@ import { Collections } from "@/app/openapi-client";
 import type { Collection } from "@/app/openapi-client/types.gen";
 import { CollectionDialog } from "@/components/collections/collection-dialog";
 import { describeCollection } from "@/components/collections/describe";
+import { EvidencePartsDialog, type EvidencePart } from "@/components/evidence/parts-dialog";
 import { saveBlob, slug } from "@/components/recording/hooks";
 import { recordingHref } from "@/components/search/links";
 import { Banner } from "@/components/ui/banner";
-import { Button } from "@/components/ui/button";
+import { Button, IconButton } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState, PageHeader, SkeletonRows } from "@/components/ui/states";
 import { Table, Td, Th, THead, Tr } from "@/components/ui/table";
@@ -48,10 +58,16 @@ export function CollectionDetail({ id }: { id: number }) {
       router.push("/collections");
     },
   });
+  const [picking, setPicking] = useState(false);
   const evidence = useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async ({ name, include }: { name: string; include?: EvidencePart[] }) => {
       const blob = (await data(
-        Collections.collectionEvidence({ client, path: { cid: id }, parseAs: "blob" }),
+        Collections.collectionEvidence({
+          client,
+          path: { cid: id },
+          query: include ? { include } : undefined,
+          parseAs: "blob",
+        }),
       )) as unknown as Blob;
       saveBlob(blob, `${slug(name)}-evidence.pdf`);
     },
@@ -145,10 +161,23 @@ export function CollectionDetail({ id }: { id: number }) {
                     ? "An evidence PDF holds 50 assets at most"
                     : undefined
               }
-              onClick={() => evidence.mutate(c.name)}
+              onClick={() => evidence.mutate({ name: c.name })}
             >
               {evidence.isPending ? "Making the PDF…" : "Evidence PDF"}
             </Button>
+            <IconButton
+              label="Choose what goes in the evidence PDF"
+              disabled={c.count === 0 || c.count > 50 || evidence.isPending}
+              onClick={() => setPicking(true)}
+            >
+              <SlidersHorizontal />
+            </IconButton>
+            <EvidencePartsDialog
+              open={picking}
+              onOpenChange={setPicking}
+              what={`the ${count(c.count)} ${c.count === 1 ? "recording" : "recordings"} in ${c.name}`}
+              onDownload={(include) => evidence.mutate({ name: c.name, include })}
+            />
             <Button
               variant="ghost"
               icon={<Pencil />}

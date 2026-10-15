@@ -146,20 +146,13 @@ export const JOURNEYS = [
     id: "setup-wizard",
     module: "Setup",
     feature: "First-run setup wizard, every step with its defaults",
-    note: "The namespaces come from the install's configuration, so the wizard opens on the model provider. Finish with defaults (one click) skips the remaining steps.",
+    note: "It asks only what has no default: the model provider, filled in from the local model found (and a budget for a cloud one). The survey's Lens started before its stand-in installer, so the model isn't set yet; after the real web installer, which sets it, the wizard doesn't open. The namespace, storage, apps and telemetry keep their defaults.",
     async run(ctx) {
       const { page, meter, base } = ctx;
       await page.getByRole("heading", { name: "Connect a model provider" }).waitFor();
       await page.getByRole("button", { name: /Ollama 2 models/ }).waitFor();
-      for (const [heading, button] of [
-        ["Connect a model provider", "Save and continue"],
-        ["Storage", "Save and continue"],
-        ["Apps and AI assistants", "Save and continue"],
-        ["Telemetry", "Save and finish"],
-      ]) {
-        await page.getByRole("heading", { name: heading, exact: true }).waitFor();
-        await meter.click(page.getByRole("button", { name: button }), `${button} (${heading})`);
-      }
+      const save = page.getByRole("button", { name: "Save and continue" });
+      await meter.click(save, "Save and continue (Connect a model provider)");
       await page.waitForURL(`${base}/`);
     },
   },

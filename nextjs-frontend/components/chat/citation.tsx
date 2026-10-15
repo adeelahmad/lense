@@ -90,7 +90,7 @@ export function CitationChip({
           align="start"
           sideOffset={6}
           collisionPadding={16}
-          className="z-[200] flex w-[380px] max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-md border border-border bg-background px-3.5 py-3 shadow-3 animate-fade-in"
+          className="z-200 flex w-[380px] max-w-[calc(100vw-32px)] flex-col gap-1.5 rounded-md border border-border bg-background px-3.5 py-3 shadow-3 animate-fade-in"
         >
           <span className="flex items-center gap-1.5 text-[12px] font-semibold" style={{ color }}>
             <span aria-hidden className="size-2 rounded-[2px]" style={{ background: color }} />

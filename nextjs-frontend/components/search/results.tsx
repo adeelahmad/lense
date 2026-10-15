@@ -155,7 +155,7 @@ function HitRow({
       tabIndex={first ? 0 : -1}
       onKeyDown={onKey}
       aria-label={`${paged ? at : untimed ? "No time" : tc(hit.t0)}${hit.speaker ? `, ${hit.speaker}` : ""}${where}. Enter opens${untimed ? "" : ", Space plays"}.`}
-      className="-mx-2 grid grid-cols-[30px_54px_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-1 rounded-sm px-2 py-1 outline-none focus-visible:bg-hl focus-visible:ring-2 focus-visible:ring-blue md:grid-cols-[30px_54px_96px_minmax(0,1fr)]"
+      className="-mx-2 grid grid-cols-[30px_54px_minmax(0,1fr)] items-baseline gap-x-2.5 gap-y-1 rounded-sm px-2 py-1 outline-hidden focus-visible:bg-hl focus-visible:ring-2 focus-visible:ring-blue md:grid-cols-[30px_54px_96px_minmax(0,1fr)]"
     >
       <PlayButton hit={hit} player={player} audio={audio} />
       <Link
@@ -182,12 +182,12 @@ function HitRow({
           </>
         )}
       </span>
-      <span className="col-span-3 font-serif text-[15.5px] leading-[1.5] text-fg [text-wrap:pretty] md:col-span-1">
+      <span className="col-span-3 font-serif text-[15.5px] leading-normal text-fg text-pretty md:col-span-1">
         {hit.match === "meaning" && (
           <Tooltip
             content={`Found by meaning${hit.similarity != null ? ` (${Math.round(hit.similarity * 100)}% alike)` : ""}: it's about what you searched for, in other words`}
           >
-            <span className="mr-1.5 inline-flex translate-y-[-1px] items-center gap-1 rounded-pill bg-blue-surface px-1.5 align-middle font-sans text-[10.5px] font-bold uppercase tracking-[.04em] text-blue-dark">
+            <span className="mr-1.5 inline-flex -translate-y-px items-center gap-1 rounded-pill bg-blue-surface px-1.5 align-middle font-sans text-[10.5px] font-bold uppercase tracking-[.04em] text-blue-dark">
               <Sparkle aria-hidden className="size-2.5" />
               Related
             </span>

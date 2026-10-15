@@ -51,7 +51,10 @@ class TokenPair(ResponseModel):
 
 class Me(ResponseModel):
     user: UserPublic
-    roles: dict[str, Role] = Field(description="namespace name -> role")
+    roles: dict[str, Role] = Field(description="namespace name -> role, as a built-in role (a custom role counts as its rank)")
+    permissions: dict[str, list[str]] = Field(
+        default_factory=dict, description="namespace name -> what your role there allows (docs/access.md#roles-and-permissions)"
+    )
     partial: list[str] = Field(
         default_factory=list, description="namespaces you have no role in but see some collections of (roles on collections)"
     )
@@ -161,6 +164,7 @@ class SigninLinkInfo(ResponseModel):
 class SigninLink(ResponseModel):
     url: str = Field(description="open it on the device to sign in with; it works once")
     expires_at: str
+    emailed: bool = Field(False, description="whether Lens emailed it to them (email=true, with mail set up)")
 
 
 class LoginTicket(ResponseModel):
