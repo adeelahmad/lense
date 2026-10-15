@@ -1,10 +1,10 @@
 """Storage sources through rclone, and the folders on them that the archive watches.
 
 A source is one connection: S3 or S3-compatible, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, or a folder on
-this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP), a calendar feed (iCal) or
-Google Calendar, whose messages and events are shown as files (feeds.py). A watch maps a folder on a source to a
-namespace: new audio, video, documents (PDFs) and images become resources queued for the whole pipeline, their files
-staying on the source; new transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
+this machine (only inside sources.local_roots); or, without rclone, an email account (IMAP, or Gmail and Google
+Workspace), a calendar feed (iCal) or Google Calendar, whose messages and events are shown as files (feeds.py). A watch
+maps a folder on a source to a namespace: new audio, video, documents (PDFs) and images become resources queued for
+the whole pipeline, their files staying on the source; new transcripts are imported and queued for analysis. A watch on an email account can carry routing rules that send some
 messages to other namespaces, or skip them (mail_routes.py). Credentials are stored encrypted and handed to rclone in a private
 temporary config file per call; OAuth tokens rclone refreshes are saved.
 """
@@ -249,11 +249,12 @@ def browse(db, cfg, sid, path=""):
     return sorted(_entries(out, p.rstrip("/")), key=lambda e: (not e["dir"], e["name"].lower()))
 
 
-def list_files(db, cfg, src, path, cursor=None):
-    """Every file under `path`. A watch hands its `cursor` to sources that keep one (IMAP: only newer messages)."""
+def list_files(db, cfg, src, path, cursor=None, fresh=False, headers=True):
+    """Every file under `path`. A watch hands its `cursor` to sources that keep one (email: only newer messages), and
+    says when it's `fresh` (its first scan, leaving what's there); `headers` False is for counting files only."""
     p = check_path(cfg, src, path)
     if feeds.handles(src):
-        return feeds.list_files(cfg, src, p, cursor)
+        return feeds.list_files(cfg, src, p, cursor, fresh, headers)
     out = run(db, cfg, src, lambda n: ["lsjson", "-R", "--files-only", "--no-mimetype", f"{n}:{p}"], timeout=900)
     return _entries(out, p.rstrip("/"))
 
@@ -337,6 +338,7 @@ def _check_params(typ, params, secret_values):
     for k, v in (params or {}).items():
         if not isinstance(v, (str, int, float, bool)):
             raise ValueError(f"{k} must be a plain value")
+    feeds.check_params(typ, params)
     return spec
 
 
@@ -387,6 +389,10 @@ def update(db, cfg, sid, name=None, params=None, secret_values=None):
         d=store.clean({"name": name, "params": {**(src.get("params") or {}), **(params or {})} if params else None}),
     )
     db.q("UPDATE $r SET sealed = $s", r=R("storage_source", sid), s=sealed)  # SET, not MERGE: a MERGE can't drop a removed secret
+    if params and "via" in params and str(params["via"]) != str((src.get("params") or {}).get("via")):
+        # read another way, which names mailboxes and messages differently: each watch starts again as new, taking
+        # what's there only if it backfills
+        db.q("UPDATE watch_path SET cursor = NONE, last_scan_at = NONE WHERE source = $s", s=sid)
 
 
 def remove(db, sid):
@@ -449,7 +455,7 @@ def _routes(db, src, opts):
     if "routes" not in opts:
         return {}
     routes = mail_routes.check(db, opts["routes"])
-    if routes and src["type"] != "imap":
+    if routes and not feeds.is_email(src):
         raise ValueError("routing rules are for watches on an email account")
     return {"routes": routes}
 
@@ -509,11 +515,11 @@ def preview_routes(db, cfg, sid, path, routes, home, limit=50):
     they're saved: one row per message, newest first, with the namespace (None: skipped) and the rule that decided.
     `home` is the name of the watch's namespace, which may not exist yet."""
     src = get(db, sid)
-    if src["type"] != "imap":
+    if not feeds.is_email(src):
         raise ValueError("routing rules are for watches on an email account")
     rules = _routes(db, src, {"routes": routes})["routes"]
     names = store.space_names(db)
-    files = sorted(list_files(db, cfg, src, path), key=lambda f: f.get("modified") or "", reverse=True)[:limit]
+    files = feeds.latest(cfg, src, check_path(cfg, src, path), limit)
     out = []
     for f in files:
         to, rule = mail_routes.route(rules, f.get("mail"), "", set(names))  # "": the watch's own namespace, `home`
@@ -653,7 +659,7 @@ def poll_watch(db, cfg, wid, log=print):
     spaces = set(store.space_names(db)) if routes else set()
     if routes:
         stats["routed"] = 0
-    files, held, limited = list_files(db, cfg, src, w["path"], w.get("cursor")), set(), None
+    files, held, limited = list_files(db, cfg, src, w["path"], w.get("cursor"), fresh=first and not w.get("backfill")), set(), None
     for f in files:
         kind = kind_of(cfg, w, f)
         if not kind:
@@ -672,7 +678,7 @@ def poll_watch(db, cfg, wid, log=print):
         if space is None or (first and not w.get("backfill")) or (src["id"], f["path"]) in gone[space]:
             db.q("UPSERT $k CONTENT $d", k=key, d={**row, "status": "skipped"})
             stats["skipped"] += 1
-        elif limited or (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0):
+        elif limited or (not f.get("settled") and (now - _when(f["modified"])).total_seconds() < (w.get("stable_seconds") or 0)):
             db.q("UPSERT $k CONTENT $d", k=key, d=store.clean({**row, "status": "waiting", "error": limited}))
             stats["waiting"] += 1
             held.add(f["path"])
@@ -701,8 +707,9 @@ def poll_watch(db, cfg, wid, log=print):
         n=nxt,
         s=stats,
     )
-    if any(f.get("cursor") for f in files):
-        db.q("UPDATE $r SET cursor = $c", r=R("watch_path", wid), c=feeds.advance(w.get("cursor"), files, held))
+    marks = getattr(files, "marks", [])
+    if marks or any(f.get("cursor") for f in files):
+        db.q("UPDATE $r SET cursor = $c", r=R("watch_path", wid), c=feeds.advance(w.get("cursor"), files, held, marks))
     return stats
 
 
@@ -737,7 +744,7 @@ def import_files(db, cfg, sid, paths, space, by, pipeline=None, collection=None,
     results = []
     for folder, wanted in folders.items():
         try:
-            listing = {e["path"]: e for e in browse(db, cfg, sid, folder)}
+            listing = feeds.find(cfg, src, folder, wanted) if feeds.handles(src) else {e["path"]: e for e in browse(db, cfg, sid, folder)}
         except (ValueError, RuntimeError) as e:
             results += [{"path": p, "status": "error", "detail": str(e)[:300]} for p in wanted]
             continue

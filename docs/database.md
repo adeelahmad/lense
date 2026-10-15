@@ -149,9 +149,12 @@ first ([Updates and backups](updates.md)). Each is one entry in `<data_dir>/back
   reports, exports, podcasts, certificates) in `<data_dir>/backups/.files/<name>/`. A file that hasn't changed since
   the previous backup is a hard link to that backup's copy, so each backup takes only the room of what changed. Left
   out: what Lens fetches or rebuilds by itself (`models`, `bin`, `python`, `cache`, the search index), passing files
-  (`tmp`, `locks`, `logs`, unfinished uploads), and `secret.key`. A backup is refused when the disk hasn't room for
-  the files that changed. A backup with files, or of an embedded database, downloads as one `.tar.gz` holding
-  `<name>` and `<name>.files/`. Backups from before files were kept show *database only* in Settings.
+  (`tmp`, `locks`, `logs`, unfinished uploads), `secret.key`, the database's own folder (`surreal` in a microsandbox:
+  the export holds it), and hidden entries at the top of `data_dir` (in a microsandbox, `.lens` is the Lens it runs,
+  and the rest are caches). A file Lens can't read isn't its own: it is left out, with a warning in the log. A backup
+  is refused when the disk hasn't room for the files that changed. A backup with files, or of an embedded database,
+  downloads as one `.tar.gz` holding `<name>` and `<name>.files/`. Backups from before files were kept show *database
+  only* in Settings.
 
 **Restoring** replaces the whole database, and the files under `data_dir`, with the backup's (a *database only*
 backup leaves the files as they are). What was there is backed up first (`before-restore`) and
