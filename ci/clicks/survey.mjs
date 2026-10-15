@@ -82,8 +82,9 @@ async function surveyPages(page, base, phone) {
     page.evaluate(() => {
       const main = document.querySelector("main") || document.body;
       const seen = [...main.querySelectorAll("a[href], button, input, select, textarea, [role=tab], [role=switch], [role=radio]")];
-      // the page's own controls: not the settings sections or tabs that lead to other pages
-      return seen.filter((el) => el.offsetParent !== null && !el.closest("[hidden], nav")).length;
+      // the page's own controls: not the settings sections or tabs that lead to other pages, nor what a closed fold
+      // (details) keeps out of sight, which Chromium still lays out
+      return seen.filter((el) => el.offsetParent !== null && !el.closest("[hidden], nav, details:not([open]) > :not(summary)")).length;
     });
   const settle = () => page.waitForTimeout(1200);
   await page.goto(base + "/", { waitUntil: "domcontentloaded" });

@@ -1856,6 +1856,7 @@ export const FIELDS: FieldSpec[] = [
     label: "Laya server",
     kind: "text",
     mono: true,
+    nullable: true,
     placeholder: "http://host.docker.internal:8790/v1",
     hint: "Only when Lens runs where MLX can't, such as Docker on a Mac",
   },
