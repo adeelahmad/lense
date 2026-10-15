@@ -11,21 +11,25 @@ from email.message import EmailMessage
 import pytest
 
 from app.domain import (
+    comments,
     convert,
     deletion,
+    entities,
     events,
     events_content,
     feeds,
     gmail,
+    graph_history,
     import_hooks,
     ingest,
     jobs,
+    notebook,
     sources,
     store,
     uploads,
     webcapture,
 )
-from tests.helpers import PODS1, drain, make_user, write_wav
+from tests.helpers import PODS1, drain, make_user, seed, write_wav
 
 R = store.R
 ADMIN = events.viewer(1, None, admin=True)
@@ -457,3 +461,179 @@ def test_an_event_that_moves_is_calendar_event_changed(db, cfg, monkeypatch):
     new_ = db.one("SELECT event FROM $r", r=R("recording", rid))["event"]
     assert events_content.calendar_moved(db, rid, pods, src, "Parents' evening", old, new_) == a["id"]
     assert len(db.values("SELECT VALUE id FROM event_log WHERE kind = 'calendar_event.changed'")) == 1
+
+
+def test_comments_are_comment_added_on_their_asset(db, cfg):
+    sam = make_user(db, "sam@example.org", "sam password 1")
+    pods = store.ns_id(db, "pods")
+    rid = ingest.import_text(db, cfg, "pods", "[00:00] Sam: Remember the forms.", title="Call with the school")
+    start(db, cfg, "test.comments")
+    cid = comments.create(db, rid, pods, sam, "Can we bring this up on Friday?", t0=0, t1=1500, quote="Remember the forms.")
+    reply = comments.create(db, rid, pods, sam, "Yes, I'll ask.", parent=cid)
+    got = [a for a in new(db, cfg, "test.comments") if a["kind"] == "comment.added"]
+    assert [a["id"] for a in got] == [f"comment-{cid}", f"comment-{reply}"]
+    a, b = got
+    assert a["type"] == "Create" and a["space"] == pods and a["actor"] == {"type": "Person", "id": f"lens:account/{sam}", "name": "sam"}
+    assert a["object"] == {
+        "type": "Note",
+        "id": f"lens:comment/{cid}",
+        "content": "Can we bring this up on Friday?",
+        "url": f"/resources/{rid}",
+        "quote": "Remember the forms.",
+        "t0": 0,
+        "t1": 1500,
+    }
+    assert a["target"]["id"] == f"lens:recording/{rid}" and a["target"]["name"] == "Call with the school"
+    assert a["summary"] == "sam commented on “Call with the school”" and b["summary"] == "sam replied on “Call with the school”"
+    assert b["object"]["inReplyTo"] == f"lens:comment/{cid}"
+    assert {"object.content", "object.quote", "target.name"} <= set(a["lens"]["untrusted"])
+    assert events.get(db, cfg, a["id"], ADMIN) == a and events.get_many(db, cfg, [a["id"], b["id"]], ADMIN) == {a["id"]: a, b["id"]: b}
+    page = events.page(db, cfg, ADMIN, flt={"kinds": ["comment.added"]})["items"]
+    assert [x["id"] for x in page] == [b["id"], a["id"]]
+    assert events.page(db, cfg, events.viewer(9, {store.ns_id(db, "calls")}), flt={"kinds": ["comment.added"]})["items"] == []
+
+
+def test_notes_written_and_saved_once_a_window(db, cfg):
+    sam = make_user(db, "sam@example.org", "sam password 1")
+    ann = make_user(db, "ann@example.org", "ann password 1")
+    pods = store.ns_id(db, "pods")
+    start(db, cfg, "test.notes")
+    pid = notebook.create(db, pods, sam, "School trip plans", "Pack lunches.", summary="What to pack")
+    mine = notebook.create(db, pods, sam, "St Mary's School", "Notes on the school.", author="assistant")
+    notebook.update(db, pid, sam, body="Pack lunches and coats.")
+    notebook.update(db, pid, sam, body="Pack lunches, coats and hats.")  # one sitting: one version
+    notebook.update(db, pid, ann, body="Pack lunches, coats, hats and boots.")
+    got = new(db, cfg, "test.notes")
+    made = [a for a in got if a["kind"] == "note.created"]
+    assert [a["id"] for a in made] == [f"note-created-{pid}", f"note-created-{mine}"]
+    assert made[0]["actor"]["id"] == f"lens:account/{sam}" and made[0]["summary"] == "sam wrote the note “School trip plans”"
+    assert made[0]["object"] == {
+        "type": "Page",
+        "id": f"lens:note_page/{pid}",
+        "name": "School trip plans",
+        "url": f"/notes/{pid}",
+        "summary": "What to pack",
+        "author": "person",
+    }
+    assert made[1]["actor"] == events_content.APPS["assistant"] and made[1]["object"]["author"] == "assistant"
+    versions = db.rows("SELECT record::id(id) AS id, at, by FROM note_version WHERE page = $p ORDER BY at", p=pid)
+    assert [v["by"] for v in versions] == [sam, ann]
+    slots = sorted({events_content._slot(v["at"]) for v in versions})
+    saved = [a for a in got if a["kind"] == "note.saved"]
+    assert [a["id"] for a in saved] == [f"note-{pid}-{n}" for n in slots]  # the first change in each window
+    assert saved[0]["actor"]["id"] == f"lens:account/{sam}" and saved[0]["summary"] == "sam edited the note “School trip plans”"
+    assert saved[0]["object"]["version"] == f"lens:note_version/{versions[0]['id']}" and saved[0]["type"] == "Update"
+    assert "object.name" in saved[0]["lens"]["untrusted"]
+    # the timeline shows each window once, at its newest change; a viewer of another namespace sees none of it
+    page = events.page(db, cfg, ADMIN, flt={"kinds": ["note.saved"]})["items"]
+    assert [x["id"] for x in page] == [f"note-{pid}-{n}" for n in reversed(slots)]
+    assert page[0]["actor"]["id"] == f"lens:account/{ann}"
+    assert events.get(db, cfg, page[0]["id"], ADMIN) == page[0]
+    both = events.get_many(db, cfg, [x["id"] for x in page] + [made[1]["id"]], ADMIN)
+    assert both == {**{x["id"]: x for x in page}, made[1]["id"]: made[1]}
+    calls = events.viewer(9, {store.ns_id(db, "calls")})
+    assert events.page(db, cfg, calls, flt={"kinds": ["note.saved", "note.created"]})["items"] == []
+
+
+def test_many_versions_in_a_window_page_as_one(db, cfg):
+    pods = store.ns_id(db, "pods")
+    sam = make_user(db, "sam@example.org", "sam password 1")
+    a = notebook.create(db, pods, sam, "Busy page", "x")
+    b = notebook.create(db, pods, sam, "Quiet page", "y")
+    later = events_content._slot(store.now()) + 3  # windows to come, so a follower started now reads them
+    start(db, cfg, "test.windows")
+
+    def version(pid, slot, sec, by, author="person"):
+        vid = notebook.snapshot(db, notebook.get(db, pid) | {"body": "z"}, by, author, why="test")
+        at = dt.datetime.fromtimestamp(slot * events_content.NOTE_WINDOW + sec, dt.UTC).isoformat(timespec="milliseconds")
+        db.q("UPDATE $r SET at = $t", r=R("note_version", vid), t=at)
+
+    version(b, later, 5, sam)
+    for i in range(99):  # more than a read's batch, all in one window
+        version(a, later + 1, 1 + i, sam if i < 98 else None, "person" if i < 98 else "assistant")
+    got = [x for x in new(db, cfg, "test.windows") if x["kind"] == "note.saved"]
+    assert [x["id"] for x in got] == [f"note-{b}-{later}", f"note-{a}-{later + 1}"]
+    assert got[1]["actor"]["id"] == f"lens:account/{sam}"  # a follower hears of the window's first change
+    assert [x for x in new(db, cfg, "test.windows") if x["kind"] == "note.saved"] == []
+    ids, nxt, seen = [], None, 0
+    while True:
+        pg = events.page(db, cfg, ADMIN, before=nxt, flt={"kinds": ["note.saved"]}, limit=1)
+        ids += [x["id"] for x in pg["items"]]
+        seen += 1
+        nxt = pg["next"]
+        if not nxt or seen > 5:
+            break
+    assert ids == [f"note-{a}-{later + 1}", f"note-{b}-{later}"]
+    newest = events.get(db, cfg, f"note-{a}-{later + 1}", ADMIN)
+    assert newest["actor"] == events_content.APPS["assistant"] and newest["summary"] == "Assistant edited the note “Busy page”"
+
+
+def test_graph_changes_are_entity_changed(db, cfg, folder):
+    sam = make_user(db, "sam@example.org", "sam password 1")
+    pods, calls = store.ns_id(db, "pods"), store.ns_id(db, "calls")
+    start(db, cfg, "test.graph")
+    seed(db, cfg, folder)
+    found = [a for a in new(db, cfg, "test.graph") if a["kind"] == "entity.changed"]
+    assert found and all(a["actor"] == events.LENS and a["object"]["op"] == "created" for a in found)
+    assert all(a["object"]["change"] == "analysis" and a["tag"] and len(a["tag"]) <= 20 for a in found)
+    assert found[0]["summary"].startswith("Lens found “") and found[0]["space"] in (pods, calls)
+    ents = db.rows("SELECT record::id(id) AS id, name, space FROM entity ORDER BY id")
+    keep = next(e for e in ents if e["space"] == calls and e["name"] == "Dyno Therapeutics")
+    other = next(e for e in ents if e["space"] == calls and e["name"] == "Alice")
+    there = next(e for e in ents if e["space"] == pods)
+    with graph_history.acting(actor="sam@example.org", via="web"):
+        entities.rename(db, keep["id"], "Dyno")
+    with graph_history.acting(actor="sam@example.org", via="assistant"):
+        entities.merge(db, keep["id"], [other["id"]])
+    with graph_history.acting(actor="sam@example.org", via="automation:7"):
+        entities.link(db, keep["id"], there["id"])
+    got = [a for a in new(db, cfg, "test.graph") if a["kind"] == "entity.changed"]
+    assert [a["object"]["op"] for a in got] == ["renamed", "merged", "linked"]
+    rn, mg, ln = got
+    assert rn["actor"] == {"type": "Person", "id": f"lens:account/{sam}", "name": "sam"} and rn["type"] == "Update"
+    assert (
+        rn["object"]["id"] == f"lens:entity/{keep['id']}"
+        and rn["object"]["name"] == "Dyno"
+        and rn["object"]["before"] == "Dyno Therapeutics"
+    )
+    assert rn["summary"] == "sam renamed “Dyno Therapeutics” to “Dyno”" and rn["space"] == calls and "spaces" not in rn["lens"]
+    assert rn["id"] == f"graph-{rn['object']['version']}" and rn["tag"][0]["id"] == f"lens:entity/{keep['id']}"
+    assert mg["actor"] == events_content.APPS["assistant"] and mg["object"]["id"] == f"lens:entity/{keep['id']}"
+    assert mg["summary"] == "Assistant merged “Alice” into “Dyno”"
+    # a change across namespaces names entities of each, so only admins see it
+    assert ln["actor"] == {"type": "Application", "id": "lens:automation/7", "name": "Automation 7"}
+    assert ln["lens"]["spaces"] == sorted([pods, calls]) and ln["lens"]["audience"] == "admins" and ln["space"] == min(pods, calls)
+    assert events.get(db, cfg, ln["id"], ADMIN) == ln
+    assert events.get(db, cfg, ln["id"], events.viewer(sam, {calls})) is None
+    assert events.get_many(db, cfg, [rn["id"], ln["id"]], events.viewer(sam, {calls})) == {rn["id"]: rn}
+    mine = [a["id"] for a in events.page(db, cfg, events.viewer(sam, {calls}), flt={"kinds": ["entity.changed"]}, limit=200)["items"]]
+    assert mg["id"] in mine and rn["id"] in mine and ln["id"] not in mine
+    assert all(x["space"] == calls for x in events.page(db, cfg, events.viewer(sam, {calls}), flt={"kinds": ["entity.changed"]})["items"])
+    everything = [a["id"] for a in events.page(db, cfg, ADMIN, flt={"kinds": ["entity.changed"]}, limit=3)["items"]]
+    assert everything == [ln["id"], mg["id"], rn["id"]]
+
+
+def test_a_page_between_two_times_shows_the_newest_of_them(db, cfg):
+    sam = make_user(db, "sam@example.org", "sam password 1")
+    pods = store.ns_id(db, "pods")
+    rid = ingest.import_text(db, cfg, "pods", "[00:00] Sam: Remember the forms.", title="Call with the school")
+    at = [f"2026-10-01T10:00:{i:02d}+00:00" for i in range(10)]
+    cids = []
+    for t in at:
+        cids.append(comments.create(db, rid, pods, sam, f"Comment at {t}"))
+        db.q("UPDATE $r SET created_at = $t", r=R("comment", cids[-1]), t=t)
+        events.emit(
+            db,
+            "asset.deleted",
+            actor=events.LENS,
+            obj={"type": "Document", "id": "lens:recording/1", "name": t},
+            space=pods,
+            summary=f"Lens deleted “{t}”",
+            published=t,
+        )
+    flt = {"since": "2026-10-01T10:00:02.000Z", "until": "2026-10-01T10:00:07.000Z"}
+    for who in (ADMIN, events.viewer(sam, {pods})):
+        got = events.page(db, cfg, who, flt={**flt, "kinds": ["comment.added"]}, limit=2)["items"]
+        assert [a["id"] for a in got] == [f"comment-{cids[7]}", f"comment-{cids[6]}"]
+        log = events.page(db, cfg, who, flt={**flt, "kinds": ["asset.deleted"]}, limit=2)["items"]
+        assert [a["object"]["name"] for a in log] == [at[7], at[6]]

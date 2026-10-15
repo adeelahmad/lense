@@ -21,6 +21,7 @@ Older rows without them are read without those fields.
 
 from __future__ import annotations
 
+import datetime as dt
 import mimetypes
 import pathlib
 import re
@@ -437,6 +438,43 @@ def _sec(t):
     return events._parse(t).replace(microsecond=0).isoformat(timespec="seconds")
 
 
+def _ms(t):
+    """A time as note versions write it (to the millisecond, +00:00)."""
+    return events._parse(t).isoformat(timespec="milliseconds")
+
+
+def _bound(col, op, name):
+    """`col op $name` for a page, newest first. Written so SurrealDB doesn't read it as a range of an index: 3.2.4
+    gives a range's first rows, not its last, for ORDER BY ... DESC LIMIT n."""
+    return f"({col} {op} ${name} OR {col} = NONE)"
+
+
+def _paging(col, table, before, who, flt, p, at=_sec, many=False):
+    """The WHERE parts every source's page shares: what `who` may read, before the cursor, the namespace and time
+    filters (looser bounds; the stream checks each filter exactly again). `many`: the rows list their namespaces in
+    `spaces`."""
+    mine = None if who.get("admin") else (who.get("spaces") or set())
+    where = [f"{col} != NONE"]
+    if mine is not None:
+        p["sp"] = sorted(mine)
+        where.append("spaces CONTAINSANY $sp" if many else "space IN $sp")
+    if before is not None and before[1] is None:
+        p["pt"] = before[0]
+        where.append(_bound(col, "<", "pt"))
+    elif before is not None:
+        where.append(events.after_sql(col, before, p, "<", table=table))
+    if flt.get("spaces") is not None:
+        p["fs"] = sorted(flt["spaces"])
+        where.append("spaces CONTAINSANY $fs" if many else "space IN $fs")
+    if flt.get("since"):
+        p["since"] = at(flt["since"])
+        where.append(_bound(col, ">", "since"))
+    if flt.get("until"):
+        p["until"] = at(flt["until"])
+        where.append(_bound(col, "<=", "until"))
+    return where
+
+
 class RecordingsSource(events.Source):
     """recording rows as asset.added and its children, read by (created_at, id)."""
 
@@ -451,18 +489,7 @@ class RecordingsSource(events.Source):
 
     def page(self, db, cfg, before, who, flt, limit):
         p: dict = {}
-        where = [events.space_sql(None if who.get("admin") else (who.get("spaces") or set()), p), "created_at != NONE"]
-        if before is not None:
-            where.append(events.after_sql("created_at", before, p, "<", table="recording"))
-        if flt.get("spaces") is not None:
-            p["fs"] = sorted(flt["spaces"])
-            where.append("space IN $fs")
-        if flt.get("since"):  # a looser bound, to the second; the stream checks each filter exactly again
-            p["since"] = _sec(flt["since"])
-            where.append("created_at > $since")
-        if flt.get("until"):
-            p["until"] = _sec(flt["until"])
-            where.append("created_at <= $until")
+        where = _paging("created_at", "recording", before, who, flt, p)
         rows = db.rows(
             f"SELECT {FIELDS} FROM recording WHERE {' AND '.join(where)} ORDER BY created_at DESC, rid DESC LIMIT {int(limit)}", **p
         )
@@ -758,22 +785,7 @@ class JobsSource(events.Source):
 
     def page(self, db, cfg, before, who, flt, limit):
         p: dict = {}
-        where = [
-            self._statuses(flt.get("kinds"), p),
-            events.space_sql(None if who.get("admin") else (who.get("spaces") or set()), p),
-            "finished_at != NONE",
-        ]
-        if before is not None:
-            where.append(events.after_sql("finished_at", before, p, "<", table="job"))
-        if flt.get("spaces") is not None:
-            p["fs"] = sorted(flt["spaces"])
-            where.append("space IN $fs")
-        if flt.get("since"):
-            p["since"] = _sec(flt["since"])
-            where.append("finished_at > $since")
-        if flt.get("until"):
-            p["until"] = _sec(flt["until"])
-            where.append("finished_at <= $until")
+        where = [self._statuses(flt.get("kinds"), p), *_paging("finished_at", "job", before, who, flt, p)]
         rows = db.rows(
             f"SELECT {JOB_FIELDS} FROM job WHERE {' AND '.join(where)} ORDER BY finished_at DESC, rid DESC LIMIT {int(limit)}", **p
         )
@@ -1011,5 +1023,663 @@ events.kind(
         },
         "Family calendar moved “Parents' evening” to 2026-10-21 18:00",
         ("object.name", "object.location"),
+    ),
+)
+
+
+def _and_more(names, most=1):
+    """“A”, “A” and “B”, or “A” and 3 more."""
+    names = [f"“{str(n)[:200]}”" for n in names if n]
+    if not names:
+        return "an entity"
+    if len(names) <= most + 1:
+        return " and ".join(names)
+    return f"{', '.join(names[:most])} and {len(names) - most} more"
+
+
+# ---------- comments ----------
+COMMENT_FIELDS = "id AS rid, record::id(id) AS id, recording, space, account, parent, text, t0, t1, quote, created_at"
+CONTENT_MAX = 1000  # characters of a comment an activity carries
+
+
+def _comment_activities(db, rows):
+    """New comments as comment.added: the comment (a Note) on its asset, the target."""
+    rows = [r for r in rows if r]
+    if not rows:
+        return []
+    rids = list({r["recording"] for r in rows if _num(r.get("recording")) is not None})
+    assets = {a["id"]: a for a in db.rows(f"SELECT {ASSET_FIELDS} FROM recording WHERE id IN $r", r=[R("recording", i) for i in rids])}
+    who = actors(db, [(r.get("account"), r.get("space")) for r in rows])
+    types = _content_types(db)
+    out = []
+    for r in rows:
+        try:
+            published = events.stamp(r["created_at"])
+        except (TypeError, ValueError):
+            continue
+        rec = assets.get(r.get("recording"))
+        if rec:
+            target = _asset(db, rec, types)
+        else:
+            target = {"type": "Document", "id": f"lens:recording/{r.get('recording')}", "name": "A deleted asset"}
+        reply = _num(r.get("parent")) is not None
+        obj = store.clean(
+            {
+                "type": "Note",
+                "id": f"lens:comment/{r['id']}",
+                "content": _text(r.get("text"), CONTENT_MAX) or "",
+                "url": f"/resources/{r.get('recording')}",
+                "inReplyTo": f"lens:comment/{r['parent']}" if reply else None,
+                "quote": _text(r.get("quote")),
+                "t0": _num(r.get("t0")),
+                "t1": _num(r.get("t1")),
+            }
+        )
+        actor = who[(r.get("account"), r.get("space"))]
+        out.append(
+            events.build(
+                f"comment-{r['id']}",
+                "comment.added",
+                actor=actor,
+                obj=obj,
+                target=target,
+                summary=f"{actor['name']} {'replied on' if reply else 'commented on'} “{target['name'][:200]}”",
+                space=r.get("space"),
+                source="comments",
+                pos=[r["created_at"], r["id"]],
+                published=published,
+            )
+        )
+    return out
+
+
+class CommentsSource(events.Source):
+    """comment rows (on assets, threaded) as comment.added, read by (created_at, id)."""
+
+    name = "comments"
+
+    def read(self, db, cfg, pos, spaces, limit, hint=None):
+        p: dict = {}
+        where = f"{events.after_sql('created_at', pos, p, table='comment')} AND {events.space_sql(spaces, p)}"
+        rows = db.rows(f"SELECT {COMMENT_FIELDS} FROM comment WHERE {where} ORDER BY created_at, rid LIMIT {int(limit)}", **p)
+        return _comment_activities(db, rows)
+
+    def page(self, db, cfg, before, who, flt, limit):
+        p: dict = {}
+        where = _paging("created_at", "comment", before, who, flt, p)
+        rows = db.rows(
+            f"SELECT {COMMENT_FIELDS} FROM comment WHERE {' AND '.join(where)} ORDER BY created_at DESC, rid DESC LIMIT {int(limit)}", **p
+        )
+        return _comment_activities(db, rows)
+
+    def get(self, db, cfg, activity_id):
+        m = re.match(r"^comment-(\d+)$", activity_id)
+        if not m:
+            return None
+        r = db.one(f"SELECT {COMMENT_FIELDS} FROM $r", r=R("comment", int(m.group(1))))
+        got = _comment_activities(db, [r]) if r else []
+        return got[0] if got else None
+
+    def get_many(self, db, cfg, ids):
+        ns = sorted({int(m.group(1)) for m in (re.match(r"^comment-(\d+)$", i) for i in ids) if m})
+        if not ns:
+            return []
+        return _comment_activities(db, db.rows(f"SELECT {COMMENT_FIELDS} FROM comment WHERE id IN $rs", rs=[R("comment", n) for n in ns]))
+
+
+events.register_source(CommentsSource())
+
+
+# ---------- notes ----------
+NOTE_WINDOW = 600  # seconds: a page's versions in one window of the clock this long are one note.saved
+NOTE_ROUNDS = 5  # reads of versions a look makes at most, while windows already told of thin them out
+VERSION_FIELDS = "id AS rid, record::id(id) AS id, page, space, at, by, author, title, why"
+PAGE_FIELDS = "id AS rid, record::id(id) AS id, space, title, summary, about, place, author, created_by, created_at"
+NOTE_ID_RX = re.compile(r"^note-(\d+)-(\d+)$")
+
+
+def _slot(t):
+    return _epoch(t) // NOTE_WINDOW
+
+
+def _slot_time(n):
+    return _ms(dt.datetime.fromtimestamp(n * NOTE_WINDOW, dt.timezone.utc))
+
+
+def _note_label(r, by="by"):
+    return "assistant" if r.get("author") == "assistant" else r.get(by)
+
+
+def _about(about):
+    m = re.match(r"^([a-z_]+):(\d+)$", str(about or ""))
+    return f"lens:{m.group(1)}/{m.group(2)}" if m else None
+
+
+def _page_object(pid, pg):
+    return store.clean(
+        {
+            "type": "Page",
+            "id": f"lens:note_page/{pid}",
+            "name": _text(pg.get("title"), 200) or "Untitled",
+            "url": f"/notes/{pid}",
+            "summary": _text(pg.get("summary")),
+            "about": _about(pg.get("about")),
+            "place": pg.get("place"),
+        }
+    )
+
+
+def _slot_of(r):
+    try:
+        return _slot(r["at"])
+    except (TypeError, ValueError):
+        return None
+
+
+def _told(db, rows, newest):
+    """The versions that stand for their page's window: its first (its newest, when paging back), one query for all."""
+    slots = {r["id"]: _slot_of(r) for r in rows if r and _num(r.get("page")) is not None}
+    rows = [r for r in rows if r and slots.get(r["id"]) is not None]
+    if not rows:
+        return []
+    near: dict = {}
+    for v in db.rows(
+        "SELECT page, at, record::id(id) AS id FROM note_version WHERE page IN $p AND at >= $lo AND at < $hi",
+        p=sorted({r["page"] for r in rows}),
+        lo=_slot_time(min(slots[r["id"]] for r in rows)),
+        hi=_slot_time(max(slots[r["id"]] for r in rows) + 1),
+    ):
+        if _slot_of(v) is not None:
+            near.setdefault((v["page"], _slot_of(v)), []).append((str(v["at"]), v["id"]))
+    pick = max if newest else min
+    return [r for r in rows if pick(near.get((r["page"], slots[r["id"]]), []) + [(str(r["at"]), r["id"])]) == (str(r["at"]), r["id"])]
+
+
+def _note_activities(db, rows):
+    """Versions as note.saved: someone (or the assistant) changed the page at the version's time."""
+    if not rows:
+        return []
+    pages = {
+        x["id"]: x
+        for x in db.rows(
+            "SELECT record::id(id) AS id, title, summary, about, place FROM note_page WHERE id IN $p",
+            p=[R("note_page", i) for i in {r["page"] for r in rows}],
+        )
+    }
+    who = actors(db, [(_note_label(r), r.get("space")) for r in rows])
+    out = []
+    for r in rows:
+        try:
+            published, slot = events.stamp(r["at"]), _slot(r["at"])
+        except (TypeError, ValueError):
+            continue
+        obj = _page_object(r["page"], pages.get(r["page"]) or {"title": r.get("title")})
+        obj.update(store.clean({"version": f"lens:note_version/{r['id']}", "author": r.get("author"), "why": _text(r.get("why"))}))
+        actor = who[(_note_label(r), r.get("space"))]
+        out.append(
+            events.build(
+                f"note-{r['page']}-{slot}",
+                "note.saved",
+                actor=actor,
+                obj=obj,
+                summary=f"{actor['name']} edited the note “{obj['name'][:200]}”",
+                space=r.get("space"),
+                source="note_versions",
+                pos=[r["at"], r["id"]],
+                published=published,
+            )
+        )
+    return out
+
+
+class NoteVersionsSource(events.Source):
+    """note_version rows (a page as it was before each change: notebook.snapshot) as note.saved, read by (at, id): one
+    activity per page per NOTE_WINDOW, `note-<page>-<window>`. Followers hear of a window's first change, the timeline
+    shows its newest."""
+
+    name = "note_versions"
+
+    def _rounds(self, db, where, p, cursor, limit, newest):
+        """Versions from `cursor` (None: the newest), a batch at a time, until `limit` of them stand for their window
+        or none are left."""
+        op, order = ("<", "at DESC, rid DESC") if newest else (">", "at, rid")
+        batch, out = max(int(limit), 50), []
+        for _ in range(NOTE_ROUNDS):
+            q = dict(p)
+            parts = where + ([events.after_sql("at", cursor, q, op, table="note_version")] if cursor is not None else [])
+            rows = db.rows(f"SELECT {VERSION_FIELDS} FROM note_version WHERE {' AND '.join(parts)} ORDER BY {order} LIMIT {batch}", **q)
+            out += _told(db, rows, newest)
+            if len(rows) < batch or len(out) >= limit:
+                break
+            cursor = [rows[-1]["at"], rows[-1]["id"]]
+        return out[: int(limit)]
+
+    def read(self, db, cfg, pos, spaces, limit, hint=None):
+        p: dict = {}
+        return _note_activities(db, self._rounds(db, [events.space_sql(spaces, p)], p, pos, limit, newest=False))
+
+    def page(self, db, cfg, before, who, flt, limit):
+        p: dict = {}
+        where = _paging("at", None, None, who, flt, p, at=_ms)
+        return _note_activities(db, self._rounds(db, where, p, before, limit, newest=True))
+
+    def get(self, db, cfg, activity_id):
+        m = NOTE_ID_RX.match(activity_id)
+        if not m:
+            return None
+        pid, slot = int(m.group(1)), int(m.group(2))
+        r = db.one(
+            f"SELECT {VERSION_FIELDS} FROM note_version WHERE page = $p AND {_bound('at', '>=', 'lo')} AND {_bound('at', '<', 'hi')} "
+            "ORDER BY at DESC, rid DESC LIMIT 1",
+            p=pid,
+            lo=_slot_time(slot),
+            hi=_slot_time(slot + 1),
+        )
+        got = _note_activities(db, [r]) if r else []
+        return got[0] if got and got[0]["id"] == activity_id else None
+
+    def get_many(self, db, cfg, ids):
+        want = {(int(m.group(1)), int(m.group(2))) for m in (NOTE_ID_RX.match(i) for i in ids) if m}
+        if not want:
+            return []
+        rows = db.rows(
+            f"SELECT {VERSION_FIELDS} FROM note_version WHERE page IN $p AND at >= $lo AND at < $hi",
+            p=sorted({p for p, _ in want}),
+            lo=_slot_time(min(n for _, n in want)),
+            hi=_slot_time(max(n for _, n in want) + 1),
+        )
+        newest: dict = {}
+        for r in rows:
+            k = (r.get("page"), _slot_of(r))
+            if k in want and (k not in newest or (str(r["at"]), r["id"]) > (str(newest[k]["at"]), newest[k]["id"])):
+                newest[k] = r
+        return _note_activities(db, list(newest.values()))
+
+
+def _page_activities(db, rows):
+    """New pages as note.created, by whoever made them (the assistant, for its own)."""
+    rows = [r for r in rows if r]
+    who = actors(db, [(_note_label(r, "created_by"), r.get("space")) for r in rows])
+    out = []
+    for r in rows:
+        try:
+            published = events.stamp(r["created_at"])
+        except (TypeError, ValueError):
+            continue
+        obj = _page_object(r["id"], r)
+        if r.get("author"):
+            obj["author"] = r["author"]
+        actor = who[(_note_label(r, "created_by"), r.get("space"))]
+        out.append(
+            events.build(
+                f"note-created-{r['id']}",
+                "note.created",
+                actor=actor,
+                obj=obj,
+                summary=f"{actor['name']} wrote the note “{obj['name'][:200]}”",
+                space=r.get("space"),
+                source="note_pages",
+                pos=[r["created_at"], r["id"]],
+                published=published,
+            )
+        )
+    return out
+
+
+class NotePagesSource(events.Source):
+    """note_page rows as note.created when they're made, read by (created_at, id)."""
+
+    name = "note_pages"
+
+    def read(self, db, cfg, pos, spaces, limit, hint=None):
+        p: dict = {}
+        where = f"{events.after_sql('created_at', pos, p, table='note_page')} AND {events.space_sql(spaces, p)}"
+        rows = db.rows(f"SELECT {PAGE_FIELDS} FROM note_page WHERE {where} ORDER BY created_at, rid LIMIT {int(limit)}", **p)
+        return _page_activities(db, rows)
+
+    def page(self, db, cfg, before, who, flt, limit):
+        p: dict = {}
+        where = _paging("created_at", "note_page", before, who, flt, p)
+        rows = db.rows(
+            f"SELECT {PAGE_FIELDS} FROM note_page WHERE {' AND '.join(where)} ORDER BY created_at DESC, rid DESC LIMIT {int(limit)}", **p
+        )
+        return _page_activities(db, rows)
+
+    def get(self, db, cfg, activity_id):
+        m = re.match(r"^note-created-(\d+)$", activity_id)
+        if not m:
+            return None
+        r = db.one(f"SELECT {PAGE_FIELDS} FROM $r", r=R("note_page", int(m.group(1))))
+        got = _page_activities(db, [r]) if r else []
+        return got[0] if got else None
+
+    def get_many(self, db, cfg, ids):
+        ns = sorted({int(m.group(1)) for m in (re.match(r"^note-created-(\d+)$", i) for i in ids) if m})
+        if not ns:
+            return []
+        return _page_activities(db, db.rows(f"SELECT {PAGE_FIELDS} FROM note_page WHERE id IN $rs", rs=[R("note_page", n) for n in ns]))
+
+
+events.register_source(NoteVersionsSource())
+events.register_source(NotePagesSource())
+
+
+# ---------- the entity graph ----------
+GRAPH_FIELDS = (
+    "id AS rid, record::id(id) AS id, at, op, actor, via, spaces, entities, origin, "
+    "ops[WHERE t = 'entity'].{k, b: b.name, a: a.name, ty: (a ?? b).type} AS named"
+)
+GRAPH_TAGS = 20  # entities an entity.changed activity is tagged with
+CREATED_OPS = {"entity.found", "entity.learned", "entity.builtin"}
+GRAPH_OPS = {
+    "entity.rename": "renamed",
+    "entity.merge": "merged",
+    "entity.unmerge": "split",
+    "link.add": "linked",
+    "link.remove": "unlinked",
+    "entity.delete": "deleted",
+    "graph.rollback": "rolled back",
+}
+OPS = ("created", "renamed", "merged", "split", "linked", "unlinked", "deleted", "rolled back", "changed")
+
+
+def _graph_op(op, named):
+    """What a graph event did, in a word: an entity made (found by analysis or defined from a phrase), renamed, merged,
+    split again, linked across namespaces or unlinked, deleted, rolled back, else changed."""
+    if op in CREATED_OPS or (op in ("analysis", "entity.define") and any(n.get("b") is None and n.get("a") for n in named.values())):
+        return "created"
+    return GRAPH_OPS.get(op, "changed")
+
+
+def _graph_label(r):
+    """Who changed the graph, as actors() reads it: an automation (its id as actor or `via`), the assistant or an
+    agent over MCP (through `via`, for the person who asked), else the actor (an email, `routine:<id>`; analysis and
+    system are Lens)."""
+    for v in (r.get("actor"), r.get("via")):
+        if AUTOMATION_RX.match(str(v or "")):
+            return v
+    return r.get("via") if r.get("via") in APPS else r.get("actor")
+
+
+def _graph_summary(op, actor, r, named, ents, name, alive):
+    who = actor["name"]
+    if op == "renamed" and ents and named.get(ents[0], {}).get("b"):
+        n = named[ents[0]]
+        return f"{who} renamed “{str(n['b'])[:200]}” to “{str(n.get('a') or '')[:200]}”"
+    if op == "merged" and alive:
+        gone = [name(e) for e in ents if e not in alive]
+        return f"{who} merged {_and_more(gone)} into “{str(name(alive[0]))[:200]}”"
+    if op == "rolled back" and _num((r.get("origin") or {}).get("rollback_to")) is not None:
+        return f"{who} rolled the graph back to version {r['origin']['rollback_to']}"
+    verb = {"created": "found", "split": "split", "linked": "linked", "unlinked": "unlinked", "deleted": "deleted"}.get(op, op)
+    return f"{who} {verb} {_and_more([name(e) for e in ents], 2 if op in ('linked', 'unlinked') else 1)}"
+
+
+def _graph_activities(db, rows):
+    """Graph events as entity.changed, one per event: about its first entity still there, tagged with its entities,
+    in the first of its namespaces. One that spans namespaces is for admins, since its names come from each."""
+    rows = [r for r in rows if r]
+    if not rows:
+        return []
+    named_of = {r["id"]: {n["k"]: n for n in r.get("named") or [] if isinstance(n, dict) and _num(n.get("k")) is not None} for r in rows}
+    ents_of = {r["id"]: [e for e in r.get("entities") or [] if _num(e) is not None] for r in rows}
+    looked = _lookup(db, "entity", {e for r in rows for e in ents_of[r["id"]][:GRAPH_TAGS] if e not in named_of[r["id"]]}, "name, type")
+    labels = {r["id"]: (_graph_label(r), ([s for s in r.get("spaces") or [] if _num(s) is not None] or [None])[0]) for r in rows}
+    who = actors(db, labels.values())
+    out = []
+    for r in rows:
+        try:
+            published = events.stamp(r["at"])
+        except (TypeError, ValueError):
+            continue
+        named, ents = named_of[r["id"]], ents_of[r["id"]]
+
+        def name(e, named=named):
+            n = named.get(e)
+            return (n.get("a") or n.get("b")) if n else (looked.get(e) or {}).get("name")
+
+        op = _graph_op(r.get("op"), named)
+        alive = [e for e in ents if not (e in named and named[e].get("a") is None)]
+        first = (alive or ents or [None])[0]
+        n = named.get(first) or looked.get(first) or {}
+        obj = {
+            "type": "Object",
+            "id": f"lens:entity/{first}" if first is not None else "lens:graph",
+            "name": _text(name(first), 200) or "an entity",
+            "url": f"/entities/{first}" if first in alive else None,
+            "entityType": n.get("ty") or n.get("type"),
+            "op": op,
+            "change": r.get("op"),
+            "version": r["id"],
+            "count": len(ents),
+        }
+        if op == "renamed" and (named.get(first) or {}).get("b"):
+            obj["before"] = _text(named[first]["b"], 200)
+        spaces = sorted({s for s in r.get("spaces") or [] if _num(s) is not None})
+        actor = who[labels[r["id"]]]
+        out.append(
+            events.build(
+                f"graph-{r['id']}",
+                "entity.changed",
+                actor=actor,
+                obj=store.clean(obj),
+                summary=_graph_summary(op, actor, r, named, ents, name, alive),
+                space=spaces[0] if spaces else None,
+                source="graph",
+                pos=[r["at"], r["id"]],
+                published=published,
+                tag=[{"type": "Mention", "id": f"lens:entity/{e}", "name": _text(name(e), 200)} for e in ents[:GRAPH_TAGS] if name(e)],
+                spaces=spaces if len(spaces) > 1 else None,
+                audience="admins" if len(spaces) > 1 else None,
+            )
+        )
+    return out
+
+
+class GraphSource(events.Source):
+    """graph_event rows (graph_history.py: one per change to the entity graph, never changed) as entity.changed, read
+    by (at, event number); the number gives versions out in order, so the two agree."""
+
+    name = "graph"
+
+    def read(self, db, cfg, pos, spaces, limit, hint=None):
+        p: dict = {}
+        where = [events.after_sql("at", pos, p, table="graph_event")]
+        if spaces is not None:
+            p["sp"] = sorted(spaces)
+            where.append("spaces CONTAINSANY $sp")
+        rows = db.rows(f"SELECT {GRAPH_FIELDS} FROM graph_event WHERE {' AND '.join(where)} ORDER BY at, rid LIMIT {int(limit)}", **p)
+        return _graph_activities(db, rows)
+
+    def page(self, db, cfg, before, who, flt, limit):
+        p: dict = {}
+        where = _paging("at", "graph_event", before, who, flt, p, many=True)
+        rows = db.rows(
+            f"SELECT {GRAPH_FIELDS} FROM graph_event WHERE {' AND '.join(where)} ORDER BY at DESC, rid DESC LIMIT {int(limit)}", **p
+        )
+        return _graph_activities(db, rows)
+
+    def get(self, db, cfg, activity_id):
+        m = re.match(r"^graph-(\d+)$", activity_id)
+        if not m:
+            return None
+        r = db.one(f"SELECT {GRAPH_FIELDS} FROM $r", r=R("graph_event", int(m.group(1))))
+        got = _graph_activities(db, [r]) if r else []
+        return got[0] if got else None
+
+    def get_many(self, db, cfg, ids):
+        ns = sorted({int(m.group(1)) for m in (re.match(r"^graph-(\d+)$", i) for i in ids) if m})
+        if not ns:
+            return []
+        return _graph_activities(
+            db, db.rows(f"SELECT {GRAPH_FIELDS} FROM graph_event WHERE id IN $rs", rs=[R("graph_event", n) for n in ns])
+        )
+
+
+events.register_source(GraphSource())
+
+
+# ---------- their kinds ----------
+SAM = {"type": "Person", "id": "lens:account/1", "name": "Sam"}
+_PAGE = {
+    "type": _s("Object type", enum=["Page"]),
+    "id": _s("Note"),
+    "name": _s("Title"),
+    "url": _s("Link"),
+    "summary": _s("Summary"),
+    "about": _s("About"),
+    "place": _s("Place", enum=["project", "area", "resource", "archive"]),
+    "author": _s("Written by", enum=["person", "assistant"]),
+}
+events.kind(
+    "comment.added",
+    label="Comment added",
+    source="comments",
+    as_type="Create",
+    object_type="Note",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": _s("Object type", enum=["Note"]),
+                "id": _s("Comment"),
+                "content": _s("Text"),
+                "url": _s("Link"),
+                "inReplyTo": _s("Reply to"),
+                "quote": _s("Quoted passage"),
+                "t0": _s("From (ms)", "integer"),
+                "t1": _s("To (ms)", "integer"),
+            },
+        },
+        "target": {"type": "object", "properties": _ASSET},
+    },
+    untrusted=("object.content", "object.quote", "target.name"),
+    sample=_sample(
+        "comment-31",
+        "comment.added",
+        "Create",
+        "comments",
+        ["2026-10-15T16:24:10+00:00", 31],
+        SAM,
+        {
+            "type": "Note",
+            "id": "lens:comment/31",
+            "content": "Can we bring this up with the school on Friday?",
+            "url": "/resources/8",
+            "t0": 61000,
+            "t1": 65000,
+        },
+        "Sam commented on “Call with the school”",
+        ("object.content", "object.quote", "target.name"),
+    )
+    | {"target": {"type": "Audio", "id": "lens:recording/8", "name": "Call with the school", "url": "/resources/8", "media": "audio"}},
+)
+events.kind(
+    "note.saved",
+    label="Note saved",
+    source="note_versions",
+    as_type="Update",
+    object_type="Page",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {**_PAGE, "version": _s("Version kept from before"), "why": _s("Why")},
+        }
+    },
+    untrusted=("object.name", "object.summary"),
+    sample=_sample(
+        "note-5-2986802",
+        "note.saved",
+        "Update",
+        "note_versions",
+        ["2026-10-15T16:24:10.120+00:00", 40],
+        SAM,
+        {
+            "type": "Page",
+            "id": "lens:note_page/5",
+            "name": "School trip plans",
+            "url": "/notes/5",
+            "summary": "What to pack and who drives",
+            "place": "project",
+            "version": "lens:note_version/40",
+            "author": "person",
+        },
+        "Sam edited the note “School trip plans”",
+        ("object.name", "object.summary"),
+    ),
+)
+events.kind(
+    "note.created",
+    label="Note written",
+    source="note_pages",
+    as_type="Create",
+    object_type="Page",
+    fields={"object": {"type": "object", "properties": _PAGE}},
+    untrusted=("object.name", "object.summary"),
+    sample=_sample(
+        "note-created-6",
+        "note.created",
+        "Create",
+        "note_pages",
+        ["2026-10-15T16:24:10+00:00", 6],
+        APPS["assistant"],
+        {
+            "type": "Page",
+            "id": "lens:note_page/6",
+            "name": "St Mary's School",
+            "url": "/notes/6",
+            "about": "lens:entity/44",
+            "author": "assistant",
+        },
+        "Assistant wrote the note “St Mary's School”",
+        ("object.name", "object.summary"),
+    ),
+)
+events.kind(
+    "entity.changed",
+    label="Entity changed",
+    source="graph",
+    as_type="Update",
+    object_type="Object",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "type": _s("Object type", enum=["Object"]),
+                "id": _s("Entity"),
+                "name": _s("Name"),
+                "url": _s("Link"),
+                "entityType": _s("Entity type"),
+                "op": _s("What happened", enum=list(OPS)),
+                "change": _s("Graph change"),
+                "version": _s("Graph version", "integer"),
+                "count": _s("Entities changed", "integer"),
+                "before": _s("Name before"),
+            },
+        }
+    },
+    untrusted=("object.name", "object.before"),
+    sample=_sample(
+        "graph-88",
+        "entity.changed",
+        "Update",
+        "graph",
+        ["2026-10-15T16:24:10+00:00", 88],
+        SAM,
+        {
+            "type": "Object",
+            "id": "lens:entity/44",
+            "name": "St Mary's School",
+            "url": "/entities/44",
+            "entityType": "organization",
+            "op": "renamed",
+            "change": "entity.rename",
+            "version": 88,
+            "count": 1,
+            "before": "St Marys",
+        },
+        "Sam renamed “St Marys” to “St Mary's School”",
+        ("object.name", "object.before"),
+        [SCHOOL],
     ),
 )
