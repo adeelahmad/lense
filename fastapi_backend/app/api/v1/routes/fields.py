@@ -171,7 +171,7 @@ def get_resource_fields(rid: int, acl: Acl, user: CurrentUser, db: Db) -> FieldV
 def save_resource_fields(rid: int, body: FieldValuesUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> FieldValues:
     """Set or clear (null) the resource's values for the fields named; the others keep theirs. Editors. Kept in its
     metadata history (so a revert puts them back) and audited as `fields.save`."""
-    rec = acl.recording(rid, "editor")
+    rec = acl.recording(rid, "edit")
     defs, row = fieldmod.resource_fields(db, rid)
     with domain_errors():
         after = fieldmod.merged(row, defs, _changes(body))
@@ -238,7 +238,7 @@ def get_file_fields(rid: int, fid: int, acl: Acl, user: CurrentUser, db: Db) -> 
 @router.put("/recordings/{rid}/files/{fid}/fields")
 def save_file_fields(rid: int, fid: int, body: FieldValuesUpdate, acl: Acl, user: Writer, db: Db) -> FieldValues:
     """Set or clear (null) the file's values for the fields named. Editors of the resource; audited as `fields.save`."""
-    rec = acl.recording(rid, "editor")
+    rec = acl.recording(rid, "edit")
     row = _file_row(db, rid, fid)
     defs = fieldmod.applying(db, rec["space"], "file", rec.get("collection"))
     with domain_errors():

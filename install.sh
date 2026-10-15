@@ -50,7 +50,7 @@ have() { command -v "$1" >/dev/null 2>&1; }
 secret() {
   if have openssl; then openssl rand -hex 32; else od -An -N32 -tx1 /dev/urandom | tr -d ' \n'; fi
 }
-code() { LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 12; }
+code() { LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 12; }
 
 os="$(uname -s)"
 
@@ -70,6 +70,20 @@ msb_ok() {
   esac
 }
 tty_ok() { [ "${LENS_YES:-0}" != 1 ] && (: </dev/tty) 2>/dev/null; }
+# KVM for this run: this process can use /dev/kvm, or its user is in the group that owns it, which sg gives a process
+# before the next sign-in does. (The access setfacl gives the user lasts only until udev resets it, which a VM starting
+# or stopping does.)
+in_kvm() { id -Gn ${1:+"$1"} 2>/dev/null | tr ' ' '\n' | grep -qx kvm; }
+kvm_ok() {
+  { [ -r /dev/kvm ] && [ -w /dev/kvm ]; } ||
+    { have sg && [ "$(stat -c %G /dev/kvm 2>/dev/null)" = kvm ] && in_kvm "$(id -un)"; }
+}
+# Starts Lens's sandbox, with the kvm group when msb needs it (below)
+run_sandbox() {
+  if [ -n "$kvm_sg" ]; then sg kvm -c ./.lens-sandbox >/dev/null; else ./.lens-sandbox >/dev/null; fi
+}
+# A word for sh -c, in single quotes
+quote() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
 # has_db VOLUME: whether a microsandbox volume may hold a Lens database. Only one it can see has none counts as without:
 # empty, or with run.sh's tools (.lens) and no database (surreal/lens.db) next to them. One it can't look into (not
 # where microsandbox keeps them by default) counts as with.
@@ -164,7 +178,7 @@ if [ "$BACKEND" = microsandbox ]; then
   have msb || need "microsandbox (from install.microsandbox.dev, into ~/.microsandbox)"
   if [ "$os" = Linux ]; then
     [ -e /dev/kvm ] || need "the KVM kernel module (modprobe, with sudo)"
-    { [ -r /dev/kvm ] && [ -w /dev/kvm ]; } || need "access to KVM for $(id -un) (the kvm group, with sudo)"
+    kvm_ok || need "access to KVM for $(id -un) (the kvm group, with sudo)"
   fi
 else
   if ! have docker; then
@@ -214,12 +228,31 @@ if [ "$os" = Linux ] && [ ! -e /dev/kvm ]; then
   $(sudo_ok) modprobe kvm_intel 2>/dev/null || $(sudo_ok) modprobe kvm_amd 2>/dev/null || $(sudo_ok) modprobe kvm 2>/dev/null || true
   [ -e /dev/kvm ] || fail "KVM didn't load. Turn on virtualization (VT-x or AMD-V) in the firmware settings, or use LENS_BACKEND=docker."
 fi
-if [ "$os" = Linux ] && ! { [ -r /dev/kvm ] && [ -w /dev/kvm ]; }; then
+if [ "$os" = Linux ] && ! kvm_ok; then
   say "Letting $(id -un) use KVM (the kvm group)..."
   $(sudo_ok) usermod -aG kvm "$(id -un)" 2>/dev/null || true
-  # the group counts from the next sign-in; for this run, access for this user alone
+  # the group counts from the next sign-in; for this run, access for this user alone (setfacl is in the acl package,
+  # which a minimal system may not have)
+  if ! have setfacl; then
+    if have apt-get; then $(sudo_ok) apt-get install -y -q acl >/dev/null 2>&1 || true
+    elif have dnf; then $(sudo_ok) dnf install -y -q acl >/dev/null 2>&1 || true
+    fi
+  fi
   have setfacl && $(sudo_ok) setfacl -m "u:$(id -un):rw" /dev/kvm 2>/dev/null || true
-  [ -r /dev/kvm ] && [ -w /dev/kvm ] || fail "Can't use /dev/kvm. Sign out and in again (or run: msb doctor), then run this again."
+  kvm_ok || fail "Can't use /dev/kvm. Sign out and in again (or run: msb doctor), then run this again."
+fi
+MSB="$(command -v msb)"
+# Until the next sign-in gives this user's processes the kvm group, msb runs with it, through sg (which takes one
+# command line, so each word is quoted into it): msb can't start or stop a sandbox without KVM, and the access setfacl
+# gave lasts only until udev resets it, which a VM starting or stopping does.
+kvm_sg=""
+if [ "$os" = Linux ] && have sg && ! in_kvm && in_kvm "$(id -un)"; then
+  kvm_sg=1
+  msb() {
+    line="exec $(quote "$MSB")"
+    for a in "$@"; do line="$line $(quote "$a")"; done
+    sg kvm -c "$line"
+  }
 fi
 else
 # --- Docker -------------------------------------------------------------------------------------------------------
@@ -470,7 +503,7 @@ if [ "$BACKEND" = microsandbox ]; then
     {
       echo "#!/bin/sh"
       echo "# Starts Lens in its microsandbox (written by install.sh)"
-      printf 'exec %s' "'$(command -v msb)'"
+      printf 'exec %s' "'$MSB'"
       for a in "$@"; do printf " '%s'" "$a"; done
       echo
     } >.lens-sandbox
@@ -494,7 +527,7 @@ if [ "$BACKEND" = microsandbox ]; then
     sleep 2
   done
   since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" # what the new sandbox logs, for the progress below
-  ./.lens-sandbox >/dev/null
+  run_sandbox
   LOGS="msb logs -f lens"
   TAIL="msb logs lens --tail 40"
   STOP="msb stop lens"
@@ -504,7 +537,7 @@ if [ "$BACKEND" = microsandbox ]; then
     unit=/etc/systemd/system/lens-microsandbox.service
     printf '%s\n' "[Unit]" "Description=Lens (microsandbox)" "After=network-online.target" "Wants=network-online.target" "" \
       "[Service]" "Type=oneshot" "RemainAfterExit=yes" "User=$(id -un)" "ExecStart=$PWD/.lens-sandbox" \
-      "ExecStop=$(command -v msb) stop lens" "" "[Install]" "WantedBy=multi-user.target" |
+      "ExecStop=$MSB stop lens" "" "[Install]" "WantedBy=multi-user.target" |
       $(sudo_ok) tee "$unit" >/dev/null && $(sudo_ok) systemctl enable lens-microsandbox.service >/dev/null 2>&1 || true
   elif [ "$os" = Darwin ]; then
     plist="$HOME/Library/LaunchAgents/dev.lens.microsandbox.plist"
@@ -604,7 +637,7 @@ other_volume() {
   write_sandbox
   msb stop -q -t 30 lens </dev/null >/dev/null 2>&1 || true
   since="$(date -u +%Y-%m-%dT%H:%M:%SZ)" seen=0 down=0 step=""
-  ./.lens-sandbox >/dev/null
+  run_sandbox
   start=$(date +%s) # a first start on this volume: it installs and builds everything again
   shown=$start
 }

@@ -146,7 +146,7 @@ async def _receive(request: Request, cfg: dict[str, Any]) -> pathlib.Path:
 
 
 def _editor(acl: Access, rid: int) -> dict[str, Any]:
-    return acl.recording(rid, "editor")
+    return acl.recording(rid, "edit")
 
 
 @router.post("", openapi_extra=CHUNK)

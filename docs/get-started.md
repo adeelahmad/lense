@@ -8,7 +8,7 @@ curl -fsSL https://raw.githubusercontent.com/adeelahmad/lense/main/install.sh | 
 
 On Linux or a Mac, this installs Docker if it's missing (get.docker.com on Linux; OrbStack with Homebrew on a Mac,
 and Homebrew too if needed), after listing what it will install and asking (only at a terminal; `LENS_YES=1` skips
-the question),
+the question; CI installs on a runner with Docker taken off first, as on a new computer),
 gets Lens into `~/lens`, writes the secrets once, builds and starts the stack, and opens the setup page with the setup
 code already filled in. On a server without a desktop, Lens is reachable from the network and the link uses the
 server's address. Run the same line again to update: the secrets, the database and the archive are kept. Settings go

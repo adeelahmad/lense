@@ -8265,10 +8265,18 @@ export type Me = {
   /**
    * Roles
    *
-   * namespace name -> role
+   * namespace name -> role, as a built-in role (a custom role counts as its rank)
    */
   roles: {
     [key: string]: "viewer" | "editor" | "owner";
+  };
+  /**
+   * Permissions
+   *
+   * namespace name -> what your role there allows (docs/access.md#roles-and-permissions)
+   */
+  permissions?: {
+    [key: string]: Array<string>;
   };
   /**
    * Partial
@@ -8316,7 +8324,7 @@ export type Member = {
   /**
    * Role
    */
-  role: "viewer" | "editor" | "owner";
+  role: string;
   /**
    * Email
    */
@@ -8345,7 +8353,7 @@ export type MemberSet = {
   /**
    * Role
    */
-  role?: "viewer" | "editor" | "owner" | null;
+  role?: string | null;
 };
 
 /**
@@ -13933,6 +13941,125 @@ export type Reviewed = {
 };
 
 /**
+ * RoleCreate
+ */
+export type RoleCreate = {
+  /**
+   * Name
+   *
+   * 2 to 40 lowercase letters, digits, - and _; can't change later
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Permissions
+   *
+   * read is always included
+   */
+  permissions?: Array<string>;
+};
+
+/**
+ * RoleOut
+ */
+export type RoleOut = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * Description
+   */
+  description?: string;
+  /**
+   * Permissions
+   */
+  permissions: Array<string>;
+  /**
+   * Builtin
+   */
+  builtin: boolean;
+  /**
+   * Rank
+   *
+   * the largest built-in role it covers; the checks that ask for a rank give it that much
+   */
+  rank: string;
+  /**
+   * Members
+   *
+   * how many people hold it, across namespaces
+   */
+  members?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RolePermission
+ */
+export type RolePermission = {
+  /**
+   * Name
+   */
+  name: string;
+  /**
+   * Label
+   */
+  label: string;
+  /**
+   * First
+   *
+   * the built-in role that first has it
+   */
+  first: string;
+  [key: string]: unknown;
+};
+
+/**
+ * RoleUpdate
+ */
+export type RoleUpdate = {
+  /**
+   * Label
+   */
+  label?: string | null;
+  /**
+   * Description
+   */
+  description?: string | null;
+  /**
+   * Permissions
+   */
+  permissions?: Array<string> | null;
+};
+
+/**
+ * Roles
+ */
+export type Roles = {
+  /**
+   * Permissions
+   */
+  permissions: Array<RolePermission>;
+  /**
+   * Roles
+   */
+  roles: Array<RoleOut>;
+  [key: string]: unknown;
+};
+
+/**
  * RollbackAsk
  */
 export type RollbackAsk = {
@@ -18768,10 +18895,10 @@ export type UserWithRoles = {
   /**
    * Roles
    *
-   * namespace name -> role
+   * namespace name -> role (built-in or custom)
    */
   roles?: {
-    [key: string]: "viewer" | "editor" | "owner";
+    [key: string]: string;
   };
   /**
    * Passkeys
@@ -21340,6 +21467,107 @@ export type SetMemberResponses = {
 };
 
 export type SetMemberResponse = SetMemberResponses[keyof SetMemberResponses];
+
+export type ListRolesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/api/v1/roles";
+};
+
+export type ListRolesResponses = {
+  /**
+   * Successful Response
+   */
+  200: Roles;
+};
+
+export type ListRolesResponse = ListRolesResponses[keyof ListRolesResponses];
+
+export type CreateRoleData = {
+  body: RoleCreate;
+  path?: never;
+  query?: never;
+  url: "/api/v1/roles";
+};
+
+export type CreateRoleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateRoleError = CreateRoleErrors[keyof CreateRoleErrors];
+
+export type CreateRoleResponses = {
+  /**
+   * Successful Response
+   */
+  200: RoleOut;
+};
+
+export type CreateRoleResponse = CreateRoleResponses[keyof CreateRoleResponses];
+
+export type DeleteRoleData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/roles/{name}";
+};
+
+export type DeleteRoleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteRoleError = DeleteRoleErrors[keyof DeleteRoleErrors];
+
+export type DeleteRoleResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type DeleteRoleResponse = DeleteRoleResponses[keyof DeleteRoleResponses];
+
+export type UpdateRoleData = {
+  body: RoleUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/roles/{name}";
+};
+
+export type UpdateRoleErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateRoleError = UpdateRoleErrors[keyof UpdateRoleErrors];
+
+export type UpdateRoleResponses = {
+  /**
+   * Successful Response
+   */
+  200: RoleOut;
+};
+
+export type UpdateRoleResponse = UpdateRoleResponses[keyof UpdateRoleResponses];
 
 export type GetSettingsData = {
   body?: never;

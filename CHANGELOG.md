@@ -11,6 +11,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   in it. Notes, highlights and comments people shared go in when picked. Export › Choose what goes in it… (and the
   button beside a collection's Evidence PDF) picks the parts, and `include` does the same in the API
   ([Evidence PDFs](docs/api.md#evidence-pdfs)).
+- **Roles with permissions.** Viewer, editor and owner are now sets of permissions (read, edit, import, process,
+  curate, share, publish, remove, members, manage), and admins make custom roles from them in Admin → Roles, given per
+  namespace like the built-in ones. Existing access is unchanged. Someone who manages members but isn't an admin gives
+  only roles they hold all of ([Access](docs/access.md#roles-and-permissions)).
 - **Invite and remove people.** Making an account in Admin → People now emails the sign-in link as an invitation when
   mail is set up, and the link is still shown to share yourself. **Remove for good** ends every way someone signs in,
   takes their roles and their private chats, notes and views, and keeps what they shared under their name; their email
@@ -140,7 +144,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   and renews on its own from Let's Encrypt or ZeroSSL (or any ACME authority), proving the domain over HTTP, TLS-ALPN
   or DNS, with Cloudflare, Route 53 and the other caddy-dns providers, so wildcards and machines the internet can't
   reach work too. Set it up in **Settings › HTTPS**, whose **Open the HTTPS ports** has the machine open 443 and 80
-  and restart Lens (or run the install line with `LENS_HTTPS=1`). Off by default ([HTTPS](docs/https.md)).
+  and restart Lens (or run the install line with `LENS_HTTPS=1`). It can answer only for its own domains (strict SNI)
+  and require client certificates (mutual TLS). Off by default ([HTTPS](docs/https.md)).
 
 - **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
   left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or

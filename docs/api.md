@@ -123,7 +123,11 @@ PATCH  /api/v1/users/{uid}
 DELETE /api/v1/users/{uid}                 remove for good (authentication.md#removing-someone)
 POST   /api/v1/users/{uid}/signin-link     ?email=true also emails it
 GET    /api/v1/namespaces/{name}/members
-PUT    /api/v1/namespaces/{name}/members
+PUT    /api/v1/namespaces/{name}/members       {email | account, role}: built-in or custom; null removes
+GET    /api/v1/roles                           the permissions and every role (access.md#roles-and-permissions)
+POST   /api/v1/roles                           admins: {name, label, description, permissions}
+PATCH  /api/v1/roles/{name}                    admins: a custom role's label, description, permissions
+DELETE /api/v1/roles/{name}                    admins: a custom role nobody holds
 ```
 
 ## admin

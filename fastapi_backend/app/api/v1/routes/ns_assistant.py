@@ -32,7 +32,7 @@ def get_namespace_assistant(name: str, acl: Acl, db: Db) -> NamespaceAssistant:
 @router.patch("/{name}/assistant")
 def update_namespace_assistant(name: str, body: NamespaceAssistantUpdate, acl: Acl, user: Writer, db: Db) -> NamespaceAssistant:
     """Owners: turn the assistant on or off, name it, or change its instructions."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     try:
         ns_assistant.save_profile(db, sid, body.enabled, body.name, body.instructions, user.email)
     except ValueError as e:
@@ -64,7 +64,7 @@ def list_assistant_memories(
 @router.post("/{name}/assistant/memories")
 def add_assistant_memory(name: str, body: AssistantMemoryCreate, acl: Acl, user: Writer, db: Db) -> Created:
     """Editors: tell the assistant something to remember."""
-    sid = acl.namespace(name, "editor")
+    sid = acl.namespace(name, "edit")
     try:
         mid = ns_assistant.remember(db, sid, body.text, user.id, author="person")
         if body.pinned:
@@ -77,7 +77,7 @@ def add_assistant_memory(name: str, body: AssistantMemoryCreate, acl: Acl, user:
 @router.patch("/{name}/assistant/memories/{mid}")
 def update_assistant_memory(name: str, mid: int, body: AssistantMemoryUpdate, acl: Acl, user: Writer, db: Db) -> AssistantMemory:
     """Editors: correct a memory, or pin it so it's read with every question."""
-    sid = acl.namespace(name, "editor")
+    sid = acl.namespace(name, "edit")
     try:
         m = ns_assistant.update(db, sid, mid, body.text, body.pinned)
     except KeyError:
@@ -90,7 +90,7 @@ def update_assistant_memory(name: str, mid: int, body: AssistantMemoryUpdate, ac
 @router.delete("/{name}/assistant/memories/{mid}")
 def forget_assistant_memory(name: str, mid: int, acl: Acl, user: Writer, db: Db) -> Ok:
     """Editors: forget one memory."""
-    sid = acl.namespace(name, "editor")
+    sid = acl.namespace(name, "edit")
     try:
         ns_assistant.forget(db, sid, mid)
     except KeyError:
@@ -101,7 +101,7 @@ def forget_assistant_memory(name: str, mid: int, acl: Acl, user: Writer, db: Db)
 @router.delete("/{name}/assistant/memories")
 def forget_all_assistant_memories(name: str, acl: Acl, user: Writer, db: Db) -> Ok:
     """Owners: forget everything the assistant remembers."""
-    sid = acl.namespace(name, "owner")
+    sid = acl.namespace(name, "manage")
     ns_assistant.forget_all(db, sid)
     auth.audit(db, user.as_audit(), "namespace.assistant.forget_all", name)
     return Ok()

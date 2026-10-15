@@ -53,7 +53,7 @@ def test_owners_manage_members(client, new_client, db):
     assert client.put("/api/v1/namespaces/pods/members", json={"email": "VI@x.io", "role": "viewer"}, headers=h).status_code == 200
     assert client.put("/api/v1/namespaces/pods/members", json={"account": ed, "role": "owner"}, headers=h).status_code == 200
     assert client.put("/api/v1/namespaces/pods/members", json={"email": "ghost@x.io", "role": "viewer"}, headers=h).status_code == 404
-    assert client.put("/api/v1/namespaces/pods/members", json={"account": vi, "role": "admin"}, headers=h).status_code == 422
+    assert client.put("/api/v1/namespaces/pods/members", json={"account": vi, "role": "admin"}, headers=h).status_code == 400
     assert client.put("/api/v1/namespaces/calls/members", json={"account": vi, "role": "viewer"}, headers=h).status_code == 404
     members = {m["email"]: m["role"] for m in client.get("/api/v1/namespaces/pods/members", headers=h).json()}
     assert members == {"own@x.io": "owner", "ed@x.io": "owner", "vi@x.io": "viewer"}

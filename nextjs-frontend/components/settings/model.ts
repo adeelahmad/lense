@@ -1135,6 +1135,35 @@ export const FIELDS: FieldSpec[] = [
     placeholder: "as installed",
     hint: "Where Caddy reaches the web app from the server. Leave empty unless you moved it.",
   },
+  {
+    section: "https",
+    key: "strict_sni",
+    label: "Answer only for these domains",
+    kind: "switch",
+    hint: "Connections to another name, an IP address or no name at all are refused, and a request must name the domain its connection was made for.",
+  },
+  {
+    section: "https",
+    key: "client_auth",
+    label: "Client certificates",
+    kind: "select",
+    options: [
+      { value: "off", label: "Not asked for" },
+      { value: "optional", label: "Checked when a browser offers one" },
+      { value: "required", label: "Required (mutual TLS)" },
+    ],
+  },
+  { section: "https", key: "client_ca", label: "CA that signs client certificates", kind: "text" },
+  {
+    section: "https",
+    key: "min_tls",
+    label: "Oldest TLS version",
+    kind: "select",
+    options: [
+      { value: "1.2", label: "TLS 1.2" },
+      { value: "1.3", label: "TLS 1.3" },
+    ],
+  },
   { section: "https", key: "https_port", label: "HTTPS port in the container", kind: "int", min: 1, max: 65535 },
   { section: "https", key: "http_port", label: "HTTP port in the container", kind: "int", min: 1, max: 65535 },
   // Chat rooms (Matterbridge)
@@ -3374,6 +3403,14 @@ export function crossErrors(values: Record<string, unknown>): Record<string, str
     e["https.dns_provider"] = "Choose the DNS provider that holds the domain";
   const prop = values["https.propagation"] as string | undefined;
   if (prop && !/^\d+(ms|s|m|h)$/.test(prop)) e["https.propagation"] = "A duration, like 2m";
+  const clientCa = values["https.client_ca"] as string | undefined;
+  if (
+    values["https.client_auth"] &&
+    values["https.client_auth"] !== "off" &&
+    "https.client_ca" in values &&
+    !/-----BEGIN CERTIFICATE-----/.test(clientCa ?? "")
+  )
+    e["https.client_ca"] = "Paste the PEM of the CA that signs client certificates";
   const hOrigin = values["https.origin"] as string | undefined;
   if (hOrigin && !/^http:\/\/[^/\s]+/.test(hOrigin))
     e["https.origin"] = "Use an http:// address, such as http://frontend:3000";
