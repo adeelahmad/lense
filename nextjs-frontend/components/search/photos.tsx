@@ -43,7 +43,7 @@ export function PhotoHits({ q, namespace }: { q: string; namespace?: string | nu
                     src={h.thumb}
                     alt=""
                     loading="lazy"
-                    className={cn("aspect-[4/3] w-full bg-surface-neutral object-cover", h.nsfw && "blur-lg")}
+                    className={cn("aspect-4/3 w-full bg-surface-neutral object-cover", h.nsfw && "blur-lg")}
                   />
                   {h.nsfw && (
                     <span className="absolute left-1 top-1 rounded-xs bg-black/70 px-1 text-[10.5px] font-bold text-white">
@@ -52,7 +52,7 @@ export function PhotoHits({ q, namespace }: { q: string; namespace?: string | nu
                   )}
                 </span>
               ) : (
-                <span className="grid aspect-[4/3] w-full place-items-center rounded-[3px] bg-surface-neutral">
+                <span className="grid aspect-4/3 w-full place-items-center rounded-[3px] bg-surface-neutral">
                   <ImageIcon aria-hidden className="size-5 text-fg-muted" />
                 </span>
               )}

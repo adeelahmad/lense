@@ -134,7 +134,7 @@ function HighlightRow({ h, focused }: { h: Highlight; focused: boolean }) {
       </div>
       {h.quote && (
         <blockquote
-          className={cn("line-clamp-3 rounded-[4px] px-1.5 py-0.5 text-[13.5px] leading-snug text-fg", colour.mark)}
+          className={cn("line-clamp-3 rounded-xs px-1.5 py-0.5 text-[13.5px] leading-snug text-fg", colour.mark)}
         >
           {h.quote}
         </blockquote>

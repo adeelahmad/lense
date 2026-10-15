@@ -176,7 +176,7 @@ export function SetupWizard() {
         </Button>
       </header>
       <div className="flex flex-col gap-1.5">
-        <h1 className="text-[24px] font-bold leading-[1.25] text-fg">Welcome to Lens</h1>
+        <h1 className="text-[24px] font-bold leading-tight text-fg">Welcome to Lens</h1>
         <p className="text-[14px] leading-normal text-fg-secondary">
           Only what Lens can&apos;t choose for you is asked here; the rest has a default. Each step can be skipped and
           changed later in Settings; values set in the server&apos;s{" "}
@@ -876,7 +876,7 @@ function BudgetStep({ view, onNext }: { view: SetupView; onNext: (saved: boolean
               step={1}
               value={level}
               onChange={(e) => setLevel(Number(e.target.value))}
-              className="w-full accent-[var(--aladdin-blue)]"
+              className="w-full accent-(--aladdin-blue)"
             />
             <div className="flex justify-between text-[11.5px] text-fg-muted" aria-hidden>
               <span>None</span>

@@ -81,7 +81,7 @@ function ScopeChip({
           aria-label={`Remove ${label} from scope`}
           className="grid size-5 place-items-center rounded-full hover:bg-black/5"
         >
-          <X className="!size-3" />
+          <X className="size-3!" />
         </button>
       )}
     </span>
@@ -537,7 +537,7 @@ export function Composer({
           }}
           placeholder={placeholder}
           aria-label="Your question"
-          className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-normal text-fg outline-none placeholder:text-fg-muted"
+          className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-1.5 text-[15px] leading-normal text-fg outline-hidden placeholder:text-fg-muted"
         />
         {voice && (
           <button

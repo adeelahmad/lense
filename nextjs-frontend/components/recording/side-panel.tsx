@@ -186,7 +186,7 @@ export function PanelTabs({
         role="tablist"
         aria-label="Recording panels"
         onKeyDown={onKey}
-        className="flex min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]"
+        className="flex min-w-0 flex-1 overflow-x-auto scrollbar-none"
       >
         {shown.map((t) => {
           const on = t.value === value;

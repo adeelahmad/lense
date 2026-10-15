@@ -432,14 +432,14 @@ export function MediaDetail({
         </p>
       )}
       {(it.kind === "document" || it.kind === "image") && (
-        <p className="text-[13px] leading-[1.5] text-fg-secondary">
+        <p className="text-[13px] leading-normal text-fg-secondary">
           {it.kind === "document"
             ? "Its pages are drawn to look at and their text is read"
             : "It’s kept to look at and its text is read"}{" "}
           (by OCR where there’s no text layer), so search finds it.
         </p>
       )}
-      <p className="text-[13px] leading-[1.5] text-fg-secondary">
+      <p className="text-[13px] leading-normal text-fg-secondary">
         {earlier ? (
           <>
             <b className="font-bold text-fg-strong">

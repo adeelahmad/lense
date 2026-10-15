@@ -83,7 +83,7 @@ function InboxPanel({ inbox }: { inbox: Sensor[] }) {
             <div className="min-w-[220px] flex-1">
               <SensorName s={s} />
             </div>
-            <p className="min-w-[240px] flex-[2] text-[13px] text-fg-secondary">
+            <p className="min-w-[240px] flex-2 text-[13px] text-fg-secondary">
               {s.suggested?.reason ?? "Nothing to suggest yet."}{" "}
               <span className="text-fg-muted">
                 {plural(s.channels ?? 0, "stream")} · {plural(s.readings ?? 0, "reading")}

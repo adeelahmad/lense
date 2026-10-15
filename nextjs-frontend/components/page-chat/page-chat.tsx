@@ -128,7 +128,7 @@ export function PageChat() {
           aria-label="Chat about this page"
           title="Chat about this page"
           data-ask-button
-          className="fixed bottom-5 right-5 z-[90] inline-flex h-12 items-center gap-2 rounded-pill bg-blue px-4 text-[14px] font-bold text-white shadow-3 transition-transform hover:scale-[1.03] active:scale-[.98] [&_svg]:size-[18px]"
+          className="fixed bottom-5 right-5 z-90 inline-flex h-12 items-center gap-2 rounded-pill bg-blue px-4 text-[14px] font-bold text-white shadow-3 transition-transform hover:scale-[1.03] active:scale-[.98] [&_svg]:size-[18px]"
         >
           <MessagesSquare />
           <span className="hidden sm:inline">{state.chatId != null ? "Chat" : "Ask"}</span>
@@ -171,7 +171,7 @@ function SelectionAsk({ onAsk }: { onAsk: (quote: string) => void }) {
         window.getSelection()?.removeAllRanges();
         setSel(null);
       }}
-      className="fixed z-[95] inline-flex h-[30px] -translate-x-1/2 -translate-y-[calc(100%+8px)] items-center gap-1.5 whitespace-nowrap rounded-[8px] bg-fg px-2.5 text-[12.5px] font-semibold text-background shadow-3 hover:opacity-90 [&_svg]:size-3.5"
+      className="fixed z-95 inline-flex h-[30px] -translate-x-1/2 -translate-y-[calc(100%+8px)] items-center gap-1.5 whitespace-nowrap rounded-sm bg-fg px-2.5 text-[12.5px] font-semibold text-background shadow-3 hover:opacity-90 [&_svg]:size-3.5"
       style={{ left: Math.max(80, Math.min(sel.x, width - 80)), top: Math.max(76, sel.y) }}
     >
       <MessagesSquare /> Ask about this
@@ -310,7 +310,7 @@ function ChatPanel({
     <aside
       data-page-chat
       aria-label="Page chat"
-      className="fixed inset-0 z-[125] flex flex-col bg-background lg:sticky lg:top-0 lg:z-30 lg:h-screen lg:w-[400px] lg:shrink-0 lg:border-l lg:border-border"
+      className="fixed inset-0 z-125 flex flex-col bg-background lg:sticky lg:top-0 lg:z-30 lg:h-screen lg:w-[400px] lg:shrink-0 lg:border-l lg:border-border"
     >
       <div className="flex h-16 shrink-0 items-center gap-1 border-b border-border px-3">
         <MessagesSquare aria-hidden className="ml-1 size-[18px] text-fg-secondary" />
@@ -420,7 +420,7 @@ function ChatPanel({
                 aria-label="Remove the highlighted text"
                 className="grid size-5 shrink-0 place-items-center rounded-full hover:bg-black/10"
               >
-                <X className="!size-3" />
+                <X className="size-3!" />
               </button>
             </span>
           )}
@@ -440,7 +440,7 @@ function ChatPanel({
             }}
             placeholder={selection ? "Ask about the highlighted text…" : "Ask about this page…"}
             aria-label="Ask a question"
-            className="max-h-40 min-h-10 flex-1 resize-none rounded-sm border border-border bg-background px-3 py-2 text-[14px] leading-snug text-fg outline-none placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
+            className="max-h-40 min-h-10 flex-1 resize-none rounded-sm border border-border bg-background px-3 py-2 text-[14px] leading-snug text-fg outline-hidden placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)]"
           />
           {streaming ? (
             <Button
@@ -563,7 +563,7 @@ function AnswerBody({
           </p>
         )
       ) : (
-        <div className="font-serif text-[15px] leading-[1.55] text-fg [text-wrap:pretty]">
+        <div className="font-serif text-[15px] leading-[1.55] text-fg text-pretty">
           <RichText
             text={text}
             renderCite={(n, key) => <CitationChip key={key} n={n} passage={byN.get(n)} compact />}

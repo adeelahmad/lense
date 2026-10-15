@@ -94,7 +94,7 @@ export function CodeBlock({
       aria-label={copied ? "Copied" : `Copy ${label ?? "to clipboard"}`}
       className={cn(
         "inline-flex shrink-0 items-center gap-1 rounded-pill px-2 py-1 text-[12px] font-bold",
-        inline ? "text-fg-accent hover:bg-blue-surface" : "text-[var(--term-blue)] hover:bg-white/10",
+        inline ? "text-fg-accent hover:bg-blue-surface" : "text-(--term-blue) hover:bg-white/10",
       )}
     >
       {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
@@ -116,7 +116,7 @@ export function CodeBlock({
   return (
     // Copy sits beside the text, never over it; on a phone long lines (addresses) wrap rather than scroll
     <div className={cn("flex items-start rounded-md bg-term-bg", className)}>
-      <pre className="min-w-0 flex-1 whitespace-pre-wrap break-words py-4 pl-4 pr-1 font-mono text-[12.5px] leading-relaxed text-term-fg sm:overflow-x-auto sm:whitespace-pre sm:break-normal">
+      <pre className="min-w-0 flex-1 whitespace-pre-wrap wrap-break-word py-4 pl-4 pr-1 font-mono text-[12.5px] leading-relaxed text-term-fg sm:overflow-x-auto sm:whitespace-pre sm:break-normal">
         <code>{text}</code>
       </pre>
       <div className="shrink-0 p-2">{btn}</div>

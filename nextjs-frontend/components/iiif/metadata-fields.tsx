@@ -364,7 +364,7 @@ export function DateLanguages({
                 }}
                 onBlur={add}
                 placeholder={langs.length ? "" : "en, pt-BR…"}
-                className="min-w-[70px] flex-1 bg-transparent text-[13px] outline-none placeholder:text-fg-muted"
+                className="min-w-[70px] flex-1 bg-transparent text-[13px] outline-hidden placeholder:text-fg-muted"
               />
             )}
           </div>
@@ -688,7 +688,7 @@ export function Subjects({
                 } else if (e.key === "Escape") setOpen(false);
                 else if (e.key === "Backspace" && !q && subjects.length) set("subjects", subjects.slice(0, -1));
               }}
-              className="min-w-[120px] flex-1 bg-transparent text-[13px] outline-none placeholder:text-fg-muted"
+              className="min-w-[120px] flex-1 bg-transparent text-[13px] outline-hidden placeholder:text-fg-muted"
             />
           )}
         </div>

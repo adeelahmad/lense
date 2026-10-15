@@ -256,7 +256,7 @@ export function SegmentEditor({ seg }: { seg: Segment }) {
             void then((x) => x.merge(seg.idx));
           }
         }}
-        className="block w-full resize-none overflow-hidden rounded-xs bg-transparent font-serif text-[17.5px] leading-[1.6] text-fg outline-none"
+        className="block w-full resize-none overflow-hidden rounded-xs bg-transparent font-serif text-[17.5px] leading-[1.6] text-fg outline-hidden"
       />
       <span className="mt-2 flex flex-wrap items-center gap-1.5 font-sans">
         <button type="button" className={tool} onMouseDown={keep} onClick={() => split()} disabled={edit?.saving}>

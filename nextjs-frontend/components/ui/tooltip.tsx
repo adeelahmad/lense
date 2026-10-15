@@ -23,7 +23,7 @@ export function Tooltip({
         <T.Content
           side={side}
           sideOffset={6}
-          className="z-[200] max-w-xs rounded-sm bg-[var(--text-primary)] px-2.5 py-1.5 text-[12.5px] leading-snug text-[var(--background)] shadow-2 animate-fade-in"
+          className="z-200 max-w-xs rounded-sm bg-(--text-primary) px-2.5 py-1.5 text-[12.5px] leading-snug text-(--background) shadow-2 animate-fade-in"
         >
           {content}
         </T.Content>

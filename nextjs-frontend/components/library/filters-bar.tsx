@@ -186,7 +186,7 @@ export const FilterInput = forwardRef<
         placeholder="Filter by title or speaker"
         aria-label="Filter recordings by title, namespace or speaker"
         aria-keyshortcuts="/"
-        className="h-8 w-full rounded-sm border border-border bg-background pl-8 pr-2.5 text-[13px] text-fg outline-none placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] max-md:h-11 max-md:rounded-[10px] max-md:border-transparent max-md:bg-surface-neutral max-md:pl-10 max-md:text-[15px]"
+        className="h-8 w-full rounded-sm border border-border bg-background pl-8 pr-2.5 text-[13px] text-fg outline-hidden placeholder:text-fg-muted focus:border-blue focus:shadow-[0_0_0_3px_var(--intent-surface)] max-md:h-11 max-md:rounded-[10px] max-md:border-transparent max-md:bg-surface-neutral max-md:pl-10 max-md:text-[15px]"
       />
     </span>
   );
@@ -524,7 +524,7 @@ export function FiltersBar({
                 onChange={(e) => setSpkQuery(e.target.value)}
                 placeholder="Find a speaker"
                 aria-label="Find a speaker"
-                className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+                className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-hidden focus:border-blue"
               />
               <div role="menu" className="max-h-64 overflow-y-auto">
                 {speakers
@@ -659,7 +659,7 @@ export function FiltersBar({
                 onChange={(e) => setTagQuery(e.target.value)}
                 placeholder="Find a tag"
                 aria-label="Find a tag"
-                className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+                className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-hidden focus:border-blue"
               />
             )}
             <div role="menu" aria-label="Tags" className="max-h-64 overflow-y-auto">
@@ -715,7 +715,7 @@ export function FiltersBar({
                   onChange={(e) => setObjectQuery(e.target.value)}
                   placeholder="Find an object"
                   aria-label="Find an object"
-                  className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-none focus:border-blue"
+                  className="mb-1 h-8 w-full rounded-sm border border-border bg-background px-2.5 text-[13px] outline-hidden focus:border-blue"
                 />
               )}
               <div role="menu" aria-label="Objects" className="max-h-64 overflow-y-auto">
@@ -776,7 +776,7 @@ export function FiltersBar({
     return (
       <div className="flex flex-col gap-2.5">
         <FilterInput ref={inputRef} value={filters.q} onChange={(q) => set({ q })} />
-        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none]">{chips}</div>
+        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-0.5 scrollbar-none">{chips}</div>
         {trailing && <div className="flex flex-wrap gap-1.5">{trailing}</div>}
       </div>
     );

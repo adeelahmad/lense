@@ -95,7 +95,7 @@ export function NoteHistory({
                   {one.data && (
                     <>
                       {one.data.summary && <p className="text-[12.5px] text-fg-muted">{one.data.summary}</p>}
-                      <pre className="max-h-[40vh] overflow-auto whitespace-pre-wrap break-words text-[12.5px] text-fg">
+                      <pre className="max-h-[40vh] overflow-auto whitespace-pre-wrap wrap-break-word text-[12.5px] text-fg">
                         {one.data.body || "(empty)"}
                       </pre>
                       {canEdit && (

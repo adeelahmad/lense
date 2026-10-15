@@ -34,11 +34,7 @@ function highlight(text: string, problems: Problem[]): ReactNode[] {
     marks.push({
       from: m.index ?? 0,
       to: (m.index ?? 0) + s.length,
-      cls: s.startsWith("{{")
-        ? "text-[var(--term-blue)]"
-        : s.startsWith("{%")
-          ? "text-[var(--term-gold)]"
-          : "text-term-muted",
+      cls: s.startsWith("{{") ? "text-(--term-blue)" : s.startsWith("{%") ? "text-(--term-gold)" : "text-term-muted",
     });
   }
   const errs = problems.map((p) => ({ from: p.index, to: p.index + p.length }));
@@ -60,7 +56,7 @@ function highlight(text: string, problems: Problem[]): ReactNode[] {
         key={a}
         className={cn(
           mark?.cls,
-          err && "text-[var(--term-red)] underline decoration-[var(--term-red)] decoration-wavy underline-offset-[3px]",
+          err && "text-(--term-red) underline decoration-(--term-red) decoration-wavy underline-offset-[3px]",
         )}
       >
         {text.slice(a, b)}
@@ -198,11 +194,11 @@ export const CodeEditor = forwardRef<
         className="grid min-h-full grid-cols-[44px_minmax(0,1fr)]"
         style={{ paddingTop: PAD_Y, paddingBottom: PAD_Y }}
       >
-        <div aria-hidden className="sticky left-0 z-[1] select-none bg-term-bg pr-3 text-right text-term-muted">
+        <div aria-hidden className="sticky left-0 z-1 select-none bg-term-bg pr-3 text-right text-term-muted">
           {Array.from({ length: lines }, (_, i) => {
             const bad = problems.some((p) => p.line === i + 1);
             return (
-              <div key={i} className={cn(bad && "text-[var(--term-red)]")}>
+              <div key={i} className={cn(bad && "text-(--term-red)")}>
                 {i + 1}
               </div>
             );
@@ -235,7 +231,7 @@ export const CodeEditor = forwardRef<
             onKeyDown={onKey}
             onClick={(e) => refresh(value, e.currentTarget.selectionStart)}
             onBlur={() => setTimeout(() => setAc(null), 150)}
-            className="absolute inset-0 m-0 h-full w-full resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 pr-4 font-mono text-[13px] leading-[1.75] text-transparent caret-[var(--term-fg)] outline-none selection:bg-[rgba(138,180,248,.35)] selection:text-transparent"
+            className="absolute inset-0 m-0 h-full w-full resize-none overflow-hidden whitespace-pre border-0 bg-transparent p-0 pr-4 font-mono text-[13px] leading-[1.75] text-transparent caret-(--term-fg) outline-hidden selection:bg-[rgba(138,180,248,.35)] selection:text-transparent"
             style={{ WebkitTextFillColor: "transparent" }}
           />
         </div>

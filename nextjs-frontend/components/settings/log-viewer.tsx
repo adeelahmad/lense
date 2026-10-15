@@ -42,7 +42,7 @@ function Line({ l }: { l: LogLine }) {
           {new Date(l.ts).toLocaleTimeString()}
         </span>
         <span className={cn("w-[62px] uppercase", TONE[l.level])}>{l.level}</span>
-        <span className="min-w-0 break-words">
+        <span className="min-w-0 wrap-break-word">
           <span className="text-fg-muted">
             {l.process} {l.logger}:
           </span>{" "}

@@ -2275,7 +2275,7 @@ function RunMatterbridge({ ctx, status }: { ctx: BodyCtx; status: MatterbridgeSt
           few seconds.
           <pre
             aria-label="WhatsApp QR code"
-            className="mt-2 w-fit bg-white p-2 font-mono text-[9px] leading-[1] text-black"
+            className="mt-2 w-fit bg-white p-2 font-mono text-[9px] leading-none text-black"
           >
             {status.whatsapp_qr}
           </pre>

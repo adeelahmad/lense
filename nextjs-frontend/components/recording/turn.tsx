@@ -159,7 +159,7 @@ export const TurnView = memo(function TurnView({
       </div>
       <p
         className={cn(
-          "m-0 text-fg [text-wrap:pretty]",
+          "m-0 text-fg text-pretty",
           compact
             ? "font-serif text-[17px] leading-[1.6]"
             : dense
@@ -272,7 +272,7 @@ function SegmentText({
         data-seg={seg.idx}
         onClick={onClick}
         className={cn(
-          "rounded-[4px] [box-decoration-break:clone] [-webkit-box-decoration-break:clone]",
+          "rounded-xs [box-decoration-break:clone] [-webkit-box-decoration-break:clone]",
           editing ? "cursor-text hover:bg-blue-surface" : "cursor-pointer",
           active && "bg-hl py-0.5",
         )}

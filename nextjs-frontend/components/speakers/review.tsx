@@ -136,7 +136,7 @@ export function ReviewQueue({ pairs, ns }: { pairs: ReviewPair[]; ns: string }) 
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_200px_minmax(0,1fr)]">
         <Side s={pair.a} player={player} />
-        <div className="order-first flex flex-col items-center justify-center gap-2.5 px-1.5 py-2 text-center lg:order-none">
+        <div className="order-first flex flex-col items-center justify-center gap-2.5 px-1.5 py-2 text-center lg:order-0">
           <span className="grid size-14 rotate-45 place-items-center rounded-[10px] border border-gold-border bg-gold-surface">
             <span className="tabular -rotate-45 text-[16px] font-extrabold text-fg">{pair.score.toFixed(2)}</span>
           </span>

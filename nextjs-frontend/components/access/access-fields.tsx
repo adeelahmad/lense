@@ -47,7 +47,7 @@ export function AccessFields({
         label="Access"
         size={size}
         columns={3}
-        className="max-sm:!grid-cols-1"
+        className="max-sm:grid-cols-1!"
         value={value.access}
         onChange={(v) => onChange({ ...value, access: v as Access })}
         disabled={disabled}

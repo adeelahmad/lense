@@ -298,7 +298,7 @@ function RoleGrid({
       if (e.target === e.currentTarget) setActive([r, c]);
     },
     onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => onCellKey(e, r, c),
-    className: "flex min-w-0 items-center rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-blue",
+    className: "flex min-w-0 items-center rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-blue",
   });
 
   if (!people.length)
@@ -408,7 +408,7 @@ function RoleGrid({
                             })
                           }
                           className={cn(
-                            "h-8 w-full appearance-none rounded-sm border pl-2.5 pr-7 text-[13px] outline-none focus:border-blue",
+                            "h-8 w-full appearance-none rounded-sm border pl-2.5 pr-7 text-[13px] outline-hidden focus:border-blue",
                             role ? "font-medium text-fg" : "font-normal text-fg-muted",
                             changed ? "border-blue bg-blue-surface" : "border-border bg-background",
                           )}
@@ -433,7 +433,7 @@ function RoleGrid({
               </span>
               <div
                 {...cellProps(r, colCount - 1)}
-                className="flex justify-end rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-blue"
+                className="flex justify-end rounded-sm outline-hidden focus-visible:ring-2 focus-visible:ring-blue"
               >
                 <Menu>
                   <MenuTrigger asChild>

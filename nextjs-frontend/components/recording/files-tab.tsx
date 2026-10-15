@@ -90,7 +90,7 @@ export function FilesTab() {
   };
   return (
     <div
-      className={cn("contents", over && "[&>*]:opacity-60")}
+      className={cn("contents", over && "*:opacity-60")}
       onDragOver={(e) => {
         if (!canAdd || !e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();
@@ -285,7 +285,7 @@ function FileRow({ f, focus }: { f: ResourceFile; focus: number | null }) {
         <div className="flex flex-col gap-0.5 pl-[42px]">
           {f.label && <p className="truncate text-[12px] text-fg-muted">{f.name}</p>}
           {f.description && (
-            <p className="whitespace-pre-wrap break-words text-[13px] leading-snug text-fg-secondary">
+            <p className="whitespace-pre-wrap wrap-break-word text-[13px] leading-snug text-fg-secondary">
               {f.description}
             </p>
           )}
@@ -375,7 +375,7 @@ function Lines({ f, focus }: { f: ResourceFile; focus: number | null }) {
                 ) : (
                   <span className="tabular shrink-0 pt-px text-[12px] font-semibold text-fg-secondary">{time}</span>
                 ))}
-              <span className="min-w-0 flex-1 break-words text-fg">
+              <span className="min-w-0 flex-1 wrap-break-word text-fg">
                 {f.role === "index" ? (
                   <>
                     {l.title && <b className="font-semibold">{l.title}</b>}

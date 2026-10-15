@@ -97,18 +97,18 @@ export function VideoStage({
           {texts.map((s) => (
             <div
               key={s.id}
-              className="absolute rounded-[3px] border-2 border-dashed border-[var(--aladdin-gold)]"
+              className="absolute rounded-[3px] border-2 border-dashed border-(--aladdin-gold)"
               style={box(s.box!)}
             >
-              <span className="absolute -bottom-[22px] -left-0.5 h-5 max-w-[260px] truncate whitespace-nowrap rounded-[0_4px_4px_4px] bg-[var(--aladdin-gold)] px-1.5 text-[11px] font-bold leading-5 text-black/85">
+              <span className="absolute bottom-[-22px] -left-0.5 h-5 max-w-[260px] truncate whitespace-nowrap rounded-[0_4px_4px_4px] bg-(--aladdin-gold) px-1.5 text-[11px] font-bold leading-5 text-black/85">
                 Text · “{s.text}”
               </span>
             </div>
           ))}
           {faces.map(({ f, i, box: b }) => (
-            <div key={f.id} className="absolute rounded-[4px] border-2" style={{ ...box(b!), borderColor: color(i) }}>
+            <div key={f.id} className="absolute rounded-xs border-2" style={{ ...box(b!), borderColor: color(i) }}>
               <span
-                className="absolute -left-0.5 -top-[22px] h-5 whitespace-nowrap rounded-[4px_4px_4px_0] px-1.5 text-[11px] font-bold leading-5 text-white"
+                className="absolute -left-0.5 top-[-22px] h-5 whitespace-nowrap rounded-[4px_4px_4px_0] px-1.5 text-[11px] font-bold leading-5 text-white"
                 style={{ background: color(i) }}
               >
                 {model.facesMode === "recognize" ? f.name : "Face"}
@@ -119,10 +119,10 @@ export function VideoStage({
             <div
               key={i}
               data-object={track!.label}
-              className="absolute rounded-[4px] border-2 border-[var(--aladdin-green)]"
+              className="absolute rounded-xs border-2 border-(--aladdin-green)"
               style={box(b)}
             >
-              <span className="absolute -left-0.5 -top-[22px] h-5 whitespace-nowrap rounded-[4px_4px_4px_0] bg-[var(--aladdin-green)] px-1.5 text-[11px] font-bold leading-5 text-white">
+              <span className="absolute -left-0.5 top-[-22px] h-5 whitespace-nowrap rounded-[4px_4px_4px_0] bg-(--aladdin-green) px-1.5 text-[11px] font-bold leading-5 text-white">
                 {objectName(track!.label)}
               </span>
             </div>
