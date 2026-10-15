@@ -2,8 +2,8 @@
 docs/database.md#backups; admins only). Listing, taking and deleting backups are in routes/updates.py.
 
 Restoring (which replaces the database) and download links (a backup holds everything in it) need an admin signed in
-with a passkey. A link works for LINK_SECONDS, so the browser saves the file itself however big it is; an embedded
-database's folder comes as a .tar.gz.
+with a passkey. A link works for LINK_SECONDS, so the browser saves the file itself however big it is; a backup with
+files, or of an embedded database, comes as a .tar.gz.
 """
 
 from __future__ import annotations
@@ -124,8 +124,8 @@ def backup_link(name: str, user: AdminReader, db: Db) -> BackupLink:
     return BackupLink(url=sign_path(f"/api/v1/admin/backups/{name}/file", ttl=LINK_SECONDS), expires_in=LINK_SECONDS)
 
 
-def _tar(folder) -> Iterator[bytes]:
-    """A folder as a .tar.gz, written as it is read."""
+def _tar(parts) -> Iterator[bytes]:
+    """Files and folders, as (path, name), as a .tar.gz written as it is read."""
 
     class Sink:
         def __init__(self):
@@ -141,26 +141,32 @@ def _tar(folder) -> Iterator[bytes]:
 
     sink = Sink()
     with tarfile.open(fileobj=sink, mode="w|gz") as tar:  # type: ignore[call-overload]
-        for p in sorted(folder.rglob("*")):
-            tar.add(p, arcname=f"{folder.name}/{p.relative_to(folder)}", recursive=False)
-            if chunk := sink.take():
-                yield chunk
+        for top, arcname in parts:
+            for p in [top, *sorted(top.rglob("*"))] if top.is_dir() else [top]:
+                tar.add(p, arcname=f"{arcname}/{p.relative_to(top)}" if p != top else arcname, recursive=False)
+                if chunk := sink.take():
+                    yield chunk
     yield sink.take()
 
 
 @router.get(
     "/{name}/file",
     response_class=StreamingResponse,
-    responses={200: {"content": {"application/gzip": {}}, "description": "the backup (an embedded one as a .tar.gz)"}},
+    responses={
+        200: {
+            "content": {"application/gzip": {}},
+            "description": "the backup: an export with no files as it is, anything else as a .tar.gz",
+        }
+    },
 )
 def backup_file(name: str, db: Db, exp: str | None = None, sig: str | None = None):
     """The backup itself, through a link from POST /admin/backups/{name}/link."""
     if not verify_path(f"/api/v1/admin/backups/{name}/file", exp, sig):
         raise HTTPException(403, "this download link has expired; download the backup again from Settings")
     with domain_errors():
-        p = backups.path(db, name)
-    if p.is_dir():
+        parts = backups.parts(db, name)
+    if len(parts) > 1 or parts[0][0].is_dir():
         return StreamingResponse(
-            _tar(p), media_type="application/gzip", headers={"Content-Disposition": f'attachment; filename="{name}.tar.gz"'}
+            _tar(parts), media_type="application/gzip", headers={"Content-Disposition": f'attachment; filename="{name}.tar.gz"'}
         )
-    return FileResponse(p, media_type="application/gzip", filename=name)
+    return FileResponse(parts[0][0], media_type="application/gzip", filename=name)

@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Backups hold Lens's files too.** Each backup now also keeps the files under `data_dir` (uploads, objects, media,
+  frames, renditions, web pages, reports, exports, podcasts, certificates), and restoring one puts them back. Files
+  that haven't changed since the previous backup are hard links, so a backup takes only the room of what changed; the
+  first one takes as much room as the files. Downloads and copies on a storage connection carry them as well. Older
+  backups show *database only* ([Backups](docs/database.md#backups)).
+
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 
 - **Evidence PDFs hold everything Lens found.** After each resource's own file come pages of what Lens knows about

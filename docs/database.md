@@ -144,10 +144,17 @@ first ([Updates and backups](updates.md)). Each is one entry in `<data_dir>/back
 | `before-restore` | what the database held just before a restore replaced it | the newest three |
 
 * With a server, `<kind>-<time>.surql.gz`: SurrealDB's export of the database, gzipped.
-* Embedded, `<kind>-<time>.surrealkv`: a copy of the database folder, taken with it closed (downloaded as a
-  `.tar.gz`).
+* Embedded, `<kind>-<time>.surrealkv`: a copy of the database folder, taken with it closed.
+* With either, the files Lens keeps under `data_dir` (uploads, `objects`, media, frames, renditions, web pages,
+  reports, exports, podcasts, certificates) in `<data_dir>/backups/.files/<name>/`. A file that hasn't changed since
+  the previous backup is a hard link to that backup's copy, so each backup takes only the room of what changed. Left
+  out: what Lens fetches or rebuilds by itself (`models`, `bin`, `python`, `cache`, the search index), passing files
+  (`tmp`, `locks`, `logs`, unfinished uploads), and `secret.key`. A backup is refused when the disk hasn't room for
+  the files that changed. A backup with files, or of an embedded database, downloads as one `.tar.gz` holding
+  `<name>` and `<name>.files/`. Backups from before files were kept show *database only* in Settings.
 
-**Restoring** replaces the whole database with the backup's. What it held is backed up first (`before-restore`) and
+**Restoring** replaces the whole database, and the files under `data_dir`, with the backup's (a *database only*
+backup leaves the files as they are). What was there is backed up first (`before-restore`) and
 put back if the restore fails; a backup from an older Lens is brought up to date (schema and upgrade steps) afterwards.
 People signed in since the backup was taken sign in again. Only an admin signed in with a passkey can download or
 restore a backup from Settings (a download there is a link that works for two minutes); an admin API token can take,
@@ -163,8 +170,7 @@ has, so you can then restore or download it. If copying fails, the backup here i
 
 By hand, with a server: `gunzip -k` the file, then `surreal import --conn http://host:8000 --user root --pass … --ns
 archive --db main <file>.surql` into an empty database. Embedded: stop Lens and put the copy in place of
-`<data_dir>/surrealdb`.
+`<data_dir>/surrealdb`. Then copy the contents of `<name>.files/` into `data_dir`.
 
-Backups hold the database only. Also back up `data_dir` (uploads, reports, frames, caches), and keep `secret.key`
-(unless `ARCHIVE_SECRET_KEY` is set) apart from the backups: without it, stored credentials and server-held file keys
+Keep `secret.key` (unless `ARCHIVE_SECRET_KEY` is set) apart from the backups: without it, stored credentials and server-held file keys
 can't be decrypted, and with it a backup opens them ([encryption](encryption.md)).
