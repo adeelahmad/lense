@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Google Calendar as a sensor.** Add a Google Calendar connection on the Sources page (or `POST /api/v1/sources`
+  with type `gcal`): each calendar is a folder and each event becomes text, as an iCal feed's do, read-only through
+  Google's Calendar API. It signs in as a Google account (an OAuth client's authorized user JSON) or as a service
+  account, which reads the calendars shared with it or, in Google Workspace, a user's calendars through domain-wide
+  delegation. Calls to Google show in the activity ledger
+  ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
 - **Find a note.** The Notes page has a search box that finds notes by the words in their title, summary or text (the
   pages of recordings and entities too), with the words around each match marked, and Enter opens the first. A filter
   shows only Projects, Areas, Resources or Archive, and each note says which notes it's inside. Jump to (⌘K) finds notes
@@ -842,7 +848,7 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
       `POST …/{tid}/secret` and `GET …/{tid}/deliveries` (docs/api.md).
 - **Email and calendars as sources.** Sources can now be an email account (IMAP) or a calendar feed (iCal), next to
   S3, Drive, SFTP and the rest. Browse them, import chosen messages or events, or watch them like a folder
-  (docs/processing.md#email-imap-and-calendar-feeds-ical).
+  (docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar).
     - IMAP: mailboxes are folders and messages are `.eml` files named by their subjects. Each message becomes an
       email document, titled by its subject and dated when it was sent, and its attachments are kept and become
       resources of their own. Watching the whole account skips the bin, junk, drafts and Gmail's All Mail, Starred
