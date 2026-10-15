@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpToLine,
   ChevronRight,
@@ -8,6 +8,8 @@ import {
   FileText,
   FolderInput,
   Pencil,
+  Pin,
+  PinOff,
   Plus,
   Sparkles,
   Trash2,
@@ -19,6 +21,7 @@ import { useEffect, useMemo, useState, type DragEvent } from "react";
 import { Notes } from "@/app/openapi-client";
 import type { NotePageItem as PageItem } from "@/app/openapi-client/types.gen";
 import { useDeleteNote } from "@/components/notes/delete";
+import { usePin } from "@/components/notes/pin";
 import { Dialog } from "@/components/ui/dialog";
 import { FindBox } from "@/components/ui/find-box";
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from "@/components/ui/menu";
@@ -40,7 +43,8 @@ function readOpen(): Set<number> {
 /** The free notes of the namespaces in view, as a tree in the left navigation (like Notion): open a note, add one
  * inside another, drag one onto another to move it there, or onto a namespace's name to move it to the top. Each row's
  * menu (⋯, always showing on a touch screen) adds a note inside, renames, moves (no dragging needed) and deletes, with
- * Undo. Pages of resources and entities aren't here: they open from those things. */
+ * Undo, and pins it: pinned notes (each person's own) also show at the top. Pages of resources and entities aren't here:
+ * they open from those things. */
 export function NotesTree({ onNavigate }: { onNavigate?: () => void }) {
   const { namespace, namespaces } = useArchive();
   const names = namespace ? [namespace] : namespaces.map((n) => n.name);
@@ -61,9 +65,65 @@ export function NotesTree({ onNavigate }: { onNavigate?: () => void }) {
   if (!names.length) return null;
   return (
     <div className="mt-2 flex flex-col gap-0.5 border-t border-border pt-2" aria-label="Notes">
+      <Pinned names={names} showName={!namespace} onNavigate={onNavigate} />
       {names.map((ns) => (
         <NamespaceNotes key={ns} ns={ns} showName={!namespace} open={open} toggle={toggle} onNavigate={onNavigate} />
       ))}
+    </div>
+  );
+}
+
+/** The notes this person pinned, in every namespace in view, above the tree: one click to open, one to unpin. */
+function Pinned({ names, showName, onNavigate }: { names: string[]; showName: boolean; onNavigate?: () => void }) {
+  const client = useApiClient();
+  const pathname = usePathname();
+  const pin = usePin();
+  const trees = useQueries({
+    queries: names.map((ns) => ({
+      queryKey: ["notes-tree", ns],
+      queryFn: () => data(Notes.listPages({ client, query: { ns } })),
+    })),
+  });
+  const pinned = trees.flatMap((t) =>
+    t.data ? t.data.pages.filter((p) => p.pinned).map((p) => ({ ...p, ns: t.data.namespace })) : [],
+  );
+  if (!pinned.length) return null;
+  return (
+    <div className="flex flex-col gap-0.5 pb-1" role="group" aria-label="Pinned notes">
+      <div className="flex h-7 items-center px-2.5 text-[11px] font-bold uppercase tracking-[.06em] text-fg-muted">
+        Pinned
+      </div>
+      {pinned.map((p) => {
+        const on = pathname === `/notes/${p.id}`;
+        return (
+          <div
+            key={`${p.ns}:${p.id}`}
+            className={cn(
+              "group flex h-[30px] items-center gap-1 rounded-sm pl-2.5 pr-1 text-[13.5px]",
+              on ? "bg-blue-surface font-bold text-fg-accent" : "text-fg-strong hover:bg-surface-neutral",
+            )}
+          >
+            <Link
+              href={`/notes/${p.id}`}
+              onClick={onNavigate}
+              aria-current={on ? "page" : undefined}
+              title={showName ? `${p.title} · ${p.ns}` : p.title}
+              className="flex min-w-0 flex-1 items-center gap-1.5"
+            >
+              <Pin className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
+              <span className="truncate">{p.title}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => void pin(p.ns, p.id, false)}
+              aria-label={`Unpin ${p.title}`}
+              className={rowButton}
+            >
+              <PinOff className="size-3.5" />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -127,6 +187,7 @@ function NamespaceNotes({
     onError: fail("Couldn’t rename the note"),
   });
   const deleteNote = useDeleteNote();
+  const pin = usePin();
   const pathname = usePathname();
   const [renaming, setRenaming] = useState<number | null>(null);
   const [moving, setMoving] = useState<PageItem | null>(null);
@@ -143,6 +204,7 @@ function NamespaceNotes({
       if (parent != null && !open.has(parent)) toggle(parent);
     },
     startMove: setMoving,
+    pin: (p, on) => void pin(ns, p.id, on),
     remove: async (p) => {
       // deleting the note that's open leaves it for the Notes page
       if ((await deleteNote(p.id, p.title)) && pathname === `/notes/${p.id}`) router.push("/notes");
@@ -233,6 +295,7 @@ type RowActions = {
   rename: (id: number, title: string) => void;
   moveTo: (id: number, parent: number | null) => void;
   startMove: (page: PageItem) => void;
+  pin: (page: PageItem, on: boolean) => void;
   remove: (page: PageItem) => void;
 };
 
@@ -393,7 +456,7 @@ function Node({
             <span className="truncate">{page.title}</span>
           </Link>
         )}
-        {canEdit && renaming !== page.id && (
+        {renaming !== page.id && (
           <>
             <Menu>
               <MenuTrigger asChild>
@@ -402,34 +465,48 @@ function Node({
                 </button>
               </MenuTrigger>
               <MenuContent align="start">
-                <MenuItem icon={<Plus />} onSelect={() => actions.add(page.id)}>
-                  Add a note inside
-                </MenuItem>
-                <MenuItem icon={<Pencil />} onSelect={() => actions.startRename(page.id)}>
-                  Rename
-                </MenuItem>
-                <MenuItem icon={<FolderInput />} onSelect={() => actions.startMove(page)}>
-                  Move to…
-                </MenuItem>
-                {page.parent != null && (
-                  <MenuItem icon={<ArrowUpToLine />} onSelect={() => actions.moveTo(page.id, null)}>
-                    Move to the top
-                  </MenuItem>
+                {canEdit && (
+                  <>
+                    <MenuItem icon={<Plus />} onSelect={() => actions.add(page.id)}>
+                      Add a note inside
+                    </MenuItem>
+                    <MenuItem icon={<Pencil />} onSelect={() => actions.startRename(page.id)}>
+                      Rename
+                    </MenuItem>
+                    <MenuItem icon={<FolderInput />} onSelect={() => actions.startMove(page)}>
+                      Move to…
+                    </MenuItem>
+                    {page.parent != null && (
+                      <MenuItem icon={<ArrowUpToLine />} onSelect={() => actions.moveTo(page.id, null)}>
+                        Move to the top
+                      </MenuItem>
+                    )}
+                  </>
                 )}
-                <MenuSeparator />
-                <MenuItem icon={<Trash2 />} danger onSelect={() => actions.remove(page)}>
-                  Delete
+                {/* pins are each person's own, so viewers pin too */}
+                <MenuItem icon={page.pinned ? <PinOff /> : <Pin />} onSelect={() => actions.pin(page, !page.pinned)}>
+                  {page.pinned ? "Unpin" : "Pin"}
                 </MenuItem>
+                {canEdit && (
+                  <>
+                    <MenuSeparator />
+                    <MenuItem icon={<Trash2 />} danger onSelect={() => actions.remove(page)}>
+                      Delete
+                    </MenuItem>
+                  </>
+                )}
               </MenuContent>
             </Menu>
-            <button
-              type="button"
-              onClick={() => actions.add(page.id)}
-              aria-label={`New note inside ${page.title}`}
-              className={rowButton}
-            >
-              <Plus className="size-3.5" />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => actions.add(page.id)}
+                aria-label={`New note inside ${page.title}`}
+                className={rowButton}
+              >
+                <Plus className="size-3.5" />
+              </button>
+            )}
           </>
         )}
       </div>

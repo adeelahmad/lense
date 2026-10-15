@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, NotebookPen, Plus, Search, Sparkles } from "lucide-react";
+import { FileText, NotebookPen, Pin, Plus, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -32,9 +32,11 @@ type Row = {
   about?: string | null;
   author?: string | null;
   updated_at?: string | null;
+  pinned?: boolean;
 };
 
-/** Every free note in view, the latest changed first, with where it sits in the tree and where it's filed. Words in
+/** Every free note in view, the ones this person pinned first, then the latest changed, with where each sits in the
+ * tree and where it's filed. Words in
  * the search box find notes by their title, summary or text (the pages of things too); the filter shows one PARA
  * place. */
 export function NotesHome() {
@@ -68,7 +70,7 @@ export function NotesHome() {
   }, [trees]);
   const all: Row[] = trees
     .flatMap((t) => (t.data ? t.data.pages.map((p) => ({ ...p, ns: t.data.namespace })) : []))
-    .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+    .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
   const rows: Row[] = words
     ? (search.data?.pages ?? []).map((p) => ({ ...p, ns: p.namespace }))
     : all.filter((p) => !place || p.place === place);
@@ -190,8 +192,11 @@ export function NotesHome() {
                           {p.about ? `Page of ${p.about.split(":")[0]}` : `In ${inside}`}
                         </span>
                       )}
-                      <span className="truncate text-[14.5px] font-bold text-fg">
-                        <Marked text={p.title} words={words} />
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-[14.5px] font-bold text-fg">
+                          <Marked text={p.title} words={words} />
+                        </span>
+                        {p.pinned && <Pin className="size-3.5 shrink-0 text-fg-muted" aria-label="Pinned" />}
                       </span>
                       {line && (
                         <span className="line-clamp-2 text-[13px] text-fg-secondary">

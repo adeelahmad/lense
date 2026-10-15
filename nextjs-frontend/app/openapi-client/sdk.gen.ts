@@ -1066,6 +1066,9 @@ import type {
   PasskeySetupOptionsErrors,
   PasskeySetupOptionsResponses,
   PasskeySetupResponses,
+  PinPageData,
+  PinPageErrors,
+  PinPageResponses,
   PlaceRecordingsData,
   PlaceRecordingsErrors,
   PlaceRecordingsResponses,
@@ -1498,6 +1501,9 @@ import type {
   UnlockVaultData,
   UnlockVaultErrors,
   UnlockVaultResponses,
+  UnpinPageData,
+  UnpinPageErrors,
+  UnpinPageResponses,
   UnsealVaultData,
   UnsealVaultErrors,
   UnsealVaultResponses,
@@ -5432,6 +5438,35 @@ export class Notes {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    });
+  }
+
+  /**
+   * Unpin Page
+   *
+   * Unpin the page for you.
+   */
+  public static unpinPage<ThrowOnError extends boolean = false>(
+    options: Options<UnpinPageData, ThrowOnError>,
+  ): RequestResult<UnpinPageResponses, UnpinPageErrors, ThrowOnError> {
+    return (options.client ?? client).delete<UnpinPageResponses, UnpinPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/pin",
+      ...options,
+    });
+  }
+
+  /**
+   * Pin Page
+   *
+   * Pin the page for you: it shows first on your Notes page and in your tree. Pins are each person's own; anyone
+   * who can read the page can pin it.
+   */
+  public static pinPage<ThrowOnError extends boolean = false>(
+    options: Options<PinPageData, ThrowOnError>,
+  ): RequestResult<PinPageResponses, PinPageErrors, ThrowOnError> {
+    return (options.client ?? client).put<PinPageResponses, PinPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/{pid}/pin",
+      ...options,
     });
   }
 

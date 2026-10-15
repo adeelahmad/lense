@@ -10705,6 +10705,90 @@
         }
       }
     },
+    "/api/v1/notes/{pid}/pin": {
+      "put": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Pin Page",
+        "description": "Pin the page for you: it shows first on your Notes page and in your tree. Pins are each person's own; anyone\nwho can read the page can pin it.",
+        "operationId": "pin_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Unpin Page",
+        "description": "Unpin the page for you.",
+        "operationId": "unpin_page",
+        "parameters": [
+          {
+            "name": "pid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Pid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/{pid}/files": {
       "get": {
         "tags": [
@@ -45838,6 +45922,12 @@
             "title": "View",
             "description": "how the editor shows it (default: page)"
           },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned",
+            "description": "you pinned it: it shows first on your Notes page and in your tree",
+            "default": false
+          },
           "created_at": {
             "anyOf": [
               {
@@ -46258,6 +46348,12 @@
             ],
             "title": "View",
             "description": "how the editor shows it (default: page)"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned",
+            "description": "you pinned it: it shows first on your Notes page and in your tree",
+            "default": false
           },
           "created_at": {
             "anyOf": [
