@@ -640,6 +640,26 @@ export const JOURNEYS = [
     },
   },
   {
+    id: "entity-merge",
+    ns: "",
+    module: "Entities",
+    feature: "Merge two entities into one, then undo it",
+    note: "The merge happens at once and the notice has Undo, so nothing asks to confirm; Undo puts both back.",
+    from: "/",
+    async run(ctx) {
+      const { page, meter } = ctx;
+      await go(ctx, "Entities");
+      const main = page.getByRole("main");
+      await meter.click(main.getByRole("checkbox", { name: "Pick Lens", exact: true }), "tick Lens");
+      await meter.click(main.getByRole("checkbox", { name: "Pick Raspberry Pi", exact: true }), "tick Raspberry Pi");
+      const bar = page.getByRole("toolbar", { name: "2 entities selected" });
+      await meter.click(bar.getByRole("button", { name: /^Merge into / }), "Merge into the one it keeps");
+      await page.getByText(/^Merged (Lens|Raspberry Pi) into /).first().waitFor();
+      await meter.click(page.getByRole("button", { name: "Undo" }), "Undo on the notice");
+      await page.getByText("Merge undone").first().waitFor();
+    },
+  },
+  {
     // Last: it points Lens at a cloud model, which the stand-in model behind the journeys above isn't
     id: "cloud-model",
     ns: "",
