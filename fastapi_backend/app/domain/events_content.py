@@ -364,10 +364,23 @@ def _label_of(r, first, upload):
     return first
 
 
-def _activities(db, rows):
-    """The rows as activities of their kinds (a row whose created_at isn't a time is skipped)."""
+def _asset(db, r, types):
+    """What every activity about an asset says of it: its type, id, title, link, media and content type."""
     from . import render
 
+    media = render.kind(r)
+    return {
+        "type": TYPES.get(media, "Document"),
+        "id": f"lens:recording/{r['id']}",
+        "name": " ".join(str(r.get("title") or "").split()) or "Untitled",
+        "url": f"/resources/{r['id']}",
+        "media": media,
+        "content_type": _content_type(db, r, types),
+    }
+
+
+def _activities(db, rows):
+    """The rows as activities of their kinds (a row whose created_at isn't a time is skipped)."""
     rows = [r for r in rows if r]
     ids = [r["id"] for r in rows]
     if not ids:
@@ -389,19 +402,9 @@ def _activities(db, rows):
             published = events.stamp(r["created_at"])
         except (TypeError, ValueError):
             continue
-        media = render.kind(r)
-        title = " ".join(str(r.get("title") or "").split()) or "Untitled"
         actor = who[labels[r["id"]]]
-        ctype = _content_type(db, r, types)
-        kind = _kind(r, ctype, (srcs.get((r.get("remote") or {}).get("source")) or {}).get("type"), actor)
-        obj = {
-            "type": TYPES.get(media, "Document"),
-            "id": f"lens:recording/{r['id']}",
-            "name": title,
-            "url": f"/resources/{r['id']}",
-            "media": media,
-            "content_type": ctype,
-        }
+        obj = _asset(db, r, types)
+        kind = _kind(r, obj["content_type"], (srcs.get((r.get("remote") or {}).get("source")) or {}).get("type"), actor)
         if kind == "email.received":
             obj.update(_mail(r))
         elif kind == "calendar_event.added":
@@ -642,4 +645,371 @@ _child(
     {"type": "Service", "id": "lens:import_hook/2", "name": "Phone shortcut"},
     {"type": "Document", "name": "Shopping list", "media": "transcript", "content_type": "text", "via": "hook"},
     "Phone shortcut imported “Shopping list”",
+)
+
+
+# ---------- runs that finished ----------
+JOB_FIELDS = "id AS rid, record::id(id) AS id, recording, space, steps, step_index, status, error, created_by, finished_at, batch"
+ASSET_FIELDS = "record::id(id) AS id, title, source, media, path, content_type, duration_ms, form"
+JOB_KINDS = {"succeeded": "asset.processed", "failed": "asset.failed"}
+JOB_ID_RX = re.compile(r"^(processed|failed)-job-(\d+)-(\d+)$")
+TAGS = 10  # entities a processed asset is tagged with, the most mentioned first
+
+
+def entity_tags(db, rids, most=TAGS):
+    """{recording: [Mention tags]}: each asset's entities, the most mentioned first, at most `most`, in two queries."""
+    counts: dict = {}
+    if rids:
+        for m in db.rows(
+            "SELECT recording, entity, count() AS n FROM mentions WHERE recording IN $r GROUP BY recording, entity", r=list(rids)
+        ):
+            if _num(m.get("entity")) is not None:
+                counts.setdefault(m["recording"], []).append((-int(m.get("n") or 0), m["entity"]))
+    top = {rid: [e for _, e in sorted(c)[:most]] for rid, c in counts.items()}
+    names = _lookup(db, "entity", {e for es in top.values() for e in es})
+    return {
+        rid: [
+            {"type": "Mention", "id": f"lens:entity/{e}", "name": str(names[e].get("name"))[:200]}
+            for e in es
+            if names.get(e, {}).get("name")
+        ]
+        for rid, es in top.items()
+    }
+
+
+def _step_names(steps):
+    return [s if isinstance(s, str) else str((s or {}).get("type") or "") for s in steps or []]
+
+
+def _epoch(t):
+    return int(events._parse(t).timestamp())
+
+
+def _job_activities(db, rows):
+    """Finished runs as asset.processed (succeeded) and asset.failed, one per run, about their asset; a row whose
+    finished_at isn't a time is skipped."""
+    rows = [r for r in rows if r and r.get("status") in JOB_KINDS]
+    if not rows:
+        return []
+    rids = list({r["recording"] for r in rows if _num(r.get("recording")) is not None})
+    assets = {a["id"]: a for a in db.rows(f"SELECT {ASSET_FIELDS} FROM recording WHERE id IN $r", r=[R("recording", i) for i in rids])}
+    who = actors(db, [(r.get("created_by"), r.get("space")) for r in rows])
+    tags = entity_tags(db, [i for i in rids if i in assets])
+    types = _content_types(db)
+    out = []
+    for r in rows:
+        try:
+            published, n = events.stamp(r["finished_at"]), _epoch(r["finished_at"])
+        except (TypeError, ValueError):
+            continue
+        kind, rec = JOB_KINDS[r["status"]], assets.get(r.get("recording"))
+        if rec:
+            obj = _asset(db, rec, types)
+        else:  # deleted since
+            obj = {"type": "Document", "id": f"lens:recording/{r.get('recording')}", "name": "A deleted asset"}
+        steps = _step_names(r.get("steps"))
+        obj.update(job=f"lens:job/{r['id']}", steps=steps)
+        if r.get("batch") is not None:
+            obj["batch"] = f"lens:batch/{r['batch']}"
+        if kind == "asset.failed":
+            i = r.get("step_index") or 0
+            obj.update(
+                step=steps[i] if isinstance(i, int) and 0 <= i < len(steps) else None, error=_text(r.get("error")) or "no reason given"
+            )
+        obj = store.clean(obj)
+        title = obj["name"][:200]
+        if kind == "asset.processed":
+            summary = f"“{title}” finished processing" + (f" ({', '.join(steps)})" if steps else "")
+        else:
+            summary = f"Processing “{title}” failed" + (f" at {obj['step']}" if obj.get("step") else "")
+        out.append(
+            events.build(
+                f"{'processed' if kind == 'asset.processed' else 'failed'}-job-{r['id']}-{n}",
+                kind,
+                actor=who[(r.get("created_by"), r.get("space"))],
+                obj=obj,
+                summary=summary,
+                space=r.get("space"),
+                source="jobs",
+                pos=[r["finished_at"], r["id"]],
+                published=published,
+                tag=tags.get(r.get("recording")) or [],
+            )
+        )
+    return out
+
+
+class JobsSource(events.Source):
+    """job rows that finished (succeeded or failed) as asset.processed and asset.failed, read by (finished_at, id).
+    A run tried again finishes again, as another activity: its id has the time it finished."""
+
+    name = "jobs"
+
+    def _statuses(self, kinds, p):
+        want = sorted(st for st, k in JOB_KINDS.items() if kinds is None or k in kinds)
+        p["st"] = want
+        return "status IN $st"
+
+    def read(self, db, cfg, pos, spaces, limit, hint=None):
+        p: dict = {}
+        where = f"{self._statuses(None, p)} AND {events.after_sql('finished_at', pos, p, table='job')} AND {events.space_sql(spaces, p)}"
+        rows = db.rows(f"SELECT {JOB_FIELDS} FROM job WHERE {where} ORDER BY finished_at, rid LIMIT {int(limit)}", **p)
+        return _job_activities(db, rows)
+
+    def page(self, db, cfg, before, who, flt, limit):
+        p: dict = {}
+        where = [
+            self._statuses(flt.get("kinds"), p),
+            events.space_sql(None if who.get("admin") else (who.get("spaces") or set()), p),
+            "finished_at != NONE",
+        ]
+        if before is not None:
+            where.append(events.after_sql("finished_at", before, p, "<", table="job"))
+        if flt.get("spaces") is not None:
+            p["fs"] = sorted(flt["spaces"])
+            where.append("space IN $fs")
+        if flt.get("since"):
+            p["since"] = _sec(flt["since"])
+            where.append("finished_at > $since")
+        if flt.get("until"):
+            p["until"] = _sec(flt["until"])
+            where.append("finished_at <= $until")
+        rows = db.rows(
+            f"SELECT {JOB_FIELDS} FROM job WHERE {' AND '.join(where)} ORDER BY finished_at DESC, rid DESC LIMIT {int(limit)}", **p
+        )
+        return _job_activities(db, rows)
+
+    def get(self, db, cfg, activity_id):
+        m = JOB_ID_RX.match(activity_id)
+        if not m:
+            return None
+        r = db.one(f"SELECT {JOB_FIELDS} FROM $r", r=R("job", int(m.group(2))))
+        got = _job_activities(db, [r]) if r else []
+        return got[0] if got and got[0]["id"] == activity_id else None  # an earlier try of a run tried again is gone
+
+    def get_many(self, db, cfg, ids):
+        want = set(ids)
+        ns = {int(m.group(2)) for m in (JOB_ID_RX.match(i) for i in ids) if m}
+        if not ns:
+            return []
+        rows = db.rows(f"SELECT {JOB_FIELDS} FROM job WHERE id IN $rs", rs=[R("job", n) for n in sorted(ns)])
+        return [a for a in _job_activities(db, rows) if a["id"] in want]
+
+
+events.register_source(JobsSource())
+
+
+# ---------- what no row of its own records: deletions, calendar moves ----------
+def deleted(db, rid, rec, by=None):
+    """Log that an asset was deleted (deletion.py calls it once the asset is gone): asset.deleted, by `by` (an email,
+    `automation:<id>`, ...). Logged once per asset, whatever retries."""
+    from . import render
+
+    actor = actors(db, [(by, rec.get("space"))])[(by, rec.get("space"))]
+    title = " ".join(str(rec.get("title") or "").split()) or "Untitled"
+    media = render.kind(rec)
+    obj = {"type": TYPES.get(media, "Document"), "id": f"lens:recording/{int(rid)}", "name": title, "media": media}
+    return events.emit(
+        db,
+        "asset.deleted",
+        actor=actor,
+        obj=obj,
+        space=rec.get("space"),
+        summary=f"{actor['name']} deleted “{title[:200]}”",
+        key=f"deleted-{int(rid)}",
+    )
+
+
+def calendar_moved(db, rid, space, src, title, before, after):
+    """Log that a calendar event's time changed (sources.py calls it when an event it reads again starts at another
+    time than it did): calendar_event.changed, by the calendar it came from. Logged once per event and new start."""
+    start = after.get("startTime")
+    if not start or not before.get("startTime") or before.get("startTime") == start:
+        return None
+    actor = {"type": "Service", "id": f"lens:source/{src['id']}", "name": src.get("name") or f"Source {src['id']}"}
+    title = " ".join(str(title or "").split()) or "Untitled"
+    obj = store.clean(
+        {
+            "type": "Document",
+            "id": f"lens:recording/{int(rid)}",
+            "name": title,
+            "url": f"/resources/{int(rid)}",
+            "startTime": start,
+            "endTime": after.get("endTime"),
+            "location": after.get("location"),
+            "calendar": after.get("calendar"),
+            "before": store.clean({"startTime": before.get("startTime"), "endTime": before.get("endTime")}),
+        }
+    )
+    return events.emit(
+        db,
+        "calendar_event.changed",
+        actor=actor,
+        obj=obj,
+        space=space,
+        summary=f"{actor['name']} moved “{title[:200]}” to {str(start)[:16].replace('T', ' ')}",
+        key=f"cal-{after.get('uid') or rid}-{start}",
+    )
+
+
+# ---------- their kinds ----------
+JOB_OBJECT = {
+    "job": _s("Run"),
+    "steps": {"type": "array", "title": "Steps", "items": {"type": "string", "title": "Step"}},
+    "batch": _s("Batch run"),
+}
+_ASSET = {
+    "type": _s("Object type", enum=["Audio", "Video", "Image", "Document"]),
+    "id": _s("Asset"),
+    "name": _s("Title"),
+    "url": _s("Link"),
+    "media": _s("Media", enum=["audio", "video", "image", "document", "transcript"]),
+    "content_type": _s("Content type"),
+}
+
+
+def _sample(aid, kind, typ, source, pos, actor, obj, summary, untrusted, tag=()):
+    return {
+        "id": aid,
+        "type": typ,
+        "kind": kind,
+        "published": "2026-10-15T16:24:10.000Z",
+        "actor": actor,
+        "object": obj,
+        "target": None,
+        "tag": list(tag),
+        "summary": summary,
+        "space": 3,
+        "lens": {"source": source, "pos": pos, "untrusted": list(untrusted), "cause": None},
+    }
+
+
+WORK_GMAIL = {"type": "Service", "id": "lens:source/12", "name": "Work Gmail"}
+SCHOOL = {"type": "Mention", "id": "lens:entity/44", "name": "St Mary's School"}
+events.kind(
+    "asset.processed",
+    label="Asset processed",
+    source="jobs",
+    as_type="Update",
+    object_type="Document",
+    fields={"object": {"type": "object", "properties": {**_ASSET, **JOB_OBJECT}}},
+    untrusted=("object.name",),
+    sample=_sample(
+        "processed-job-51-1792081450",
+        "asset.processed",
+        "Update",
+        "jobs",
+        ["2026-10-15T16:24:10+00:00", 51],
+        WORK_GMAIL,
+        {
+            "type": "Document",
+            "id": "lens:recording/7",
+            "name": "School trip on Friday",
+            "url": "/resources/7",
+            "media": "document",
+            "content_type": "email",
+            "job": "lens:job/51",
+            "steps": ["pages", "analyze", "embed"],
+        },
+        "“School trip on Friday” finished processing (pages, analyze, embed)",
+        ("object.name",),
+        [SCHOOL],
+    ),
+)
+events.kind(
+    "asset.failed",
+    label="Asset failed to process",
+    source="jobs",
+    as_type="Announce",
+    object_type="Document",
+    fields={"object": {"type": "object", "properties": {**_ASSET, **JOB_OBJECT, "step": _s("Failed at"), "error": _s("Error")}}},
+    untrusted=("object.name", "object.error"),
+    sample=_sample(
+        "failed-job-52-1792081450",
+        "asset.failed",
+        "Announce",
+        "jobs",
+        ["2026-10-15T16:24:10+00:00", 52],
+        {"type": "Person", "id": "lens:account/1", "name": "Sam"},
+        {
+            "type": "Audio",
+            "id": "lens:recording/8",
+            "name": "Call with the school",
+            "url": "/resources/8",
+            "media": "audio",
+            "job": "lens:job/52",
+            "steps": ["transcribe", "analyze"],
+            "step": "transcribe",
+            "error": "the transcription model isn't reachable",
+        },
+        "Processing “Call with the school” failed at transcribe",
+        ("object.name", "object.error"),
+    ),
+)
+events.kind(
+    "asset.deleted",
+    label="Asset deleted",
+    source="log",
+    as_type="Delete",
+    object_type="Document",
+    fields={"object": {"type": "object", "properties": {k: _ASSET[k] for k in ("type", "id", "name", "media")}}},
+    untrusted=("object.name",),
+    sample=_sample(
+        "log-12",
+        "asset.deleted",
+        "Delete",
+        "log",
+        ["2026-10-15T16:24:10+00:00", 12],
+        {"type": "Person", "id": "lens:account/1", "name": "Sam"},
+        {"type": "Document", "id": "lens:recording/7", "name": "Old minutes", "media": "document"},
+        "Sam deleted “Old minutes”",
+        ("object.name",),
+    ),
+)
+events.kind(
+    "calendar_event.changed",
+    label="Calendar event moved",
+    source="log",
+    as_type="Update",
+    object_type="Document",
+    fields={
+        "object": {
+            "type": "object",
+            "properties": {
+                "id": _s("Asset"),
+                "name": _s("Title"),
+                "url": _s("Link"),
+                "startTime": _s("Starts", format="date-time"),
+                "endTime": _s("Ends", format="date-time"),
+                "location": _s("Where"),
+                "calendar": _s("Calendar"),
+                "before": {
+                    "type": "object",
+                    "title": "Before",
+                    "properties": {"startTime": _s("Started", format="date-time"), "endTime": _s("Ended", format="date-time")},
+                },
+            },
+        }
+    },
+    untrusted=("object.name", "object.location"),
+    sample=_sample(
+        "log-13",
+        "calendar_event.changed",
+        "Update",
+        "log",
+        ["2026-10-15T16:24:10+00:00", 13],
+        {"type": "Service", "id": "lens:source/14", "name": "Family calendar"},
+        {
+            "type": "Document",
+            "id": "lens:recording/9",
+            "name": "Parents' evening",
+            "url": "/resources/9",
+            "startTime": "2026-10-21T18:00:00+01:00",
+            "endTime": "2026-10-21T19:30:00+01:00",
+            "calendar": "Family calendar",
+            "before": {"startTime": "2026-10-20T18:00:00+01:00", "endTime": "2026-10-20T19:30:00+01:00"},
+        },
+        "Family calendar moved “Parents' evening” to 2026-10-21 18:00",
+        ("object.name", "object.location"),
+    ),
 )
