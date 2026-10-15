@@ -10,24 +10,28 @@ An action's effect says how far it reaches, and so whether it may run without as
 
 When an action node runs, it renders its params and makes an intent (automation_spec.check_intent); `perform` carries
 an intent out, or with `dry` says what it would do and changes nothing. An action acts for the automation's person
-(`person`), with their permissions as they are when it runs. `log_line` ships here; the other actions are registered by
-a module per group, loaded with this one: actions_messages.py (notify).
+(`person`), with their permissions as they are when it runs (`reach`), and what it writes is by the automation itself
+(`actor`). Params marked `"format": "prompt"` are prompts: the engine renders them with `render_prompt`, which wraps
+what the run read from outside Lens as data. `log_line` ships here; the other actions are registered by a module per
+group, loaded with this one: actions_messages.py (notify), actions_ai.py (ask_model, call_tool, ask_agent).
 """
 
 from __future__ import annotations
 
+import copy
 import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from . import auth
+from . import auth, store, templates, untrusted
 from . import automation_spec as spec_
 
 NAME_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 GROUPS = ("Messages", "Lens", "Assets", "Web", "AI", "Run")
 TYPES = {"string": str, "integer": int, "number": (int, float), "boolean": bool, "array": list, "object": dict}
 TEMPLATE = "{{"
+PROMPT = "prompt"  # the JSON Schema format of a param that is a prompt (render_prompt)
 log = logging.getLogger("lens.automations")
 
 
@@ -215,6 +219,86 @@ def person(db, intent, user=None):
     return {"id": a["id"], "email": a["email"], "name": a.get("name") or a["email"], "admin": bool(a.get("admin"))}
 
 
+def actor(db, intent):
+    """Who an intent's changes are by: the automation itself, {id: automation:<id>, email: "automation: <name>",
+    name}, as import hooks act as import_hook:<id>; a draft's dry run is automation:draft."""
+    aid = intent.get("automation")
+    if aid is None:
+        return {"id": "automation:draft", "email": "automation: draft", "name": "Draft"}
+    try:
+        name = (db.one("SELECT name FROM $r", r=store.R("automation", int(aid))) or {}).get("name")
+    except Exception:  # noqa: BLE001 - automations aren't stored yet, or the row is gone: named by its id
+        name = None
+    name = name or f"Automation {aid}"
+    return {"id": f"automation:{aid}", "email": f"automation: {name}", "name": name}
+
+
+def reach(db, intent, account):
+    """(readable, editable): the namespaces an intent may read and change, the person's roles now within the
+    automation's namespaces (all of the person's when it names none)."""
+    roles = auth.roles(db, account)
+    spaces = set(intent.get("spaces") or [])
+    readable = {s for s in roles if not spaces or s in spaces}
+    return readable, {s for s in readable if auth.allows(roles, s, "editor")}
+
+
+# ---------- prompts ----------
+def prompt_params(spec):
+    """The names of an action's params that are prompts (format "prompt")."""
+    return [k for k, p in (spec.params.get("properties") or {}).items() if p.get("format") == PROMPT]
+
+
+def _wrap(v, source, cfg):
+    if isinstance(v, str):
+        return untrusted.wrap(v, source, cfg)
+    if isinstance(v, list):
+        return [_wrap(x, source, cfg) for x in v]
+    if isinstance(v, dict):
+        return {k: _wrap(x, source, cfg) for k, x in v.items()}
+    return v
+
+
+def _wrapped(a, cfg):
+    """An activity with what its `lens.untrusted` paths hold marked as data."""
+    out = copy.deepcopy(a)
+    source = f"{a.get('kind') or 'activity'} from {(a.get('actor') or {}).get('name') or 'a source'}"
+    for path in (a.get("lens") or {}).get("untrusted") or []:
+        *head, last = str(path).split(".")
+        node = out
+        for k in head:
+            node = (
+                node[int(k)]
+                if isinstance(node, list) and k.isdigit() and int(k) < len(node)
+                else node.get(k)
+                if isinstance(node, dict)
+                else None
+            )
+            if node is None:
+                break
+        if isinstance(node, dict) and last in node:
+            node[last] = _wrap(node[last], source, cfg)
+        elif isinstance(node, list) and last.isdigit() and int(last) < len(node):
+            node[int(last)] = _wrap(node[int(last)], source, cfg)
+    return out
+
+
+def render_prompt(text, ctx, cfg=None):
+    """A prompt param rendered against the run context (templates.render_body), with what the run read from outside
+    Lens marked as data first (untrusted.wrap): each activity's `lens.untrusted` paths and everything earlier steps
+    passed on (a model's reply, a web page). The person's own words stay as written. ValueError naming the problem."""
+    safe = dict(ctx or {})
+    if isinstance(safe.get("event"), dict):
+        safe["event"] = _wrapped(safe["event"], cfg)
+    if isinstance(safe.get("events"), dict):
+        safe["events"] = {k: _wrapped(a, cfg) if isinstance(a, dict) else a for k, a in safe["events"].items()}
+    if isinstance(safe.get("steps"), dict):
+        safe["steps"] = _wrap(safe["steps"], "an earlier step of this automation", cfg)
+    try:
+        return templates.render_body(str(text or ""), safe, "prompt")
+    except templates.TemplateProblem as e:
+        raise ValueError(f"the prompt: {e}") from None
+
+
 def describe(name, params):
     """What an action would do, in words."""
     spec = get(name)
@@ -257,4 +341,4 @@ register(
 )
 
 
-from . import actions_messages  # noqa: E402, F401 - registers notify; loaded with the catalog
+from . import actions_ai, actions_messages  # noqa: E402, F401 - they register their actions; loaded with the catalog

@@ -221,6 +221,21 @@ def check(db, cfg, resources, now=None):
     return {"go": True, "action": "run", "why": None, "resource": None, "status": None}
 
 
+def used_up(db, resources, now=None):
+    """Why a call for these resources must not go ahead, or None: the first of their budgets (and `all`) whose cap is
+    already reached. For a single call inside a run, such as an automation asking the model, where check()'s estimate
+    of a whole run doesn't apply."""
+    for res in dict.fromkeys([ALL, *(r for r in resources if r and REF.match(r))]):
+        b = get(db, res)
+        if b:
+            st = status(db, res, b, now)
+            if st["state"] == "over":
+                return (
+                    _why(res, st, True).replace(f"{ALL} has spent", "Lens has spent") + " Raise the limit in Settings › Budgets to go on."
+                )
+    return None
+
+
 def _money(v):
     return f"${v:,.4f}".rstrip("0").rstrip(".") if v < 1 else f"${v:,.2f}"
 

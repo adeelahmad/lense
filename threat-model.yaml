@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:f945beb5f2a168c5de0f0753b98ea3cf4bf37e56d23c021589775c65f6898e0d"
+prose_version: "threat-model.md@sha256:6957510fc090d277933c6b0708ea72227197a1e9b2fa267b40b883caf70bfe0e"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -1460,7 +1460,7 @@ properties_claimed:
     kind: confidentiality
     components: [assistant]
     tier: correctness-only
-    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26)."
+    conditions: "Once an assistant answer has read text from outside Lens (a tool result other than Lens's own, the page it was asked from, a namespace assistant's memories, a message in a chat room with no bridge.users, or an earlier answer in the conversation that read any of these), tools that could carry it out of Lens (the person's own read web tools, other servers' MCP tools, Python tools with the network) and an admin setup conversation's own changes wait for the person's approval. A chat room's answer keeps a web address linkable only when the person, the archive, a tool or Lens wrote it. A bypass is VALID-HARDENING (Q26). An automation's model and agent actions (ask_model, call_tool, ask_agent) run with nobody reading along: the activity and earlier steps reach the model marked as data, every change they would make (notes included) is an approval of the automation's person, and anything that could carry data out of Lens asks first whatever the run read (docs/automations.md \"The model and the agent\")."
     violation_symptoms: [info-leak]
     x-voided-by: "ai.untrusted_asks: false (domain/ai_tools.py:519); bridge.safe_links: false (domain/bridge.py:298); notes and memories are written at once; hooks run as their owners set them (P-EXT-SCOPE); an address the read text wrote itself stays linkable in a room; the person's browser asks first as P-BROWSER-GUARD says"
     provenance: {kind: documented, source: 'docs/assistant.md "it read out of Lens waits for your approval"'}

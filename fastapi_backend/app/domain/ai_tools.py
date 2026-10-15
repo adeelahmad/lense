@@ -409,7 +409,9 @@ class Toolbox(ops_tools.OpsTools):
     """`admin` adds the server tools (ops_tools.py), with `base` (archive.yaml's config) to save settings over; `act`
     makes their changes at once instead of asking for approval, `act_on` only those of these tools (a chat channel's:
     channels.Channel.acts). `browser`: the person's connected side panel (browser.py), whose browser the assistant can
-    then use."""
+    then use. `account`: the person an automation acts for, when `user` is the automation itself (automation:<id>,
+    the by of what it writes): their approvals, extensions, view of the timeline and marks on it; `origin` ({automation, run,
+    node}) is kept on the approvals it asks for."""
 
     def __init__(
         self,
@@ -427,8 +429,11 @@ class Toolbox(ops_tools.OpsTools):
         outside=(),
         browser=None,
         act_on=(),
+        account=None,
+        origin=None,
     ):
         self.db, self.cfg, self.user, self.chat, self.said = db, cfg, user, chat_id, said
+        self.account, self.origin = user["id"] if account is None else account, origin
         # where this answer has read text from outside Lens so far (`outside`: before any tool ran, such as the page it
         # was asked from or a chat room's message): once it has, tools that send data out of Lens or change the server
         # ask first, even where they'd act at once (wary)
@@ -444,7 +449,7 @@ class Toolbox(ops_tools.OpsTools):
         self.refs, self.reads, self.approvals = [], 0, []
         # the extensions this person switched on or was given (extensions.py); hooks don't run inside hooks
         roles = {s: "editor" if s in self.editable else "viewer" for s in self.readable}
-        self.me = extensions.who(user["id"], user.get("email"), admin, roles)
+        self.me = extensions.who(self.account, user.get("email"), admin, roles)
         self.ext = extensions.Active(db, self.me) if cfg["ai"].get("extensions", True) else None
         self.hooking = False
         # the namespace's own assistant, when the conversation is about that namespace alone and its assistant is on
@@ -914,7 +919,7 @@ class Toolbox(ops_tools.OpsTools):
 
     def _viewer(self):
         # admins see what is for admins alone too, unless the conversation is about some namespaces
-        return events.viewer(self.user["id"], self.readable, admin=bool(self.admin) and not self.scope.get("namespaces"))
+        return events.viewer(self.account, self.readable, admin=bool(self.admin) and not self.scope.get("namespaces"))
 
     def _about_allowed(self, a):
         """Whether an activity is about the assets of a conversation about some assets (any, in one that isn't)."""
@@ -928,10 +933,10 @@ class Toolbox(ops_tools.OpsTools):
             if not spaces:
                 raise ValueError(f"namespace {namespace} isn't in this conversation")
         flt = {"kinds": kinds or None, "tag": tag, "since": since, "until": until, "q": q, "spaces": sorted(spaces) if namespace else None}
-        keep = event_marks.keeper(self.db, self.user["id"], {"reviewed": False} if unreviewed else None)
+        keep = event_marks.keeper(self.db, self.account, {"reviewed": False} if unreviewed else None)
         page = events.page(self.db, self.cfg, self._viewer(), before, {k: v for k, v in flt.items() if v}, min(int(limit or 20), 50), keep)
         items = [a for a in page["items"] if self._about_allowed(a)]  # a conversation about some assets: only what is about them
-        marks = event_marks.of(self.db, self.user["id"], [a["id"] for a in items])
+        marks = event_marks.of(self.db, self.account, [a["id"] for a in items])
         out = [
             {
                 "id": a["id"],
@@ -962,7 +967,7 @@ class Toolbox(ops_tools.OpsTools):
         # person's sight: hiding them or marking them reviewed asks first then; the other marks only bring things back
         if self.wary() and (flags.get("hidden") or flags.get("reviewed")):
             return self._approval("mark_activities", {"ids": known, **flags}, f"Mark {what}" + self.why())
-        marks = event_marks.mark(self.db, self.user["id"], known, flags)
+        marks = event_marks.mark(self.db, self.account, known, flags)
         return {"marks": marks, "unknown": unknown}, f"Marked {what}"
 
     def t_read_transcript(self, recording_id, start_seconds=0, end_seconds=None, max_lines=60):
@@ -1183,7 +1188,8 @@ class Toolbox(ops_tools.OpsTools):
             d=store.clean(
                 {
                     "chat": self.chat,
-                    "account": self.user["id"],
+                    "account": self.account,
+                    "origin": self.origin,
                     "tool": tool,
                     "args": args,
                     "summary": summary,
@@ -1431,8 +1437,8 @@ class Toolbox(ops_tools.OpsTools):
 
 
 def approve(db, cfg, aid, user, editable, decision="approve", base=None, admin=False, readable=None):
-    """Carry out an approved action: a batch run (or a sample of it), an entity change, or a change to the server
-    (ops_tools.py: settings, a namespace, importing attached files or web pages)."""
+    """Carry out an approved action: a batch run (or a sample of it), an entity change, a note an automation's agent
+    proposed, or a change to the server (ops_tools.py: settings, a namespace, importing attached files or web pages)."""
     a = db.one("SELECT record::id(id) AS id, chat, account, tool, args, status FROM $r", r=R("approval", int(aid)))
     if not a or a["status"] != "pending":
         raise ValueError("nothing to approve")
@@ -1465,6 +1471,9 @@ def _carry_out(db, cfg, a, user, editable, decision, base, admin, readable):
     elif a["tool"] == "mark_activities":  # the person's own marks, on activities they could see when it was asked
         flags = {k: v for k, v in args.items() if k in event_marks.FLAGS}
         result = {"marked": len(event_marks.mark(db, user["id"], args["ids"], flags))}
+    elif a["tool"] in ("write_note", "update_note"):  # proposed by an automation's agent (actions_ai.Box)
+        box = Toolbox(db, cfg, user, readable if readable is not None else editable, editable, None, a["chat"], base, admin)
+        result = getattr(box, "t_" + a["tool"])(**args)[0]
     elif a["tool"] == "forget_memory":
         sid = {v: k for k, v in store.space_names(db).items()}.get(args["namespace"])
         if sid not in editable:
