@@ -15,6 +15,7 @@ import { useChat, useLlmStatus, useStopAnswer } from "@/components/chat/data";
 import { RichText } from "@/components/chat/rich-text";
 import { ToolSteps } from "@/components/chat/steps";
 import { applyEvent, newTurn, savedSteps, type ToolStep, type TurnState } from "@/components/chat/stream";
+import { useAskPlace } from "@/components/page-chat/ask-place";
 import {
   hiddenOn,
   INITIAL,
@@ -122,18 +123,38 @@ export function PageChat() {
           focusTick={focusTick}
         />
       ) : (
-        <button
-          type="button"
-          onClick={() => open()}
-          aria-label="Chat about this page"
-          title="Chat about this page"
-          data-ask-button
-          className="fixed bottom-5 right-5 z-90 inline-flex h-12 items-center gap-2 rounded-pill bg-blue px-4 text-[14px] font-bold text-white shadow-3 transition-transform hover:scale-[1.03] active:scale-[.98] [&_svg]:size-[18px]"
-        >
-          <MessagesSquare />
-          <span className="hidden sm:inline">{state.chatId != null ? "Chat" : "Ask"}</span>
-        </button>
+        <AskButton label={state.chatId != null ? "Chat" : "Ask"} onOpen={() => open()} />
       )}
+    </>
+  );
+}
+
+/** The floating button that opens the chat. It rises above, or steps aside from, controls it would cover (ask-place). */
+function AskButton({ label, onOpen }: { label: string; onOpen: () => void }) {
+  const probe = useRef<HTMLSpanElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const place = useAskPlace(probe, button);
+  return (
+    <>
+      {/* where the button would be, to find what it covers; drawn just under it */}
+      <span ref={probe} aria-hidden className="pointer-events-none fixed bottom-5 right-5 z-90 opacity-0" />
+      <button
+        ref={button}
+        type="button"
+        onClick={onOpen}
+        aria-label="Chat about this page"
+        title="Chat about this page"
+        data-ask-button
+        data-place={place.hidden ? "hidden" : place.lift ? "raised" : "rest"}
+        style={place.lift ? { translate: `0 ${-place.lift}px` } : undefined}
+        className={cn(
+          "fixed bottom-5 right-5 z-90 inline-flex h-12 items-center gap-2 rounded-pill bg-blue px-4 text-[14px] font-bold text-white shadow-3 transition-[translate,scale,opacity,visibility] duration-200 hover:scale-[1.03] active:scale-[.98] motion-reduce:transition-none [&_svg]:size-[18px]",
+          place.hidden && "invisible opacity-0",
+        )}
+      >
+        <MessagesSquare />
+        <span className="hidden sm:inline">{label}</span>
+      </button>
     </>
   );
 }
