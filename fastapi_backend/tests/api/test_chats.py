@@ -357,6 +357,73 @@ def test_answers_survive_unusual_model_servers(app, db, cfg, folder, new_client,
     assert ev["error"] and ev["done"] and last(cid)["error"] == ev["error"][0]["message"]
 
 
+def test_every_answer_ends_in_words_not_tool_calls(app, db, cfg, folder, new_client, llm):
+    """A model that keeps calling tools is asked to answer from what it found once its steps run out (tools off), and a
+    reply with nothing in it is asked again: the person always gets an answer, never "ran out of steps"."""
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+
+    def tool(i, name, args):
+        return {
+            "content": "",
+            "tool_calls": [{"id": f"s{i}", "type": "function", "function": {"name": name, "arguments": json.dumps(args)}}],
+        }
+
+    def search(i, query=None):  # a different search each round, unless the query is given
+        return tool(i, "search_transcripts", {"query": query or ("capsid" if i == 0 else f"capsid {i}")})
+
+    def ask(q):
+        cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+        return cid, sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": q}).text)
+
+    def last(cid):
+        return c.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+
+    # six rounds of tools (ai.max_steps), and the model wants a seventh: it's asked to answer instead, with the tools off
+    llm.tool_script = [search(i) for i in range(6)] + [{**search(6), "content": "The capsid model won [1]."}]
+    cid, ev = ask("Would you hire them?")
+    assert len(ev["step"]) == 6 and ev["token"][0]["text"] == "The capsid model won [1]."
+    final = llm.seen[-1]
+    assert final["tool_choice"] == "none" and final["messages"][-1] == {"role": "user", "content": chat.FINISH}
+    assert "up to 6 rounds of tool calls" in final["messages"][0]["content"]  # the model knows its budget up front
+    assert last(cid)["content"] == "The capsid model won [1]." and [p["n"] for p in ev["passages"][0]] == [1]
+
+    # a server that calls tools even when asked not to: the conversation is sent again as plain text, without tools
+    llm.ignore_tool_choice = True
+    llm.tool_script = [search(i) for i in range(7)]
+    cid, ev = ask("Would you hire them?")
+    plain = llm.seen[-1]
+    assert "tools" not in plain and {m["role"] for m in plain["messages"]} == {"system", "user", "assistant"}
+    roles = [m["role"] for m in plain["messages"]]
+    assert all(a != b for a, b in zip(roles, roles[1:], strict=False))  # sides alternate, as strict chat templates need
+    assert "Called search_transcripts" in plain["messages"][2]["content"] and "What the tool returned" in plain["messages"][3]["content"]
+    assert plain["messages"][-1]["content"].endswith(chat.FINISH)
+    assert len(ev["step"]) == 6 and ev["token"][0]["text"] == "OK" and last(cid)["content"] == "OK"
+    llm.ignore_tool_choice = False
+
+    # a reply with nothing in it after looking something up is asked again
+    llm.tool_script = [search(0), {"content": "  "}, {"content": "Found it [1]."}]
+    cid, ev = ask("capsid?")
+    assert len(ev["step"]) == 1 and ev["token"][0]["text"] == "Found it [1]."
+    assert llm.seen[-1]["tool_choice"] == "none"
+
+    # the same read twice in one answer isn't run again: the model is pointed at the result it already has
+    llm.tool_script = [search(0), search(1, "capsid"), {"content": "Capsid [1]."}]
+    cid, ev = ask("capsid?")
+    assert len(ev["step"]) == 1 and ev["token"][0]["text"] == "Capsid [1]."
+    assert llm.seen[-1]["messages"][-1] == {"role": "tool", "tool_call_id": "s1", "content": json.dumps({"note": chat.AGAIN})}
+    # unless something that may change what it reads ran in between
+    llm.tool_script = [search(0), tool(1, "find_notes", {"query": "capsid"}), search(2, "capsid"), {"content": "Capsid [1]."}]
+    cid, ev = ask("capsid?")
+    assert [x["tool"] for x in ev["step"]] == ["search_transcripts", "find_notes", "search_transcripts"]
+
+    # and a model that says nothing even when asked again with the tools off gets the plain-text ask
+    llm.ignore_tool_choice = True
+    llm.tool_script = [search(0), {"content": ""}, {"content": ""}]
+    cid, ev = ask("capsid?")
+    assert ev["token"][0]["text"] == "OK"
+
+
 def test_streamed_answers_without_thinking_or_cut_off(monkeypatch):
     def server(*lines):
         class R(io.BytesIO):

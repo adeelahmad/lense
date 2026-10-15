@@ -62,10 +62,13 @@ export function SettingsSection({
   id,
   view,
   onErrors,
+  field,
 }: {
   id: SectionId;
   view: SettingsView;
   onErrors: (id: SectionId, has: boolean) => void;
+  /** A field to open on (`section.key`), from Find or ⌘K. */
+  field?: string | null;
 }) {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -131,6 +134,7 @@ export function SettingsSection({
   }, [view, initial, dirty]);
 
   const [held, setHeld] = useUnsavedGuard(dirty);
+  useFocusField(field);
 
   const locked = (f: (typeof specs)[number]) =>
     (view[f.section]?.locked ?? []).includes(f.key.split(".")[0]) ? (ENV[fieldId(f)] ?? "the environment") : null;
@@ -416,6 +420,24 @@ export function SettingsSection({
       />
     </div>
   );
+}
+
+/** Opened on one field (Find, ⌘K): opens what folds it away, scrolls to it, focuses its control and marks it a moment. */
+function useFocusField(field?: string | null) {
+  useEffect(() => {
+    if (!field) return;
+    const el = document.querySelector<HTMLElement>(`[data-setting="${CSS.escape(field)}"]`);
+    if (!el) return;
+    for (let d = el.closest("details"); d; d = d.parentElement?.closest("details") ?? null) d.open = true;
+    el.scrollIntoView?.({ block: "center" });
+    const control = el.querySelector<HTMLElement>("input, select, textarea, button");
+    control?.focus({ preventScroll: true });
+    // what it holds is selected, so typing replaces it
+    if (control instanceof HTMLInputElement || control instanceof HTMLTextAreaElement) control.select();
+    el.classList.add("setting-found");
+    const t = setTimeout(() => el.classList.remove("setting-found"), 2000);
+    return () => clearTimeout(t);
+  }, [field]);
 }
 
 function ChangeRow({

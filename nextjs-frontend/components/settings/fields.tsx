@@ -58,7 +58,7 @@ export function SettingField({
 
   if (spec.kind === "switch")
     return (
-      <div className={cn("flex items-start justify-between gap-5", className)}>
+      <div data-setting={fieldId(spec)} className={cn("flex items-start justify-between gap-5", className)}>
         <div className="flex flex-col gap-1">
           <span className="text-[14px] font-bold leading-tight text-fg">{title}</span>
           {text && (
@@ -74,7 +74,7 @@ export function SettingField({
     );
 
   return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+    <div data-setting={fieldId(spec)} className={cn("flex min-w-0 flex-col gap-1.5", className)}>
       {spec.kind === "pills" || spec.kind === "cards" || spec.kind === "checks" ? (
         <span id={`${id}-label`} className="text-[13px] font-bold leading-tight text-fg-strong">
           {title}
