@@ -345,6 +345,12 @@ def sweep(db, cfg, now=None, every=None):
         activity.record(
             "run", f"budget.{st['state']}", [res], cfg, db, detail={"share": st["share"], "estimate": st["spent"]["estimate"] or None}
         )
+        try:  # for automations: budget.warned (events_streams.py)
+            from . import events_streams
+
+            events_streams.budget_warned(db, b, alert, st)
+        except Exception as e:  # noqa: BLE001 - the alert stands without it
+            log.info("budgets: couldn't log the warning for %s: %s", res, e)
         made.append({"resource": res, **alert})
     return made
 
