@@ -446,16 +446,18 @@ def one_type(seg_ents):
     return [[(n, best.get(ent_key(n), t)) for n, t in es] for es in seg_ents]
 
 
-def model_types(db, cfg, nid, segs, seg_ents):
+def model_types(db, cfg, nid, segs, seg_ents, gaz=()):
     """The terms of a recording that aren't entities yet, given the type a model is sure of (name_types.ask). A short
-    form of a longer name said here ("Johnson" of "Sarah Johnson") takes that name's type later, so it isn't asked."""
+    form of a longer name said here ("Johnson" of "Sarah Johnson") takes that name's type later, and a name the custom
+    vocabulary (`gaz`) lists is the type it says, a term too; neither is asked."""
     if not name_types.asking(cfg):
         return seg_ents
+    listed = {ent_key(g[0]) for g in gaz}
     terms = {}
     for es in seg_ents:
         for n, t in es:
             k = ent_key(n)
-            if k and t == "TERM":
+            if k and t == "TERM" and k not in listed:
                 terms.setdefault(k, n)
     keys = {ent_key(n) for es in seg_ents for n, _ in es}
     terms = {k: n for k, n in terms.items() if not any(L.endswith(" " + k) for L in keys)}
@@ -511,7 +513,7 @@ def analyze_recording(db, cfg, rid, seg_ents=None, say=None):
             es.extend(h for h in hints if ent_key(h[0]) not in have)
     seg_ents = one_type(seg_ents)
     if given is None and not listed:  # names the rules can't tell: a model may (Settings › Analysis)
-        seg_ents = model_types(db, cfg, nid, segs, seg_ents)
+        seg_ents = model_types(db, cfg, nid, segs, seg_ents, gaz)
     if setup["types"] and not listed:  # the namespace (or collection) keeps only some types
         seg_ents = [[(n, t) for n, t in es if entity_setup.keeps(setup, t)] for es in seg_ents]
     surface = {t: c.most_common(1)[0][0] for t, c in ts.items()}

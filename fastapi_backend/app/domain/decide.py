@@ -219,14 +219,15 @@ def choose_all(cfg, asks, state, language_model=True):
     asks = {q: (text, dict(o)) for q, (text, o) in asks.items() if o}
     if not asks:
         return {}
+    ids = {f"q{i}": q for i, q in enumerate(asks)}  # plain names for the questions, whatever the caller's ids
     how = engine(cfg)
     if how in ENGINES:
-        questions = {q: {"type": "choice", "instructions": text, "criteria": o} for q, (text, o) in asks.items()}
+        questions = {i: {"type": "choice", "instructions": asks[q][0], "criteria": asks[q][1]} for i, q in ids.items()}
         try:
             answers = ENGINES[how](cfg, questions, state)
             out = {}
-            for q, (_, o) in asks.items():
-                a = answers.get(q) or {}
+            for i, q in ids.items():
+                a, o = answers.get(i) or {}, asks[q][1]
                 if a.get("choice") in o:
                     probs = a.get("probabilities") or {a["choice"]: a.get("confidence", 0)}
                     out[q] = {"choice": a["choice"], "confidence": float(a.get("confidence") or 0), "ranked": _ranked(probs), "by": how}
@@ -238,7 +239,6 @@ def choose_all(cfg, asks, state, language_model=True):
         how = "llm" if llm.configured(cfg) else None
     if how != "llm" or not language_model:
         raise Undecided("no decision model is set up" if not language_model else "no decision model or language model is set up")
-    ids = {f"q{i}": q for i, q in enumerate(asks)}
     one = {
         i: {
             "type": "object",

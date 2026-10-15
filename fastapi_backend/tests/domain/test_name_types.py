@@ -176,6 +176,12 @@ def test_the_decision_model_types_what_the_rules_cant(db, cfg, folder, jev):
     assert len(jev.seen) == 1  # an entity already: not asked again
 
 
+def test_a_term_the_custom_vocabulary_lists_isnt_asked(db, cfg, folder, jev):
+    cfg["analysis"]["gazetteer"] = ["Quillmark"]  # a term, as the vocabulary says
+    jev.pick = _quillmark
+    assert _analysed(db, cfg, folder)["Quillmark"] == "TERM" and not jev.seen
+
+
 def test_a_type_the_model_isnt_sure_of_stays_a_term(db, cfg, folder, jev):
     jev.answer = {"type": "choice", "choice": "ORG", "confidence": 0.5, "probabilities": {"ORG": 0.5, "PRODUCT": 0.4}}
     assert _analysed(db, cfg, folder)["Quillmark"] == "TERM"
