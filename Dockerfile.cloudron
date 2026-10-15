@@ -54,7 +54,7 @@ RUN UV_PROJECT_ENVIRONMENT=/app/code/venv UV_PYTHON_DOWNLOADS=never UV_COMPILE_B
 
 # The web app, built in the stage above; Next writes its cache to /run (the code is read-only on Cloudron)
 WORKDIR /app/code/frontend
-COPY --from=frontend /app/package.json /app/next.config.mjs /app/lens-shares.js ./
+COPY --from=frontend /app/package.json /app/next.config.mjs /app/lens-relay.js ./
 COPY --from=frontend /app/node_modules ./node_modules
 COPY --from=frontend /app/.next ./.next
 COPY --from=frontend /app/public ./public

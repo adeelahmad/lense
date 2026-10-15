@@ -80,7 +80,7 @@ def test_what_webdav_refuses(env):
 
 
 def test_at_the_web_apps_address_once_an_admin_allows_it(env, cfg):
-    """The web app relays WebDAV at /dav (nextjs-frontend/lens-shares.js), so remote access reaches it; listings link
+    """The web app relays WebDAV at /dav (nextjs-frontend/lens-relay.js), so remote access reaches it; listings link
     under /dav, and it's turned away, before any sign-in, until an admin turns on shares.remote."""
     with web_relay(env["port"], "/dav") as port:
         assert _call(env, "OPTIONS", "/dav/", auth_header=False, port=port)[0] == 403

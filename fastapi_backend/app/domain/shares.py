@@ -5,7 +5,7 @@ Off until an admin turns them on (`shares.enabled`, then `s3` and `webdav`); the
 worker`) follows the settings as they change, as the sensor hub does, and says what each server is doing in
 `app_service:share-<protocol>`.
 
-The web app also relays them at its own address, /s3 and /dav (nextjs-frontend/lens-shares.js), so they can be reached
+The web app also relays them at its own address, /s3 and /dav (nextjs-frontend/lens-relay.js), so they can be reached
 wherever the web app is, Settings › Remote access included. Those requests keep their path and carry X-Forwarded-Prefix,
 and the servers turn them away until an admin turns on `shares.remote`.
 """
@@ -31,7 +31,7 @@ PROTOCOLS: dict[str, tuple[type[http.server.BaseHTTPRequestHandler], str]] = {
 }
 
 
-# protocol -> the path the web app relays it at (nextjs-frontend/lens-shares.js)
+# protocol -> the path the web app relays it at (nextjs-frontend/lens-relay.js)
 WEB_PATHS = {"s3": "/s3", "webdav": "/dav"}
 LOOPBACK = ("127.0.0.0/8", "::1/128")
 

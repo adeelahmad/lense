@@ -485,7 +485,7 @@
       "source": "docs/smb.md \"What keeps it safe\""
     },
     {
-      "entry_point": "web app /s3 and /dav (file shares relayed by lens-shares.js, ahead of Next)",
+      "entry_point": "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)",
       "parameter": "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For",
       "attacker_controllable": "yes",
       "component": "optional",

@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:815d3d1f7e8a833bcc934cf97076b0ac21d1c1b5c59c7297648a1075a4874368"
+prose_version: "threat-model.md@sha256:fdd7eeea5551d2f7c07130125c0444ff84bdd4d521b20da44caac1962a75165d"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -418,7 +418,7 @@ entry_points:
         obligation_id: enable-and-limit-smb
         caller_must_enforce: "admin enables; operator firewalls"
         provenance: {kind: documented, source: 'docs/smb.md "What keeps it safe"'}
-  - id: "web app /s3 and /dav (file shares relayed by lens-shares.js, ahead of Next)"
+  - id: "web app /s3 and /dav (file shares relayed by lens-relay.js, ahead of Next)"
     component: optional
     parameters:
       - name: "any method, path, Host and body, passed to the share servers with X-Forwarded-Prefix and X-Forwarded-For"
@@ -1130,7 +1130,7 @@ build_flags:
     default: "off"
     security_relevant: true
     maintainer_stance: supported
-    x-scope: "the web app relays the file shares at its own address (/s3, /dav; nextjs-frontend/lens-shares.js), so the tunnel and HTTPS reach them; until on, the share servers refuse requests carrying X-Forwarded-Prefix before any sign-in"
+    x-scope: "the web app relays the file shares at its own address (/s3, /dav; nextjs-frontend/lens-relay.js), so the tunnel and HTTPS reach them; until on, the share servers refuse requests carrying X-Forwarded-Prefix before any sign-in"
     affects_properties:
       - {property_id: P-SHARES, effect: narrows}
     provenance: {kind: documented, source: 'docs/file-tree.md "At the web app''s address"'}

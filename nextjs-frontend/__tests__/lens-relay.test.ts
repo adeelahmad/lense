@@ -3,7 +3,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { forwardHeaders, route, shareOf, targetOf } = require("../lens-shares.js");
+const { forwardHeaders, route, shareOf, targetOf } = require("../lens-relay.js");
 
 type Seen = { method?: string; url?: string; headers: http.IncomingHttpHeaders; body: string };
 

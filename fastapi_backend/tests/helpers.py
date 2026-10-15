@@ -224,7 +224,7 @@ def marked(text, source):
 
 @contextlib.contextmanager
 def web_relay(port, prefix, forwarded_for=None):
-    """What the web app does for a file share (nextjs-frontend/lens-shares.js): relays requests to the server on `port`
+    """What the web app does for a file share (nextjs-frontend/lens-relay.js): relays requests to the server on `port`
     as they came (path and Host), saying in X-Forwarded-Prefix that it's at `prefix`, and passing X-Forwarded-For.
     Yields the relay's port."""
 

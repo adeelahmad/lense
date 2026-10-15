@@ -131,7 +131,7 @@ or Dolphin, rclone's `type = webdav`). The S3 endpoint has a path, so it needs a
 CLI and boto3 do.
 
 How it works: the web app hands requests under `/s3` and `/dav` to the worker's share servers before Next.js sees them
-(`nextjs-frontend/lens-shares.js`; the servers are at `LENS_S3_URL` and `LENS_WEBDAV_URL`, set in the Docker Compose
+(`nextjs-frontend/lens-relay.js`; the servers are at `LENS_S3_URL` and `LENS_WEBDAV_URL`, set in the Docker Compose
 files, else this machine's ports 9555 and 9556). The path and `Host` stay as the client sent them, since S3 clients
 sign both, and `X-Forwarded-Prefix` tells the share server the request came through the web app. Failed WebDAV
 sign-ins are counted per visitor, from `X-Forwarded-For` as the web app and the proxies Lens trusts report it

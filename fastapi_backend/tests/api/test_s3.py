@@ -119,7 +119,7 @@ def test_what_s3_refuses(client, env):
 
 
 def test_at_the_web_apps_address_once_an_admin_allows_it(client, cfg, env):
-    """The web app relays S3 at /s3 (nextjs-frontend/lens-shares.js), so remote access reaches it: clients sign that
+    """The web app relays S3 at /s3 (nextjs-frontend/lens-relay.js), so remote access reaches it: clients sign that
     path, and it's turned away until an admin turns on shares.remote."""
     k = _key(client, env["hv"])
     with web_relay(env["port"], "/s3") as port:

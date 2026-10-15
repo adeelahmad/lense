@@ -1,7 +1,8 @@
 /**
- * Relays Lens's file shares at the web app's own address (docs/file-tree.md#at-the-web-apps-address): /s3 to the S3
- * server and /dav to the WebDAV server, both run by the worker (fastapi_backend/app/domain/shares.py). S3 and WebDAV
- * clients then reach them wherever the web app is reached, Settings › Remote access and Settings › HTTPS included.
+ * Relays servers Lens runs besides the API at the web app's own address, so their clients reach them wherever the web
+ * app is reached, Settings › Remote access and Settings › HTTPS included. Today, the file shares
+ * (docs/file-tree.md#at-the-web-apps-address): /s3 to the S3 server and /dav to the WebDAV server, both run by the
+ * worker (fastapi_backend/app/domain/shares.py).
  *
  * Requests go to the share servers before Next sees them: Next answers only the usual methods (WebDAV lists folders
  * with PROPFIND) and redirects paths that end in a slash. Each keeps its path and Host (S3 clients sign both) and
@@ -9,7 +10,7 @@
  * on "At the web app's address" in Settings › File shares (shares.remote). The servers are at LENS_S3_URL and
  * LENS_WEBDAV_URL (http://worker:9555 and http://worker:9556 in the Docker Compose files), else this machine's ports.
  *
- * lens-server.js uses it; `node --require ./lens-shares.js` (in NODE_OPTIONS) adds it to `next dev` and `next start`.
+ * lens-server.js uses it; `node --require ./lens-relay.js` (in NODE_OPTIONS) adds it to `next dev` and `next start`.
  */
 /* eslint-disable @typescript-eslint/no-require-imports */
 const http = require("node:http");
@@ -77,7 +78,7 @@ function route(req, res) {
   return true;
 }
 
-/** Relays share requests on every HTTP server this process starts (for `node --require ./lens-shares.js`). */
+/** Relays these requests on every HTTP server this process starts (for `node --require ./lens-relay.js`). */
 function install() {
   const emit = http.Server.prototype.emit;
   http.Server.prototype.emit = function (event, req, res, ...rest) {
