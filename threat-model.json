@@ -771,9 +771,17 @@
       "property": "P-ROLE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and editor or owner; publishing and access changes need owner, through every API path",
+      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions",
       "provenance": "documented",
       "source": "SECURITY.md \"doing more than your role allows\""
+    },
+    {
+      "property": "P-ROLE-GRANT",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "only admins make, change and delete roles; built-in roles never change; a non-admin with the members permission gives only roles whose permissions they hold all of, and changes only people whose role they hold all of",
+      "provenance": "documented",
+      "source": "docs/access.md \"they can't promote themselves or take out an owner\""
     },
     {
       "property": "P-NO-INJECTION",

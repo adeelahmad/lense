@@ -183,7 +183,7 @@ def list_highlights(rid: int, user: CurrentUser, acl: Acl, db: Db) -> list[Highl
 def create_highlight(rid: int, body: HighlightCreate, user: Writer, acl: Acl, db: Db) -> Highlight:
     """Mark a passage (`t0`–`t1`, with the `quote` picked in the text) in a `colour` (yellow, green, blue or red),
     with a `label`: editors of the resource. Up to 1,000 on a resource."""
-    rec = _recording(acl, db, rid, "editor")
+    rec = _recording(acl, db, rid, "edit")
     with domain_errors():
         hid = highlights.create(
             db, rid, rec["space"], user.id, body.t0, body.t1, body.quote, body.colour, body.label, rec.get("duration_ms")
@@ -194,7 +194,7 @@ def create_highlight(rid: int, body: HighlightCreate, user: Writer, acl: Acl, db
 @router.patch("/highlights/{hid}")
 def update_highlight(rid: int, hid: int, body: HighlightUpdate, user: Writer, acl: Acl, db: Db) -> Highlight:
     """Change its colour or its label (an empty label clears it): editors of the resource."""
-    rec = _recording(acl, db, rid, "editor")
+    rec = _recording(acl, db, rid, "edit")
     _highlight(db, rid, hid)
     if body.colour is None and body.label is None:
         raise HTTPException(400, "change the colour or the label")
@@ -206,7 +206,7 @@ def update_highlight(rid: int, hid: int, body: HighlightUpdate, user: Writer, ac
 @router.delete("/highlights/{hid}")
 def delete_highlight(rid: int, hid: int, user: Writer, acl: Acl, db: Db) -> Ok:
     """Delete it: editors of the resource. Audited (`highlight.delete`)."""
-    _recording(acl, db, rid, "editor")
+    _recording(acl, db, rid, "edit")
     h = _highlight(db, rid, hid)
     highlights.delete(db, hid)
     auth.audit(db, user.as_audit(), "highlight.delete", f"recording:{rid}", {"highlight": hid, "writer": h["account"] == user.id})

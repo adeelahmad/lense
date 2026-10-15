@@ -4,6 +4,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Roles with permissions.** Viewer, editor and owner are now sets of permissions (read, edit, import, process,
+  curate, share, publish, remove, members, manage), and admins make custom roles from them in Admin → Roles, given per
+  namespace like the built-in ones. Existing access is unchanged. Someone who manages members but isn't an admin gives
+  only roles they hold all of ([Access](docs/access.md#roles-and-permissions)).
+
 - **Invite and remove people.** Making an account in Admin → People now emails the sign-in link as an invitation when
   mail is set up, and the link is still shown to share yourself. **Remove for good** ends every way someone signs in,
   takes their roles and their private chats, notes and views, and keeps what they shared under their name; their email

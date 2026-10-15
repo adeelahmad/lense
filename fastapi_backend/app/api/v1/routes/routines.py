@@ -157,7 +157,7 @@ def list_graph_changes(
 
 @router.post("/graph-changes/{cid}/accept")
 def accept_graph_change(cid: int, body: GraphChangeAccept, user: Writer, acl: Acl, db: Db) -> Ok:
-    _change(db, acl, cid, "editor")
+    _change(db, acl, cid, "curate")
     with domain_errors():
         organize.accept(db, cid, user.email, body.keep)
     auth.audit(db, user.as_audit(), "graph_change.accept", f"graph_change:{cid}")
@@ -166,7 +166,7 @@ def accept_graph_change(cid: int, body: GraphChangeAccept, user: Writer, acl: Ac
 
 @router.post("/graph-changes/{cid}/dismiss")
 def dismiss_graph_change(cid: int, user: Writer, acl: Acl, db: Db) -> Ok:
-    _change(db, acl, cid, "editor")
+    _change(db, acl, cid, "curate")
     with domain_errors():
         organize.dismiss(db, cid, user.email)
     auth.audit(db, user.as_audit(), "graph_change.dismiss", f"graph_change:{cid}")
@@ -175,7 +175,7 @@ def dismiss_graph_change(cid: int, user: Writer, acl: Acl, db: Db) -> Ok:
 
 @router.post("/graph-changes/{cid}/undo")
 def undo_graph_change(cid: int, user: Writer, acl: Acl, db: Db) -> Ok:
-    _change(db, acl, cid, "editor")
+    _change(db, acl, cid, "curate")
     with domain_errors():
         organize.undo(db, cid, user.email)
     auth.audit(db, user.as_audit(), "graph_change.undo", f"graph_change:{cid}")

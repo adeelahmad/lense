@@ -64,7 +64,7 @@ def get_recording_content_type(rid: int, acl: Acl, db: Db) -> RecordingContentTy
 @router.put("/recordings/{rid}/content-type")
 def set_recording_content_type(rid: int, body: RecordingContentTypeSet, user: Writer, acl: Acl, db: Db) -> RecordingContentType:
     """Choose the resource's subtype (null: recognise it from the file again). Editors. New runs use its pipeline."""
-    acl.recording(rid, "editor")
+    acl.recording(rid, "edit")
     try:
         content_types.choose(db, rid, body.content_type)
     except ValueError as e:
