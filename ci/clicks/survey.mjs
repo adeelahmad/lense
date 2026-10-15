@@ -87,6 +87,38 @@ async function surveyPages(page, base, phone) {
       return seen.filter((el) => el.offsetParent !== null && !el.closest("[hidden], nav, details:not([open]) > :not(summary)")).length;
     });
   const settle = () => page.waitForTimeout(1200);
+  // The controls the floating Ask button covers with the page (and anything scrolling in it) at its end, where
+  // scrolling can't carry them clear: it should rise above them or step aside, so any is a failure.
+  const askCovers = async () => {
+    await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      for (const el of document.querySelectorAll("main *"))
+        if (el.scrollHeight > el.clientHeight && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) el.scrollTop = el.scrollHeight;
+    });
+    await page.waitForTimeout(600); // the button moves on the next frame, then slides
+    return page.evaluate(() => {
+      const ask = document.querySelector("[data-ask-button]");
+      if (!ask || getComputedStyle(ask).visibility === "hidden") return [];
+      const a = ask.getBoundingClientRect();
+      const out = [];
+      const all = "a[href], button, input:not([type=hidden]), select, textarea, [role=tab], [role=switch], [role=checkbox], [role=radio]";
+      for (const el of document.querySelectorAll(all)) {
+        if (el.closest("[data-ask-button], [data-page-chat]")) continue;
+        const r = el.getBoundingClientRect();
+        if (r.height > innerHeight / 3) continue; // a big field: the button covers a corner of it (ask-place.ts)
+        const [x0, x1, y0, y1] = [Math.max(r.left, a.left), Math.min(r.right, a.right), Math.max(r.top, a.top), Math.min(r.bottom, a.bottom)];
+        if (x1 - x0 < 4 || y1 - y0 < 4) continue;
+        if (document.elementFromPoint((x0 + x1) / 2, (y0 + y1) / 2)?.closest("[data-ask-button]"))
+          out.push((el.getAttribute("aria-label") || el.textContent || el.tagName).replace(/\s+/g, " ").trim().slice(0, 60));
+      }
+      return out;
+    });
+  };
+  const visit = async (entry) => {
+    entry.askCovers = await askCovers();
+    if (entry.askCovers.length) console.log(`FAIL ${entry.page}: the Ask button covers ${entry.askCovers.join(", ")}`);
+    pages.push(entry);
+  };
   await page.goto(base + "/", { waitUntil: "domcontentloaded" });
   await settle();
   if (phone) await page.getByRole("button", { name: "Open navigation" }).tap();
@@ -108,7 +140,7 @@ async function surveyPages(page, base, phone) {
     await page.waitForLoadState("domcontentloaded");
     await settle();
     const key = pageKey(page.url());
-    pages.push({ page: key, label: item.label, reach: 1 + menu, controls: await controls() });
+    await visit({ page: key, label: item.label, reach: 1 + menu, controls: await controls() });
     // a second level: settings sections, and tabs that are links (Admin, Sensors, Pipelines)
     const sub = await page
       .locator("main")
@@ -120,7 +152,7 @@ async function surveyPages(page, base, phone) {
       if (!s.href || pages.some((p) => p.page === pageKey(base + s.href))) continue;
       await page.goto(base + s.href, { waitUntil: "domcontentloaded" });
       await settle();
-      pages.push({ page: pageKey(page.url()), label: `${item.label} › ${s.label}`, reach: 2 + menu, controls: await controls() });
+      await visit({ page: pageKey(page.url()), label: `${item.label} › ${s.label}`, reach: 2 + menu, controls: await controls() });
     }
   }
   return pages;
@@ -214,7 +246,7 @@ async function main() {
     for (const d of worse) console.log(`worse: ${d.id} ${d.what}`);
     if (worse.length && a.failOnRegression) process.exitCode = 1;
   }
-  if (failed) process.exitCode = 1;
+  if (failed || pages.some((p) => p.askCovers.length)) process.exitCode = 1;
 }
 
 await main();

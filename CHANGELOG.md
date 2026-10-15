@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The Ask button no longer covers buttons.** The floating Ask button at the bottom right used to sit on whatever was
+  there, such as Import on the Import page. Now, when a button or field is under it and scrolling can't move it clear
+  (a row of buttons pinned to the bottom of the screen, or the last button on a page scrolled to its end), the Ask
+  button rises above it, and steps out of sight when there's no room to rise. Dialogs, drawers and toasts drawn over
+  it don't move it. The clicks survey now fails a journey whose control the Ask button covers, and checks every page
+  for it ([Chat on any page](docs/assistant.md)).
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
   with "I ran out of steps before finishing". Now it's asked to answer from what it found, with the tools off, and says
   what it didn't get to check; a reply with nothing in it is asked again the same way. It also knows its step budget up

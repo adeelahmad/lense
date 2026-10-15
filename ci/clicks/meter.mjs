@@ -29,6 +29,13 @@ function hasFocus(el) {
   return Boolean(el.isContentEditable && active?.contains(el) && caret && el.contains(caret));
 }
 
+/** The floating Ask button lies over the middle of `el`, where a click lands. */
+function coveredByAsk(el) {
+  const r = el.getBoundingClientRect();
+  const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+  return Boolean(top?.closest("[data-ask-button]"));
+}
+
 export class Meter {
   /** `touch`: a phone, where clicks are taps and bringing a control into view takes a swipe. */
   constructor(page, { touch = false } = {}) {
@@ -103,9 +110,11 @@ export class Meter {
     try {
       await this.tapOrClick(locator, { trial: true, timeout: 2000 });
     } catch {
-      // Something still lies over it (the floating Ask button, a toast). The step notes it; the click still counts
-      // one, done here with the keyboard so it reaches the control rather than what covers it.
+      // The floating Ask button rises above controls (or steps aside), so it covering one is a failure. Anything else
+      // lying over it (a toast) is noted in the step; the click still counts one, done here with the keyboard so it
+      // reaches the control rather than what covers it.
       await locator.waitFor({ state: "visible" });
+      if (await locator.evaluate(coveredByAsk)) throw new Error(`${what} is covered by the floating Ask button`);
       const step = this.journey?.steps.at(-1);
       if (step) step.what += " (covered by something else on the page)";
       await locator.focus();
