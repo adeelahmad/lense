@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Lens",
-    "version": "0.10.0"
+    "version": "0.11.0"
   },
   "paths": {
     "/api/v1/auth/status": {
@@ -29124,6 +29124,12 @@
             ],
             "title": "Oauth",
             "description": "the command that produces the token, for OAuth backends"
+          },
+          "google": {
+            "type": "boolean",
+            "title": "Google",
+            "description": "signs in to Google: with a service account key, or as a Google account (its authorized user JSON as `token`)",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -56972,6 +56978,7 @@
               "webdav",
               "local",
               "imap",
+              "gmail",
               "ical",
               "gcal"
             ],
@@ -57068,6 +57075,7 @@
               "webdav",
               "local",
               "imap",
+              "gmail",
               "ical",
               "gcal"
             ],
