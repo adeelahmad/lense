@@ -33,11 +33,11 @@ export default auth((req) => {
 export const config = {
   // Skip Auth.js, the backend paths (proxied by route handlers, see lib/api/backend-proxy.ts; /.well-known is OAuth
   // discovery, /mcp the MCP server, /metrics the Prometheus scrape endpoint, /id and /ns the
-  // archive's linked-data URIs and vocabulary), the file shares (/s3 and /dav, relayed before Next by lens-relay.js),
-  // Next's files and assets.
+  // archive's linked-data URIs and vocabulary), the file shares and MQTT over WebSockets (/s3, /dav and /mqtt, relayed
+  // before Next by lens-relay.js), Next's files and assets.
   // Under /iiif only the backend's IIIF resources are skipped (collection, discovery, auth, /iiif/<id>/…); the app's own
   // IIIF pages (/iiif, /iiif/collections/…, /iiif/import, /iiif/metadata/…) need the session like any other page.
   matcher: [
-    "/((?!api/|\\.well-known/|mcp(?:/|$)|s3(?:/|$)|dav(?:/|$)|metrics$|_next/|embed/|s/|id/|ns$|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|apple-icon\\.png|manifest\\.webmanifest|safari-pinned-tab\\.svg|pwa/|robots\\.txt).*)",
+    "/((?!api/|\\.well-known/|mcp(?:/|$)|s3(?:/|$)|dav(?:/|$)|mqtt(?:/|$)|metrics$|_next/|embed/|s/|id/|ns$|iiif/(?:collection(?!s)|discovery|auth|\\d)|reports/|static/|fonts/|favicon\\.ico|icon\\.svg|apple-icon\\.png|manifest\\.webmanifest|safari-pinned-tab\\.svg|pwa/|robots\\.txt).*)",
   ],
 };

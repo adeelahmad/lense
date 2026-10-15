@@ -91,6 +91,7 @@ whether the wizard is still pending (`wizard_pending`).
 | `TRUST_PROXY_HEADERS` | `true` when a reverse proxy in front of the web app sets `X-Forwarded-Host`, `-Proto` and `-For`: they're passed on to the API, which names that address in OAuth discovery and reads the visitor's address for IP groups and throttles. Off, the web app reports the `Host` the browser sent and the address it was reached from |
 | `LENS_WEB_PROXY_HOSTS` | hosts whose `X-Forwarded-For` the web app passes on with `TRUST_PROXY_HEADERS` off (`backend,worker` in the Docker Compose files, for the Cloudflare tunnel) |
 | `LENS_S3_URL`, `LENS_WEBDAV_URL` | where the web app finds the file shares it relays at `/s3` and `/dav` once Settings › File shares allows it (`http://worker:9555` and `http://worker:9556` in the Docker Compose files; unset, this machine's ports 9555 and 9556). See [The graph as files](file-tree.md#at-the-web-apps-address) |
+| `LENS_MQTT_WS_URL` | where the web app finds the sensor hub's MQTT over WebSockets, which it relays at `/mqtt` once Settings › Sensors allows it (`http://worker:9883` in the Docker Compose files; unset, this machine's port 9883). See [Sensors](sensors.md#at-the-web-apps-address) |
 | `LENS_HTTPS`, `LENS_HTTPS_PORT`, `LENS_HTTP_PORT`, `LENS_HTTPS_BIND` | install.sh: `LENS_HTTPS=1` publishes the HTTPS and HTTP ports (443 and 80 by default) for [HTTPS](https.md) |
 | `LENS_HTTPS_LISTEN` | `1` in the process that has the HTTPS ports and runs Caddy (the worker in `docker-compose.https.yml`); `LENS_CADDY`: a caddy to use instead of fetching one |
 

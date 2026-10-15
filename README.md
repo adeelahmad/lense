@@ -176,7 +176,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   agents over MCP get the archive as data, and what Lens caught goes into the audit log. Serve Lens over HTTPS, set
   up in Settings, with certificates from Let's Encrypt or ZeroSSL that renew on their own, answering only for its own
   domains and, if you choose, only to devices holding a client certificate; or reach it from anywhere through a
-  Cloudflare tunnel with nothing opened on your router. ([Encryption](docs/encryption.md), [access](docs/access.md),
+  Cloudflare tunnel with nothing opened on your router. Either way, the S3 and WebDAV shares and the MQTT hub answer at
+  that same address once you turn them on. ([Encryption](docs/encryption.md), [access](docs/access.md),
   [prompt injection](docs/assistant.md#third-party-content-and-prompt-injection), [HTTPS](docs/https.md),
   [remote access](docs/remote-access.md); [checks](docs/requirements.md#stay-private-and-safe))
 - **Use open standards.** RDF and Dublin Core for every record, OAuth for apps and OpenID Connect sign-in, MCP, MQTT,
@@ -211,8 +212,7 @@ These are open pull requests, not yet part of Lens:
 - **Web clipper:** signing in, or using your API token, not only an import webhook's
   ([#406](https://github.com/adeelahmad/lense/pull/406)).
 - **Automations:** more operators for conditions ([#434](https://github.com/adeelahmad/lense/pull/434)).
-- **Shares:** S3 and WebDAV reached through remote access ([#402](https://github.com/adeelahmad/lense/pull/402)),
-  and files added over them imported ([#408](https://github.com/adeelahmad/lense/pull/408)).
+- **Shares:** files added over S3 and WebDAV imported ([#408](https://github.com/adeelahmad/lense/pull/408)).
 
 ## Planned
 

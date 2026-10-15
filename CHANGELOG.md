@@ -37,6 +37,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
   ([Agents](docs/automations.md#agents)).
+- **MQTT through Remote access.** Devices away from home can publish to the sensor hub, and subscribe to it, at the
+  web app's own address: MQTT over WebSockets at `/mqtt` (`wss://` under HTTPS), through the Cloudflare tunnel and
+  HTTPS too. It's off until an admin turns on **MQTT at the web app's address too** in Settings › Sensors, and there
+  every client signs in with a hub login, with too many wrong passwords from one address turned away for a while. It's
+  the same broker as on port 1883. SMB, NFS and syslog stay on the local network, and Remote access now says why
+  ([Sensors](docs/sensors.md#at-the-web-apps-address), [Remote access](docs/remote-access.md#what-it-reaches)).
 - **File shares through Remote access.** S3 and WebDAV can now be reached at the web app's own address, `/s3` and
   `/dav`, so they work through the Cloudflare tunnel and HTTPS as well as on the network, and on Cloudron, which
   publishes only the web app. It's off until an admin turns on **At the web app's address too** in Settings › File

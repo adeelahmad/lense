@@ -1444,6 +1444,10 @@ function SensorsBody({ ctx }: { ctx: BodyCtx }) {
         <F ctx={ctx} id="sensors.mqtt_port" />
         <F ctx={ctx} id="sensors.max_payload_kb" />
       </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <F ctx={ctx} id="sensors.mqtt_web" />
+        <F ctx={ctx} id="sensors.mqtt_web_port" />
+      </div>
       <Sub>Syslog</Sub>
       <div className="grid gap-3 sm:grid-cols-2">
         <F ctx={ctx} id="sensors.syslog" />

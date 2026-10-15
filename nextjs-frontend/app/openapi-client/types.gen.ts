@@ -9068,6 +9068,12 @@ export type HubStatus = {
    */
   mqtt_port?: number | null;
   /**
+   * Mqtt Web
+   *
+   * the broker over WebSockets too, which the web app relays at /mqtt
+   */
+  mqtt_web?: boolean;
+  /**
    * Syslog
    */
   syslog: boolean;
