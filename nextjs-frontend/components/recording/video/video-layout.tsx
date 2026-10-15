@@ -193,7 +193,7 @@ export function VideoLayout({
           <Banners />
         </header>
       )}
-      {compact && (state.phase === "analyzing" || state.phase === "failed") && <Banners className="mx-3 mt-2" />}
+      {compact && <Banners className="mx-3 mt-2" />}
       <div className={cn("min-h-0 flex-1", mode === "side" ? "grid grid-cols-[minmax(0,1fr)_440px]" : "flex flex-col")}>
         <div
           className={cn("flex min-h-0 min-w-0 flex-col", mode === "side" && "overflow-y-auto border-r border-border")}

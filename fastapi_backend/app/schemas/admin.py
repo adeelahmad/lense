@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import Field
 
 from app.schemas.common import Ok, RequestModel, ResponseModel
+from app.schemas.updates import UpgradeRun
 
 
 class Started(Ok):
@@ -101,6 +102,13 @@ class HttpsStatus(ResponseModel):
     log: list[str] = Field(default_factory=list, description="Caddy's last lines")
     origin: str = Field(description="where Caddy sends visitors: the web app, as the server reaches it")
     process: str | None = Field(None, description="the server process with the HTTPS ports")
+    agent: str | None = Field(None, description="what can open the ports from here (the upgrade agent: systemd, launchd)")
+    manual: str = Field(description="the line that opens the ports by hand, on the machine Lens runs on")
+    reconfigure: UpgradeRun | None = Field(None, description="the last run that opened or closed the ports (as in /admin/updates)")
+
+
+class HttpsPorts(RequestModel):
+    open: bool = Field(True, description="open the HTTPS ports (true) or close them")
 
 
 class HttpsProviderField(ResponseModel):

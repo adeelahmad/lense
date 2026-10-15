@@ -33,6 +33,7 @@ import { Fragment, useState, type ReactNode } from "react";
 import { AccessBadge } from "@/components/access/access-fields";
 import { libraryHref } from "@/components/library/collections-model";
 import { usePlayerApi } from "@/components/player/media";
+import { NsfwNotice } from "@/components/nsfw/nsfw";
 import { CreatePodcastDialog } from "@/components/podcasts/create-dialog";
 import { useRec } from "@/components/recording/context";
 import { pageAt, pagesSummary } from "@/components/recording/document/model";
@@ -433,6 +434,15 @@ function MoreMenu({ compact }: { compact?: boolean }) {
 
 /** R8 (running, just imported) and R6 (a step failed) banners under the meta line. */
 export function Banners({ className }: { className?: string }) {
+  return (
+    <>
+      <NsfwNotice className={className} />
+      <JobBanners className={className} />
+    </>
+  );
+}
+
+function JobBanners({ className }: { className?: string }) {
   const { state, canEdit, ns, id, model } = useRec();
   const { retry, reprocess } = useRecordingActions(id);
   const job = state.job;

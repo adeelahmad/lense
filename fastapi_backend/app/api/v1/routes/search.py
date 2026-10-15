@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from app.api.deps import Acl, Cfg, CurrentUser, Db
 from app.api.media import sign_urls
 from app.domain import graph as graphmod
-from app.domain import graph_history, hierarchy, photos, render, similar, store
+from app.domain import graph_history, hierarchy, nsfw, photos, render, similar, store
 from app.domain import search as searchmod
 from app.schemas.search import Graph, Mention, PhotoResults, SearchResults, SimilarResults, TermSuggestion
 
@@ -70,6 +70,9 @@ def search_transcripts(
         cfg=cfg,
         mode=mode,
     )
+    blur = nsfw.blurred(db, cfg, [h.get("recording_id") for h in res.get("hits") or []])
+    for h in res.get("hits") or []:
+        h["nsfw"] = h.get("recording_id") in blur
     return sign_urls(res, full=True)
 
 
@@ -105,9 +108,11 @@ def search_photos(
         x["recording"]: x.get("thumb") for x in db.rows("SELECT recording, thumb FROM page WHERE recording IN $r AND idx = 0", r=rids)
     }
     names = store.space_names(db)
+    blur = nsfw.blurred(db, cfg, rids)
     out = [
         {
             **h,
+            "nsfw": h["recording"] in blur,
             "title": recs.get(h["recording"], {}).get("title"),
             "namespace": names.get(recs.get(h["recording"], {}).get("space")),
             "thumb": f"{store.API}/recordings/{h['recording']}/frames/{thumbs[h['recording']]}" if thumbs.get(h["recording"]) else None,

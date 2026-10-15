@@ -30,6 +30,7 @@ from app.domain import (
     matterbridge,
     monitoring,
     nfs_share,
+    nsfw,
     semantic,
     settings,
     slack,
@@ -41,6 +42,7 @@ from app.domain import (
     telemetry,
     tika,
     tunnel,
+    updates,
 )
 from app.schemas.admin import (
     AuditEntry,
@@ -54,6 +56,7 @@ from app.schemas.admin import (
     FileStoreTestResult,
     FileStoreTry,
     Health,
+    HttpsPorts,
     HttpsProvider,
     HttpsStatus,
     IndexQueued,
@@ -114,6 +117,8 @@ def update_settings(section: str, body: dict[str, Any], user: AdminWriter, reque
     if section == "encryption" and "files" in body and bool(body["files"]) != bool(files_were):
         cfg = request.app.state.settings.current()
         keyring.convert(db, cfg, bool(cfg["encryption"].get("files")))  # the files already kept follow, in the background
+    if section == "nsfw" and "threshold" in body:
+        nsfw.reflag(db, request.app.state.settings.current())  # what's flagged follows the new threshold
     return Ok()
 
 
@@ -217,7 +222,30 @@ def tunnel_status(user: AdminReader, cfg: Cfg, db: Db) -> TunnelStatus:
 def https_status(user: AdminReader, cfg: Cfg, db: Db) -> HttpsStatus:
     """How HTTPS (Settings › HTTPS) is doing: whether a process has the HTTPS ports and runs Caddy, the certificates it
     holds and when they run out, and Caddy's last lines."""
-    return HttpsStatus(**https.status(db, cfg))
+    return _https_status(db, cfg)
+
+
+def _https_status(db, cfg) -> HttpsStatus:
+    run = updates.run_state(db)
+    return HttpsStatus(
+        **https.status(db, cfg),
+        agent=updates.agent(),
+        manual=updates.manual_https(cfg, True),
+        reconfigure=run if run and run.get("https") is not None else None,
+    )
+
+
+@router.post("/settings/https/ports", status_code=202)
+def https_ports(user: AdminWriter, cfg: Cfg, db: Db, body: HttpsPorts | None = None) -> HttpsStatus:
+    """Open (or close) the HTTPS ports: this machine's upgrade agent runs install.sh again for the version running,
+    with LENS_HTTPS=1 (or 0), and Lens restarts. Without an agent, `manual` is the line to run there instead."""
+    body = body or HttpsPorts()
+    try:
+        updates.reconfigure(db, cfg, body.open, by=user.email)
+    except updates.UpdateError as e:
+        raise HTTPException(409, str(e)) from None
+    auth.audit(db, user.as_audit(), "https.ports", None, {"open": body.open})
+    return _https_status(db, cfg)
 
 
 @router.get("/settings/https/providers")

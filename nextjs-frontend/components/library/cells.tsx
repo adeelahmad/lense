@@ -1,6 +1,9 @@
 "use client";
 
-import { BookOpenText, FileAudio, FileImage, FileText, FileVideo } from "lucide-react";
+import { BookOpenText, EyeOff, FileAudio, FileImage, FileText, FileVideo } from "lucide-react";
+
+import type { NsfwState } from "@/app/openapi-client/types.gen";
+import { nsfwText } from "@/components/nsfw/nsfw-model";
 
 import { Badge, EmotionBar, speakerColor } from "@/components/ui/badge";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -33,6 +36,22 @@ export function TextBadge() {
       >
         <FileText className="size-[11px]" aria-hidden />
         Text
+      </span>
+    </Tooltip>
+  );
+}
+
+/** "NSFW" marks a resource flagged NSFW where its namespace classifies them (docs/nsfw.md). */
+export function NsfwBadge({ state, paged }: { state?: NsfwState | null; paged?: boolean }) {
+  if (!state?.flagged) return null;
+  return (
+    <Tooltip content={nsfwText(state, paged)}>
+      <span
+        tabIndex={0}
+        className="inline-flex h-[18px] shrink-0 items-center gap-[3px] rounded-xs bg-gold-surface px-1.5 text-[10.5px] font-semibold text-gold-dark"
+      >
+        <EyeOff className="size-[11px]" aria-hidden />
+        NSFW
       </span>
     </Tooltip>
   );

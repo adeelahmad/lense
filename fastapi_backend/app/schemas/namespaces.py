@@ -68,6 +68,39 @@ class NamespaceUpdate(RequestModel):
     )
 
 
+NsfwDisplay = Literal["blur", "hide", "show"]
+
+
+class NsfwChoices(ResponseModel):
+    enabled: bool | None = Field(None, description="on or off; null: as the archive's setting says")
+    threshold: float | None = Field(None, description="flag a picture at least this likely to be NSFW; null: the archive's")
+    display: NsfwDisplay | None = Field(None, description="blur, hide or show what's flagged; null: the archive's")
+
+
+class NamespaceNsfw(ResponseModel):
+    """NSFW classification in a namespace (docs/nsfw.md): what applies, what the namespace chose for itself, and the
+    archive's settings it otherwise follows."""
+
+    enabled: bool = Field(description="its videos, documents and images are classified by the nsfw step")
+    threshold: float = Field(description="a resource is flagged when one of its pictures scores at least this (0.5 to 0.99)")
+    display: NsfwDisplay = Field(description="how flagged resources show in the web app: blurred, left out of the Library, or as they are")
+    own: NsfwChoices = Field(description="what the namespace chose for itself (owners change it)")
+    archive: NsfwChoices = Field(description="the archive's settings (Settings → NSFW, admins), for what the namespace didn't choose")
+    classified: int = Field(0, description="its resources classified so far")
+    flagged: int = Field(0, description="how many of them are flagged NSFW")
+    unclassified: int = Field(0, description="its videos, documents and images not classified yet")
+    queued: int | None = Field(None, description="with classify: how many runs were queued")
+
+
+class NamespaceNsfwUpdate(RequestModel):
+    """Only the fields you send change; send null to follow the archive's setting again."""
+
+    enabled: bool | None = None
+    threshold: float | None = Field(None, ge=0.5, le=0.99)
+    display: NsfwDisplay | None = None
+    classify: bool = Field(False, description="also queue the nsfw step for its videos, documents and images not classified yet")
+
+
 class IpGroup(ResponseModel):
     """Address ranges whose visitors see all of some of the namespace's assets without signing in (docs/access.md)."""
 

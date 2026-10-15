@@ -6,6 +6,7 @@
  * endpoint says how many match in its X-Total-Count header.
  */
 import type { Job, ListRecordingsData, RecordingSummary, Speaker } from "@/app/openapi-client/types.gen";
+import type { SensitiveFilter } from "@/components/nsfw/nsfw-model";
 import type { Tone } from "@/components/ui/badge";
 import { STEP_LABEL } from "@/components/ui/loop";
 import { plural, tc } from "@/lib/format";
@@ -230,6 +231,8 @@ export type Filters = {
   collection: number | null;
   /** A custom field of the namespace shown: the recordings with a value for it, or with this value. */
   field: FieldFilter | null;
+  /** Resources flagged NSFW (docs/nsfw.md): "any" leaves out those a namespace hides. Not kept in saved views. */
+  sensitive: SensitiveFilter;
 };
 
 /** A custom field filter: its id, and the value to match (empty: any value). */
@@ -248,6 +251,7 @@ export const NO_FILTERS: Filters = {
   objects: [],
   collection: null,
   field: null,
+  sensitive: "any",
 };
 
 /** "en" → "English", "pt-BR" → "Brazilian Portuguese"; null (not known) → "Not known"; an odd code stays as it is. */
@@ -326,7 +330,8 @@ export function activeFilterCount(f: Filters): number {
     (f.languages.length ? 1 : 0) +
     (f.objects.length ? 1 : 0) +
     (f.collection != null ? 1 : 0) +
-    (f.field ? 1 : 0)
+    (f.field ? 1 : 0) +
+    (f.sensitive !== "any" ? 1 : 0)
   );
 }
 
@@ -391,6 +396,7 @@ export function libraryQuery(
     q.field = f.field.id;
     if (f.field.value.trim()) q.value = f.field.value.trim();
   }
+  if (f.sensitive !== "any") q.sensitive = f.sensitive;
   if (view === "attention") q.attention = true;
   if (view === "processing") q.processing = true;
   if (view === "mine") q.edited_by = "me";

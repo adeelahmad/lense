@@ -26,6 +26,36 @@ RecordingSort = Literal[
 ]
 
 
+NsfwDisplay = Literal["blur", "hide", "show"]
+
+
+class NsfwHit(ResponseModel):
+    """One of a resource's pictures that scored highest."""
+
+    t: int = Field(description="where it is: ms into a video, or a page number from 0")
+    score: float = Field(description="how likely it is to be NSFW, from 0 to 1")
+    frame: str | None = Field(None, description="a signed link to the frame or page")
+
+
+class NsfwState(ResponseModel):
+    """What NSFW classification found (docs/nsfw.md), where it's on in the resource's namespace."""
+
+    flagged: bool = Field(description="flagged NSFW: a person's call if they made one, else its highest score is at least the threshold")
+    score: float | None = Field(None, description="the highest score of its pictures, from 0 (safe for work) to 1; null when only marked")
+    manual: bool | None = Field(None, description="a person marked it NSFW (true) or not (false); null: the score decides")
+    blur: bool = Field(False, description="flagged, and its namespace blurs or hides what's flagged: the web app blurs its pictures")
+    display: NsfwDisplay = Field("blur", description="how its namespace shows what's flagged: blur, hide (left out of the Library) or show")
+    threshold: float = Field(0.8, description="its namespace's threshold")
+    checked: int | None = Field(None, description="how many of its frames or pages were scored")
+    of: int | None = Field(None, description="how many it has")
+    at: str | None = Field(None, description="when it was classified")
+    hits: list[NsfwHit] = Field(default_factory=list, description="its highest-scoring pictures (on the resource and its player)")
+
+
+class RecordingNsfwUpdate(RequestModel):
+    flagged: bool | None = Field(description="true: NSFW; false: not NSFW; null: let the score decide again")
+
+
 class RecordingSummary(ResponseModel):
     id: int
     title: str | None = None
@@ -58,6 +88,7 @@ class RecordingSummary(ResponseModel):
     role: Role | None = Field(
         None, description="your role on it: through its namespace or its collection (an admin of the collection is an owner)"
     )
+    nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
 
 
 class OriginCount(ResponseModel):
@@ -74,6 +105,14 @@ class LanguageCount(ResponseModel):
 class ObjectCount(ResponseModel):
     object: str = Field(description="a kind of object (person, car, dog …)")
     recordings: int
+
+
+class NsfwCounts(ResponseModel):
+    """NSFW classification in the assets you can read (docs/nsfw.md)."""
+
+    on: bool = Field(description="it's on in at least one of their namespaces")
+    flagged: int = Field(0, description="how many are flagged NSFW")
+    hidden: int = Field(0, description="how many of those the Library leaves out unless asked (their namespace hides them)")
 
 
 class ObjectTrack(ResponseModel):
@@ -225,6 +264,7 @@ class Recording(ResponseModel):
     attached_to: AttachedTo | None = Field(None, description="an email's attachment made a resource of its own: that email")
     web: WebPage | None = Field(None, description="a web page captured as a document")
     enrichment: Enrichment | None = Field(None, description="the places and dates anytopdf found (analysis.anytopdf)")
+    nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
 
 
 class Page(ResponseModel):
@@ -275,6 +315,7 @@ class Player(ResponseModel):
     )
     faces_mode: str = Field("off", description="the namespace's face mode: off, detect or recognize")
     faces_pixelate: bool = Field(False, description="the namespace pixelates faces in the pictures visitors see")
+    nsfw: NsfwState | None = Field(None, description="NSFW classification, where it's on in its namespace and it was classified")
 
 
 class RecordingUpdate(RequestModel):

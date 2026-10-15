@@ -21,7 +21,7 @@ def list_components(user: AdminReader, db: Db, cfg: Cfg) -> Components:
         ahead=bool((cfg.get("components") or {}).get("ahead", False)),
         machine=machine.probe(cfg["data_dir"]),
         recommended=components.recommendation(cfg),
-        components=components.catalog(cfg),
+        components=components.catalog(cfg, db),
         workers=[
             {k: w.get(k) for k in ("name", "host", "heartbeat_at", "machine")} | {"components": w.get("components") or {}}
             for w in jobs.workers(db)

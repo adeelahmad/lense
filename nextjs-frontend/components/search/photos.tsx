@@ -7,9 +7,10 @@ import Link from "next/link";
 import { Search } from "@/app/openapi-client";
 import { recordingHref } from "@/components/search/links";
 import { data, useApiClient } from "@/lib/api/browser";
+import { cn } from "@/lib/utils";
 
 /** Photos that show what was searched for (Settings › Search › Search photos by what they show). Nothing shows while
- * that's off, or when no photo is like the query. */
+ * that's off, or when no photo is like the query. Those flagged NSFW where their namespace blurs them are blurred. */
 export function PhotoHits({ q, namespace }: { q: string; namespace?: string | null }) {
   const client = useApiClient();
   const photos = useQuery({
@@ -36,13 +37,20 @@ export function PhotoHits({ q, namespace }: { q: string; namespace?: string | nu
               className="flex w-[120px] flex-col gap-1 rounded-sm text-[12px] text-fg-secondary hover:text-fg"
             >
               {h.thumb ? (
-                // eslint-disable-next-line @next/next/no-img-element -- a signed link to a thumbnail the API drew
-                <img
-                  src={h.thumb}
-                  alt=""
-                  loading="lazy"
-                  className="aspect-[4/3] w-full rounded-[3px] bg-surface-neutral object-cover"
-                />
+                <span className="relative block overflow-hidden rounded-[3px]">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a signed link to a thumbnail the API drew */}
+                  <img
+                    src={h.thumb}
+                    alt=""
+                    loading="lazy"
+                    className={cn("aspect-[4/3] w-full bg-surface-neutral object-cover", h.nsfw && "blur-lg")}
+                  />
+                  {h.nsfw && (
+                    <span className="absolute left-1 top-1 rounded-xs bg-black/70 px-1 text-[10.5px] font-bold text-white">
+                      NSFW
+                    </span>
+                  )}
+                </span>
               ) : (
                 <span className="grid aspect-[4/3] w-full place-items-center rounded-[3px] bg-surface-neutral">
                   <ImageIcon aria-hidden className="size-5 text-fg-muted" />

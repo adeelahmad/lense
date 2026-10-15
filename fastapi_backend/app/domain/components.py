@@ -69,6 +69,12 @@ FILES = {
         "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
         39,
     ),
+    # AdamCodd/vit-base-nsfw-detector (Apache-2.0), its author's 8-bit ONNX export, at a fixed revision (nsfw.py)
+    "vit-base-nsfw-detector-int8.onnx": (
+        "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/8587de998f441aac03fdd57a85d2e4cb808c7d64/onnx/model_quantized.onnx",
+        "432763a6899ebc418c55f784b98f90565e5fc694c778d2ffcb0294b12f6a7404",
+        89,
+    ),
 }
 
 
@@ -272,6 +278,10 @@ class Component:
         """The job steps that wait for it: what makes it fetched on first use."""
         return self.steps
 
+    def wanted_by(self, db, cfg, m):
+        """needed(), for a component whose need can also come from what's in the database (a namespace's own choice)."""
+        return self.needed(cfg, m)
+
     def advice(self):
         """How to get it when it isn't here, for the app."""
         return self.hint
@@ -431,6 +441,32 @@ class Objects(Component):
         if cfg["video"].get("object_engine") != "anytopdf" and not importable("onnxruntime"):
             pip_install(cfg, "objects", say)
         fetch_file(cfg, "yolox_s.onnx", say)
+
+
+class Nsfw(Component):
+    """The NSFW model and ONNX Runtime (nsfw.py), when Settings → NSFW or a namespace turns classification on."""
+
+    kind = "model"
+
+    def needed(self, cfg, m):
+        from . import nsfw
+
+        return nsfw.wanted(None, cfg)
+
+    def wanted_by(self, db, cfg, m):
+        from . import nsfw
+
+        return nsfw.wanted(db, cfg)
+
+    def present(self, cfg):
+        from . import nsfw
+
+        return importable("onnxruntime") and bool(nsfw.model_path(cfg))
+
+    def fetch(self, cfg, m, say):
+        if not importable("onnxruntime"):
+            pip_install(cfg, "objects", say)  # the objects extra is ONNX Runtime alone
+        fetch_file(cfg, "vit-base-nsfw-detector-int8.onnx", say)
 
 
 class InjectionModel(Component):
@@ -695,6 +731,14 @@ COMPONENTS = [
     VOICES,
     Faces("faces", "Face models", "finds and recognises faces in video (YuNet and SFace)", steps={"faces"}, size_mb=80),
     Objects("objects", "Object model", "finds objects in frames and pages (YOLOX-s)", steps={"objects"}, size_mb=50),
+    Nsfw(
+        "nsfw",
+        "NSFW model",
+        "tells whether frames and pages are safe for work (nsfw.enabled, or a namespace's own switch)",
+        steps={"nsfw"},
+        size_mb=105,
+        license="Apache-2.0",
+    ),
     LAYA,
     InjectionModel(
         "injection-model",
@@ -753,7 +797,7 @@ class Keeper:
                 continue
             if c.steps and not c.steps & self.can and c.id not in also:
                 continue
-            if c.id in also or c.needed(cfg, m):
+            if c.id in also or c.wanted_by(self.db, cfg, m):
                 out.append(c)
         return out
 
@@ -894,14 +938,14 @@ def _poked(db, since):
     return bool(at and at[0] and at[0] > since)
 
 
-def catalog(cfg):
+def catalog(cfg, db=None):
     """Every component, for the app: what it's for, whether this server's settings need it, and (for programs) whether
     the API's machine has it."""
     m = machine.probe(cfg["data_dir"])
     out = []
     for c in COMPONENTS:
         try:
-            needed = c.needed(cfg, m)
+            needed = c.wanted_by(db, cfg, m)
         except Exception:  # noqa: BLE001
             needed = False
         row = {

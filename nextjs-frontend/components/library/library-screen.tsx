@@ -41,6 +41,7 @@ import {
   useSpeakerChoices,
   useLanguages,
   useOrigins,
+  useNsfwCounts,
   useObjectCounts,
   useTagCounts,
   useWatchedSources,
@@ -48,6 +49,7 @@ import {
 import { useCollectionTree } from "@/components/library/use-collections";
 import { useIsNarrow } from "@/components/library/use-media";
 import { fromView, viewState } from "@/components/library/views-model";
+import type { SensitiveFilter } from "@/components/nsfw/nsfw-model";
 import { CreatePodcastDialog } from "@/components/podcasts/create-dialog";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
@@ -93,7 +95,9 @@ function typing(t: EventTarget | null): boolean {
 
 /** The Library (L1–L6): every recording you can see, across namespaces, with live job progress in its row. `initial`
  * opens it on a namespace's collection (/library?namespace=…&collection=…, as a recording's breadcrumb links). */
-export function LibraryScreen({ initial }: { initial?: { namespace: string; collection: number | null } } = {}) {
+export function LibraryScreen({
+  initial,
+}: { initial?: { namespace: string; collection: number | null; sensitive?: SensitiveFilter } } = {}) {
   const { namespace, namespaces, isPartial, roleIn, can, me, setNamespace } = useArchive();
   const [layout, setLayout] = useState<"table" | "list">("table");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
@@ -127,6 +131,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
   const tree = useCollectionTree(namespace);
   const tagCounts = useTagCounts(namespace);
   const objectCounts = useObjectCounts(namespace);
+  const nsfwCounts = useNsfwCounts(namespace);
   const origins = useOrigins(namespace);
   const languages = useLanguages(namespace);
   const [dragging, setDragging] = useState(false);
@@ -245,7 +250,9 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
     if (!initial?.namespace) return;
     setNamespace(initial.namespace);
     if (initial.collection != null) setPendingCollection({ id: initial.collection, ns: initial.namespace });
-  }, [initial?.namespace, initial?.collection, setNamespace]);
+    const sensitive = initial.sensitive;
+    if (sensitive) setFilters((f) => ({ ...f, sensitive }));
+  }, [initial?.namespace, initial?.collection, initial?.sensitive, setNamespace]);
   useEffect(() => {
     if (!pendingCollection || pendingCollection.ns !== namespace || !tree.isSuccess) return;
     const name = collectionName(tree.data, pendingCollection.id);
@@ -528,6 +535,7 @@ export function LibraryScreen({ initial }: { initial?: { namespace: string; coll
               speakersLoading={speakers.loading}
               tags={tagCounts.data ?? []}
               objects={objectCounts.data ?? []}
+              nsfw={nsfwCounts.data}
               tagsLoading={tagCounts.isPending}
               inputRef={filterRef}
               compact={narrow}

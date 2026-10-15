@@ -6,7 +6,7 @@ import { useRef } from "react";
 
 import type { RecordingSummary } from "@/app/openapi-client/types.gen";
 import { AccessBadge } from "@/components/access/access-fields";
-import { MediaIcon } from "@/components/library/cells";
+import { MediaIcon, NsfwBadge } from "@/components/library/cells";
 import { lengthText, speakerList, statusView } from "@/components/library/model";
 import { rowClick, type RowProps } from "@/components/library/recording-table";
 import { Badge, speakerColor } from "@/components/ui/badge";
@@ -141,6 +141,7 @@ export function RecordingCards({ rows, jobs, reviews, selected, onOpen }: RowPro
             >
               <span className="flex items-start gap-2.5">
                 <span className="flex-1 text-[15px] font-semibold leading-[1.3] text-fg">{r.title || "Untitled"}</span>
+                <NsfwBadge state={r.nsfw} paged={r.media_kind === "document" || r.media_kind === "image"} />
                 <Badge tone={view.tone} dot className="mt-px">
                   {view.label}
                 </Badge>

@@ -9,11 +9,12 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
 
-from app.api.deps import Acl, AdminWriter, CurrentUser, Db, Writer, domain_errors, visitor_address
+from app.api.deps import Acl, AdminWriter, Cfg, CurrentUser, Db, Writer, domain_errors, visitor_address
 from app.api.media import sign_urls
-from app.domain import analyze, auth, ipgroups, library, pipelines, render, store
+from app.domain import analyze, auth, ipgroups, library, nsfw, pipelines, render, store
 from app.domain.store import API, DB
 from app.schemas.common import Created, Ok
+from app.schemas.jobs import JobsQueued
 from app.schemas.namespaces import (
     IpGroup,
     IpGroupCreate,
@@ -21,6 +22,8 @@ from app.schemas.namespaces import (
     IpGroupUpdate,
     Namespace,
     NamespaceCreate,
+    NamespaceNsfw,
+    NamespaceNsfwUpdate,
     NamespaceStats,
     NamespaceUpdate,
 )
@@ -95,6 +98,43 @@ def update_namespace(name: str, body: NamespaceUpdate, acl: Acl, user: Writer, d
             raise HTTPException(400, str(e)) from None
     request.app.state.graph_cache.clear()
     return Ok()
+
+
+@router.get("/{name}/nsfw")
+def get_namespace_nsfw(name: str, acl: Acl, db: Db, cfg: Cfg) -> NamespaceNsfw:
+    """NSFW classification here (docs/nsfw.md): whether it's on, the threshold and how flagged resources show, what the
+    namespace chose for itself and the archive's settings, and how many resources are classified and flagged."""
+    return NamespaceNsfw.model_validate(nsfw.status(db, cfg, acl.namespace(name)))
+
+
+@router.put("/{name}/nsfw")
+def update_namespace_nsfw(name: str, body: NamespaceNsfwUpdate, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> NamespaceNsfw:
+    """Owners: turn NSFW classification on or off for this namespace, or give it its own threshold or display; null
+    follows the archive's setting again. A new threshold re-flags what's classified at once. `classify` also queues the
+    nsfw step for its videos, documents and images not classified yet. Audited as `namespace.nsfw`."""
+    sid = acl.namespace(name, "owner")
+    changes = {k: getattr(body, k) for k in ("enabled", "threshold", "display") if k in body.model_fields_set}
+    with domain_errors():
+        nsfw.save_own(db, sid, changes)
+    if "threshold" in changes:
+        nsfw.reflag(db, cfg, [sid])
+    queued = None
+    if body.classify:
+        if not nsfw.policy(db, cfg, sid)["enabled"]:
+            raise HTTPException(409, "NSFW classification is off in this namespace: turn it on first")
+        queued = len(nsfw.queue_unclassified(db, sid, user.email))
+    auth.audit(db, user.as_audit(), "namespace.nsfw", name, {**changes, **({"classify": queued} if body.classify else {})})
+    return NamespaceNsfw.model_validate({**nsfw.status(db, cfg, sid), "queued": queued})
+
+
+@router.post("/{name}/nsfw/classify")
+def classify_namespace_nsfw(name: str, acl: Acl, user: Writer, db: Db, cfg: Cfg) -> JobsQueued:
+    """Editors: queue the nsfw step for the namespace's videos, documents and images not classified yet (those added
+    while it's on are classified by their pipeline). 409 where classification is off."""
+    sid = acl.namespace(name, "editor")
+    if not nsfw.policy(db, cfg, sid)["enabled"]:
+        raise HTTPException(409, "NSFW classification is off in this namespace: turn it on first")
+    return JobsQueued(jobs=nsfw.queue_unclassified(db, sid, user.email))
 
 
 @router.get("/{name}/wordcloud.svg", response_class=Response, responses={200: {"content": {"image/svg+xml": {}}}})

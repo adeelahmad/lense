@@ -24,6 +24,7 @@ const WATCH_STEPS = [
   "ocr",
   "faces",
   "objects",
+  "nsfw",
   "describe",
   "analyze",
   "embed",
