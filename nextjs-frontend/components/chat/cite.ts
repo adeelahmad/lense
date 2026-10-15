@@ -32,7 +32,7 @@ export function citedNumbers(text: string): number[] {
  */
 export function shortTitle(title: string | null | undefined, max = 24): string {
   let t = (title ?? "").trim();
-  if (!t) return "Recording";
+  if (!t) return "Asset";
   const cut = t.split(/\s+[—–]\s+|\s+-\s+|:\s+/)[0].trim();
   if (cut) t = cut;
   t = t.replace(/^episode\s+/i, "Ep. ").replace(/^interview\s+/i, "Interview ");
@@ -115,7 +115,7 @@ export function passageHref(p: Pick<Passage, "recording_id" | "t0" | "url">): st
 /** What a click on a citation does, said in its label and tooltip. */
 export function passageAction(p: Pick<Passage, "url" | "source">): string {
   if (isDocs(p)) return "Opens Lens’s docs there";
-  return isPage(p) ? "Opens this Lens server" : "Opens the recording there";
+  return isPage(p) ? "Opens this Lens server" : "Opens the asset there";
 }
 
 /** The backend's canned answers when no language model is configured. */

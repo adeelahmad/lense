@@ -103,7 +103,7 @@ export function isShowing(v: Pick<SavedView, "namespace" | "state">, now: ViewSt
 }
 
 const TAB_LABEL: Record<LibraryView, string> = {
-  all: "All recordings",
+  all: "All assets",
   attention: "Needs attention",
   processing: "Processing",
   mine: "Edited by me",
@@ -112,7 +112,7 @@ const SORT_LABEL: Record<SortKey, string> = {
   date: "date",
   title: "title",
   duration: "length",
-  speakers: "speakers",
+  speakers: "people",
   status: "status",
   importance: "importance",
 };

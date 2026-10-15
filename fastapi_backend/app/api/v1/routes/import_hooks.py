@@ -265,10 +265,10 @@ async def push_to_import_hook(
     """Push something into an import webhook's namespace, with its token as a bearer token. Three ways:
 
     - a file as the raw body, named by `?filename=`, Content-Disposition or X-Filename: audio, video, documents and
-      images become recordings and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
+      images become assets and resources as uploads do; .srt, .vtt, .json, .jsonl and .ics are imported as
       transcripts;
     - multipart form files (field `file`, up to 20), with optional `title`, `url` and `text` fields;
-    - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as a transcript), with an optional
+    - JSON `{url}` (a page or PDF kept as a document) and/or `{text}` (imported as text), with an optional
       `title`.
 
     Each runs the hook's pipeline, or the namespace's. 401 for an unknown token, 403 while the hook is paused, 413 over

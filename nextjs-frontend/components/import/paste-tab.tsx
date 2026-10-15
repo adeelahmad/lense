@@ -132,8 +132,8 @@ export function PasteTab({
               <p className="flex gap-2.5 rounded-[10px] border border-gold-border bg-gold-surface px-3 py-2.5 text-[13px] leading-[1.45] text-fg-strong">
                 <span aria-hidden className="mt-1.5 size-2 shrink-0 rotate-45 bg-gold" />
                 <span>
-                  <b className="font-bold">No timestamps found.</b> This becomes a transcript-only recording; turn times
-                  are estimated from word count.
+                  <b className="font-bold">No timestamps found.</b> This becomes a text-only asset; turn times are
+                  estimated from word count.
                 </span>
               </p>
             )}

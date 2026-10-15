@@ -136,7 +136,7 @@ export function CitationSheet({ passage, onClose }: { passage: Passage | null; o
           </Button>
           {!isPage(passage) && (
             <p className="m-0 text-center text-[12.5px] text-fg-secondary">
-              Tap a citation to preview it; Play opens the recording.
+              Tap a citation to preview it; Play opens the asset.
             </p>
           )}
         </>

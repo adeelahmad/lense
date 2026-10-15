@@ -4,9 +4,9 @@ import { Skeleton } from "@/components/ui/states";
 export function RecordingSkeleton() {
   return (
     <div
-      className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden"
+      className="flex h-[calc(100dvh-4rem-var(--lens-banner,0px))] flex-col overflow-hidden"
       aria-busy="true"
-      aria-label="Loading the recording"
+      aria-label="Loading the asset"
     >
       <div className="flex flex-col gap-3 border-b border-border px-4 py-4 md:px-6">
         <Skeleton className="h-3 w-40" />

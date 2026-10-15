@@ -60,7 +60,7 @@ export function MobileLayout() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden">
+    <div className="flex h-[calc(100dvh-4rem-var(--lens-banner,0px))] flex-col overflow-hidden">
       <div className="flex items-center gap-1.5 border-b border-border px-2 pb-2 pt-1">
         <Link
           href="/library"
@@ -77,7 +77,7 @@ export function MobileLayout() {
               role ? role[0].toUpperCase() + role.slice(1) : null,
               tc(model.durationMs),
               word,
-              r.transcriptOnly ? "Transcript only" : null,
+              r.transcriptOnly ? "Text only" : null,
               rec.access && rec.access !== "private" ? accessLabel(rec.access) : null,
             ]
               .filter(Boolean)
@@ -116,7 +116,7 @@ function Sheet({ tab, setTab }: { tab: PanelTab; setTab: (t: PanelTab) => void }
         full ? "h-[92dvh]" : "h-[min(560px,70dvh)]",
       )}
     >
-      <D.Title className="sr-only">Recording panels</D.Title>
+      <D.Title className="sr-only">Asset panels</D.Title>
       <button
         type="button"
         onClick={() => setFull((f) => !f)}

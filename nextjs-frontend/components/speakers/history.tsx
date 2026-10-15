@@ -26,7 +26,7 @@ export function MergeHistory({ merges, ns }: { merges: SpeakerMerge[]; ns: strin
       qc.invalidateQueries({ queryKey: ["speakers"] });
       toast({
         title: "Merge undone",
-        body: "The speaker and their recordings are back as they were.",
+        body: "The person and their recordings are back as they were.",
         tone: "green",
       });
     },
@@ -54,7 +54,7 @@ export function MergeHistory({ merges, ns }: { merges: SpeakerMerge[]; ns: strin
               className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 border-t border-border py-2.5"
             >
               <span className="text-[13.5px] font-semibold leading-snug text-fg">
-                {m.from_name || m.from_label || `Speaker #${m.from_id}`} → {m.into_name ?? `Speaker #${m.into_id}`}
+                {m.from_name || m.from_label || `Person #${m.from_id}`} → {m.into_name ?? `Person #${m.into_id}`}
               </span>
               {undone ? (
                 <span className="text-[12.5px] font-semibold text-fg-muted">Undone</span>

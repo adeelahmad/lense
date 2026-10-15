@@ -856,7 +856,7 @@ export function DocumentLayout({ compact }: { compact: boolean }) {
     );
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] min-h-[600px] flex-col overflow-hidden">
+    <div className="flex h-[calc(100dvh-4rem-var(--lens-banner,0px))] min-h-[600px] flex-col overflow-hidden">
       <RecordingHeader />
       <div
         className="grid min-h-0 flex-1"

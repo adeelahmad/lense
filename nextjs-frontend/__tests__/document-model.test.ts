@@ -278,7 +278,7 @@ describe("importing documents and images", () => {
       body: "Reading it needs LibreOffice on the server (the lens:full image) or a Tika server.",
     });
     expect(localProblem({ name: "notes.docx", size: 10 }, none, "document")?.body).toMatch(
-      /Import it as a transcript instead\.$/,
+      /Import it as text instead\.$/,
     );
     expect(importable({ name: "mail.eml", dir: false })).toBe(true);
   });

@@ -41,8 +41,8 @@ In Docker, `localhost` is the container itself: point the endpoint at a collecto
 | Signal | What | Attributes |
 | --- | --- | --- |
 | Trace | each API request, named by its route template (`GET /api/v1/recordings/{rid}`) | method, route, status code |
-| Trace | each job, with a span per step (`step transcribe`) | job, recording and pipeline ids; step type and outcome |
-| Trace | routines and their actions, workflow runs | routine, workflow and recording ids; action type; trigger |
+| Trace | each job, with a span per step (`step transcribe`) | job, asset and pipeline ids; step type and outcome |
+| Trace | routines and their actions, workflow runs | routine, workflow and asset ids; action type; trigger |
 | Trace | each call to the model server (`chat llama3.1`) | model, server host, temperature, tokens in and out, estimated cost |
 | Metric | `http.server.request.duration` | method, route, status code |
 | Metric | `lens.job.step.duration`, `lens.jobs` | step type, outcome |
@@ -54,7 +54,7 @@ Every span and metric carries `service.name` (Settings → Telemetry, default `l
 `service.instance.id` per process, and `lens.process.role` (`api`, `worker` or `watcher`). Model calls follow the
 OpenTelemetry [GenAI conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/).
 
-**Never sent:** transcript text, prompts or answers, file names, titles, namespace or speaker names, people, email
+**Never sent:** assets' text, prompts or answers, file names, titles, namespace or person names, people, email
 addresses, client IP addresses, request paths or query strings (only route templates), host names, or error messages
 (only the error's type, since a message can quote content).
 

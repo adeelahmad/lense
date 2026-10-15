@@ -129,7 +129,7 @@ export function typesWording(mode: string): { legend: string; hint: string; all:
     : {
         legend: "Types to keep",
         all: "Every type",
-        hint: "Names of other types are left out when a recording is analysed.",
+        hint: "Names of other types are left out when an asset is analysed.",
       };
 }
 

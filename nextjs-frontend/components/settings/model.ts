@@ -105,7 +105,7 @@ export type SectionId =
 export type WorkspaceSectionId = "speakers";
 export type AnySectionId = SectionId | WorkspaceSectionId;
 
-export const WORKSPACE_SECTIONS: { id: WorkspaceSectionId; label: string }[] = [{ id: "speakers", label: "Speakers" }];
+export const WORKSPACE_SECTIONS: { id: WorkspaceSectionId; label: string }[] = [{ id: "speakers", label: "People" }];
 
 export function isWorkspaceSection(id: string): id is WorkspaceSectionId {
   return WORKSPACE_SECTIONS.some((s) => s.id === id);
@@ -143,13 +143,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "Voice IDs",
     backend: ["speakers"],
     description:
-      "Each voice in a recording is compared with the speakers in its namespace. The score decides what happens next.",
+      "Each voice in a recording is compared with the people in its namespace. The score decides what happens next.",
   },
   {
     id: "analysis",
     label: "Analysis",
     backend: ["analysis"],
-    description: "How people, organisations, products, places and topics are found in transcripts.",
+    description: "How people, organisations, products, places and topics are found in assets’ text.",
   },
   {
     id: "llm",
@@ -175,7 +175,7 @@ export const SECTIONS: SectionSpec[] = [
     id: "search",
     label: "Search",
     backend: ["search", "embeddings"],
-    description: "How transcripts are indexed for search, and search by meaning with an embedding model.",
+    description: "How assets’ text is indexed for search, and search by meaning with an embedding model.",
   },
   {
     id: "reports",
@@ -318,7 +318,7 @@ export const SECTIONS: SectionSpec[] = [
     label: "Fedora repository",
     backend: ["fedora"],
     description:
-      "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, recording (with its file), entity and speaker, described in RDF with Dublin Core.",
+      "Off unless you set an address. Keeps a copy of the archive in a Fedora 6 repository: every namespace, collection, asset (with its file), entity and person, described in RDF with Dublin Core.",
   },
   {
     id: "sensors",
@@ -387,7 +387,7 @@ export const SECTIONS: SectionSpec[] = [
     id: "iiif",
     label: "IIIF & metadata",
     backend: ["iiif"],
-    description: "How recordings are published as IIIF Manifests and Collections.",
+    description: "How assets are published as IIIF Manifests and Collections.",
   },
   {
     id: "startup",
@@ -442,7 +442,7 @@ export const UPLOAD_TYPES = [
 ];
 
 export const LAYERS: Opt[] = [
-  { value: "transcript", label: "Transcript lines" },
+  { value: "transcript", label: "Text lines" },
   { value: "speakers", label: "Speakers" },
   { value: "entities", label: "Entities" },
   { value: "chapters", label: "Chapters" },
@@ -453,15 +453,15 @@ export const LAYERS: Opt[] = [
 /** The chat assistant's tools (app/domain/ai_tools.py), with whether they change anything. */
 export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
   { name: "lens_help", label: "Answer questions about Lens from its docs and this server", acts: false },
-  { name: "search_transcripts", label: "Search transcripts", acts: false },
+  { name: "search_transcripts", label: "Search assets’ text", acts: false },
   {
     name: "list_recordings",
-    label: "List recordings (namespace, date, speaker, entity)",
+    label: "List assets (namespace, date, person, entity)",
     acts: false,
   },
   {
     name: "read_transcript",
-    label: "Read a transcript or time range",
+    label: "Read an asset’s text or a time range",
     acts: false,
   },
   {
@@ -478,12 +478,12 @@ export const AI_TOOLS: { name: string; label: string; acts: boolean }[] = [
     label: "Explore the graph (neighbours)",
     acts: false,
   },
-  { name: "speaker_stats", label: "Speakers’ talk time", acts: false },
+  { name: "speaker_stats", label: "People’s talk time", acts: false },
   { name: "find_notes", label: "Find notes", acts: false },
   { name: "read_note", label: "Read a note", acts: false },
   { name: "write_note", label: "Write notes", acts: false },
   { name: "update_note", label: "Change notes", acts: false },
-  { name: "run_template", label: "Run a template on recordings", acts: true },
+  { name: "run_template", label: "Run a template on assets", acts: true },
   {
     name: "propose_entity_change",
     label: "Propose entity merges, renames, type changes, descriptions and new entities",
@@ -867,7 +867,7 @@ export const FIELDS: FieldSpec[] = [
     key: "untrusted_asks",
     label: "Ask before sending data out after reading third-party text",
     kind: "switch",
-    hint: "Once an answer has read a recording, a document, a web page or a chat room, web tools, other servers' tools and changes the setup chat would make at once wait for your approval.",
+    hint: "Once an answer has read an asset (a recording, a document, a web page) or a chat room, web tools, other servers' tools and changes the setup chat would make at once wait for your approval.",
   },
   {
     section: "ai",
@@ -916,7 +916,7 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "ai",
     key: "max_transcript_reads",
-    label: "Transcripts read per question",
+    label: "Asset texts read per question",
     kind: "int",
     min: 1,
     max: 500,
@@ -924,7 +924,7 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "ai",
     key: "confirm_over_recordings",
-    label: "Ask approval above (recordings)",
+    label: "Ask approval above (assets)",
     kind: "int",
     min: 1,
     nullable: true,
@@ -1606,7 +1606,7 @@ export const FIELDS: FieldSpec[] = [
     key: "ahead",
     label: "Fetch everything now",
     kind: "switch",
-    hint: "Off: engines and models are fetched the first time a recording needs them",
+    hint: "Off: engines and models are fetched the first time an asset needs them",
   },
   { section: "components", key: "also", label: "Also fetch", kind: "checks" },
   {
@@ -2294,7 +2294,7 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "server",
     key: "max_upload_mb",
-    label: "Largest transcript file (MB)",
+    label: "Largest text or document file (MB)",
     kind: "int",
     min: 1,
     max: 1_000_000,
@@ -2582,7 +2582,7 @@ export const FIELDS: FieldSpec[] = [
   {
     section: "fedora",
     key: "files",
-    label: "Send recordings’ files",
+    label: "Send assets’ files",
     kind: "switch",
     hint: "Off sends descriptions only",
   },
@@ -2603,7 +2603,7 @@ export const FIELDS: FieldSpec[] = [
     kind: "int",
     min: 1,
     max: 720,
-    hint: "Catches what analysis changed, new recordings and deletions",
+    hint: "Catches what analysis changed, new assets and deletions",
   },
   {
     section: "tokens",
@@ -2652,7 +2652,7 @@ export const FIELDS: FieldSpec[] = [
     nullable: true,
     mono: true,
     placeholder: "https://lens.example.org",
-    hint: "Messages link to runs and recordings here. Empty: the server’s FRONTEND_URL",
+    hint: "Messages link to runs and assets here. Empty: the server’s FRONTEND_URL",
   },
   {
     section: "notifications",
@@ -3629,7 +3629,7 @@ export function why(c: Change): string | null {
   if (id === "search.stemming" || id === "search.engine")
     return "Search keeps the old index until you rebuild it (Reindex).";
   if (id === "embeddings.model" || id === "embeddings.document_prefix")
-    return "Vectors from another model can’t be compared: search by meaning stops until recordings are indexed again (the hourly routine, or Index now).";
+    return "Vectors from another model can’t be compared: search by meaning stops until assets are indexed again (the hourly routine, or Index now).";
   if (id === "iiif.base_url") return "Every IIIF identifier changes.";
   if (id === "transcribe.engine" || id === "transcribe.language")
     return "Applies to new transcriptions; existing transcripts stay until reprocessed.";

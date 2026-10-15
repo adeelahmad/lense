@@ -52,7 +52,7 @@ function PlayMoment({
   return (
     <button
       type="button"
-      aria-label={none ? "No audio — transcript only" : `${playing ? "Pause" : "Play"} from ${tc(t0)}`}
+      aria-label={none ? "No audio — text only" : `${playing ? "Pause" : "Play"} from ${tc(t0)}`}
       aria-disabled={none || undefined}
       onClick={() => !none && player.play({ key: k, recordingId, t0, title })}
       className={cn(
@@ -145,7 +145,7 @@ function SpeakerRecordings({ n, player }: { n: GraphNode; player: InlinePlayer }
               href={recordingHref(r.id, r.first_t0)}
               className="truncate text-[13px] font-semibold text-fg hover:text-fg-accent hover:underline"
             >
-              {r.title ?? `Recording ${r.id}`}
+              {r.title ?? `Asset ${r.id}`}
             </Link>
             <span className="text-[12px] text-fg-muted">
               {shortDate(r.recorded_at)} · {talkTime(r.talk_ms)} talking
@@ -311,8 +311,8 @@ function ThingPanel({
   const nsList = node.ns.join(", ");
   const canRun = node.ns.some((ns) => can("editor", ns));
   const sub = isSpeaker
-    ? `Speaker · ${talkTime(node.weight * 60000)} talk time · ${plural(node.recordings ?? 0, "recording")}`
-    : `${typeLabel(node)} · ${plural(node.weight, "mention")}${recs ? ` in ${plural(recs, "recording")}` : ""}`;
+    ? `Person · ${talkTime(node.weight * 60000)} talk time · ${plural(node.recordings ?? 0, "asset")}`
+    : `${typeLabel(node)} · ${plural(node.weight, "mention")}${recs ? ` in ${plural(recs, "asset")}` : ""}`;
   const runHref = isSpeaker
     ? `/batches/new?speaker=${node.refs[0]}&ns=${encodeURIComponent(node.ns[0] ?? "")}`
     : `/batches/new?entity=${node.refs.join(",")}&label=${encodeURIComponent(node.label)}`;
@@ -398,7 +398,7 @@ function ThingPanel({
         <MergeInto keep={{ id: edit.id, name: node.label }} ns={edit.ns} open={merging} onOpenChange={setMerging} />
       )}
       {edit && <MaybeSame entity={{ id: edit.id, name: node.label }} canEdit />}
-      <h3 className="pt-1 text-[12px] font-bold text-fg-secondary">{isSpeaker ? "Recordings" : "Mentions"}</h3>
+      <h3 className="pt-1 text-[12px] font-bold text-fg-secondary">{isSpeaker ? "Assets" : "Mentions"}</h3>
       {isSpeaker ? <SpeakerRecordings n={node} player={player} /> : <EntityMentions n={node} player={player} />}
       <InlinePlayerBar player={player} />
       <SimilarSection basis={nodeBasis(node)} />

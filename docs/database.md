@@ -1,6 +1,6 @@
 # Database: SurrealDB
 
-Everything Lens stores lives in SurrealDB: recordings, transcript segments, speakers and voiceprints, entities and
+Everything Lens stores lives in SurrealDB: assets, text segments, people and voiceprints, entities and
 the knowledge graph, jobs, accounts, settings and audit. The word search index is kept beside it, in a SQLite file by
 default ([below](#schema)).
 
@@ -24,7 +24,7 @@ engine and with SurrealDB 2.3 and 3.2 servers.
     The embedded engine (SurrealDB 2.x inside the Python SDK) is slow to write. With `search.engine: surrealdb`, its
     full-text index also loses entries when the database is closed and reopened. Lens then repairs the index once per
     process, before the first search (the API does it at startup, `lens` commands that don't search skip it), which
-    takes about 30 ms per transcript segment: seconds for a few thousand segments, but about ten minutes for 20,000.
+    takes about 30 ms per segment: seconds for a few thousand segments, but about ten minutes for 20,000.
     The default word index (SQLite) isn't affected. Beyond a few thousand segments, run a SurrealDB server; the Docker
     setups already do.
 
@@ -37,17 +37,17 @@ engine and with SurrealDB 2.3 and 3.2 servers.
 The schema is defined idempotently in `app/domain/store.py` (`SCHEMA`) and applied on every start
 (`DEFINE ... IF NOT EXISTS`), so new tables, fields and indexes need no migration (see [Upgrades](#upgrades) for the
 rest). Tables are `SCHEMALESS` with indexes on the fields
-that are queried. Graph edges are real relations: `mentions` (segment → entity) and `same_as` (speaker → speaker).
+that are queried. Graph edges are real relations: `mentions` (segment → entity) and `same_as` (person → person).
 
 ```sql
 SELECT ->mentions->entity.name FROM segment WHERE recording = 12;
 ```
 
-Word search (`search.engine`) is kept out of SurrealDB by default. With `sqlite`, the default, the text of transcript
+Word search (`search.engine`) is kept out of SurrealDB by default. With `sqlite`, the default, the text of asset
 lines, text on screen, file lines, objects and descriptions is indexed in a SQLite FTS5 file per database
 (`<data_dir>/search/`, BM25 ranking, Porter stemming, highlights; `app/domain/textindex.py`). An event on each of
 those tables notes changed rows in `text_change`, and the index catches up before each search, so writers need do
-nothing. SurrealDB still decides which rows a person may see. On 10,000 transcript lines against a 3.2.4 server
+nothing. SurrealDB still decides which rows a person may see. On 10,000 lines of text against a 3.2.4 server
 (`surrealkv` storage) this used 64 MB of server memory instead of 380 MB, and writing and indexing them took about 5 s
 instead of 10 s; the SQLite file was 4 MB.
 
@@ -77,7 +77,7 @@ tables, or changing or removing an index that already exists, is a named step in
 * Every process that opens the database (the API, workers, `lens watch`, `lens` commands) runs the steps the database
   hasn't had yet when it starts, in order. One process takes a lock (`migration_lock:run`) and runs them; the others
   wait, so no code reads data in a shape it doesn't expect. A holder that dies loses the lock after five minutes.
-* Before a database that holds data (any recording or account) runs pending steps, the process holding the lock backs
+* Before a database that holds data (any asset or account) runs pending steps, the process holding the lock backs
   it up into `<data_dir>/backups/before-upgrade-<time>` (see [Backups](#backups)); the newest three are kept. If the
   backup fails, for example because the disk is full, the upgrade doesn't start and Lens says why; set
   `LENS_UPGRADE_BACKUP=off` to upgrade without one.
@@ -149,9 +149,12 @@ first ([Updates and backups](updates.md)). Each is one entry in `<data_dir>/back
   reports, exports, podcasts, certificates) in `<data_dir>/backups/.files/<name>/`. A file that hasn't changed since
   the previous backup is a hard link to that backup's copy, so each backup takes only the room of what changed. Left
   out: what Lens fetches or rebuilds by itself (`models`, `bin`, `python`, `cache`, the search index), passing files
-  (`tmp`, `locks`, `logs`, unfinished uploads), and `secret.key`. A backup is refused when the disk hasn't room for
-  the files that changed. A backup with files, or of an embedded database, downloads as one `.tar.gz` holding
-  `<name>` and `<name>.files/`. Backups from before files were kept show *database only* in Settings.
+  (`tmp`, `locks`, `logs`, unfinished uploads), `secret.key`, the database's own folder (`surreal` in a microsandbox:
+  the export holds it), and hidden entries at the top of `data_dir` (in a microsandbox, `.lens` is the Lens it runs,
+  and the rest are caches). A file Lens can't read isn't its own: it is left out, with a warning in the log. A backup
+  is refused when the disk hasn't room for the files that changed. A backup with files, or of an embedded database,
+  downloads as one `.tar.gz` holding `<name>` and `<name>.files/`. Backups from before files were kept show *database
+  only* in Settings.
 
 **Restoring** replaces the whole database, and the files under `data_dir`, with the backup's (a *database only*
 backup leaves the files as they are). What was there is backed up first (`before-restore`) and

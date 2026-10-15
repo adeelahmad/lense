@@ -61,7 +61,7 @@ describe("notes", () => {
 
   it("asks before deleting, for everyone when it's shared", () => {
     expect(deleteQuestion(note({}))).toBe("Delete this note?");
-    expect(deleteQuestion(note({ shared: true }))).toBe("Delete it for everyone who can read this recording?");
+    expect(deleteQuestion(note({ shared: true }))).toBe("Delete it for everyone who can read this asset?");
     expect(deleteQuestion(note({ shared: true, mine: false, created_by_name: "Ana" }))).toBe(
       "Delete Ana’s note for everyone?",
     );

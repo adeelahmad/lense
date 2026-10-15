@@ -51,7 +51,7 @@ export function ReportsScreen() {
       <div className="flex flex-col gap-4 px-4 py-5 md:px-6">
         <div className="print:hidden">
           <ReportBack ns={rec.data?.namespace} />
-          <PageHeader title="Recording report" meta={rec.data?.title ?? undefined} className="mb-0 mt-2" />
+          <PageHeader title="Asset report" meta={rec.data?.title ?? undefined} className="mb-0 mt-2" />
         </div>
         <RecordingReport id={recording} />
       </div>
@@ -63,7 +63,7 @@ export function ReportsScreen() {
       <style>{OVERVIEW_PRINT_CSS}</style>
       <PageHeader
         title="Reports"
-        meta="A namespace at a glance; open a recording for its printable report."
+        meta="A namespace at a glance; open an asset for its printable report."
         className="mb-0 print:hidden"
       />
       {!me || (!ns && Object.keys(me.roles ?? {}).length > 0) ? (

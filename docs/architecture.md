@@ -17,7 +17,7 @@ processes around one database, with word search in a small index beside it:
 | **Next.js** (`nextjs-frontend/`) | The web app. Auth.js (NextAuth v5) keeps the session; server components and server actions call the API with the session's access token through the generated, typed client. |
 | **FastAPI** (`fastapi_backend/app/`) | The HTTP API under `/api/v1`, IIIF endpoints under `/iiif`, the embeddable player at `/embed/<id>` (and `/s/<code>`, a share link's short address) and stored reports at `/reports/...`. |
 | **Workers** (`lens worker`) | Run queued jobs: transcription, diarisation, video analysis, entity extraction, LLM steps and reports. Any number, on any machine that reaches the database; each can be limited to the steps it can run (for example mlx transcription on a Mac). |
-| **SurrealDB** | Everything but the word index: recordings, transcripts, speakers, the knowledge graph (as graph edges), jobs, accounts and settings. |
+| **SurrealDB** | Everything but the word index: assets, their text, people, the knowledge graph (as graph edges), jobs, accounts and settings. |
 | **Word index** | Full-text search. By default a SQLite FTS5 file in `<data_dir>/search/` (BM25 ranking, stemming, highlights); `search.engine: opensearch` moves it to an OpenSearch cluster. It is kept in step with SurrealDB from a change table before each search (`app/domain/textindex.py`). |
 
 ## Backend layout
@@ -33,7 +33,7 @@ fastapi_backend/
       security.py        access tokens (JWT) and signed media links
       middleware.py      allowed hosts, security headers, IIIF CORS
     api/
-      deps.py            Db, Cfg, CurrentUser, Writer, Admin*, Acl (namespace/recording access)
+      deps.py            Db, Cfg, CurrentUser, Writer, Admin*, Acl (namespace/asset access)
       media.py           signs media links in responses
       streaming.py       byte-range responses for audio and video
       v1/router.py       every /api/v1 router, one module per area in v1/routes/
@@ -68,9 +68,9 @@ saved in the app by admins. See [Configuration](configuration.md).
 
 ## Access model
 
-Admins can do everything. Everyone else has a role per namespace: **viewer** (read, listen, search, chat), **editor**
-(import, correct, rename and merge speakers, run pipelines) or **owner** (members and namespace settings). A namespace
-you have no role in behaves as if it didn't exist: its recordings, search hits, graph nodes and reports all answer 404.
+Admins can do everything. Everyone else has a role per namespace: **viewer** (read, play, search, chat), **editor**
+(import, correct, rename and merge people, run pipelines) or **owner** (members and namespace settings). A namespace
+you have no role in behaves as if it didn't exist: its assets, search hits, graph nodes and reports all answer 404.
 `deps.Access` enforces this on every request. See [Authentication](authentication.md).
 
 ## Background work
@@ -89,12 +89,12 @@ run a separate `worker` service.
 Audio, video, frames, the pages of documents and images, and word clouds are loaded by `<audio>`, `<video>` and `<img>`
 tags, and supplementary files are
 downloaded through links, none of which can send an `Authorization` header. The API therefore returns **signed links** (`?exp=…&sig=…`, HMAC over the path and expiry)
-in every response that contains media, and only to callers who may read that recording. Media endpoints accept a
+in every response that contains media, and only to callers who may read that asset. Media endpoints accept a
 signed link, a share link (`?s=…`) or a bearer token. Byte ranges are supported so players can seek.
 
 Only links the server writes are signed: in API responses, the fields that hold links (`media.LINK_KEYS`); in the
-embed and report pages, links to the recordings the page is about. Text that people or models write (a title, a
-transcript line, metadata, a chat answer) is never signed, however much it looks like a link.
+embed and report pages, links to the assets the page is about. Text that people or models write (a title, a
+line of text, metadata, a chat answer) is never signed, however much it looks like a link.
 
 ## Design decisions
 

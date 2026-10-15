@@ -44,7 +44,7 @@ export function QuickImport() {
       <p className="text-[13px] leading-[1.45] text-fg-secondary">
         {allowed || loading ? (
           <>
-            Drop transcripts here, or{" "}
+            Drop files here, or{" "}
             <Link href="/import?tab=paste" className="font-semibold text-fg-accent hover:underline">
               paste text
             </Link>

@@ -36,7 +36,7 @@ export function CollectionsPage() {
       <PageHeader
         className="mb-0"
         title="Collections"
-        meta="Saved sets of recordings"
+        meta="Saved sets of assets"
         actions={
           <>
             <Button
@@ -83,7 +83,7 @@ export function CollectionsPage() {
             </Button>
           }
         >
-          A collection is a saved filter (it keeps up to date) or a fixed list of recordings. Saving a search also makes
+          A collection is a saved filter (it keeps up to date) or a fixed list of assets. Saving a search also makes
           one.
         </EmptyState>
       )}

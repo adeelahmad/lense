@@ -48,7 +48,7 @@ describe("citations", () => {
     expect(shortTitle("Episode 12 — Reading a model system card")).toBe("Ep. 12");
     expect(shortTitle("Renewal call — Northwind Labs, Feb")).toBe("Renewal call");
     expect(shortTitle("A very long recording title without any separator at all")).toBe("A very long recording t…");
-    expect(shortTitle(null)).toBe("Recording");
+    expect(shortTitle(null)).toBe("Asset");
     expect(
       citeLabel({
         title: "Episode 12 — X",

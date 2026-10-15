@@ -126,7 +126,7 @@ export function PeoplePage() {
   return (
     <AdminFrame
       tab="people"
-      title="People"
+      title="Members"
       meta={
         people.data
           ? `${count(list.length)} account${list.length === 1 ? "" : "s"}${disabled ? ` · ${disabled} disabled` : ""}`
@@ -312,7 +312,7 @@ function RoleGrid({
     <div className="relative overflow-x-auto rounded-md border border-border">
       <div
         role="grid"
-        aria-label="Roles: people by namespaces"
+        aria-label="Roles: members by namespaces"
         aria-rowcount={people.length + 1}
         aria-colcount={colCount + 2}
         className="min-w-fit text-[13px] leading-[1.3]"
@@ -322,7 +322,7 @@ function RoleGrid({
           className="grid items-center gap-3 bg-surface px-4 py-2.5 text-[12px] font-semibold leading-[1.2] text-fg-secondary"
           style={{ gridTemplateColumns: cols }}
         >
-          <span role="columnheader">Person</span>
+          <span role="columnheader">Member</span>
           <span role="columnheader">Platform admin</span>
           {namespaces.map((n) => (
             <span role="columnheader" key={n} className="truncate">

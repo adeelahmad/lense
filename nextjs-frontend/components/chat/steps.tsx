@@ -116,7 +116,7 @@ export function ToolSteps({ steps, working, className }: { steps: ToolStep[]; wo
         s.tool === "search_transcripts"
           ? "searched"
           : s.tool === "read_transcript"
-            ? "read transcripts"
+            ? "read assets"
             : s.tool.replace(/_/g, " "),
       ),
     ),

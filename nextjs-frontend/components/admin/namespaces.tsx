@@ -69,7 +69,7 @@ export function NamespacesPage() {
         </div>
       ) : !shown.length ? (
         <EmptyState icon={<UsersIcon />} title="No namespaces yet">
-          {admin ? "Create one, then import recordings into it." : "You don’t own a namespace."}
+          {admin ? "Create one, then import assets into it." : "You don’t own a namespace."}
         </EmptyState>
       ) : (
         <div className="overflow-hidden rounded-md border border-border">
@@ -77,7 +77,7 @@ export function NamespacesPage() {
             <THead className="border-t-0">
               <tr>
                 <Th>Namespace</Th>
-                <Th>Recordings</Th>
+                <Th>Assets</Th>
                 <Th>Graph</Th>
                 {admin && <Th>Members</Th>}
                 <Th className="text-right">This month</Th>
@@ -133,7 +133,7 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
       void qc.invalidateQueries({ queryKey: ["me"] });
       toast({
         title: `Created ${name.trim()}`,
-        body: "Add members, then import recordings into it.",
+        body: "Add members, then import assets into it.",
         tone: "green",
       });
       onClose();
@@ -148,7 +148,7 @@ function CreateNamespace({ onClose }: { onClose: () => void }) {
       open
       onOpenChange={(o) => !o && onClose()}
       title="New namespace"
-      description="A namespace holds recordings, speakers and a graph, with its own members."
+      description="A namespace holds assets, people and a graph, with its own members."
       actions={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -308,7 +308,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
       title={ns}
       meta={
         known
-          ? `${count(known.recordings)} recordings · ${known.graph === "isolated" ? "isolated" : "shared"} graph`
+          ? `${count(known.recordings)} assets · ${known.graph === "isolated" ? "isolated" : "shared"} graph`
           : undefined
       }
       ownersToo
@@ -511,7 +511,7 @@ export function NamespaceDetail({ ns }: { ns: string }) {
               ]}
             />
           </div>
-          <Field label="Default pipeline" hint="What runs on new recordings in this namespace">
+          <Field label="Default pipeline" hint="What runs on new assets in this namespace">
             {(f) => (
               <Select
                 id={f.id}

@@ -29,7 +29,7 @@ export function isNarrow(): boolean {
 }
 
 /**
- * A citation chip, "Ep. 12 · 14:29 · Host B". Hover or focus shows the quoted segment; click opens the recording at
+ * A citation chip, "Ep. 12 · 14:29 · Host B". Hover or focus shows the quoted segment; click opens the asset at
  * that moment (⌘-click for a new tab). On a phone, a tap previews it in a sheet instead. A section of Lens's docs
  * ("Docs · MCP server › Connecting") opens in a new tab.
  */

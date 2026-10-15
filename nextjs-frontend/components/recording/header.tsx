@@ -76,7 +76,7 @@ export function RecordingHeader() {
             {ns}
           </Link>
         ) : (
-          <span>Recording</span>
+          <span>Asset</span>
         )}
         {ns &&
           (rec.collection_path ?? []).map((c) => (
@@ -100,7 +100,7 @@ export function RecordingHeader() {
           <Tooltip content={canEdit ? "Rename" : needRole("editor", ns)}>
             <button
               type="button"
-              aria-label="Rename recording"
+              aria-label="Rename asset"
               aria-disabled={!canEdit || undefined}
               onClick={canEdit ? openRename : undefined}
               className={cn(
@@ -167,7 +167,7 @@ export function RecordingHeader() {
           </Meta>
         )}
         <Meta icon={<Workflow />}>
-          <span title={ns ? `The pipeline new recordings in ${ns} go through` : undefined}>
+          <span title={ns ? `The pipeline new assets in ${ns} go through` : undefined}>
             {pipeline ? pipeline.name : "Standard pipeline"}
             {pipeline && (
               <span className="ml-1 font-mono text-[11px] font-medium text-fg-muted">v{pipeline.current}</span>
@@ -176,7 +176,7 @@ export function RecordingHeader() {
         </Meta>
         <StatusChip status={status} label={status ? status[0].toUpperCase() + status.slice(1) : "Unknown"} />
         <AccessBadge value={rec} onClick={openAccess} />
-        {transcriptOnly && <Badge tone="neutral">Transcript only</Badge>}
+        {transcriptOnly && <Badge tone="neutral">Text only</Badge>}
       </div>
       <Banners />
     </header>
@@ -262,7 +262,7 @@ export function ExportMenu({ trigger }: { trigger?: ReactNode }) {
               <MenuItem asChild>
                 <a href={rec.report_url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5">
                   <ExternalLink />
-                  <span className="flex-1">Open the recording report</span>
+                  <span className="flex-1">Open the asset report</span>
                 </a>
               </MenuItem>
             </>
@@ -290,7 +290,7 @@ export function ReprocessMenu({ disabled, reason }: { disabled: boolean; reason:
   const why = disabled
     ? reason
     : running
-      ? "A job is already running for this recording; follow it in Activity"
+      ? "A job is already running for this asset; follow it in Activity"
       : undefined;
   const nsPipeline = pipelines.data?.pipelines.find((p) => ns && p.namespaces?.includes(ns));
   const run = (body: { pipeline?: number }, label: string) =>
@@ -424,7 +424,7 @@ function MoreMenu({ compact }: { compact?: boolean }) {
             <MenuItem asChild>
               <a href={r.rec.report_url} target="_blank" rel="noreferrer" className="flex items-center gap-2.5">
                 <ExternalLink />
-                <span className="flex-1">Recording report</span>
+                <span className="flex-1">Asset report</span>
               </a>
             </MenuItem>
           )}
@@ -457,7 +457,7 @@ export function Banners({ className }: { className?: string }) {
 }
 
 function JobBanners({ className }: { className?: string }) {
-  const { state, canEdit, ns, id } = useRec();
+  const { state, canEdit, ns, id, model } = useRec();
   const { retry, reprocess } = useRecordingActions(id);
   const job = state.job;
   if (state.phase === "analyzing" && job) {
@@ -475,7 +475,7 @@ function JobBanners({ className }: { className?: string }) {
         <p className="min-w-0 flex-1 text-[13px] leading-[1.45] text-fg-strong">
           {state.justImported ? (
             <>
-              <b className="text-fg">Imported — the transcript is ready to read.</b>{" "}
+              <b className="text-fg">Imported — the text is ready to read.</b>{" "}
               {queued ? `${step} is waiting for a worker.` : `${step} is running (${Math.round(job.progress * 100)}%).`}{" "}
               Chapters, stats, keywords, the summary and the report fill in when it finishes; nothing on this page moves
               while they do.
@@ -488,7 +488,7 @@ function JobBanners({ className }: { className?: string }) {
                   : `${step} is running (${Math.round(job.progress * 100)}%).`}
               </b>{" "}
               Chapters, stats, keywords and the summary refresh in place when it finishes; you can keep reading
-              {job ? " and listening" : ""}.
+              {model.media.kind === "video" ? " and watching" : model.audio ? " and listening" : ""}.
             </>
           )}
         </p>
@@ -526,7 +526,7 @@ function JobBanners({ className }: { className?: string }) {
           <b className="text-fg">
             {label} failed{state.error ? ` — ${shortError(state.error)}` : ""}.
           </b>{" "}
-          {job ? failureImpact(failed, done, partial, label) : "The transcript couldn't be made from the audio."}{" "}
+          {job ? failureImpact(failed, done, partial, label) : "The asset couldn't be processed."}{" "}
           {job && (job.worker || job.attempts > 0) && (
             <span className="font-mono text-[12px] text-fg-secondary">
               {[job.worker, job.attempts ? `attempt ${job.attempts}` : null].filter(Boolean).join(" · ")}

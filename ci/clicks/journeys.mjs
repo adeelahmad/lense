@@ -215,7 +215,7 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await go(ctx, "Search");
-      await meter.type(page.getByRole("searchbox", { name: "Search transcripts" }), "raspberry", "the word");
+      await meter.type(page.getByRole("searchbox", { name: "Search your assets" }), "raspberry", "the word");
       await meter.press("Enter", "Enter to search");
       await page.getByRole("main").getByText(/Raspberry Pi can run Lens/).first().waitFor();
     },
@@ -228,7 +228,7 @@ export const JOURNEYS = [
     async run(ctx) {
       const { page, meter } = ctx;
       await jumpTo(ctx);
-      await meter.type(page.getByRole("combobox", { name: /^Search recordings/ }), "welcome", "part of its title");
+      await meter.type(page.getByRole("combobox", { name: /^Search assets/ }), "welcome", "part of its title");
       await page.getByRole("option", { name: /Welcome back/ }).first().waitFor();
       await meter.press("Enter", "Enter to open");
       await page.waitForURL(/\/(recordings|resources)\//);
@@ -670,6 +670,10 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
+      // An entity is in the graph once something links it twice (graph.min_edge_weight), which takes import-file's
+      // pi-episode as well; a slow machine can still be reading it here, so wait for the jobs to finish (not counted)
+      const idle = page.getByRole("button", { name: /^Activity: (Nothing running|\d+ failed)$/ });
+      await madeInBackground(ctx, "/", idle, "/", "the imports' jobs finished");
       await go(ctx, "Graph");
       const find = page.getByRole("combobox", { name: "Find in graph" });
       await page.getByRole("region", { name: "Graph" }).waitFor();

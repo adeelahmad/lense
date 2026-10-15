@@ -158,7 +158,7 @@ export function ClipRow({
     >
       <button
         type="button"
-        aria-label={none ? "No audio — transcript only" : `${playing ? "Pause" : "Play"} “${clip.text.slice(0, 60)}”`}
+        aria-label={none ? "No audio — text only" : `${playing ? "Pause" : "Play"} “${clip.text.slice(0, 60)}”`}
         aria-disabled={none || undefined}
         onClick={() =>
           !none &&

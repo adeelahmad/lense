@@ -118,7 +118,7 @@ def _check_action(db, k, a):
         raise ValueError(f"action {k}: recordings is one of {', '.join(PICKS)}")
     lim = a.get("limit")
     if lim is not None and (not isinstance(lim, int) or not 1 <= lim <= MAX_LIMIT):
-        raise ValueError(f"action {k}: limit is 1 to {MAX_LIMIT} recordings")
+        raise ValueError(f"action {k}: limit is 1 to {MAX_LIMIT} assets")
     if t == "sync":
         w = a.get("watches")
         if w is not None:
@@ -332,7 +332,7 @@ def _queue(db, rids, steps, by, pipeline=None, add=False, say=print):
             queued += 1
         except (KeyError, ValueError) as e:
             errors += 1
-            say(f"recording {rid}: {e}")
+            say(f"asset {rid}: {e}")
     return {"recordings": len(rids), "queued": queued, "errors": errors}
 
 
@@ -687,8 +687,8 @@ def seed(db):
             INDEX_NAME,
             [{"type": "pipeline", "steps": ["embed"], "recordings": "unindexed", "limit": DEFAULT_LIMIT}],
             "20 * * * *",
-            description="Embeds the passages of recordings not yet searchable by meaning with the current embedding model "
-            "(after the model changes, or for recordings made before search by meaning was set up), 500 an hour.",
+            description="Embeds the passages of assets not yet searchable by meaning with the current embedding model "
+            "(after the model changes, or for assets added before search by meaning was set up), 500 an hour.",
             user="lens-archive",
         )
         db.q("UPSERT $r CONTENT $d", r=R("seed", "semantic"), d={"at": store.now()})

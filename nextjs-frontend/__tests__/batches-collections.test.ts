@@ -109,7 +109,7 @@ describe("chat scope", () => {
     ]);
     expect(recordingsLabel([1], byId)).toEqual({ label: "Episode 12" });
     expect(recordingsLabel([1, 2], byId)).toEqual({
-      label: "2 recordings",
+      label: "2 assets",
       size: "1.5 h",
     });
     expect(scopeWords({ namespaces: ["podcasts", "customer-calls"] })).toBe("podcasts and customer-calls");
