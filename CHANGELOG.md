@@ -135,7 +135,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   and renews on its own from Let's Encrypt or ZeroSSL (or any ACME authority), proving the domain over HTTP, TLS-ALPN
   or DNS, with Cloudflare, Route 53 and the other caddy-dns providers, so wildcards and machines the internet can't
   reach work too. Set it up in **Settings › HTTPS**, whose **Open the HTTPS ports** has the machine open 443 and 80
-  and restart Lens (or run the install line with `LENS_HTTPS=1`). Off by default ([HTTPS](docs/https.md)).
+  and restart Lens (or run the install line with `LENS_HTTPS=1`). It can answer only for its own domains (strict SNI)
+  and require client certificates (mutual TLS). Off by default ([HTTPS](docs/https.md)).
 
 - **Budget meter and Costs page.** The top bar shows what the namespace picked spent against its budget, used and
   left, highlighted when near or over, and follows the namespace switcher; it opens the details for a day, week or

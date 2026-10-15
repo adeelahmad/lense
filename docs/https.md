@@ -53,6 +53,20 @@ it (on the LAN, say). Pick the provider and give what it asks for:
 Any other [caddy-dns](https://github.com/caddy-dns) plugin works too: its name as the provider (like `hetzner`), and
 its fields as JSON. `dns_package` names a plugin outside caddy-dns (`github.com/<owner>/<repo>`).
 
+## Who gets in
+
+Off by default, in Settings › HTTPS › Who gets in:
+
+- **Answer only for these domains** (`strict_sni`): a TLS handshake happens only for the domains listed. A
+  connection to the machine's IP address, to another name pointed at it, or with no name at all (SNI) is refused,
+  and a request must name in `Host` the domain its connection was made for (else 421 Misdirected Request), so a
+  scanner learns nothing and one domain can't be reached through another's connection.
+- **Client certificates** (`client_auth`, `client_ca`): `optional` checks a certificate when the browser offers one;
+  `required` is mutual TLS, where only browsers and devices holding a certificate signed by the CA you paste (PEM,
+  one or more) get a connection at all, before any page or sign-in. Keep the web app's own port to this machine
+  (`LENS_PUBLIC=0`) so HTTPS is the only way in from elsewhere.
+- **Oldest TLS version** (`min_tls`): 1.2 (default) or 1.3.
+
 ## Certificate authorities
 
 | `ca` | |
@@ -79,6 +93,7 @@ All in Settings › HTTPS (`PUT /api/v1/settings/https`; `POST /api/v1/settings/
 | `redirect_http` | `true` | send http:// to https:// |
 | `hsts` | `false` | tell browsers to use https:// only, for a year. Turn it on once HTTPS works: turning HTTPS off later leaves browsers unable to reach the http:// address |
 | `origin` | | the web app, as the worker reaches it (`LENS_HTTPS_ORIGIN`, else `LENS_TUNNEL_ORIGIN`: `http://frontend:3000` in Docker) |
+| `strict_sni`, `client_auth`, `client_ca`, `min_tls` | off, `off`, `""`, `1.2` | see Who gets in |
 | `https_port`, `http_port` | `8443`, `8080` | where Caddy listens in the container (install.sh publishes 443 and 80 to them) |
 
 ## How it runs
