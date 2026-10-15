@@ -808,6 +808,14 @@
       "source": "docs/authentication.md \"Every request checks that the account is still active\""
     },
     {
+      "property": "P-REMOVE",
+      "violation_symptom": "integrity-bypass",
+      "severity_tier": "security",
+      "conditions": "removing an account ends every way it signs in at once and takes every role, collection role and recording permission; its email can make a new account, which inherits nothing; admins only, never yourself, never the Matterbridge account, never the last passkey into a vault unless the admin agrees to lose its files",
+      "provenance": "documented",
+      "source": "docs/authentication.md \"Removing someone\""
+    },
+    {
       "property": "P-BEARER-ONLY",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",

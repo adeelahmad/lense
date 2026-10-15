@@ -1561,7 +1561,7 @@
           "users"
         ],
         "summary": "Make Signin Link",
-        "description": "A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts\nthree days; making another stops the last one. Share it privately. Audited as `user.signin_link`.",
+        "description": "A one-time link for this person to add a passkey and sign in (a new person, or one who lost theirs). It lasts\nthree days; making another stops the last one. Share it privately, or with email=true Lens emails it to them\nwhen mail is set up (`emailed` says whether it did). Audited as `user.signin_link`.",
         "operationId": "make_signin_link",
         "parameters": [
           {
@@ -1571,6 +1571,16 @@
             "schema": {
               "type": "integer",
               "title": "Uid"
+            }
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Email"
             }
           }
         ],
@@ -2091,6 +2101,57 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "users"
+        ],
+        "summary": "Remove User",
+        "description": "Remove someone for good (docs/authentication.md#removing-someone): their sign-ins, roles, permissions and\nprivate things go; what they shared stays under their name, and their email can be invited again. Disabling\n(PATCH) is the reversible way. Refused (409) for the account Matterbridge answers as, and when their passkeys are\nthe only way into a vault, unless lose_vaults=true. Audited as `user.remove`.",
+        "operationId": "remove_user",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
+            }
+          },
+          {
+            "name": "lose_vaults",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Lose Vaults"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -54616,6 +54677,12 @@
           "expires_at": {
             "type": "string",
             "title": "Expires At"
+          },
+          "emailed": {
+            "type": "boolean",
+            "title": "Emailed",
+            "description": "whether Lens emailed it to them (email=true, with mail set up)",
+            "default": false
           }
         },
         "additionalProperties": true,

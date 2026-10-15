@@ -11,6 +11,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   in it. Notes, highlights and comments people shared go in when picked. Export › Choose what goes in it… (and the
   button beside a collection's Evidence PDF) picks the parts, and `include` does the same in the API
   ([Evidence PDFs](docs/api.md#evidence-pdfs)).
+- **Invite and remove people.** Making an account in Admin → People now emails the sign-in link as an invitation when
+  mail is set up, and the link is still shown to share yourself. **Remove for good** ends every way someone signs in,
+  takes their roles and their private chats, notes and views, and keeps what they shared under their name; their email
+  can be invited again ([Authentication](docs/authentication.md#removing-someone)). The assistant gets `list_people`,
+  `invite_person` and `change_person`, which always wait for an admin's approval.
 - **NSFW classification, with a model on your server.** Turn it on in Settings → NSFW for every namespace, or on a
   namespace's page for that one (off by default). The new `nsfw` step scores a video's sampled frames, a document's
   pages or an image with an Apache-2.0 model (fetched on first use, about 105 MB with ONNX Runtime) and flags the
