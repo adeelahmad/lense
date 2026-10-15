@@ -28,6 +28,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   shows only Projects, Areas, Resources or Archive, and each note says which notes it's inside. Jump to (⌘K) finds notes
   as well. `GET /api/v1/notes/search`; `find_notes` gives agents the words around each match
   ([Finding notes](docs/notes.md#finding-notes)).
+- **Paste a Drive folder's link.** A Google Drive connection's Root folder and shared drive take the link from the
+  browser's address bar as well as the bare id, so limiting imports to one folder is a paste, not hunting for the id.
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 

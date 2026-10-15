@@ -305,6 +305,9 @@ files, then Import (`POST /api/v1/import/source`). The listing marks files that 
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.
+- To import from one Drive folder only, set Root folder (`root_folder_id`): paste the folder's link from the address
+  bar (`https://drive.google.com/drive/folders/<id>`, `open?id=<id>`) or its id; Lens keeps the id. The shared drive
+  takes its link the same way. A file's link is refused with a note to paste its folder's.
 - A rate-limited connection (Google Drive throttling an account) still works: its check shows it working, slowly;
   rclone backs off and retries (Drive gets 10 low-level retries); and a file a scan couldn't fetch waits for the next
   scan, as do the rest of that scan's files, rather than failing for good.
