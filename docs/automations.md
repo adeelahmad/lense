@@ -11,6 +11,7 @@ merged is called built.
 | --- | --- |
 | Match trees: one condition language for triggers, an automation's If and workflow nodes | built |
 | Operators for times, lists, text patterns and changes (`in`, `matches`, `within`, `changed`...) | built |
+| Looking back over the stream in an automation's If (`seen`) | built |
 | Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
 | New assets as `asset.added` (the `recordings` source) | built |
 | New assets by kind: emails received, calendar events, files from storage, uploads, pages saved from the web, imports | built |
@@ -380,6 +381,27 @@ its items does (as `contains` does), and `not_in` passes when none does. A value
 - **`automation_state`** holds what automations keep between activities. Each automation keeps at most 1000 rows; past
   that the oldest go and are counted (`match.dropped(db, automation)`). A `last` value is kept 30 days after it was
   last seen; `match.tidy` drops expired rows once an hour, from the routine schedule.
+
+#### Looking back
+
+Built (`match.seen`). An automation's If (and only its If, so testing a trigger's `where` on each new activity stays
+cheap) can ask whether something happened before: a `seen` stands where a test would.
+
+```json
+{"seen": {"kinds": ["email.received"], "within": "2d", "same": "object.from",
+          "where": {"path": "object.subject", "op": "matches", "value": "trip|outing"},
+          "count": {"at_least": 1}}}
+```
+
+- It finds activities of `kinds` (and the kinds under them) published in the last `within` before now, passing its
+  own `where`, and, with `same`, holding the same value at that path as the activity that started the run (the run
+  context's `event`). That activity itself doesn't count.
+- `count` is `{"at_least": n}` (1 when not given), `{"at_most": n}` or both, up to 100: `{"at_most": 0}` reads
+  "if nothing like it came", as in "if I haven't replied within 2 days".
+- It reads at most 200 activities, of the automation's namespaces (`env["spaces"]`) and as the automation's person
+  (`env["account"]`) may see them; `env["db"]` and `env["cfg"]` give the database. Without a database it finds
+  nothing. Its `where` is tested with the same `env` (so its clock too) and can't test `changed`.
+- In words: `at least one of “Email received” in the last 2 days, with the same sender`.
 
 In a workflow, a condition, filter or switch case takes either one test, as before, or a tree in `match`; with a
 tree, `path` (when given) is the part of the value the tree tests. Graphs saved before keep running unchanged.
