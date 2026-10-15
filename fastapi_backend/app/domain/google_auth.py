@@ -37,6 +37,8 @@ CAN = {
     "https://www.googleapis.com/auth/gmail.readonly": "View your email messages and settings",
     "https://mail.google.com/": "Read, compose, send and permanently delete all your email from Gmail",
     "https://www.googleapis.com/auth/calendar.readonly": "See and download any calendar you can access using your Google Calendar",
+    "https://www.googleapis.com/auth/drive.readonly": "See and download all your Google Drive files",
+    "https://www.googleapis.com/auth/drive": "See, edit, create, and delete all of your Google Drive files",
 }
 TIMEOUT = 30
 _TOKENS: dict[str, tuple[float, str]] = {}  # who and for what -> (when it ends, monotonic; the access token)
@@ -251,9 +253,9 @@ CALLBACK = "/api/v1/auth/external/google/callback"  # the Google sign-in provide
 
 
 def _module(src):
-    from . import feeds, gmail  # they import this
+    from . import feeds, gdrive, gmail  # they import this
 
-    mod = feeds.OWN.get(src["type"]) or {"gmail": gmail}.get(src["type"])
+    mod = feeds.OWN.get(src["type"]) or {"gmail": gmail, "drive": gdrive}.get(src["type"])
     if mod is None or not getattr(mod, "SCOPES", None):
         raise ValueError(f"a {src['type']} source doesn't sign in with a Google account")
     return mod
@@ -378,10 +380,17 @@ def connect_finish(db, cfg, flow, code, state):
             email = str(jwt.decode(body["id_token"], options={"verify_signature": False}).get("email") or "")
         except jwt.PyJWTError:
             email = ""
-    user = json.dumps(
-        {"type": "authorized_user", "client_id": flow["client_id"], "client_secret": client_secret, "refresh_token": body["refresh_token"]}
-    )
-    field = getattr(_module(src), "ACCOUNT", "account")  # the parameter that names the connected account
-    params = {field: email} if email and field in sources.BACKENDS[src["type"]]["fields"] else None
-    sources.update(db, cfg, src["id"], params=params, secret_values={"token": user, "service_account_credentials": None})
+    mod = _module(src)
+    if hasattr(mod, "keep"):  # kept another way (Drive: as rclone keeps it)
+        params, kept = mod.keep(flow["client_id"], client_secret, body, email)
+    else:
+        user = {
+            "type": "authorized_user",
+            "client_id": flow["client_id"],
+            "client_secret": client_secret,
+            "refresh_token": body["refresh_token"],
+        }
+        field = getattr(mod, "ACCOUNT", "account")  # the parameter that names the connected account
+        params, kept = ({field: email} if email and field in sources.BACKENDS[src["type"]]["fields"] else None), {"token": json.dumps(user)}
+    sources.update(db, cfg, src["id"], params=params, secret_values={**kept, "service_account_credentials": None})
     return src["id"], email

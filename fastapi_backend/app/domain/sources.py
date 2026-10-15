@@ -34,8 +34,10 @@ BACKENDS = {
     "dropbox": {"label": "Dropbox", "fields": {}, "secrets": ["token"], "oauth": "rclone authorize dropbox"},
     "drive": {
         "label": "Google Drive",
-        "fields": {"scope": "drive.readonly", "root_folder_id": "", "team_drive": "", "impersonate": ""},
-        "secrets": ["token", "service_account_credentials"],  # signs in with a token, or as a service account
+        # client_id and account: the Google OAuth client and account connected with Connect with Google (gdrive.py)
+        "fields": {"scope": "drive.readonly", "root_folder_id": "", "team_drive": "", "impersonate": "", "client_id": "", "account": ""},
+        # signs in with a token (renewed with client_secret when connected with Google), or as a service account
+        "secrets": ["token", "service_account_credentials", "client_secret"],
         "oauth": "rclone authorize drive",
     },
     "onedrive": {
@@ -51,6 +53,7 @@ BACKENDS = {
     **feeds.TYPES,
 }
 OBSCURED = {"pass"}  # rclone wants these obscured in its config file
+NOT_RCLONE = {"account"}  # parameters Lens keeps for itself, not rclone options
 SKIPPED = "not audio, video, a document, an image or text"
 TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl", ".eml", ".ics"}
 # what a watched folder picks up (its `kinds`): the first three are from before documents, and read PDFs as transcripts
@@ -124,7 +127,7 @@ def _config(cfg, src):
     name, spec = f"src{src['id']}", BACKENDS[src["type"]]
     lines = [f"[{name}]", f"type = {src['type']}"]
     for k, v in (src.get("params") or {}).items():
-        if k in spec["fields"] and v not in (None, ""):
+        if k in spec["fields"] and k not in NOT_RCLONE and v not in (None, ""):
             lines.append(f"{k} = {_one_line(v)}")
     for k, sealed in (src.get("sealed") or {}).items():
         if k in spec["secrets"]:
@@ -403,6 +406,12 @@ def update(db, cfg, sid, name=None, params=None, secret_values=None):
     src = get(db, sid)
     _check_params(src["type"], params, secret_values)
     params = tidy(src["type"], params)
+    given = secret_values or {}
+    if "client_secret" in BACKENDS[src["type"]]["secrets"] and given.get("token") and not given.get("client_secret"):
+        # a token on its own is rclone's (pasted, or signed in through rclone): it renews with rclone's own client, so
+        # the client and account a Google connection left are dropped
+        secret_values = {**secret_values, "client_secret": None}
+        params = {**(params or {}), "client_id": "", "account": ""}
     sealed = dict(src.get("sealed") or {})
     for k, v in (secret_values or {}).items():
         if v is None or v == "":
