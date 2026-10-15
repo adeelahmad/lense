@@ -19,6 +19,7 @@ merged is called built.
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
+| Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
 | Storing and running automations, schedules and timers, joins, the other actions, approvals, variables, the timeline page, the studio | planned |
 
@@ -261,6 +262,7 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | `ask_model` | asks the model a `prompt` (with your own `system` instructions and `model` if you like); with `json_schema` (a JSON Schema of type object) the reply is that object | read | `{text}`, or the object the schema describes |
 | `call_tool` | calls one of the assistant's tools (`tool`, with `args`) as the automation | read: a change becomes an approval | `{tool, result, summary, approvals}` |
 | `ask_agent` | hands what happened (`about`, by default the event) to the agent with your `instructions`, limited to some `tools` if you like, for up to `max_steps` rounds (6, at most 12) | read: changes become approvals | `{answer, chat, approvals, steps}` |
+| `http_request` | sends a `method` (GET, POST or PUT) to a `url`, with `headers` and a `body` (text, or an object sent as JSON) | out | `{status, ok, body, json, content_type, truncated, method, url, headers}`: the answer, as outside text |
 
 #### Telling a person
 
@@ -298,6 +300,22 @@ the run read from outside Lens before the model sees it: each activity's `lens.u
 and body) and everything earlier steps passed on (a model's reply, a web page). Your own words in the prompt stay as
 written. `ask_agent` passes the activity it is about the same way.
 
+#### Calling a web address
+
+`http_request` reaches public addresses only, or networks an admin allowed for notifications (Settings →
+Notifications), connecting to the address it checked and following no redirect (a 3xx is passed on as it is). It takes
+10 seconds at most, sends a body of up to 64 KB, and passes on the status and the first 64 KB of the answer (`json`
+too when the answer is JSON and whole). The answer is outside text: a later prompt reads it marked as data. It always
+reaches outside Lens, so it asks first unless you set its node to run on its own; each call goes in the activity
+ledger (`automation.http`, with the method, host and status).
+
+Credentials go in headers. A header whose name says it carries one (`Authorization`, cookies, API keys, tokens,
+secrets, passwords, signatures) is never shown: what the action describes and passes on says `••••`. When an automation
+is saved, `actions_web.seal_headers(db, cfg, space, automation, url, headers)` seals those values with the namespace's
+key ([Encryption](encryption.md)), bound to the automation and to the scheme, host and port of its address, so a
+sealed value can't be copied into another automation or sent to another host; it is opened only to send. A locked
+vault stops the request until it is unlocked.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -314,3 +332,6 @@ written. `ask_agent` passes the activity it is about the same way.
 - The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
   happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
   proposals from the chat app it told you in; count the automation's own budget once budgets take `automation:<id>`.
+- Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
+  DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
+  networks allowed for automations apart from notifications.

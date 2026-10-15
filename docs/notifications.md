@@ -118,7 +118,7 @@ Under Settings → Notifications (the `notifications` section, see [Configuratio
 | Setting | Default | |
 | --- | --- | --- |
 | `enabled` | `true` | Off: nothing is sent, and what happens meanwhile isn't sent later |
-| `networks` | `[]` | Private networks targets may be in, like `192.168.1.0/24` or `172.16.0.0/12` (Docker) |
+| `networks` | `[]` | Private networks targets may be in, like `192.168.1.0/24` or `172.16.0.0/12` (Docker); automations calling a web address ([`http_request`](automations.md#calling-a-web-address)) may reach them too |
 | `app_url` | `null` | Where links in messages point; `null` uses the server's `FRONTEND_URL` |
 | `poll_seconds` | `5` | How often the notifier looks |
 | `max_attempts` | `6` | How many times a message is tried |

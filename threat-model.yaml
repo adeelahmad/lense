@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:6957510fc090d277933c6b0708ea72227197a1e9b2fa267b40b883caf70bfe0e"
+prose_version: "threat-model.md@sha256:6f2e5e104620679f5a4d2f0e232a9a4cfdfab594ce55758f4d186bcae9a9492f"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -572,7 +572,7 @@ contract_dimensions:
   - {component: outbound, dimension: numeric-domain, status: claimed, property_id: P-SSRF-GUARD, conditions: "web paths and iCal: ports 80 and 443", x-routes-to: "P-SSRF-GUARD, P-ADMIN-GUARD", provenance: {kind: documented, source: 'docs/api.md "Only public addresses are reached, on ports 80 and 443"'}}
   - {component: outbound, dimension: x-numeric-domain-notification-ports, status: unresolved, conditions: "notification targets may use any port; the guard checks addresses only", question_id: Q15, provenance: {kind: inferred, question_id: Q15}}
   - {component: outbound, dimension: failure-atomicity, status: claimed, property_id: P-NOTIFY, conditions: "each notification event claimed once across processes, then retried", provenance: {kind: documented, source: 'docs/notifications.md "claimed once"'}}
-  - {component: outbound, dimension: recursive-cyclic-topology, status: claimed, property_id: P-SSRF-GUARD, conditions: "redirects: http and https only, each hop re-checked; credentials never follow a redirect to another server; notifications follow none", x-routes-to: "P-SSRF-GUARD, P-SECRETS", provenance: {kind: documented, source: 'docs/processing.md "never sent on to another server"'}}
+  - {component: outbound, dimension: recursive-cyclic-topology, status: claimed, property_id: P-SSRF-GUARD, conditions: "redirects: http and https only, each hop re-checked; credentials never follow a redirect to another server; notifications and an automation's http_request follow none", x-routes-to: "P-SSRF-GUARD, P-SECRETS", provenance: {kind: documented, source: 'docs/processing.md "never sent on to another server"'}}
   - {component: outbound, dimension: callback-execution, status: disclaimed, property_id: N-CHROMIUM, conditions: "Chromium may lack its sandbox; the proxy is the barrier", provenance: {kind: documented, source: 'docs/deployment.md "what stops a page is Lens''s proxy"'}}
   - {component: outbound, dimension: serialization-reconstruction, status: claimed, property_id: P-SECRETS, conditions: "sealed secrets are write-only through the API", provenance: {kind: documented, source: 'docs/configuration.md "the API reports whether one is set, never its value"'}}
   - {component: outbound, dimension: x-admin-operand-guards, status: claimed, property_id: P-ADMIN-GUARD, conditions: "iCal public-address guard; telemetry endpoint without user:password or link-local address", provenance: {kind: documented, source: 'docs/processing.md "fetched the way web pages are captured"'}}
@@ -1401,7 +1401,7 @@ properties_claimed:
     kind: confidentiality
     components: [outbound]
     tier: security-critical
-    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
+    conditions: "stored secrets (source credentials, notification secrets, model API keys, iCal addresses, an automation's credential headers, sealed to that automation and the address they were saved for) are encrypted and write-only; the API reports whether one is set, never its value; a key from the environment is never shown; they do not leak through the API, logs, exports, or a redirect to another server"
     violation_symptoms: [info-leak]
     x-voided-by: "secret.key or ARCHIVE_SECRET_KEY holders (domain/settings.py:196-199, Q14); an admin moving a model URL sends the key there (domain/llm.py:30-32, trusted); LLM errors name the URL as typed (domain/llm.py:41, Q18)"
     provenance: {kind: documented, source: 'SECURITY.md "stored credentials for sources and model servers leaking"'}
@@ -1409,7 +1409,7 @@ properties_claimed:
     kind: confidentiality
     components: [outbound, assistant]
     tier: security-critical
-    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address"
+    conditions: "URLs a non-admin sets (web import and extension http tools by editors; notification targets by owners; an automation's http_request by its person, within the notification networks) reach public addresses only, or networks the operator listed; web paths use ports 80 and 443, follow redirects only to http and https, re-check every redirect and sub-request, and connect to the checked address; an automation's http_request follows no redirect, takes 10 seconds and reads 64 KB at most, asks first unless the person set its node to run on its own, and passes the answer on as outside text"
     violation_symptoms: [info-leak]
     x-voided-by: "operator networks (domain/store.py:475-476, domain/netguard.py:40-41); admin notification networks (domain/notify.py:286-288); Chromium without sandbox (domain/convert.py:273)"
     provenance: {kind: maintainer, date: "2026-10"}
