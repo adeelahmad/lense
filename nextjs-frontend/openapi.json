@@ -19628,6 +19628,142 @@
         }
       }
     },
+    "/api/v1/sources/rclone-signin": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Start Rclone Signin",
+        "description": "Connect Google Drive (with no Google app set up here), Dropbox or OneDrive by signing in through rclone on this\nserver, or sign a connection in again (`source`). Open `url` in a browser and sign in; the service then sends the\nbrowser to http://127.0.0.1:53682/?\u2026, which only loads on the machine Lens runs on. Hand that address to\nPOST /sources/rclone-signin/{id}, which makes the connection. One at a time: this ends any other.",
+        "operationId": "start_rclone_signin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RcloneSignInStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RcloneSignIn"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sources/rclone-signin/{fid}": {
+      "post": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Finish Rclone Signin",
+        "description": "Finish signing in through rclone with the address the browser ended on (`address`), or, without one, look\nwhether rclone already got it. Answers the connection, made and tested, or none while it waits. 400: that address\nisn't this sign-in's, and it's still waiting for the right one; 410: it didn't work (cancelled, refused, ran out),\nand it's over; start again. Audited as `source.signin`.",
+        "operationId": "finish_rclone_signin",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Fid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RcloneSignInFinish"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RcloneSignInState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sources"
+        ],
+        "summary": "Cancel Rclone Signin",
+        "description": "Stop a sign-in through rclone.",
+        "operationId": "cancel_rclone_signin",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/sources/{sid}/test": {
       "post": {
         "tags": [
@@ -50267,6 +50403,146 @@
           "kept"
         ],
         "title": "Pushed"
+      },
+      "RcloneSignIn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "this sign-in, to finish or cancel"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "the service's sign-in page, to open in a browser (it asks to allow rclone); once, within ten minutes"
+          },
+          "port": {
+            "type": "integer",
+            "title": "Port",
+            "description": "where the service sends the browser back afterwards: http://127.0.0.1:<port>/?state=\u2026&code=\u2026"
+          },
+          "expires_at": {
+            "type": "string",
+            "title": "Expires At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "port",
+          "expires_at"
+        ],
+        "title": "RcloneSignIn"
+      },
+      "RcloneSignInFinish": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address",
+            "description": "the address the browser ended on after signing in (http://127.0.0.1:53682/?state=\u2026&code=\u2026); leave out to only look whether rclone already got it (a browser on the machine Lens runs on reaches it itself)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RcloneSignInFinish"
+      },
+      "RcloneSignInStart": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "s3",
+                  "dropbox",
+                  "drive",
+                  "onedrive",
+                  "sftp",
+                  "smb",
+                  "webdav",
+                  "local",
+                  "imap",
+                  "gmail",
+                  "ical",
+                  "gcal"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "the kind of connection to make (drive, dropbox, onedrive); leave out with `source`"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "a connection to sign in again, instead of making a new one"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "the new connection's name; by default the service's"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Params",
+            "description": "its options, as for POST /sources (scope, root_folder_id...)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RcloneSignInStart"
+      },
+      "RcloneSignInState": {
+        "properties": {
+          "connected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connected",
+            "description": "the connection, made or signed in again, and tested; none while it waits"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "RcloneSignInState"
       },
       "RdfImport": {
         "properties": {

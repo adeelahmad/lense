@@ -32,6 +32,7 @@
         "/auth/refresh, /auth/ticket, /auth/signin-link/*, /auth/password/*, WebAuthn flows",
         "/oauth/register, /authorize, /token, /revoke",
         "/auth/external/{key}/*",
+        "POST /sources/rclone-signin, /sources/rclone-signin/{id} (signing a source in through rclone)",
         "/mcp"
       ],
       "touches": [
@@ -295,6 +296,15 @@
       "caller_must_enforce": "admin chooses providers",
       "provenance": "documented",
       "source": "docs/authentication.md \"when the provider vouches for the email\""
+    },
+    {
+      "entry_point": "POST /sources/rclone-signin, /sources/rclone-signin/{id} (signing a source in through rclone)",
+      "parameter": "type, params, address (state, code, error), the token rclone prints",
+      "attacker_controllable": "yes",
+      "component": "identity",
+      "caller_must_enforce": "the person pastes only the address their own sign-in ended on; the host keeps 127.0.0.1:53682 to itself",
+      "provenance": "documented",
+      "source": "docs/processing.md \"Lens passes only that address's state, code and\""
     },
     {
       "entry_point": "/mcp",

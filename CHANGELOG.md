@@ -48,6 +48,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   ([Finding notes](docs/notes.md#finding-notes)).
 - **Paste a Drive folder's link.** A Google Drive connection's Root folder and shared drive take the link from the
   browser's address bar as well as the bare id, so limiting imports to one folder is a paste, not hunting for the id.
+- **Sign in to Dropbox, OneDrive or Google Drive with no app of your own.** Their connections now have **Sign in
+  with Dropbox** (Microsoft, Google): the service's page opens in a new tab, Lens runs `rclone authorize` on its own
+  server, and you paste back the address the tab ends on, or nothing at all when the browser runs where Lens does.
+  No rclone to install on another computer, and no Google Cloud app needed for Drive. Pasting a token still works.
+  Agents do the same through `POST /api/v1/sources/rclone-signin`
+  ([Storage sources](docs/processing.md#storage-sources)).
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 
