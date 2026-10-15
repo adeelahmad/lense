@@ -227,7 +227,7 @@ def _entry(m, label, names, mark):
         sent or arrived,
         key=f"message-id:{msgid}" if msgid else None,
         cursor=mark,
-        mail=feeds._addressing(h, subject, shown),
+        mail={**feeds._addressing(h, subject, shown), "snippet": " ".join(str(m.get("snippet") or "").split())[:300]},
         settled=True,  # a message is whole once Gmail lists it: no waiting for it to settle
     )
 

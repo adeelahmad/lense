@@ -73,7 +73,9 @@ kept anyway, such as `recording.created_at`. What no row records goes in `event_
 `published`, kept for `events.keep_days`), with the keys it was emitted with in `event_log_key:<hash>`. Each consumer
 of the stream keeps where its next look starts in `event_cursor:<consumer>` (a position per source), and claims what
 it handles in `event_claim:<hash of consumer and key>`; a claim is a `CREATE` only one process wins, and claims go
-after a day.
+after a day. So that it can be read without opening files, a resource made from an email keeps the message's
+addressing as it was listed (`recording.mail`) and one made from a calendar event its times, place and people
+(`recording.event`); both are optional, and older resources simply don't have them.
 
 ## Upgrades
 
