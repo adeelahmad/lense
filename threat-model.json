@@ -811,7 +811,7 @@
       "property": "P-ROLE",
       "violation_symptom": "integrity-bypass",
       "severity_tier": "security",
-      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions",
+      "conditions": "a principal does no more than its role allows; writes need a write-capable principal and a role with the permission the route names (or editor or owner where a route still asks for a rank); publishing and access changes need the publish permission, through every API path; a custom role counts as the largest built-in role it covers and never does more than its permissions; an API key made for one namespace authenticates only on that namespace's own MCP server and chat completions, with its maker's role there",
       "provenance": "documented",
       "source": "SECURITY.md \"doing more than your role allows\""
     },

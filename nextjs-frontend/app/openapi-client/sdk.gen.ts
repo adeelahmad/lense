@@ -2271,7 +2271,9 @@ export class Tokens {
    * Create Token
    *
    * A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default
-   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400.
+   * tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400. With a
+   * `namespace` you can read, it opens that namespace's own MCP server and chat completions alone (docs/api.md, "Chat
+   * completions for any app"), with your role there; anywhere else it is refused (401).
    */
   public static createToken<ThrowOnError extends boolean = false>(
     options: Options<CreateTokenData, ThrowOnError>,
