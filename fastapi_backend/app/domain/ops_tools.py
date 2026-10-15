@@ -32,6 +32,7 @@ SECTIONS = (
     "ai",
     "reports",
     "notifications",
+    "events",
     "workers",
     "decisions",
     "voice",

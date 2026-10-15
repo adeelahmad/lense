@@ -72,6 +72,7 @@ export type SectionId =
   | "video"
   | "nsfw"
   | "workers"
+  | "automations"
   | "components"
   | "access"
   | "remote-access"
@@ -388,6 +389,13 @@ export const SECTIONS: SectionSpec[] = [
     label: "IIIF & metadata",
     backend: ["iiif"],
     description: "How assets are published as IIIF Manifests and Collections.",
+  },
+  {
+    id: "automations",
+    label: "Automations",
+    backend: ["events"],
+    description:
+      "The stream of activities automations follow (new assets and what else happens in Lens): how often followers look for new ones, and how long activities with no row of their own are kept.",
   },
   {
     id: "startup",
@@ -2669,6 +2677,25 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 20,
     hint: "A failed send waits 30 seconds, then four times longer each time, up to 6 hours",
+  },
+  // Automations (the stream of activities)
+  {
+    section: "events",
+    key: "poll_seconds",
+    label: "Look for new activities every (seconds)",
+    kind: "int",
+    min: 1,
+    max: 3600,
+    hint: "New assets wake followers on this server at once; this is how often they look anyway",
+  },
+  {
+    section: "events",
+    key: "keep_days",
+    label: "Keep logged activities (days)",
+    kind: "int",
+    min: 1,
+    max: 3650,
+    hint: "Activities with no row of their own, such as an automation’s; new assets and other rows stay as long as they do",
   },
   // Usage analytics (Google Analytics opt-in)
   {

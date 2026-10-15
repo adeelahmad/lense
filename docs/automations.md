@@ -16,6 +16,7 @@ merged is called built.
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
+| Settings → Automations: how often followers look and how long the event log is kept | built |
 | Storing and running automations, schedules and timers, joins, the real actions, approvals, variables, the timeline page, the studio | planned |
 
 ## Contract
@@ -98,7 +99,7 @@ A kind belongs to the source named in its `source`, and a source may list more i
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
   nothing and gives the first id, so a retry never doubles an activity. Inside `with events.caused_by({"automation":
   4, "run": 51, "depth": 1}):` what is emitted carries that cause. It is read by `(logged_at, id)` and paged by
-  `published`, and its rows are kept for `events.keep_days` (30).
+  `published`, and its rows are kept for `events.keep_days` (30; Settings → Automations).
 
 ### Following the stream
 
@@ -118,7 +119,8 @@ where the next look starts (`event_cursor:<consumer>`, a position per source).
   (an activity's id, say), with a `CREATE` of `event_claim:<hash>` only one process wins. `events.unclaimed(db,
   consumer, keys)` lists the keys nobody has claimed yet, in one query. Claims go after a day.
 - `events.emit` wakes the followers in its process; a follower waits between looks with `g = events.generation()`
-  before the look and `events.wait(events.poll_seconds(cfg), stop, since=g)` after it (`events.poll_seconds`, 5).
+  before the look and `events.wait(events.poll_seconds(cfg), stop, since=g)` after it (`events.poll_seconds`, 5;
+  Settings → Automations).
 
 ### Timeline reads
 
