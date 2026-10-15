@@ -55,7 +55,7 @@ describe("deleting a note", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     await waitFor(() => expect(toast).toHaveBeenCalled());
     toast.mock.calls[0][0].action.onClick();
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/notes/about/entity/5"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/entities/5"));
   });
 });
 
