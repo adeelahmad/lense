@@ -46,6 +46,7 @@ import {
   RefreshCw,
   Network,
   ScrollText,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -87,6 +88,7 @@ const ICON: Record<AnySectionId, LucideIcon> = {
   video: Clapperboard,
   nsfw: EyeOff,
   workers: Cpu,
+  automations: Workflow,
   components: PackageCheck,
   access: ShieldCheck,
   "remote-access": Cloud,

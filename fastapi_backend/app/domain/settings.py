@@ -55,6 +55,7 @@ EDITABLE = {
     # repo is a startup setting only (what gets installed isn't chosen in the web app)
     "updates": ("check", "check_hours", "auto_install", "email"),
     "activity": None,
+    "events": None,
     "backups": None,
     "encryption": None,
     "fedora": None,
@@ -476,6 +477,8 @@ def _check(section, key, value, default):
         return _updates_setting(key, value)
     if section == "activity":
         return _activity_setting(key, value)
+    if section == "events":
+        return _events_setting(key, value)
     if section == "backups":
         return _backup_setting(key, value)
     if section == "fedora":
@@ -1012,6 +1015,17 @@ def _activity_setting(key, value):
             raise ValueError("activity.keep_days is a whole number of days from 1 to 3650")
         return value
     raise ValueError(f"unknown setting activity.{key}")
+
+
+def _events_setting(key, value):
+    """The stream of activities automations follow (docs/automations.md)."""
+    limits = {"keep_days": (1, 3650, "a whole number of days"), "poll_seconds": (1, 3600, "a whole number of seconds")}
+    if key not in limits:
+        raise ValueError(f"unknown setting events.{key}")
+    lo, hi, what = limits[key]
+    if not (isinstance(value, int) and not isinstance(value, bool) and lo <= value <= hi):
+        raise ValueError(f"events.{key} is {what} from {lo} to {hi}")
+    return value
 
 
 def _backup_setting(key, value):

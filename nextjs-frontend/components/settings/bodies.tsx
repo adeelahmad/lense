@@ -469,6 +469,18 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
           </p>
         </>
       );
+    case "automations":
+      return (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="events.poll_seconds" />
+            <F ctx={ctx} id="events.keep_days" />
+          </div>
+          <p className="text-[12.5px] leading-[1.45] text-fg-secondary">
+            Agents read the same stream with the timeline tool (MCP and the assistant) or GET /api/v1/activities.
+          </p>
+        </>
+      );
     case "encryption":
       return <EncryptionBody ctx={ctx} />;
     case "backups":

@@ -114,3 +114,20 @@ def test_a_follower_in_two_processes_handles_each_new_asset_once(db, cfg, folder
     look()
     look()
     assert sorted(handled) == sorted(new)
+
+
+def test_the_stream_is_set_up_in_the_web_app(app, client, db, cfg):
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    h = login(client, "root@x.io", "root password 1")
+    assert events.section(app.state.settings.current()) == {"keep_days": 30, "poll_seconds": 5}
+    assert client.put("/api/v1/settings/events", json={"keep_days": 90, "poll_seconds": 2}, headers=h).status_code == 200
+    cfg = app.state.settings.current()
+    assert (events.section(cfg)["keep_days"], events.poll_seconds(cfg)) == (90, 2)
+    assert client.get("/api/v1/settings", headers=h).json()["events"]["values"] == {"keep_days": 90, "poll_seconds": 2}
+    for bad in ({"keep_days": 0}, {"poll_seconds": 3601}, {"keep_days": "30"}, {"poll_seconds": True}, {"tick": 1}):
+        assert client.put("/api/v1/settings/events", json=bad, headers=h).status_code == 400, bad
+    # the admin assistant reads and changes the same section
+    box = ai_tools.Toolbox(db, cfg, {"id": 1, "email": "root@x.io"}, set(), set(), {}, None, admin=True, act=True)
+    assert box.t_read_settings("events")[0]["values"] == {"keep_days": 90, "poll_seconds": 2}
+    assert box.t_change_settings("events", {"keep_days": 7})[0]["status"] == "done"
+    assert box.t_read_settings("events")[0]["values"]["keep_days"] == 7

@@ -111,7 +111,7 @@ provider and key, a local model, the AI assistant, search (word search and searc
 video, OCR, faces and objects, [NSFW classification](nsfw.md), workers, sign-in, components (and the edition, full or
 lean), access and embedding (whether other devices on the network reach Lens, embed frame ancestors, text and transcript
 upload limit, allowed hosts, trusted proxies, session length), remote access, email, chat rooms, notifications,
-telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
+automations, telemetry, the Fedora repository, sensors, file shares, uploads, storage, documents, API keys, and IIIF and metadata. The API
 refuses an allowed-host list that leaves out the address you are using.
 
 The sections are in groups: AI and search, Speech and voices, Media and documents, Chat and email, Security and
@@ -460,6 +460,15 @@ Where namespaces may send notifications ([Notifications](notifications.md)). Set
 | `notifications.app_url` | null | the web app's address, for links in messages; null uses `FRONTEND_URL` |
 | `notifications.poll_seconds` | 5 | how often the notifier looks for news, 1–3600 |
 | `notifications.max_attempts` | 6 | how many times a message is tried, 1–20 |
+
+## Automations
+
+The stream of activities automations follow ([Automations](automations.md#contract)). Settings → Automations:
+
+| Setting | Default | |
+|---|---|---|
+| `events.poll_seconds` | 5 | how often followers look for new activities when nothing wakes them, 1–3600 |
+| `events.keep_days` | 30 | how long activities with no row of their own (the event log) are kept, 1–3650 days |
 
 ## Trusted proxies
 

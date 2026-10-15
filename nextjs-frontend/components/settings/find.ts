@@ -22,7 +22,17 @@ export const SETTINGS_GROUPS: { label: string; sections: SectionId[] }[] = [
   { label: "Files and devices", sections: ["storage", "shares", "smb", "nfs", "fedora", "sensors"] },
   {
     label: "System",
-    sections: ["updates", "backups", "components", "workers", "logs", "telemetry", "analytics", "startup"],
+    sections: [
+      "updates",
+      "backups",
+      "components",
+      "workers",
+      "automations",
+      "logs",
+      "telemetry",
+      "analytics",
+      "startup",
+    ],
   },
 ];
 
