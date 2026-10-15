@@ -7,7 +7,12 @@ import { CommandPalette } from "@/components/app-shell/command-palette";
 import { NotesHome } from "@/components/notes/notes-home";
 
 jest.mock("@/app/openapi-client", () => ({
-  Notes: { listPages: jest.fn(), searchPages: jest.fn(), createPage: jest.fn() },
+  Notes: {
+    listPages: jest.fn(),
+    searchPages: jest.fn(),
+    createPage: jest.fn(),
+    deletedPages: jest.fn(() => Promise.resolve({ data: [], response: { ok: true, status: 200 } })),
+  },
   Resources: { listRecordings: jest.fn(() => Promise.resolve({ data: [], response: { ok: true, status: 200 } })) },
 }));
 jest.mock("next-auth/react", () => ({ useSession: () => ({ data: { accessToken: "t" } }) }));

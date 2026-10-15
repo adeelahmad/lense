@@ -11,6 +11,7 @@ import { Notes } from "@/app/openapi-client";
 import type { NotePage as Page, NotePageDraft as PageDraft } from "@/app/openapi-client/types.gen";
 import { ActivityPanel } from "@/components/costs/costs";
 import type { EditorBlobs, EditorChange, LinkTarget } from "@/components/notes/block-editor";
+import { useDeleteNote } from "@/components/notes/delete";
 import { HomeSuggestion } from "@/components/notes/home-suggestions";
 import { LinkSuggestions } from "@/components/notes/link-suggestions";
 import { NoteHistory } from "@/components/notes/note-history";
@@ -218,25 +219,18 @@ export function NotePage({ id, about, embedded = false }: { id?: number; about?:
     [router, page?.namespace],
   );
 
+  // No question first: the notice has Undo, and the note waits in recently deleted
+  const deleteNote = useDeleteNote();
   const remove = async () => {
     if (savedId.current == null) return;
-    if (!window.confirm("Delete this note? The notes inside it move up a level.")) return;
-    try {
-      await data(Notes.deletePage({ client, path: { pid: savedId.current } }));
-      qc.invalidateQueries({ queryKey: ["notes-tree"] });
-      if (!embedded) return router.push("/notes");
-      // the thing's own page stays, with an empty draft of its notes
-      await qc.invalidateQueries({ queryKey: key });
-      savedId.current = null;
-      loadedFor.current = null;
-      setRestored((n) => n + 1);
-    } catch (err) {
-      toast({
-        title: "Couldn’t delete it",
-        body: err instanceof ApiError ? err.message : "Please try again.",
-        tone: "red",
-      });
-    }
+    await flush(); // what was just typed is kept with it, for Undo
+    if (!(await deleteNote(savedId.current, title.trim() || page?.title || "Untitled"))) return;
+    if (!embedded) return router.push("/notes");
+    // the thing's own page stays, with an empty draft of its notes
+    await qc.invalidateQueries({ queryKey: key });
+    savedId.current = null;
+    loadedFor.current = null;
+    setRestored((n) => n + 1);
   };
 
   if (q.isError)
