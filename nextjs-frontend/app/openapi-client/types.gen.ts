@@ -914,6 +914,12 @@ export type Backend = {
    * the command that produces the token, for OAuth backends
    */
   oauth?: string | null;
+  /**
+   * Google
+   *
+   * signs in to Google: with a service account key, or as a Google account (its authorized user JSON as `token`)
+   */
+  google?: boolean;
   [key: string]: unknown;
 };
 
@@ -4132,6 +4138,12 @@ export type EntityDetail = {
    * a defined entity of one collection (and those inside it)
    */
   collection?: number | null;
+  /**
+   * Page
+   *
+   * its page in the web app, by name: /wiki/<namespace>/<Name_As_Written>
+   */
+  page?: string | null;
   [key: string]: unknown;
 };
 
@@ -17009,7 +17021,8 @@ export type Source = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical" | "gcal";
+  type:
+    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
   /**
    * Label
    */
@@ -17053,7 +17066,8 @@ export type SourceCreate = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "ical" | "gcal";
+  type:
+    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
   /**
    * Params
    */
@@ -20264,6 +20278,47 @@ export type WebPage = {
    * printed by Chromium, or a PDF kept as it was
    */
   how?: "printed" | "pdf" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * WikiPage
+ *
+ * What a wiki address names, and the address to show for it.
+ */
+export type WikiPage = {
+  /**
+   * Kind
+   *
+   * entity
+   */
+  kind: string;
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Title
+   *
+   * its name
+   */
+  title: string;
+  /**
+   * Path
+   *
+   * its own address, like /wiki/work/Ada_Lovelace
+   */
+  path: string;
+  /**
+   * Canonical
+   *
+   * false: the address asked for is another way to write it (any case, or a name it had before a rename or merge); show `path`
+   */
+  canonical: boolean;
   [key: string]: unknown;
 };
 
@@ -29454,6 +29509,40 @@ export type UpdateEntityResponses = {
 };
 
 export type UpdateEntityResponse = UpdateEntityResponses[keyof UpdateEntityResponses];
+
+export type FindWikiPageData = {
+  body?: never;
+  path: {
+    /**
+     * Ns
+     */
+    ns: string;
+    /**
+     * Address
+     */
+    address: string;
+  };
+  query?: never;
+  url: "/api/v1/wiki/{ns}/{address}";
+};
+
+export type FindWikiPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindWikiPageError = FindWikiPageErrors[keyof FindWikiPageErrors];
+
+export type FindWikiPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: WikiPage;
+};
+
+export type FindWikiPageResponse = FindWikiPageResponses[keyof FindWikiPageResponses];
 
 export type ListEntityMentionsData = {
   body?: never;

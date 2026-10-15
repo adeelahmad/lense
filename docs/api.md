@@ -991,6 +991,7 @@ POST   /api/v1/entities/merge
 POST   /api/v1/entities/merges/{mid}/undo
 POST   /api/v1/entities/not-same
 GET    /api/v1/entities/{eid}
+GET    /api/v1/wiki/{ns}/{address}
 GET    /api/v1/entities/{eid}/mentions
 GET    /api/v1/entities/{eid}/connections
 POST   /api/v1/entities/{eid}/rename
@@ -1001,6 +1002,11 @@ POST   /api/v1/mentions/{mention}/move
 GET    /api/v1/graph/explore
 GET    /api/v1/graph/path
 ```
+
+An entity's `page` is its page in the web app, by name: `/wiki/<namespace>/<Name_As_Written>`.
+`GET /wiki/{ns}/{address}` says which entity an address names: by its name in any case and spacing (underscores for
+spaces), or a name it had before a rename or a merge. It answers `{kind, id, namespace, title, path, canonical}`;
+`canonical` is false when the address is another way of writing `path` ([Notes](notes.md#entity-pages)).
 
 ## metadata
 

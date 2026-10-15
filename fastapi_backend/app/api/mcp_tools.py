@@ -916,8 +916,8 @@ def _entities(
 @tool(
     "get_entity",
     "Get an entity",
-    "One entity: its names, how often and when it is mentioned, the entities mentioned together with it, who mentions "
-    "it most, and the lines that mention it (newest first), each with a url to that moment.",
+    "One entity: its names, its page's url, how often and when it is mentioned, the entities mentioned together with "
+    "it, who mentions it most, and the lines that mention it (newest first), each with a url to that moment.",
     Arg("entity_id", "integer", "the entity (from list_entities, get_recording or the graph)", required=True),
     Arg("mentions", "integer", "how many mentioning lines", default=10, minimum=0, maximum=100),
     Arg("mentions_offset", "integer", "skip this many lines (for the next page)", default=0, minimum=0, maximum=10000),
@@ -932,6 +932,7 @@ def get_entity(ctx: Context, entity_id: int, mentions: int, mentions_offset: int
         "type": d.type,
         "type_label": d.type_label,
         "namespace": d.namespace,
+        "url": f"{ctx.web}{d.page}" if d.page else None,
         "aliases": d.aliases or None,
         "mentions": d.mentions,
         "recordings": d.recordings,
