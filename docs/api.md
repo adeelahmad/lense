@@ -68,7 +68,9 @@ GET    /api/v1/admin/tokens
 DELETE /api/v1/admin/tokens/{token_id}
 ```
 
-`POST /tokens {name, scope, days?}` makes an API key (while signed in). `days` defaults to `tokens.default_days`; more
+`POST /tokens {name, scope, days?, namespace?}` makes an API key (while signed in); with `namespace` (one you can read)
+it opens that namespace's own MCP server and chat completions alone, and the list shows it as `namespace`
+([API tokens](authentication.md#api-tokens)). `days` defaults to `tokens.default_days`; more
 than `tokens.max_days`, or `0` (never expires) when `tokens.never_expire` is off, is a 400. `GET /tokens/limits` says
 `{default_days, max_days, never_expire}`. `PATCH /tokens/{token_id} {name}` renames one of your keys (audited as
 `token.rename`). `/admin/tokens` lists everyone's keys with their owner's `email` (admins), and
@@ -328,7 +330,8 @@ A namespace can answer OpenAI's chat completions API, so any app that speaks it 
 library's OpenAI client) gets answers from the configured model, grounded in that namespace and citing it. Give the app:
 
 - **Base URL**: `https://lens.example.org/api/v1/namespaces/<namespace>` (the app adds `/chat/completions`);
-- **API key**: a Lens [API token](authentication.md) (`la_…`; read-only is enough) or an app's OAuth token;
+- **API key**: a Lens [API token](authentication.md#api-tokens) (`la_…`; read-only is enough), best one made for
+  this namespace alone (Connect apps links to it), or an app's OAuth token;
 - **Model**: `lens`, the configured model. One of the models people may pick in Lens's chat works too
   (`GET …/models` lists them); any other name answers with the configured model.
 

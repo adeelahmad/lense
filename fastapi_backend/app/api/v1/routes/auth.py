@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
-from app.api.deps import Cfg, CurrentUser, Db, Writer, client_ip, domain_errors
+from app.api.deps import Acl, Cfg, CurrentUser, Db, Writer, client_ip, domain_errors
 from app.config import settings
 from app.core.security import create_access_token
 from app.domain import auth, store
@@ -193,14 +193,17 @@ def token_limits(user: CurrentUser, cfg: Cfg) -> TokenLimits:
 
 
 @tokens.post("")
-def create_token(body: ApiTokenCreate, user: Writer, db: Db, cfg: Cfg) -> ApiTokenCreated:
+def create_token(body: ApiTokenCreate, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> ApiTokenCreated:
     """A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default
-    tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400."""
+    tokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400. With a
+    `namespace` you can read, it opens that namespace's own MCP server and chat completions alone (docs/api.md, "Chat
+    completions for any app"), with your role there; anywhere else it is refused (401)."""
     if user.via != "access":
         raise HTTPException(403, "create tokens while signed in")
+    space = acl.namespace(body.namespace) if body.namespace else None
     with domain_errors():
-        tid, raw = auth.create_token(db, user.id, body.name, body.scope, auth.token_days(cfg, body.days))
-    auth.audit(db, user.as_audit(), "token.create", f"api_token:{tid}")
+        tid, raw = auth.create_token(db, user.id, body.name, body.scope, auth.token_days(cfg, body.days), space)
+    auth.audit(db, user.as_audit(), "token.create", f"api_token:{tid}", {"namespace": body.namespace} if body.namespace else None)
     return ApiTokenCreated(id=tid, token=raw)
 
 

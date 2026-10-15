@@ -431,7 +431,7 @@
           "tokens"
         ],
         "summary": "Create Token",
-        "description": "A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default\ntokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400.",
+        "description": "A key that acts as you, with your roles (read only, or read and write). It lasts `days` (default\ntokens.default_days, at most tokens.max_days; 0 never expires when tokens.never_expire allows), else 400. With a\n`namespace` you can read, it opens that namespace's own MCP server and chat completions alone (docs/api.md, \"Chat\ncompletions for any app\"), with your role there; anywhere else it is refused (401).",
         "operationId": "create_token",
         "requestBody": {
           "content": {
@@ -28258,6 +28258,18 @@
             ],
             "title": "Last Used At"
           },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "the one namespace it opens (its own servers alone), when it was made for one"
+          },
           "account": {
             "type": "integer",
             "title": "Account"
@@ -29052,6 +29064,18 @@
               }
             ],
             "title": "Last Used At"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "the one namespace it opens (its own servers alone), when it was made for one"
           }
         },
         "additionalProperties": true,
@@ -29080,6 +29104,18 @@
             ],
             "title": "Scope",
             "default": "read"
+          },
+          "namespace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Namespace",
+            "description": "a namespace you can read: the key opens that namespace's own MCP server and chat completions alone, and nothing else in Lens; none: whatever you can reach"
           },
           "days": {
             "anyOf": [

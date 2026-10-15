@@ -92,6 +92,12 @@ export type AccountToken = {
    */
   last_used_at?: string | null;
   /**
+   * Namespace
+   *
+   * the one namespace it opens (its own servers alone), when it was made for one
+   */
+  namespace?: string | null;
+  /**
    * Account
    */
   account: number;
@@ -583,6 +589,12 @@ export type ApiToken = {
    * Last Used At
    */
   last_used_at?: string | null;
+  /**
+   * Namespace
+   *
+   * the one namespace it opens (its own servers alone), when it was made for one
+   */
+  namespace?: string | null;
   [key: string]: unknown;
 };
 
@@ -598,6 +610,12 @@ export type ApiTokenCreate = {
    * Scope
    */
   scope?: "read" | "write";
+  /**
+   * Namespace
+   *
+   * a namespace you can read: the key opens that namespace's own MCP server and chat completions alone, and nothing else in Lens; none: whatever you can reach
+   */
+  namespace?: string | null;
   /**
    * Days
    *

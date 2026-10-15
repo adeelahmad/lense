@@ -72,7 +72,10 @@ test("owners turn on chat completions, copy the base URL and pick the tools the 
   );
   expect(await screen.findByText(`${window.location.origin}/api/v1/namespaces/pods`)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Copy Base URL" })).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "API key" })).toHaveAttribute("href", "/account/tokens");
+  expect(screen.getByRole("link", { name: "an API key that opens pods alone" })).toHaveAttribute(
+    "href",
+    "/account/tokens?new=1&namespace=pods",
+  );
   const box = screen.getByRole("checkbox", { name: "list recordings" });
   expect(box).not.toBeChecked(); // none by default: one search per question
   fireEvent.click(box);
