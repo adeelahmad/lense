@@ -6230,6 +6230,18 @@ export type HttpsCertificate = {
 };
 
 /**
+ * HttpsPorts
+ */
+export type HttpsPorts = {
+  /**
+   * Open
+   *
+   * open the HTTPS ports (true) or close them
+   */
+  open?: boolean;
+};
+
+/**
  * HttpsProvider
  */
 export type HttpsProvider = {
@@ -6323,6 +6335,22 @@ export type HttpsStatus = {
    * the server process with the HTTPS ports
    */
   process?: string | null;
+  /**
+   * Agent
+   *
+   * what can open the ports from here (the upgrade agent: systemd, launchd)
+   */
+  agent?: string | null;
+  /**
+   * Manual
+   *
+   * the line that opens the ports by hand, on the machine Lens runs on
+   */
+  manual: string;
+  /**
+   * the last run that opened or closed the ports (as in /admin/updates)
+   */
+  reconfigure?: UpgradeRun | null;
   [key: string]: unknown;
 };
 
@@ -8890,6 +8918,92 @@ export type NamespaceMetadataUpdate = {
 };
 
 /**
+ * NamespaceNsfw
+ *
+ * NSFW classification in a namespace (docs/nsfw.md): what applies, what the namespace chose for itself, and the
+ * archive's settings it otherwise follows.
+ */
+export type NamespaceNsfw = {
+  /**
+   * Enabled
+   *
+   * its videos, documents and images are classified by the nsfw step
+   */
+  enabled: boolean;
+  /**
+   * Threshold
+   *
+   * a resource is flagged when one of its pictures scores at least this (0.5 to 0.99)
+   */
+  threshold: number;
+  /**
+   * Display
+   *
+   * how flagged resources show in the web app: blurred, left out of the Library, or as they are
+   */
+  display: "blur" | "hide" | "show";
+  /**
+   * what the namespace chose for itself (owners change it)
+   */
+  own: NsfwChoices;
+  /**
+   * the archive's settings (Settings → NSFW, admins), for what the namespace didn't choose
+   */
+  archive: NsfwChoices;
+  /**
+   * Classified
+   *
+   * its resources classified so far
+   */
+  classified?: number;
+  /**
+   * Flagged
+   *
+   * how many of them are flagged NSFW
+   */
+  flagged?: number;
+  /**
+   * Unclassified
+   *
+   * its videos, documents and images not classified yet
+   */
+  unclassified?: number;
+  /**
+   * Queued
+   *
+   * with classify: how many runs were queued
+   */
+  queued?: number | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NamespaceNsfwUpdate
+ *
+ * Only the fields you send change; send null to follow the archive's setting again.
+ */
+export type NamespaceNsfwUpdate = {
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null;
+  /**
+   * Threshold
+   */
+  threshold?: number | null;
+  /**
+   * Display
+   */
+  display?: "blur" | "hide" | "show" | null;
+  /**
+   * Classify
+   *
+   * also queue the nsfw step for its videos, documents and images not classified yet
+   */
+  classify?: boolean;
+};
+
+/**
  * NamespaceStats
  */
 export type NamespaceStats = {
@@ -10255,6 +10369,154 @@ export type NotifyTestResult = {
 };
 
 /**
+ * NsfwChoices
+ */
+export type NsfwChoices = {
+  /**
+   * Enabled
+   *
+   * on or off; null: as the archive's setting says
+   */
+  enabled?: boolean | null;
+  /**
+   * Threshold
+   *
+   * flag a picture at least this likely to be NSFW; null: the archive's
+   */
+  threshold?: number | null;
+  /**
+   * Display
+   *
+   * blur, hide or show what's flagged; null: the archive's
+   */
+  display?: "blur" | "hide" | "show" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NsfwCounts
+ *
+ * NSFW classification in the recordings you can read (docs/nsfw.md).
+ */
+export type NsfwCounts = {
+  /**
+   * On
+   *
+   * it's on in at least one of their namespaces
+   */
+  on: boolean;
+  /**
+   * Flagged
+   *
+   * how many are flagged NSFW
+   */
+  flagged?: number;
+  /**
+   * Hidden
+   *
+   * how many of those the Library leaves out unless asked (their namespace hides them)
+   */
+  hidden?: number;
+  [key: string]: unknown;
+};
+
+/**
+ * NsfwHit
+ *
+ * One of a resource's pictures that scored highest.
+ */
+export type NsfwHit = {
+  /**
+   * T
+   *
+   * where it is: ms into a video, or a page number from 0
+   */
+  t: number;
+  /**
+   * Score
+   *
+   * how likely it is to be NSFW, from 0 to 1
+   */
+  score: number;
+  /**
+   * Frame
+   *
+   * a signed link to the frame or page
+   */
+  frame?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NsfwState
+ *
+ * What NSFW classification found (docs/nsfw.md), where it's on in the resource's namespace.
+ */
+export type NsfwState = {
+  /**
+   * Flagged
+   *
+   * flagged NSFW: a person's call if they made one, else its highest score is at least the threshold
+   */
+  flagged: boolean;
+  /**
+   * Score
+   *
+   * the highest score of its pictures, from 0 (safe for work) to 1; null when only marked
+   */
+  score?: number | null;
+  /**
+   * Manual
+   *
+   * a person marked it NSFW (true) or not (false); null: the score decides
+   */
+  manual?: boolean | null;
+  /**
+   * Blur
+   *
+   * flagged, and its namespace blurs or hides what's flagged: the web app blurs its pictures
+   */
+  blur?: boolean;
+  /**
+   * Display
+   *
+   * how its namespace shows what's flagged: blur, hide (left out of the Library) or show
+   */
+  display?: "blur" | "hide" | "show";
+  /**
+   * Threshold
+   *
+   * its namespace's threshold
+   */
+  threshold?: number;
+  /**
+   * Checked
+   *
+   * how many of its frames or pages were scored
+   */
+  checked?: number | null;
+  /**
+   * Of
+   *
+   * how many it has
+   */
+  of?: number | null;
+  /**
+   * At
+   *
+   * when it was classified
+   */
+  at?: string | null;
+  /**
+   * Hits
+   *
+   * its highest-scoring pictures (on the resource and its player)
+   */
+  hits?: Array<NsfwHit>;
+  [key: string]: unknown;
+};
+
+/**
  * OAuthGrant
  *
  * An app you gave access to.
@@ -10921,6 +11183,12 @@ export type PhotoHit = {
    * a signed link to it, small
    */
   thumb?: string | null;
+  /**
+   * Nsfw
+   *
+   * flagged NSFW where its namespace blurs or hides that: the web app blurs it
+   */
+  nsfw?: boolean;
   [key: string]: unknown;
 };
 
@@ -11361,6 +11629,10 @@ export type Player = {
    * the namespace pixelates faces in the pictures visitors see
    */
   faces_pixelate?: boolean;
+  /**
+   * NSFW classification, where it's on in its namespace and it was classified
+   */
+  nsfw?: NsfwState | null;
   [key: string]: unknown;
 };
 
@@ -12755,6 +13027,10 @@ export type Recording = {
    * the places and dates anytopdf found (analysis.anytopdf)
    */
   enrichment?: Enrichment | null;
+  /**
+   * NSFW classification, where it's on in its namespace and it was classified
+   */
+  nsfw?: NsfwState | null;
   [key: string]: unknown;
 };
 
@@ -13012,6 +13288,18 @@ export type RecordingMoved = {
 };
 
 /**
+ * RecordingNsfwUpdate
+ */
+export type RecordingNsfwUpdate = {
+  /**
+   * Flagged
+   *
+   * true: NSFW; false: not NSFW; null: let the score decide again
+   */
+  flagged: boolean | null;
+};
+
+/**
  * RecordingSpeaker
  */
 export type RecordingSpeaker = {
@@ -13170,6 +13458,10 @@ export type RecordingSummary = {
    * your role on it: through its namespace or its collection (an admin of the collection is an owner)
    */
   role?: "viewer" | "editor" | "owner" | null;
+  /**
+   * NSFW classification, where it's on in its namespace and it was classified
+   */
+  nsfw?: NsfwState | null;
   [key: string]: unknown;
 };
 
@@ -14574,6 +14866,12 @@ export type SearchHit = {
    * found by meaning: how alike the passage is to the query (cosine, up to 1)
    */
   similarity?: number | null;
+  /**
+   * Nsfw
+   *
+   * its recording is flagged NSFW where its namespace blurs or hides that: the web app blurs its frame
+   */
+  nsfw?: boolean;
   [key: string]: unknown;
 };
 
@@ -15732,6 +16030,12 @@ export type SigninLink = {
    * Expires At
    */
   expires_at: string;
+  /**
+   * Emailed
+   *
+   * whether Lens emailed it to them (email=true, with mail set up)
+   */
+  emailed?: boolean;
   [key: string]: unknown;
 };
 
@@ -18117,9 +18421,15 @@ export type UpgradeRun = {
   /**
    * Ref
    *
-   * the release tag (or branch) being installed
+   * the release tag (or branch) being installed; empty: the one running, set up again
    */
   ref: string;
+  /**
+   * Https
+   *
+   * the HTTPS ports opened (true) or closed (false) by this run (docs/https.md)
+   */
+  https?: boolean | null;
   /**
    * State
    *
@@ -20599,7 +20909,12 @@ export type MakeSigninLinkData = {
      */
     uid: number;
   };
-  query?: never;
+  query?: {
+    /**
+     * Email
+     */
+    email?: boolean;
+  };
   url: "/api/v1/users/{uid}/signin-link";
 };
 
@@ -20912,6 +21227,41 @@ export type CreateUserResponses = {
 };
 
 export type CreateUserResponse = CreateUserResponses[keyof CreateUserResponses];
+
+export type RemoveUserData = {
+  body?: never;
+  path: {
+    /**
+     * Uid
+     */
+    uid: number;
+  };
+  query?: {
+    /**
+     * Lose Vaults
+     */
+    lose_vaults?: boolean;
+  };
+  url: "/api/v1/users/{uid}";
+};
+
+export type RemoveUserErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RemoveUserError = RemoveUserErrors[keyof RemoveUserErrors];
+
+export type RemoveUserResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type RemoveUserResponse = RemoveUserResponses[keyof RemoveUserResponses];
 
 export type UpdateUserData = {
   body: UserUpdate;
@@ -21261,6 +21611,34 @@ export type HttpsStatusResponses = {
 };
 
 export type HttpsStatusResponse = HttpsStatusResponses[keyof HttpsStatusResponses];
+
+export type HttpsPortsData = {
+  /**
+   * Body
+   */
+  body?: HttpsPorts | null;
+  path?: never;
+  query?: never;
+  url: "/api/v1/settings/https/ports";
+};
+
+export type HttpsPortsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type HttpsPortsError = HttpsPortsErrors[keyof HttpsPortsErrors];
+
+export type HttpsPortsResponses = {
+  /**
+   * Successful Response
+   */
+  202: HttpsStatus;
+};
+
+export type HttpsPortsResponse = HttpsPortsResponses[keyof HttpsPortsResponses];
 
 export type HttpsProvidersData = {
   body?: never;
@@ -22834,6 +23212,96 @@ export type UpdateNamespaceResponses = {
 
 export type UpdateNamespaceResponse = UpdateNamespaceResponses[keyof UpdateNamespaceResponses];
 
+export type GetNamespaceNsfwData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/nsfw";
+};
+
+export type GetNamespaceNsfwErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceNsfwError = GetNamespaceNsfwErrors[keyof GetNamespaceNsfwErrors];
+
+export type GetNamespaceNsfwResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceNsfw;
+};
+
+export type GetNamespaceNsfwResponse = GetNamespaceNsfwResponses[keyof GetNamespaceNsfwResponses];
+
+export type UpdateNamespaceNsfwData = {
+  body: NamespaceNsfwUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/nsfw";
+};
+
+export type UpdateNamespaceNsfwErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNamespaceNsfwError = UpdateNamespaceNsfwErrors[keyof UpdateNamespaceNsfwErrors];
+
+export type UpdateNamespaceNsfwResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceNsfw;
+};
+
+export type UpdateNamespaceNsfwResponse = UpdateNamespaceNsfwResponses[keyof UpdateNamespaceNsfwResponses];
+
+export type ClassifyNamespaceNsfwData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/nsfw/classify";
+};
+
+export type ClassifyNamespaceNsfwErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ClassifyNamespaceNsfwError = ClassifyNamespaceNsfwErrors[keyof ClassifyNamespaceNsfwErrors];
+
+export type ClassifyNamespaceNsfwResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobsQueued;
+};
+
+export type ClassifyNamespaceNsfwResponse = ClassifyNamespaceNsfwResponses[keyof ClassifyNamespaceNsfwResponses];
+
 export type GetNamespaceWordcloudData = {
   body?: never;
   path: {
@@ -23623,6 +24091,12 @@ export type ListRecordingsData = {
      */
     edited_by?: "me" | null;
     /**
+     * Sensitive
+     *
+     * where NSFW classification is on (docs/nsfw.md): only those flagged NSFW, exclude them, or include them. Without it, flagged ones are left out where their namespace hides them (display hide)
+     */
+    sensitive?: "include" | "only" | "exclude" | null;
+    /**
      * Collection
      *
      * a collection: the recordings in it and in the collections inside it
@@ -23851,6 +24325,38 @@ export type ListObjectsResponses = {
 
 export type ListObjectsResponse = ListObjectsResponses[keyof ListObjectsResponses];
 
+export type NsfwCountsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * one namespace
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/resources/nsfw";
+};
+
+export type NsfwCountsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type NsfwCountsError = NsfwCountsErrors[keyof NsfwCountsErrors];
+
+export type NsfwCountsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NsfwCounts;
+};
+
+export type NsfwCountsResponse = NsfwCountsResponses[keyof NsfwCountsResponses];
+
 export type PlaceRecordingsData = {
   body: RecordingsPlace;
   path?: never;
@@ -23965,6 +24471,38 @@ export type UpdateRecordingResponses = {
 };
 
 export type UpdateRecordingResponse = UpdateRecordingResponses[keyof UpdateRecordingResponses];
+
+export type MarkRecordingNsfwData = {
+  body: RecordingNsfwUpdate;
+  path: {
+    /**
+     * Rid
+     */
+    rid: number;
+  };
+  query?: never;
+  url: "/api/v1/resources/{rid}/nsfw";
+};
+
+export type MarkRecordingNsfwErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MarkRecordingNsfwError = MarkRecordingNsfwErrors[keyof MarkRecordingNsfwErrors];
+
+export type MarkRecordingNsfwResponses = {
+  /**
+   * Response Recordings-Mark Recording Nsfw
+   *
+   * Successful Response
+   */
+  200: NsfwState | null;
+};
+
+export type MarkRecordingNsfwResponse = MarkRecordingNsfwResponses[keyof MarkRecordingNsfwResponses];
 
 export type MoveRecordingData = {
   body: RecordingMove;

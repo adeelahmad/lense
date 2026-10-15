@@ -39,6 +39,9 @@ class SearchHit(ResponseModel):
         'alike; shown at its line that fits best), or "both"',
     )
     similarity: float | None = Field(None, description="found by meaning: how alike the passage is to the query (cosine, up to 1)")
+    nsfw: bool = Field(
+        False, description="its recording is flagged NSFW where its namespace blurs or hides that: the web app blurs its frame"
+    )
 
 
 class FacetCount(ResponseModel):
@@ -122,6 +125,7 @@ class PhotoHit(ResponseModel):
     namespace: str | None = None
     similarity: float = Field(description="CLIP's cosine similarity of the photo and the query; a good match is about 0.3")
     thumb: str | None = Field(None, description="a signed link to it, small")
+    nsfw: bool = Field(False, description="flagged NSFW where its namespace blurs or hides that: the web app blurs it")
 
 
 class PhotoResults(ResponseModel):

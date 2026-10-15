@@ -1,10 +1,10 @@
 """Pipelines: named, versioned lists of steps a recording goes through. Each namespace can choose its default; without
 one, recordings get the standard pipeline. Steps: transcribe (speech to text), read (a document's or an
-image's pages and their text), diarize, analyze, embed (passages for search by meaning,
-semantic.py), summarize, llm (a prompt template whose structured result is saved as a named output), report (built in,
-or from a report template) and export (a template rendered to a file, optionally copied to a storage source) and
-workflow (a workflow graph, workflows.py, that turns what the steps made into metadata). Any step can carry a
-condition.
+image's pages and their text), diarize, shots, ocr, faces, objects, nsfw (NSFW classification, nsfw.py), describe,
+analyze, embed (passages for search by meaning, semantic.py), summarize, llm (a prompt template whose structured
+result is saved as a named output), report (built in, or from a report template) and export (a template rendered to
+a file, optionally copied to a storage source) and workflow (a workflow graph, workflows.py, that turns what the steps
+made into metadata). Any step can carry a condition.
 
 Which pipeline a recording gets also depends on its content type (content_types.py): the one chosen for the run, else
 the namespace's override for the recording's subtype, else the subtype's own pipeline, else the namespace's default,
@@ -23,13 +23,14 @@ import re
 from . import keyring, llm, render, sources, store, templates
 
 R = store.R
-STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "report"]
+STANDARD = ["transcribe", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "analyze", "embed", "summarize", "report"]
 TYPES = {
-    "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "describe", "analyze", "embed", "summarize", "llm", "report",
+    "transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe", "analyze", "embed", "summarize", "llm",
+    "report",
     "export",
     "workflow",
 }  # fmt: skip
-ASSET_STEPS = ("transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "describe")  # they make something of the media
+ASSET_STEPS = ("transcribe", "read", "diarize", "shots", "ocr", "faces", "objects", "nsfw", "describe")  # they make something of the media
 KEYS = {"type", "name", "when", "template", "version", "key", "filename", "destination", "model", "force", "workflow"}
 NODE_RX = re.compile(r"^[A-Za-z0-9_-]{1,40}$")
 WHEN = {"min_minutes": (int, float), "max_minutes": (int, float), "source": str, "languages": list}

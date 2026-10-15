@@ -7,6 +7,8 @@ from __future__ import annotations
 import datetime as dt
 import json
 import pathlib
+import shutil
+import subprocess
 import sys
 import textwrap
 import time
@@ -288,3 +290,63 @@ def test_passkeys_and_email_links_use_the_https_address(app, client, db, cfg, mo
     db.next_id("settings")  # the app's settings are read again
     o = client.post("/api/v1/auth/passkey/options", headers={"x-forwarded-host": "lens.example.com", "x-forwarded-proto": "https"})
     assert o.json()["options"]["rpId"] == "localhost"
+
+
+@pytest.fixture
+def control(tmp_path, monkeypatch):
+    """The control folder install.sh shares with the containers, with an upgrade agent watching it."""
+    d = tmp_path / "control"
+    (d / "inbox").mkdir(parents=True)
+    (d / "agent").write_text("kind=systemd\n")
+    monkeypatch.setenv("LENS_CONTROL_DIR", str(d))
+    return d
+
+
+def test_the_ports_are_opened_by_the_upgrade_agent(client, db, control, monkeypatch):
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    a = login(client, "root@x.io", "root password 1")
+    s = client.get("/api/v1/settings/https/status", headers=a).json()
+    assert s["agent"] == "systemd" and "LENS_HTTPS=1 sh" in s["manual"] and s["reconfigure"] is None
+    r = client.post("/api/v1/settings/https/ports", headers=a, json={"open": True})
+    assert r.status_code == 202, r.text
+    for _ in range(100):  # handed over after the response
+        if (control / "inbox" / "upgrade").exists():
+            break
+        time.sleep(0.02)
+    req = dict(line.split("=", 1) for line in (control / "inbox" / "upgrade").read_text().splitlines())
+    assert req["ref"] == "" and req["https"] == "1"  # the version running, set up again with the ports
+    run = client.get("/api/v1/settings/https/status", headers=a).json()["reconfigure"]
+    assert run["https"] is True and run["state"] == "queued" and run["id"] == req["id"]
+    assert client.post("/api/v1/settings/https/ports", headers=a, json={"open": False}).status_code == 409  # one at a time
+    monkeypatch.delenv("LENS_CONTROL_DIR")
+    r = client.post("/api/v1/settings/https/ports", headers=a, json={"open": True})
+    assert r.status_code == 409 and "run the line shown" in r.json()["detail"]
+
+
+AGENT = pathlib.Path(__file__).resolve().parents[3] / "packaging" / "host" / "lens-upgrade.sh"
+
+
+@pytest.mark.skipif(not shutil.which("git"), reason="needs git")
+def test_the_agent_sets_up_the_version_running_with_the_ports(tmp_path):
+    """packaging/host/lens-upgrade.sh, with an install.sh that writes down what it was given."""
+    d = tmp_path / "lens"
+    d.mkdir()
+    (d / "install.sh").write_text('echo "ref=$LENS_REF https=$LENS_HTTPS" > "$LENS_DIR/ran"\n')
+    (d / ".env").write_text("LENS_HTTPS=0\n")
+    git = ["git", "-C", str(d), "-c", "user.name=t", "-c", "user.email=t@x.io"]
+    subprocess.run([*git, "init", "-q", "-b", "main"], check=True)
+    subprocess.run([*git, "add", "."], check=True)
+    subprocess.run([*git, "commit", "-q", "-m", "x"], check=True)
+    (d / ".lens-control" / "inbox").mkdir(parents=True)
+
+    def run(request):
+        (d / ".lens-control" / "inbox" / "upgrade").write_text(request)
+        subprocess.run(["sh", str(AGENT), str(d)], check=True, capture_output=True)
+        return (d / "ran").read_text().strip(), (d / ".lens-control" / "upgrade-status").read_text()
+
+    ran, st = run("id=a1\nref=\nhttps=1\n")
+    assert ran == "ref=main https=1" and "state=done" in st
+    ran, _ = run("id=a2\nref=main\n")  # an upgrade keeps what .env says
+    assert ran == "ref=main https=0"
+    ran, _ = run("id=a3\nref=\nhttps=yes; rm -rf /\n")  # nothing but 0 or 1
+    assert ran == "ref=main https=0"
