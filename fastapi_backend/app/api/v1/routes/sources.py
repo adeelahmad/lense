@@ -51,7 +51,7 @@ def _watch(db: DB, wid: int) -> None:
 @router.get("/sources/backends")
 def list_backends(user: CurrentUser) -> dict[str, Backend]:
     """The kinds of storage a source can be, with their settings and secrets."""
-    keys = {"label", "fields", "secrets", "oauth"}
+    keys = {"label", "fields", "secrets", "oauth", "google"}
     return {k: Backend.model_validate({f: x for f, x in v.items() if f in keys}) for k, v in sources.BACKENDS.items()}
 
 
@@ -98,9 +98,9 @@ def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
 
 @router.post("/sources/{sid}/google")
 def sign_in_to_google(sid: int, user: AdminWriter, request: Request, response: Response, db: Db, cfg: Cfg) -> ExternalRedirect:
-    """Sign a Gmail source in to Google as a person: open the returned address in this browser. Google asks them to
-    let Lens read their mail, then sends them back to Sources. Uses the Google client set up in Settings ›
-    Sign-in. Audited as `source.google` when it's done."""
+    """Sign a Google source (Gmail, Google Calendar) in to Google as a person: open the returned address in this
+    browser. Google asks them to let Lens read what the source reads, then sends them back to Sources. Uses the Google
+    client set up in Settings › Sign-in. Audited as `source.google` when it's done."""
     if user.via != "access":
         raise HTTPException(403, "sign in to the web app to connect Google; API tokens and apps can't")
     try:

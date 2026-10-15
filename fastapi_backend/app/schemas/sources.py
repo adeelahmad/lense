@@ -8,7 +8,7 @@ from pydantic import Field
 
 from app.schemas.common import Created, Ok, RequestModel, ResponseModel
 
-SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "gmail", "ical"]
+SourceType = Literal["s3", "dropbox", "drive", "onedrive", "sftp", "smb", "webdav", "local", "imap", "gmail", "ical", "gcal"]
 WatchKinds = Literal["audio", "transcripts", "both", "documents", "all"]
 KINDS_HELP = (
     "what to pick up: audio (and video), transcripts, both of those (PDFs read as transcripts), documents (PDFs and "
@@ -20,10 +20,10 @@ class Backend(ResponseModel):
     label: str
     fields: dict[str, str] = Field(description="parameters and their defaults")
     secrets: list[str]
-    oauth: str | None = Field(
-        default=None,
-        description="for OAuth backends: the command that produces the token, or `google` when the source signs in with "
-        "Google from Lens (POST /sources/{id}/google)",
+    oauth: str | None = Field(default=None, description="the command that produces the token, for OAuth backends")
+    google: bool = Field(
+        default=False,
+        description="signs in to Google: a service account key, or a person through POST /sources/{id}/google",
     )
 
 

@@ -1,6 +1,6 @@
-"""Sources that aren't file storage: IMAP mailboxes, Gmail and Google Workspace mailboxes, and iCalendar feeds, shown
-as folders of files so browsing, choosing files, watching and importing work for them as they do for rclone's storage
-(sources.py).
+"""Sources that aren't file storage: IMAP mailboxes, Gmail and Google Workspace mailboxes, iCalendar feeds and Google
+Calendar (gcal.py), shown as folders of files so browsing, choosing files, watching and importing work for them as they
+do for rclone's storage (sources.py).
 
 - An IMAP account's folders are its mailboxes, and each message is a file, `<mailbox>/<uidvalidity>-<uid>.eml`: a
   UID stands for one message only while the mailbox's UIDVALIDITY stays the same, so a mailbox the server rebuilt
@@ -38,8 +38,10 @@ import urllib.parse
 import urllib.request
 from email import policy
 
-from . import calendars, netguard
+from . import calendars, gcal, netguard
 
+# sources a module of their own handles: browse, list_files, fetch, immutable and test, as below
+OWN = {"gcal": gcal}
 TYPES = {
     "imap": {
         "label": "Email (IMAP)",
@@ -51,13 +53,14 @@ TYPES = {
         # user: the mailbox's address (filled in by signing in with Google; the person a service account acts as)
         "fields": {"user": "", "via": "api"},
         "secrets": ["token", "service_account_credentials"],  # signs in as a person (OAuth), or as a service account
-        "oauth": "google",  # signing in happens in Lens: POST /sources/{id}/google
+        "google": True,  # signs in through google_auth.py (as a person: POST /sources/{id}/google)
     },
     "ical": {
         "label": "Calendar feed (iCal)",
         "fields": {"user": ""},
         "secrets": ["url", "pass"],
     },
+    **{k: m.TYPE for k, m in OWN.items()},
 }
 SECURITY = ("ssl", "starttls", "none")
 VIA = ("api", "imap")  # how a Gmail source reads: the Gmail API, or IMAP
@@ -145,11 +148,9 @@ def _ok(typ, data, what):
 def _imap(cfg, src):
     p = _params(src)
     if src["type"] == "gmail":
-        from . import google_auth
-
         if not p.get("user"):
             raise RuntimeError("enter the mailbox's address, or sign in with Google")
-        with connect(*GMAIL_IMAP, p["user"], None, token=google_auth.token(cfg, src)) as conn:
+        with connect(*GMAIL_IMAP, p["user"], None, token=_api().token(cfg, src)) as conn:
             yield conn
         return
     with connect(p.get("host"), p.get("port"), p.get("security") or "ssl", p.get("user") or "", _secret(cfg, src, "pass")) as conn:
@@ -542,6 +543,8 @@ def _api():
 
 
 def browse(cfg, src, path=""):
+    if src["type"] in OWN:
+        return OWN[src["type"]].browse(cfg, src, check_path(path))
     how = _reader(src)
     if how == "gmail":
         return _api().browse(cfg, src, check_path(path))
@@ -553,6 +556,8 @@ def list_files(cfg, src, path="", cursor=None, fresh=False, headers=True):
     after it. `fresh` (a watch's first scan, which leaves what's there) and `headers` (False: only the files' names,
     to count them) let Gmail's API skip reading what isn't needed."""
     path = check_path(path)
+    if src["type"] in OWN:
+        return OWN[src["type"]].list_files(cfg, src, path, cursor)
     how, after = _reader(src), {c["mailbox"]: c for c in cursor or []}
     if how == "gmail":
         return _api().list_files(cfg, src, path, after, fresh, headers)
@@ -579,6 +584,8 @@ def find(cfg, src, folder, paths):
 
 def fetch(cfg, src, path):
     """The file's bytes: a message as the server keeps it, an event as an .ics of its own."""
+    if src["type"] in OWN:
+        return OWN[src["type"]].fetch(cfg, src, check_path(path))
     how = _reader(src)
     if how == "gmail":
         return _api().fetch(cfg, src, check_path(path))
@@ -587,10 +594,14 @@ def fetch(cfg, src, path):
 
 def immutable(src):
     """Whether a file, once fetched, never changes (a message), so a cached copy can be kept."""
+    if src["type"] in OWN:
+        return OWN[src["type"]].immutable(src)
     return is_email(src)
 
 
 def test(cfg, src):
+    if src["type"] in OWN:
+        return OWN[src["type"]].test(cfg, src)
     how = _reader(src)
     if how == "gmail":
         return _api().test(cfg, src)

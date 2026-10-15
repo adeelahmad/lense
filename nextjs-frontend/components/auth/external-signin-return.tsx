@@ -20,8 +20,8 @@ function sentence(s: string): string {
 
 /**
  * The end of signing in with Google, GitHub, Microsoft or OpenID Connect: the API sends the browser here with a
- * one-time ticket (signs in and goes on), the name of an account just connected (back to the profile), or why it
- * didn't work.
+ * one-time ticket (signs in and goes on), the name of an account just connected (back to the profile, or to Sources
+ * for a mailbox signed in to Google), or why it didn't work.
  */
 export function ExternalSigninReturn() {
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +40,8 @@ export function ExternalSigninReturn() {
       return;
     }
     if (got.get("connected")) {
-      navigate.replace(`${safeNext(next, "/account")}?connected=${encodeURIComponent(got.get("connected")!)}`);
+      const to = safeNext(next, "/account");
+      navigate.replace(`${to}${to.includes("?") ? "&" : "?"}connected=${encodeURIComponent(got.get("connected")!)}`);
       return;
     }
     setBack(safeNext(next, "/login"));
@@ -53,7 +54,11 @@ export function ExternalSigninReturn() {
       footer={
         error ? (
           <Link href={back} className="text-fg-secondary underline underline-offset-2 hover:text-fg">
-            {back === "/account" ? "Back to your profile" : "Back to sign in"}
+            {back === "/account"
+              ? "Back to your profile"
+              : back.startsWith("/sources")
+                ? "Back to Sources"
+                : "Back to sign in"}
           </Link>
         ) : undefined
       }

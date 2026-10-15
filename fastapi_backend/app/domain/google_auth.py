@@ -1,201 +1,263 @@
-"""Google accounts for sources: a Gmail or Google Workspace mailbox (feeds.py, gmail.py), and any other source that
-reads one of Google's APIs.
+"""Signing in to Google's APIs for a source (Google Calendar, gcal.py; Gmail, gmail.py; other Google sources can use it
+too), and calling them.
 
-A source signs in to Google one of two ways, as Google offers them:
+A source signs in one of two ways, each kept sealed like a password:
 
-- As a person (OAuth). Someone opens the source in the web app and signs in with Google, which asks them to let Lens
-  read what the source reads: Gmail read only, or all of Gmail for IMAP (Google has no read-only scope for IMAP).
-  Lens keeps the refresh token Google gives back, sealed like a password, together with the client it was given to
-  (a refresh token works only with its own client). The client is the one admins set up for signing in with Google
-  (Settings › Sign-in), and the round trip comes back through that client's own callback (external_login.py, flow
-  mode "source"), so nothing new is registered at Google. Google lets people untick a permission on its page: then
-  the source isn't connected, and they're told which one to leave ticked.
-- As a Google Workspace service account with domain-wide delegation. Its JSON key (sealed) signs a short assertion
-  (RS256) to act as one person of the domain, the source's `user`, which Google swaps for an access token. Nobody
-  signs in; a Workspace admin lets the account's client id have the scopes (Admin console › Security › API controls
-  › Domain-wide delegation).
+- As a **service account** (`service_account_credentials`, the .json key file Google Cloud gives): Lens signs a short
+  JWT with the account's private key and swaps it at Google's token endpoint for an access token (RFC 7523). In Google
+  Workspace it can act as a user of the domain (`impersonate`), once an admin gave it domain-wide delegation for the
+  scopes it asks for; otherwise it reads what was shared with its own address.
+- As a **Google account** someone connected (`token`): an OAuth client's refresh token, kept as the "authorized user"
+  JSON ({type, client_id, client_secret, refresh_token}, as `gcloud auth application-default login --client-id-file`
+  writes it for a client of your own), so the source carries everything it needs to sign in.
 
-An agent can give a source a token it already has instead: the `token` secret as JSON with refresh_token, client_id
-and client_secret.
+  Someone signs a source in from the web app with **Sign in with Google** (`start` and `finish`, below): Google asks
+  them to let Lens read what the source reads, and Lens keeps the refresh token it gives. The client is the one admins
+  set up for signing in with Google (Settings › Sign-in), and the round trip comes back through that client's own
+  callback (external_login.py, flow mode "source"), so nothing new is registered at Google. Google lets people untick
+  a permission on its page: then the source isn't connected, and they're told which one to leave ticked.
 
-Access tokens last an hour. They're kept in memory only, until a minute before they run out; each one Google gives is
-a call out in the activity ledger (google.token).
+Access tokens last an hour; each is kept in memory until a minute before it ends, and never stored. The token endpoint
+is always Google's own: a key file's `token_uri` is not followed. Every call to Google is a row in the activity ledger
+(`google.token`, `google.<api>`), with what was called, never what came back.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-import threading
 import time
 
 import httpx
 import jwt
 
-from . import activity, external_login, settings
+from . import activity
 
-TOKEN_URI = "https://oauth2.googleapis.com/token"
+TOKEN_URL = "https://oauth2.googleapis.com/token"
 PROVIDER = "google"  # the sign-in provider (Settings › Sign-in) whose client people sign their sources in with
-GMAIL_READ = "https://www.googleapis.com/auth/gmail.readonly"
-MAIL = "https://mail.google.com/"  # all of Gmail: the only scope Google gives IMAP
 SIGN_IN = ("openid", "email")  # asked for besides a source's own scopes: which account it is
 # what each scope lets Lens do, in the words Google's consent page uses for its tick box
 CAN = {
-    GMAIL_READ: "View your email messages and settings",
-    MAIL: "Read, compose, send and permanently delete all your email from Gmail",
+    "https://www.googleapis.com/auth/gmail.readonly": "View your email messages and settings",
+    "https://mail.google.com/": "Read, compose, send and permanently delete all your email from Gmail",
+    "https://www.googleapis.com/auth/calendar.readonly": "See and download any calendar you can access using your Google Calendar",
 }
 TIMEOUT = 30
-EARLY = 60  # an access token is used until this many seconds before it runs out
-MAX_CACHED = 256
-_TOKENS: dict[str, tuple[str, float]] = {}
-_LOCK = threading.Lock()
+_TOKENS: dict[str, tuple[float, str]] = {}  # who and for what -> (when it ends, monotonic; the access token)
+# what Google says when it throttles (403 with these reasons, or 429): the account works, it's only slowed down
+THROTTLED = {"rateLimitExceeded", "userRateLimitExceeded", "quotaExceeded", "dailyLimitExceeded"}
 
 
 class GoogleError(RuntimeError):
-    """Google said no, or couldn't be reached; the message says why, for the person."""
+    """Google refused or couldn't be reached; the message says why, for people."""
 
 
-def _gmail(params):
-    return [MAIL] if params.get("via") == "imap" else [GMAIL_READ]
-
-
-# a source type that signs in to Google, and the scopes it reads with, from its settings
-SCOPES = {"gmail": _gmail}
-
-
-def scopes(src):
-    """The scopes a source reads with."""
-    how = SCOPES.get(src["type"])
-    if how is None:
-        raise ValueError(f"a {src['type']} source doesn't sign in to Google")
-    return how({k: str(v if v is not None else "").strip() for k, v in (src.get("params") or {}).items()})
-
-
-def signs_in(src):
-    """How a source signs in to Google: "service_account", "oauth", or None when it doesn't yet."""
-    sealed = src.get("sealed") or {}
-    if sealed.get("service_account_credentials"):
-        return "service_account"
-    return "oauth" if sealed.get("token") else None
-
-
-def check_token(text):
-    """A token as a source keeps it: JSON with refresh_token, client_id and client_secret (other fields kept)."""
+def service_key(text):
+    """A service account's key file, checked and kept on one line. ValueError when it isn't one."""
     try:
-        t = json.loads(text)
+        key = json.loads(text)
     except ValueError:
-        raise ValueError("a Google token is JSON with refresh_token, client_id and client_secret") from None
-    if not isinstance(t, dict) or not all(
-        isinstance(t.get(k), str) and t[k].strip() for k in ("refresh_token", "client_id", "client_secret")
+        raise ValueError("the service account key isn't JSON: upload the .json key file Google Cloud gave you") from None
+    if not isinstance(key, dict) or key.get("type") != "service_account" or not key.get("client_email") or not key.get("private_key"):
+        raise ValueError("that isn't a service account key: it needs type service_account, client_email and private_key")
+    return json.dumps(key, separators=(",", ":"))
+
+
+def authorized_user(text):
+    """A connected Google account as it's kept: {type: authorized_user, client_id, client_secret, refresh_token}.
+    ValueError when the text isn't one."""
+    try:
+        o = json.loads(text)
+    except ValueError:
+        raise ValueError("the Google account isn't JSON: it's {client_id, client_secret, refresh_token}") from None
+    keys = ("client_id", "client_secret", "refresh_token")
+    if (
+        not isinstance(o, dict)
+        or o.get("type", "authorized_user") != "authorized_user"
+        or not all(isinstance(o.get(k), str) and o[k] for k in keys)
     ):
-        raise ValueError("a Google token needs refresh_token, client_id and client_secret")
-    return json.dumps(t, separators=(",", ":"))
+        raise ValueError("that isn't a connected Google account: it needs client_id, client_secret and refresh_token")
+    return json.dumps({"type": "authorized_user", **{k: o[k].strip() for k in keys}}, separators=(",", ":"))
 
 
-def _unsealed(cfg, src, k):
+def check_secret(k, v):
+    """A Google source's secret as it's stored (sources.create and update call this)."""
+    if k == "service_account_credentials":
+        return service_key(v)
+    if k == "token":
+        return authorized_user(v)
+    return str(v)
+
+
+def secret(cfg, src, k):
+    """A source's sealed secret, opened ("" when it has none)."""
+    from . import settings  # settings imports sources, which imports what imports this
+
     sealed = (src.get("sealed") or {}).get(k)
     return settings.unseal(cfg, sealed, f"source:{src['id']}:{k}") if sealed else ""
 
 
-def _user(src):
-    return str((src.get("params") or {}).get("user") or "").strip()
+def credentials(cfg, src):
+    """What a source signs in with: {kind: service_account, key, subject} (its key file, acting as `impersonate`
+    when set), else {kind: authorized_user, user} (the Google account connected to it)."""
+    key = secret(cfg, src, "service_account_credentials")
+    if key:
+        subject = str((src.get("params") or {}).get("impersonate") or "").strip()
+        return {"kind": "service_account", "key": json.loads(key), "subject": subject or None}
+    user = secret(cfg, src, "token")
+    if user:
+        return {"kind": "authorized_user", "user": json.loads(user)}
+    raise GoogleError("sign in with Google, or upload a service account key, first")
 
 
-def token(cfg, src, want=None):
-    """An access token for a source, for the scopes it reads with (or `want`)."""
-    want = sorted(want or scopes(src))
-    sealed = src.get("sealed") or {}
-    held = [src.get("id"), want, sealed.get("service_account_credentials"), sealed.get("token"), _user(src)]
-    key = hashlib.sha256(json.dumps(held, default=str).encode()).hexdigest()
-    with _LOCK:
-        hit = _TOKENS.get(key)
-        if hit and hit[1] > time.monotonic():
-            return hit[0]
-    how = signs_in(src)
-    if how == "service_account":
-        got = _service_account(cfg, src, want)
-    elif how == "oauth":
-        got = _refresh(cfg, src, want)
+def who(creds):
+    """The address a source signs in as, for messages: the service account's (or the user it acts as)."""
+    if creds["kind"] == "service_account":
+        return creds["subject"] or creds["key"]["client_email"]
+    return "the connected Google account"
+
+
+def _cache_key(creds, scopes):
+    if creds["kind"] == "service_account":
+        k = creds["key"]
+        who_ = f"sa|{k['client_email']}|{k.get('private_key_id') or hashlib.sha256(k['private_key'].encode()).hexdigest()}|{creds['subject'] or ''}"
     else:
-        raise GoogleError("this source isn't signed in to Google yet: sign in with Google, or add a service account key")
-    with _LOCK:
-        if len(_TOKENS) >= MAX_CACHED:
-            _TOKENS.clear()
-        _TOKENS[key] = (got["access_token"], time.monotonic() + max(0, int(got.get("expires_in") or 3600) - EARLY))
-    return got["access_token"]
+        who_ = f"user|{creds['user']['client_id']}|{creds['user']['refresh_token']}"
+    return hashlib.sha256(f"{who_}|{' '.join(sorted(scopes))}".encode()).hexdigest()
 
 
-def _grant(data, explain):
-    """What Google's token endpoint gives for this grant (access_token, expires_in, scope, ...); GoogleError, in
-    words `explain` picks from Google's error, otherwise."""
-    with activity.call("google.token", detail={"grant": data["grant_type"].rsplit(":", 1)[-1]}):
-        try:
-            r = httpx.post(TOKEN_URI, data=data, headers={"Accept": "application/json"}, timeout=TIMEOUT)
-            body = r.json()
-        except (httpx.HTTPError, ValueError):
-            raise GoogleError("couldn't reach Google to sign in; try again") from None
-        if r.status_code >= 400 or not isinstance(body, dict) or not body.get("access_token"):
-            body = body if isinstance(body, dict) else {}
-            raise GoogleError(explain(str(body.get("error") or r.status_code), str(body.get("error_description") or "")))
-    return body
-
-
-def _service_account(cfg, src, want):
-    key = json.loads(_unsealed(cfg, src, "service_account_credentials"))
-    who = _user(src)
-    if not who:
-        raise GoogleError("a service account reads one person's mail: enter their address (the user it acts as)")
-    now = int(time.time())
-    claims = {"iss": key["client_email"], "sub": who, "scope": " ".join(want), "aud": TOKEN_URI, "iat": now, "exp": now + 3600}
+def _refused(r, creds, scopes=()):
     try:
-        assertion = jwt.encode(
-            claims, key["private_key"], algorithm="RS256", headers={"kid": key["private_key_id"]} if key.get("private_key_id") else None
-        )
-    except (ValueError, TypeError, jwt.PyJWTError):
-        raise GoogleError("the service account key can't sign: upload the .json key file Google Cloud gave you again") from None
-
-    def explain(error, said):
-        if error == "unauthorized_client":
-            return (
-                f"Google refused the service account: a Workspace admin has to let its client id ({key.get('client_id') or '?'}) "
-                f"use {', '.join(want)} (Admin console › Security › API controls › Domain-wide delegation)"
+        body = r.json()
+    except ValueError:
+        body = {}
+    err = body.get("error") if isinstance(body, dict) else None
+    said = (body.get("error_description") if isinstance(body, dict) else None) or err or f"HTTP {r.status_code}"
+    if creds["kind"] == "service_account" and creds["subject"]:
+        k = creds["key"]
+        if err == "unauthorized_client":
+            return GoogleError(
+                f"Google refused to let {k['client_email']} act as {creds['subject']}: a Workspace admin gives client id "
+                f"{k.get('client_id') or '(in the key file)'} domain-wide delegation for {','.join(scopes) or 'its scopes'} "
+                "(Admin console › Security › API controls)"
             )
-        if error == "invalid_grant" and "email" in said.lower():
-            return f"the service account can't act as {who}: use the address of someone in your Workspace domain"
-        return f"Google refused the service account: {said or error}"
+        if err == "invalid_grant" and "email" in said.lower():
+            return GoogleError(f"{k['client_email']} can't act as {creds['subject']}: use the address of someone in your Workspace domain")
+    if creds["kind"] == "authorized_user" and err == "invalid_grant":
+        return GoogleError(f"Google no longer accepts this source's sign-in ({said}): sign in with Google again")
+    if creds["kind"] == "authorized_user" and err in ("invalid_client", "unauthorized_client"):
+        return GoogleError(f"Google doesn't know the client this source signed in with ({said}): sign in with Google again")
+    return GoogleError(f"Google refused to sign in: {said}")
 
-    return _grant({"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": assertion}, explain)
 
-
-def _refresh(cfg, src, want):
-    t = json.loads(_unsealed(cfg, src, "token"))
-
-    def explain(error, said):
-        if error == "invalid_grant":
-            return "Google no longer accepts this source's sign-in (it was revoked, or expired): sign in with Google again"
-        if error in ("invalid_client", "unauthorized_client"):
-            return "Google doesn't know the client this source signed in with any more: sign in with Google again"
-        return f"Google refused: {said or error}"
-
-    got = _grant(
-        {
+def access_token(cfg, creds, scopes, fresh=False):
+    """An access token for these scopes, from the cache unless it's about to end (or `fresh`)."""
+    key = _cache_key(creds, scopes)
+    hit = _TOKENS.get(key)
+    if hit and not fresh and hit[0] > time.monotonic():
+        return hit[1]
+    if creds["kind"] == "service_account":
+        k, now = creds["key"], int(time.time())
+        claims = {"iss": k["client_email"], "scope": " ".join(scopes), "aud": TOKEN_URL, "iat": now, "exp": now + 3600}
+        if creds["subject"]:
+            claims["sub"] = creds["subject"]
+        try:
+            assertion = jwt.encode(
+                claims, k["private_key"], algorithm="RS256", headers={"kid": k.get("private_key_id")} if k.get("private_key_id") else None
+            )
+        except (ValueError, TypeError, jwt.PyJWTError) as e:
+            raise GoogleError(f"the service account's private key can't sign: {e}") from None
+        form = {"grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer", "assertion": assertion}
+    else:
+        u = creds["user"]
+        form = {
             "grant_type": "refresh_token",
-            "refresh_token": t["refresh_token"],
-            "client_id": t["client_id"],
-            "client_secret": t["client_secret"],
-        },
-        explain,
-    )
-    granted = (got.get("scope") or t.get("scope") or "").split()
-    missing = [s for s in want if s not in granted] if granted else []
-    if missing:  # signed in for reading by the API, then switched to IMAP (or the other way): ask for the new scope
-        raise GoogleError(f"this source's sign-in doesn't allow “{CAN.get(missing[0], missing[0])}”: sign in with Google again")
-    return got
+            "client_id": u["client_id"],
+            "client_secret": u["client_secret"],
+            "refresh_token": u["refresh_token"],
+        }
+    with activity.call("google.token", cfg, detail={"as": creds["kind"]}):
+        try:
+            r = httpx.post(TOKEN_URL, data=form, headers={"Accept": "application/json"}, timeout=TIMEOUT)
+        except httpx.HTTPError as e:
+            raise GoogleError(f"couldn't reach Google to sign in: {e}") from None
+        if r.status_code >= 400:
+            raise _refused(r, creds, scopes)
+        try:
+            body = r.json()
+            token, lasts = body["access_token"], int(body.get("expires_in") or 3600)
+        except (ValueError, KeyError, TypeError):
+            raise GoogleError("Google's sign-in answered without an access token") from None
+        granted = str(body.get("scope") or "").split()
+        missing = [s for s in scopes if granted and s not in granted]
+        if creds["kind"] == "authorized_user" and missing:  # signed in for one way of reading, then switched to another
+            raise GoogleError(f"this source's Google sign-in doesn't allow “{CAN.get(missing[0], missing[0])}”: sign in with Google again")
+    _TOKENS[key] = (time.monotonic() + max(lasts - 60, 30), token)
+    return token
+
+
+def _reason(r):
+    try:
+        e = r.json().get("error") or {}
+        return (e.get("errors") or [{}])[0].get("reason") or e.get("status") or "", e.get("message") or ""
+    except (ValueError, AttributeError, IndexError, TypeError):
+        return "", ""
+
+
+def _answer(r, creds):
+    """A reply from one of Google's APIs as JSON, or the error it means."""
+    if r.status_code < 400:
+        try:
+            return r.json()
+        except ValueError:
+            raise GoogleError("Google answered with something that isn't JSON") from None
+    reason, message = _reason(r)
+    if r.status_code == 429 or reason in THROTTLED:
+        from . import sources  # sources imports feeds, which imports what imports this
+
+        raise sources.RateLimited(f"Google is rate limiting {who(creds)}: {message or reason or r.status_code}")
+    if r.status_code == 404:
+        raise FileNotFoundError(message or "Google has no such item, or it isn't shared with this account")
+    if r.status_code == 403 and reason in ("accessNotConfigured", "SERVICE_DISABLED"):
+        raise GoogleError(f"the API isn't turned on for this Google Cloud project: {message}")
+    raise GoogleError(f"Google answered {r.status_code}: {message or reason or 'refused'}")
+
+
+def get(cfg, creds, scopes, url, params=None, api="api", what=None):
+    """GET one of Google's APIs as the source signs in, as JSON. Signs in again once if Google says the token ended.
+    sources.RateLimited when Google is throttling the account, FileNotFoundError when it has no such item, GoogleError
+    when it refused."""
+    for attempt in (0, 1):
+        token = access_token(cfg, creds, scopes, fresh=attempt == 1)
+        with activity.call(f"google.{api}", cfg, detail={"call": what} if what else None) as row:
+            try:
+                r = httpx.get(
+                    url, params=params, headers={"Authorization": f"Bearer {token}", "Accept": "application/json"}, timeout=TIMEOUT
+                )
+            except httpx.HTTPError as e:
+                raise GoogleError(f"couldn't reach Google: {e}") from None
+            if r.status_code == 401 and attempt == 0:  # the token ended early (or was revoked): sign in again, once
+                row.end(GoogleError("signed in again"))
+                continue
+            return _answer(r, creds)
+    raise GoogleError("Google didn't accept a fresh sign-in")  # not reached: the second attempt returns or raises
 
 
 # ---------- signing a source in (the web app) ----------
+def scopes(src):
+    """The scopes a Google source reads with. ValueError for a source that doesn't sign in to Google."""
+    from . import gcal, gmail  # they read through this module
+
+    how = {"gmail": gmail.scopes, "gcal": lambda _: gcal.SCOPES}.get(src["type"])
+    if how is None:
+        raise ValueError(f"a {src['type']} source doesn't sign in to Google")
+    return list(how(src))
+
+
 def client(db):
     """The Google client people sign their sources in with: the sign-in provider's row. GoogleError when there's none."""
+    from . import external_login
+
     try:
         row = external_login.provider(db, PROVIDER)
     except KeyError:
@@ -207,13 +269,19 @@ def client(db):
     return row
 
 
+def _hint(src):
+    return str((src.get("params") or {}).get("user") or "").strip()
+
+
 def start(db, cfg, src, origin, account):
     """Google's page to send the browser to, to sign a source in, and the browser secret to keep in a cookie."""
-    client(db)
+    from . import external_login
+
     asked = [*SIGN_IN, *scopes(src)]
+    client(db)
     extra = {"access_type": "offline", "prompt": "consent select_account"}  # consent: Google gives a refresh token every time
-    if "@" in _user(src):
-        extra["login_hint"] = _user(src)
+    if "@" in _hint(src):
+        extra["login_hint"] = _hint(src)
     return external_login.start(
         db,
         cfg,
@@ -221,7 +289,7 @@ def start(db, cfg, src, origin, account):
         origin,
         mode="source",
         account=account,
-        next_path="/sources",
+        next_path=f"/sources?source={src['id']}",
         source=src["id"],
         scope=" ".join(asked),
         extra=extra,
@@ -229,30 +297,33 @@ def start(db, cfg, src, origin, account):
 
 
 def finish(db, cfg, flow, code):
-    """Sign the flow's source in with what Google sent back: keeps the refresh token on the source, its address as the
-    source's user, and drops a service account key it had. Returns (source id, address)."""
-    from . import sources  # sources imports feeds, which reads through this
+    """Sign the flow's source in with what Google sent back: keeps the refresh token on the source (and, for a source
+    that has one, its address as the source's user), and drops a service account key it had. Returns (source id,
+    address)."""
+    from . import external_login, feeds, settings, sources  # sources imports feeds, which reads through this
 
     row = client(db)
     src = sources.get(db, flow["source"])
-    secret = settings.unseal(cfg, row["client_secret"], external_login._context(PROVIDER))
-
-    def explain(error, said):
-        return f"Google refused: {said or error}; check the client id and secret in Settings › Sign-in"
-
-    got = _grant(
-        {
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": flow["redirect_uri"],
-            "client_id": row["client_id"],
-            "client_secret": secret,
-            "code_verifier": flow["verifier"],
-        },
-        explain,
-    )
-    granted = set((got.get("scope") or "").split())
-    missing = [s for s in (flow.get("scope") or "").split() if s not in SIGN_IN and s not in granted]
+    secret_ = settings.unseal(cfg, row["client_secret"], external_login._context(PROVIDER))
+    form = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": flow["redirect_uri"],
+        "client_id": row["client_id"],
+        "client_secret": secret_,
+        "code_verifier": flow["verifier"],
+    }
+    with activity.call("google.token", cfg, detail={"as": "sign-in"}):
+        try:
+            r = httpx.post(TOKEN_URL, data=form, headers={"Accept": "application/json"}, timeout=TIMEOUT)
+            got = r.json()
+        except (httpx.HTTPError, ValueError):
+            raise GoogleError("couldn't reach Google to sign in; try again") from None
+        if r.status_code >= 400 or not isinstance(got, dict):
+            said = (got.get("error_description") or got.get("error")) if isinstance(got, dict) else r.status_code
+            raise GoogleError(f"Google refused: {said}; check the client id and secret in Settings › Sign-in")
+    granted = set(str(got.get("scope") or "").split())
+    missing = [s for s in str(flow.get("scope") or "").split() if s not in SIGN_IN and s not in granted]
     if missing:
         raise GoogleError(f"Google wasn't allowed to “{CAN.get(missing[0], missing[0])}”: sign in again and leave that box ticked")
     if not got.get("refresh_token"):
@@ -260,21 +331,16 @@ def finish(db, cfg, flow, code):
             "Google didn't give Lens a lasting sign-in; remove Lens's access in your Google account's security page and try again"
         )
     try:
-        who = jwt.decode(got.get("id_token") or "", options={"verify_signature": False})  # straight from Google, over TLS
+        said = jwt.decode(got.get("id_token") or "", options={"verify_signature": False})  # straight from Google, over TLS
     except jwt.PyJWTError:
-        who = {}
-    email = str(who.get("email") or "").strip().lower()
-    if not email:
+        said = {}
+    address = str(said.get("email") or "").strip().lower()
+    if not address:
         raise GoogleError("Google didn't say which account signed in; try again")
-    keep = {
-        "refresh_token": got["refresh_token"],
-        "client_id": row["client_id"],
-        "client_secret": secret,
-        "email": email,
-        "scope": got.get("scope"),
-    }
-    secrets = {"token": json.dumps(keep, separators=(",", ":"))}
+    keep = {"type": "authorized_user", "client_id": row["client_id"], "client_secret": secret_, "refresh_token": got["refresh_token"]}
+    values = {"token": json.dumps(keep, separators=(",", ":"))}
     if (src.get("sealed") or {}).get("service_account_credentials"):
-        secrets["service_account_credentials"] = ""  # signed in as a person now: the key would win otherwise
-    sources.update(db, cfg, src["id"], params={"user": email}, secret_values=secrets)
-    return src["id"], email
+        values["service_account_credentials"] = ""  # signed in as a person now: the key would sign in first otherwise
+    has_user = "user" in (feeds.TYPES.get(src["type"]) or {}).get("fields", {})
+    sources.update(db, cfg, src["id"], params={"user": address} if has_user else None, secret_values=values)
+    return src["id"], address

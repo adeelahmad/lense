@@ -1,54 +1,48 @@
-"""Google for tests: the OAuth token endpoint (codes, refresh tokens, and service accounts' signed assertions, checked
-against their public keys) and enough of the Gmail API (labels, messages, history, profile). Tests point
-google_auth.TOKEN_URI and gmail.API at it, and play the browser on Google's consent page with `consent`.
-
-`messages` is {id: {raw, labels, at (ms)}}; `add` and `label` change the mailbox as mail arriving and a label put on
-do, writing Gmail's history. History older than `kept_from` is gone (404), as Gmail forgets it after about a week.
-`requests` keeps (method, path, query) of every request, so a test can check nothing was changed.
-"""
+"""Google's token endpoint and Calendar API, enough for tests: a service account signs in with a JWT (checked against
+its public key: issuer, audience, scope, and the user it acts as) and a connected account with its refresh token; the
+access tokens they get read the calendars and events the test sets up, in pages."""
 
 from __future__ import annotations
 
-import base64
-import email
-import hashlib
 import http.server
 import json
 import secrets
 import threading
-import time
 import urllib.parse
 
 import jwt
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
-GMAIL_READ = "https://www.googleapis.com/auth/gmail.readonly"
-MAIL = "https://mail.google.com/"
-LABELS = [
-    {"id": "INBOX", "name": "INBOX", "type": "system"},
-    {"id": "SENT", "name": "SENT", "type": "system"},
-    {"id": "SPAM", "name": "SPAM", "type": "system"},
-    {"id": "TRASH", "name": "TRASH", "type": "system"},
-    {"id": "DRAFT", "name": "DRAFT", "type": "system"},
-    {"id": "UNREAD", "name": "UNREAD", "type": "system"},
-    {"id": "CATEGORY_PERSONAL", "name": "CATEGORY_PERSONAL", "type": "system"},
-    {"id": "Label_7", "name": "Harbour", "type": "user"},
-]
+
+def service_account_key(email="lens-reader@harbour-project.iam.gserviceaccount.com"):
+    """A service account key file as Google Cloud gives it, with a fresh RSA key; and that key's public half."""
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = private.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+    key = {
+        "type": "service_account",
+        "project_id": "harbour-project",
+        "private_key_id": "k1",
+        "private_key": pem,
+        "client_email": email,
+        "client_id": "1234567890",
+        "token_uri": "https://evil.example/token",  # never followed: Lens always signs in at Google's own
+    }
+    return key, private.public_key()
 
 
 class Google:
-    def __init__(self, client_id="lens-google", client_secret="g-secret", address="mara@harbour.example"):
-        self.client_id, self.client_secret, self.address = client_id, client_secret, address
-        self.labels = [dict(lab) for lab in LABELS]
-        self.messages: dict[str, dict] = {}
-        self.history: list[dict] = []
-        self.history_id = 1000
-        self.kept_from = 0
-        self.requests: list[tuple[str, str, dict]] = []
-        self.access: dict[str, dict] = {}  # access token -> {email, scope}
-        self.refresh: dict[str, dict] = {}  # refresh token -> {email, scope, client_id}
-        self.codes: dict[str, dict] = {}
-        self.service_accounts: dict[str, dict] = {}  # client_email -> {public_key, scopes allowed, domain}
-        self.refused_refresh = False
+    def __init__(self):
+        self.service_accounts: dict[str, object] = {}  # client_email -> public key
+        self.delegated: dict[str, set] = {}  # client_email -> users it may act as
+        self.users: dict[str, dict] = {}  # refresh token -> {client_id, client_secret, account}
+        self.tokens: dict[str, str] = {}  # access token -> account it reads as
+        self.calendars: dict[str, dict] = {}  # calendar id -> {summary, timeZone, events: [...], readers: {account}}
+        self.lists: dict[str, list] = {}  # account -> calendar ids in its calendar list
+        self.calls: list[tuple[str, dict]] = []
+        self.page = 2500
+        self.expire_next = False  # answer the next API call 401, as when a token ends early
+        self.throttle = False
         google = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -63,157 +57,106 @@ class Google:
                 self.end_headers()
                 self.wfile.write(data)
 
+            def _error(self, status, reason, message):
+                return self._json(
+                    {"error": {"code": status, "message": message, "errors": [{"reason": reason, "message": message}]}}, status
+                )
+
             def do_POST(self):
                 form = dict(urllib.parse.parse_qsl(self.rfile.read(int(self.headers["Content-Length"])).decode()))
-                google.requests.append(("POST", urllib.parse.urlsplit(self.path).path, {"grant_type": form.get("grant_type")}))
-                status, body = google.token(form)
-                self._json(body, status)
+                google.calls.append(("token", form))
+                if form.get("grant_type") == "urn:ietf:params:oauth:grant-type:jwt-bearer":
+                    try:
+                        head = jwt.get_unverified_header(form["assertion"])
+                        claims = jwt.decode(form["assertion"], options={"verify_signature": False})
+                        public = google.service_accounts[claims["iss"]]
+                        claims = jwt.decode(form["assertion"], public, algorithms=["RS256"], audience=google.base + "/token")
+                    except (KeyError, jwt.PyJWTError) as e:
+                        return self._json({"error": "invalid_grant", "error_description": f"Invalid JWT: {e}"}, 400)
+                    assert head.get("kid") == "k1"
+                    who = claims.get("sub") or claims["iss"]
+                    if claims.get("sub") and claims["sub"] not in google.delegated.get(claims["iss"], set()):
+                        return self._json(
+                            {
+                                "error": "unauthorized_client",
+                                "error_description": "Client is unauthorized to retrieve access tokens using this method, or client not authorized for any of the scopes requested.",
+                            },
+                            401,
+                        )
+                    if claims.get("scope") != "https://www.googleapis.com/auth/calendar.readonly":
+                        return self._json({"error": "invalid_scope"}, 400)
+                elif form.get("grant_type") == "refresh_token":
+                    u = google.users.get(form.get("refresh_token"))
+                    if not u:
+                        return self._json({"error": "invalid_grant", "error_description": "Token has been expired or revoked."}, 400)
+                    if (form.get("client_id"), form.get("client_secret")) != (u["client_id"], u["client_secret"]):
+                        return self._json({"error": "invalid_client", "error_description": "The OAuth client was not found."}, 401)
+                    who = u["account"]
+                else:
+                    return self._json({"error": "unsupported_grant_type"}, 400)
+                token = secrets.token_urlsafe(16)
+                google.tokens[token] = who
+                return self._json({"access_token": token, "expires_in": 3599, "token_type": "Bearer"})
 
             def do_GET(self):
-                url = urllib.parse.urlsplit(self.path)
-                q = urllib.parse.parse_qs(url.query)
-                google.requests.append(("GET", url.path, q))
-                who = google.access.get((self.headers.get("Authorization") or "").removeprefix("Bearer "))
-                if not who or not ({GMAIL_READ, MAIL} & set(who["scope"].split())):
-                    return self._json({"error": {"code": 401, "message": "Invalid Credentials"}}, 401)
-                status, body = google.gmail(url.path.split("/gmail/v1/users/me", 1)[-1], q)
-                self._json(body, status)
+                u = urllib.parse.urlsplit(self.path)
+                q = dict(urllib.parse.parse_qsl(u.query))
+                path = urllib.parse.unquote(u.path)
+                google.calls.append((path, q))
+                who = google.tokens.get((self.headers.get("Authorization") or "").removeprefix("Bearer "))
+                if google.expire_next:
+                    google.expire_next = False
+                    who = None
+                if not who:
+                    return self._error(401, "authError", "Invalid Credentials")
+                if google.throttle:
+                    return self._error(403, "rateLimitExceeded", "Rate Limit Exceeded")
+                parts = path.removeprefix("/calendar/v3/").split("/")
+                if parts[:3] == ["users", "me", "calendarList"]:
+                    ids = google.lists.get(who, [])
+                    items = [
+                        {
+                            "id": i,
+                            "summary": google.calendars[i]["summary"],
+                            "timeZone": google.calendars[i]["timeZone"],
+                            "accessRole": "owner",
+                            **({"primary": True} if i == who else {}),
+                        }
+                        for i in ids
+                    ]
+                    return self._json(self._paged(items, q, 250))
+                if parts[0] == "calendars" and len(parts) >= 2:
+                    cal = google.calendars.get(parts[1])
+                    if not cal or who not in cal["readers"]:
+                        return self._error(404, "notFound", "Not Found")
+                    if len(parts) == 2:
+                        return self._json({"id": parts[1], "summary": cal["summary"], "timeZone": cal["timeZone"]})
+                    if parts[2:] == ["events"]:
+                        assert q.get("singleEvents") == "false" and q.get("showDeleted") == "false"
+                        items = [
+                            e
+                            for e in cal["events"]
+                            if not q.get("timeMin")
+                            or (e.get("end", {}).get("dateTime") or e.get("end", {}).get("date") or "9") >= q["timeMin"][:10]
+                            or e.get("recurrence")
+                        ]
+                        return self._json({"summary": cal["summary"], "timeZone": cal["timeZone"], **self._paged(items, q, google.page)})
+                return self._error(404, "notFound", "Not Found")
+
+            def _paged(self, items, q, size):
+                start = int(q.get("pageToken") or 0)
+                size = min(size, int(q.get("maxResults") or size))
+                out = {"items": items[start : start + size]}
+                if start + size < len(items):
+                    out["nextPageToken"] = str(start + size)
+                return out
 
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
-        self.token_uri = self.base + "/token"
-        self.api = self.base + "/gmail/v1/users/me"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    def api_calls(self, what=None):
+        return [c for c in self.calls if c[0] != "token" and (what is None or c[0].endswith(what))]
 
     def close(self):
         self.server.shutdown()
-
-    # ---------- the mailbox ----------
-    def _record(self, **what):
-        self.history_id += 7  # history ids grow, with gaps
-        self.history.append({"id": str(self.history_id), **what})
-        return self.history_id
-
-    def add(self, raw, labels=("INBOX",), at=None):
-        mid = format(0x18F0000000 + len(self.messages) * 4099, "x")
-        self.messages[mid] = {"raw": raw, "labels": list(labels), "at": at or int(time.time() * 1000)}
-        self._record(messagesAdded=[{"message": {"id": mid, "threadId": mid, "labelIds": list(labels)}}])
-        return mid
-
-    def label(self, mid, label):
-        self.messages[mid]["labels"].append(label)
-        self._record(labelsAdded=[{"message": {"id": mid, "threadId": mid, "labelIds": self.messages[mid]["labels"]}, "labelIds": [label]}])
-
-    def gmail(self, path, q):
-        one = lambda k, d=None: (q.get(k) or [d])[0]  # noqa: E731
-        if path == "/labels":
-            return 200, {"labels": self.labels}
-        if path == "/profile":
-            return 200, {"emailAddress": self.address, "messagesTotal": len(self.messages), "historyId": str(self.history_id)}
-        if path == "/messages":
-            label, search = one("labelIds"), one("q") or ""
-            ids = [
-                mid
-                for mid, m in sorted(self.messages.items(), key=lambda kv: -kv[1]["at"])
-                if not {"SPAM", "TRASH"} & set(m["labels"])
-                and (label in m["labels"] if label else True)
-                and not ("-in:drafts" in search and "DRAFT" in m["labels"])
-                and not any(m["at"] <= int(w[6:]) * 1000 for w in search.split() if w.startswith("after:"))
-            ]
-            start, size = int(one("pageToken", "0")), int(one("maxResults", "100"))
-            page = ids[start : start + size]
-            body = {"messages": [{"id": i, "threadId": i} for i in page], "resultSizeEstimate": len(ids)}
-            if start + size < len(ids):
-                body["nextPageToken"] = str(start + size)
-            return 200, body
-        if path.startswith("/messages/"):
-            m = self.messages.get(path.rsplit("/", 1)[1])
-            if not m:
-                return 404, {"error": {"code": 404, "message": "Requested entity was not found."}}
-            mid = path.rsplit("/", 1)[1]
-            base = {"id": mid, "threadId": mid, "labelIds": m["labels"], "internalDate": str(m["at"]), "sizeEstimate": len(m["raw"])}
-            if one("format") == "raw":
-                return 200, {**base, "raw": base64.urlsafe_b64encode(m["raw"]).decode().rstrip("=")}
-            msg = email.message_from_bytes(m["raw"])
-            want = {h.lower() for h in q.get("metadataHeaders") or []}
-            headers = [{"name": k, "value": str(v)} for k, v in msg.items() if k.lower() in want]
-            return 200, {**base, "payload": {"headers": headers}}
-        if path == "/history":
-            start = int(one("startHistoryId"))
-            if start < self.kept_from:
-                return 404, {"error": {"code": 404, "message": "Requested entity was not found."}}
-            kinds, label = set(q.get("historyTypes") or []), one("labelId")
-            out = []
-            for rec in self.history:
-                if int(rec["id"]) <= start:
-                    continue
-                keep = {}
-                for kind, field in (("messageAdded", "messagesAdded"), ("labelAdded", "labelsAdded")):
-                    items = [a for a in rec.get(field) or [] if kind in kinds and (not label or label in a["message"]["labelIds"])]
-                    if items:
-                        keep[field] = items
-                if keep:
-                    out.append({"id": rec["id"], **keep})
-            return 200, {"history": out, "historyId": str(self.history_id)}
-        return 404, {"error": {"code": 404, "message": "not here"}}
-
-    # ---------- signing in ----------
-    def consent(self, sign_in_url, email_address=None, untick=()):
-        """The code Google sends back once someone allows Lens at `sign_in_url` (leaving `untick` scopes unticked):
-        (code, state)."""
-        q = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(sign_in_url).query))
-        code = secrets.token_urlsafe(12)
-        scope = " ".join(s for s in q["scope"].split() if s not in untick).replace(
-            "email", "https://www.googleapis.com/auth/userinfo.email"
-        )
-        self.codes[code] = {**q, "email": email_address or self.address, "granted": scope}
-        return code, q["state"]
-
-    def _access(self, email_address, scope):
-        token = "ya29." + secrets.token_urlsafe(16)
-        self.access[token] = {"email": email_address, "scope": scope}
-        return {"access_token": token, "expires_in": 3599, "scope": scope, "token_type": "Bearer"}
-
-    def token(self, form):
-        grant = form.get("grant_type")
-        if grant == "urn:ietf:params:oauth:grant-type:jwt-bearer":
-            return self._assertion(form.get("assertion") or "")
-        if form.get("client_id") != self.client_id or form.get("client_secret") != self.client_secret:
-            return 401, {"error": "invalid_client", "error_description": "The OAuth client was not found."}
-        if grant == "authorization_code":
-            c = self.codes.pop(form.get("code"), None)
-            if not c or form.get("redirect_uri") != c["redirect_uri"]:
-                return 400, {"error": "invalid_grant", "error_description": "Bad Request"}
-            verifier = form.get("code_verifier") or ""
-            if base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=") != c["code_challenge"]:
-                return 400, {"error": "invalid_grant", "error_description": "Missing code verifier."}
-            refresh = "1//" + secrets.token_urlsafe(16)
-            self.refresh[refresh] = {"email": c["email"], "scope": c["granted"], "client_id": self.client_id}
-            id_token = jwt.encode(
-                {"iss": "https://accounts.google.com", "email": c["email"], "email_verified": True},
-                "not checked by Lens; long enough for PyJWT",
-                "HS256",
-            )
-            return 200, {**self._access(c["email"], c["granted"]), "refresh_token": refresh, "id_token": id_token}
-        if grant == "refresh_token":
-            r = self.refresh.get(form.get("refresh_token"))
-            if not r or self.refused_refresh:
-                return 400, {"error": "invalid_grant", "error_description": "Token has been expired or revoked."}
-            return 200, self._access(r["email"], r["scope"])
-        return 400, {"error": "unsupported_grant_type"}
-
-    def _assertion(self, assertion):
-        try:
-            iss = jwt.decode(assertion, options={"verify_signature": False})["iss"]
-            sa = self.service_accounts[iss]
-            claims = jwt.decode(assertion, sa["public_key"], algorithms=["RS256"], audience=self.token_uri)
-        except (KeyError, jwt.PyJWTError) as e:
-            return 400, {"error": "invalid_grant", "error_description": f"Invalid JWT Signature. ({e})"}
-        if not claims.get("sub", "").endswith("@" + sa["domain"]):
-            return 400, {"error": "invalid_grant", "error_description": "Invalid email or User ID"}
-        if not set(claims["scope"].split()) <= set(sa["scopes"]):
-            return 401, {
-                "error": "unauthorized_client",
-                "error_description": "Client is unauthorized to retrieve access tokens using this method, or client not authorized for any of the scopes requested.",
-            }
-        return 200, self._access(claims["sub"], claims["scope"])

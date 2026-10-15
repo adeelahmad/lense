@@ -1,6 +1,6 @@
 """Gmail and Google Workspace mailboxes as sources (feeds.py, gmail.py, google_auth.py): signed in as a person through
 the Google client of Settings › Sign-in, or as a Workspace service account; read through the Gmail API or over IMAP.
-Everything runs against a fake Google (tests/fake_google.py) and the fake IMAP server, with no real accounts."""
+Everything runs against a fake Google (tests/fake_gmail.py) and the fake IMAP server, with no real accounts."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from app.domain import convert, feeds, gmail, google_auth, sources, store
 from tests import fake_imap
 from tests.api.test_mail_calendar_sources import BUOYS, REPORT, _email
-from tests.fake_google import GMAIL_READ, MAIL, Google
+from tests.fake_gmail import GMAIL_READ, MAIL, Google
 from tests.helpers import drain, login, make_user
 
 R = store.R
@@ -26,7 +26,7 @@ MARA = "mara@harbour.example"
 @pytest.fixture
 def google(monkeypatch):
     g = Google(address=MARA)
-    monkeypatch.setattr(google_auth, "TOKEN_URI", g.token_uri)
+    monkeypatch.setattr(google_auth, "TOKEN_URL", g.token_uri)
     monkeypatch.setattr(gmail, "API", g.api)
     google_auth._TOKENS.clear()
     gmail._META.clear()
@@ -82,7 +82,7 @@ def test_a_workspace_mailbox_through_the_gmail_api(client, db, cfg, admin, googl
     assert made["health"]["ok"], made
     sid = made["id"]
     src = client.get("/api/v1/sources", headers=admin).json()[0]
-    assert (src["type"], src["oauth"], src["params"]) == ("gmail", "google", {"user": MARA, "via": "api"})
+    assert (src["type"], src["oauth"], src["params"]) == ("gmail", None, {"user": MARA, "via": "api"})
     assert src["secrets"]["service_account_credentials"]["set"] and "PRIVATE KEY" not in json.dumps(src)
 
     # labels are folders (Gmail's own by the names its web app shows); a label's messages are files
@@ -173,7 +173,11 @@ def test_a_workspace_mailbox_through_the_gmail_api(client, db, cfg, admin, googl
 
 def test_what_google_says_when_a_service_account_cant_read(client, admin, google):
     h = _service_account_source(client, admin, google, scopes=())["health"]
-    assert not h["ok"] and "1234567890" in h["error"] and "Domain-wide delegation" in h["error"]
+    assert (
+        not h["ok"]
+        and "1234567890" in h["error"]
+        and "domain-wide delegation for https://www.googleapis.com/auth/gmail.readonly" in h["error"]
+    )
     h = _service_account_source(client, admin, google, user="ann@elsewhere.example")["health"]
     assert not h["ok"] and "can't act as ann@elsewhere.example" in h["error"]
     h = _service_account_source(client, admin, google, user="")["health"]
@@ -201,7 +205,7 @@ def _sign_in(client, google, sid, headers, **consent):
 def test_signing_in_with_google_as_a_person(client, db, cfg, admin, google, monkeypatch):
     r = client.post("/api/v1/sources", headers=admin, json={"type": "gmail", "name": "My mail"})
     sid = r.json()["id"]
-    assert "isn't signed in to Google yet" in r.json()["health"]["error"]
+    assert "sign in with Google, or upload a service account key" in r.json()["health"]["error"]
     # the client is the one people sign in to Lens with: set up first (signing in with it may stay off)
     r = client.post(f"/api/v1/sources/{sid}/google", headers={**WEB, **admin})
     assert r.status_code == 400 and "Settings › Sign-in" in r.text
@@ -214,16 +218,16 @@ def test_signing_in_with_google_as_a_person(client, db, cfg, admin, google, monk
     assert url.startswith("https://accounts.google.com/")
     assert q["scope"] == f"openid email {GMAIL_READ}" and q["access_type"] == "offline" and "consent" in q["prompt"]
     assert q["redirect_uri"] == ORIGIN + "/api/v1/auth/external/google/callback"
-    assert "View your email messages and settings" in back["error"] and back["next"] == "/sources"
+    assert "View your email messages and settings" in back["error"] and back["next"] == f"/sources?source={sid}"
     assert not sources.get(db, sid)["sealed"]
 
     # signed in: the address is Google's, the refresh token kept sealed with its client
     _, back = _sign_in(client, google, sid, admin)
-    assert back == {"connected": MARA, "next": "/sources"}
+    assert back == {"connected": MARA, "next": f"/sources?source={sid}"}
     src = client.get("/api/v1/sources", headers=admin).json()[0]
     assert src["params"]["user"] == MARA and src["secrets"]["token"]["set"] and src["health"]["ok"]
-    kept = json.loads(google_auth._unsealed(cfg, sources.get(db, sid), "token"))
-    assert set(kept) >= {"refresh_token", "client_id", "client_secret"} and kept["client_id"] == google.client_id
+    kept = json.loads(google_auth.secret(cfg, sources.get(db, sid), "token"))
+    assert kept["type"] == "authorized_user" and kept["client_id"] == google.client_id and kept["refresh_token"]
     assert db.one("SELECT detail FROM audit_log WHERE action = 'source.google'")["detail"] == [MARA]
     google.add(REPORT)
     assert [e["title"] for e in client.get(f"/api/v1/sources/{sid}/browse", params={"path": "INBOX"}, headers=admin).json()] == [
@@ -270,4 +274,4 @@ def test_an_agent_gives_a_token_it_has(client, admin, google):
     r = client.post("/api/v1/sources", headers=admin, json=body)
     assert r.status_code == 200 and r.json()["health"]["ok"], r.text
     bad = client.post("/api/v1/sources", headers=admin, json={**body, "secrets": {"token": '{"access_token": "x"}'}})
-    assert bad.status_code == 400 and "refresh_token, client_id and client_secret" in bad.text
+    assert bad.status_code == 400 and "client_id, client_secret and refresh_token" in bad.text

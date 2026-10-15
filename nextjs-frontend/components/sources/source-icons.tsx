@@ -1,5 +1,6 @@
 import {
   Box,
+  CalendarCheck,
   CalendarDays,
   Cloud,
   CloudCog,
@@ -26,6 +27,7 @@ export const TYPE_ICON: Record<SourceType, LucideIcon> = {
   imap: Mail,
   gmail: Mail,
   ical: CalendarDays,
+  gcal: CalendarCheck,
 };
 
 /** The connection's type in a 32px rounded tile. */

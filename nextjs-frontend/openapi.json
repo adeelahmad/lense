@@ -19511,7 +19511,7 @@
           "sources"
         ],
         "summary": "Sign In To Google",
-        "description": "Sign a Gmail source in to Google as a person: open the returned address in this browser. Google asks them to\nlet Lens read their mail, then sends them back to Sources. Uses the Google client set up in Settings \u203a\nSign-in. Audited as `source.google` when it's done.",
+        "description": "Sign a Google source (Gmail, Google Calendar) in to Google as a person: open the returned address in this\nbrowser. Google asks them to let Lens read what the source reads, then sends them back to Sources. Uses the Google\nclient set up in Settings \u203a Sign-in. Audited as `source.google` when it's done.",
         "operationId": "sign_in_to_google",
         "parameters": [
           {
@@ -28959,7 +28959,13 @@
               }
             ],
             "title": "Oauth",
-            "description": "for OAuth backends: the command that produces the token, or `google` when the source signs in with Google from Lens (POST /sources/{id}/google)"
+            "description": "the command that produces the token, for OAuth backends"
+          },
+          "google": {
+            "type": "boolean",
+            "title": "Google",
+            "description": "signs in to Google: a service account key, or a person through POST /sources/{id}/google",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -56616,7 +56622,8 @@
               "local",
               "imap",
               "gmail",
-              "ical"
+              "ical",
+              "gcal"
             ],
             "title": "Type"
           },
@@ -56712,7 +56719,8 @@
               "local",
               "imap",
               "gmail",
-              "ical"
+              "ical",
+              "gcal"
             ],
             "title": "Type"
           },

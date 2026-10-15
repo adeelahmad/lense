@@ -36,6 +36,8 @@ import httpx
 from . import activity, feeds, google_auth
 
 API = "https://gmail.googleapis.com/gmail/v1/users/me"
+GMAIL_READ = "https://www.googleapis.com/auth/gmail.readonly"
+MAIL = "https://mail.google.com/"  # all of Gmail: the only scope Google gives IMAP
 TIMEOUT = 60
 WORKERS = 8  # messages whose headers are asked for at once
 PAGE = 500  # ids per page (Gmail's most)
@@ -66,6 +68,27 @@ class Listing(list):
         self.marks = list(marks)
 
 
+def scopes(src):
+    """What a source reads with: Gmail read only, or all of Gmail over IMAP (Google has no read-only scope for it)."""
+    return [MAIL] if str((src.get("params") or {}).get("via") or "").strip() == "imap" else [GMAIL_READ]
+
+
+def credentials(cfg, src):
+    """How a source signs in (google_auth.credentials); a service account acts as the mailbox's person, its `user`."""
+    creds = google_auth.credentials(cfg, src)
+    if creds["kind"] == "service_account":
+        who = str((src.get("params") or {}).get("user") or "").strip()
+        if not who:
+            raise google_auth.GoogleError("a service account reads one person's mail: enter their address (the user it acts as)")
+        creds["subject"] = who
+    return creds
+
+
+def token(cfg, src):
+    """An access token for the source's mailbox (IMAP takes it too)."""
+    return google_auth.access_token(cfg, credentials(cfg, src), scopes(src))
+
+
 class _Expired(Exception):
     """Gmail no longer keeps the history a watch's cursor points into."""
 
@@ -76,16 +99,22 @@ def _why(r):
     except ValueError:
         e = {}
     said = (e.get("message") if isinstance(e, dict) else str(e)) or r.reason_phrase
-    if r.status_code == 429 or "ratelimit" in str(e).lower().replace(" ", ""):
-        return f"Gmail is rate limiting this account: {said}"[:300]
     return f"Gmail answered {r.status_code}: {said}"[:300]
+
+
+def _throttled(r):
+    try:
+        e = r.json().get("error") or {}
+    except ValueError:
+        e = {}
+    return r.status_code == 429 or "ratelimit" in str(e).lower().replace(" ", "")
 
 
 class _Gmail:
     def __init__(self, cfg, src):
         self.src = src
         self.http = httpx.Client(
-            base_url=API, headers={"Authorization": f"Bearer {google_auth.token(cfg, src)}", "Accept": "application/json"}, timeout=TIMEOUT
+            base_url=API, headers={"Authorization": f"Bearer {token(cfg, src)}", "Accept": "application/json"}, timeout=TIMEOUT
         )
 
     def get(self, path, **params):
@@ -95,6 +124,10 @@ class _Gmail:
             raise RuntimeError(f"couldn't reach Gmail: {e}") from None
         if r.status_code == 404:
             raise FileNotFoundError(_why(r))
+        if _throttled(r):
+            from . import sources  # sources imports feeds, which imports this
+
+            raise sources.RateLimited(_why(r))
         if r.status_code >= 400:
             raise RuntimeError(_why(r))
         return r.json()

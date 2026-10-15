@@ -911,9 +911,15 @@ export type Backend = {
   /**
    * Oauth
    *
-   * for OAuth backends: the command that produces the token, or `google` when the source signs in with Google from Lens (POST /sources/{id}/google)
+   * the command that produces the token, for OAuth backends
    */
   oauth?: string | null;
+  /**
+   * Google
+   *
+   * signs in to Google: a service account key, or a person through POST /sources/{id}/google
+   */
+  google?: boolean;
   [key: string]: unknown;
 };
 
@@ -16925,7 +16931,8 @@ export type Source = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical";
+  type:
+    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
   /**
    * Label
    */
@@ -16969,7 +16976,8 @@ export type SourceCreate = {
   /**
    * Type
    */
-  type: "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical";
+  type:
+    "s3" | "dropbox" | "drive" | "onedrive" | "sftp" | "smb" | "webdav" | "local" | "imap" | "gmail" | "ical" | "gcal";
   /**
    * Params
    */
