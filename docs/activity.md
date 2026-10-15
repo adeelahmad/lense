@@ -22,7 +22,8 @@ its namespace, its pipeline and the routine. A request counts for the resources 
 /api/v1/routines/3` is `routine:3`), for what a `POST` made (from the `id` in its reply), and for who sent it.
 
 Besides the resources, a row has its kind (`in`, `out` or `run`), what it was (`POST /api/v1/routines/{rid}`,
-`model.chat`, `embeddings`, `decision`, `notify.webhook`, `tool.http`, `job.succeeded`, `routine.done`), the model,
+`model.chat`, `embeddings`, `decision`, `notify.webhook`, `tool.http`, `google.token`, `gmail.list`, `job.succeeded`,
+`routine.done`), the model,
 tokens in and out, the estimated cost in USD, how long it took, and how it ended (an error's type or HTTP status,
 never its message). It never holds prompt, reply, asset text or file content.
 

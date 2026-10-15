@@ -4,7 +4,7 @@ A **sensor** is anything that feeds Lens. There are two families, in one list (`
 
 | Family | Kinds | Channels | What it reports becomes |
 | --- | --- | --- | --- |
-| Files | S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, a local folder (through rclone); email (IMAP); calendar feeds (iCal); Google Calendar | the folders it watches | resources, run through their pipelines (as sources always have) |
+| Files | S3, Dropbox, Google Drive, OneDrive, SFTP, SMB, WebDAV, a local folder (through rclone); email (IMAP, Gmail and Google Workspace); calendar feeds (iCal); Google Calendar | the folders it watches | resources, run through their pipelines (as sources always have) |
 | Streams | MQTT devices, syslog senders, webhooks | streams: an MQTT topic, a syslog program, a webhook's stream name | readings, kept with retention, and hourly summaries of anything numeric |
 
 File sensors are the storage sources: they are added and changed as sources (`/api/v1/sources`), and nothing about
