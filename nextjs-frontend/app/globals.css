@@ -199,6 +199,13 @@
   }
 }
 
+/* A setting opened from Find or ⌘K: marked a moment, so the eye lands on it. */
+[data-setting].setting-found {
+  border-radius: 6px;
+  background: var(--intent-surface);
+  box-shadow: 0 0 0 6px var(--intent-surface);
+}
+
 @keyframes skeleton {
   from {
     background-position: 200% 0;

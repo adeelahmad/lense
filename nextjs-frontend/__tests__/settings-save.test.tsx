@@ -64,3 +64,20 @@ describe("settings", () => {
     await waitFor(() => expect(Admin.updateSettings).toHaveBeenCalledTimes(1));
   });
 });
+
+describe("opened on one setting", () => {
+  it("focuses its field with the value selected, so typing replaces it", async () => {
+    const qc = new QueryClient();
+    render(
+      <QueryClientProvider client={qc}>
+        <TooltipProvider>
+          <SettingsSection id="mail" view={VIEW} onErrors={() => undefined} field="mail.port" />
+        </TooltipProvider>
+      </QueryClientProvider>,
+    );
+    const port = screen.getByLabelText("Port") as HTMLInputElement;
+    await waitFor(() => expect(port).toHaveFocus());
+    expect([port.selectionStart, port.selectionEnd]).toEqual([0, port.value.length]);
+    expect(port.closest("[data-setting]")).toHaveClass("setting-found");
+  });
+});
