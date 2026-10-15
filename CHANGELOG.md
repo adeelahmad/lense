@@ -9,6 +9,11 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   Lens also keeps a few counted events (install, daily active, feature used, upgrade, inactive, return). They can
   optionally go to your own Google Analytics 4 property too; that is off by default and is set in Settings → Usage
   analytics or the setup wizard ([Usage analytics](docs/analytics.md)).
+- **Merge entities in fewer clicks, and undo instead of confirm.** On the Entities page, tick rows and the bar at the
+  bottom merges them into one (the one on the fixed list, else the most mentioned) or gives them one type. An entity's
+  side panel has **Merge**, a find box where Enter merges the entity picked into it, and **Maybe the same**, its likely
+  doubles with **Merge** and **Not the same**. Renaming an entity to another's name offers to merge them. Merges, type
+  changes and hiding say what happened with **Undo** ([Entities](docs/processing.md#entities-and-the-graph-explorer)).
 
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 

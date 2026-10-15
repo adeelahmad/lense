@@ -32,6 +32,9 @@ def test_suggestions_and_merge_undo(db, cfg, spaces):
     assert ("same letters", {"Northwind Labs", "North Wind Labs"}) in pairs
     assert ("acronym", {"AWS", "Amazon Web Services"}) in pairs
     keep, other = eid(db, spaces, "Northwind Labs"), eid(db, spaces, "North Wind Labs")
+    mine = entities.suggestions(db, spaces, keep)  # one entity's: only pairs with it, from its own namespace
+    assert [{s["a"]["id"], s["b"]["id"]} for s in mine] == [{keep, other}]
+    assert entities.suggestions(db, {store.ns_id(db, "calls")}, keep) == []  # not where it can't be read
     entities.not_same(db, eid(db, spaces, "AWS"), eid(db, spaces, "Amazon Web Services"))
     assert ("acronym", {"AWS", "Amazon Web Services"}) not in [
         (s["reason"], {s["a"]["name"], s["b"]["name"]}) for s in entities.suggestions(db, spaces)
