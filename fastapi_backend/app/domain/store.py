@@ -1293,6 +1293,8 @@ SCHEMA = [
     # hourly rollups (sensor_rollup:<stream>-<field>-<hour>), hub logins and the processes running the hub
     "DEFINE INDEX IF NOT EXISTS storage_source_key ON storage_source FIELDS key",
     "DEFINE INDEX IF NOT EXISTS storage_source_push ON storage_source FIELDS push_hash",
+    # sensors discovery made, newest first, as sensor.joined (events_streams.py)
+    "DEFINE INDEX IF NOT EXISTS storage_source_created ON storage_source FIELDS created_at",
     "DEFINE TABLE IF NOT EXISTS sensor_stream SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_stream_sensor ON sensor_stream FIELDS sensor",
     "DEFINE TABLE IF NOT EXISTS sensor_reading SCHEMALESS",
@@ -1307,6 +1309,7 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_sensor ON sensor_pattern FIELDS sensor, stream",
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_stream ON sensor_pattern FIELDS stream",
     "DEFINE INDEX IF NOT EXISTS sensor_pattern_action ON sensor_pattern FIELDS action",
+    "DEFINE INDEX IF NOT EXISTS sensor_pattern_label ON sensor_pattern FIELDS label",
     "DEFINE INDEX IF NOT EXISTS sensor_reading_pattern ON sensor_reading FIELDS pattern",
     "DEFINE TABLE IF NOT EXISTS sensor_login SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS sensor_login_name ON sensor_login FIELDS username UNIQUE",

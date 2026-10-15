@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:4b1a5dd44394f216d19f1ac4d513d101f44165451df7f87070936ccbac0717dc"
+prose_version: "threat-model.md@sha256:bcdebb916f791169f475437f97fea2d166bfca909704eba3c4f48b3b5786c2f1"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -433,9 +433,9 @@ entry_points:
       - name: "payloads, hub logins, token in the path"
         attacker_controllable: true
         x-condition: "once enabled"
-        control_kinds: [data, size, rate, x-credential]
+        control_kinds: [data, size, rate, x-credential, x-prompt-injection]
         obligation_id: enable-and-firewall-sensors
-        caller_must_enforce: "admin enables; operator firewalls"
+        caller_must_enforce: "admin enables; operator firewalls; readings, alert patterns and new devices reach automations as outside text (lens.untrusted)"
         provenance: {kind: documented, source: 'docs/sensors.md "Sensors are off until an admin turns them on"'}
   - id: "NFS share (port 12049 on the host, 2049 in the worker)"
     component: optional

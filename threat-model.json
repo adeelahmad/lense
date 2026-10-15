@@ -502,7 +502,7 @@
       "parameter": "payloads, hub logins, token in the path",
       "attacker_controllable": "yes",
       "component": "optional",
-      "caller_must_enforce": "admin enables; operator firewalls",
+      "caller_must_enforce": "admin enables; operator firewalls; readings, alert patterns and new devices reach automations as outside text (lens.untrusted)",
       "provenance": "documented",
       "source": "docs/sensors.md \"Sensors are off until an admin turns them on\""
     },

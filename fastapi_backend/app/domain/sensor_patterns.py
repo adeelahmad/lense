@@ -62,8 +62,8 @@ def update(db, pid, label=None, action=None, user=None, clear_label=False):
         db.q("UPDATE $r MERGE $d", r=R("sensor_pattern", pid), d=store.clean(sets))
     if clear_label:
         db.q("UPDATE $r SET label = NONE, label_by = NONE, sure = NONE, confidence = NONE", r=R("sensor_pattern", pid))
-    if action is not None:
-        sensors._bump(db)  # the intake drops (or keeps) its lines from now on
+    if action is not None or label is not None or clear_label:
+        sensors._bump(db)  # the intake drops (or keeps) its lines, and raises sensor.alert for them, from now on
 
 
 def triage(db, cfg, ids=None, limit=TRIAGE_PER_RUN, say=None):
@@ -104,5 +104,6 @@ def triage(db, cfg, ids=None, limit=TRIAGE_PER_RUN, say=None):
         )
         done += 1
     if done:
+        sensors._bump(db)  # alert and notable patterns raise sensor.alert from now on
         say(f"labelled {done} log patterns")
     return done
