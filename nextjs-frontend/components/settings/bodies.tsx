@@ -24,6 +24,7 @@ import {
   type ModelProvider,
 } from "@/components/settings/model-providers";
 import { SignInProviders } from "@/components/settings/sign-in-providers";
+import { UpdatesPanel } from "@/components/settings/updates-panel";
 import { VoicePicker } from "@/components/settings/voice-picker";
 import { AddConnection } from "@/components/storage/add-connection";
 import { NOT_STORAGE, fileStoreTry } from "@/components/storage/file-store";
@@ -424,6 +425,20 @@ export function SectionBody({ ctx }: { ctx: BodyCtx }) {
       return <StorageBody ctx={ctx} />;
     case "telemetry":
       return <TelemetryBody ctx={ctx} />;
+    case "updates":
+      return (
+        <>
+          <UpdatesPanel />
+          <Sub>Checking</Sub>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <F ctx={ctx} id="updates.check" />
+            {/* shown once the server has the setting (updates.email, from the release notices) */}
+            {ctx.view.updates?.values && "email" in ctx.view.updates.values && <F ctx={ctx} id="updates.email" />}
+            <F ctx={ctx} id="updates.auto_install" />
+          </div>
+          <F ctx={ctx} id="updates.check_hours" />
+        </>
+      );
     case "logs":
       return <LogsBody ctx={ctx} />;
     case "fedora":

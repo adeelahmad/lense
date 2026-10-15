@@ -87,6 +87,7 @@ export type SectionId =
   | "slack"
   | "mailbox"
   | "telemetry"
+  | "updates"
   | "logs"
   | "fedora"
   | "sensors"
@@ -291,6 +292,13 @@ export const SECTIONS: SectionSpec[] = [
     backend: ["telemetry"],
     description:
       "Off unless you turn it on. Traces and metrics from the server and its workers, sent only to an OpenTelemetry collector you run or choose; nothing goes anywhere else.",
+  },
+  {
+    id: "updates",
+    label: "Updates and backups",
+    backend: ["updates"],
+    description:
+      "New Lens releases: Lens checks for one once a day, backs up and installs it when you say so, and goes back if it doesn't start.",
   },
   {
     id: "logs",
@@ -2641,6 +2649,36 @@ export const FIELDS: FieldSpec[] = [
     min: 1,
     max: 20,
     hint: "A failed send waits 30 seconds, then four times longer each time, up to 6 hours",
+  },
+  // Updates (docs/updates.md)
+  {
+    section: "updates",
+    key: "check",
+    label: "Check for new releases",
+    kind: "switch",
+    hint: "Asks GitHub for the latest release once a day; nothing about this install is sent",
+  },
+  {
+    section: "updates",
+    key: "email",
+    label: "Email admins about new releases",
+    kind: "switch",
+    hint: "Once per release, to every admin; needs an email server (Settings → Email)",
+  },
+  {
+    section: "updates",
+    key: "auto_install",
+    label: "Install new releases by themselves",
+    kind: "switch",
+    hint: "Backs up, then installs a new release as soon as it is seen. Off: you choose when",
+  },
+  {
+    section: "updates",
+    key: "check_hours",
+    label: "Check every (hours)",
+    kind: "int",
+    min: 1,
+    max: 720,
   },
   // Telemetry (opt-in)
   {

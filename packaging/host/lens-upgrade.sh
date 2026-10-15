@@ -8,7 +8,8 @@
 #
 # It takes a release tag (vX.Y.Z), or the branch this install already follows; nothing else, whoever wrote the
 # request. An empty ref sets up the version running again, as Settings › HTTPS does with https=1 or 0 to open or close
-# the HTTPS ports (docs/https.md). Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
+# the HTTPS ports (docs/https.md). If the new version doesn't start, it goes back to the code that ran before and
+# starts that (rolled-back). Run by hand: sh packaging/host/lens-upgrade.sh <install folder>
 #
 # A request with action=services turns the monitoring containers on or off instead (docs/prometheus.md): it adds or
 # removes `monitoring` in COMPOSE_PROFILES in .env and starts or stops Prometheus, node-exporter and Grafana, and says
@@ -86,6 +87,7 @@ trap 'rmdir "$CTL/.running" 2>/dev/null || true' EXIT
 val() { sed -n "s/^$1=//p" "$2" | head -1 | tr -cd 'A-Za-z0-9._/-'; }
 id="$(val id "$REQ")"
 ref="$(val ref "$REQ")"
+backup="$(val backup "$REQ")"
 action="$(val action "$REQ")"
 monitoring="$(val monitoring "$REQ")"
 https="$(val https "$REQ")"
@@ -104,15 +106,17 @@ status() { # state [extra key=value lines]
     echo "started_at=$started"
     shift
     for kv in "$@"; do echo "$kv"; done
+    if [ -n "$backup" ]; then echo "backup=$backup"; fi
   } >"$CTL/upgrade-status.tmp" && mv "$CTL/upgrade-status.tmp" "$CTL/upgrade-status"
 }
 started="$(now)"
 : >"$CTL/upgrade.log"
 
-branch="$(git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+# (not rev-parse --abbrev-ref: a branch named like a tag, as install.sh makes for a release, comes out heads/vX.Y.Z)
+branch="$(git -C "$DIR" symbolic-ref -q HEAD 2>/dev/null | sed 's|^refs/heads/||' || true)"
 if [ -z "$ref" ]; then # the version running: this install's branch, or the release tag it's on
   ref="$branch"
-  [ "$ref" = HEAD ] && ref="$(git -C "$DIR" describe --tags --exact-match 2>/dev/null || true)"
+  [ -n "$ref" ] || ref="$(git -C "$DIR" describe --tags --exact-match 2>/dev/null || true)"
 fi
 case "$https" in 0 | 1 | "") ;; *) https="" ;; esac
 if ! printf '%s' "$ref" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' && [ "$ref" != "$branch" ]; then
@@ -120,20 +124,58 @@ if ! printf '%s' "$ref" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' && [ "$ref" != "$
   status failed "finished_at=$(now)" "code=2" "error=only a release tag (vX.Y.Z) or this install's branch can be installed"
   exit 0
 fi
-status running
+status running "step=download"
 
-# The same settings this install was made with (install.sh keeps the port and the address itself)
+# install.sh with the settings this install was made with, its lines in the log; the step it is on goes into the
+# status as it goes. Its exit code, after.
+install() { # extra environment, as NAME=value words
+  rm -f "$CTL/.code"
+  {
+    (
+      cd "$DIR" &&
+        env LENS_DIR="$DIR" LENS_REF="$ref" LENS_NO_OPEN=1 LENS_YES=1 LENS_WIZARD=0 LENS_AGENT_RUN=1 \
+          LENS_REPO="$(env_of LENS_REPO)" LENS_TARGET="$(env_of LENS_TARGET)" LENS_BACKEND="$(env_of LENS_BACKEND)" \
+          LENS_HTTPS="${https:-$(env_of LENS_HTTPS)}" \
+          GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$DIR" "$@" \
+          sh "$DIR/install.sh"
+    ) </dev/null 2>&1 || echo "$?" >"$CTL/.code"
+  } | while IFS= read -r line; do
+    printf '%s\n' "$line" >>"$CTL/upgrade.log"
+    case "$line" in
+      *"Building and starting"* | *"Getting the base image"*) status "$phase" "step=build" ;;
+      *"Starting Lens in a microsandbox"* | *"Waiting for the web app"*) status "$phase" "step=start" ;;
+      *"Lens is running"*) status "$phase" "step=check" ;;
+    esac
+  done
+  rc="$(cat "$CTL/.code" 2>/dev/null || echo 0)"
+  rm -f "$CTL/.code"
+  return "$rc"
+}
+
+# the code that runs now, to come back to if the new version doesn't start
+prev="$(git -C "$DIR" rev-parse HEAD 2>/dev/null || true)"
+phase=running
 set +e
-(
-  cd "$DIR" &&
-    LENS_DIR="$DIR" LENS_REF="$ref" LENS_NO_OPEN=1 LENS_YES=1 LENS_WIZARD=0 LENS_AGENT_RUN=1 \
-      LENS_REPO="$(env_of LENS_REPO)" LENS_TARGET="$(env_of LENS_TARGET)" LENS_BACKEND="$(env_of LENS_BACKEND)" \
-      LENS_HTTPS="${https:-$(env_of LENS_HTTPS)}" \
-      GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$DIR" \
-      sh "$DIR/install.sh"
-) >>"$CTL/upgrade.log" 2>&1 </dev/null
+install
 code=$?
 set -e
+
+rolled=""
+if [ "$code" != 0 ] && [ -n "$prev" ] && [ "$(git -C "$DIR" rev-parse HEAD 2>/dev/null)" != "$prev" ]; then
+  # The new version didn't start: the previous code comes back. When the new one had already changed the database
+  # (steps the previous version doesn't know), the previous version restores the backup taken first as it starts
+  # (updates.restore_on_start); otherwise the database is kept as it is, with nothing lost.
+  phase=rolling-back
+  status rolling-back "step=check" "code=$code"
+  echo "--- The new version didn't start (exit $code): going back to the version that ran before ($prev)" >>"$CTL/upgrade.log"
+  if [ -n "$backup" ]; then printf 'id=%s\nbackup=%s\n' "$id" "$backup" >"$CTL/inbox/restore"; fi
+  set +e
+  git -C "$DIR" -c safe.directory="$DIR" checkout -q -f -B "${branch:-lens}" "$prev" >>"$CTL/upgrade.log" 2>&1 &&
+    install LENS_KEEP_CODE=1
+  back=$?
+  set -e
+  rolled=$([ "$back" = 0 ] && echo yes || echo no)
+fi
 
 # run as root for a Docker only root can use: what it wrote stays the install's owner's
 if [ "$(id -u)" = 0 ]; then
@@ -144,6 +186,12 @@ fi
 version="$(sed -n 's/^version = "\(.*\)"/\1/p' "$DIR/fastapi_backend/pyproject.toml" 2>/dev/null | head -1)"
 if [ "$code" = 0 ]; then
   status "done" "finished_at=$(now)" "code=0" "version=$version"
+elif [ "$rolled" = yes ]; then
+  status rolled-back "finished_at=$(now)" "code=$code" "version=$version" \
+    "error=the new version didn't start, so Lens went back to the one that ran before ($version)"
+elif [ "$rolled" = no ]; then
+  status failed "finished_at=$(now)" "code=$code" \
+    "error=the new version didn't start, and going back to the previous one failed too: run the install line on the machine"
 else
   status failed "finished_at=$(now)" "code=$code"
 fi
