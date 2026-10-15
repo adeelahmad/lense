@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A local model's server asks for its key again.** llama.cpp's current builds read the server's API key from a
+  differently named variable, so the server Lens started for a local model answered without one (to other containers
+  on the same Docker network, not from outside the machine). Lens now sets both names, and stops the server, saying
+  why, if it answers a request without the key ([Local models](docs/local-models.md#use-it)).
 - **A local model runs on arm64 in Docker** (a Raspberry Pi, Docker on a Mac). The backend image is now built on
   Debian 13 (trixie) instead of Debian 12, as llama.cpp's Linux arm64 build needs its newer system library (glibc
   2.38). Upgrading rebuilds the image; nothing else changes ([Local models](docs/local-models.md#use-it)).

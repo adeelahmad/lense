@@ -23,12 +23,12 @@ FAKE_SERVER = """#!{python}
 import http.server, json, os, sys
 args = sys.argv[1:]
 port = int(args[args.index("--port") + 1])
-key = os.environ.get("LLAMA_ARG_API_KEY")
+key = os.environ.get({key_var!r})
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
     def do_GET(self):
-        ok = self.path == "/health" or self.headers.get("Authorization") == f"Bearer {{key}}"
+        ok = self.path == "/health" or not key or self.headers.get("Authorization") == f"Bearer {{key}}"  # open without one
         body = json.dumps({{"status": "ok", "args": args, "keyed": bool(key)}}).encode()
         self.send_response(200 if ok else 401)
         self.send_header("Content-Length", str(len(body)))
@@ -198,7 +198,7 @@ def test_a_llama_cpp_build_that_cant_run_here_says_why(cfg, hub, monkeypatch):
 
 def test_the_server_runs_becomes_the_provider_and_puts_the_old_one_back(db, cfg, folder, hub, monkeypatch):
     exe = folder / "llama-server"
-    exe.write_text(FAKE_SERVER.format(python=sys.executable))
+    exe.write_text(FAKE_SERVER.format(python=sys.executable, key_var="LLAMA_API_KEY"))
     exe.chmod(0o755)
     monkeypatch.setitem(local_llm.BY_ID, "tiny", tiny())
     monkeypatch.setattr(local_llm.machine, "probe", lambda data_dir=None: {"container": False})
@@ -227,6 +227,27 @@ def test_the_server_runs_becomes_the_provider_and_puts_the_old_one_back(db, cfg,
         assert (llm["base_url"], llm["model"], llm["api_key"]) == ("https://api.example/v1", "big", "sk-old")
         assert run.proc is None and local_llm.status(db, s.current())["phase"] == "off"
         assert local_llm.remove(s.current(), "tiny") is True
+    finally:
+        run.halt = True
+        run.stop_process()
+
+
+def test_a_server_that_answers_without_its_key_is_stopped(db, cfg, folder, hub, monkeypatch):
+    exe = folder / "llama-server"
+    exe.write_text(FAKE_SERVER.format(python=sys.executable, key_var="SOME_OTHER_NAME"))  # as if llama.cpp renamed it
+    exe.chmod(0o755)
+    monkeypatch.setitem(local_llm.BY_ID, "tiny", tiny())
+    monkeypatch.setattr(local_llm.machine, "probe", lambda data_dir=None: {"container": False})
+    cfg["local_llm"]["server"] = str(exe)
+    settings.save(db, cfg, "llm", {"base_url": "https://api.example/v1", "model": "big", "api_key": "sk-old"}, "t")
+    settings.save(db, cfg, "local_llm", {"enabled": True, "model": "tiny", "port": free_port()}, "t")
+    s = settings.Settings(db, cfg)
+    run = local_llm.Runner(db, s.current, "test")
+    try:
+        run.tick()
+        run.worker.join(30)
+        assert run.phase == "error" and "without its API key" in run.error and run.proc is None
+        assert s.current()["llm"]["base_url"] == "https://api.example/v1"  # not pointed at it
     finally:
         run.halt = True
         run.stop_process()
