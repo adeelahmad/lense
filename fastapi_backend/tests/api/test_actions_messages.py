@@ -106,7 +106,10 @@ def test_the_private_chat_last_had_with_someone_let_in_is_where_a_person_is_told
     channels.tell(db, cfg, people["me"], f"Trip {EVIL}", links={EVIL})  # what the person or Lens wrote stays
     assert bot.sent[-1]["text"] == f"Trip {EVIL}"
     # the latest private chat wins; a group message doesn't move it
-    bot.updates = [update("hello", user="bob", user_id=8, chat_id=43), update("Lens, hi", user="bob", user_id=8, chat_id=-100, chat_type="group")]
+    bot.updates = [
+        update("hello", user="bob", user_id=8, chat_id=43),
+        update("Lens, hi", user="bob", user_id=8, chat_id=-100, chat_type="group"),
+    ]
     tick(db, cfg)
     channels.tell(db, cfg, people["me"], "hello bob")
     assert bot.sent[-1]["chat_id"] == "43"
