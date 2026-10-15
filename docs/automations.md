@@ -16,7 +16,8 @@ merged is called built.
 | Runs that finished or failed, deletions and calendar events that moved | built |
 | Comments, notes written and saved, and changes to the entity graph | built |
 | Sensors: readings a sensor keeps, alert and notable log patterns, devices that report for the first time ([Sensors](#sensors-as-activities)) | built |
-| More kinds: chat, system events | planned |
+| What people say to Lens, in the web app and chat apps, as `chat.message` ([Chat](#chat-as-activities)) | built |
+| More kinds: system events | planned |
 | The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | Review marks on the timeline (reviewed, important, hidden), their filters and `mark_activities` ([Timeline](timeline.md)) | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
@@ -106,6 +107,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `sensor.reading` | | `sensor_readings` | `{type: Note, id: lens:sensor_reading/<id>, name: "<stream>: <what it said>", url: /sensors/<id>}`, `stream`, `value`, `text`, `fields` (a JSON reading's numbers), `level` (syslog), `pattern`, `label` (the line's pattern and its label); noisy | Kitchen sensor temperature: 31.2 |
 | `sensor.alert` | | `log` | `{type: Note, id: lens:sensor_pattern/<id>}`, `label` (alert or notable), `pattern`, `example` (a line it fits), `count` (lines in all), `lines` (in the batch that raised it), `hour` | 192.168.1.1 logged an alert: wlan<n>: authentication failed for <mac> |
 | `sensor.joined` | | `sensors` | `{type: Service, id: lens:sensor/<id>, url: /sensors/<id>}`, `sensor_type` (mqtt, syslog, ...), `device`, `status` | A new MQTT device reported: zigbee2mqtt/kitchen |
+| `chat.message` | | `chat_messages` | `{type: Note, id: lens:chat_message/<id>, name: the start of it, url: /chat/<id>}`, `text`, `channel` (web, telegram, slack, bridge, mailbox), `room`, `chat`, `direct` (a private chat or the web app), `attachments` (how many files) | sam wrote in Telegram: “groceries: milk, eggs” |
 | `webhook.received` | | `log` | `{type: Note, hook: the webhook's id, payload: what was sent (JSON, a form's fields or text), content_type, query}`; the actor is the webhook (`Service`, `lens:automation_hook/<id>`, "Webhook for <automation>") | Webhook for Front door was called |
 
 A new asset is one activity, of the most specific kind its row tells, decided by its content type and where it came
@@ -158,6 +160,22 @@ outside text.
 - `sensor.joined` is a device or host that made itself a sensor by reporting for the first time (MQTT, syslog),
   read from its `storage_source` row by `created_at`; a sensor added by hand isn't news.
 
+#### Chat as activities
+
+Built (`app/domain/events_streams.py`). `chat.message` is what a person said to Lens: a question in the web app (Chat,
+the setup conversation) or a message to Lens in a chat app (Telegram, Slack, Matterbridge, the assistant's mailbox).
+It reads the messages Lens already keeps (`chat_message` with role user), so nothing new is stored, and what isn't
+said to Lens in a room is never kept, so it is never an activity. Its text and names are outside text.
+
+- In the web app the actor is the person (`lens:account/<id>`), and the activity is theirs alone (`lens.audience`
+  owner): not even admins or others in the namespace see it. Its namespace is the conversation's scope.
+- In a chat app the actor is who wrote (`Person`, `lens:chat_user/<channel>:<their id there>`, their name there),
+  since a chat user isn't a Lens account. A room given to a namespace's assistant belongs to that namespace; any
+  other conversation (a private chat, an open room) is the answering account's alone. The conversation keeps where
+  it is (`chat.via`: the channel, the room, who, a private chat or not) from its next message on.
+- A question an automation's `ask_agent` asks (`origin` on the message) isn't a person's, so it is never a
+  `chat.message`, and an automation can't set itself off that way.
+
 ### Sources and the event log
 
 Built. A source (`events.Source`, added with `events.register_source`) reads rows Lens already keeps as activities,
@@ -190,6 +208,8 @@ A kind belongs to the source named in its `source`, and a source may list more i
 - `sensor_readings` (`app/domain/events_streams.py`) reads `sensor_reading` by `at` (microseconds), the id breaking
   ties, one sensor at a time, as `sensor.reading`; `sensors` reads the `storage_source` rows discovery made by
   `created_at`, as `sensor.joined`.
+- `chat_messages` (`app/domain/events_streams.py`) reads `chat_message` rows with role user by `created_at` over the
+  index on (role, created_at), the id breaking ties, as `chat.message`.
 - `log` reads `event_log`: activities no row of their own records (a deletion, a webhook call), written by
   `events.emit(db, kind, *, actor, obj, space, summary, target=None, tag=None, key=None, published=None, spaces=None,
   audience=None, owner=None, untrusted=None)`, which gives the id (`log-<n>`). Emitting a `key` again changes
@@ -523,3 +543,6 @@ the agent can draft an event as a note.
 - Sensors: a threshold per reading in the intake (only readings over a value become activities, for sensors that
   keep everything); a reading's unit, which sensors don't record yet; an alert as soon as a pattern is labelled, for
   the lines already seen that hour.
+- Chat: recording every message in a room as an activity (opt-in per channel, off by default); a chat user who is
+  also a Lens account as that person; a timeline page of others' private messages is read and left out, up to five
+  source pages, so narrow it by account if that proves slow.

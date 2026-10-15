@@ -1372,6 +1372,8 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS chat_account ON chat FIELDS account",
     "DEFINE TABLE IF NOT EXISTS chat_message SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS chat_message_chat ON chat_message FIELDS chat",
+    # what people said to Lens, by time, as chat.message (events_streams.py)
+    "DEFINE INDEX IF NOT EXISTS chat_message_said ON chat_message FIELDS role, created_at",
     # what each namespace's assistant remembers (ns_assistant.py); its name and instructions are space.assistant
     "DEFINE TABLE IF NOT EXISTS assistant_memory SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS assistant_memory_space ON assistant_memory FIELDS space",

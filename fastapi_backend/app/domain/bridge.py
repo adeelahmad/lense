@@ -176,15 +176,30 @@ def _account(db, cfg):
     return {"id": u["id"], "email": u["email"], "admin": bool(u.get("admin"))}
 
 
-def conversation(db, account, m, namespace=None, label="Matterbridge"):
+def conversation(db, account, m, namespace=None, label="Matterbridge", channel="bridge"):
     """The conversation for this person in this room, started on their first message; scoped to `namespace` (the
     room's namespace assistant), which follows bridge.rooms when it changes. In a room no namespace is given to, the
-    scope is routing's (route). `label` names the channel in its title."""
+    scope is routing's (route). `label` names the channel in its title; the chat keeps where it is (`via`: the
+    channel's key and label, the room, who is talking and whether it's a private chat) for its messages as activities
+    (events_streams.py, chat.message)."""
     who = m["thread"] if m.get("thread") else [m.get("gateway"), m.get("channel"), m.get("account"), m.get("username")]
     key = hashlib.sha1(json.dumps(who).encode()).hexdigest()
     scope = {"namespaces": [namespace]} if namespace else {}
-    cid = db.one("SELECT VALUE record::id(id) FROM chat WHERE bridge = $k AND account = $a LIMIT 1", k=key, a=account["id"])
+    via = store.clean(
+        {
+            "channel": channel,
+            "label": label,
+            "room": str(m.get("channel") or "")[:200] or None,
+            "user": (m.get("username") or "").strip("<> ")[:200] or None,
+            "userid": str(m.get("userid") or "")[:200] or None,
+            "private": bool(m.get("private")),
+        }
+    )
+    row = db.one("SELECT record::id(id) AS id, via FROM chat WHERE bridge = $k AND account = $a LIMIT 1", k=key, a=account["id"])
+    cid = row["id"] if row else None
     if cid:
+        if row.get("via") != via:  # a chat from before chats kept it, or someone renamed
+            db.q("UPDATE $r SET via = $v", r=R("chat", cid), v=via)
         if namespace:
             db.q("UPDATE $r SET scope = $s, room = 'given' WHERE (scope ?? {}) != $s", r=R("chat", cid), s=scope)
         else:  # the room was given to a namespace and no longer is: routing starts again
@@ -192,7 +207,7 @@ def conversation(db, account, m, namespace=None, label="Matterbridge"):
         return cid
     where = " · ".join(x for x in [m.get("channel"), (m.get("username") or "").strip("<> ")] if x)
     cid = chat.create(db, account["id"], title=f"{label} · {where}" if where else label, scope=scope, kind="bridge")
-    db.q("UPDATE $r SET bridge = $k, room = $g", r=R("chat", cid), k=key, g="given" if namespace else None)
+    db.q("UPDATE $r SET bridge = $k, room = $g, via = $v", r=R("chat", cid), k=key, g="given" if namespace else None, v=via)
     return cid
 
 
@@ -513,7 +528,7 @@ def handle(db, cfg, base, m, ch=None):
     if not q:
         return False
     account = _account(db, cfg)
-    cid = conversation(db, account, m, ns if sid is not None else None, ch.label)
+    cid = conversation(db, account, m, ns if sid is not None else None, ch.label, ch.key)
     try:  # a private chat with someone the channel vouches for is where the account's person is told things
         channels.remember(db, cfg, ch, account, m, cid)
     except Exception:  # noqa: BLE001 - answering comes first
