@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Analytics.** A new Analytics page (admins) shows active people per day, week and month, stickiness, churn rate,
+  retention by sign-up week and feature use, worked out on the server from the activity ledger and sign-ins. Each day
+  Lens also keeps a few counted events (install, daily active, feature used, upgrade, inactive, return). They can
+  optionally go to your own Google Analytics 4 property too; that is off by default and is set in Settings → Usage
+  analytics or the setup wizard ([Usage analytics](docs/analytics.md)).
+
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 
 - **Evidence PDFs hold everything Lens found.** After each resource's own file come pages of what Lens knows about
