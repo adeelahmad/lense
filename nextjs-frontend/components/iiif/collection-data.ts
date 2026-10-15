@@ -53,7 +53,7 @@ export function useCollectionItems(ns: string, offset: number, profile: Namespac
     const problems = m ? (m.problems.length ? m.problems.length : profileProblems(m.meta, profile, ns).length) : 0;
     return {
       id: r.id,
-      title: r.title || `Recording ${r.id}`,
+      title: r.title || `Asset ${r.id}`,
       recorded_at: r.recorded_at,
       duration_ms: r.duration_ms,
       meta: m,

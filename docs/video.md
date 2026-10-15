@@ -16,7 +16,7 @@ soundtrack, and three more steps look at the picture. Each step skips itself for
   - Where a namespace allows it, faces are grouped per recording and matched against that namespace's people, the way
     voices are: auto-match, review, or new.
   - When a face is on screen while one speaker talks, the app suggests they're the same person.
-  - People can be renamed, merged (with undo), linked to a speaker, marked "not a face" or deleted.
+  - Faces can be renamed, merged (with undo), linked to a person in People, marked "not a face" or deleted.
   - Engines: OpenCV's YuNet + SFace (`pip install -e ".[faces]"`, then point `video.yunet_model` and
     `video.sface_model` at the ONNX files from the OpenCV Zoo), InsightFace, whose pretrained models are licensed for
     non-commercial research only, or `anytopdf`: [anytopdf](configuration.md#anytopdf)'s plugins find faces with
@@ -60,7 +60,7 @@ Video recordings open in their own layout.
   - **On screen:** every piece of text read from the screen, with its frame and a Correct button. Corrections feed
     search, and the machine reading is kept.
   - **People:** each face with time on screen and first appearance. Faces can be named (across the namespace in
-    recognition mode), linked to a speaker, or removed ("Not a face"). Detect mode only offers removal.
+    recognition mode), linked to a person, or removed ("Not a face"). Detect mode only offers removal.
   - **Shots:** a grid of shots.
 - Everything seeks the one video, and the layout works down to phone widths.
 
@@ -68,7 +68,7 @@ Video recordings open in their own layout.
 checks:
 - the lanes, and seeking from shots, lanes, the transcript and the grid
 - that boxes appear at the right times and switch off
-- a text correction reaching the API, naming a face, linking a face to a speaker and removing one
+- a text correction reaching the API, naming a face, linking a face to a person and removing one
 - playback moving the playhead
 - no sideways scrolling on a phone
 

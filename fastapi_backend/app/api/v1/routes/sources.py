@@ -97,7 +97,7 @@ def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
 @router.get("/sources/{sid}/browse")
 def browse_source(sid: int, user: AdminReader, db: Db, cfg: Cfg, path: str = "") -> list[BrowseEntry]:
     """The folders and files at one path of a source (for local sources, no path lists the allowed roots), with the
-    recordings each file already is."""
+    assets each file already is."""
     _source(db, sid)
     try:
         entries = sources.browse(db, cfg, sid, path)

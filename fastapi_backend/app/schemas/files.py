@@ -45,7 +45,7 @@ class ResourceFile(ResponseModel):
 
 
 class ResourceFiles(ResponseModel):
-    primary: PrimaryFile | None = Field(None, description="none for a transcript without audio or video")
+    primary: PrimaryFile | None = Field(None, description="none for text without audio or video")
     files: list[ResourceFile] = Field(description="by role, then the earliest added first")
     max_mb: int = Field(description="the largest file that can be added (server.max_upload_mb)")
     can_change: bool = Field(description="you may add, change and delete its files (editors)")
@@ -63,7 +63,7 @@ class FileLine(ResponseModel):
     t0: int | None = Field(None, description="ms; none in a file that doesn't say when its lines are")
     t1: int | None = None
     text: str = Field(description="the line; for an index, its title, synopsis and keywords together")
-    speaker: str | None = Field(None, description="who says it, as the file names them")
+    speaker: str | None = Field(None, description="who says or writes it, as the file names them")
     title: str | None = Field(None, description="an index entry's title")
     synopsis: str | None = Field(None, description="an index entry's synopsis")
     keywords: list[str] | None = Field(None, description="an index entry's keywords")

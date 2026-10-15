@@ -49,7 +49,7 @@ export function Registry({ speakers, heard }: { speakers: Speaker[]; heard: Map<
   });
   return (
     <div className="overflow-hidden rounded-md border border-border">
-      <Table aria-label="Speakers">
+      <Table aria-label="People">
         <THead className="border-t-0">
           <tr>
             <SortTh {...by("name")}>Name</SortTh>
@@ -112,7 +112,7 @@ export function Registry({ speakers, heard }: { speakers: Speaker[]; heard: Map<
                     Enrolled
                   </span>
                 ) : (
-                  <Tooltip content="Voiceprints are built from clean audio (Settings → Voice IDs). Speakers without one are matched by name only.">
+                  <Tooltip content="Voiceprints are built from clean audio (Settings → Voice IDs). People without one are matched by name only.">
                     <span tabIndex={0} className="text-fg-muted">
                       No voiceprint
                     </span>

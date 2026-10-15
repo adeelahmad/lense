@@ -154,7 +154,7 @@ export function EmbedBuilder({
     <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
       <div className="flex flex-col gap-3.5">
         <div className="flex flex-col gap-1.5">
-          <span className="text-[13px] font-bold text-fg-strong">Recording</span>
+          <span className="text-[13px] font-bold text-fg-strong">Asset</span>
           <span className="truncate rounded-sm border border-border bg-surface px-3.5 py-2 text-[14px] text-fg">
             {title}
           </span>
@@ -188,7 +188,7 @@ export function EmbedBuilder({
               ) : (
                 <Tooltip
                   key={l.value}
-                  content="Not available yet: the player has one layout (recordings without audio show the transcript only)"
+                  content="Not available yet: the player has one layout (assets without audio show their text only)"
                 >
                   {card}
                 </Tooltip>

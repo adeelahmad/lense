@@ -18,7 +18,7 @@ class RdfImportItem(ResponseModel):
     recording: int
     fields: list[str] = Field(description="the metadata fields it changes (or would)")
     notes: list[str]
-    statements: int = Field(description="other statements kept with the recording")
+    statements: int = Field(description="other statements kept with the asset")
 
 
 class RdfUnmatched(ResponseModel):

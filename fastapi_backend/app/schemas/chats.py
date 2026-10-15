@@ -17,7 +17,7 @@ class ChatScope(RequestModel):
     namespaces: list[str] | None = None
     recordings: list[int] | None = None
     collections: list[int] | None = Field(
-        default=None, description="saved collections (yours or shared): their recordings as they are when it answers"
+        default=None, description="saved collections (yours or shared): their assets as they are when it answers"
     )
     speakers: list[int] | None = None
     date_from: str | None = Field(default=None, alias="from", description="YYYY-MM-DD")
@@ -62,7 +62,7 @@ class Passage(ResponseModel):
     namespace: str | None = None
     recorded_at: str | None = None
     t0: int | float | None = None
-    time: str | None = Field(None, description='when it was said ("12:34"), or for a document its page ("p. 3")')
+    time: str | None = Field(None, description='where it is: a time ("12:34"), or for a document its page ("p. 3")')
     page: int | None = Field(None, description="a document's or an image's page it's on (from 0)")
     speaker: str | None = None
     text: str
@@ -110,7 +110,7 @@ class Attachment(ResponseModel):
     id: str = Field(description="the upload")
     filename: str
     size: int
-    recording: int | None = Field(None, description="the recording it became, once imported")
+    recording: int | None = Field(None, description="the asset it became, once imported")
 
 
 class ChatMessage(ResponseModel):

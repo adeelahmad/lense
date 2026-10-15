@@ -9,7 +9,7 @@ export const SYNTAX: [string, string][] = [
   ['speaker:"Host B"', "only what Host B said"],
   ["emotion:surprise", "segments tagged Surprise"],
   ["namespace:podcasts", "one namespace"],
-  ['recording:"Episode 12"', "one recording"],
+  ['recording:"Episode 12"', "one asset"],
 ];
 
 export function SyntaxHelp({ className, onPick }: { className?: string; onPick?: (example: string) => void }) {

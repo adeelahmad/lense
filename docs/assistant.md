@@ -2,8 +2,8 @@
 
 ## Chat
 
-Conversations belong to one person and can be scoped to namespaces, recordings, collections, speakers and dates. A
-collection in the scope is read each time the assistant answers, so it draws on the collection's recordings as they are
+Conversations belong to one person and can be scoped to namespaces, assets, collections, people and dates. A
+collection in the scope is read each time the assistant answers, so it draws on the collection's assets as they are
 then.
 
 - **Retrieval:** the question's keywords go through the word index (English stemming) and, when search by meaning is
@@ -11,7 +11,7 @@ then.
   ([Search by meaning](processing.md#search-by-meaning)); the two are ranked together by reciprocal rank, limited to
   namespaces the person can read and to the conversation's scope. Hits are widened to their neighbouring lines and
   numbered.
-- **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the recording
+- **Answers:** the model answers only from those excerpts and cites them as [n]. Each citation carries the asset
   and timestamp.
 - **Streaming:** answers arrive over server-sent events: `passages`, then `token`s, then `done`.
 - **Stopping:** Stop asks the server to end the answer after the piece or tool step it's on (whichever server process
@@ -44,8 +44,8 @@ then.
   on by default) and text highlighted on the page (Ask about this, above any selection). The model reads them with the
   question (up to 12,000 characters of page text and 4,000 of the highlight) as what the person is looking at, not as
   citable excerpts. The question keeps the page's address, title and highlight, shown above it; the page's text isn't
-  stored. A recording's transcript and document keep their own selection toolbar, whose Ask in chat goes to the
-  recording's chat. The Ask button stays clear of the page's own buttons: when one is under it and scrolling can't
+  stored. An asset's text and pages keep their own selection toolbar, whose Ask in chat goes to the
+  asset's chat. The Ask button stays clear of the page's own buttons: when one is under it and scrolling can't
   move it away (a row of buttons pinned to the bottom of the screen, or the last button with the page at its end), it
   rises above them, or steps out of sight when there's no room to rise.
 - **No model configured:** chat returns the best-matching passages instead. Anyone signed in can see whether a model
@@ -93,9 +93,9 @@ engine), `POST /voice/transcribe` (a clip as the raw body; nothing is kept), `PO
 
 When the configured model supports function calling, chat becomes an agent.
 
-- **What it can look things up with:** transcripts (including on-screen text), recordings, transcript passages,
-  outputs, entities and their mentions and timelines, the knowledge graph, speakers, and content similar to a text,
-  a recording, a topic or an entity (`find_similar`).
+- **What it can look things up with:** assets' text (transcripts and documents, and on-screen text), assets, passages,
+  outputs, entities and their mentions and timelines, the knowledge graph, people, and content similar to a text,
+  an asset, a topic or an entity (`find_similar`).
 - **Limits:** everything is limited to what the person can read and to the conversation's scope, and capped by
   `ai.max_steps` (Settings → AI assistant, Tool steps per answer; 6 by default) and `ai.max_transcript_reads`.
 - **Always an answer:** the model is told its step budget. When the steps run out, or it replies with nothing, it is
@@ -105,8 +105,8 @@ When the configured model supports function calling, chat becomes an agent.
   arguments) isn't run again: the model is pointed at the result it already has.
 - **Citations:** every moment a tool returns is numbered, so answers cite [n] across everything the assistant read.
 - **Visible steps:** each tool call streams as a step, for example 'Searched for "refund": 42 matches'.
-- **Approvals:** running a template on recordings, changing entities (merging, renaming, retyping, describing one
-  and the other ways it's said, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
+- **Approvals:** running a template on assets, changing entities (merging, renaming, retyping, describing one
+  and its other names, hiding one, or adding one to a namespace's fixed list) and changing topics (merging,
   renaming, describing or deleting one; [Topics](topics.md)) don't happen directly.
   They become approval cards (with the batch estimate) that the person approves, approves on a sample, or declines
   (`POST /api/v1/approvals/<id>`). Viewers only get the read tools.
@@ -182,7 +182,7 @@ the person's reads and approvals (N-PROMPT in the repository's `threat-model.md`
 
 Each namespace can have its own assistant that remembers from one conversation to the next. It is off until an owner
 of the namespace turns it on (`PATCH /api/v1/namespaces/<name>/assistant` with `enabled`, `name` and `instructions`).
-Then every conversation scoped to that namespace alone, picked by hand or chosen from the first question, talks to it.
+Then every conversation scoped to that namespace alone, picked by hand or chosen from the first question, uses it.
 It is the same assistant with the same tools, extensions and approvals; what it adds:
 
 - **A name and instructions** from the namespace's owners, read with every question.
@@ -191,8 +191,8 @@ It is the same assistant with the same tools, extensions and approvals; what it 
   in. Remembering is routine, so it happens at once and shows as a step; people who can edit the namespace can also
   write memories themselves. Viewers' conversations read the memory but don't add to it.
 - **Cited:** the newest 30 memories (pinned ones first) are read with every question. A memory from a moment is
-  numbered like an excerpt, so an answer from memory cites [n] and opens the recording at that moment; older ones are
-  found with `recall`. A memory from a recording the asker can't read is left out.
+  numbered like an excerpt, so an answer from memory cites [n] and opens the asset at that moment; older ones are
+  found with `recall`. A memory from an asset the asker can't read is left out.
 - **Asks first:** forgetting from chat waits for the person's approval, like every tool that changes data.
 - **Yours to edit:** `GET /api/v1/namespaces/<name>/assistant/memories` (`q` searches them), `POST` to add one,
   `PATCH .../memories/<id>` to correct or pin one, `DELETE .../memories/<id>` to forget it, and owners `DELETE
@@ -333,23 +333,23 @@ Laya isn't available, and the LLM provider takes the choices. **Test** takes one
 
 ## Collections, batch runs and collection reports
 
-**Collections** are named sets of recordings. A collection is either a filter that stays up to date (namespaces,
-speakers, entities, dates, a search, audio/video/transcript, status) or a fixed list. Each person gets their own, and
-they can be shared. A collection only ever shows the recordings the viewer can read. Collections scope chat, batch runs
+**Collections** are named sets of assets. A collection is either a filter that stays up to date (namespaces,
+people, entities, dates, a search, audio/video/text, status) or a fixed list. Each person gets their own, and
+they can be shared. A collection only ever shows the assets the viewer can read. Collections scope chat, batch runs
 and reports.
 
-**Batch runs** apply a pipeline, some steps, or one template to many recordings. The recordings can come from a list, a
-collection, a namespace, a filter, an entity or a speaker.
+**Batch runs** apply a pipeline, some steps, or one template to many assets. The assets can come from a list, a
+collection, a namespace, a filter, an entity or a person.
 
 - `POST /api/v1/batches/estimate` answers first, with:
-  - how many recordings (by kind) and hours
+  - how many assets (by kind) and hours
   - rough processing time
   - LLM calls and tokens, plus cost once `ai.price_in` and `ai.price_out` are set
   - how many existing outputs would be replaced
-  - how many matching recordings are skipped because you can't change them
+  - how many matching assets are skipped because you can't change them
 - Runs bigger than `ai.confirm_over_recordings` (or `ai.confirm_over_cost`) need the confirmation typed, e.g. `RUN 214`.
-- `"sample": 3` runs three recordings first; `/continue` then runs the rest.
+- `"sample": 3` runs three assets first; `/continue` then runs the rest.
 - Batches can be paused, resumed, cancelled and have their failures retried.
 - `/results` returns one table of everyone's outputs. List fields become rows, so you get every action item from every
   call, and `/results.csv` or `/results.md` exports it.
-- `/combine` writes a collection report: one overview from all those results, citing each recording as [n].
+- `/combine` writes a collection report: one overview from all those results, citing each asset as [n].

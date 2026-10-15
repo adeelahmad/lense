@@ -53,8 +53,8 @@ describe("merging on the canvas", () => {
     expect(joinPlan(al, alice)).toBe("merge-speaker");
     expect(joinPlan(acme, acme)).toBe("Pick another node to merge into.");
     expect(joinPlan(acme, alice)).toBe("An entity merges into another entity.");
-    expect(joinPlan(alice, topic)).toBe("A speaker merges into another speaker.");
-    expect(joinPlan(alice, node("s8", "speaker", [8], ["calls"]))).toBe("Speakers are merged within one namespace.");
+    expect(joinPlan(alice, topic)).toBe("A person merges into another person.");
+    expect(joinPlan(alice, node("s8", "speaker", [8], ["calls"]))).toBe("People are merged within one namespace.");
     expect(joinPlan(acme, joined)).toBe("An entity merges into another entity.");
     expect(joinPlan(node("t6", "topic", [6], ["pods"]), topic)).toBe("merge-topic");
     expect(joinPlan(topic, acme)).toBe("A topic merges into another topic.");

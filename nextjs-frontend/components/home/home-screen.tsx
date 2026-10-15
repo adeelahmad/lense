@@ -283,7 +283,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
                 <b className="text-[14px] font-semibold text-fg">Nothing needs you</b>
                 <span className="tabular text-[12.5px] text-fg-secondary">
                   {[
-                    plural(totals.recordings, "recording"),
+                    plural(totals.recordings, "asset"),
                     totals.ms ? totalDuration(totals.ms) : null,
                     `${count(totals.analyzed)} analyzed`,
                     running.length ? `${count(running.length)} processing` : null,
@@ -327,10 +327,10 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
               Nothing here yet.{" "}
               {can("editor", namespace) ? (
                 <Link href="/import" className="font-semibold text-fg-accent hover:underline">
-                  Import transcripts
+                  Import files
                 </Link>
               ) : (
-                "New recordings show up here as they arrive."
+                "New assets show up here as they arrive."
               )}
             </p>
           ) : (
@@ -359,7 +359,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
                       <span className="truncate text-[12px] leading-none text-fg-muted">
                         {[
                           r.namespace,
-                          r.media_kind === "transcript" ? "transcript" : r.media_kind,
+                          r.media_kind === "transcript" ? "text" : r.media_kind,
                           r.duration_ms ? tc(r.duration_ms) : null,
                         ]
                           .filter(Boolean)
@@ -411,7 +411,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
                         href={j.recording ? `/resources/${j.recording}` : "/activity"}
                         className="truncate text-fg hover:underline"
                       >
-                        {(j.title || "Recording").replace(/\s+—.*$/, "")} · {stepLabel(j.next_step)}
+                        {(j.title || "Asset").replace(/\s+—.*$/, "")} · {stepLabel(j.next_step)}
                       </Link>
                       <span className="tabular shrink-0 font-medium text-fg-secondary">
                         {j.status === "queued"
@@ -464,7 +464,7 @@ export function HomeScreen({ switcher }: { switcher?: React.ReactNode } = {}) {
               })}
             </ul>
           ) : (
-            <p className="text-[13px] text-fg-muted">Recordings you open show up here, on this device.</p>
+            <p className="text-[13px] text-fg-muted">Assets you open show up here, on this device.</p>
           )}
         </section>
       </div>

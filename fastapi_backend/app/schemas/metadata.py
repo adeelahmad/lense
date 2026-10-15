@@ -43,7 +43,7 @@ class NamespaceMetadataUpdate(RequestModel):
 
 class MetadataBulk(RequestModel):
     recordings: list[int] = Field(default_factory=list)
-    namespace: str | None = Field(None, description="every recording in this namespace (added to `recordings`)")
+    namespace: str | None = Field(None, description="every asset in this namespace (added to `recordings`)")
     set: dict[str, Any] = Field(default_factory=dict)
     clear: list[str] = Field(default_factory=list)
     dry_run: bool = Field(True, description="report what would change without changing it")

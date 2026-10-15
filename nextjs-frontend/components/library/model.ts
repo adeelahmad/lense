@@ -286,7 +286,7 @@ export const MEDIA_LABEL: Record<MediaFilter, string> = {
   any: "Any",
   audio: "Audio",
   video: "Video",
-  transcript: "Transcript only",
+  transcript: "Text only",
   document: "Document",
   image: "Image",
 };
@@ -441,7 +441,7 @@ export function deletedToast(
 ): { title: string; body: string; tone: "green" | "red" } {
   if (!failed.length)
     return {
-      title: `Deleted ${plural(done, "recording")}`,
+      title: `Deleted ${plural(done, "asset")}`,
       body: "The media files stay where they are, and won’t be imported again.",
       tone: "green",
     };
@@ -449,8 +449,8 @@ export function deletedToast(
   const why = `${failed[0].title}: ${failed[0].message}${failed.length > 1 ? ` (and ${failed.length - 1} more)` : ""}`;
   return {
     title: done
-      ? `Deleted ${done} of ${plural(total, "recording")}`
-      : `Couldn’t delete ${total === 1 ? "the recording" : plural(total, "recording")}`,
+      ? `Deleted ${done} of ${plural(total, "asset")}`
+      : `Couldn’t delete ${total === 1 ? "the asset" : plural(total, "asset")}`,
     body: why,
     tone: "red",
   };
@@ -470,15 +470,15 @@ export function movedToast(
 ): { title: string; body: string; tone: "green" | "red" } {
   if (!failed.length)
     return {
-      title: `Moved ${plural(done, "recording")} to ${to}`,
+      title: `Moved ${plural(done, "asset")} to ${to}`,
       body: `Analysis runs again in ${to}; their access and IIIF stay as they were.`,
       tone: "green",
     };
   const total = done + failed.length;
   return {
     title: done
-      ? `Moved ${done} of ${plural(total, "recording")} to ${to}`
-      : `Couldn’t move ${total === 1 ? "the recording" : plural(total, "recording")}`,
+      ? `Moved ${done} of ${plural(total, "asset")} to ${to}`
+      : `Couldn’t move ${total === 1 ? "the asset" : plural(total, "asset")}`,
     body: `${failed[0].title}: ${failed[0].message}${failed.length > 1 ? ` (and ${failed.length - 1} more)` : ""}`,
     tone: "red",
   };

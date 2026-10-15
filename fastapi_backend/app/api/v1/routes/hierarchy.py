@@ -69,7 +69,7 @@ def _node(db: DB, acl: Access, sid: int, cid: int) -> CollectionNode:
 
 @router.get("")
 def list_namespace_collections(name: str, acl: Acl, user: CurrentUser, db: Db) -> list[CollectionNode]:
-    """The namespace's collections, depth first and by name, each with its place in the tree, how many recordings it
+    """The namespace's collections, depth first and by name, each with its place in the tree, how many assets it
     holds (with and without the collections inside it), and what you may do with it. Someone who sees only some
     collections of the namespace gets those, starting from the ones they were given."""
     sid, only = _seen(acl, name)
@@ -102,7 +102,7 @@ def get_namespace_collection(name: str, cid: int, acl: Acl, user: CurrentUser, d
 def update_namespace_collection(name: str, cid: int, body: CollectionNodeUpdate, acl: Acl, user: Writer, db: Db) -> CollectionNode:
     """Rename it, describe it, move it inside another collection of the namespace (`parent`; null: to the top) or make
     it the default. Editors of the namespace may do all of that; an admin of the collection all but moving it to the
-    top or making it the default, and only into a collection they're an admin of. The recordings and collections
+    top or making it the default, and only into a collection they're an admin of. The assets and collections
     inside it go with it. Audited as `collection.update`."""
     sid, only = _seen(acl, name)
     _in(db, sid, cid, only)
@@ -135,7 +135,7 @@ def update_namespace_collection(name: str, cid: int, body: CollectionNodeUpdate,
 @router.delete("/{cid}")
 def delete_namespace_collection(name: str, cid: int, acl: Acl, user: Writer, db: Db) -> Ok:
     """Delete an empty collection (editors of the namespace, or an admin of it), with the roles given on it: 409 while
-    it holds recordings or collections, or is the namespace's default. Audited as `collection.delete`."""
+    it holds assets or collections, or is the namespace's default. Audited as `collection.delete`."""
     sid, only = _seen(acl, name)
     _in(db, sid, cid, only)
     _change(acl, sid, cid)

@@ -136,7 +136,7 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
           pause: "Paused",
           resume: "Resumed",
           cancel: "Cancelled what hadn’t started",
-          retry: "Retrying the failed recordings",
+          retry: "Retrying the failed assets",
         }[action],
         tone: "intent",
       });
@@ -313,7 +313,7 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
               </span>
               <h2 className="text-[17px] font-bold text-fg">Sample done — does this look right?</h2>
               <p className="m-0 text-[13px] leading-snug text-fg-strong">
-                Check the results below. Scaled up: {plural(rest, "more recording")}
+                Check the results below. Scaled up: {plural(rest, "more asset")}
                 {est?.seconds && est.recordings ? `, ${approxDuration((est.seconds / est.recordings) * rest)}` : ""}
                 {perRecordingCost != null ? `, ~${money(perRecordingCost * rest)}` : ""}.
               </p>
@@ -338,7 +338,7 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
           <div className="overflow-hidden rounded-md border border-border">
             {jobs.isLoading && <Skeleton className="m-3 h-20" />}
             {!jobs.isLoading && jobRows.length === 0 && (
-              <p className="m-0 p-3 text-[13px] text-fg-secondary">Recordings show here as their jobs start.</p>
+              <p className="m-0 p-3 text-[13px] text-fg-secondary">Assets show here as their jobs start.</p>
             )}
             <ul className="m-0 max-h-[420px] list-none overflow-y-auto p-0">
               {jobRows.map((j) => {
@@ -357,7 +357,7 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
                       className="truncate font-semibold text-fg hover:text-fg-accent hover:underline"
                     >
                       <span className="sr-only">{g.label}: </span>
-                      {j.title ?? `Recording ${j.recording}`}
+                      {j.title ?? `Asset ${j.recording}`}
                     </Link>
                     <span className="tabular text-fg-secondary">{seconds(j)}</span>
                     {j.status === "failed" ? (
@@ -410,7 +410,7 @@ export function BatchPage({ id, autoReport }: { id: number; autoReport?: boolean
                 <Field
                   label="What the report should cover"
                   optional
-                  hint="The model reads every recording’s result and writes one overview, citing each recording."
+                  hint="The model reads every asset’s result and writes one overview, citing each asset."
                 >
                   {({ id: fid, describedBy }) => (
                     <Textarea
@@ -454,8 +454,8 @@ function NoTable({ steps }: { steps: { type?: unknown }[] }) {
   return (
     <section className="h-fit rounded-lg border border-border p-5 text-[13.5px] leading-normal text-fg-secondary">
       <h2 className="mb-1 text-[17px] font-bold text-fg">Results</h2>
-      This run ({steps.map((s) => String(s.type)).join(", ")}) doesn’t write a table of results. Open each recording to
-      see what changed.
+      This run ({steps.map((s) => String(s.type)).join(", ")}) doesn’t write a table of results. Open each asset to see
+      what changed.
     </section>
   );
 }

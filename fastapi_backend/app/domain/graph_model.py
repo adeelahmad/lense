@@ -216,7 +216,7 @@ def build(db, scope="global", readable=None, recordings=None, as_of=None):
         g.add(
             f"r{r['id']}",
             ["Recording"],
-            name=r.get("title") or f"Recording {r['id']}",
+            name=r.get("title") or f"Asset {r['id']}",
             title=r.get("title"),
             namespace=names[r["space"]],
             date=str(date)[:10] if date else None,
@@ -238,7 +238,7 @@ def build(db, scope="global", readable=None, recordings=None, as_of=None):
         g.add(
             f"s{s['id']}",
             ["Speaker"],
-            name=s.get("name") or s.get("label") or f"Speaker {s['id']}",
+            name=s.get("name") or s.get("label") or f"Person {s['id']}",
             namespace=names[s["space"]],
             seconds=round(total[s["id"]] / 1000, 1),
         )

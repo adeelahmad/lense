@@ -167,6 +167,40 @@ def test_domain_helpers():
     assert notebook.plain(body) == "Hi Ada and Caps, Ada twice, x\n\nsite"
 
 
+def test_search(client, env, db):
+    he, hv, hx = env["he"], env["hv"], env["hx"]
+    plans = _new(client, he, title="Plans", place="project", body="Hire two people.")
+    _new(client, he, title="Hiring", parent=plans["id"], body="We talk to " + "lots of people " * 20 + "about capsids today.")
+    _new(client, he, title="Old trip", place="archive", body="Lisbon")
+    r = client.get("/api/v1/notes/search?q=capsids", headers=hv)
+    assert r.status_code == 200, r.text
+    out = r.json()
+    assert out["total"] == 1
+    hit = out["pages"][0]
+    assert (hit["title"], hit["parent"], hit["namespace"], hit["author"]) == ("Hiring", plans["id"], "pods", "person")
+    assert hit["snippet"].startswith("…") and hit["snippet"].endswith("about capsids today.")
+    # title matches first; a place narrows it; no words: everything, the latest changed first
+    assert [p["title"] for p in client.get("/api/v1/notes/search?q=hir", headers=hv).json()["pages"]] == ["Hiring", "Plans"]
+    assert [p["title"] for p in client.get("/api/v1/notes/search?place=archive", headers=hv).json()["pages"]] == ["Old trip"]
+    assert client.get("/api/v1/notes/search?ns=pods", headers=hv).json()["total"] == 3
+    # a thing's page is found too, unless only free notes are asked for
+    _new(client, he, title="Episode 1", about=f"recording:{env['a']}", body="capsids again")
+    assert client.get("/api/v1/notes/search?q=capsids", headers=hv).json()["total"] == 2
+    assert client.get("/api/v1/notes/search?q=capsids&free=true", headers=hv).json()["total"] == 1
+    # people outside the namespace find nothing in it
+    assert client.get("/api/v1/notes/search?q=capsids", headers=hx).json()["total"] == 0
+    assert client.get("/api/v1/notes/search?ns=pods", headers=hx).status_code == 404
+
+
+def test_snippet():
+    assert notebook.snippet("one two three", "four") is None
+    assert notebook.snippet("one two three", "") is None
+    assert notebook.snippet("a  short\ntext", "short") == "a short text"
+    long = " ".join(f"w{i}" for i in range(200))
+    s = notebook.snippet(long, "w100")
+    assert s.startswith("…w") and s.endswith("…") and "w100" in s and len(s) <= notebook.SNIPPET + 2
+
+
 @pytest.fixture
 def llm(cfg):
     from tests import fake_llm

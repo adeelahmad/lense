@@ -1,20 +1,41 @@
 "use client";
 
-import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
-import { FileText, NotebookPen, Plus, Sparkles } from "lucide-react";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileText, NotebookPen, Plus, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
 import { Notes } from "@/app/openapi-client";
-import { PLACES } from "@/components/notes/links";
+import type { NotePageItem } from "@/app/openapi-client/types.gen";
+import { PLACES, pageOf } from "@/components/notes/links";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/field";
 import { EmptyState, PageHeader, SkeletonRows } from "@/components/ui/states";
+import { Segmented } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/toast";
 import { ApiError, data, useApiClient } from "@/lib/api/browser";
 import { shortDate } from "@/lib/format";
+import { useDebounced } from "@/lib/hooks/debounce";
 import { useArchive } from "@/lib/hooks/session";
 
-/** Every free note in view, the latest changed first, with where it's filed. */
+type Place = NotePageItem["place"];
+type Row = {
+  id: number;
+  ns: string;
+  title: string;
+  summary?: string | null;
+  snippet?: string | null;
+  place?: Place;
+  parent?: number | null;
+  about?: string | null;
+  author?: string | null;
+  updated_at?: string | null;
+};
+
+/** Every free note in view, the latest changed first, with where it sits in the tree and where it's filed. Words in
+ * the search box find notes by their title, summary or text (the pages of things too); the filter shows one PARA
+ * place. */
 export function NotesHome() {
   const client = useApiClient();
   const qc = useQueryClient();
@@ -22,15 +43,36 @@ export function NotesHome() {
   const toast = useToast();
   const { namespace, namespaces, can } = useArchive();
   const names = namespace ? [namespace] : namespaces.map((n) => n.name);
+  const [q, setQ] = useState("");
+  const [place, setPlace] = useState<"" | NonNullable<Place>>("");
+  const words = useDebounced(q.trim().replace(/\s+/g, " "), 200);
   const trees = useQueries({
     queries: names.map((ns) => ({
       queryKey: ["notes-tree", ns],
       queryFn: () => data(Notes.listPages({ client, query: { ns } })),
     })),
   });
-  const pages = trees
+  const search = useQuery({
+    queryKey: ["notes-search", namespace, words, place],
+    queryFn: () =>
+      data(Notes.searchPages({ client, query: { q: words, ns: namespace, place: place || null, limit: 100 } })),
+    enabled: !!words,
+    placeholderData: keepPreviousData,
+  });
+  // Each free note by namespace and id, to name the notes a note is inside
+  const byKey = useMemo(() => {
+    const m = new Map<string, NotePageItem>();
+    for (const t of trees) for (const p of t.data?.pages ?? []) m.set(`${t.data!.namespace}:${p.id}`, p);
+    return m;
+  }, [trees]);
+  const all: Row[] = trees
     .flatMap((t) => (t.data ? t.data.pages.map((p) => ({ ...p, ns: t.data.namespace })) : []))
     .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+  const rows: Row[] = words
+    ? (search.data?.pages ?? []).map((p) => ({ ...p, ns: p.namespace }))
+    : all.filter((p) => !place || p.place === place);
+  const count = (v: string) => all.filter((p) => p.place === v).length;
+
   const target = namespace ?? names.find((n) => can("editor", n)) ?? null;
   const create = useMutation({
     mutationFn: () => data(Notes.createPage({ client, body: { ns: target!, title: "Untitled" } })),
@@ -51,42 +93,156 @@ export function NotesHome() {
         New note
       </Button>
     ) : null;
-  const place = (v?: string | null) => PLACES.find((p) => p.value === v)?.label;
+  const placeLabel = (v?: string | null) => PLACES.find((p) => p.value === v)?.label;
+  /** "Home lab › Parts": the notes this one is inside, outermost first. */
+  const path = (r: Row) => {
+    const out: string[] = [];
+    const seen = new Set<number>();
+    for (let at = r.parent; at != null && !seen.has(at);) {
+      seen.add(at);
+      const p = byKey.get(`${r.ns}:${at}`);
+      if (!p) break;
+      out.unshift(p.title);
+      at = p.parent;
+    }
+    return out.join(" › ");
+  };
 
+  const loading = trees.some((t) => t.isPending) || (!!words && search.isPending);
   return (
     <div className="mx-auto w-full max-w-[960px] px-6 py-8">
       <PageHeader title="Notes" meta={namespace ?? "All namespaces"} actions={newNote} />
-      {trees.some((t) => t.isPending) ? (
+      {(all.length > 0 || q) && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <SearchInput
+            aria-label="Search notes"
+            placeholder="Search notes"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              // Enter opens the first note found
+              if (e.key !== "Enter" || e.nativeEvent.isComposing || !rows[0]) return;
+              e.preventDefault();
+              router.push(hrefOf(rows[0]));
+            }}
+            className="min-w-[200px] flex-1"
+          />
+          <div className="max-w-full overflow-x-auto">
+            <Segmented
+              label="Filed under"
+              value={place}
+              onChange={(v) => setPlace(v as typeof place)}
+              items={[
+                { value: "", label: "All" },
+                ...PLACES.map((p) => ({
+                  value: p.value,
+                  label: (
+                    <>
+                      {SHOWN[p.value]}
+                      <span className="font-normal text-fg-muted">{count(p.value) || ""}</span>
+                    </>
+                  ),
+                })),
+              ]}
+            />
+          </div>
+        </div>
+      )}
+      {loading ? (
         <SkeletonRows rows={5} />
-      ) : !pages.length ? (
+      ) : !all.length && !q ? (
         <EmptyState icon={<NotebookPen />} title="No notes yet" actions={newNote}>
-          The assistant writes notes as it learns, and you can write your own. Type @ in a note to link a recording,
-          person or another note, and # for a topic. Every recording and entity also has a page of its own.
+          The assistant writes notes as it learns, and you can write your own. Type @ in a note to link an asset, person
+          or another note, and # for a topic. Every asset and entity also has a page of its own.
+        </EmptyState>
+      ) : !rows.length ? (
+        <EmptyState icon={<Search />} title={words ? `No notes have “${words}”` : "No notes here"}>
+          {place ? `Nothing filed under ${placeLabel(place)} matches. Pick All to look everywhere.` : null}
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-border rounded-md border border-border">
-          {pages.map((p) => (
-            <li key={`${p.ns}:${p.id}`}>
-              <Link href={`/notes/${p.id}`} className="flex items-start gap-3 px-4 py-3 hover:bg-surface">
-                {p.author === "assistant" ? (
-                  <Sparkles className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-label="Written by the assistant" />
-                ) : (
-                  <FileText className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />
-                )}
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-[14.5px] font-bold text-fg">{p.title}</span>
-                  {p.summary && <span className="truncate text-[13px] text-fg-secondary">{p.summary}</span>}
-                </span>
-                <span className="shrink-0 text-right text-[12.5px] text-fg-muted">
-                  {[place(p.place), !namespace ? p.ns : null, p.updated_at ? shortDate(p.updated_at) : null]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="divide-y divide-border rounded-md border border-border">
+            {rows.map((p) => {
+              const inside = path(p);
+              const line = (words && p.snippet) || p.summary;
+              const meta = [
+                placeLabel(p.place),
+                !namespace ? p.ns : null,
+                p.updated_at ? shortDate(p.updated_at) : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              return (
+                <li key={`${p.ns}:${p.id}`}>
+                  <Link href={hrefOf(p)} className="flex items-start gap-3 px-4 py-3 hover:bg-surface">
+                    {p.author === "assistant" ? (
+                      <Sparkles
+                        className="mt-0.5 size-4 shrink-0 text-fg-muted"
+                        aria-label="Written by the assistant"
+                      />
+                    ) : (
+                      <FileText className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-hidden />
+                    )}
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      {(inside || p.about) && (
+                        <span className="truncate text-[12px] text-fg-muted">
+                          {p.about ? `Page of ${p.about.split(":")[0]}` : `In ${inside}`}
+                        </span>
+                      )}
+                      <span className="truncate text-[14.5px] font-bold text-fg">
+                        <Marked text={p.title} words={words} />
+                      </span>
+                      {line && (
+                        <span className="line-clamp-2 text-[13px] text-fg-secondary">
+                          <Marked text={line} words={words} />
+                        </span>
+                      )}
+                      {/* on a phone, under the title, which then keeps the width */}
+                      <span className="text-[12.5px] text-fg-muted sm:hidden">{meta}</span>
+                    </span>
+                    <span className="hidden shrink-0 text-right text-[12.5px] text-fg-muted sm:block">{meta}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          {words && search.data && search.data.total > rows.length && (
+            <p className="mt-2 text-[12.5px] text-fg-muted">
+              The first {rows.length} of {search.data.total}: add a word to narrow it down.
+            </p>
+          )}
+        </>
       )}
     </div>
   );
+}
+
+/** The text with the words searched for marked, wherever they are (any case). */
+function Marked({ text, words }: { text: string; words: string }) {
+  if (!words) return <>{text}</>;
+  const parts = text.split(new RegExp(`(${words.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 ? (
+          <mark key={i} className="rounded-[2px] bg-hl-word text-fg">
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
+const SHOWN: Record<NonNullable<Place>, string> = {
+  project: "Projects",
+  area: "Areas",
+  resource: "Resources",
+  archive: "Archive",
+};
+
+function hrefOf(p: Row): string {
+  return p.about ? pageOf(p.about) : `/notes/${p.id}`;
 }
