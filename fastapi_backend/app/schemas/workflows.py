@@ -96,7 +96,7 @@ class WorkflowRunRequest(RequestModel):
 class WorkflowTryRequest(RequestModel):
     graph: WorkflowGraph
     scope: Literal["recording", "graph"] = "recording"
-    recording: int | None = Field(None, description="the recording to try a recording workflow on")
+    recording: int | None = Field(None, description="the asset to try a recording workflow on")
     namespaces: list[str] = Field(default_factory=list, description="the namespaces to try a graph workflow over (default: all)")
 
 

@@ -51,7 +51,7 @@ BACKENDS = {
     **feeds.TYPES,
 }
 OBSCURED = {"pass"}  # rclone wants these obscured in its config file
-SKIPPED = "not audio, video, a document, an image or a transcript"
+SKIPPED = "not audio, video, a document, an image or text"
 TRANSCRIPT_EXT = {".txt", ".text", ".md", ".markdown", ".mdx", ".docx", ".doc", ".pdf", ".srt", ".vtt", ".json", ".jsonl", ".eml", ".ics"}
 # what a watched folder picks up (its `kinds`): the first three are from before documents, and read PDFs as transcripts
 TAKES = {

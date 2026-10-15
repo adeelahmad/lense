@@ -66,7 +66,7 @@ export function ReportSetup() {
     return (
       <div className="px-4 py-6 md:px-6">
         <EmptyState title="Collection reports need editor access">
-          {needRole("editor")}. They run a template on every recording in the set.
+          {needRole("editor")}. They run a template on every asset in the set.
         </EmptyState>
       </div>
     );
@@ -114,19 +114,17 @@ export function ReportSetup() {
           <legend className="mb-2 text-[13px] font-bold text-fg-strong">Stages</legend>
           <Stage n={1}>
             <Select
-              aria-label="Extract per recording"
+              aria-label="Extract per asset"
               value={tpl}
               onChange={(e) => setTpl(e.target.value)}
               options={[
                 {
                   value: "",
-                  label: prompts.length
-                    ? "Extract per recording · choose a prompt template"
-                    : "No prompt templates yet",
+                  label: prompts.length ? "Extract per asset · choose a prompt template" : "No prompt templates yet",
                 },
                 ...prompts.map((t) => ({
                   value: String(t.id),
-                  label: `Extract per recording · ${t.name}`,
+                  label: `Extract per asset · ${t.name}`,
                 })),
               ]}
             />
@@ -137,7 +135,7 @@ export function ReportSetup() {
               rows={2}
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              placeholder="Combine · the main themes, how many recordings raise each, and what changed over time"
+              placeholder="Combine · the main themes, how many assets raise each, and what changed over time"
             />
           </Stage>
         </fieldset>

@@ -167,7 +167,7 @@ export function CollectionsIndex() {
             <THead className="border-t-0">
               <tr>
                 <Th>Collection</Th>
-                <Th>Recordings</Th>
+                <Th>Assets</Th>
                 <Th>Published</Th>
                 <Th>Your role</Th>
                 <Th>

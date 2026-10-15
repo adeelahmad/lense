@@ -143,7 +143,10 @@ def _page_canvas(cfg, base, m, rid, p, canvases, locked, layers):
         "width": w,
         "height": h,
         "items": [{"id": f"{cid}/page/1", "type": "AnnotationPage", "items": items}],
-        "annotations": [{"id": f"{m}/annotations/{k}?page={n}", "type": "AnnotationPage", "label": lm(LAYERS[k], "en")} for k in layers],
+        "annotations": [
+            {"id": f"{m}/annotations/{k}?page={n}", "type": "AnnotationPage", "label": lm("Text" if k == "transcript" else LAYERS[k], "en")}
+            for k in layers
+        ],
     }
     if p.get("thumb") and not locked:
         tw = min(cfg["documents"]["thumb_pixels"], w) if w >= h else round(w * min(cfg["documents"]["thumb_pixels"], h) / h)
@@ -231,7 +234,7 @@ def manifest(db, cfg, rid, base):
         {"id": f"{m}/transcript.vtt", "type": "Text", "format": "text/vtt", "label": lm("Transcript (WebVTT)", "en"), "language": tlang}
     )
     if text_locked:
-        vtt["service"] = [probe_service(cfg, base, rid, "transcript")]
+        vtt["service"] = [probe_service(cfg, base, rid, "transcript", "Sign in to read this")]
     # a document's text has no times for captions: it's on its pages
     captions = (
         []
@@ -251,7 +254,7 @@ def manifest(db, cfg, rid, base):
                 }
             )
             if not _file_open(a, f):
-                body["service"] = [probe_service(cfg, base, rid, f"vtt{f['id']}")]
+                body["service"] = [probe_service(cfg, base, rid, f"vtt{f['id']}", "Sign in to read this")]
             n = len(captions) + 1
             captions.append(
                 {"id": f"{canvas}/captions/{n}", "type": "Annotation", "motivation": "supplementing", "body": body, "target": canvas}
@@ -338,7 +341,7 @@ def manifest(db, cfg, rid, base):
             }
         )
         if not _file_open(a, f):
-            r["service"] = [probe_service(cfg, base, rid, f"file{f['id']}")]
+            r["service"] = [probe_service(cfg, base, rid, f"file{f['id']}", "Sign in to see this")]
         renderings.append(r)
     locked_files = any(not _file_open(a, f) for f in kept)
     contexts = (
@@ -566,7 +569,8 @@ def annotation_page(db, cfg, rid, base, layer, page=None):
     else:
         raise KeyError(layer)
     own = f"{m}/annotations/{layer}" + (f"?page={page}" if page is not None else "")
-    return {"@context": P3, "id": own, "type": "AnnotationPage", "label": lm(LAYERS[layer], "en"), "items": items}
+    label = "Text" if layer == "transcript" and canvases else LAYERS[layer]  # a document's text isn't a transcript
+    return {"@context": P3, "id": own, "type": "AnnotationPage", "label": lm(label, "en"), "items": items}
 
 
 def collection_url(base, ns, cid=None):

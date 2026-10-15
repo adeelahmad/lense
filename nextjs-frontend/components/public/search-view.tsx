@@ -36,7 +36,7 @@ export function PublicSearchForm({ initial = "", className }: { initial?: string
     <form role="search" onSubmit={submit} className={cn("flex min-w-0 gap-2", className)}>
       <SearchInput
         aria-label="Search the archive"
-        placeholder="Search titles and transcripts"
+        placeholder="Search titles and text"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         className="min-w-0 flex-1"
@@ -69,7 +69,7 @@ export function PublicSearchView({ q }: { q: string }) {
       <PublicSearchForm initial={q} />
       {!query ? (
         <EmptyState icon={<Search />} title="What are you looking for?">
-          Search finds recordings by their title, and by what’s said in the transcripts open to you.
+          Search finds assets by their title, and by the text open to you.
         </EmptyState>
       ) : res.isError ? (
         <LoadError what="the results" message={res.error.message} retry={() => res.refetch()} />
@@ -79,12 +79,12 @@ export function PublicSearchView({ q }: { q: string }) {
         <EmptyState icon={<Search />} title={`Nothing matches “${query}”`}>
           {signedIn
             ? "Try other words, or fewer of them."
-            : "Try other words, or fewer of them. Signing in may show recordings that aren’t public."}
+            : "Try other words, or fewer of them. Signing in may show assets that aren’t public."}
         </EmptyState>
       ) : (
         <>
           <p className="text-[13px] text-fg-secondary" aria-live="polite">
-            {count(res.data.total)} recording{res.data.total === 1 ? "" : "s"}
+            {count(res.data.total)} asset{res.data.total === 1 ? "" : "s"}
             {res.data.capped ? " (the first matches)" : ""}
           </p>
           <ol className="flex flex-col gap-3" aria-busy={res.isFetching || undefined}>

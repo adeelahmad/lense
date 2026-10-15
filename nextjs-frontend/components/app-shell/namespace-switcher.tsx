@@ -84,7 +84,7 @@ export function NamespaceSwitcher({ className, onPick }: { className?: string; o
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px] font-semibold text-fg">{name ?? "All namespaces"}</span>
                     <span className="block text-[12px] text-fg-muted">
-                      {name ? `${count(ns?.recordings as number)} recordings` : `${namespaces.length} you can see`}
+                      {name ? `${count(ns?.recordings as number)} assets` : `${namespaces.length} you can see`}
                     </span>
                   </span>
                   {name && (isPartial(name) ? <SomeChip /> : <RoleChip role={roleIn(name)} />)}

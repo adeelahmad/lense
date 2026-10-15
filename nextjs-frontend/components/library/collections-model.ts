@@ -58,7 +58,7 @@ export function moveTargets(nodes: CollectionNode[], id: number): CollectionNode
 export function whyNoDelete(n: Pick<CollectionNode, "default" | "children" | "recordings">): string | null {
   if (n.default) return "This is the default collection: make another one the default first";
   if (n.children) return `It holds ${plural(n.children, "collection")}: move or delete them first`;
-  if (n.recordings) return `It holds ${plural(n.recordings, "recording")}: move them to another collection first`;
+  if (n.recordings) return `It holds ${plural(n.recordings, "asset")}: move them to another collection first`;
   return null;
 }
 
@@ -66,7 +66,7 @@ export function whyNoDelete(n: Pick<CollectionNode, "default" | "children" | "re
 export function holds(n: Pick<CollectionNode, "recordings" | "total">): string {
   const own = n.recordings ?? 0;
   const inside = (n.total ?? own) - own;
-  return [plural(own, "recording"), inside ? `${inside} inside` : null].filter(Boolean).join(" · ");
+  return [plural(own, "asset"), inside ? `${inside} inside` : null].filter(Boolean).join(" · ");
 }
 
 export type PickerOption = { value: string; label: string };

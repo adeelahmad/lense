@@ -8,7 +8,7 @@ from app.schemas.common import ResponseModel
 
 
 class SearchHit(ResponseModel):
-    id: int | str = Field(description="segment id (int) for transcript hits, OCR span or file line id (str) for the others")
+    id: int | str = Field(description="segment id (int) for hits in an asset's text, OCR span or file line id (str) for the others")
     recording_id: int
     idx: int | None = None
     t0: int | None = Field(description="ms; None for a line of a file that doesn't say when its lines are")
@@ -21,7 +21,8 @@ class SearchHit(ResponseModel):
     namespace: str | None = None
     snippet: str = Field(description="HTML: escaped text with <mark> around matches")
     source: Literal["said", "screen", "file", "page", "object", "described"] = Field(
-        description='"said" (transcript), "screen" (text on screen in a video), "file" (a line of a supplementary file), '
+        description='"said" (a line of a transcript or other text), "screen" (text on screen in a video), "file" (a line of a '
+        "supplementary file), "
         '"page" (text on a page of a document or an image, whose times are only a reading pace), "object" (a kind of '
         "object seen in a video, a document or an image, where it's first seen; its snippet is the kind) or "
         '"described" (what a model that can see said a shot of a video, or a page, shows)'
@@ -39,9 +40,7 @@ class SearchHit(ResponseModel):
         'alike; shown at its line that fits best), or "both"',
     )
     similarity: float | None = Field(None, description="found by meaning: how alike the passage is to the query (cosine, up to 1)")
-    nsfw: bool = Field(
-        False, description="its recording is flagged NSFW where its namespace blurs or hides that: the web app blurs its frame"
-    )
+    nsfw: bool = Field(False, description="its asset is flagged NSFW where its namespace blurs or hides that: the web app blurs its frame")
 
 
 class FacetCount(ResponseModel):
@@ -64,12 +63,12 @@ class RecordingFacet(ResponseModel):
 
 class ObjectFacet(ResponseModel):
     name: str = Field(description="a kind of object (person, car …)")
-    count: int = Field(description="how many of the recordings with matching moments it's seen in")
+    count: int = Field(description="how many of the assets with matching moments it's seen in")
 
 
 class SearchFacets(ResponseModel):
-    """How many of all the matching moments are in each namespace, speaker, emotion and recording (up to 50 of each,
-    most first), and the kinds of object seen in the recordings they're in. Text on screen has no speaker or emotion."""
+    """How many of all the matching moments are in each namespace, person, emotion and asset (up to 50 of each,
+    most first), and the kinds of object seen in the assets they're in. Text on screen has no person or emotion."""
 
     moments: int = Field(description="the matching moments counted: all of them, unless `partial`")
     partial: bool = Field(description="more than 20,000 moments match; the counts cover 20,000 of them")
@@ -96,8 +95,8 @@ class SearchResults(ResponseModel):
 
 class TermSuggestion(ResponseModel):
     word: str
-    count: int = Field(description="how often it's said")
-    recordings: int = Field(description="in how many recordings")
+    count: int = Field(description="how often it appears")
+    recordings: int = Field(description="in how many assets")
 
 
 class Graph(ResponseModel):

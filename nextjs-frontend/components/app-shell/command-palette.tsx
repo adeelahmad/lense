@@ -77,7 +77,7 @@ export function CommandPalette() {
         ? [
             {
               group: "Actions",
-              label: "Import recordings or transcripts",
+              label: "Import assets",
               href: "/import",
               icon: <Zap className="size-4" />,
             },
@@ -110,8 +110,8 @@ export function CommandPalette() {
           .filter((r) => match(r.title ?? ""))
           .slice(0, 8)
           .map((r) => ({
-            group: "Recordings",
-            label: r.title ?? `Recording ${r.id}`,
+            group: "Assets",
+            label: r.title ?? `Asset ${r.id}`,
             meta: [r.namespace, r.duration_ms ? tc(r.duration_ms) : null].filter(Boolean).join(" · "),
             href: `/resources/${r.id}`,
             icon: <FileAudio className="size-4" />,
@@ -163,7 +163,7 @@ export function CommandPalette() {
         className="flex h-10 w-full max-w-[540px] items-center gap-2.5 rounded-sm bg-surface-neutral px-3.5 text-left text-[14px] text-fg-muted hover:bg-border/60"
       >
         <Search className="size-4 shrink-0" />
-        <span className="flex-1 truncate">Jump to a recording, note or page…</span>
+        <span className="flex-1 truncate">Jump to an asset, note or page…</span>
         <span className="hidden gap-1 sm:flex">
           <kbd className="grid h-5 min-w-5 place-items-center rounded-xs border border-border bg-background px-1 font-sans text-[11px]">
             ⌘
@@ -205,7 +205,7 @@ export function CommandPalette() {
                 aria-expanded
                 aria-controls="palette-list"
                 aria-activedescendant={items[sel] ? `palette-${sel}` : undefined}
-                placeholder="Search recordings, notes, pages and settings, or > for actions"
+                placeholder="Search assets, notes, pages and settings, or > for actions"
                 className="h-14 flex-1 bg-transparent text-[16px] text-fg outline-hidden placeholder:text-fg-muted"
               />
               <kbd className="rounded-xs border border-border px-1.5 text-[11px] text-fg-muted">esc</kbd>

@@ -127,7 +127,7 @@ function WorkPicker({
             <Field
               label="Output name"
               optional
-              hint="Results are saved on each recording under this name; the same name replaces earlier results."
+              hint="Results are saved on each asset under this name; the same name replaces earlier results."
             >
               {({ id, describedBy }) => (
                 <Input
@@ -306,14 +306,14 @@ function DoubleCheck({
       <div className="flex flex-col gap-4">
         <span className="label-caps">Nothing to run</span>
         <h1 className="text-[22px] font-bold leading-tight text-fg">
-          None of {total === 1 ? "this recording" : `these ${count(total)} recordings`} can run {est.label}
+          None of {total === 1 ? "this asset" : `these ${count(total)} assets`} can run {est.label}
         </h1>
         <p className="m-0 text-[14px] leading-normal text-fg-secondary">
           {allTranscripts
-            ? `${total === 1 ? "It is" : `All ${count(total)} are`} transcript-only, so there’s no audio to work on. Attach audio first, or pick steps that work on text (Analyze, Summarize, Report).`
+            ? `${total === 1 ? "It is" : `All ${count(total)} are`} text-only, so there’s no audio to work on. Attach audio first, or pick steps that work on text (Analyze, Summarize, Report).`
             : est.skipped
               ? `You can only view ${est.skipped === 1 ? "it" : "them"}: running needs editor access to the namespace.`
-              : "No recordings match this selection any more."}
+              : "No assets match this selection any more."}
         </p>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => history.back()}>
@@ -333,9 +333,9 @@ function DoubleCheck({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        {needs && <span className="label-caps">Over the limit · {plural(n, "recording")}</span>}
+        {needs && <span className="label-caps">Over the limit · {plural(n, "asset")}</span>}
         <h1 className="text-[22px] font-bold leading-tight text-fg">
-          Run “{est.label}” on {plural(n, "recording")}?
+          Run “{est.label}” on {plural(n, "asset")}?
         </h1>
         <p className="m-0 text-[13.5px] text-fg-secondary">
           Started from: <b className="font-semibold text-fg">{describeSelection(plan.selection, names)}</b>
@@ -362,8 +362,8 @@ function DoubleCheck({
           {est.would_replace > 0 && (
             <div className="flex flex-wrap items-center gap-3 text-[13.5px] text-fg">
               <span className="flex-1">
-                {plural(est.would_replace, "recording")} already {est.would_replace === 1 ? "has" : "have"} an output
-                named <code className="font-mono text-[12.5px]">{keys.join(", ")}</code>
+                {plural(est.would_replace, "asset")} already {est.would_replace === 1 ? "has" : "have"} an output named{" "}
+                <code className="font-mono text-[12.5px]">{keys.join(", ")}</code>
               </span>
               <span className="flex items-center gap-1.5">
                 <Button
@@ -387,15 +387,14 @@ function DoubleCheck({
                 <span aria-hidden className="text-gold-dark">
                   ◆{" "}
                 </span>
-                {plural(est.skipped ?? 0, "recording")} you can only view {(est.skipped ?? 0) === 1 ? "is" : "are"}{" "}
-                skipped
+                {plural(est.skipped ?? 0, "asset")} you can only view {(est.skipped ?? 0) === 1 ? "is" : "are"} skipped
               </>
             )}
             {(est.skipped ?? 0) > 0 && transcripts > 0 && " · "}
             {transcripts > 0 &&
               (media.length
-                ? `${plural(transcripts, "transcript-only recording")} can’t run ${media.map((m) => STEP_LABEL[m] ?? m).join(", ")} (no audio)`
-                : "transcript-only recordings run (this doesn’t need audio)")}
+                ? `${plural(transcripts, "text-only asset")} can’t run ${media.map((m) => STEP_LABEL[m] ?? m).join(", ")} (no audio)`
+                : "text-only assets run (this doesn’t need audio)")}
           </p>
         </section>
       )}
@@ -405,7 +404,7 @@ function DoubleCheck({
         <div className="overflow-hidden rounded-md border border-border">
           <div className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
             <span className="flex-1 text-[12px] font-semibold text-fg-secondary">
-              {plural(ids.length, "recording")}
+              {plural(ids.length, "asset")}
               {nsNames.length ? ` in ${nsNames.join(", ")}` : ""} · {count(n)} will run
               {!list.complete ? " · list shows the first ones" : ""}
             </span>
@@ -428,7 +427,7 @@ function DoubleCheck({
                   className="grid grid-cols-[auto_minmax(0,1fr)_64px_minmax(0,150px)] items-center gap-3 border-b border-border px-3 py-2 last:border-b-0"
                 >
                   <Checkbox
-                    aria-label={`${out || !can ? "Include" : "Exclude"} ${r?.title ?? `recording ${id}`}`}
+                    aria-label={`${out || !can ? "Include" : "Exclude"} ${r?.title ?? `asset ${id}`}`}
                     checked={can && !out}
                     disabled={!can || !exact}
                     onCheckedChange={(on) =>
@@ -443,7 +442,7 @@ function DoubleCheck({
                   <span
                     className={cn("truncate text-[13.5px] font-semibold", can && !out ? "text-fg" : "text-fg-muted")}
                   >
-                    {r?.title ?? `Recording ${id}`}
+                    {r?.title ?? `Asset ${id}`}
                     {!can && r?.namespace && <span className="font-normal"> (you’re a viewer)</span>}
                   </span>
                   <span className="tabular text-[13px] text-fg-secondary">
@@ -546,7 +545,7 @@ export function RunOnPage() {
     return (
       <div className="px-4 py-6 md:px-6">
         <EmptyState
-          title="Choose recordings first"
+          title="Choose assets first"
           actions={
             <Button
               variant="secondary"
@@ -556,7 +555,7 @@ export function RunOnPage() {
             </Button>
           }
         >
-          “Run on…” starts from a Library selection, a namespace, a speaker, an entity in the graph, search results or a
+          “Run on…” starts from a Library selection, a namespace, a person, an entity in the graph, search results or a
           saved collection.
         </EmptyState>
       </div>
@@ -565,7 +564,7 @@ export function RunOnPage() {
     return (
       <div className="px-4 py-6 md:px-6">
         <EmptyState title="You can’t run things here">
-          {needRole("editor", selNs)}. Viewers can read, listen, search and chat.
+          {needRole("editor", selNs)}. Viewers can open, search and chat.
         </EmptyState>
       </div>
     );
@@ -578,7 +577,7 @@ export function RunOnPage() {
             <div className="flex flex-col gap-1">
               <h1 className="text-[22px] font-bold leading-tight text-fg">Run on…</h1>
               <p className="m-0 text-[13.5px] text-fg-secondary">
-                Pick the work. Next you’ll see how many recordings it runs on, how long it may take and what it costs,
+                Pick the work. Next you’ll see how many assets it runs on, how long it may take and what it costs,
                 before anything starts.
               </p>
             </div>

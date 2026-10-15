@@ -145,8 +145,8 @@ export function IiifImport() {
             </Button>
           }
         >
-          Importing from IIIF is a source, so only platform admins can start one. Ask an admin if you need recordings
-          from another archive.
+          Importing from IIIF is a source, so only platform admins can start one. Ask an admin if you need assets from
+          another archive.
         </EmptyState>
       </div>
     );
@@ -434,7 +434,7 @@ export function IiifImport() {
 
           {start.isSuccess && (
             <Banner tone="success" title="Importing in the background.">
-              New recordings appear in{" "}
+              New assets appear in{" "}
               <Link className="font-semibold underline" href="/library">
                 the Library
               </Link>{" "}

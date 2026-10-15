@@ -117,7 +117,7 @@ function SchedulePreview({ schedule, timezone }: { schedule: string | null; time
 
 function PickSelect({ value, onChange }: { value: Pick | undefined; onChange: (v: Pick) => void }) {
   return (
-    <Field label="On which recordings" hint="New ones are those that came in since the routine last ran">
+    <Field label="On which assets" hint="New ones are those that came in since the routine last ran">
       {({ id, describedBy }) => (
         <Select
           id={id}
@@ -136,7 +136,7 @@ function PickSelect({ value, onChange }: { value: Pick | undefined; onChange: (v
 
 function LimitInput({ value, onChange }: { value: number | null | undefined; onChange: (v: number | null) => void }) {
   return (
-    <Field label="At most" optional hint="Recordings a run takes; 500 when empty">
+    <Field label="At most" optional hint="Assets a run takes; 500 when empty">
       {({ id, describedBy }) => (
         <Input
           id={id}
@@ -252,7 +252,7 @@ function ActionSettings({
           wf
             ? graph
               ? "Organises the entity graph of the routine’s namespaces"
-              : "Queued on each recording as a workflow step"
+              : "Queued on each asset as a workflow step"
             : undefined
         }
       >

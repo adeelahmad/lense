@@ -344,12 +344,12 @@ export type WatchKinds = NonNullable<Watch["kinds"]>;
 export const WATCH_KINDS: { value: WatchKinds; label: string; summary: string }[] = [
   { value: "all", label: "Everything", summary: "everything" },
   { value: "audio", label: "Audio and video", summary: "audio only" },
-  { value: "transcripts", label: "Transcripts (PDFs, Word and text files among them)", summary: "transcripts only" },
+  { value: "transcripts", label: "Text (transcripts, PDFs, Word and text files)", summary: "text only" },
   { value: "documents", label: "Documents and images", summary: "documents and images only" },
   {
     value: "both",
-    label: "Audio and transcripts (PDFs, Word and text files as transcripts)",
-    summary: "audio and transcripts",
+    label: "Audio and text (transcripts, PDFs, Word and text files)",
+    summary: "audio and text",
   },
 ];
 const PICK: Record<string, string> = Object.fromEntries(WATCH_KINDS.map((k) => [k.value, k.summary]));

@@ -94,8 +94,8 @@ export const SearchBox = forwardRef<
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={onKey}
-        aria-label="Search transcripts"
-        placeholder={compact ? "Search what was said" : 'Search what was said — words, "phrases", OR, speaker:…'}
+        aria-label="Search your assets"
+        placeholder={compact ? "Search your assets" : 'Search your assets — words, "phrases", OR, speaker:…'}
         autoComplete="off"
         spellCheck={false}
         className="h-full min-w-0 flex-1 bg-transparent font-mono text-[15px] text-fg outline-hidden placeholder:font-sans placeholder:text-[14px] placeholder:text-fg-muted [&::-webkit-search-cancel-button]:hidden"

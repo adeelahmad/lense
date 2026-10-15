@@ -55,7 +55,7 @@ class SourceImportRequest(RequestModel):
     collection: int | None = Field(None, description="a collection of the namespace to put them in; default: its default collection")
     documents_as: Literal["document", "transcript"] = Field(
         "document",
-        description="PDFs, Word and text files become documents (their pages kept and read), or transcripts (their text only)",
+        description="PDFs, Word and text files become documents (their pages kept and read), or text only (`transcript`)",
     )
 
 
