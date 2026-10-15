@@ -4,6 +4,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Merge entities in fewer clicks, and undo instead of confirm.** On the Entities page, tick rows and the bar at the
+  bottom merges them into one (the one on the fixed list, else the most mentioned) or gives them one type. An entity's
+  side panel has **Merge**, a find box where Enter merges the entity picked into it, and **Maybe the same**, its likely
+  doubles with **Merge** and **Not the same**. Renaming an entity to another's name offers to merge them. Merges, type
+  changes and hiding say what happened with **Undo** ([Entities](docs/processing.md#entities-and-the-graph-explorer)).
+
 ## 0.9.0 <small>October 15, 2026</small> {id="0.9.0"}
 
 - **Evidence PDFs hold everything Lens found.** After each resource's own file come pages of what Lens knows about
