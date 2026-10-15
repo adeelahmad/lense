@@ -49,6 +49,19 @@ async function madeInBackground({ page, base }, where, locator, from, what) {
   await page.waitForTimeout(2000);
 }
 
+/** Waits, not counted, until nothing runs in the background (the imports above), as a person coming back later would
+ * find it: the top bar's activity button says what is running or queued. */
+async function settled({ page }) {
+  const activity = page.getByRole("banner").getByRole("button", { name: /^Activity: / });
+  // idle twice in a row, a poll of the jobs apart: a job just sent may not be listed yet
+  for (let i = 0, idle = 0; idle < 2; i++) {
+    const now = (await activity.getAttribute("aria-label").catch(() => null)) || "";
+    idle = now && !/running|queued/.test(now) ? idle + 1 : 0;
+    if (i === 90) throw new Error(`the imports were still running after 3 minutes (${now || "no activity button"})`);
+    await page.waitForTimeout(2000);
+  }
+}
+
 /** Opens the namespace switcher: in the top bar, or at the top of the navigation drawer on a phone. */
 async function openSwitcher(ctx) {
   const { page, meter, phone } = ctx;
@@ -670,6 +683,9 @@ export const JOURNEYS = [
     from: "/",
     async run(ctx) {
       const { page, meter } = ctx;
+      // Raspberry Pi is in the graph once both imports are analysed: a name one recording mentions once is below the
+      // graph's minimum edge weight (2). Converting the uploaded file can take most of a minute on a slow runner.
+      await settled(ctx);
       await go(ctx, "Graph");
       const find = page.getByRole("combobox", { name: "Find in graph" });
       await page.getByRole("region", { name: "Graph" }).waitFor();
