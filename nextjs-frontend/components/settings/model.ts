@@ -893,6 +893,7 @@ export const FIELDS: FieldSpec[] = [
     key: "max_steps",
     label: "Tool steps per answer",
     kind: "int",
+    hint: "Rounds of tool calls the assistant makes for one question. When they run out, it answers from what it found.",
     min: 1,
     max: 50,
   },

@@ -357,6 +357,66 @@ def test_answers_survive_unusual_model_servers(app, db, cfg, folder, new_client,
     assert ev["error"] and ev["done"] and last(cid)["error"] == ev["error"][0]["message"]
 
 
+def test_every_answer_ends_in_words_not_tool_calls(app, db, cfg, folder, new_client, llm):
+    """A model that keeps calling tools is asked to answer from what it found once its steps run out (tools off), and a
+    reply with nothing in it is asked again: the person always gets an answer, never "ran out of steps"."""
+    s = Assist(app, db, cfg, folder, new_client)
+    c, h = s.cl["editor"]
+
+    def search(i):
+        return {
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": f"s{i}",
+                    "type": "function",
+                    "function": {"name": "search_transcripts", "arguments": json.dumps({"query": "capsid"})},
+                }
+            ],
+        }
+
+    def ask(q):
+        cid = c.post("/api/v1/chats", headers=h, json={}).json()["id"]
+        return cid, sse(c.post(f"/api/v1/chats/{cid}/messages", headers=h, json={"content": q}).text)
+
+    def last(cid):
+        return c.get(f"/api/v1/chats/{cid}", headers=h).json()["messages"][-1]
+
+    # six rounds of tools (ai.max_steps), and the model wants a seventh: it's asked to answer instead, with the tools off
+    llm.tool_script = [search(i) for i in range(6)] + [{**search(6), "content": "The capsid model won [1]."}]
+    cid, ev = ask("Would you hire them?")
+    assert len(ev["step"]) == 6 and ev["token"][0]["text"] == "The capsid model won [1]."
+    final = llm.seen[-1]
+    assert final["tool_choice"] == "none" and final["messages"][-1] == {"role": "user", "content": chat.FINISH}
+    assert "up to 6 rounds of tool calls" in final["messages"][0]["content"]  # the model knows its budget up front
+    assert last(cid)["content"] == "The capsid model won [1]." and [p["n"] for p in ev["passages"][0]] == [1]
+
+    # a server that calls tools even when asked not to: the conversation is sent again as plain text, without tools
+    llm.ignore_tool_choice = True
+    llm.tool_script = [search(i) for i in range(7)]
+    cid, ev = ask("Would you hire them?")
+    plain = llm.seen[-1]
+    assert "tools" not in plain and {m["role"] for m in plain["messages"]} == {"system", "user", "assistant"}
+    roles = [m["role"] for m in plain["messages"]]
+    assert all(a != b for a, b in zip(roles, roles[1:], strict=False))  # sides alternate, as strict chat templates need
+    assert "Called search_transcripts" in plain["messages"][2]["content"] and "What the tool returned" in plain["messages"][3]["content"]
+    assert plain["messages"][-1]["content"].endswith(chat.FINISH)
+    assert len(ev["step"]) == 6 and ev["token"][0]["text"] == "OK" and last(cid)["content"] == "OK"
+    llm.ignore_tool_choice = False
+
+    # a reply with nothing in it after looking something up is asked again
+    llm.tool_script = [search(0), {"content": "  "}, {"content": "Found it [1]."}]
+    cid, ev = ask("capsid?")
+    assert len(ev["step"]) == 1 and ev["token"][0]["text"] == "Found it [1]."
+    assert llm.seen[-1]["tool_choice"] == "none"
+
+    # and a model that never says anything still leaves an answer that says so
+    llm.ignore_tool_choice = True
+    llm.tool_script = [search(0), {"content": ""}, {"content": ""}]
+    cid, ev = ask("capsid?")
+    assert ev["token"][0]["text"] == "OK"  # the plain-text ask answered
+
+
 def test_streamed_answers_without_thinking_or_cut_off(monkeypatch):
     def server(*lines):
         class R(io.BytesIO):
