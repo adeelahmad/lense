@@ -1481,7 +1481,7 @@
     },
     {
       "property": "N-BRIDGE",
-      "reason": "per-person access in chat rooms; the bridge answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28)",
+      "reason": "per-person access in chat rooms; the bridge answers as one account, the turning-on admin by default; everyone in the room reads what that account reads (exposure posture: Q28); an automation's message to its own person goes to the private chat a channel last had with someone on its users list, never to a room",
       "false_friend": false,
       "provenance": "documented",
       "source": "docs/chat-rooms.md \"answers as the admin who turned it on\""
