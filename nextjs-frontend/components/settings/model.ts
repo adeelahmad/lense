@@ -301,7 +301,7 @@ export const SECTIONS: SectionSpec[] = [
   },
   {
     id: "updates",
-    label: "Updates and backups",
+    label: "Updates",
     backend: ["updates"],
     description:
       "New Lens releases: Lens checks for one once a day, backs up and installs it when you say so, and goes back if it doesn't start.",
@@ -893,6 +893,7 @@ export const FIELDS: FieldSpec[] = [
     key: "max_steps",
     label: "Tool steps per answer",
     kind: "int",
+    hint: "Rounds of tool calls the assistant makes for one question. When they run out, it answers from what it found.",
     min: 1,
     max: 50,
   },
@@ -1856,6 +1857,7 @@ export const FIELDS: FieldSpec[] = [
     label: "Laya server",
     kind: "text",
     mono: true,
+    nullable: true,
     placeholder: "http://host.docker.internal:8790/v1",
     hint: "Only when Lens runs where MLX can't, such as Docker on a Mac",
   },
