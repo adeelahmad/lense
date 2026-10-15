@@ -18,6 +18,7 @@ merged is called built.
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
+| The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
 | The event workflow scope: what an automation does, drawn with action nodes and tried on an activity (`app/domain/automation_nodes.py`) | built |
 | The decide node (the decision model picks a branch) | planned |
@@ -252,12 +253,16 @@ An effect may be worked out from the params (`notify` to "me" is `self`, to a ro
 worked out, it counts as `out`. An action's own `risk` function may make it stricter, never looser.
 
 An action acts for the automation's person (`run_as`), with their permissions as they are when it runs
-(`actions.person`): an automation whose person was switched off or removed does nothing.
+(`actions.person`), within the automation's namespaces (`actions.reach`): an automation whose person was switched off
+or removed does nothing. What it writes is by the automation itself, `automation:<id>` (`actions.actor`).
 
 | Action | Does | Effect | Output |
 | --- | --- | --- | --- |
 | `log_line` | puts a line (`text`, `level` info or warning) in the run's log | read | `{line, level}` |
 | `notify` | sends `text` (and a `link`; Lens's own paths become full links) `to` `me` (your own chat app), `target:<id>` (one of the namespace's [notification targets](notifications.md)) or `gateway:<name>` (a Matterbridge room) | self for `me`, else out | `{to, text, sent, failed}`: where it went |
+| `ask_model` | asks the model a `prompt` (with your own `system` instructions and `model` if you like); with `json_schema` (a JSON Schema of type object) the reply is that object | read | `{text}`, or the object the schema describes |
+| `call_tool` | calls one of the assistant's tools (`tool`, with `args`) as the automation | read: a change becomes an approval | `{tool, result, summary, approvals}` |
+| `ask_agent` | hands what happened (`about`, by default the event) to the agent with your `instructions`, limited to some `tools` if you like, for up to `max_steps` rounds (6, at most 12) | read: changes become approvals | `{answer, chat, approvals, steps}` |
 
 #### Telling a person
 
@@ -274,6 +279,26 @@ message are broken up (`hxxps://evil[.]example/...`), except Lens's own; when it
 they stay. The same goes for notification targets and Matterbridge rooms. A notification target must be in one of the
 automation's namespaces, switched on, and the automation's person must be able to edit that namespace; a Matterbridge
 room needs the bridge on and answering as the automation's person (or the person to be an admin).
+
+#### The model and the agent
+
+`ask_model`, `call_tool` and `ask_agent` use the assistant's tools as the automation, with its person's permissions
+within the automation's namespaces, their extensions and no server tools. Nobody reads along while an automation runs,
+so every change asks the person: a tool that changes something makes an approval (notes included, which the assistant
+in chat writes at once), and a tool that could carry data out of Lens (an extension's web or server tool) asks first
+whatever the run read. The approvals are the person's (`GET /api/v1/approvals`), with the run as their `origin`
+(`{automation, run, node}`); the output lists their ids, so a later node can tell you what waits.
+
+`ask_agent` saves the exchange as one of your conversations, titled "<automation>: <what happened>", with the
+activity's page as what it was asked from, so you can open it, approve what it proposed there and carry on. Model calls
+count in the activity ledger under the run, and stop once a budget they count for (the namespace's, or everything's)
+is used up.
+
+Params marked `"format": "prompt"` in an action's schema (`ask_model`'s `prompt`, `ask_agent`'s `instructions`) are
+prompts: they are rendered with `actions.render_prompt(text, ctx, cfg)`, which marks as data (`<untrusted-…>`) what
+the run read from outside Lens before the model sees it: each activity's `lens.untrusted` fields (an email's subject
+and body) and everything earlier steps passed on (a model's reply, a web page). Your own words in the prompt stay as
+written. `ask_agent` passes the activity it is about the same way.
 
 ### The event workflow scope
 
@@ -327,3 +352,6 @@ back. Text from outside Lens (`lens.untrusted` on the activity) that reaches an 
   message the person's template wrote, so they stay when the run read outside text.
 - The canvas draws and edits event workflows (today they are saved and tried through the API).
 - An action's outputs in the variable picker, typed from its `output` schema.
+- The model and the agent: per-node model picks in the studio; streaming an agent's steps into the run's log as they
+  happen; a namespace assistant's memory for automations (`remember` is left out today); approving an agent's
+  proposals from the chat app it told you in; count the automation's own budget once budgets take `automation:<id>`.
