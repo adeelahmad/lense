@@ -10743,6 +10743,24 @@ export type NoteSearch = {
 };
 
 /**
+ * NoteToday
+ */
+export type NoteToday = {
+  /**
+   * Ns
+   *
+   * the namespace whose daily note it is
+   */
+  ns: string;
+  /**
+   * Date
+   *
+   * YYYY-MM-DD, your today (default: the server's)
+   */
+  date?: string | null;
+};
+
+/**
  * NoteTree
  */
 export type NoteTree = {
@@ -27311,6 +27329,31 @@ export type CreatePageResponses = {
 };
 
 export type CreatePageResponse = CreatePageResponses[keyof CreatePageResponses];
+
+export type TodayPageData = {
+  body: NoteToday;
+  path?: never;
+  query?: never;
+  url: "/api/v1/notes/today";
+};
+
+export type TodayPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type TodayPageError = TodayPageErrors[keyof TodayPageErrors];
+
+export type TodayPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type TodayPageResponse = TodayPageResponses[keyof TodayPageResponses];
 
 export type LinkTargetsData = {
   body?: never;

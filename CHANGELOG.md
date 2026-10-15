@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Today's note.** Today on the Notes page, or Today's note in Jump to, opens the note for the day, made the first
+  time it's asked for inside a Daily notes note ([Today's note](docs/notes.md#todays-note)).
 - **Pin notes.** A note's ⋯ menu in the tree has Pin: pinned notes show at the top of the tree and first on the
   Notes page, for the person who pinned them only ([Pinned notes](docs/notes.md#pinned-notes)).
 - **Notes tree menu.** Each note in the tree in the left navigation has a ⋯ menu to add a note inside, rename it in

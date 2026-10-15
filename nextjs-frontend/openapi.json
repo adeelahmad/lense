@@ -9870,6 +9870,48 @@
         }
       }
     },
+    "/api/v1/notes/today": {
+      "post": {
+        "tags": [
+          "notes"
+        ],
+        "summary": "Today Page",
+        "description": "The namespace's note for the day (`date`, your today), made the first time it's asked for: titled with the\ndate, inside the \"Daily notes\" note. Needs editor access.",
+        "operationId": "today_page",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteToday"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotePage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/notes/targets": {
       "get": {
         "tags": [
@@ -46581,6 +46623,33 @@
           "pages"
         ],
         "title": "NoteSearch"
+      },
+      "NoteToday": {
+        "properties": {
+          "ns": {
+            "type": "string",
+            "title": "Ns",
+            "description": "the namespace whose daily note it is"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "YYYY-MM-DD, your today (default: the server's)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ns"
+        ],
+        "title": "NoteToday"
       },
       "NoteTree": {
         "properties": {

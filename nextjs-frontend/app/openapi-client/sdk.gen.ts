@@ -1456,6 +1456,9 @@ import type {
   TestTelemetryResponses,
   TestTikaData,
   TestTikaResponses,
+  TodayPageData,
+  TodayPageErrors,
+  TodayPageResponses,
   TokenData,
   TokenErrors,
   TokenLimitsData,
@@ -5211,6 +5214,25 @@ export class Notes {
   ): RequestResult<CreatePageResponses, CreatePageErrors, ThrowOnError> {
     return (options.client ?? client).post<CreatePageResponses, CreatePageErrors, ThrowOnError>({
       url: "/api/v1/notes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Today Page
+   *
+   * The namespace's note for the day (`date`, your today), made the first time it's asked for: titled with the
+   * date, inside the "Daily notes" note. Needs editor access.
+   */
+  public static todayPage<ThrowOnError extends boolean = false>(
+    options: Options<TodayPageData, ThrowOnError>,
+  ): RequestResult<TodayPageResponses, TodayPageErrors, ThrowOnError> {
+    return (options.client ?? client).post<TodayPageResponses, TodayPageErrors, ThrowOnError>({
+      url: "/api/v1/notes/today",
       ...options,
       headers: {
         "Content-Type": "application/json",

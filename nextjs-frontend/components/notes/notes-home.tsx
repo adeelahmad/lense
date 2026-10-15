@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText, NotebookPen, Pin, Plus, Search, Sparkles } from "lucide-react";
+import { CalendarDays, FileText, NotebookPen, Pin, Plus, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -90,12 +90,12 @@ export function NotesHome() {
         tone: "red",
       }),
   });
-  const newNote =
-    target && can("editor", target) ? (
-      <Button variant="primary" icon={<Plus />} onClick={() => create.mutate()} disabled={create.isPending}>
-        New note
-      </Button>
-    ) : null;
+  const editable = !!target && can("editor", target);
+  const newNote = editable ? (
+    <Button variant="primary" icon={<Plus />} onClick={() => create.mutate()} disabled={create.isPending}>
+      New note
+    </Button>
+  ) : null;
   const placeLabel = (v?: string | null) => PLACES.find((p) => p.value === v)?.label;
   /** "Home lab › Parts": the notes this one is inside, outermost first. */
   const path = (r: Row) => {
@@ -114,7 +114,23 @@ export function NotesHome() {
   const loading = trees.some((t) => t.isPending) || (!!words && search.isPending);
   return (
     <div className="mx-auto w-full max-w-[960px] px-6 py-8">
-      <PageHeader title="Notes" meta={namespace ?? "All namespaces"} actions={newNote} />
+      <PageHeader
+        title="Notes"
+        meta={namespace ?? "All namespaces"}
+        actions={
+          editable && (
+            <>
+              <Button asChild>
+                <Link href="/notes/today">
+                  <CalendarDays />
+                  Today
+                </Link>
+              </Button>
+              {newNote}
+            </>
+          )
+        }
+      />
       {(all.length > 0 || q) && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <SearchInput
