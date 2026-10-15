@@ -92,7 +92,7 @@ describe("what counts as covered", () => {
     expect(controlAround(el("icon"))).toBe(el("b"));
     expect(controlAround(el("word"))).toBe(el("row"));
     expect(controlAround(el("i"))).toBe(el("i"));
-    expect(controlAround(el("l"))).toBe(el("l"));
+    expect(controlAround(el("l"))).toBeNull(); // the empty end of a label isn't somewhere people tap
     expect(controlAround(el("text"))).toBeNull();
   });
 

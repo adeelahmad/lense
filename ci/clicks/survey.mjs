@@ -108,7 +108,10 @@ async function surveyPages(page, base, phone) {
         if (r.height > innerHeight / 3) continue; // a big field: the button covers a corner of it (ask-place.ts)
         const [x0, x1, y0, y1] = [Math.max(r.left, a.left), Math.min(r.right, a.right), Math.max(r.top, a.top), Math.min(r.bottom, a.bottom)];
         if (x1 - x0 < 4 || y1 - y0 < 4) continue;
-        if (document.elementFromPoint((x0 + x1) / 2, (y0 + y1) / 2)?.closest("[data-ask-button]"))
+        // the button is on top there, and right under it is this control (not one a closed fold keeps out of sight)
+        const [top, ...under] = document.elementsFromPoint((x0 + x1) / 2, (y0 + y1) / 2);
+        const next = under.find((e) => !e.closest("[data-ask-button]"));
+        if (top?.closest("[data-ask-button]") && next && el.contains(next))
           out.push((el.getAttribute("aria-label") || el.textContent || el.tagName).replace(/\s+/g, " ").trim().slice(0, 60));
       }
       return out;

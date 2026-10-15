@@ -19,7 +19,7 @@ const OUT_OF_SIGHT: AskPlace = { lift: 0, hidden: true };
 /** Between the button and the controls it rises above. */
 export const ASK_GAP = 12;
 
-/** Things people click or type into. Clickable rows and cards (cursor: pointer) count too. */
+/** Things people click or type into. Clickable rows and cards (cursor: pointer) count too; a label's empty end doesn't. */
 const CONTROL = [
   "a[href]",
   "button",
@@ -27,7 +27,6 @@ const CONTROL = [
   "select",
   "textarea",
   "summary",
-  "label",
   "[contenteditable='true']",
   "[contenteditable='']",
   ...[
@@ -52,7 +51,7 @@ const CONTROL = [
  */
 export function placeAsk(under: (lift: number) => { box: Box; blockers: Box[] }, viewHeight: number): AskPlace {
   let lift = 0;
-  for (let tries = 0; tries < 4; tries++) {
+  for (let tries = 0; tries < 8; tries++) {
     const { box, blockers } = under(lift);
     if (!blockers.length) return lift ? { lift, hidden: false } : AT_REST;
     const rise = box.bottom - Math.min(...blockers.map((b) => b.top)) + ASK_GAP;
