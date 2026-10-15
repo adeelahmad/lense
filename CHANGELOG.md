@@ -44,6 +44,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **Templates.** Notes inside a namespace's Templates note are templates: **New note from a template…** on the Notes
   page and in Jump to starts a note from one, with its text, drawings, files and filing. Any note's menu in the tree can
   also **Make a copy** ([Templates](docs/notes.md#templates)).
+- **A note says where it is.** Above a note's title, **Notes › namespace ›** each note it's inside, every one a link;
+  under its text, **Inside this note** lists the notes inside it with **Add a note inside**. The text now starts in line
+  with the title, the word count shows next to Saved, and Pin, History, Download and Delete are in the note's **⋯**
+  menu. **Costs and activity** is folded at the bottom ([On a note](docs/notes.md#on-a-note)).
 - **Automations for agents.** Agents list, save, try and run automations through the MCP tools `automations`,
   `automation_actions`, `save_automation`, `test_automation` and `run_automation`, with problems in plain words. The
   assistant saves them switched off and asks before switching one on or running it
