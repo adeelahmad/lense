@@ -221,7 +221,7 @@ def start(db, cfg, src, origin, account):
         origin,
         mode="source",
         account=account,
-        next_path=f"/sensors/{src['id']}",
+        next_path="/sources",
         source=src["id"],
         scope=" ".join(asked),
         extra=extra,

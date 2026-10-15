@@ -19511,7 +19511,7 @@
           "sources"
         ],
         "summary": "Sign In To Google",
-        "description": "Sign a Gmail source in to Google as a person: open the returned address in this browser. Google asks them to\nlet Lens read their mail, then sends them back to the source's page. Uses the Google client set up in Settings \u203a\nSign-in. Audited as `source.google` when it's done.",
+        "description": "Sign a Gmail source in to Google as a person: open the returned address in this browser. Google asks them to\nlet Lens read their mail, then sends them back to Sources. Uses the Google client set up in Settings \u203a\nSign-in. Audited as `source.google` when it's done.",
         "operationId": "sign_in_to_google",
         "parameters": [
           {

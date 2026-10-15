@@ -99,7 +99,7 @@ def test_source(sid: int, user: AdminWriter, db: Db, cfg: Cfg) -> SourceHealth:
 @router.post("/sources/{sid}/google")
 def sign_in_to_google(sid: int, user: AdminWriter, request: Request, response: Response, db: Db, cfg: Cfg) -> ExternalRedirect:
     """Sign a Gmail source in to Google as a person: open the returned address in this browser. Google asks them to
-    let Lens read their mail, then sends them back to the source's page. Uses the Google client set up in Settings ›
+    let Lens read their mail, then sends them back to Sources. Uses the Google client set up in Settings ›
     Sign-in. Audited as `source.google` when it's done."""
     if user.via != "access":
         raise HTTPException(403, "sign in to the web app to connect Google; API tokens and apps can't")

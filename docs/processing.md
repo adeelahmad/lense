@@ -353,9 +353,9 @@ A Gmail or Google Workspace mailbox (type `gmail`) is read through Google's Gmai
 or over IMAP (`via: imap`). For a personal Gmail account, an email (IMAP) connection with an app password works too,
 with nothing to set up at Google. A Gmail source signs in one of two ways:
 
-- **Sign in with Google.** **Sign in with Google** on the connection sends you to Google, which asks you to let Lens
-  read your mail, then brings you back to the sensor's page (`POST /api/v1/sources/{id}/google` starts it, from a
-  signed-in browser). Lens keeps the refresh token Google gives, encrypted like a password, and the address you signed
+- **Sign in with Google.** Signing in sends you to Google, which asks you to let Lens read your mail, then brings
+  you back to Sources (`POST /api/v1/sources/{id}/google` starts it, from a signed-in browser; a button for it in the
+  connection dialog is in progress). Lens keeps the refresh token Google gives, encrypted like a password, and the address you signed
   in with. It uses the Google client set up for signing in to Lens (Settings › Sign-in, its client id and secret, and
   its redirect URI; signing in to Lens with Google can stay off), so nothing else is registered at Google. In Google
   Cloud, turn on the Gmail API in that client's project and add the Gmail scope to its consent screen. Google reviews

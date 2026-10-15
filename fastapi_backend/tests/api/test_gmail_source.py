@@ -214,12 +214,12 @@ def test_signing_in_with_google_as_a_person(client, db, cfg, admin, google, monk
     assert url.startswith("https://accounts.google.com/")
     assert q["scope"] == f"openid email {GMAIL_READ}" and q["access_type"] == "offline" and "consent" in q["prompt"]
     assert q["redirect_uri"] == ORIGIN + "/api/v1/auth/external/google/callback"
-    assert "View your email messages and settings" in back["error"] and back["next"] == f"/sensors/{sid}"
+    assert "View your email messages and settings" in back["error"] and back["next"] == "/sources"
     assert not sources.get(db, sid)["sealed"]
 
     # signed in: the address is Google's, the refresh token kept sealed with its client
     _, back = _sign_in(client, google, sid, admin)
-    assert back == {"connected": MARA, "next": f"/sensors/{sid}"}
+    assert back == {"connected": MARA, "next": "/sources"}
     src = client.get("/api/v1/sources", headers=admin).json()[0]
     assert src["params"]["user"] == MARA and src["secrets"]["token"]["set"] and src["health"]["ok"]
     kept = json.loads(google_auth._unsealed(cfg, sources.get(db, sid), "token"))

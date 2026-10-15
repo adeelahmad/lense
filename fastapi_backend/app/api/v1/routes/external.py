@@ -118,8 +118,8 @@ def external_callback(
 
 
 def _source_signed_in(db: Db, cfg: Cfg, flow: dict, code: str, error: str, error_description: str) -> RedirectResponse:
-    """A source signed in to Google (google_auth.py): back to its page, tested."""
-    origin, away = flow["origin"], flow.get("next") or "/sensors"
+    """A source signed in to Google (google_auth.py): back to Sources, tested."""
+    origin, away = flow["origin"], flow.get("next") or "/sources"
     if error or not code:
         why = "you cancelled" if error == "access_denied" else (error_description or error or "no code came back")
         return _back(origin, error=f"signing in to Google didn't finish: {why}", next=away)
@@ -129,7 +129,7 @@ def _source_signed_in(db: Db, cfg: Cfg, flow: dict, code: str, error: str, error
     try:
         sid, address = google_auth.finish(db, cfg, flow, code)
     except KeyError:
-        return _back(origin, error="that source was removed", next="/sensors")
+        return _back(origin, error="that source was removed", next="/sources")
     except (ValueError, RuntimeError) as e:
         return _back(origin, error=str(e), next=away)
     auth.audit(db, u, "source.google", f"storage_source:{sid}", [address])
