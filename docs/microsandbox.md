@@ -22,9 +22,10 @@ stays on Docker, because its database and archive are in Docker volumes.
 It needs hardware virtualization:
 
 - **Linux** on x86-64 or 64-bit ARM (a Raspberry Pi 4 or 5 on a 64-bit OS) with `/dev/kvm`. The installer loads KVM
-  if it isn't, adds you to the `kvm` group and, until your next sign-in makes that count, lets you use `/dev/kvm` itself
-  (with `setfacl`, installing the `acl` package if it's missing), so there's nothing to do first. CI installs on a
-  runner whose user can't use KVM yet. `msb doctor` checks the machine.
+  if it isn't and adds you to the `kvm` group, so there's nothing to do first. Until your next sign-in makes the group
+  count, it starts the sandbox with the group (`sg kvm`) and lets you use `/dev/kvm` itself (with `setfacl`, installing
+  the `acl` package if it's missing). CI installs on a runner whose user can't use KVM yet, and runs the line twice.
+  `msb doctor` checks the machine.
 - **A Mac** with Apple silicon.
 
 ## How it runs
