@@ -9273,6 +9273,45 @@ export type NamespaceFaces = {
 };
 
 /**
+ * NamespaceIntegrations
+ */
+export type NamespaceIntegrations = {
+  /**
+   * Mcp
+   *
+   * the namespace's own MCP server answers, seeing this namespace alone
+   */
+  mcp: boolean;
+  /**
+   * Mcp Url
+   *
+   * where MCP clients connect to it
+   */
+  mcp_url: string;
+  /**
+   * Updated At
+   */
+  updated_at?: string | null;
+  /**
+   * Updated By
+   */
+  updated_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
+ * NamespaceIntegrationsUpdate
+ *
+ * Only the fields you send change.
+ */
+export type NamespaceIntegrationsUpdate = {
+  /**
+   * Mcp
+   */
+  mcp?: boolean | null;
+};
+
+/**
  * NamespaceMetadata
  */
 export type NamespaceMetadata = {
@@ -24937,6 +24976,69 @@ export type UpdateAssistantMemoryResponses = {
 };
 
 export type UpdateAssistantMemoryResponse = UpdateAssistantMemoryResponses[keyof UpdateAssistantMemoryResponses];
+
+export type GetNamespaceIntegrationsData = {
+  body?: never;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/integrations";
+};
+
+export type GetNamespaceIntegrationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetNamespaceIntegrationsError = GetNamespaceIntegrationsErrors[keyof GetNamespaceIntegrationsErrors];
+
+export type GetNamespaceIntegrationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceIntegrations;
+};
+
+export type GetNamespaceIntegrationsResponse =
+  GetNamespaceIntegrationsResponses[keyof GetNamespaceIntegrationsResponses];
+
+export type UpdateNamespaceIntegrationsData = {
+  body: NamespaceIntegrationsUpdate;
+  path: {
+    /**
+     * Name
+     */
+    name: string;
+  };
+  query?: never;
+  url: "/api/v1/namespaces/{name}/integrations";
+};
+
+export type UpdateNamespaceIntegrationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateNamespaceIntegrationsError =
+  UpdateNamespaceIntegrationsErrors[keyof UpdateNamespaceIntegrationsErrors];
+
+export type UpdateNamespaceIntegrationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NamespaceIntegrations;
+};
+
+export type UpdateNamespaceIntegrationsResponse =
+  UpdateNamespaceIntegrationsResponses[keyof UpdateNamespaceIntegrationsResponses];
 
 export type ListNamespaceCollectionsData = {
   body?: never;
