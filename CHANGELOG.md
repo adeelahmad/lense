@@ -12,6 +12,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   was. Deleted notes wait in Recently deleted, at the bottom of the Notes page, for 30 days with their files and
   history, to put back with one click or delete for good; then they go on their own
   ([Deleting and putting back](docs/notes.md#deleting-and-putting-back)).
+- **Connect with Google.** A Google Calendar connection signs in to a Google account from a button now: Google's consent
+  screen asks for read-only calendar access and sends you back to Sources with the account connected and its calendars
+  open. It uses the Google sign-in provider's OAuth client, an earlier connection's, or one entered in the form, which
+  also shows the redirect URI to register. A connection whose sign-in stopped working has **Connect Google account**
+  on its row; pasting the authorized user JSON still works
+  ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
 - **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
   `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
   what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,
@@ -25,12 +31,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   the namespace → Connect apps, which copies its address (`/mcp/<namespace>`). An agent connected there has the same
   tools but sees that namespace alone, whatever else the person who signs it in can read, and a token an app gets for
   it opens nothing else in Lens. Off by default ([One namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server)).
-- **Connect with Google.** A Google Calendar connection signs in to a Google account from a button now: Google's consent
-  screen asks for read-only calendar access and sends you back to Sources with the account connected and its calendars
-  open. It uses the Google sign-in provider's OAuth client, an earlier connection's, or one entered in the form, which
-  also shows the redirect URI to register. A connection whose sign-in stopped working has **Connect Google account**
-  on its row; pasting the authorized user JSON still works
-  ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+- **Chat completions for any app, from one namespace.** A namespace can answer OpenAI's chat completions API at
+  `/api/v1/namespaces/<namespace>`, so any app that speaks it (with a Lens API key and the model `lens`) gets answers
+  from the configured model, grounded in that namespace and citing it: `[n]` with a Sources list, `citations` and
+  `lens.sources`, streamed or not. Its owners pick the read tools the model may use there (none by default: one search,
+  one model call). Calls count for the namespace's budget. Off by default; turned on under Admin → Namespaces → the
+  namespace → Connect apps ([Chat completions for any app](docs/api.md#chat-completions-for-any-app)).
 
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 

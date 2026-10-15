@@ -1013,7 +1013,7 @@
       "property": "P-RETRIEVAL",
       "violation_symptom": "info-leak, hang",
       "severity_tier": "security",
-      "conditions": "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads",
+      "conditions": "chat, assistant tools and MCP return only what the person can read, within the conversation's scope, and the tool loop stops at ai.max_steps and ai.max_transcript_reads; a namespace's chat completions answer from that namespace alone, with only the read tools its owners offered",
       "provenance": "documented",
       "source": "docs/assistant.md \"limited to what the person can read\""
     },
