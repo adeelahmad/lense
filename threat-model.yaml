@@ -2,7 +2,7 @@
 # Authority order: prose > yaml > json. Regenerate whenever the prose changes.
 schema: threat-model-sidecar/v2
 project: lens
-prose_version: "threat-model.md@sha256:9a9d789465ffd6df5e5536f945c7ab2deabe634e68d8289ea9e73de4d6b23073"
+prose_version: "threat-model.md@sha256:248bb1824abf7c079978a5d0cf561b3440c3f80da9a1583ee55f737944ec7c42"
 model_status: under-review
 triage_policy: strict
 confidence: {documented: 201, maintainer: 46, inferred: 91, assumption: 8}
@@ -312,7 +312,7 @@ entry_points:
         control_kinds: [data, type-class, size]
         caller_must_enforce: "none — P-UPLOAD"
         provenance: {kind: documented, source: 'docs/configuration.md "Uploads accept only the types"'}
-  - id: "watched folders, storage sources, IMAP, iCal"
+  - id: "watched folders, storage sources, IMAP, Gmail, iCal"
     component: outbound
     parameters:
       - name: "remote file names, bytes, mail, events"
@@ -341,7 +341,7 @@ entry_points:
         control_kinds: [resource-name, x-network-destination]
         caller_must_enforce: "none — P-SSRF-GUARD"
         provenance: {kind: maintainer, date: "2026-10"}
-  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, iCal, MQTT bridge, OIDC issuer)"
+  - id: "admin settings (model, embeddings, speech, decisions, Fedora, bridge, telemetry, IIIF import, rclone remotes, IMAP, Gmail sign-in, iCal, MQTT bridge, OIDC issuer)"
     component: outbound
     parameters:
       - name: "URL, credentials, api_key_env"

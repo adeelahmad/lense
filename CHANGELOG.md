@@ -25,6 +25,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   account, which reads the calendars shared with it or, in Google Workspace, a user's calendars through domain-wide
   delegation. Calls to Google show in the activity ledger
   ([Google Calendar](docs/processing.md#email-imap-calendar-feeds-ical-and-google-calendar)).
+- **Gmail and Google Workspace as a sensor.** A new kind of email source reads a Gmail or Google Workspace mailbox
+  through Google's Gmail API (read only) or over IMAP. It signs in as a Google account (its authorized user JSON, as
+  for Google Calendar), or as a Workspace service account with domain-wide delegation, so nobody has to sign in.
+  Labels are its folders, and a watch follows Gmail's history: it reads only what arrived, and one that leaves what's
+  there reads nothing old. Connecting the account from the connection dialog is in progress
+  ([Gmail and Google Workspace](docs/processing.md#gmail-and-google-workspace)).
 - **Find a note.** The Notes page has a search box that finds notes by the words in their title, summary or text (the
   pages of recordings and entities too), with the words around each match marked, and Enter opens the first. A filter
   shows only Projects, Areas, Resources or Archive, and each note says which notes it's inside. Jump to (⌘K) finds notes

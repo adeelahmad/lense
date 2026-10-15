@@ -29030,6 +29030,12 @@
             ],
             "title": "Oauth",
             "description": "the command that produces the token, for OAuth backends"
+          },
+          "google": {
+            "type": "boolean",
+            "title": "Google",
+            "description": "signs in to Google: with a service account key, or as a Google account (its authorized user JSON as `token`)",
+            "default": false
           }
         },
         "additionalProperties": true,
@@ -56816,6 +56822,7 @@
               "webdav",
               "local",
               "imap",
+              "gmail",
               "ical",
               "gcal"
             ],
@@ -56912,6 +56919,7 @@
               "webdav",
               "local",
               "imap",
+              "gmail",
               "ical",
               "gcal"
             ],
