@@ -489,7 +489,8 @@ node passes what it makes along its connections.
   corrects or adds to any passed in; Merge joins lists; Save entities makes them the asset's entities (people's
   corrections kept) and redoes keywords and chapters.
 - **AI and logic:** LLM prompt (a prompt template, with what came in as `{{ input }}`), Pick (a path like
-  `action_items.0.text`), Condition (yes and no branches) and Merge.
+  `action_items.0.text`), Condition (yes and no branches; one test, or a [match tree](automations.md#match-trees) of
+  several) and Merge.
 - **Keeping results:** Save output (`outputs.<name>`), Set field (a custom field, kept in the metadata history) and
   Save entities.
 

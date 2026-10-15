@@ -88,6 +88,7 @@ nav:
       - Video: video.md
       - NSFW classification: nsfw.md
       - Notifications: notifications.md
+      - Automations: automations.md
   - Knowledge:
       - Graph and Cypher: graph.md
       - Graph history: graph-history.md
