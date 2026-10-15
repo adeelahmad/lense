@@ -29,7 +29,8 @@ merged is called built.
 | Settings → Automations: how often followers look, how long the event log is kept, and how late a timer may fire | built |
 | A webhook address per automation trigger, and calls to it as `webhook.received` ([Webhook trigger](#webhook-trigger)) | built |
 | Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
-| Schedule, `at` and `relative` triggers, and actions that wait ([Time](#time)) | planned |
+| The timers behind schedule, `at` and `relative` triggers, the `clock.tick` kind and what's coming ([Time](#time)); automations set them once they are stored | built |
+| Actions that wait (`delay`, `when`) ([Time](#time)) | planned |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Storing and running automations, joins, approvals, variables, the studio | planned |
 
@@ -104,6 +105,7 @@ and the paths holding outside text are in `GET /api/v1/activities/kinds` (`event
 | `comment.added` | | `comments` | a `Note`: `content`, `inReplyTo` (the comment it answers), `quote` (the passage), `t0`, `t1` (the moment, ms); `target` is the asset | Sam commented on “Call with the school” |
 | `note.created` | | `note_pages` | a `Page`: `summary`, `about` (what it's the page of), `place`, `author` (person or assistant) | Assistant wrote the note “St Mary's School” |
 | `note.saved` | | `note_versions` | as `note.created`, with `version` (the page as it was before) and `why` | Sam edited the note “School trip plans” |
+| `clock.tick` | | `clock` (never stored) | an `Event`: `at` (the moment, UTC), `cron`, `timezone`, `local` (the time there, in words), `description` (the schedule in words, or once), `late`; actor `Lens clock` | Lens clock: Fri 16 Oct at 07:00 (every weekday at 07:00, Europe/London) |
 | `entity.changed` | | `graph` | `op` (created, renamed, merged, split, linked, unlinked, deleted, rolled back, changed), `change` (the graph's own op), `entityType`, `before` (a renamed entity's name), `version`, `count`; tagged with its entities | Sam renamed “St Marys” to “St Mary's School” |
 | `sensor.reading` | | `sensor_readings` | `{type: Note, id: lens:sensor_reading/<id>, name: "<stream>: <what it said>", url: /sensors/<id>}`, `stream`, `value`, `text`, `fields` (a JSON reading's numbers), `level` (syslog), `pattern`, `label` (the line's pattern and its label); noisy | Kitchen sensor temperature: 31.2 |
 | `sensor.alert` | | `log` | `{type: Note, id: lens:sensor_pattern/<id>}`, `label` (alert or notable), `pattern`, `example` (a line it fits), `count` (lines in all), `lines` (in the batch that raised it), `hour` | 192.168.1.1 logged an alert: wlan<n>: authentication failed for <mac> |
@@ -518,6 +520,39 @@ def _(db, cfg, payload): ...                              # payload + late (true
   checks once a minute, and at once when this process sets one. A timer set by the other process (the API, when the
   worker fires them) can so fire up to a minute late.
 
+### Schedule, at and relative triggers
+
+Built as timers; automations set them once they are stored. Each trigger checks as
+[Automations: triggers and joins](#automations-triggers-and-joins) says.
+
+```python
+timers.schedule_automation(db, automation)   # {id, enabled, spaces, triggers}: on save, switch on, switch off
+timers.relative(db, automation, alias, activity, field, offset)   # a matching activity came: {key, at, set, note}
+timers.upcoming(db, automation, n=10)        # what it has waiting, soonest first, in words
+timers.clock_state(db, automation)           # each schedule and at trigger: waiting, done, missed, failed or off
+```
+
+- **Schedule** (`on: schedule`, `cron`, `timezone`): one timer, `sched-<automation>-<as>`, at the schedule's next
+  time (`schedule.py`: five-field cron, the shorthands, time zones; a time daylight saving skips runs when the clock
+  gets past the gap, a time it repeats runs once). When it fires, the automation fires with a `clock.tick` activity
+  for that moment, and the timer is re-armed for the next time in the same update.
+- **At** (`on: at`, `at`, `timezone`): one timer, `at-<automation>-<as>`, if the time is still to come; afterwards
+  the trigger reads done, and saving the automation again doesn't set it again.
+- **Relative** (`on: relative`, `kinds`, `where`, `field`, `offset`): when a matching activity comes, a timer at the
+  time in its `field` plus `offset` (`-30m`: half an hour before; a date alone is its midnight in UTC), keyed by the
+  automation, the trigger and the activity's object (`rel-<automation>-<as>-<object id>`). So when a calendar event
+  moves (`calendar_event.changed`, about the same object) its timer moves with it rather than adding a second. A time
+  more than 5 minutes in the past is skipped, with a note for the automation's log, and a timer it had is called
+  off. When it fires, the automation fires with the activity that set it.
+- **Saving again** leaves a timer a trigger still wants as it is, so one that came due while Lens was off can still
+  catch up. A changed schedule or time sets it anew, a trigger that's gone has its timer called off, and waiting
+  relative timers follow a changed `field` or `offset`. Switching an automation off calls off every timer it has.
+- **What's coming** (`upcoming`): `{key, at, kind, trigger, node, description, untrusted}`, such as "Every weekday at
+  07:00: next on Fri 16 Oct at 07:00 (Europe/London)" or "30 minutes before “Parents' evening” starts: on Tue 20 Oct
+  at 16:30 (UTC)"; `untrusted` says the description quotes outside text (the event's title). The builder previews a
+  schedule with `GET /api/v1/routines/schedule`, which now reads weekdays, single days and days of the month in
+  words too ("every weekday at 07:00", "at 09:00 on the 20th of every month").
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -554,7 +589,10 @@ def _(db, cfg, payload): ...                              # payload + late (true
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
-- Time: sub-second timers woken by `events.wake()` alone; telling the other process (the worker) at once when the
+- Time: calendar-aware schedules ("first workday of the month", holidays); sunrise and sunset triggers; an all-day
+  event's date in the person's time zone rather than UTC; upcoming relative timers in the person's time zone; an
+  event that's cancelled calling off its relative timers; the timeline's kind filter leaving out `clock.tick`, which
+  is never stored; sub-second timers woken by `events.wake()` alone; telling the other process (the worker) at once when the
   API sets a timer, rather than within a minute.
 - Running Lens work: a routine run's id passed on (today the scheduler starts it later); waiting for the job and passing
   on its outputs; roles on collections counting for `process`; running a pipeline on every asset a join collected.

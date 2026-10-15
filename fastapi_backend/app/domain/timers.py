@@ -10,6 +10,10 @@ process wins, then its handler runs, so a timer fires once even with the API and
 that repeats (`again`: a schedule's next time) is re-armed in that same update, so a repeating timer is never lost; a
 process that dies while a handler runs leaves that one firing done (at most once, never twice).
 
+What sets them: `schedule_automation` (an automation's schedule and at triggers; they fire it with a `clock.tick`
+activity), `relative` (a relative trigger's time for one activity, moved when the activity's object moves), and
+`upcoming` lists what an automation has waiting, in words.
+
 While Lens was off: a timer due within automations.catch_up (1 hour by default) fires late, with `late: true` in its
 payload; an older one is missed (counted on its automation). A repeating one fires once, for its latest time in the
 window, and then waits for its next. Fired, failed, cancelled and missed rows are dropped after KEEP_DAYS (`tidy`,
@@ -364,3 +368,334 @@ def tidy(db, cfg=None, now=None):
     cut = _iso(_now(now) - dt.timedelta(days=KEEP_DAYS))
     db.q("DELETE timer WHERE status IN $s AND done_at < $c", s=list(ENDED), c=cut)
     return cut
+
+
+# ---------- what an automation's clock triggers set ----------
+SCHEDULE = "schedule.next"  # a schedule or at trigger: a clock.tick for its automation (re-armed for a schedule)
+FIRE = "automation.fire"  # fire an automation with the activity in the payload (relative triggers, joins)
+CLOCK = {"type": "Application", "id": "lens:clock", "name": "Lens clock"}
+PAST_SECONDS = 300  # a relative time further in the past than this is skipped
+WEEK = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+UNIT_WORDS = {"s": "second", "m": "minute", "h": "hour", "d": "day"}
+
+
+def _provided(module, fn):
+    """`fn` of a studio module built in its own step (automations, approvals), or None while it isn't there yet."""
+    import importlib
+
+    try:
+        m = importlib.import_module(f"{__package__}.{module}")
+    except ModuleNotFoundError as e:
+        if e.name != f"{__package__}.{module}":
+            raise
+        return None
+    return getattr(m, fn, None)
+
+
+def _aid(automation):
+    aid = automation.get("id") if isinstance(automation, dict) else automation
+    if not isinstance(aid, int) or isinstance(aid, bool):
+        raise ValueError("name the automation by its id")
+    return aid
+
+
+def _zone(name):
+    from . import schedule
+
+    try:
+        return schedule.zone(name or "UTC")
+    except ValueError:
+        return dt.timezone.utc
+
+
+def local(t, tz="UTC", now=None):
+    """A time in words in a time zone: "Fri 16 Oct at 07:00" (with the year when it isn't this year's)."""
+    d = _utc(t).astimezone(_zone(tz))
+    year = f" {d.year}" if d.year != _now(now).astimezone(_zone(tz)).year else ""
+    return f"{WEEK[d.weekday()]} {d.day} {MONTHS[d.month - 1]}{year} at {d:%H:%M}"
+
+
+def _at_of(t):
+    """An at trigger's moment, in UTC: its time, in its time zone when it names none."""
+    d = dt.datetime.fromisoformat(str(t["at"]).replace("Z", "+00:00"))
+    return (d if d.tzinfo else d.replace(tzinfo=_zone(t.get("timezone")))).astimezone(dt.timezone.utc)
+
+
+def _what(p):
+    """A schedule or at trigger's payload, in words: "every weekday at 07:00", "once"."""
+    from . import schedule
+
+    return schedule.describe(p["cron"]) if p.get("cron") else "once"
+
+
+def tick(automation, alias, at, timezone="UTC", cron=None, spaces=None, late=False):
+    """The activity a clock trigger fires its automation with (kind clock.tick, never stored): the moment it is for
+    (`at`), in its time zone, with the schedule (`cron`) when it repeats."""
+    aid = _aid(automation)
+    when = _utc(at)
+    desc = _what({"cron": cron})
+    spaces = sorted({int(s) for s in spaces or []})
+    obj = store.clean(
+        {
+            "type": "Event",
+            "name": desc[:1].upper() + desc[1:],
+            "cron": cron,
+            "at": events.stamp(when),
+            "timezone": timezone or "UTC",
+            "local": local(when, timezone, when),
+            "description": desc,
+            "late": bool(late),
+        }
+    )
+    return events.build(
+        f"tick-{aid}-{alias}-{int(when.timestamp())}",
+        "clock.tick",
+        actor=dict(CLOCK),
+        obj=obj,
+        summary=f"Lens clock: {obj['local']} ({desc}, {obj['timezone']})",
+        space=spaces[0] if len(spaces) == 1 else None,
+        spaces=spaces if len(spaces) > 1 else None,
+        source="clock",
+        pos=[events.stamp(when), f"tick-{aid}-{alias}"],
+        published=when,
+    )
+
+
+def _next_time(p, after):
+    from . import schedule
+
+    return schedule.next_after(p["cron"], p.get("timezone") or "UTC", after) if p.get("cron") else None
+
+
+@handler(SCHEDULE, again=_next_time)
+def _tick(db, cfg, p):
+    act = tick(p["automation"], p["alias"], p["timer"]["at"], p.get("timezone"), p.get("cron"), p.get("spaces"), p.get("late"))
+    fire = _provided("automations", "fire")
+    if fire is None:
+        raise RuntimeError("automations aren't stored yet, so there is nothing to fire")
+    fire(db, cfg, int(p["automation"]), p["alias"], act)
+
+
+@handler(FIRE)
+def _fire_automation(db, cfg, p):
+    fire = _provided("automations", "fire")
+    if fire is None:
+        raise RuntimeError("automations aren't stored yet, so there is nothing to fire")
+    fire(db, cfg, int(p["automation"]), p["alias"], p.get("activity"))
+
+
+def _waiting(db, aid):
+    return db.rows(f"SELECT {FIELDS} FROM timer WHERE automation = $a AND status = 'waiting' ORDER BY at", a=aid)
+
+
+def schedule_automation(db, automation, now=None):
+    """Set an automation's clock timers from its triggers ({id, enabled, spaces, triggers}; M6 calls it when one is
+    saved, switched on or switched off): one per schedule trigger, at its next time, and one per at trigger still to
+    come. A timer a trigger still wants is left as it is (so one Lens missed can still catch up); one no trigger wants
+    any more is called off; waiting relative timers follow a changed field or offset. Switched off, every timer it has
+    is called off. The keys of its clock timers waiting."""
+    aid = _aid(automation)
+    if not automation.get("enabled", True):
+        cancel_for(db, aid)
+        return []
+    t0 = _now(now)
+    spaces = sorted({int(s) for s in automation.get("spaces") or []})
+    triggers = [automation_spec.check_trigger(t, n) for n, t in enumerate(automation.get("triggers") or [], 1)]
+    have = {r["key"]: r for r in _waiting(db, aid)}
+    keep: dict[str, dict] = {}
+    rel = {}
+    for t in triggers:
+        if t["on"] == "relative":
+            rel[t["as"]] = t
+            continue
+        if t["on"] not in ("schedule", "at"):
+            continue
+        key = f"{'sched' if t['on'] == 'schedule' else 'at'}-{aid}-{t['as']}"
+        payload = {"automation": aid, "alias": t["as"], "timezone": t["timezone"], "spaces": spaces}
+        if t["on"] == "schedule":
+            from . import schedule
+
+            payload["cron"] = t["cron"]
+            when = schedule.next_after(t["cron"], t["timezone"], t0)
+        else:
+            payload["at"] = t["at"]
+            when = _at_of(t)
+        old = have.get(key)
+        if old and old.get("kind") == SCHEDULE and old.get("payload") == payload and (t["on"] == "schedule" or old["at"] == _iso(when)):
+            keep[key] = _view(old)
+        elif when is not None and (t["on"] == "schedule" or when > t0):
+            keep[key] = set(db, key, when, SCHEDULE, payload, aid)
+    for key, r in have.items():
+        p = r.get("payload") or {}
+        if r.get("kind") == SCHEDULE and key not in keep:
+            _end(db, r, "cancelled", "its trigger changed")
+        elif r.get("kind") == FIRE and key.startswith(f"rel-{aid}-") and p.get("alias") is not None:
+            t = rel.get(p["alias"])
+            if t is None:
+                _end(db, r, "cancelled", "its trigger changed")
+            elif (t["field"], t["offset"]) != (p.get("field"), p.get("offset")) and isinstance(p.get("activity"), dict):
+                relative(db, aid, p["alias"], p["activity"], t["field"], t["offset"], now=t0)
+    return sorted(keep)
+
+
+def _field(a, path):
+    v = a
+    for k in str(path).split("."):
+        if isinstance(v, dict):
+            v = v.get(k)
+        elif isinstance(v, list) and k.isdigit() and int(k) < len(v):
+            v = v[int(k)]
+        else:
+            return None
+    return v
+
+
+def _time_of(v):
+    """A time an activity holds (ISO 8601, a date meaning its midnight in UTC), in UTC; None when it isn't one."""
+    if isinstance(v, str) and re.match(r"^\d{4}-\d{2}-\d{2}$", v.strip()):
+        v = v.strip() + "T00:00:00+00:00"
+    try:
+        return _utc(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _offset_words(offset):
+    n = automation_spec.check_duration(offset, back=True)
+    if n == 0:
+        return "when"
+    unit = next(u for u in ("d", "h", "m", "s") if abs(n) % automation_spec.UNITS[u] == 0)
+    k = abs(n) // automation_spec.UNITS[unit]
+    return f"{k} {UNIT_WORDS[unit]}{'' if k == 1 else 's'} {'before' if n < 0 else 'after'}"
+
+
+def relative(db, automation, alias, activity, field, offset="0s", now=None):
+    """Set the timer of a relative trigger for one activity (M6 calls it when a matching activity comes): due at the
+    time in its `field` plus `offset` (-30m: half an hour before), to fire the automation with that activity. One
+    timer per automation, trigger and object (`rel-<automation>-<alias>-<object id>`), so an event that moves
+    (calendar_event.changed, about the same object) moves its timer rather than adding one. A time more than
+    PAST_SECONDS in the past is skipped (and a timer it had is called off). {key, at, set, note}."""
+    aid = _aid(automation)
+    if not isinstance(activity, dict) or not isinstance(activity.get("id"), str):
+        raise ValueError("a relative trigger counts from an activity")
+    ref = (activity.get("object") or {}).get("id") or activity["id"]
+    key = f"rel-{aid}-{alias}-{ref}"
+    _check_key(key)
+    seconds = automation_spec.check_duration(offset or "0s", back=True, what=f"trigger {alias}'s offset")
+    base = _time_of(_field(activity, field))
+    if base is None:
+        note = f"trigger {alias}: {activity['id']} has no time at {field}, so nothing was set"
+        log.info("automation %s: %s", aid, note)
+        return {"key": key, "at": None, "set": False, "note": note}
+    when = base + dt.timedelta(seconds=seconds)
+    t0 = _now(now)
+    if when < t0 - dt.timedelta(seconds=PAST_SECONDS):
+        cancel(db, key, why="its time had passed")
+        note = f"trigger {alias}: {_iso(when)} for {activity['id']} had already passed, so it was skipped"
+        log.info("automation %s: %s", aid, note)
+        return {"key": key, "at": _iso(when), "set": False, "note": note}
+    payload = {"automation": aid, "alias": alias, "activity": activity, "field": field, "offset": offset or "0s"}
+    set(db, key, when, FIRE, payload, aid)
+    return {"key": key, "at": _iso(when), "set": True, "note": None}
+
+
+# ---------- what is coming ----------
+def _describe(r, now):
+    p = r.get("payload") or {}
+    alias = p.get("alias")
+    if r["kind"] == SCHEDULE:
+        tz = p.get("timezone") or "UTC"
+        return f"{_what(p)[:1].upper()}{_what(p)[1:]}: next on {local(r['at'], tz, now)} ({tz})", False
+    if r["kind"] == FIRE and isinstance(p.get("activity"), dict) and p.get("field"):
+        a = p["activity"]
+        try:
+            title = (events.field_at(a.get("kind"), p["field"]) or {}).get("title")
+        except (KeyError, ValueError):
+            title = None
+        name = (a.get("object") or {}).get("name") or a.get("summary") or a["id"]
+        what = f"{_offset_words(p.get('offset') or '0s')} “{str(name)[:120]}” {(title or p['field']).lower()}"
+        return f"{what[:1].upper()}{what[1:]}: on {local(r['at'], 'UTC', now)} (UTC)", True
+    alias_text = f" of trigger {alias}" if alias else ""
+    return f"{r['kind']}{alias_text}: on {local(r['at'], 'UTC', now)} (UTC)", False
+
+
+def upcoming(db, automation, n=10, now=None):
+    """An automation's waiting timers, soonest first (M6 serves them at GET /api/v1/automations/{id}/upcoming):
+    [{key, at, kind, trigger, node, description, untrusted}]. `untrusted` says the description quotes outside text
+    (an event's title)."""
+    t0 = _now(now)
+    rows = db.rows(
+        f"SELECT {FIELDS} FROM timer WHERE automation = $a AND status = 'waiting' ORDER BY at LIMIT $n",
+        a=_aid(automation),
+        n=max(1, min(int(n), 100)),
+    )
+    out = []
+    for r in rows:
+        p = r.get("payload") or {}
+        text, outside = _describe(r, t0)
+        out.append(
+            {
+                "key": r["key"],
+                "at": r["at"],
+                "kind": r["kind"],
+                "trigger": p.get("alias"),
+                "node": (p.get("intent") or {}).get("node") if isinstance(p.get("intent"), dict) else None,
+                "description": text,
+                "untrusted": outside,
+            }
+        )
+    return out
+
+
+def clock_state(db, automation, now=None):
+    """How each schedule and at trigger of an automation ({id, enabled, triggers}) stands, for its page: {alias:
+    {status, at, description}}, status waiting (at: when next), done (an at trigger whose time came), failed or
+    missed (its last time), or off (switched off, or not set)."""
+    aid = _aid(automation)
+    t0 = _now(now)
+    out = {}
+    for n, t in enumerate(automation.get("triggers") or [], 1):
+        t = automation_spec.check_trigger(t, n)
+        if t["on"] not in ("schedule", "at"):
+            continue
+        r = get(db, f"{'sched' if t['on'] == 'schedule' else 'at'}-{aid}-{t['as']}")
+        status = (r or {}).get("status")
+        if not automation.get("enabled", True):
+            state = "off"
+        elif status == "waiting":
+            state = "waiting"
+        elif status in ("missed", "failed"):
+            state = status
+        elif t["on"] == "at" and _at_of(t) <= t0:
+            state = "done"
+        else:
+            state = "off"
+        at = r["at"] if state == "waiting" and r else (_iso(_at_of(t)) if t["on"] == "at" else None)
+        out[t["as"]] = {"status": state, "at": at, "description": _what({"cron": t.get("cron")})}
+    return out
+
+
+CLOCK_KIND = {
+    "label": "Time came",
+    "source": "clock",
+    "as_type": "Arrive",
+    "object_type": "Event",
+    "fields": {
+        "actor": {"type": "object", "properties": {"name": {"type": "string", "title": "Clock"}}},
+        "object": {
+            "type": "object",
+            "properties": {
+                "at": {"type": "string", "title": "Time", "format": "date-time"},
+                "cron": {"type": "string", "title": "Schedule"},
+                "timezone": {"type": "string", "title": "Time zone"},
+                "local": {"type": "string", "title": "Time there"},
+                "description": {"type": "string", "title": "When"},
+                "late": {"type": "boolean", "title": "Late (Lens was off)"},
+            },
+        },
+    },
+    "noisy": True,
+}
+events.kind("clock.tick", **CLOCK_KIND)  # first without its sample, which is built with the kind
+events.kind("clock.tick", **CLOCK_KIND, sample=tick(4, "morning", "2026-10-16T06:00:00Z", "Europe/London", "0 7 * * 1-5", [3]))
