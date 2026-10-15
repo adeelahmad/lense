@@ -18,7 +18,8 @@ merged is called built.
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
-| Storing and running automations, schedules and timers, joins, the real actions, approvals, variables, the timeline page, the studio | planned |
+| The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
+| Storing and running automations, schedules and timers, joins, the real actions, approvals, variables, the studio | planned |
 
 ## Contract
 
