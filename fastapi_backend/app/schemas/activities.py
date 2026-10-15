@@ -1,0 +1,73 @@
+"""The stream of activities (docs/automations.md, Contract): activities in the W3C Activity Streams 2.0 shape with a
+Lens kind, pages of the timeline, and the kinds catalog."""
+
+from __future__ import annotations
+
+from typing import Any, Literal
+
+from pydantic import ConfigDict, Field
+
+from app.schemas.common import ResponseModel
+
+
+class ActivityActor(ResponseModel):
+    type: Literal["Service", "Person", "Application"]
+    id: str = Field(description="a Lens reference, like lens:account/1 or lens:automation/4")
+    name: str
+
+
+class ActivityObject(ResponseModel):
+    """What the activity is about; each kind adds its own fields (GET /activities/kinds has its schema)."""
+
+    type: str
+    id: str | None = Field(None, description="a Lens reference, like lens:recording/7")
+    name: str | None = None
+    url: str | None = Field(None, description="its page in the web app, relative to it")
+
+
+class ActivityLens(ResponseModel):
+    source: str = Field(description="the source that made it, like recordings or log")
+    pos: list[Any] = Field(description="the source's position, [time, id]; for the stream machinery")
+    untrusted: list[str] = Field(default_factory=list, description="dotted paths holding text from outside Lens")
+    cause: dict[str, int] | None = Field(None, description="{automation, run, depth} when an automation caused it")
+    spaces: list[int] | None = Field(None, description="every namespace it belongs to, when there are several")
+    audience: Literal["space", "owner", "admins"] | None = Field(None, description="who may see it (default: space)")
+    owner: int | None = Field(None, description="the account that alone sees it, with audience owner")
+
+
+class StreamActivity(ResponseModel):
+    id: str
+    type: str = Field(description="the Activity Streams verb, like Create")
+    kind: str = Field(description="the Lens kind triggers subscribe to, like asset.added")
+    published: str = Field(description="when it happened, ISO 8601 in UTC")
+    actor: ActivityActor
+    object: ActivityObject
+    target: dict[str, Any] | None = None
+    tag: list[dict[str, Any]] = Field(default_factory=list)
+    summary: str
+    space: int | None = Field(None, description="its namespace's id, or null")
+    lens: ActivityLens
+
+
+class ActivityPage(ResponseModel):
+    items: list[StreamActivity] = Field(description="newest first")
+    next: str | None = Field(None, description="give it as before for the page after; null at the end")
+    namespaces: dict[str, str] = Field(default_factory=dict, description="the names of the namespaces in items, by id")
+
+
+class ActivityKind(ResponseModel):
+    # "schema" shadows a BaseModel attribute, so it is `json_schema` here and `schema` on the wire
+    model_config = ConfigDict(extra="allow", populate_by_name=True)
+
+    name: str
+    label: str
+    source: str
+    type: str = Field(description="the Activity Streams verb its activities have")
+    object_type: str
+    parent: str | None = None
+    children: list[str] = Field(default_factory=list)
+    fields: dict[str, Any] = Field(default_factory=dict, description="JSON Schemas of its own object, actor or target fields")
+    json_schema: dict[str, Any] = Field(alias="schema", description="a JSON Schema of its activities, with every field")
+    untrusted: list[str] = Field(default_factory=list)
+    noisy: bool = Field(False, description="left out of the timeline unless named")
+    sample: dict[str, Any] | None = None

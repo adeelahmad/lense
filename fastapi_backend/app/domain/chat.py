@@ -620,6 +620,7 @@ SAME_AGAIN = {
     "graph_query",
     "graph_related",
     "graph_paths",
+    "timeline",
 }
 AGAIN = "You made this same call earlier in this answer, and its result is above: use it rather than calling it again."
 

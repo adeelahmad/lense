@@ -13,7 +13,7 @@ merged is called built.
 | Activities, the kinds catalog, the event log, following the stream, timeline reads (`app/domain/events.py`) | built |
 | New assets as `asset.added` (the `recordings` source) | built |
 | More kinds: emails, files, calendar events, jobs, deletions, comments, notes, graph changes, sensors, chat | planned |
-| The timeline API, MCP and assistant tools | planned |
+| The timeline API (`GET /api/v1/activities`), the MCP tools `timeline` and `event_kinds`, the assistant's `timeline` | built |
 | The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
 | The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
 | Storing and running automations, schedules and timers, joins, the real actions, approvals, variables, the timeline page, the studio | planned |
