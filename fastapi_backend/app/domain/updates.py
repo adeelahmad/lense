@@ -374,8 +374,11 @@ def _hand_over(db, run, backup):
         run.update(state="queued", queued_at=_ts())
     except Exception as e:  # noqa: BLE001 - the admin reads why
         log.exception("couldn't start the upgrade")
+        backing = run["state"] == "backing-up"
         run.update(
-            state="failed", error=f"{'backing up' if run['state'] == 'backing-up' else 'handing the upgrade over'} failed: {e}"[:500]
+            state="failed",
+            step="backup" if backing else None,  # the step the web app marks as failed
+            error=f"{'backing up' if backing else 'handing the upgrade over'} failed: {e}"[:500],
         )
     _put(db, upgrade=run)
 

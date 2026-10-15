@@ -19131,9 +19131,9 @@ export type UpgradeRun = {
   /**
    * Step
    *
-   * while running: what the agent is on (the backup comes before)
+   * while running: what the agent is on (the backup comes before); backup: backing up failed
    */
-  step?: "download" | "build" | "start" | "check" | null;
+  step?: "backup" | "download" | "build" | "start" | "check" | null;
   /**
    * Restore
    *

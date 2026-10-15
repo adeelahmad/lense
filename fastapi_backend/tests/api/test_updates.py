@@ -176,6 +176,7 @@ def test_a_failed_backup_stops_the_upgrade(client, db, github, control, monkeypa
     updates.upgrade(db, client.app.state.settings.current(), by="t", wait=True)
     run = client.get("/api/v1/admin/updates", headers=h).json()["upgrade"]
     assert run["state"] == "failed" and "backing up failed: No space left" in run["error"]
+    assert run["step"] == "backup"  # the step the web app marks as failed
     assert not (control / "inbox" / "upgrade").exists()
 
 
