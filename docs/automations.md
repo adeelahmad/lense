@@ -14,7 +14,9 @@ merged is called built.
 | New assets as `asset.added` (the `recordings` source) | built |
 | More kinds: emails, files, calendar events, jobs, deletions, comments, notes, graph changes, sensors, chat | planned |
 | The timeline API, MCP and assistant tools | planned |
-| Automations, triggers, joins, schedules, actions, approvals, variables, the timeline page, the studio | planned |
+| The shapes of triggers, joins, an If, policy and intents, checked (`app/domain/automation_spec.py`) | built |
+| The action registry with risk from each action's effect, and one action, `log_line` (`app/domain/actions.py`) | built |
+| Storing and running automations, schedules and timers, joins, the real actions, approvals, variables, the timeline page, the studio | planned |
 
 ## Contract
 
@@ -163,6 +165,89 @@ tree, `path` (when given) is the part of the value the tree tests. Graphs saved 
  "config": {"path": "object", "match": {"all": [{"path": "from.0", "op": "contains", "value": "@stmarys.org"},
                                                 {"not": {"path": "attachments", "op": "gt", "value": 5}}]}}}
 ```
+
+### Automations: triggers and joins
+
+Built as shapes with checks (`app/domain/automation_spec.py`); storing and running automations is planned. Each check
+gives a cleaned copy, or a ValueError naming the first problem.
+
+```json
+{"name": "School emails", "enabled": true, "spaces": [3], "run_as": 1,
+ "triggers": [{"as": "mail", "on": "event", "kinds": ["email.received"],
+               "where": {"all": [{"path": "object.from.0", "op": "contains", "value": "@stmarys.org"}]}},
+              {"as": "morning", "on": "schedule", "cron": "0 7 * * 1-5", "timezone": "Europe/London"}],
+ "join": {"mode": "any"},
+ "if": {"all": [{"path": "events.mail.object.subject", "op": "contains", "value": "trip"}]},
+ "workflow": 12, "policy": {"n7": "ask"}}
+```
+
+- `check_trigger(t)`, `check_triggers(list)`: one to ten triggers, each named once in `as` (lowercase letters,
+  digits and `_`). `on` is `event` (`kinds`, an optional `where` match tree, `from_automations`, false by default so
+  activities made by automations are left out), `schedule` (`cron`, five fields as routines take them, and
+  `timezone`), `at` (one moment, in `timezone`), `relative` (a time `field` of a matching activity plus an
+  `offset`, which may point back: `-30m`), `webhook` (`hook`, given when the automation is saved) or `manual`.
+- `check_join(j, aliases)`: how the triggers make a run. `any` (the default): each on its own. `all`: every trigger
+  `within` a time, optionally on the same `key` path. `count`: `at_least` n of trigger `of` `within`. `absent`:
+  after trigger `after`, trigger `missing` not seen `within`. `batch`: collect what matches `within`, then one run.
+- `check_duration(text, back=False)`: seconds in `30s`, `30m`, `2h` or `7d` (at most a year); a minus only where an
+  offset may point back.
+- `check_if(tree)`: the If is a match tree over the run context, so its paths start with one of the context's keys.
+- `check_policy(p, nodes, allow_auto=False)`: `{action node id: ask or auto}`. Only a person in a signed-in session
+  lets a node run on its own; everywhere else (agents, drafts, the workflow API) `auto` is refused.
+
+### Run context
+
+What an automation's If, its nodes and its templates see (`automation_spec.context_paths()` lists the keys, with
+titles, for the variable picker):
+
+| Key | Holds |
+| --- | --- |
+| `event` | the activity that started the run (for a join, the last one) |
+| `events` | each trigger's activity by its name, such as `events.mail` |
+| `trigger` | the trigger that fired: `{as, on}` |
+| `automation` | `{id, name, version, spaces}` |
+| `run` | `{id, dry}` |
+| `namespace` | `{id, name}` |
+| `user` | who the automation acts for: `{id, name, email}` |
+| `now`, `timezone` | when the run started (ISO 8601 in UTC) and the person's time zone |
+| `vars` | the automation's and its namespace's saved variables |
+| `steps` | what each node passed on so far, by node id, such as `steps.n3` |
+
+### Actions and intents
+
+Built: the registry (`app/domain/actions.py`). An action is registered with `actions.register(ActionSpec(name,
+label, group, params, perform, required=(), effect="read", risk=None, output=None, describe=None, subject=None))`:
+`params` is a JSON Schema of type object, `perform(db, cfg, intent, user, dry)` carries it out and gives a dict (with
+`dry`, it says what it would do and changes nothing). `actions.catalog()` lists every action for the builder and
+agents, `actions.get(name)` gives one, `actions.check_params(spec, params)` checks params and fills in defaults (a
+string holding `{{ }}` stands for any type, since it is filled in when the action runs), and `actions.perform(db,
+cfg, intent, user, dry=False)` checks an intent and carries it out.
+
+When an action node runs, it makes an **intent**, checked by `automation_spec.check_intent`:
+
+```json
+{"key": "51-n7", "action": "notify", "params": {"to": "me", "text": "School trip on Friday"}, "effect": "self",
+ "risk": "routine", "untrusted": true, "spaces": [3], "run_as": 1, "node": "n7", "automation": 4, "run": 51,
+ "when": null, "status": "waiting"}
+```
+
+Its status is `waiting`, `scheduled`, `done`, `failed`, `declined` or `expired`. The action's effect decides the
+risk (`actions.resolve_risk(spec, params, ctx, policy)`, where `policy` is the node's pick or the automation's whole
+policy with the node in `ctx["node"]`):
+
+| Effect | Means | Risk |
+| --- | --- | --- |
+| `read` | looks things up, changes nothing (a tool asks for any change itself) | routine |
+| `self` | tells or keeps something for the automation's own person only | routine |
+| `lens` | changes something inside Lens | routine on the event's own object in the automation's namespaces, else ask |
+| `out` | sends outside Lens, reaches other people, or deletes | ask, unless the person set the node to `auto` |
+
+An effect may be worked out from the params (`notify` to "me" is `self`, to a room is `out`); when it can't be
+worked out, it counts as `out`. An action's own `risk` function may make it stricter, never looser.
+
+| Action | Does | Effect | Output |
+| --- | --- | --- | --- |
+| `log_line` | puts a line (`text`, `level` info or warning) in the run's log | read | `{line, level}` |
 
 ## Refine later
 
