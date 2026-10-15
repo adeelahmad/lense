@@ -12,6 +12,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   API tokens. Anything acting as you (an agent, a script) can push to `POST /api/v1/hooks/import?namespace=` with
   your own token too, and `GET` there says where a token's pushes go ([Web clipper](docs/web-clipper.md#setting-it-up),
   [API](docs/api.md#import-webhooks)).
+- **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
+  `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
+  what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,
+  and the assets, people and entities it comes up with. Its name on the Entities page now opens it (the rest of
+  the row still opens the side panel), as do `@` links in notes, the graph panel and the entity's RDF URI. Any case, a
+  name it had before a rename, or the name of one merged into it opens it too ([Entity pages](docs/notes.md#entity-pages)).
+- **The update notice no longer pushes pages off the screen.** While *Lens vX is out* shows above them, Chat, the
+  graph and a recording's page are that much shorter, so a phone's question box and a recording's player stay in
+  sight.
 
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 
@@ -47,6 +56,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   ([Finding notes](docs/notes.md#finding-notes)).
 - **Paste a Drive folder's link.** A Google Drive connection's Root folder and shared drive take the link from the
   browser's address bar as well as the bare id, so limiting imports to one folder is a paste, not hunting for the id.
+- **Sign in to Dropbox, OneDrive or Google Drive with no app of your own.** Their connections now have **Sign in
+  with Dropbox** (Microsoft, Google): the service's page opens in a new tab, Lens runs `rclone authorize` on its own
+  server, and you paste back the address the tab ends on, or nothing at all when the browser runs where Lens does.
+  No rclone to install on another computer, and no Google Cloud app needed for Drive. Pasting a token still works.
+  Agents do the same through `POST /api/v1/sources/rclone-signin`
+  ([Storage sources](docs/processing.md#storage-sources)).
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 

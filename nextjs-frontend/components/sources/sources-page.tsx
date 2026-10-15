@@ -52,7 +52,7 @@ function watchedText(ws: Watch[]) {
   return `${ws.length} · → ${ns.join(", ")}`;
 }
 
-type Editing = { source: Source | null; replaceToken?: boolean } | null;
+type Editing = { source: Source | null } | null;
 type Watching = {
   source: { id: number; name: string; type?: string };
   path: string;
@@ -160,15 +160,15 @@ export function SourcesPage() {
   const current = all.find((s) => s.id === selected) ?? all.find((s) => bySource(s.id).length) ?? all[0];
   const specs = (backends.data ?? {}) as Record<string, BackendSpec>;
 
-  // Test (or Paste new token) and the More menu, in a table row on a wide screen and on a card on a phone
+  // Test (or Sign in again) and the More menu, in a table row on a wide screen and on a card on a phone
   const actions = (s: Source) => {
     const bad = s.health && !s.health.ok;
     const oauth = Boolean(s.oauth);
     return (
       <div className="flex shrink-0 items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
         {bad && oauth && /token|auth|expired|unauthori[sz]ed|401|invalid_grant/i.test(s.health?.error ?? "") ? (
-          <Button size="sm" variant="secondary" onClick={() => setEditing({ source: s, replaceToken: true })}>
-            Paste new token
+          <Button size="sm" variant="secondary" onClick={() => setEditing({ source: s })}>
+            Sign in again
           </Button>
         ) : bad || !s.health ? (
           <Button
@@ -194,9 +194,7 @@ export function SourcesPage() {
             <MenuItem onSelect={() => setBrowsing(s)}>Browse folders</MenuItem>
             <MenuItem onSelect={() => test.mutate(s)}>Test now</MenuItem>
             <MenuItem onSelect={() => setEditing({ source: s })}>Edit connection</MenuItem>
-            {oauth && (
-              <MenuItem onSelect={() => setEditing({ source: s, replaceToken: true })}>Paste new token</MenuItem>
-            )}
+            {oauth && <MenuItem onSelect={() => setEditing({ source: s })}>Sign in again</MenuItem>}
             <MenuSeparator />
             <MenuItem danger onSelect={() => setDeleting(s)}>
               Delete…
@@ -215,7 +213,6 @@ export function SourcesPage() {
           onOpenChange={(o) => !o && setEditing(null)}
           backends={specs}
           source={editing.source}
-          replaceToken={editing.replaceToken}
           onSaved={(id) => {
             setSelected(id);
             // a new connection is for watching a folder of it: the folder browser opens next

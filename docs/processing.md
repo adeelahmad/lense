@@ -110,8 +110,10 @@ Nodes are people and named things. Edges are:
 People, organisations, products, places, events, works and topics are extracted from every asset's text. Dates and
 numbers are extracted too, but hidden unless asked for.
 
-The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab)
-and opens each in a side panel where editors rename, retype, describe, merge and hide it.
+The **Entities** page in the web app lists a namespace's entities (search, type and collection filters, a Hidden tab).
+An entity's name opens its own page, `/wiki/<namespace>/<Name>`, with its notes, every line that says it and what it
+comes up with ([Entity pages](notes.md#entity-pages)); the rest of its row opens a side panel where editors rename,
+retype, describe, merge and hide it.
 
 - **Merge from the side panel:** **Merge** opens a find box; type a name and press Enter, and the entity picked is
   merged into the open one at once. Its **Maybe the same** list offers likely doubles (same letters, an acronym, a near
@@ -128,8 +130,10 @@ and opens each in a side panel where editors rename, retype, describe, merge and
     mentions, and hidden entities.
   - Sorts: most mentioned, most assets, most recent, rising, and name.
   - Options: grouping by name across namespaces, a twelve-month sparkline, and facets.
-- **Entity page:** its details and aliases, paged mentions (each line with the words highlighted, linking to its moment),
-  a timeline by month or week and namespace, and connections (entities mentioned together, people, assets).
+- **Entity page** (`/wiki/<namespace>/<Name>` in the web app; `GET /api/v1/wiki/{ns}/{address}` finds it by name): its
+  details and aliases, its notes, paged mentions (each line with the words highlighted, linking to its moment), and
+  connections (entities mentioned together, people, assets); the API also gives a timeline by month or week and
+  namespace.
 - **Explorer:**
   - `GET /api/v1/graph/explore?focus=e12` gives the neighbourhood of an entity or person. Depth is one or two hops, and it
     can be filtered by type, edge kind and strength, within one namespace or all shared ones.
@@ -300,8 +304,23 @@ Admins can also import chosen files of a source once, without watching their fol
 files, then Import (`POST /api/v1/import/source`). The listing marks files that are assets already, and where.
 
 - Credentials are encrypted in the database (AES-GCM, key from `ARCHIVE_SECRET_KEY` or `data_dir/secret.key`) and given
-  to rclone in a private temporary config file per call. For Dropbox, Drive and OneDrive, paste the token from
-  `rclone authorize dropbox` (or drive, onedrive); tokens rclone refreshes are saved back.
+  to rclone in a private temporary config file per call; tokens rclone refreshes are saved back.
+- **Dropbox, OneDrive, and Google Drive as a Google account sign in through rclone on the Lens server**, with nothing
+  to install elsewhere and no app of your own: Sign in with Dropbox (or Microsoft, Google) opens the service's page in
+  a new tab, which asks you to allow rclone, the tool Lens connects with. Afterwards the service sends that tab to
+  `http://127.0.0.1:53682/?state=…&code=…`, where `rclone authorize` waits on the server. When your browser runs on
+  the same machine as Lens that reaches rclone and the dialog carries on by itself; otherwise the page doesn't load:
+  copy its address from the address bar and paste it into the dialog. Lens passes only that address's state, code and
+  error on to rclone, and only when the state is this sign-in's. The connection is then made and tested (OneDrive's
+  own drive filled in), and the dialog goes on to pick a folder. One sign-in runs at a time (rclone listens on one
+  port), each for ten minutes. A connection whose token stopped working shows Sign in again. Pasting the token
+  `rclone authorize dropbox` (or drive, onedrive) prints on another computer still works: Paste a token from rclone
+  instead.
+- Agents sign in through rclone the same way: `POST /api/v1/sources/rclone-signin` with `{"type": "dropbox"}` (or
+  `{"source": <id>}`, and `params`) answers `{id, url, port}`; the person opens `url`, and the agent posts the address
+  they end on to `POST /api/v1/sources/rclone-signin/{id}` (`{"address": …}`), which answers `{connected: <id>}`
+  (400: not this sign-in's address, still waiting; 410: cancelled, refused or ran out). `DELETE` stops it. Audited as
+  `source.signin`.
 - Google Drive can also sign in as a service account: choose Service account and upload its JSON key file
   (`service_account_credentials`). Share the folders Lens should read with the account's address, or give a shared
   drive ID (`team_drive`); in Google Workspace, `impersonate` reads a user's own Drive through domain-wide delegation.

@@ -4138,6 +4138,12 @@ export type EntityDetail = {
    * a defined entity of one collection (and those inside it)
    */
   collection?: number | null;
+  /**
+   * Page
+   *
+   * its page in the web app, by name: /wiki/<namespace>/<Name_As_Written>
+   */
+  page?: string | null;
   [key: string]: unknown;
 };
 
@@ -13215,6 +13221,105 @@ export type Pushed = {
 };
 
 /**
+ * RcloneSignIn
+ */
+export type RcloneSignIn = {
+  /**
+   * Id
+   *
+   * this sign-in, to finish or cancel
+   */
+  id: string;
+  /**
+   * Url
+   *
+   * the service's sign-in page, to open in a browser (it asks to allow rclone); once, within ten minutes
+   */
+  url: string;
+  /**
+   * Port
+   *
+   * where the service sends the browser back afterwards: http://127.0.0.1:<port>/?state=…&code=…
+   */
+  port: number;
+  /**
+   * Expires At
+   */
+  expires_at: string;
+  [key: string]: unknown;
+};
+
+/**
+ * RcloneSignInFinish
+ */
+export type RcloneSignInFinish = {
+  /**
+   * Address
+   *
+   * the address the browser ended on after signing in (http://127.0.0.1:53682/?state=…&code=…); leave out to only look whether rclone already got it (a browser on the machine Lens runs on reaches it itself)
+   */
+  address?: string | null;
+};
+
+/**
+ * RcloneSignInStart
+ */
+export type RcloneSignInStart = {
+  /**
+   * Type
+   *
+   * the kind of connection to make (drive, dropbox, onedrive); leave out with `source`
+   */
+  type?:
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | null;
+  /**
+   * Source
+   *
+   * a connection to sign in again, instead of making a new one
+   */
+  source?: number | null;
+  /**
+   * Name
+   *
+   * the new connection's name; by default the service's
+   */
+  name?: string | null;
+  /**
+   * Params
+   *
+   * its options, as for POST /sources (scope, root_folder_id...)
+   */
+  params?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * RcloneSignInState
+ */
+export type RcloneSignInState = {
+  /**
+   * Connected
+   *
+   * the connection, made or signed in again, and tested; none while it waits
+   */
+  connected?: number | null;
+  [key: string]: unknown;
+};
+
+/**
  * RdfImport
  */
 export type RdfImport = {
@@ -20303,6 +20408,47 @@ export type WebPage = {
    * printed by Chromium, or a PDF kept as it was
    */
   how?: "printed" | "pdf" | null;
+  [key: string]: unknown;
+};
+
+/**
+ * WikiPage
+ *
+ * What a wiki address names, and the address to show for it.
+ */
+export type WikiPage = {
+  /**
+   * Kind
+   *
+   * entity
+   */
+  kind: string;
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Title
+   *
+   * its name
+   */
+  title: string;
+  /**
+   * Path
+   *
+   * its own address, like /wiki/work/Ada_Lovelace
+   */
+  path: string;
+  /**
+   * Canonical
+   *
+   * false: the address asked for is another way to write it (any case, or a name it had before a rename or merge); show `path`
+   */
+  canonical: boolean;
   [key: string]: unknown;
 };
 
@@ -29494,6 +29640,40 @@ export type UpdateEntityResponses = {
 
 export type UpdateEntityResponse = UpdateEntityResponses[keyof UpdateEntityResponses];
 
+export type FindWikiPageData = {
+  body?: never;
+  path: {
+    /**
+     * Ns
+     */
+    ns: string;
+    /**
+     * Address
+     */
+    address: string;
+  };
+  query?: never;
+  url: "/api/v1/wiki/{ns}/{address}";
+};
+
+export type FindWikiPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FindWikiPageError = FindWikiPageErrors[keyof FindWikiPageErrors];
+
+export type FindWikiPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: WikiPage;
+};
+
+export type FindWikiPageResponse = FindWikiPageResponses[keyof FindWikiPageResponses];
+
 export type ListEntityMentionsData = {
   body?: never;
   path: {
@@ -32642,6 +32822,91 @@ export type UpdateSourceResponses = {
 };
 
 export type UpdateSourceResponse = UpdateSourceResponses[keyof UpdateSourceResponses];
+
+export type StartRcloneSigninData = {
+  body: RcloneSignInStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sources/rclone-signin";
+};
+
+export type StartRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartRcloneSigninError = StartRcloneSigninErrors[keyof StartRcloneSigninErrors];
+
+export type StartRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: RcloneSignIn;
+};
+
+export type StartRcloneSigninResponse = StartRcloneSigninResponses[keyof StartRcloneSigninResponses];
+
+export type CancelRcloneSigninData = {
+  body?: never;
+  path: {
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/sources/rclone-signin/{fid}";
+};
+
+export type CancelRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CancelRcloneSigninError = CancelRcloneSigninErrors[keyof CancelRcloneSigninErrors];
+
+export type CancelRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type CancelRcloneSigninResponse = CancelRcloneSigninResponses[keyof CancelRcloneSigninResponses];
+
+export type FinishRcloneSigninData = {
+  body: RcloneSignInFinish;
+  path: {
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/sources/rclone-signin/{fid}";
+};
+
+export type FinishRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FinishRcloneSigninError = FinishRcloneSigninErrors[keyof FinishRcloneSigninErrors];
+
+export type FinishRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: RcloneSignInState;
+};
+
+export type FinishRcloneSigninResponse = FinishRcloneSigninResponses[keyof FinishRcloneSigninResponses];
 
 export type TestSourceData = {
   body?: never;
