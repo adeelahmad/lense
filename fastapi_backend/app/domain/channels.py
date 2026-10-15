@@ -14,6 +14,11 @@ Messages are dicts in Matterbridge's shape (gateway, channel, account, username,
 - files: [{ref, filename, size}], files sent with it, held for the assistant to import (import_files)
 - thread: what identifies the conversation (else gateway, channel, account and username)
 - namespace: the namespace it's for, when the adapter knows (else the channel's rooms setting says, or Lens picks)
+- private: it was said in a private chat with Lens, not in a room (route)
+
+Telling a person something nobody asked about yet (an automation's message, tell()): each channel keeps the private chat
+it last had with someone it vouches for (chat_route:<channel>), and tell() sends there, through every channel that
+answers as that person's account. A room is never used: it reaches other people too.
 """
 
 from __future__ import annotations
@@ -24,7 +29,7 @@ import os
 import secrets
 import threading
 
-from . import store, uploads, voice
+from . import activity, auth, store, uploads, voice
 from .store import R
 
 log = logging.getLogger(__name__)
@@ -82,6 +87,24 @@ class Channel:
         from . import bridge
 
         return bridge.handle(db, cfg, base, m, self)
+
+    def route(self, m):
+        """Where to tell the account's own person something later, from a message `m` they sent: what send() needs to
+        reach its private chat again, or None for a message said in a room (which reaches other people too)."""
+        if not m.get("private"):
+            return None
+        out = {k: m[k] for k in ("gateway", "channel", "account", "username", "userid", "thread") if m.get(k) is not None}
+        to = m.get("to") or {}
+        if to.get("channel"):  # a new message in the chat, never in a thread or through a slash command's address
+            out["to"] = {"channel": to["channel"]}
+        return out
+
+    def vouched(self, cfg, m):
+        """Whether the channel vouches for who sent `m`: they're on its list of people who may talk to Lens (`users`,
+        by name or id). `cfg` is the channel's view (view())."""
+        users = {u.strip().lstrip("@").lower() for u in cfg["bridge"].get("users") or [] if u.strip()}
+        who = (m.get("username") or "").strip("<> ").lstrip("@").lower()
+        return bool(users) and (who in users or str(m.get("userid") or "").lower() in users)
 
 
 def view(cfg, ch):
@@ -246,3 +269,91 @@ def every():
 def start_all(db, cfg_fn, stop, base_fn=None, name=None, log_fn=None):
     """A thread per channel (each idle while it's off)."""
     return [start(db, cfg_fn, stop, ch, base_fn, name, log_fn) for ch in every()]
+
+
+# ---------- telling a person ----------
+NOT_LINKED = (
+    "no chat app linked: message Lens in a private chat in Telegram or Slack, as someone on its list of people who may "
+    "talk to Lens, and messages for you go there"
+)
+
+
+def remember(db, cfg, ch, account, m, conversation=None):
+    """Keep the private chat `m` was said in as where the account's own person is told things (chat_route:<channel>),
+    when the channel vouches for its sender; the latest one wins. `cfg` is the channel's view. True when kept."""
+    target = ch.route(m)
+    if not target or not ch.vouched(cfg, m):
+        return False
+    who = (m.get("username") or "").strip("<> ") or str(m.get("userid") or "someone")
+    row = {
+        "channel": ch.key,
+        "account": account["id"],
+        "email": account["email"],
+        "target": target,
+        "chat": f"private chat with {who}",
+        "conversation": conversation,
+        "at": store.now(),
+    }
+    db.q("UPSERT $r CONTENT $d", r=R("chat_route", ch.key), d=store.clean(row))
+    return True
+
+
+def _account(db, account):
+    if isinstance(account, dict) and account.get("email"):
+        return account
+    got = auth.get_account(db, account["id"] if isinstance(account, dict) else account)
+    return got if got and not got.get("disabled") else None
+
+
+def routes(db, cfg, account):
+    """Where `account`'s own person can be told something now: [(channel, its view, its chat_route)] for each channel
+    that is on, answers as that account, and last had a private chat with someone it still vouches for."""
+    acc = _account(db, account)
+    if not acc:
+        return []
+    rows = {r["channel"]: r for r in db.rows("SELECT * OMIT id FROM chat_route WHERE account = $a", a=acc["id"])}
+    out = []
+    for ch in every():
+        r = rows.get(ch.key)
+        if not r or ch.ready(cfg):
+            continue
+        v = view(cfg, ch)
+        if (v["bridge"].get("account") or "").strip().lower() != (acc.get("email") or "").strip().lower():
+            continue  # it answers as someone else now
+        if ch.vouched(v, r["target"]):
+            out.append((ch, v, r))
+    return out
+
+
+def where(ch, r):
+    """Where a message went, as tell() reports it."""
+    return store.clean(
+        {"channel": ch.key, "label": ch.label, "chat": r.get("chat"), "conversation": r.get("conversation"), "target": r["target"]}
+    )
+
+
+def tell(db, cfg, account, text, links=()):
+    """Tell `account`'s own person `text` in their chat apps: through each channel that answers as that account, in the
+    private chat it last had with someone it vouches for (routes()). Web addresses in it are broken up as a room's
+    answers' are (bridge.safe_links) unless they are in `links` (what the person or Lens wrote) or Lens's own.
+    Returns {sent: [{channel, label, chat, conversation, target}], failed: [{channel, error}], error}, `error` saying
+    why nothing was sent (NOT_LINKED when no channel can reach them)."""
+    from . import bridge
+
+    found = routes(db, cfg, account)
+    sent, failed = [], []
+    for ch, v, r in found:
+        error = None
+        try:
+            ch.send(v, r["target"], bridge.safe_links(v, db, text, links))
+        except (ChannelError, RuntimeError, OSError, ValueError) as e:
+            error = str(e) or type(e).__name__
+            failed.append({"channel": ch.key, "error": error})
+            log.warning("%s: couldn't tell %s: %s", ch.key, r.get("email"), error)
+        else:
+            sent.append(where(ch, r))
+        activity.record(
+            "out", f"chat.{ch.key}", [f"account:{r['account']}"], cfg, db, ok=error is None, error="unreachable" if error else None
+        )
+    error = None if sent else ("; ".join(f"{f['channel']}: {f['error']}" for f in failed) if failed else NOT_LINKED)
+    return {"sent": sent, "failed": failed, "error": error}

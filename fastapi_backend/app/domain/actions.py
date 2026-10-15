@@ -9,8 +9,9 @@ An action's effect says how far it reaches, and so whether it may run without as
 - `out` sends outside Lens, reaches other people, or deletes: ask, unless the person set that node to run on its own.
 
 When an action node runs, it renders its params and makes an intent (automation_spec.check_intent); `perform` carries
-an intent out, or with `dry` says what it would do and changes nothing. One action ships here, `log_line`; the real
-ones come with the actions module.
+an intent out, or with `dry` says what it would do and changes nothing. An action acts for the automation's person
+(`person`), with their permissions as they are when it runs. `log_line` ships here; the other actions are registered by
+a module per group, loaded with this one: actions_messages.py (notify).
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from . import auth
 from . import automation_spec as spec_
 
 NAME_RX = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
@@ -198,6 +200,21 @@ def perform(db, cfg, intent, user, dry=False):
     return out
 
 
+def person(db, intent, user=None):
+    """The account an intent acts for, as it is now ({id, email, name, admin}): perform's `user`, else the intent's
+    run_as. ValueError when there's none, or it has been switched off or removed: an automation never acts for nobody."""
+    uid = user.get("id") if isinstance(user, dict) else user
+    if uid is None:
+        uid = intent.get("run_as")
+    try:
+        a = auth.get_account(db, int(uid)) if uid is not None else None
+    except (TypeError, ValueError):
+        a = None
+    if not a or a.get("disabled") or a.get("removed_at"):
+        raise ValueError("this automation acts for nobody who can sign in: give it a person to run as")
+    return {"id": a["id"], "email": a["email"], "name": a.get("name") or a["email"], "admin": bool(a.get("admin"))}
+
+
 def describe(name, params):
     """What an action would do, in words."""
     spec = get(name)
@@ -238,3 +255,6 @@ register(
         describe=lambda p: f"Write “{p.get('text', '')}” to the run log",
     )
 )
+
+
+from . import actions_messages  # noqa: E402, F401 - registers notify; loaded with the catalog

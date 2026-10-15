@@ -231,6 +231,7 @@ def message(me, team, event, names):
         "text": text,
         "event": "",
         "direct": private or mentioned,
+        "private": private,
         "voice": clip["url_private"] if clip else None,
         "files": [
             {"ref": f["url_private"], "filename": f.get("name") or f.get("title") or "file", "size": f.get("size")}
@@ -259,6 +260,7 @@ def slash(me, team, p, names):
         "text": text or "Hello! What can you do?",
         "event": "",
         "direct": True,
+        "private": private,
         "voice": None,
         "files": [],
         "thread": ["slack", team, cid, uid],
