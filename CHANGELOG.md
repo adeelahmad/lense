@@ -4,6 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **A local model starts again.** llama.cpp's versioned releases (v0.6.0 on) carry only the source, so Lens found no
+  llama.cpp build to fetch and a model picked under Settings → Local model didn't run (*llama.cpp v0.6.0 has no build
+  for linux arm64*). Lens now takes the build that release names, and says why when the build it fetched can't start
+  on this machine ([Local models](docs/local-models.md#use-it)).
 - **Today's note.** Today on the Notes page, or Today's note in Jump to, opens the note for the day, made the first
   time it's asked for inside a Daily notes note ([Today's note](docs/notes.md#todays-note)).
 - **Pin notes.** A note's ⋯ menu in the tree has Pin: pinned notes show at the top of the tree and first on the

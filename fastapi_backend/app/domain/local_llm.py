@@ -43,7 +43,7 @@ TICK_SECONDS = 5
 RETRY = (5, 30, 120, 600)
 LOG_LINES = 40
 HF = "https://huggingface.co"
-RELEASES_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
+RELEASES_API = "https://api.github.com/repos/ggml-org/llama.cpp/releases"
 GB = 1024**3
 HF_REF = re.compile(r"^hf:([\w.-]+/[\w.-]+)/([\w./-]+\.gguf)$")
 # llama.cpp's release builds, by (system, machine): the CPU (and, on a Mac, Metal) one
@@ -285,6 +285,38 @@ def server_binary(cfg):
     return str(hit) if hit else None
 
 
+def _github(url):
+    with _open(url, {"Accept": "application/vnd.github+json"}, timeout=30) as r:
+        return json.load(r)
+
+
+def _releases():
+    """llama.cpp's releases to take a build from, best first: the latest one; the build it names, as since v0.6.0 a
+    versioned release carries only the source and nightly-tag.txt, the tag (bNNNN) of the release with the builds; the
+    newest releases, should that file go."""
+    latest = _github(f"{RELEASES_API}/latest")
+    yield latest
+    pointer = next((a for a in latest.get("assets") or [] if a.get("name") == "nightly-tag.txt"), None)
+    if pointer:
+        with _open(pointer["browser_download_url"], timeout=30) as r:
+            tag = r.read(100).decode(errors="replace").strip()
+        if re.fullmatch(r"[\w.-]+", tag):
+            yield _github(f"{RELEASES_API}/tags/{tag}")
+    newest = _github(f"{RELEASES_API}?per_page=20")
+    yield from newest if isinstance(newest, list) else []
+
+
+def _runs(exe):
+    """None when llama-server starts on this machine, else why not (a build for a newer system, a missing library)."""
+    env = {**os.environ, "LD_LIBRARY_PATH": str(pathlib.Path(exe).parent)}
+    try:
+        p = subprocess.run([exe, "--version"], env=env, capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return str(e)
+    out = (p.stderr + p.stdout).strip().splitlines()
+    return None if p.returncode == 0 else (out[-1] if out else f"exit {p.returncode}")
+
+
 def fetch_server(cfg, say=None):
     """llama.cpp's latest release build for this platform into data_dir/bin/llama.cpp. Returns llama-server's path."""
     want = ASSETS.get(_platform())
@@ -292,14 +324,17 @@ def fetch_server(cfg, say=None):
         raise LocalModelError(
             f"no llama.cpp build to fetch for {' '.join(_platform())}: install llama.cpp (llama-server on PATH) or set local_llm.server"
         )
+    latest = asset = None
     try:
-        with _open(RELEASES_API, {"Accept": "application/vnd.github+json"}, timeout=30) as r:
-            rel = json.load(r)
+        for rel in _releases():
+            latest = latest or rel.get("tag_name")
+            asset = next((a for a in rel.get("assets") or [] if want.search(a.get("name", "")) and a.get("state", "uploaded") == "uploaded"), None)  # fmt: skip
+            if asset:
+                break
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
         raise LocalModelError(f"can't reach llama.cpp's releases on GitHub: {getattr(e, 'reason', e)}") from None
-    asset = next((a for a in rel.get("assets") or [] if want.search(a.get("name", ""))), None)
     if not asset:
-        raise LocalModelError(f"llama.cpp {rel.get('tag_name')} has no build for {' '.join(_platform())}; install llama-server yourself")
+        raise LocalModelError(f"llama.cpp {latest} has no build for {' '.join(_platform())}; install llama-server yourself")
     root = pathlib.Path(cfg["data_dir"]) / "bin" / "llama.cpp"
     tmp = root.parent / asset["name"]
     root.parent.mkdir(parents=True, exist_ok=True)
@@ -334,6 +369,12 @@ def fetch_server(cfg, say=None):
     if not exe:
         raise LocalModelError("the llama.cpp download has no llama-server in it")
     exe.chmod(0o755)
+    why = _runs(str(exe))
+    if why:
+        raise LocalModelError(
+            f"llama.cpp {rel.get('tag_name')}'s build for {' '.join(_platform())} doesn't run here ({why}); "
+            "install llama-server yourself or set local_llm.server"
+        )
     return str(exe)
 
 
