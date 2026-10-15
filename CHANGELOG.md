@@ -4,6 +4,8 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+## 0.12.0 <small>October 15, 2026</small> {id="0.12.0"}
+
 - **microsandbox runs on Debian 13 too.** Its sandbox now starts from `python:3.12-slim-trixie`, like the backend
   image, so a local model runs there on a Mac with Apple silicon. The packages kept from the earlier Debian are
   cleared on the next start ([microsandbox](docs/microsandbox.md#how-it-runs)).
