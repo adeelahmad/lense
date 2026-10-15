@@ -12689,6 +12689,12 @@ export type NfsStatus = {
    * whether rclone is installed here
    */
   rclone: boolean;
+  /**
+   * Add Files
+   *
+   * whether files written to the share are imported (nfs.add_files); off: read-only
+   */
+  add_files?: boolean;
   [key: string]: unknown;
 };
 

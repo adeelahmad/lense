@@ -226,7 +226,7 @@ def _amz_time(s):
 def verify(db, cfg, method, raw_path, pairs, headers, now=None, chunks=None):
     """Check a request's signature; the account it acts as. `pairs`: the query string's (name, value) pairs, `headers`
     lowercased names to values. `chunks`, a dict, gets what a streaming body's chunks are signed with
-    (http_body.Signed) under "signed"."""
+    (http_body.Signed) under "signed", and the service the key was made for (NFS: "nfs"), if any, under "service"."""
     now = now or dt.datetime.now(dt.timezone.utc)
     q = dict(pairs)
     presigned = "X-Amz-Signature" in q
@@ -277,6 +277,7 @@ def verify(db, cfg, method, raw_path, pairs, headers, now=None, chunks=None):
     if chunks is not None:
         stamp = amz or when.strftime("%Y%m%dT%H%M%SZ")
         chunks["signed"] = http_body.Signed(signing_key(secret, date, region, service), stamp, "/".join(scope[1:]), sig)
+        chunks["service"] = db.one("SELECT VALUE service FROM $r", r=R("file_key", kid.upper()))
     return acct
 
 
@@ -464,9 +465,10 @@ class Handler(http_body.Lingering):
             chunks: dict[str, Any] = {}
             acct = verify(db, cfg, self.command, raw, pairs, headers, chunks=chunks)
             raw = shares.share_path(raw, prefix)
-            if not share_import.accepting(cfg, "s3"):
+            via = chunks.get("service") if chunks.get("service") in share_import.PROTOCOLS else "s3"  # the NFS share's key
+            if not share_import.accepting(cfg, via):
                 raise S3Error(403, "AccessDenied", "the file tree is read-only")
-            adder = share_import.Adder(db, cfg, acct, "s3")
+            adder = share_import.Adder(db, cfg, acct, via)
             bucket, _, key = urllib.parse.unquote(raw).lstrip("/").partition("/")
             q = dict(pairs)
             if not bucket or (not key and self.command != "POST"):

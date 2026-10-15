@@ -70,8 +70,8 @@ listed under [In progress](#in-progress), and what comes next under [Planned](#p
   answer OpenAI's chat completions API for any app, cited from that namespace alone, each off until its owner turns it
   on, with API keys that open that one namespace and nothing else. The same folders and files can be mounted over S3,
   WebDAV, NFS or SMB (S3 and WebDAV also at the web app's address, through remote access), so file managers and scripts
-  read Lens too, and a file copied in over S3, WebDAV or SMB is imported where it was put. The web app runs on the same
-  REST API, so an agent can do what a person can. ([MCP](docs/mcp.md), [one namespace's MCP
+  read Lens too, and a file copied into any of them is imported where it was put. The web app runs on the same REST
+  API, so an agent can do what a person can. ([MCP](docs/mcp.md), [one namespace's MCP
   server](docs/mcp.md#one-namespaces-mcp-server), [chat completions](docs/api.md#chat-completions-for-any-app),
   [API](docs/api.md), [the graph as files](docs/file-tree.md), [authentication](docs/authentication.md);
   [checks](docs/requirements.md#connect-your-agents))
