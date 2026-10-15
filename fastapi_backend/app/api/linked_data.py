@@ -16,7 +16,7 @@ from fastapi.responses import RedirectResponse, Response
 
 from app.api.deps import Acl, Cfg, Db, OptionalUser
 from app.api.iiif import _rec, base_url
-from app.domain import rdf
+from app.domain import rdf, store, wiki
 from app.domain.store import R
 
 router = APIRouter(include_in_schema=False, tags=["linked-data"])
@@ -75,9 +75,12 @@ def collection(cid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, format: s
 
 @router.get("/id/entity/{eid}")
 def entity(eid: int, request: Request, acl: Acl, db: Db, cfg: Cfg, format: str | None = FORMAT) -> Response:
-    _member_of(acl, (db.one("SELECT space FROM $r", r=R("entity", eid)) or {}).get("space"))
+    e = db.one("SELECT space, name FROM $r", r=R("entity", eid)) or {}
+    _member_of(acl, e.get("space"))
     base, fmt = base_url(request, cfg), wanted(request, format)
-    return rdf_response(rdf.entity_graph(db, base, eid), fmt) if fmt else _see(f"{base}/entities/{eid}")
+    if not fmt:  # its page, by name
+        return _see(base + wiki.path(store.space_names(db).get(e["space"]) or "", e["name"]))
+    return rdf_response(rdf.entity_graph(db, base, eid), fmt)
 
 
 @router.get("/id/topic/{tid}")

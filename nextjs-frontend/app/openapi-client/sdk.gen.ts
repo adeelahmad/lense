@@ -85,6 +85,9 @@ import type {
   CancelJobData,
   CancelJobErrors,
   CancelJobResponses,
+  CancelRcloneSigninData,
+  CancelRcloneSigninErrors,
+  CancelRcloneSigninResponses,
   CancelUploadData,
   CancelUploadErrors,
   CancelUploadResponses,
@@ -436,8 +439,14 @@ import type {
   FindSimilarData,
   FindSimilarErrors,
   FindSimilarResponses,
+  FindWikiPageData,
+  FindWikiPageErrors,
+  FindWikiPageResponses,
   FinishData,
   FinishErrors,
+  FinishRcloneSigninData,
+  FinishRcloneSigninErrors,
+  FinishRcloneSigninResponses,
   FinishResponses,
   FinishTourData,
   FinishTourResponses,
@@ -1352,6 +1361,9 @@ import type {
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
+  StartRcloneSigninData,
+  StartRcloneSigninErrors,
+  StartRcloneSigninResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -6502,6 +6514,21 @@ export class Entities {
   }
 
   /**
+   * Find Wiki Page
+   *
+   * The page /wiki/<ns>/<address> names: the entity called that (spaces as underscores, any case), or the one a name
+   * it had before a rename or a merge now belongs to. When `canonical` is false, show `path` instead.
+   */
+  public static findWikiPage<ThrowOnError extends boolean = false>(
+    options: Options<FindWikiPageData, ThrowOnError>,
+  ): RequestResult<FindWikiPageResponses, FindWikiPageErrors, ThrowOnError> {
+    return (options.client ?? client).get<FindWikiPageResponses, FindWikiPageErrors, ThrowOnError>({
+      url: "/api/v1/wiki/{ns}/{address}",
+      ...options,
+    });
+  }
+
+  /**
    * List Entity Mentions
    *
    * Every line that mentions the entity; `highlight` is the [start, end) of the mention in `text`. sort: newest, oldest, most.
@@ -7998,6 +8025,62 @@ export class Sources {
   ): RequestResult<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Start Rclone Signin
+   *
+   * Connect Google Drive (with no Google app set up here), Dropbox or OneDrive by signing in through rclone on this
+   * server, or sign a connection in again (`source`). Open `url` in a browser and sign in; the service then sends the
+   * browser to http://127.0.0.1:53682/?…, which only loads on the machine Lens runs on. Hand that address to
+   * POST /sources/rclone-signin/{id}, which makes the connection. One at a time: this ends any other.
+   */
+  public static startRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<StartRcloneSigninData, ThrowOnError>,
+  ): RequestResult<StartRcloneSigninResponses, StartRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartRcloneSigninResponses, StartRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Cancel Rclone Signin
+   *
+   * Stop a sign-in through rclone.
+   */
+  public static cancelRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<CancelRcloneSigninData, ThrowOnError>,
+  ): RequestResult<CancelRcloneSigninResponses, CancelRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).delete<CancelRcloneSigninResponses, CancelRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Finish Rclone Signin
+   *
+   * Finish signing in through rclone with the address the browser ended on (`address`), or, without one, look
+   * whether rclone already got it. Answers the connection, made and tested, or none while it waits. 400: that address
+   * isn't this sign-in's, and it's still waiting for the right one; 410: it didn't work (cancelled, refused, ran out),
+   * and it's over; start again. Audited as `source.signin`.
+   */
+  public static finishRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<FinishRcloneSigninData, ThrowOnError>,
+  ): RequestResult<FinishRcloneSigninResponses, FinishRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).post<FinishRcloneSigninResponses, FinishRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin/{fid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

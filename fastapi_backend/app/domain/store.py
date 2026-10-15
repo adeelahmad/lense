@@ -1267,6 +1267,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS worker SCHEMALESS",
     # storage
     "DEFINE TABLE IF NOT EXISTS storage_source SCHEMALESS",
+    # a sign-in through rclone on this server, waiting for the browser to come back (domain/rclone_signin.py):
+    # rclone_signin:<random>, one at a time, for ten minutes
+    "DEFINE TABLE IF NOT EXISTS rclone_signin SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS watch_path SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS watch_path_source ON watch_path FIELDS source",
     "DEFINE TABLE IF NOT EXISTS remote_file SCHEMALESS",
