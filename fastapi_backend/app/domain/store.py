@@ -1276,6 +1276,9 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS timer_due ON timer FIELDS status, at",
     "DEFINE INDEX IF NOT EXISTS timer_automation ON timer FIELDS automation, status",
     "DEFINE INDEX IF NOT EXISTS timer_done ON timer FIELDS done_at",
+    # automations (domain/automations.py, docs/automations.md): automation:<n>
+    "DEFINE TABLE IF NOT EXISTS automation SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS automation_enabled ON automation FIELDS enabled",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
     # review marks on the timeline (domain/event_marks.py, docs/timeline.md): each person's reviewed, important and
     # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)

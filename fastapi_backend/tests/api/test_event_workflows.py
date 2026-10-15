@@ -5,7 +5,7 @@ activity or a kind's sample, with what each action would do."""
 from __future__ import annotations
 
 from app.domain import ingest
-from tests.helpers import login, make_user, seed
+from tests.helpers import login, make_user, seed, without
 
 URL = "/api/v1/workflows"
 
@@ -29,7 +29,8 @@ def _root(client, db):
     return login(client, "root@x.io", "root password 1")
 
 
-def test_event_workflows_are_checked_and_kept_apart(client, db, cfg):
+def test_event_workflows_are_checked_and_kept_apart(client, db, cfg, monkeypatch):
+    without(monkeypatch, "match")  # deciding comes with its own module
     h = _root(client, db)
     rec = ingest.import_text(db, cfg, "pods", "Alice: Hello.", title="Hello")
     cat = client.get(URL, headers=h).json()

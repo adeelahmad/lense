@@ -142,6 +142,9 @@ import type {
   ControlWorkerData,
   ControlWorkerErrors,
   ControlWorkerResponses,
+  CreateAutomationData,
+  CreateAutomationErrors,
+  CreateAutomationResponses,
   CreateBatchData,
   CreateBatchErrors,
   CreateBatchResponses,
@@ -279,6 +282,9 @@ import type {
   DefineEntityData,
   DefineEntityErrors,
   DefineEntityResponses,
+  DeleteAutomationData,
+  DeleteAutomationErrors,
+  DeleteAutomationResponses,
   DeleteBackupData,
   DeleteBackupErrors,
   DeleteBackupResponses,
@@ -416,6 +422,9 @@ import type {
   EditSegmentData,
   EditSegmentErrors,
   EditSegmentResponses,
+  EnableAutomationData,
+  EnableAutomationErrors,
+  EnableAutomationResponses,
   EntityToTopicData,
   EntityToTopicErrors,
   EntityToTopicResponses,
@@ -480,6 +489,9 @@ import type {
   GetAudioData,
   GetAudioErrors,
   GetAudioResponses,
+  GetAutomationData,
+  GetAutomationErrors,
+  GetAutomationResponses,
   GetBatchData,
   GetBatchErrors,
   GetBatchResponses,
@@ -769,6 +781,8 @@ import type {
   ListAccessRequestsData,
   ListAccessRequestsErrors,
   ListAccessRequestsResponses,
+  ListActionsData,
+  ListActionsResponses,
   ListActivitiesData,
   ListActivitiesErrors,
   ListActivitiesResponses,
@@ -785,6 +799,9 @@ import type {
   ListAuditData,
   ListAuditErrors,
   ListAuditResponses,
+  ListAutomationsData,
+  ListAutomationsErrors,
+  ListAutomationsResponses,
   ListBackendsData,
   ListBackendsResponses,
   ListBackupsData,
@@ -1233,6 +1250,9 @@ import type {
   ResourceTotalsData,
   ResourceTotalsErrors,
   ResourceTotalsResponses,
+  RestoreAutomationData,
+  RestoreAutomationErrors,
+  RestoreAutomationResponses,
   RestoreBackupData,
   RestoreBackupErrors,
   RestoreBackupResponses,
@@ -1371,6 +1391,9 @@ import type {
   SetNamespaceFacesModeData,
   SetNamespaceFacesModeErrors,
   SetNamespaceFacesModeResponses,
+  SetPolicyData,
+  SetPolicyErrors,
+  SetPolicyResponses,
   SetRecordingContentTypeData,
   SetRecordingContentTypeErrors,
   SetRecordingContentTypeResponses,
@@ -1536,6 +1559,9 @@ import type {
   UpdateAssistantMemoryData,
   UpdateAssistantMemoryErrors,
   UpdateAssistantMemoryResponses,
+  UpdateAutomationData,
+  UpdateAutomationErrors,
+  UpdateAutomationResponses,
   UpdateChatData,
   UpdateChatErrors,
   UpdateChatResponses,
@@ -3808,6 +3834,152 @@ export class Automations {
   ): RequestResult<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError> {
     return (options.client ?? client).post<CallAutomationHookResponses, CallAutomationHookErrors, ThrowOnError>({
       url: "/api/v1/automations/hooks/{token}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Automations
+   *
+   * Your automations: every one for an admin, else those that work only in namespaces you can edit. `removed`
+   * lists the deleted ones instead, to restore.
+   */
+  public static listAutomations<ThrowOnError extends boolean = false>(
+    options?: Options<ListAutomationsData, ThrowOnError>,
+  ): RequestResult<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError> {
+    return (options?.client ?? client).get<ListAutomationsResponses, ListAutomationsErrors, ThrowOnError>({
+      url: "/api/v1/automations",
+      ...options,
+    });
+  }
+
+  /**
+   * Create Automation
+   *
+   * A new automation that acts for you. Its Then is a graph (saved as a workflow of scope event) or a saved
+   * workflow; its namespaces default to each one you can edit. Nodes ask first unless you let one run on its own
+   * (POST /automations/{id}/policy).
+   */
+  public static createAutomation<ThrowOnError extends boolean = false>(
+    options: Options<CreateAutomationData, ThrowOnError>,
+  ): RequestResult<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<CreateAutomationResponses, CreateAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * List Actions
+   *
+   * What an action node can do: each action's params (a JSON Schema), what it reaches (its effect) and what it
+   * gives back.
+   */
+  public static listActions<ThrowOnError extends boolean = false>(
+    options?: Options<ListActionsData, ThrowOnError>,
+  ): RequestResult<ListActionsResponses, unknown, ThrowOnError> {
+    return (options?.client ?? client).get<ListActionsResponses, unknown, ThrowOnError>({
+      url: "/api/v1/automations/actions",
+      ...options,
+    });
+  }
+
+  /**
+   * Delete Automation
+   *
+   * Delete it: switched off and hidden; POST /automations/{id}/restore undoes it.
+   */
+  public static deleteAutomation<ThrowOnError extends boolean = false>(
+    options: Options<DeleteAutomationData, ThrowOnError>,
+  ): RequestResult<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).delete<DeleteAutomationResponses, DeleteAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Get Automation
+   */
+  public static getAutomation<ThrowOnError extends boolean = false>(
+    options: Options<GetAutomationData, ThrowOnError>,
+  ): RequestResult<GetAutomationResponses, GetAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).get<GetAutomationResponses, GetAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Update Automation
+   *
+   * Change what is sent: a new graph is saved as a new version of its workflow; `if: null` drops its If,
+   * `version: null` follows the published version.
+   */
+  public static updateAutomation<ThrowOnError extends boolean = false>(
+    options: Options<UpdateAutomationData, ThrowOnError>,
+  ): RequestResult<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).patch<UpdateAutomationResponses, UpdateAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Enable Automation
+   *
+   * Switch it on (it reacts to what happens from now on, never to what happened while it was off) or off.
+   */
+  public static enableAutomation<ThrowOnError extends boolean = false>(
+    options: Options<EnableAutomationData, ThrowOnError>,
+  ): RequestResult<EnableAutomationResponses, EnableAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<EnableAutomationResponses, EnableAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/enable",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Restore Automation
+   *
+   * Undo a delete: it comes back switched off.
+   */
+  public static restoreAutomation<ThrowOnError extends boolean = false>(
+    options: Options<RestoreAutomationData, ThrowOnError>,
+  ): RequestResult<RestoreAutomationResponses, RestoreAutomationErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreAutomationResponses, RestoreAutomationErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Set Policy
+   *
+   * Whether an action node asks you first (ask) or runs on its own (auto). Only you, signed in to the web app,
+   * let a node run on its own: never an API key, an app or an agent.
+   */
+  public static setPolicy<ThrowOnError extends boolean = false>(
+    options: Options<SetPolicyData, ThrowOnError>,
+  ): RequestResult<SetPolicyResponses, SetPolicyErrors, ThrowOnError> {
+    return (options.client ?? client).post<SetPolicyResponses, SetPolicyErrors, ThrowOnError>({
+      url: "/api/v1/automations/{aid}/policy",
       ...options,
       headers: {
         "Content-Type": "application/json",

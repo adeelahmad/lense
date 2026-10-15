@@ -34,7 +34,8 @@ merged is called built.
 | Timers that outlast a restart and fire once across the API and the worker (`app/domain/timers.py`, [Time](#time)) | built |
 | Schedule, `at` and `relative` triggers, and actions that wait ([Time](#time)) | planned |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
-| Storing and running automations, joins, approvals, variables, the studio | planned |
+| Saving automations: checks, namespaces, switching on and off, delete and restore, the policy, the API (`app/domain/automations.py`) | built |
+| Running automations, joins, approvals, variables, the studio | planned |
 
 ## Contract
 
@@ -291,8 +292,8 @@ tree, `path` (when given) is the part of the value the tree tests. Graphs saved 
 
 ### Automations: triggers and joins
 
-Built as shapes with checks (`app/domain/automation_spec.py`); storing and running automations is planned. Each check
-gives a cleaned copy, or a ValueError naming the first problem.
+Built as shapes with checks (`app/domain/automation_spec.py`), and saved ([Saving automations](#saving-automations));
+running them is planned. Each check gives a cleaned copy, or a ValueError naming the first problem.
 
 ```json
 {"name": "School emails", "enabled": true, "spaces": [3], "run_as": 1,
@@ -578,6 +579,51 @@ def _(db, cfg, payload): ...                              # payload + late (true
 - **Light.** No timer exists until an automation uses time. While none waits the thread doesn't query the table: it
   checks once a minute, and at once when this process sets one. A timer set by the other process (the API, when the
   worker fires them) can so fire up to a minute late.
+## Saving automations
+
+Built (`app/domain/automations.py`, `POST /api/v1/automations`); running them is planned. An automation acts for the
+person who made it (`run_as`), with their permissions, in namespaces they can edit:
+
+```json
+{"name": "Say new assets", "triggers": [{"as": "new", "on": "event", "kinds": ["asset.added"]}],
+ "if": {"all": [{"path": "event.object.media", "op": "equals", "value": "audio"}]},
+ "graph": {"nodes": [{"id": "i", "type": "input", "config": {}},
+                     {"id": "a", "type": "action", "config": {"action": "log_line",
+                                                              "params": {"text": "New: {{ event.object.name }}"}}}],
+           "edges": [{"source": "i", "target": "a"}]}}
+```
+
+- **Namespaces** (`spaces`): ones its person can edit. Left out, it is each namespace they can edit; an admin's
+  works in every namespace (`null`), now and to come.
+- **The Then** is a `graph` ([The event workflow scope](#the-event-workflow-scope)), saved as a workflow of scope
+  `event` named after the automation, or a saved event workflow (`workflow`, with `version`, or none to follow the
+  published one). Saving a new graph saves a new version of its workflow, which it then follows.
+- **Credentials** in an `http_request` node's headers ([Calling a web address](#calling-a-web-address)) are sealed
+  when its graph is saved, with the key of its first namespace (the first there is, for one that works everywhere),
+  bound to the automation and to the node's `url`. A value holding `{{ }}` is filled in when it runs and stays as
+  written, and a credential needs the `url` written out, not a template. Reading the automation back gives the sealed
+  value, and saving that again keeps it.
+- **Checks** when it is saved: the triggers, the join and the If as in [the contract](#automations-triggers-and-joins),
+  the graph, the namespaces, `limits` (`cooldown`, like `10m`, default `0s`; `max_per_hour`, 1 to 3600, default 60)
+  and the policy. Triggers on `schedule`, `at` and `relative`, and joins other than `any`, are refused as coming soon
+  until schedules ([Time](#time)) and joins are built; then saving sets its schedules.
+- **Webhook triggers** get their address when the automation is saved ([Webhook trigger](#webhook-trigger)): the
+  answer's `hooks` gives each new one's `url` and signing `secret`, shown this once, and the trigger keeps the hook's
+  id. Saving it again keeps its address; a webhook trigger dropped (or changed to another kind) loses it at once.
+- **Switching** (`POST /automations/{id}/enable {"on": true}`) records when it was last switched on (`enabled_at`):
+  running it (planned) reacts only to what happens after that, so switching one on never replays old activity. New
+  automations are on unless `enabled: false`.
+- **Deleting** switches it off and hides it; `POST /automations/{id}/restore` brings it back, switched off.
+- **The policy** (`{action node id: ask or auto}`): a node whose action reaches outside Lens or other
+  people, or changes something in Lens other than the event's own object, asks first. Only the person,
+  signed in to the web app, lets a node run on its own (`POST /automations/{id}/policy {"node": "a", "value":
+  "auto"}`); API keys, apps and agents get a 403, and saving through any other route refuses `auto` (a node already
+  on `auto` may stay so). A node that leaves the graph takes its pick with it.
+- **Who sees it**: admins see and change every automation; anyone else the ones that work only in namespaces they
+  can edit.
+
+`GET /api/v1/automations/actions` lists what an action node can do: each action's params (a JSON Schema), its effect
+and what it gives back.
 
 ## Refine later
 
@@ -632,3 +678,8 @@ def _(db, cfg, payload): ...                              # payload + late (true
 - Chat: recording every message in a room as an activity (opt-in per channel, off by default); a chat user who is
   also a Lens account as that person; a timeline page of others' private messages is read and left out, up to five
   source pages, so narrow it by account if that proves slow.
+- Deleted automations kept for a time, then removed with their runs (today they stay until restored).
+- Credentials in the headers of a saved event workflow an automation follows (`workflow`) sealed too (today only a
+  graph saved with the automation is; the workflow's are sent as written).
+- Webhook triggers: a trigger option for a hook that takes only signed calls (`token_for(..., signed=True)`), and a
+  new address for a trigger without saving it again.

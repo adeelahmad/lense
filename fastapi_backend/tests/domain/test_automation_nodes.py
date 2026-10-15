@@ -9,6 +9,7 @@ import pytest
 
 from app.domain import actions, automation_nodes, events, flow, match, workflows
 from app.domain.actions import ActionSpec
+from tests.helpers import without
 
 SAMPLE = events.kind_info("asset.added")["sample"]
 USER = {"id": 1, "email": "sam@x.io", "name": "Sam", "admin": True}
@@ -85,7 +86,8 @@ def _problem(db, g):
     return str(e.value)
 
 
-def test_event_workflows_are_checked_on_save(db, made):
+def test_event_workflows_are_checked_on_save(db, made, monkeypatch):
+    without(monkeypatch, "timers", "match")  # waiting and deciding come with their own modules
     assert "needs an action node" in _problem(db, graph(node("p", "pick", path="event"), edges=[edge("in", "p")]))
     assert "choose an action" in _problem(db, graph(node("a", "action", action="nope"), edges=[edge("in", "a")]))
     assert "needs Line (text)" in _problem(db, graph(node("a", "action", action="log_line"), edges=[edge("in", "a")]))

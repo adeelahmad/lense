@@ -216,3 +216,12 @@ def unmark(text):
 def marked(text, source):
     """`text` as the model reads it, marked as data from `source`, with its code written as X (unmark)."""
     return f'<untrusted-X source="{source}">\n{text}\n</untrusted-X>'
+
+
+def without(monkeypatch, *names):
+    """Hide modules of the workflow studio that land in their own steps (automation_nodes.module), so a check for
+    "coming soon" holds whether or not they are merged yet."""
+    from app.domain import automation_nodes
+
+    real = automation_nodes.module
+    monkeypatch.setattr(automation_nodes, "module", lambda name: None if name in names else real(name))
