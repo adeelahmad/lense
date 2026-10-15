@@ -4,6 +4,15 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **The web clipper takes your API token, or just signs in.** It used to take only an import webhook's token, so an API
+  token was refused with "Lens didn't recognise this token: make a new import webhook and paste its token". Now its
+  options have **Sign in**: Lens asks you to allow the clipper, nothing to copy, and clips go into the namespace you
+  pick (the popup offers each one you can add to). **Use a token instead** takes an API token with write access or a
+  hook's token, and when Lens refuses one the clipper says why: unknown, revoked, read-only, or a Lens too old for
+  API tokens. Anything acting as you (an agent, a script) can push to `POST /api/v1/hooks/import?namespace=` with
+  your own token too, and `GET` there says where a token's pushes go ([Web clipper](docs/web-clipper.md#setting-it-up),
+  [API](docs/api.md#import-webhooks)).
+
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 
 - **The assistant always answers.** When a question used up its tool steps (`ai.max_steps`), the assistant used to stop
