@@ -1271,6 +1271,10 @@ SCHEMA = [
     "DEFINE INDEX IF NOT EXISTS automation_state_expires ON automation_state FIELDS expires_at",
     "DEFINE TABLE IF NOT EXISTS automation_state_dropped SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS upload_recording ON upload FIELDS recording",
+    # review marks on the timeline (domain/event_marks.py, docs/timeline.md): each person's reviewed, important and
+    # hidden flags on an activity, event_mark:<hash of account and activity> (the id keeps the pair unique)
+    "DEFINE TABLE IF NOT EXISTS event_mark SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS event_mark_account ON event_mark FIELDS account",
     # every line of a run's log, in chunks (jobs.RunLog): job_log:<random>
     "DEFINE TABLE IF NOT EXISTS job_log SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS job_log_job ON job_log FIELDS job",
@@ -1314,6 +1318,10 @@ SCHEMA = [
     # the chat-room bridge (bridge.py): which process reads Matterbridge (bridge_state:lease); its conversations are
     # chats with a `bridge` key (the room and person)
     "DEFINE TABLE IF NOT EXISTS bridge_state SCHEMALESS",
+    # where each chat channel tells its account's person things nobody asked about yet (chat_route:<channel>: the
+    # private chat it last had with someone it vouches for; channels.tell)
+    "DEFINE TABLE IF NOT EXISTS chat_route SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS chat_route_account ON chat_route FIELDS account",
     # templates, pipelines, outputs, chat, edits
     "DEFINE TABLE IF NOT EXISTS template SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS template_version SCHEMALESS",

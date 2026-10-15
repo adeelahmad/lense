@@ -145,6 +145,12 @@ That's all. Without an account given, it answers as the admin who turned it on.
   answer looks there and says so once ("Looked in calls"); when it isn't, it looks everywhere and names the likeliest
   namespaces. **use pods** keeps the conversation in pods until **use everything**. The conversation's scope in Chat
   shows where the last question looked.
+- **Telling you things.** An automation that tells you something ([Automations](automations.md#telling-a-person))
+  sends it, as the account the bot or app answers as, to the private chat in Telegram or Slack it last had with
+  someone on its list of people who may talk to Lens. Nothing goes to a room or a group, which reaches other people
+  too, and nothing goes through Matterbridge, where Lens can't tell a private chat from a room. Message the bot or app
+  privately once and messages for you go there; until then an automation's run says "no chat app linked". Web
+  addresses in them are broken up as answers' are.
 - **One reader.** Matterbridge hands out each message once, so only one server process reads it: the API and the
   workers all run the bridge thread, and whichever holds the lease (renewed every look, given up when it stops or the
   bridge is turned off) does the reading. Settings → Chat rooms says whether it is listening and how many messages it answered.

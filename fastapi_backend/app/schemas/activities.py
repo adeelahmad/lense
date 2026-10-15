@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from pydantic import ConfigDict, Field
 
-from app.schemas.common import ResponseModel
+from app.schemas.common import RequestModel, ResponseModel
 
 
 class ActivityActor(ResponseModel):
@@ -49,10 +49,37 @@ class StreamActivity(ResponseModel):
     lens: ActivityLens
 
 
+class ActivityMark(ResponseModel):
+    """Your own review marks on an activity; nobody else sees them."""
+
+    reviewed: bool = False
+    important: bool = False
+    hidden: bool = False
+    at: str | None = Field(None, description="when you last marked it")
+
+
 class ActivityPage(ResponseModel):
     items: list[StreamActivity] = Field(description="newest first")
     next: str | None = Field(None, description="give it as before for the page after; null at the end")
     namespaces: dict[str, str] = Field(default_factory=dict, description="the names of the namespaces in items, by id")
+    marks: dict[str, ActivityMark] = Field(default_factory=dict, description="your marks on items, by id (those you marked)")
+
+
+class MarkIn(RequestModel):
+    """Marks to set: each given true or false; one left out stays as it is."""
+
+    reviewed: bool | None = None
+    important: bool | None = None
+    hidden: bool | None = None
+
+
+class MarksIn(MarkIn):
+    ids: list[str] = Field(min_length=1, max_length=500, description="the activities' ids")
+
+
+class MarksOut(ResponseModel):
+    marks: dict[str, ActivityMark] = Field(description="your marks now, by id")
+    unknown: list[str] = Field(default_factory=list, description="ids of activities there are none of, or you can't see")
 
 
 class ActivityKind(ResponseModel):
