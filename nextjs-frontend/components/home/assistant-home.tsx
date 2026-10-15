@@ -73,7 +73,7 @@ export function AssistantHome({ switcher }: { switcher?: ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-4rem)] flex-col px-4 md:px-8">
+    <div className="flex min-h-[calc(100dvh-4rem-var(--lens-banner,0px))] flex-col px-4 md:px-8">
       {switcher && <div className="flex justify-end pt-5 md:pt-6">{switcher}</div>}
       <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col items-center justify-center gap-7 pb-[10vh] pt-8">
         <div className="flex flex-col items-center gap-3">
