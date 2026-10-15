@@ -121,6 +121,31 @@ def test_only_public_addresses_on_web_ports(cfg):
     assert webcapture.placeholder("https://example.org/news/item?id=4") == "example.org/news/item?id=4"
 
 
+def test_an_admin_allows_a_private_network_in_settings(app, client, db):
+    """documents.web_networks is in Settings → Documents; this server (loopback) and the metadata address stay for
+    archive.yaml and LENS_WEB_NETWORKS on the server."""
+    make_user(db, "root@x.io", "root password 1", admin=True)
+    h = login(client, "root@x.io", "root password 1")
+    with pytest.raises(ValueError, match="isn't a public address"):
+        webcapture.check_url(app.state.settings.current(), "http://192.168.1.5/")
+    r = client.put("/api/v1/settings/documents", json={"web_networks": [" 192.168.1.9/24 ", "fd00::/8", "192.168.1.0/24"]}, headers=h)
+    assert r.status_code == 200, r.text
+    assert client.get("/api/v1/settings", headers=h).json()["documents"]["values"]["web_networks"] == ["192.168.1.0/24", "fd00::/8"]
+    assert webcapture.check_url(app.state.settings.current(), "http://192.168.1.5/") == "http://192.168.1.5/"
+    for bad, why in (
+        (["127.0.0.0/8"], "this server itself"),
+        (["169.254.169.254/32"], "metadata address"),
+        (["0.0.0.0/0"], "this server itself"),
+        (["::1/128"], "this server itself"),
+        (["fe80::/64"], "metadata address"),
+        (["192.168.1.0/33"], "isn't a network"),
+        ("192.168.1.0/24", "a list of networks"),
+    ):
+        r = client.put("/api/v1/settings/documents", json={"web_networks": bad}, headers=h)
+        assert r.status_code == 400 and why in r.json()["detail"], (bad, r.text)
+    assert app.state.settings.current()["documents"]["web_networks"] == ["192.168.1.0/24", "fd00::/8"]
+
+
 def test_file_names():
     assert webcapture.file_name("https://example.org/files/Annual%20Report.PDF", "Annual") == "annual-report.pdf"
     assert webcapture.file_name("https://example.org/news/", "Harbour news") == "harbour-news.pdf"

@@ -291,7 +291,7 @@ def test_calendar_addresses(feed, client, db, cfg, admin, monkeypatch):
     # what isn't public is refused, unless an admin allowed its network
     cfg["documents"]["web_networks"] = []
     refused = health(feed, user="lens")
-    assert not refused["ok"] and "127.0.0.1 is on a private network" in refused["error"] and "LENS_WEB_NETWORKS" in refused["error"]
+    assert not refused["ok"] and "127.0.0.1 is on a private network" in refused["error"] and "Settings → Documents" in refused["error"]
     cfg["documents"]["web_networks"] = ["127.0.0.0/8"]
     assert health(feed, user="lens")["ok"]
     # its password isn't sent on to another server it redirects to

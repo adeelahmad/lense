@@ -243,6 +243,7 @@ each the first time it's needed; without them, PDFs and images are read as befor
 | `documents.convert_seconds` | 300 | how long making one PDF may take before its job fails, 10–3600 seconds |
 | `documents.attachment_resources` | true | whether an email's attachments that Lens can read (documents, images, audio, video, emails) also become resources of their own; they're kept as its files either way |
 | `documents.video_urls` | false | whether videos and podcasts can be imported by their address ([API](api.md#videos-and-podcasts)): their media is downloaded with yt-dlp, which Lens fetches on first use |
+| `documents.web_networks` | `[]` | private networks (CIDR, such as `192.168.1.0/24`) that web pages, calendar feeds and videos may be fetched from besides the public internet: for an intranet, or a calendar server at home. The web app can't list this machine (loopback) or link-local addresses, where clouds answer with the server's own credentials; archive.yaml or `LENS_WEB_NETWORKS` in `.env` (comma-separated, added to archive.yaml's) can. Once it's saved in Settings, the saved list is the one used |
 | `documents.converter` | `auto` | who makes the PDFs: `auto` uses [anytopdf](#anytopdf) only for what LibreOffice and Chromium can't do here, `anytopdf` uses it for every document and image (and fetches it), `lens` never uses it |
 | `documents.anytopdf_url` | none | a conversion node: another machine running `anytopdf queue serve` and `anytopdf queue work`, such as `https://convert.home:8640`. Set, it converts instead of the program here |
 | `documents.anytopdf_token` | none | the node's bearer token (its `ANYTOPDF_QUEUE_TOKEN`), kept encrypted |
@@ -257,7 +258,6 @@ Set at startup only (the config file; the web app can't choose what the server r
 | `documents.soffice` | `soffice` or `libreoffice` on PATH | LibreOffice |
 | `documents.chromium` | the first of `chromium`, `chromium-browser`, `google-chrome`, `google-chrome-stable`, `chrome` on PATH | Chromium or Chrome (a headless shell works too); it also captures web pages ([API](api.md#web-pages)) |
 | `documents.anytopdf` | the one Lens downloaded, else `anytopdf` on PATH | the anytopdf program |
-| `documents.web_networks` | `[]` | networks (CIDR, such as `10.20.0.0/16`) that web pages and calendar feeds may be fetched from besides the public internet: for an intranet, or a calendar server at home; loopback and cloud metadata addresses stay out unless listed. `LENS_WEB_NETWORKS` in `.env` (comma-separated) adds to it, for Docker and the packages |
 
 ### Apache Tika
 
