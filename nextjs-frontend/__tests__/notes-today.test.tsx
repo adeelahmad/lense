@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 import { Notes } from "@/app/openapi-client";
 import { NotesHome } from "@/components/notes/notes-home";
 import { TodayNote, localDay } from "@/components/notes/today";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 jest.mock("@/app/openapi-client", () => ({
   Notes: {
@@ -35,7 +36,7 @@ const m = (f: unknown) => f as jest.Mock;
 const show = (ui: React.ReactNode) =>
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      {ui}
+      <TooltipProvider>{ui}</TooltipProvider>
     </QueryClientProvider>,
   );
 

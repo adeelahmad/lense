@@ -692,6 +692,7 @@ GET    /api/v1/notes
 POST   /api/v1/notes
 POST   /api/v1/notes/today
 GET    /api/v1/notes/search
+GET    /api/v1/notes/export
 GET    /api/v1/notes/deleted
 POST   /api/v1/notes/deleted/{pid}/restore
 DELETE /api/v1/notes/deleted/{pid}
@@ -701,6 +702,7 @@ DELETE /api/v1/notes/{pid}
 POST   /api/v1/notes/{pid}/move
 PUT    /api/v1/notes/{pid}/pin
 DELETE /api/v1/notes/{pid}/pin
+GET    /api/v1/notes/{pid}/markdown
 GET    /api/v1/notes/{pid}/history
 GET    /api/v1/notes/{pid}/history/{vid}
 POST   /api/v1/notes/{pid}/history/{vid}/restore
@@ -717,7 +719,8 @@ matches first, each with the words around the match ([Finding notes](notes.md#fi
 moves a page to recently deleted for 30 days: `deleted` lists them, `restore` puts one back where it was and
 `DELETE /notes/deleted/{pid}` deletes one for good ([Deleting](notes.md#deleting-and-putting-back)). `move` puts a
 free note inside `parent` before `before`. `PUT …/pin` pins a page for you (`pinned` on each page says whether you
-did) and `DELETE …/pin` unpins it ([Pinned notes](notes.md#pinned-notes)). `history` lists what the page was before
+did) and `DELETE …/pin` unpins it ([Pinned notes](notes.md#pinned-notes)). `markdown` gives a page as a Markdown file and
+`export?ns=` every page of a namespace as a zip of them ([Downloading](notes.md#downloading-as-markdown)). `history` lists what the page was before
 each change, and `restore` puts an earlier version back (what it was becomes a version too). `files`
 lists the files and images attached to a page; `blobs` uploads (in chunks) and reads them, and `DELETE …/files?key=`
 removes one.

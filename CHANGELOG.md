@@ -4,6 +4,9 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
+- **Download notes as Markdown.** A note's ⋯ menu in the tree downloads it as a Markdown file, and the Notes page's ⋯
+  menu downloads all of a namespace's notes as a zip in folders that follow the tree, for Obsidian and other notes apps
+  ([Downloading as Markdown](docs/notes.md#downloading-as-markdown)).
 - **Today's note.** Today on the Notes page, or Today's note in Jump to, opens the note for the day, made the first
   time it's asked for inside a Daily notes note ([Today's note](docs/notes.md#todays-note)).
 - **Pin notes.** A note's ⋯ menu in the tree has Pin: pinned notes show at the top of the tree and first on the

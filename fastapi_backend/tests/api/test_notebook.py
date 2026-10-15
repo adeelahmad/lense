@@ -591,3 +591,39 @@ def test_daily_notes(client, env, db):
     assert client.delete(f"/api/v1/notes/{root['id']}", headers=he).status_code == 200
     again = client.post("/api/v1/notes/today", headers=he, json={"ns": "pods", "date": "2026-10-17"}).json()
     assert again["parent"] not in (None, root["id"])
+
+
+def test_markdown_export(client, env, db):
+    import io
+    import zipfile
+
+    he, hv, hx = env["he"], env["hv"], env["hx"]
+    plans = _new(client, he, title="Plans: Q4", summary="What's next", place="project")
+    old = _new(client, he, title="Hiring", parent=plans["id"])
+    _new(client, he, title="Budget", parent=plans["id"])
+    _new(client, he, title="budget", parent=plans["id"])  # the same title twice in one place
+    ada = _entity(db, "Ada Lovelace", "PERSON")
+    body = f"Talk to @[Ada](entity:{ada['id']}) about @[Hiring](page:{old['id']})."
+    client.patch(f"/api/v1/notes/{plans['id']}", headers=he, json={"body": body})
+    client.patch(f"/api/v1/notes/{old['id']}", headers=he, json={"title": "Hiring plan"})
+    _new(client, he, title="Ada's page", about=f"entity:{ada['id']}")
+
+    r = client.get(f"/api/v1/notes/{plans['id']}/markdown", headers=hv)
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/markdown")
+    assert "Plans  Q4.md" not in r.headers["content-disposition"] and "Plans Q4.md" in r.headers["content-disposition"]
+    assert r.text.startswith('---\ntitle: "Plans: Q4"\n')
+    assert 'place: "project"' in r.text and 'summary: "What\'s next"' in r.text
+    assert r.text.endswith("Talk to Ada about [[Hiring plan]].\n")  # the page's title now, the entity's name
+    assert client.get(f"/api/v1/notes/{plans['id']}/markdown", headers=hx).status_code == 404
+
+    r = client.get("/api/v1/notes/export?ns=pods", headers=hv)
+    assert r.status_code == 200 and r.headers["content-type"] == "application/zip"
+    names = sorted(zipfile.ZipFile(io.BytesIO(r.content)).namelist())
+    assert names == [
+        "Pages of things/Entities/Ada's page.md",
+        "Plans Q4.md",
+        "Plans Q4/Budget.md",
+        "Plans Q4/Hiring plan.md",
+        "Plans Q4/budget (2).md",
+    ]
+    assert client.get("/api/v1/notes/export?ns=pods", headers=hx).status_code == 404

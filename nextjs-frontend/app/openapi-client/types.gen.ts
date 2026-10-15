@@ -27453,6 +27453,36 @@ export type SearchPagesResponses = {
 
 export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
 
+export type ExportNotesData = {
+  body?: never;
+  path?: never;
+  query: {
+    /**
+     * Ns
+     */
+    ns: string;
+  };
+  url: "/api/v1/notes/export";
+};
+
+export type ExportNotesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ExportNotesError = ExportNotesErrors[keyof ExportNotesErrors];
+
+export type ExportNotesResponses = {
+  /**
+   * a zip of Markdown files
+   */
+  200: Blob | File;
+};
+
+export type ExportNotesResponse = ExportNotesResponses[keyof ExportNotesResponses];
+
 export type DeletedPagesData = {
   body?: never;
   path?: never;
@@ -27736,6 +27766,34 @@ export type HomeSuggestionsResponses = {
 };
 
 export type HomeSuggestionsResponse = HomeSuggestionsResponses[keyof HomeSuggestionsResponses];
+
+export type PageMarkdownData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/{pid}/markdown";
+};
+
+export type PageMarkdownErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PageMarkdownError = PageMarkdownErrors[keyof PageMarkdownErrors];
+
+export type PageMarkdownResponses = {
+  /**
+   * the page as a Markdown file
+   */
+  200: unknown;
+};
 
 export type PageHistoryData = {
   body?: never;
