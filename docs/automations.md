@@ -21,6 +21,7 @@ merged is called built.
 | Telling a person: the `notify` action and `channels.tell` (their own chat, a notification target, a Matterbridge room) | built |
 | The model and the agent: the `ask_model`, `call_tool` and `ask_agent` actions, and prompts with outside text marked | built |
 | Calling a web address: the `http_request` action, with credentials in headers kept sealed | built |
+| Running Lens work: the `run_workflow`, `run_pipeline` and `run_routine` actions | built |
 | Settings → Automations: how often followers look and how long the event log is kept | built |
 | The Timeline page with filters, grouping, review keys and new items, and Home's Latest card ([Timeline](timeline.md)) | built |
 | Storing and running automations, schedules and timers, joins, the other actions, approvals, variables, the studio | planned |
@@ -292,6 +293,9 @@ or removed does nothing. What it writes is by the automation itself, `automation
 | `call_tool` | calls one of the assistant's tools (`tool`, with `args`) as the automation | read: a change becomes an approval | `{tool, result, summary, approvals}` |
 | `ask_agent` | hands what happened (`about`, by default the event) to the agent with your `instructions`, limited to some `tools` if you like, for up to `max_steps` rounds (6, at most 12) | read: changes become approvals | `{answer, chat, approvals, steps}` |
 | `http_request` | sends a `method` (GET, POST or PUT) to a `url`, with `headers` and a `body` (text, or an object sent as JSON) | out | `{status, ok, body, json, content_type, truncated, method, url, headers}`: the answer, as outside text |
+| `run_workflow` | runs a recording `workflow` (its published `version`, or the one named) on an `asset` as a job | lens | `{job, workflow, version, asset}` |
+| `run_pipeline` | processes an `asset` again with a `pipeline` (or the one its namespace uses), keeping its outputs | lens | `{job, pipeline, asset}` |
+| `run_routine` | asks the scheduler to run a `routine` now (`propose_only` to only propose its changes) | lens, so it asks | `{routine, requested, propose_only}` |
 
 #### Telling a person
 
@@ -345,6 +349,16 @@ key ([Encryption](encryption.md)), bound to the automation and to the scheme, ho
 sealed value can't be copied into another automation or sent to another host; it is opened only to send. A locked
 vault stops the request until it is unlocked.
 
+#### Running Lens work
+
+`run_workflow` and `run_pipeline` take an `asset`: an asset id, or the activity's object (`lens:recording/<id>`, which
+is the default, `{{ event.object.id }}`). On the asset the activity is about, in the automation's namespaces, they run
+without asking; on any other, they ask first. They need the automation's person to be able to process assets in that
+namespace, queue a job (after whatever the asset's job still has to do) that shows as by "automation: <name>", and pass
+on the job's id. `run_routine` asks the scheduler to start a routine's run within half a minute, as Run in Settings
+does: routines are an admin's, the routine must work only in the automation's namespaces, a run over one of its budgets
+is refused, and it always asks first. The run's id shows in the routine's runs.
+
 ## Refine later
 
 - More operators: `in`, `matches` (bounded regular expressions), `between`, times against now, `changed`.
@@ -369,3 +383,5 @@ vault stops the request until it is unlocked.
 - Calling a web address: secrets in the address itself (a Slack or Discord webhook URL) sealed like headers; PATCH and
   DELETE (DELETE would count as deleting); OAuth sign-in for an API; form-encoded bodies; retries with backoff;
   networks allowed for automations apart from notifications.
+- Running Lens work: a routine run's id passed on (today the scheduler starts it later); waiting for the job and passing
+  on its outputs; roles on collections counting for `process`; running a pipeline on every asset a join collected.

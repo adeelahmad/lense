@@ -14,7 +14,7 @@ an intent out, or with `dry` says what it would do and changes nothing. An actio
 (`actor`). Params marked `"format": "prompt"` are prompts: the engine renders them with `render_prompt`, which wraps
 what the run read from outside Lens as data. `log_line` ships here; the other actions are registered by a module per
 group, loaded with this one: actions_messages.py (notify), actions_ai.py (ask_model, call_tool, ask_agent),
-actions_web.py (http_request).
+actions_web.py (http_request), actions_run.py (run_workflow, run_pipeline, run_routine).
 """
 
 from __future__ import annotations
@@ -243,6 +243,55 @@ def reach(db, intent, account):
     return readable, {s for s in readable if auth.allows(roles, s, "editor")}
 
 
+def allowed(db, account, space, perm):
+    """Whether the person's role in a namespace now has a permission (roles.py: edit, process, …)."""
+    return perm in auth.permissions(db, account).get(space, ())
+
+
+# ---------- the asset an action is about ----------
+EVENT_OBJECT = "{{ event.object.id }}"
+ASSET_RX = re.compile(r"^(?:lens:recording/)?(\d{1,12})$")
+
+
+def asset_id(v):
+    """An asset's id from a param: an id, or an activity's object id (lens:recording/<id>). ValueError otherwise."""
+    m = ASSET_RX.match(str("" if v is None else v).strip())
+    if not m:
+        raise ValueError(f"{v} isn't an asset: give an asset id, or run it on an activity about an asset")
+    return int(m.group(1))
+
+
+def asset_subject(p, key="asset"):
+    """The object an action on an asset changes, as activities name it, for resolve_risk; None when it can't tell."""
+    try:
+        return f"lens:recording/{asset_id(p.get(key))}"
+    except ValueError:
+        return None
+
+
+def asset_param(title="Asset"):
+    return {"title": title, "default": EVENT_OBJECT, "description": "an asset id, or the activity's object (lens:recording/<id>)"}
+
+
+def on_asset(p, key="asset"):
+    """The asset an action names, in words."""
+    a = p.get(key)
+    return "the asset it's about" if a in (None, EVENT_OBJECT) else f"asset {a}"
+
+
+def asset_for(db, intent, account, rid, perm):
+    """The asset {id, space, title, collection}, when it is in one of the automation's namespaces and the person's
+    role there now has `perm`. ValueError naming the problem."""
+    rec = db.one("SELECT space, title, collection FROM $r", r=store.R("recording", int(rid)))
+    if not rec:
+        raise ValueError(f"there's no asset {rid}")
+    if intent["spaces"] and rec["space"] not in intent["spaces"]:
+        raise ValueError(f"asset {rid} isn't in this automation's namespaces")
+    if not allowed(db, account, rec["space"], perm):
+        raise ValueError(f"{account['name']} can't {perm} assets in that namespace")
+    return {"id": int(rid), **rec}
+
+
 # ---------- prompts ----------
 def prompt_params(spec):
     """The names of an action's params that are prompts (format "prompt")."""
@@ -342,4 +391,4 @@ register(
 )
 
 
-from . import actions_ai, actions_messages, actions_web  # noqa: E402, F401 - they register their actions; loaded with the catalog
+from . import actions_ai, actions_messages, actions_run, actions_web  # noqa: E402, F401 - they register their actions; loaded with the catalog
