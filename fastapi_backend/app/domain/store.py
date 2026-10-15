@@ -1258,6 +1258,9 @@ SCHEMA = [
     "DEFINE TABLE IF NOT EXISTS worker SCHEMALESS",
     # storage
     "DEFINE TABLE IF NOT EXISTS storage_source SCHEMALESS",
+    # a sign-in through rclone on this server, waiting for the browser to come back (domain/rclone_signin.py):
+    # rclone_signin:<random>, one at a time, for ten minutes
+    "DEFINE TABLE IF NOT EXISTS rclone_signin SCHEMALESS",
     "DEFINE TABLE IF NOT EXISTS watch_path SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS watch_path_source ON watch_path FIELDS source",
     "DEFINE TABLE IF NOT EXISTS remote_file SCHEMALESS",
@@ -1416,6 +1419,9 @@ SCHEMA = [
     # what a page was before each change (notebook.snapshot): its history, to look back at and restore
     "DEFINE TABLE IF NOT EXISTS note_version SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_version_page ON note_version FIELDS page",
+    # deleted pages, under their own id, until they're put back or TRASH_DAYS pass (notebook.delete)
+    "DEFINE TABLE IF NOT EXISTS note_trash SCHEMALESS",
+    "DEFINE INDEX IF NOT EXISTS note_trash_space ON note_trash FIELDS space",
     # the files on a note page (images, attachments), kept where Settings → Storage says (notebook.py, blobs.py)
     "DEFINE TABLE IF NOT EXISTS note_file SCHEMALESS",
     "DEFINE INDEX IF NOT EXISTS note_file_page ON note_file FIELDS page, key",

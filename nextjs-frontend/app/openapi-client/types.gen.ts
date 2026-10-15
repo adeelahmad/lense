@@ -9823,6 +9823,41 @@ export type NoteCreate = {
 };
 
 /**
+ * NoteDeleted
+ */
+export type NoteDeleted = {
+  /**
+   * Id
+   */
+  id: number;
+  /**
+   * Title
+   */
+  title: string;
+  /**
+   * About
+   *
+   * what it was the page of, like "recording:12"; null for a free note
+   */
+  about?: string | null;
+  /**
+   * Namespace
+   */
+  namespace: string;
+  /**
+   * Deleted At
+   */
+  deleted_at: string;
+  /**
+   * Deleted By
+   *
+   * who deleted it (their email)
+   */
+  deleted_by?: string | null;
+  [key: string]: unknown;
+};
+
+/**
  * NoteFile
  */
 export type NoteFile = {
@@ -13211,6 +13246,105 @@ export type Pushed = {
    * Kept
    */
   kept: number;
+  [key: string]: unknown;
+};
+
+/**
+ * RcloneSignIn
+ */
+export type RcloneSignIn = {
+  /**
+   * Id
+   *
+   * this sign-in, to finish or cancel
+   */
+  id: string;
+  /**
+   * Url
+   *
+   * the service's sign-in page, to open in a browser (it asks to allow rclone); once, within ten minutes
+   */
+  url: string;
+  /**
+   * Port
+   *
+   * where the service sends the browser back afterwards: http://127.0.0.1:<port>/?state=…&code=…
+   */
+  port: number;
+  /**
+   * Expires At
+   */
+  expires_at: string;
+  [key: string]: unknown;
+};
+
+/**
+ * RcloneSignInFinish
+ */
+export type RcloneSignInFinish = {
+  /**
+   * Address
+   *
+   * the address the browser ended on after signing in (http://127.0.0.1:53682/?state=…&code=…); leave out to only look whether rclone already got it (a browser on the machine Lens runs on reaches it itself)
+   */
+  address?: string | null;
+};
+
+/**
+ * RcloneSignInStart
+ */
+export type RcloneSignInStart = {
+  /**
+   * Type
+   *
+   * the kind of connection to make (drive, dropbox, onedrive); leave out with `source`
+   */
+  type?:
+    | "s3"
+    | "dropbox"
+    | "drive"
+    | "onedrive"
+    | "sftp"
+    | "smb"
+    | "webdav"
+    | "local"
+    | "imap"
+    | "gmail"
+    | "ical"
+    | "gcal"
+    | null;
+  /**
+   * Source
+   *
+   * a connection to sign in again, instead of making a new one
+   */
+  source?: number | null;
+  /**
+   * Name
+   *
+   * the new connection's name; by default the service's
+   */
+  name?: string | null;
+  /**
+   * Params
+   *
+   * its options, as for POST /sources (scope, root_folder_id...)
+   */
+  params?: {
+    [key: string]: unknown;
+  } | null;
+};
+
+/**
+ * RcloneSignInState
+ */
+export type RcloneSignInState = {
+  /**
+   * Connected
+   *
+   * the connection, made or signed in again, and tested; none while it waits
+   */
+  connected?: number | null;
   [key: string]: unknown;
 };
 
@@ -26866,6 +27000,100 @@ export type SearchPagesResponses = {
 
 export type SearchPagesResponse = SearchPagesResponses[keyof SearchPagesResponses];
 
+export type DeletedPagesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Ns
+     *
+     * only this namespace (default: every one you can read)
+     */
+    ns?: string | null;
+  };
+  url: "/api/v1/notes/deleted";
+};
+
+export type DeletedPagesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeletedPagesError = DeletedPagesErrors[keyof DeletedPagesErrors];
+
+export type DeletedPagesResponses = {
+  /**
+   * Response Notes-Deleted Pages
+   *
+   * Successful Response
+   */
+  200: Array<NoteDeleted>;
+};
+
+export type DeletedPagesResponse = DeletedPagesResponses[keyof DeletedPagesResponses];
+
+export type RestoreDeletedData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/deleted/{pid}/restore";
+};
+
+export type RestoreDeletedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type RestoreDeletedError = RestoreDeletedErrors[keyof RestoreDeletedErrors];
+
+export type RestoreDeletedResponses = {
+  /**
+   * Successful Response
+   */
+  200: NotePage;
+};
+
+export type RestoreDeletedResponse = RestoreDeletedResponses[keyof RestoreDeletedResponses];
+
+export type PurgeDeletedData = {
+  body?: never;
+  path: {
+    /**
+     * Pid
+     */
+    pid: number;
+  };
+  query?: never;
+  url: "/api/v1/notes/deleted/{pid}";
+};
+
+export type PurgeDeletedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type PurgeDeletedError = PurgeDeletedErrors[keyof PurgeDeletedErrors];
+
+export type PurgeDeletedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type PurgeDeletedResponse = PurgeDeletedResponses[keyof PurgeDeletedResponses];
+
 export type PageAboutData = {
   body?: never;
   path: {
@@ -32780,6 +33008,91 @@ export type UpdateSourceResponses = {
 };
 
 export type UpdateSourceResponse = UpdateSourceResponses[keyof UpdateSourceResponses];
+
+export type StartRcloneSigninData = {
+  body: RcloneSignInStart;
+  path?: never;
+  query?: never;
+  url: "/api/v1/sources/rclone-signin";
+};
+
+export type StartRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type StartRcloneSigninError = StartRcloneSigninErrors[keyof StartRcloneSigninErrors];
+
+export type StartRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: RcloneSignIn;
+};
+
+export type StartRcloneSigninResponse = StartRcloneSigninResponses[keyof StartRcloneSigninResponses];
+
+export type CancelRcloneSigninData = {
+  body?: never;
+  path: {
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/sources/rclone-signin/{fid}";
+};
+
+export type CancelRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CancelRcloneSigninError = CancelRcloneSigninErrors[keyof CancelRcloneSigninErrors];
+
+export type CancelRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: Ok;
+};
+
+export type CancelRcloneSigninResponse = CancelRcloneSigninResponses[keyof CancelRcloneSigninResponses];
+
+export type FinishRcloneSigninData = {
+  body: RcloneSignInFinish;
+  path: {
+    /**
+     * Fid
+     */
+    fid: string;
+  };
+  query?: never;
+  url: "/api/v1/sources/rclone-signin/{fid}";
+};
+
+export type FinishRcloneSigninErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type FinishRcloneSigninError = FinishRcloneSigninErrors[keyof FinishRcloneSigninErrors];
+
+export type FinishRcloneSigninResponses = {
+  /**
+   * Successful Response
+   */
+  200: RcloneSignInState;
+};
+
+export type FinishRcloneSigninResponse = FinishRcloneSigninResponses[keyof FinishRcloneSigninResponses];
 
 export type TestSourceData = {
   body?: never;

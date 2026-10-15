@@ -85,6 +85,9 @@ import type {
   CancelJobData,
   CancelJobErrors,
   CancelJobResponses,
+  CancelRcloneSigninData,
+  CancelRcloneSigninErrors,
+  CancelRcloneSigninResponses,
   CancelUploadData,
   CancelUploadErrors,
   CancelUploadResponses,
@@ -285,6 +288,9 @@ import type {
   DeleteCustomNodeData,
   DeleteCustomNodeErrors,
   DeleteCustomNodeResponses,
+  DeletedPagesData,
+  DeletedPagesErrors,
+  DeletedPagesResponses,
   DeleteEntityData,
   DeleteEntityErrors,
   DeleteEntityResponses,
@@ -441,6 +447,9 @@ import type {
   FindWikiPageResponses,
   FinishData,
   FinishErrors,
+  FinishRcloneSigninData,
+  FinishRcloneSigninErrors,
+  FinishRcloneSigninResponses,
   FinishResponses,
   FinishTourData,
   FinishTourResponses,
@@ -1081,6 +1090,9 @@ import type {
   ProposeGraphChangeData,
   ProposeGraphChangeErrors,
   ProposeGraphChangeResponses,
+  PurgeDeletedData,
+  PurgeDeletedErrors,
+  PurgeDeletedResponses,
   PushData,
   PushResponses,
   PushStreamData,
@@ -1192,6 +1204,9 @@ import type {
   RestoreBackupData,
   RestoreBackupErrors,
   RestoreBackupResponses,
+  RestoreDeletedData,
+  RestoreDeletedErrors,
+  RestoreDeletedResponses,
   RestoreVersionData,
   RestoreVersionErrors,
   RestoreVersionResponses,
@@ -1358,6 +1373,9 @@ import type {
   SplitSegmentData,
   SplitSegmentErrors,
   SplitSegmentResponses,
+  StartRcloneSigninData,
+  StartRcloneSigninErrors,
+  StartRcloneSigninResponses,
   StartUpgradeData,
   StartUpgradeErrors,
   StartUpgradeResponses,
@@ -5179,6 +5197,48 @@ export class Notes {
   }
 
   /**
+   * Deleted Pages
+   *
+   * Pages deleted in the last 30 days, the latest first: each can be put back until then.
+   */
+  public static deletedPages<ThrowOnError extends boolean = false>(
+    options?: Options<DeletedPagesData, ThrowOnError>,
+  ): RequestResult<DeletedPagesResponses, DeletedPagesErrors, ThrowOnError> {
+    return (options?.client ?? client).get<DeletedPagesResponses, DeletedPagesErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted",
+      ...options,
+    });
+  }
+
+  /**
+   * Restore Deleted
+   *
+   * Put a deleted page back where it was, with its links, files and history (Undo after Delete). Editors.
+   */
+  public static restoreDeleted<ThrowOnError extends boolean = false>(
+    options: Options<RestoreDeletedData, ThrowOnError>,
+  ): RequestResult<RestoreDeletedResponses, RestoreDeletedErrors, ThrowOnError> {
+    return (options.client ?? client).post<RestoreDeletedResponses, RestoreDeletedErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted/{pid}/restore",
+      ...options,
+    });
+  }
+
+  /**
+   * Purge Deleted
+   *
+   * Delete a deleted page for good now, with its files and history, rather than after 30 days. Editors.
+   */
+  public static purgeDeleted<ThrowOnError extends boolean = false>(
+    options: Options<PurgeDeletedData, ThrowOnError>,
+  ): RequestResult<PurgeDeletedResponses, PurgeDeletedErrors, ThrowOnError> {
+    return (options.client ?? client).delete<PurgeDeletedResponses, PurgeDeletedErrors, ThrowOnError>({
+      url: "/api/v1/notes/deleted/{pid}",
+      ...options,
+    });
+  }
+
+  /**
    * Page About
    *
    * The page of an asset, entity, topic, collection or person: its page, or a draft while nobody has written one.
@@ -5195,7 +5255,8 @@ export class Notes {
   /**
    * Delete Page
    *
-   * Delete a page; the pages inside it move up a level. Needs editor access.
+   * Delete a page; the pages inside it move up a level. It can be put back from recently deleted for
+   * `TRASH_DAYS` (30) days (`POST /notes/deleted/{pid}/restore`). Needs editor access.
    */
   public static deletePage<ThrowOnError extends boolean = false>(
     options: Options<DeletePageData, ThrowOnError>,
@@ -8060,6 +8121,62 @@ export class Sources {
   ): RequestResult<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError> {
     return (options.client ?? client).patch<UpdateSourceResponses, UpdateSourceErrors, ThrowOnError>({
       url: "/api/v1/sources/{sid}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Start Rclone Signin
+   *
+   * Connect Google Drive (with no Google app set up here), Dropbox or OneDrive by signing in through rclone on this
+   * server, or sign a connection in again (`source`). Open `url` in a browser and sign in; the service then sends the
+   * browser to http://127.0.0.1:53682/?…, which only loads on the machine Lens runs on. Hand that address to
+   * POST /sources/rclone-signin/{id}, which makes the connection. One at a time: this ends any other.
+   */
+  public static startRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<StartRcloneSigninData, ThrowOnError>,
+  ): RequestResult<StartRcloneSigninResponses, StartRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).post<StartRcloneSigninResponses, StartRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    });
+  }
+
+  /**
+   * Cancel Rclone Signin
+   *
+   * Stop a sign-in through rclone.
+   */
+  public static cancelRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<CancelRcloneSigninData, ThrowOnError>,
+  ): RequestResult<CancelRcloneSigninResponses, CancelRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).delete<CancelRcloneSigninResponses, CancelRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin/{fid}",
+      ...options,
+    });
+  }
+
+  /**
+   * Finish Rclone Signin
+   *
+   * Finish signing in through rclone with the address the browser ended on (`address`), or, without one, look
+   * whether rclone already got it. Answers the connection, made and tested, or none while it waits. 400: that address
+   * isn't this sign-in's, and it's still waiting for the right one; 410: it didn't work (cancelled, refused, ran out),
+   * and it's over; start again. Audited as `source.signin`.
+   */
+  public static finishRcloneSignin<ThrowOnError extends boolean = false>(
+    options: Options<FinishRcloneSigninData, ThrowOnError>,
+  ): RequestResult<FinishRcloneSigninResponses, FinishRcloneSigninErrors, ThrowOnError> {
+    return (options.client ?? client).post<FinishRcloneSigninResponses, FinishRcloneSigninErrors, ThrowOnError>({
+      url: "/api/v1/sources/rclone-signin/{fid}",
       ...options,
       headers: {
         "Content-Type": "application/json",

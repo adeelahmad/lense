@@ -22,6 +22,7 @@ from app.domain import files as resource_files
 from app.domain.store import DB
 from app.schemas.common import Ok
 from app.schemas.notebook import (
+    NoteDeleted,
     NoteFile,
     NoteHistory,
     NoteHit,
@@ -143,6 +144,58 @@ def search_pages(
     )
 
 
+def _trashed(acl: Access, db: DB, pid: int, role: str = "viewer") -> dict[str, Any]:
+    try:
+        t = notebook.trashed(db, pid)
+    except KeyError:
+        raise HTTPException(404, "not found") from None
+    acl.need(t["space"], role)
+    return t
+
+
+@router.get("/deleted")
+def deleted_pages(
+    user: CurrentUser,
+    acl: Acl,
+    db: Db,
+    ns: str | None = Query(None, description="only this namespace (default: every one you can read)"),
+) -> list[NoteDeleted]:
+    """Pages deleted in the last 30 days, the latest first: each can be put back until then."""
+    names = store.space_names(db)
+    spaces = [acl.namespace(ns)] if ns else (list(names) if user.admin else acl.spaces())
+    rows = notebook.trash(db, spaces)
+    who = {a: (db.one("SELECT VALUE email FROM $r", r=store.R("account", a)) or None) for a in {r.get("deleted_by") for r in rows} if a}
+    return [
+        NoteDeleted(
+            id=r["id"],
+            title=r.get("title") or "Untitled",
+            about=r.get("about"),
+            namespace=names.get(r["space"], ""),
+            deleted_at=r["deleted_at"],
+            deleted_by=who.get(r.get("deleted_by")),
+        )
+        for r in rows
+    ]
+
+
+@router.post("/deleted/{pid}/restore")
+def restore_deleted(pid: int, user: Writer, acl: Acl, db: Db) -> NotePage:
+    """Put a deleted page back where it was, with its links, files and history (Undo after Delete). Editors."""
+    _trashed(acl, db, pid, "editor")
+    with domain_errors():
+        p = notebook.undelete(db, pid)
+    return _out(acl, db, p, user)
+
+
+@router.delete("/deleted/{pid}")
+def purge_deleted(pid: int, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
+    """Delete a deleted page for good now, with its files and history, rather than after 30 days. Editors."""
+    _trashed(acl, db, pid, "editor")
+    with _vault():
+        notebook.purge(db, pid, cfg)
+    return Ok()
+
+
 @router.get("/about/{kind}/{key}")
 def page_about(kind: str, key: int, user: CurrentUser, acl: Acl, db: Db) -> NotePage | NotePageDraft:
     """The page of an asset, entity, topic, collection or person: its page, or a draft while nobody has written one."""
@@ -247,11 +300,12 @@ def move_page(pid: int, body: NotePageMove, user: Writer, acl: Acl, db: Db) -> N
 
 
 @router.delete("/{pid}")
-def delete_page(pid: int, user: Writer, acl: Acl, db: Db, cfg: Cfg) -> Ok:
-    """Delete a page; the pages inside it move up a level. Needs editor access."""
+def delete_page(pid: int, user: Writer, acl: Acl, db: Db) -> Ok:
+    """Delete a page; the pages inside it move up a level. It can be put back from recently deleted for
+    `TRASH_DAYS` (30) days (`POST /notes/deleted/{pid}/restore`). Needs editor access."""
     _page(acl, db, pid, "editor")
-    with _vault():
-        notebook.delete(db, pid, cfg)
+    with domain_errors():
+        notebook.delete(db, pid, user.id)
     return Ok()
 
 

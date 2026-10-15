@@ -4,10 +4,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 
 ## Unreleased
 
-- **An MCP server for each namespace.** A namespace's owner can turn on its own MCP server under Admin → Namespaces →
-  the namespace → Connect apps, which copies its address (`/mcp/<namespace>`). An agent connected there has the same
-  tools but sees that namespace alone, whatever else the person who signs it in can read, and a token an app gets for
-  it opens nothing else in Lens. Off by default ([One namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server)).
+- **Delete a note with Undo.** Deleting a note no longer asks first: the notice has Undo, which puts it back where it
+  was. Deleted notes wait in Recently deleted, at the bottom of the Notes page, for 30 days with their files and
+  history, to put back with one click or delete for good; then they go on their own
+  ([Deleting and putting back](docs/notes.md#deleting-and-putting-back)).
 - **Every entity has its own page.** An entity's page is named by its name, as a wiki names pages:
   `/wiki/<namespace>/<Name>` (spaces as underscores), so Ada Lovelace in `work` is `/wiki/work/Ada_Lovelace`. It shows
   what the entity is, the notes people and the assistant keep on it in the BlockSuite editor, every line that says it,
@@ -17,6 +17,10 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
 - **The update notice no longer pushes pages off the screen.** While *Lens vX is out* shows above them, Chat, the
   graph and a recording's page are that much shorter, so a phone's question box and a recording's player stay in
   sight.
+- **An MCP server for each namespace.** A namespace's owner can turn on its own MCP server under Admin → Namespaces →
+  the namespace → Connect apps, which copies its address (`/mcp/<namespace>`). An agent connected there has the same
+  tools but sees that namespace alone, whatever else the person who signs it in can read, and a token an app gets for
+  it opens nothing else in Lens. Off by default ([One namespace's MCP server](docs/mcp.md#one-namespaces-mcp-server)).
 
 ## 0.11.0 <small>October 15, 2026</small> {id="0.11.0"}
 
@@ -52,6 +56,12 @@ The backend (`fastapi_backend`) and the frontend (`nextjs-frontend`) are version
   ([Finding notes](docs/notes.md#finding-notes)).
 - **Paste a Drive folder's link.** A Google Drive connection's Root folder and shared drive take the link from the
   browser's address bar as well as the bare id, so limiting imports to one folder is a paste, not hunting for the id.
+- **Sign in to Dropbox, OneDrive or Google Drive with no app of your own.** Their connections now have **Sign in
+  with Dropbox** (Microsoft, Google): the service's page opens in a new tab, Lens runs `rclone authorize` on its own
+  server, and you paste back the address the tab ends on, or nothing at all when the browser runs where Lens does.
+  No rclone to install on another computer, and no Google Cloud app needed for Drive. Pasting a token still works.
+  Agents do the same through `POST /api/v1/sources/rclone-signin`
+  ([Storage sources](docs/processing.md#storage-sources)).
 
 ## 0.10.0 <small>October 15, 2026</small> {id="0.10.0"}
 
